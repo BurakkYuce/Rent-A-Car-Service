@@ -72,6 +72,7 @@ public sealed class ReservationService(IBookingRepository repository)
             Gun = res.Gun,
             GunlukUcret = res.GunlukUcret,
             Tutar = res.Tutar,
+            GenelToplam = res.Tutar,
             Tahsilat = 0m,
             Bakiye = res.Tutar,
             Aciklama = res.Aciklama

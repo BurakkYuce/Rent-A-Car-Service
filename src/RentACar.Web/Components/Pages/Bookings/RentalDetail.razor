@@ -1,0 +1,66 @@
+@page "/kiralar/{Id:guid}"
+@attribute [Authorize]
+@inject RentalService Rentals
+
+<PageTitle>Kira Detayı — TürevRent</PageTitle>
+
+@if (_c is null)
+{
+    <p class="error">Kira sözleşmesi bulunamadı.</p>
+    <a href="/kiralar">← Listeye dön</a>
+}
+else
+{
+    <h1>Kira @_c.SozlesmeNo <span class="badge">@_c.Durum</span></h1>
+
+    @if (!string.IsNullOrEmpty(Hata))
+    {
+        <p class="error">@Hata</p>
+    }
+
+    <table class="kv">
+        <tr><th>Tarih</th><td>@_c.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @_c.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") (@_c.Gun gün)</td></tr>
+        <tr><th>Günlük / KM Limit / Fazla KM Ücret / Yakıt Birim</th><td>@_c.GunlukUcret.ToString("N2") / @_c.KmLimit / @_c.FazlaKmUcret.ToString("N2") / @_c.YakitBirimUcret.ToString("N2")</td></tr>
+        <tr><th>Çıkış (KM / Yakıt)</th><td>@(_c.CikisKm?.ToString() ?? "—") / @(_c.CikisYakit?.ToString() ?? "—")</td></tr>
+        <tr><th>Dönüş (KM / Yakıt / Tarih)</th><td>@(_c.DonusKm?.ToString() ?? "—") / @(_c.DonusYakit?.ToString() ?? "—") / @(_c.GercekDonusTar?.LocalDateTime.ToString("dd.MM.yyyy HH:mm") ?? "—")</td></tr>
+        <tr><th>Fazla KM / Bedel</th><td>@_c.FazlaKm / @_c.FazlaKmBedeli.ToString("N2")</td></tr>
+        <tr><th>Eksik Yakıt / Bedel</th><td>@_c.EksikYakit / @_c.YakitBedeli.ToString("N2")</td></tr>
+        <tr><th>Uzatma Gün / Bedel</th><td>@_c.UzatmaGun / @_c.UzatmaBedeli.ToString("N2")</td></tr>
+        <tr><th>Baz Tutar / Genel Toplam / Bakiye</th><td>@_c.Tutar.ToString("N2") / <strong>@_c.GenelToplam.ToString("N2")</strong> / @_c.Bakiye.ToString("N2")</td></tr>
+    </table>
+
+    @if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is null)
+    {
+        <h2>Teslim (Çıkış)</h2>
+        <form method="post" action="/kiralar/teslim" class="grid-form">
+            <input type="hidden" name="id" value="@_c.Id" />
+            <label>Çıkış KM<input name="cikisKm" type="number" value="0" required /></label>
+            <label>Çıkış Yakıt (0–12)<input name="cikisYakit" type="number" value="8" required /></label>
+            <button type="submit">Teslim Et</button>
+        </form>
+    }
+
+    @if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is not null)
+    {
+        <h2>Dönüş</h2>
+        <form method="post" action="/kiralar/donus" class="grid-form">
+            <input type="hidden" name="id" value="@_c.Id" />
+            <label>Dönüş KM<input name="donusKm" type="number" value="@_c.CikisKm" required /></label>
+            <label>Dönüş Yakıt (0–12)<input name="donusYakit" type="number" value="@_c.CikisYakit" required /></label>
+            <label>Gerçek Dönüş<input name="gercekDonus" type="datetime-local" value="@_c.BitTar.LocalDateTime.ToString("yyyy-MM-ddTHH:mm")" required /></label>
+            <button type="submit">Dönüşü Tamamla</button>
+        </form>
+    }
+
+    <p><a href="/kiralar">← Kiralar</a></p>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private RentalContract? _c;
+
+    protected override async Task OnInitializedAsync()
+        => _c = await Rentals.GetAsync(Id);
+}
