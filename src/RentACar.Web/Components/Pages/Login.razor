@@ -1,0 +1,35 @@
+@page "/login"
+@attribute [AllowAnonymous]
+
+<PageTitle>Giriş — TürevRent</PageTitle>
+
+<div class="login-card">
+    <h1>TürevRent</h1>
+    <p class="muted">Firma ve kullanıcı bilgilerinizle giriş yapın.</p>
+
+    @if (HasError)
+    {
+        <p class="error">Firma, kullanıcı veya şifre hatalı.</p>
+    }
+
+    <form method="post" action="/auth/login">
+        <label>Firma
+            <input name="firma" value="yucerent" autocomplete="off" />
+        </label>
+        <label>Kullanıcı
+            <input name="kullanici" value="umit" autocomplete="off" />
+        </label>
+        <label>Şifre
+            <input name="sifre" type="password" value="umit1376" />
+        </label>
+        <button type="submit">Giriş</button>
+    </form>
+    <p class="muted small">Seed: firma <code>yucerent</code> / <code>demo</code>, kullanıcı <code>umit</code>, şifre <code>umit1376</code>.</p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")]
+    public string? Hata { get; set; }
+
+    private bool HasError => Hata == "1";
+}

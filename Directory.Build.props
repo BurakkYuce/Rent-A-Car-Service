@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    Tüm projeler için ortak ayarlar.
+    TFM SWAP NOKTASI: Hedef framework yalnız burada tanımlıdır (tek satır).
+    .NET sürümünü değiştirirken birlikte güncellenecek çift:
+      1) Buradaki <TargetFramework>
+      2) Directory.Packages.props -> EF Core / Npgsql / ASP.NET paket major'ları
+      3) scripts/setup.sh -> apt paketi (dotnet-sdk-XX.0)
+      4) .github/workflows/ci.yml -> actions/setup-dotnet sürümü
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

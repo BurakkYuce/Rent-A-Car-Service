@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Saf domain: hiçbir proje/paket referansı yok. Ortak ayarlar Directory.Build.props'ta. -->
+
+</Project>
