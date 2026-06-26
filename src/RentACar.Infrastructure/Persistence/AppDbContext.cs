@@ -37,6 +37,7 @@ public sealed class AppDbContext : DbContext
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
 
@@ -81,6 +82,37 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Yakit).HasConversion<int>();
             // Plaka tenant içinde benzersiz (doğal iş anahtarı).
             e.HasIndex(x => new { x.TenantId, x.Plaka }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Customer / Cari (tenant-owned) ----
+        b.Entity<Customer>(e =>
+        {
+            e.ToTable("Customers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Tip).HasConversion<int>();
+            e.Property(x => x.Ad).HasMaxLength(128);
+            e.Property(x => x.Soyad).HasMaxLength(128);
+            e.Property(x => x.TcKimlik).HasMaxLength(11);
+            e.Property(x => x.Unvan).HasMaxLength(256);
+            e.Property(x => x.VergiDairesi).HasMaxLength(128);
+            e.Property(x => x.VergiNo).HasMaxLength(16);
+            e.Property(x => x.CepTel).HasMaxLength(32);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.Il).HasMaxLength(64);
+            e.Property(x => x.Ilce).HasMaxLength(64);
+            e.Property(x => x.Adres).HasMaxLength(512);
+            e.Property(x => x.Tarife).HasMaxLength(64);
+            e.Property(x => x.RiskLimiti).HasColumnType("numeric(19,4)");
+            e.Ignore(x => x.DisplayName);
+            // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
+            e.HasIndex(x => new { x.TenantId, x.TcKimlik })
+                .IsUnique()
+                .HasFilter("\"TcKimlik\" IS NOT NULL");
+            e.HasIndex(x => new { x.TenantId, x.VergiNo })
+                .IsUnique()
+                .HasFilter("\"VergiNo\" IS NOT NULL");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

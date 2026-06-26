@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Customers;
 using RentACar.Application.Vehicles;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Infrastructure.Persistence.Interceptors;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IDbContextFactory<AppDbContext>, ScopedAppDbContextFactory>();
 
         services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
 
         return services;
     }
