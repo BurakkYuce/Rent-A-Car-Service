@@ -38,6 +38,12 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{cariId}/ekstre?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        grp.MapPost("/fatura", async (InvoiceService svc, [FromForm] Guid rentalId) =>
+        {
+            try { await svc.CreateFromRentalAsync(rentalId); return Results.Redirect($"/kiralar/{rentalId}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }

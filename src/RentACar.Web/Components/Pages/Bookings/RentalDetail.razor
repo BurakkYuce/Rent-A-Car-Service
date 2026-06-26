@@ -66,6 +66,14 @@ else
         </form>
     }
 
+    @if (_c.GenelToplam > 0 && _c.Durum != RentalStatus.Iptal)
+    {
+        <form method="post" action="/finans/fatura" style="margin-top:1rem">
+            <input type="hidden" name="rentalId" value="@_c.Id" />
+            <button type="submit">Fatura Kes (KDV %20)</button>
+        </form>
+    }
+
     <p><a href="/kiralar">← Kiralar</a> &nbsp; <a href="/cariler/@_c.MusteriId/ekstre">Cari Ekstre →</a></p>
 }
 

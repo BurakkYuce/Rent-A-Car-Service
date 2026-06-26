@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ReservationService>();
         services.AddScoped<RentalService>();
         services.AddScoped<CashService>();
+        services.AddScoped<InvoiceService>();
         return services;
     }
 }
