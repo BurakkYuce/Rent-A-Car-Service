@@ -34,8 +34,8 @@ public sealed class InvoiceService(
             throw new ValidationException("Faturalanacak tutar yok.");
 
         var rate = kdvRate ?? DefaultKdvRate;
-        var gross = rental.GenelToplam; // KDV-dahil
-        var (net, kdv) = KdvMath.FromGross(gross, rate);
+        var gross = KdvMath.RoundGross(rental.GenelToplam); // KDV-dahil, kuruşa sabit
+        var (net, kdv) = KdvMath.FromGross(gross, rate);    // net+kdv = gross (denge)
 
         var invoice = new Invoice
         {

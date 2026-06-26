@@ -7,6 +7,9 @@ public interface ICashRepository
     Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default);
     Task<CashTransaction?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Verilen işlemin zaten bir ters kaydı var mı? (idempotency).</summary>
+    Task<bool> HasReversalAsync(Guid originalId, CancellationToken ct = default);
+
     /// <summary>
     /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da
     /// işler. No boşluksuz tahsis edilir. Defter kayıtları immutable (DB trigger).
