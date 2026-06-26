@@ -1,0 +1,83 @@
+@page "/vehicles"
+@attribute [Authorize]
+@inject VehicleService Vehicles
+
+<PageTitle>Araçlar — TürevRent</PageTitle>
+
+<h1>Araçlar</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Araç</summary>
+    <form method="post" action="/vehicles/create" class="grid-form">
+        <label>Plaka<input name="plaka" required /></label>
+        <label>Marka<input name="marka" /></label>
+        <label>Grup<input name="grup" /></label>
+        <label>Şube<input name="sube" /></label>
+        <label>Durum
+            <select name="durum">
+                @foreach (var s in Enum.GetValues<VehicleStatus>())
+                {
+                    <option value="@s">@s</option>
+                }
+            </select>
+        </label>
+        <label>KM<input name="km" type="number" value="0" /></label>
+        <label>Yakıt
+            <select name="yakit">
+                @foreach (var f in Enum.GetValues<FuelType>())
+                {
+                    <option value="@f">@f</option>
+                }
+            </select>
+        </label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead>
+        <tr>
+            <th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th>
+            <th>Durum</th><th>KM</th><th>Yakıt</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Kayıtlı araç yok.</td></tr>
+        }
+        @foreach (var v in _list)
+        {
+            <tr>
+                <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
+                <td>@v.Marka</td>
+                <td>@v.Grup</td>
+                <td>@v.Sube</td>
+                <td>@v.Durum</td>
+                <td>@v.Km</td>
+                <td>@v.Yakit</td>
+                <td>
+                    <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')">
+                        <input type="hidden" name="id" value="@v.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")]
+    public string? Hata { get; set; }
+
+    private IReadOnlyList<Vehicle> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Vehicles.ListAsync();
+}

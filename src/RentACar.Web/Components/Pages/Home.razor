@@ -1,0 +1,42 @@
+@page "/"
+@attribute [Authorize]
+@inject VehicleService Vehicles
+
+<PageTitle>Panel — TürevRent</PageTitle>
+
+<h1>Panel</h1>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_counts.Total</div>
+        <div class="card-label">Toplam Araç</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_counts.Musait</div>
+        <div class="card-label">Müsait</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_counts.Kirada</div>
+        <div class="card-label">Kirada</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_counts.Serviste</div>
+        <div class="card-label">Serviste</div>
+    </div>
+</div>
+
+<p><a href="/vehicles">Araç listesine git →</a></p>
+
+@code {
+    private (int Total, int Musait, int Kirada, int Serviste) _counts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var list = await Vehicles.ListAsync();
+        _counts = (
+            list.Count,
+            list.Count(v => v.Durum == VehicleStatus.Musait),
+            list.Count(v => v.Durum == VehicleStatus.Kirada),
+            list.Count(v => v.Durum == VehicleStatus.Serviste));
+    }
+}

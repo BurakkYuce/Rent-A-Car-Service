@@ -1,0 +1,37 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">TürevRent</a>
+        <AuthorizeView>
+            <Authorized>
+                <nav class="nav">
+                    <a href="/">Panel</a>
+                    <a href="/vehicles">Araçlar</a>
+                </nav>
+                <span class="spacer"></span>
+                <span class="user">
+                    @context.User.Identity?.Name
+                    <span class="muted">@context.User.FindFirst("tenant_code")?.Value</span>
+                </span>
+                <form method="post" action="/auth/logout" class="logout-form">
+                    <button type="submit" class="link">Çıkış</button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <span class="spacer"></span>
+                <a href="/login">Giriş</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </header>
+
+    <main class="content">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Beklenmeyen bir hata oluştu.
+    <a href="." class="reload">Yenile</a>
+    <span class="dismiss">🗙</span>
+</div>
