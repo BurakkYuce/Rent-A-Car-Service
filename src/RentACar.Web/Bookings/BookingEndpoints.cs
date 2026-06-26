@@ -86,6 +86,20 @@ public static class BookingEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        kira.MapPost("/teslim", async (RentalService svc,
+            [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] int cikisYakit) =>
+        {
+            try { await svc.DeliverAsync(id, cikisKm, cikisYakit); return Results.Redirect($"/kiralar/{id}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        kira.MapPost("/donus", async (RentalService svc,
+            [FromForm] Guid id, [FromForm] int donusKm, [FromForm] int donusYakit, [FromForm] DateTimeOffset gercekDonus) =>
+        {
+            try { await svc.ReturnAsync(id, donusKm, donusYakit, gercekDonus); return Results.Redirect($"/kiralar/{id}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }

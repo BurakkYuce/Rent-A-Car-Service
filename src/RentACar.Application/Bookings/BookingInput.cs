@@ -10,5 +10,8 @@ public sealed class BookingInput
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
     public decimal GunlukUcret { get; set; }
+    public int KmLimit { get; set; }
+    public decimal FazlaKmUcret { get; set; }
+    public decimal YakitBirimUcret { get; set; }
     public string? Aciklama { get; set; }
 }

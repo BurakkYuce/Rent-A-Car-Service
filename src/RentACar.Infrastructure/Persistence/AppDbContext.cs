@@ -149,8 +149,14 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.DonusOfisi).HasMaxLength(64);
             e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
             e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
             e.Property(x => x.Tahsilat).HasColumnType("numeric(19,4)");
             e.Property(x => x.Bakiye).HasColumnType("numeric(19,4)");
+            e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.FazlaKmBedeli).HasColumnType("numeric(19,4)");
+            e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.YakitBedeli).HasColumnType("numeric(19,4)");
+            e.Property(x => x.UzatmaBedeli).HasColumnType("numeric(19,4)");
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });

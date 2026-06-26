@@ -81,3 +81,7 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .badge.danger { background: #fdecea; color: #c0392b; }
 .row-actions { display: flex; gap: .5rem; align-items: center; }
 .row-actions form { margin: 0; }
+.kv { border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: .6rem; margin: 1rem 0; }
+.kv th { text-align: left; padding: .5rem .75rem; background: #fafbfc; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.kv td { padding: .5rem .75rem; border-bottom: 1px solid var(--line); }
+.content h2 { margin-top: 1.5rem; font-size: 1.1rem; }
