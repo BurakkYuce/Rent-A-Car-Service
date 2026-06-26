@@ -1,0 +1,63 @@
+@page "/kiralar"
+@attribute [Authorize]
+@inject RentalService Rentals
+@inject CustomerService Customers
+@inject VehicleService Vehicles
+
+<PageTitle>Kira Sözleşmeleri — TürevRent</PageTitle>
+
+<h1>Kira Sözleşmeleri</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<table class="grid">
+    <thead>
+        <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th></th></tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="9" class="muted">Kira sözleşmesi yok. Rezervasyonlardan "Kiraya Çevir" ile oluşturabilirsiniz.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td>@r.SozlesmeNo</td>
+                <td>@Cust(r.MusteriId)</td>
+                <td>@Veh(r.VehicleId)</td>
+                <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
+                <td>@r.Gun</td>
+                <td>@r.Tutar.ToString("N2")</td>
+                <td>@r.Bakiye.ToString("N2")</td>
+                <td>@r.Durum</td>
+                <td class="row-actions">
+                    @if (r.Durum == RentalStatus.Kirada)
+                    {
+                        <form method="post" action="/kiralar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<RentalContract> _list = [];
+    private Dictionary<Guid, string> _custMap = new();
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Rentals.ListAsync();
+        _custMap = (await Customers.ListAsync()).ToDictionary(c => c.Id, c => c.DisplayName);
+        _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");
+    private string Veh(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+}
