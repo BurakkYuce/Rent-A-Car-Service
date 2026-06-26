@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
+using RentACar.Application.Finance;
 using RentACar.Application.Vehicles;
 
 namespace RentACar.Application;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<CustomerService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<RentalService>();
+        services.AddScoped<CashService>();
         return services;
     }
 }

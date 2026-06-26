@@ -43,6 +43,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
+    public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -189,21 +190,46 @@ public sealed class AppDbContext : DbContext
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
-        // ---- AccountLedgerEntry (tenant-owned; PR #1'de iskelet) ----
+        // ---- AccountLedgerEntry (tenant-owned; append-only + DB-immutable) ----
         b.Entity<AccountLedgerEntry>(e =>
         {
             e.ToTable("AccountLedgerEntries");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.AccountType).HasConversion<int>();
             e.Property(x => x.Direction).HasConversion<int>();
             e.Property(x => x.Description).HasMaxLength(512);
-            // Money değer nesnesi: complex property (tutar + döviz + kur).
+            e.Property(x => x.SourceType).IsRequired().HasMaxLength(32);
+            e.Ignore(x => x.SignedBase);
             e.ComplexProperty(x => x.Amount, m =>
             {
                 m.Property(p => p.Amount).HasColumnName("Amount_Value").HasColumnType("numeric(19,4)");
                 m.Property(p => p.Currency).HasColumnName("Amount_Currency").HasMaxLength(3);
                 m.Property(p => p.Rate).HasColumnName("Amount_Rate").HasColumnType("numeric(19,6)");
             });
+            e.HasIndex(x => new { x.TenantId, x.AccountType, x.AccountRef });
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- CashTransaction (tenant-owned; tahsilat belgesi) ----
+        b.Entity<CashTransaction>(e =>
+        {
+            e.ToTable("CashTransactions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Tip).HasConversion<int>();
+            e.Property(x => x.KarsiHesap).HasConversion<int>();
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.ComplexProperty(x => x.Amount, m =>
+            {
+                m.Property(p => p.Amount).HasColumnName("Amount_Value").HasColumnType("numeric(19,4)");
+                m.Property(p => p.Currency).HasColumnName("Amount_Currency").HasMaxLength(3);
+                m.Property(p => p.Rate).HasColumnName("Amount_Rate").HasColumnType("numeric(19,6)");
+            });
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.CariId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
     }
