@@ -234,6 +234,10 @@ public sealed class AppDbContext : DbContext
             });
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
+            // Idempotency: bir işlemin EN FAZLA bir ters kaydı olabilir (yarış güvencesi).
+            e.HasIndex(x => new { x.TenantId, x.TersAlinanId })
+                .IsUnique()
+                .HasFilter("\"TersAlinanId\" IS NOT NULL");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
@@ -25,6 +26,12 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.CashTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
+    }
+
+    public async Task<bool> HasReversalAsync(Guid originalId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.TersAlinanId == originalId, ct);
     }
 
     public async Task PostAsync(
@@ -56,8 +63,17 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             }
         }
 
-        await db.SaveChangesAsync(ct);
-        await dbTx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await dbTx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Yarış: aynı işlem için ikinci ters kayıt (kısmi unique index) → idempotent hata.
+            await dbTx.RollbackAsync(ct);
+            throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
+        }
     }
 
     public async Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default)

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
+using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -114,6 +115,39 @@ public sealed class FinanceTests(PostgresFixture fx)
         await using var db = await factory.CreateDbContextAsync();
         var entry = await db.AccountLedgerEntries.FirstAsync();
         entry.Description = "değiştirme denemesi";
+        await Assert.ThrowsAnyAsync<DbUpdateException>(() => db.SaveChangesAsync()); // trigger engeller
+    }
+
+    [Fact]
+    public async Task Double_reversal_is_rejected_and_balance_preserved()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var cari = Guid.NewGuid();
+
+        var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
+        await cash.ReverseAsync(txId);
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+
+        // İkinci ters kayıt reddedilmeli (idempotency) → bakiye bozulmaz.
+        await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(txId));
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+    }
+
+    [Fact]
+    public async Task Audit_log_is_immutable_at_db_level()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        // Tahsilat IAuditable → audit satırı yazılır.
+        await scope.ServiceProvider.GetRequiredService<CashService>()
+            .CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 100m });
+
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        var log = await db.AuditLogs.FirstAsync();
+        log.UserName = "tahrif";
         await Assert.ThrowsAnyAsync<DbUpdateException>(() => db.SaveChangesAsync()); // trigger engeller
     }
 
