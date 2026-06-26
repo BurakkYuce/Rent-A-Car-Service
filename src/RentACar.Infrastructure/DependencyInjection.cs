@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
+using RentACar.Application.Finance;
 using RentACar.Application.Vehicles;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Infrastructure.Persistence.Interceptors;
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<ICashRepository, CashRepository>();
 
         return services;
     }
