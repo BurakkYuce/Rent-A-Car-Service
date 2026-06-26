@@ -79,3 +79,5 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .error { color: #c0392b; background: #fdecea; border: 1px solid #f5c6cb; padding: .5rem .75rem; border-radius: .4rem; }
 .badge { display: inline-block; padding: .1rem .45rem; border-radius: .4rem; background: #eef2ff; color: var(--brand); font-size: .75rem; margin-right: .25rem; }
 .badge.danger { background: #fdecea; color: #c0392b; }
+.row-actions { display: flex; gap: .5rem; align-items: center; }
+.row-actions form { margin: 0; }

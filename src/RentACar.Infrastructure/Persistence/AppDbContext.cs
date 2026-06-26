@@ -38,6 +38,9 @@ public sealed class AppDbContext : DbContext
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<RentalContract> Rentals => Set<RentalContract>();
+    public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
 
@@ -113,6 +116,54 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.VergiNo })
                 .IsUnique()
                 .HasFilter("\"VergiNo\" IS NOT NULL");
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Reservation (tenant-owned) ----
+        b.Entity<Reservation>(e =>
+        {
+            e.ToTable("Reservations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.ReservationNo).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.CikisOfisi).HasMaxLength(64);
+            e.Property(x => x.DonusOfisi).HasMaxLength(64);
+            e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.HasIndex(x => new { x.TenantId, x.ReservationNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- RentalContract (tenant-owned) ----
+        b.Entity<RentalContract>(e =>
+        {
+            e.ToTable("Rentals");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.SozlesmeNo).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.CikisOfisi).HasMaxLength(64);
+            e.Property(x => x.DonusOfisi).HasMaxLength(64);
+            e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Tahsilat).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Bakiye).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+            // Double-booking exclusion constraint + generated Period kolonu migration'da (raw SQL).
+        });
+
+        // ---- TenantSequence (tenant-owned; boşluksuz sıra) ----
+        b.Entity<TenantSequence>(e =>
+        {
+            e.ToTable("TenantSequences");
+            e.HasKey(x => new { x.TenantId, x.Name });
+            e.Property(x => x.Name).HasMaxLength(64);
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
