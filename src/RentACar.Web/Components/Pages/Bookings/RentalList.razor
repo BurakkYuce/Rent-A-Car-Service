@@ -25,7 +25,7 @@
         @foreach (var r in _list)
         {
             <tr>
-                <td>@r.SozlesmeNo</td>
+                <td><a href="/kiralar/@r.Id">@r.SozlesmeNo</a></td>
                 <td>@Cust(r.MusteriId)</td>
                 <td>@Veh(r.VehicleId)</td>
                 <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
