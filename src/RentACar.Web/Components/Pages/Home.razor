@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize]
 @inject VehicleService Vehicles
+@inject CustomerService Customers
 
 <PageTitle>Panel — TürevRent</PageTitle>
 
@@ -20,15 +21,16 @@
         <div class="card-label">Kirada</div>
     </div>
     <div class="card">
-        <div class="card-num">@_counts.Serviste</div>
-        <div class="card-label">Serviste</div>
+        <div class="card-num">@_cariCount</div>
+        <div class="card-label">Cari</div>
     </div>
 </div>
 
-<p><a href="/vehicles">Araç listesine git →</a></p>
+<p><a href="/vehicles">Araçlar →</a> &nbsp; <a href="/cariler">Cariler →</a></p>
 
 @code {
     private (int Total, int Musait, int Kirada, int Serviste) _counts;
+    private int _cariCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -38,5 +40,6 @@
             list.Count(v => v.Durum == VehicleStatus.Musait),
             list.Count(v => v.Durum == VehicleStatus.Kirada),
             list.Count(v => v.Durum == VehicleStatus.Serviste));
+        _cariCount = (await Customers.ListAsync()).Count;
     }
 }

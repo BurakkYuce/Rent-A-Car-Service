@@ -1,0 +1,92 @@
+@page "/cariler"
+@attribute [Authorize]
+@inject CustomerService Customers
+
+<PageTitle>Cariler — TürevRent</PageTitle>
+
+<h1>Cariler</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Cari</summary>
+    <form method="post" action="/cariler/create" class="grid-form">
+        <label>Tür
+            <select name="tip">
+                @foreach (var t in Enum.GetValues<CariType>())
+                {
+                    <option value="@t">@t</option>
+                }
+            </select>
+        </label>
+        <label>Ad<input name="ad" /></label>
+        <label>Soyad<input name="soyad" /></label>
+        <label>TC Kimlik<input name="tcKimlik" maxlength="11" /></label>
+        <label>Ünvan<input name="unvan" /></label>
+        <label>Vergi Dairesi<input name="vergiDairesi" /></label>
+        <label>Vergi No<input name="vergiNo" maxlength="10" /></label>
+        <label>Cep Tel<input name="cepTel" /></label>
+        <label>E-posta<input name="email" type="email" /></label>
+        <label>İl<input name="il" /></label>
+        <label>İlçe<input name="ilce" /></label>
+        <label>Tarife<input name="tarife" /></label>
+        <label>Vade (gün)<input name="vadeGun" type="number" value="0" /></label>
+        <label>Risk Limiti<input name="riskLimiti" type="number" step="0.01" value="0" /></label>
+        <label>Kara Liste
+            <select name="karaListe"><option value="false">Hayır</option><option value="true">Evet</option></select>
+        </label>
+        <label>Pasif
+            <select name="pasif"><option value="false">Hayır</option><option value="true">Evet</option></select>
+        </label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead>
+        <tr>
+            <th>Tür</th><th>Ad / Ünvan</th><th>TC / Vergi No</th><th>Telefon</th>
+            <th>E-posta</th><th>İl</th><th>Durum</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Kayıtlı cari yok.</td></tr>
+        }
+        @foreach (var c in _list)
+        {
+            <tr>
+                <td>@c.Tip</td>
+                <td><a href="/cariler/@c.Id">@c.DisplayName</a></td>
+                <td>@(c.Tip == CariType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
+                <td>@c.CepTel</td>
+                <td>@c.Email</td>
+                <td>@c.Il</td>
+                <td>
+                    @if (c.KaraListe) { <span class="badge danger">Kara Liste</span> }
+                    @if (c.Pasif) { <span class="badge">Pasif</span> }
+                </td>
+                <td>
+                    <form method="post" action="/cariler/delete" onsubmit="return confirm('Silinsin mi?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")]
+    public string? Hata { get; set; }
+
+    private IReadOnlyList<Customer> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Customers.ListAsync();
+}
