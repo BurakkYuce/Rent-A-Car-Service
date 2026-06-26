@@ -20,4 +20,17 @@ public sealed class KdvMathTests
         Assert.Equal(expKdv, kdv);
         Assert.Equal(gross, net + kdv); // net + kdv == brüt (kuruş tutarlı)
     }
+
+    [Theory]
+    [InlineData(99.9999, 0.20)]   // 4 ondalık brüt → kuruşa sabitlenir
+    [InlineData(33.3349, 0.18)]
+    [InlineData(1234.5678, 0.10)]
+    public void Net_and_kdv_are_always_two_decimals(decimal gross, decimal rate)
+    {
+        var (net, kdv) = KdvMath.FromGross(gross, rate);
+        Assert.Equal(Math.Round(net, 2), net);
+        Assert.Equal(Math.Round(kdv, 2), kdv);
+        // net + kdv = kuruşa sabitlenmiş brüt (denge korunur).
+        Assert.Equal(KdvMath.RoundGross(gross), net + kdv);
+    }
 }

@@ -57,6 +57,10 @@ public sealed class CashService(ICashRepository repository)
             ?? throw new ValidationException("İşlem bulunamadı.");
         if (original.TersKayitMi)
             throw new ValidationException("Ters kayıt tekrar ters alınamaz.");
+        // Idempotency: aynı işlem birden çok kez ters kaydedilemez (uygulama ön-kontrolü;
+        // yarış durumu DB'deki kısmi unique index ile kapatılır).
+        if (await _repository.HasReversalAsync(cashTransactionId, ct))
+            throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
 
         var reversal = new CashTransaction
         {
