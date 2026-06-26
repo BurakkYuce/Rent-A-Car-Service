@@ -7,6 +7,7 @@ using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Identity;
+using RentACar.Web.Customers;
 using RentACar.Web.Persistence;
 using RentACar.Web.Vehicles;
 
@@ -68,6 +69,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapAuthEndpoints();
 app.MapVehicleEndpoints();
+app.MapCustomerEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

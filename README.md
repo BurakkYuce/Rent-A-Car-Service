@@ -1,9 +1,13 @@
 # TürevRent ERP (yeniden inşa)
 
 ASP.NET Core + EF Core + PostgreSQL ile sıfırdan inşa edilen, **çok-kiracılı (multi-tenant)**
-araç kiralama / filo yönetim ERP'si. Bu repo, onaylı yol haritasının **PR #1** dikey dilimini
-içerir: multi-tenant iskelet + Araç (Vehicle) CRUD. Para mantığı (fiyat/fatura/tahsilat) bu
-PR'da YOK — sadece şema iskeleti + tenant izolasyonu kanıtı.
+araç kiralama / filo yönetim ERP'si. Para mantığı (fiyat/fatura/tahsilat) henüz YOK — şema
+iskeleti + tenant izolasyonu kanıtı + operasyonel çekirdek dikey dilimleri.
+
+İçerik:
+- **PR #1** — multi-tenant iskelet + Araç (Vehicle) CRUD.
+- **PR #2** — Cari (Müşteri) CRUD: Bireysel/Kurumsal/Servis, TC Kimlik checksum doğrulaması,
+  tenant-içi TC/Vergi No benzersizliği (kısmi unique index), aynı RLS + audit deseni.
 
 ## Mimari
 
