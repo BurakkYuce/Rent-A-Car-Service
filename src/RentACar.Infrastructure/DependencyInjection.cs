@@ -4,6 +4,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Finance;
 using RentACar.Application.Vehicles;
+using RentACar.Infrastructure.Integrations;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Infrastructure.Persistence.Interceptors;
 using RentACar.Infrastructure.Persistence.Repositories;
@@ -41,6 +42,9 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
+
+        // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
+        services.AddIntegrationStubs();
 
         return services;
     }

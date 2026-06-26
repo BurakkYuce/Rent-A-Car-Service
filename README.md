@@ -4,10 +4,19 @@ ASP.NET Core + EF Core + PostgreSQL ile sıfırdan inşa edilen, **çok-kiracıl
 araç kiralama / filo yönetim ERP'si. Para mantığı (fiyat/fatura/tahsilat) henüz YOK — şema
 iskeleti + tenant izolasyonu kanıtı + operasyonel çekirdek dikey dilimleri.
 
-İçerik:
-- **PR #1** — multi-tenant iskelet + Araç (Vehicle) CRUD.
-- **PR #2** — Cari (Müşteri) CRUD: Bireysel/Kurumsal/Servis, TC Kimlik checksum doğrulaması,
-  tenant-içi TC/Vergi No benzersizliği (kısmi unique index), aynı RLS + audit deseni.
+İçerik (Faz 1 — operasyonel MVP):
+- **PR #1** — multi-tenant iskelet (RLS+FORCE, audit, Money/ledger şeması, 2-aşamalı auth, CI) + Araç CRUD.
+- **PR #2** — Cari (Müşteri) CRUD: Bireysel/Kurumsal/Servis, TC Kimlik checksum, tenant-içi TC/Vergi No benzersizliği.
+- **PR #3** — Müsaitlik + Rezervasyon→Kira durum makinesi; DB-seviyesi double-booking koruması
+  (GiST exclusion constraint) + eşzamanlılık testi; tenant-başına boşluksuz no (TenantSequence).
+- **PR #4** — Teslim (çıkış KM/yakıt) → Dönüş (fazla km/eksik yakıt/uzatma) → GenelToplam.
+- **PR #5** — Nakit Tahsilat + çift-taraflı cari ledger + ters kayıt + DB-seviyesi değişmezlik
+  (immutability trigger); çok-dövizli bakiye + ekstre.
+- **PR #6** — Faz 1 uçtan-uca kabul testi + entegrasyon adapter port'ları (e-Fatura/POS/KABIS/HGS/
+  SMS/WhatsApp/Calendar — v1 stub).
+
+**Fiyat motoru ERTELENDİ:** parite/golden doğrulaması canlı TürevRent'e bağlı; o host bu ortamda
+egress politikasıyla erişilemez (403). PR #3+ fiyatı manuel günlük ücretle hesaplar (placeholder).
 
 ## Mimari
 

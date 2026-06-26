@@ -39,6 +39,9 @@ public sealed class ReservationService(IBookingRepository repository)
             Gun = gun,
             GunlukUcret = input.GunlukUcret,
             Tutar = tutar,
+            KmLimit = input.KmLimit,
+            FazlaKmUcret = input.FazlaKmUcret,
+            YakitBirimUcret = input.YakitBirimUcret,
             Aciklama = input.Aciklama
         };
         await _repository.CreateReservationAsync(reservation, ct);
@@ -71,6 +74,9 @@ public sealed class ReservationService(IBookingRepository repository)
             DonusOfisi = res.DonusOfisi,
             Gun = res.Gun,
             GunlukUcret = res.GunlukUcret,
+            KmLimit = res.KmLimit,
+            FazlaKmUcret = res.FazlaKmUcret,
+            YakitBirimUcret = res.YakitBirimUcret,
             Tutar = res.Tutar,
             GenelToplam = res.Tutar,
             Tahsilat = 0m,
