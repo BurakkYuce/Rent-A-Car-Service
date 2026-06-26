@@ -85,3 +85,5 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .kv th { text-align: left; padding: .5rem .75rem; background: #fafbfc; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .kv td { padding: .5rem .75rem; border-bottom: 1px solid var(--line); }
 .content h2 { margin-top: 1.5rem; font-size: 1.1rem; }
+.pos { color: #1f8b4c; }
+.neg { color: #c0392b; }

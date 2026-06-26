@@ -70,7 +70,8 @@
                     @if (c.KaraListe) { <span class="badge danger">Kara Liste</span> }
                     @if (c.Pasif) { <span class="badge">Pasif</span> }
                 </td>
-                <td>
+                <td class="row-actions">
+                    <a href="/cariler/@c.Id/ekstre" class="link">Ekstre</a>
                     <form method="post" action="/cariler/delete" onsubmit="return confirm('Silinsin mi?')">
                         <input type="hidden" name="id" value="@c.Id" />
                         <button type="submit" class="link danger">Sil</button>

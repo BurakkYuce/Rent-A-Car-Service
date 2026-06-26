@@ -1,0 +1,90 @@
+@page "/cariler/{Id:guid}/ekstre"
+@attribute [Authorize]
+@inject CustomerService Customers
+@inject CashService Cash
+
+<PageTitle>Cari Ekstre — TürevRent</PageTitle>
+
+@if (_customer is null)
+{
+    <p class="error">Cari bulunamadı.</p>
+    <a href="/cariler">← Cariler</a>
+}
+else
+{
+    <h1>Ekstre — @_customer.DisplayName</h1>
+    <p>Bakiye: <strong class="@(_balance > 0 ? "neg" : "pos")">@_balance.ToString("N2") ₺</strong>
+        <span class="muted">(pozitif = müşteri borçlu)</span></p>
+
+    @if (!string.IsNullOrEmpty(Hata))
+    {
+        <p class="error">@Hata</p>
+    }
+
+    <details class="new-vehicle">
+        <summary>+ Tahsilat</summary>
+        <form method="post" action="/finans/tahsilat" class="grid-form">
+            <input type="hidden" name="cariId" value="@_customer.Id" />
+            <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
+            <label>Döviz
+                <select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select>
+            </label>
+            <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
+            <label>Açıklama<input name="aciklama" /></label>
+            <button type="submit">Tahsil Et</button>
+        </form>
+    </details>
+
+    <table class="grid">
+        <thead>
+            <tr><th>Tarih</th><th>Açıklama</th><th>Kaynak</th><th>Borç</th><th>Alacak</th><th>Bakiye</th><th></th></tr>
+        </thead>
+        <tbody>
+            @if (_lines.Count == 0)
+            {
+                <tr><td colspan="7" class="muted">Hareket yok.</td></tr>
+            }
+            @{ decimal running = 0m; }
+            @foreach (var e in _lines)
+            {
+                running += e.SignedBase;
+                <tr>
+                    <td>@e.EntryDateUtc.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@e.Description</td>
+                    <td>@e.SourceType</td>
+                    <td>@(e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase.ToString("N2") : "")</td>
+                    <td>@(e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase.ToString("N2") : "")</td>
+                    <td>@running.ToString("N2")</td>
+                    <td>
+                        @if (e.SourceType == "Tahsilat")
+                        {
+                            <form method="post" action="/finans/tahsilat/ters" onsubmit="return confirm('Ters kayıt alınsın mı?')">
+                                <input type="hidden" name="id" value="@e.SourceId" />
+                                <input type="hidden" name="cariId" value="@_customer.Id" />
+                                <button type="submit" class="link danger">Ters Kayıt</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p><a href="/cariler">← Cariler</a></p>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private Customer? _customer;
+    private decimal _balance;
+    private IReadOnlyList<AccountLedgerEntry> _lines = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customer = await Customers.GetAsync(Id);
+        if (_customer is null) return;
+        _balance = await Cash.GetCariBalanceAsync(Id);
+        _lines = await Cash.GetStatementAsync(Id);
+    }
+}
