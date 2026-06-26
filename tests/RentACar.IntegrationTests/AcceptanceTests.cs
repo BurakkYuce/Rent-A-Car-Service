@@ -23,6 +23,7 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         var reservations = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         var cari = Guid.NewGuid();
         var vehicle = Guid.NewGuid();
@@ -64,16 +65,20 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         Assert.Equal(700m, rental.GenelToplam);    // 400 + 200 + 100
         Assert.Equal(700m, rental.Bakiye);
 
-        // 6) Nakit tahsilat 700 (kiraya bağlı)
+        // 6) Fatura kes (GenelToplam 700 KDV-dahil → Borç Cari 700) → cari bakiye +700
+        await invoices.CreateFromRentalAsync(rentalId);
+        Assert.Equal(700m, await cash.GetCariBalanceAsync(cari));
+
+        // 7) Nakit tahsilat 700 (kiraya bağlı) → Alacak Cari 700
         await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 700m });
 
-        // 7) Sözleşme tahsil edildi; cari defter dengeli (faturasız → cari alacaklı -700)
+        // 8) Mahsuplaşma: sözleşme tahsil edildi VE cari defter SIFIR (fatura↔tahsilat)
         rental = await rentals.GetAsync(rentalId);
         Assert.Equal(700m, rental!.Tahsilat);
         Assert.Equal(0m, rental.Bakiye);
-        Assert.Equal(-700m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
 
-        // 8) Dönüş sonrası araç tekrar müsait → yeniden kiralanabilir
+        // 9) Dönüş sonrası araç tekrar müsait → yeniden kiralanabilir
         var rentalId2 = await rentals.CreateDirectAsync(Input());
         Assert.NotEqual(Guid.Empty, rentalId2);
         Assert.Equal("KS-000002", (await rentals.GetAsync(rentalId2))!.SozlesmeNo); // boşluksuz no devam

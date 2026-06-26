@@ -44,6 +44,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
     public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -232,6 +234,42 @@ public sealed class AppDbContext : DbContext
             });
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Invoice (tenant-owned; append-only + DB-immutable) ----
+        b.Entity<Invoice>(e =>
+        {
+            e.ToTable("Invoices");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.NetTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+            e.Property(x => x.EFaturaEttn).HasMaxLength(64);
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.CariId });
+            e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        b.Entity<InvoiceLine>(e =>
+        {
+            e.ToTable("InvoiceLines");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Miktar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.BirimNetFiyat).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.SatirNet).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SatirKdv).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SatirToplam).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.InvoiceId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
     }

@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();
