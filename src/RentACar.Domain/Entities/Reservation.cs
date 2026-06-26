@@ -31,6 +31,11 @@ public class Reservation : ITenantOwned, IAuditable
     public decimal GunlukUcret { get; set; }
     public decimal Tutar { get; set; }
 
+    // Anlaşılan aşım koşulları (kiraya çevrilirken sözleşmeye taşınır).
+    public int KmLimit { get; set; }
+    public decimal FazlaKmUcret { get; set; }
+    public decimal YakitBirimUcret { get; set; }
+
     public string? Aciklama { get; set; }
 
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
