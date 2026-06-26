@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject VehicleService Vehicles
 @inject CustomerService Customers
+@inject RentalService Rentals
 
 <PageTitle>Panel — TürevRent</PageTitle>
 
@@ -17,8 +18,8 @@
         <div class="card-label">Müsait</div>
     </div>
     <div class="card">
-        <div class="card-num">@_counts.Kirada</div>
-        <div class="card-label">Kirada</div>
+        <div class="card-num">@_aktifKira</div>
+        <div class="card-label">Aktif Kira</div>
     </div>
     <div class="card">
         <div class="card-num">@_cariCount</div>
@@ -26,11 +27,17 @@
     </div>
 </div>
 
-<p><a href="/vehicles">Araçlar →</a> &nbsp; <a href="/cariler">Cariler →</a></p>
+<p>
+    <a href="/vehicles">Araçlar →</a> &nbsp;
+    <a href="/cariler">Cariler →</a> &nbsp;
+    <a href="/rezervasyonlar">Rezervasyonlar →</a> &nbsp;
+    <a href="/kiralar">Kiralar →</a>
+</p>
 
 @code {
-    private (int Total, int Musait, int Kirada, int Serviste) _counts;
+    private (int Total, int Musait, int Serviste) _counts;
     private int _cariCount;
+    private int _aktifKira;
 
     protected override async Task OnInitializedAsync()
     {
@@ -38,8 +45,8 @@
         _counts = (
             list.Count,
             list.Count(v => v.Durum == VehicleStatus.Musait),
-            list.Count(v => v.Durum == VehicleStatus.Kirada),
             list.Count(v => v.Durum == VehicleStatus.Serviste));
         _cariCount = (await Customers.ListAsync()).Count;
+        _aktifKira = (await Rentals.ListAsync()).Count(r => r.Durum == RentalStatus.Kirada);
     }
 }
