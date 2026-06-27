@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RentACar.Api.Common;
 using RentACar.Api.Endpoints;
@@ -9,6 +10,7 @@ using RentACar.Api.Identity;
 using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure;
+using RentACar.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,5 +76,21 @@ app.MapReservationsApi();
 app.MapRentalsApi();
 app.MapReportsApi();
 app.MapFinanceApi();
+
+// Sağlık (readiness): DB bağlanabiliyor mu? Anonim (ops ping'i).
+app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
+{
+    try
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Database.CanConnectAsync(ct)
+            ? Results.Ok(new { status = "healthy" })
+            : Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch
+    {
+        return Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous().WithTags("Health");
 
 app.Run();

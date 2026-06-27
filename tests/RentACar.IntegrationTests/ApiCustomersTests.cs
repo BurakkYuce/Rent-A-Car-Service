@@ -15,6 +15,7 @@ public sealed class ApiCustomersTests(PostgresFixture fx)
 
     private sealed record CustomerBody(Guid id, string tip, string displayName, string? tcKimlik);
     private sealed record ErrBody(string error, string message);
+    private sealed record Paged<T>(List<T> items, int total, int page, int pageSize, int totalPages);
 
     [Fact]
     public async Task Create_then_get_roundtrip()
@@ -47,8 +48,8 @@ public sealed class ApiCustomersTests(PostgresFixture fx)
         await ca.PostAsJsonAsync("/api/v1/customers", new { tip = "Kurumsal", unvan = "ACME A.Ş." });
 
         var cb = await api.LoginClientAsync(codeB, "umit", "p");
-        var bList = await cb.GetFromJsonAsync<List<CustomerBody>>("/api/v1/customers");
-        Assert.DoesNotContain(bList!, c => c.displayName == "ACME A.Ş.");
+        var bList = await cb.GetFromJsonAsync<Paged<CustomerBody>>("/api/v1/customers");
+        Assert.DoesNotContain(bList!.items, c => c.displayName == "ACME A.Ş.");
     }
 
     [Fact]
