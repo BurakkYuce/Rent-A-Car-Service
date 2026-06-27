@@ -9,11 +9,13 @@ using RentACar.Web.Components;
 using RentACar.Web.Identity;
 using RentACar.Web.Bookings;
 using RentACar.Web.Customers;
+using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
 using RentACar.Web.Penalties;
 using RentACar.Web.Persistence;
 using RentACar.Web.Regulation;
+using RentACar.Web.VehicleSales;
 using RentACar.Web.Vehicles;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -80,6 +82,8 @@ app.MapFinanceEndpoints();
 app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
 app.MapPenaltyEndpoints();
+app.MapVehicleSaleEndpoints();
+app.MapDamageFileEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
