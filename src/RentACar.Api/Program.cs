@@ -73,5 +73,6 @@ app.MapCustomersApi();
 app.MapReservationsApi();
 app.MapRentalsApi();
 app.MapReportsApi();
+app.MapFinanceApi();
 
 app.Run();
