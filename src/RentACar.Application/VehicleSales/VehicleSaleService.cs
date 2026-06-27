@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Domain.Common;
@@ -12,9 +13,10 @@ namespace RentACar.Application.VehicleSales;
 /// Maliyet/sabit-kıymet defteri bu sürümde tutulmaz (gelir tam net olarak yazılır), tıpkı
 /// kira gelirinde olduğu gibi; gelecekte amortisman/defter-değeri eklenebilir.
 /// </summary>
-public sealed class VehicleSaleService(IVehicleSaleRepository repository)
+public sealed class VehicleSaleService(IVehicleSaleRepository repository, ICurrentUser currentUser)
 {
     private readonly IVehicleSaleRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -23,6 +25,7 @@ public sealed class VehicleSaleService(IVehicleSaleRepository repository)
 
     public async Task<Guid> CreateAsync(VehicleSaleInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (input.VehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");
         if (input.AliciCariId == Guid.Empty) throw new ValidationException("Alıcı (cari) seçilmelidir.");
         if (input.SatisNet <= 0) throw new ValidationException("Satış tutarı pozitif olmalıdır.");

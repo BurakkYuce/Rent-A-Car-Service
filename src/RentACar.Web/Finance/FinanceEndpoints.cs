@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Finance;
 
@@ -9,7 +11,7 @@ public static class FinanceEndpoints
 {
     public static IEndpointRouteBuilder MapFinanceEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/finans").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
 
         grp.MapPost("/tahsilat", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] Guid? rentalId, [FromForm] decimal tutar,

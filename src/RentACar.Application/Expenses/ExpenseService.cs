@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Domain.Common;
@@ -11,9 +12,10 @@ namespace RentACar.Application.Expenses;
 ///   Borç Gider(net) + Borç KDV(indirilecek, kdv) / Alacak Kasa·Banka·Cari(gross).
 /// Nakit/Banka → Kasa/Banka azalır; AçıkHesap → tedarikçi cari'ye borçlanılır (Alacak).
 /// </summary>
-public sealed class ExpenseService(IExpenseRepository repository)
+public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser)
 {
     private readonly IExpenseRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -23,6 +25,7 @@ public sealed class ExpenseService(IExpenseRepository repository)
 
     public async Task<Guid> CreateAsync(ExpenseInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (input.NetTutar <= 0) throw new ValidationException("Gider tutarı pozitif olmalıdır.");
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");

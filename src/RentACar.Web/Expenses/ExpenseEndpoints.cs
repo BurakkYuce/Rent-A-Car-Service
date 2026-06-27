@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Web.Identity;
 using RentACar.Application.Expenses;
 using RentACar.Domain.Enums;
 
@@ -10,7 +12,7 @@ public static class ExpenseEndpoints
 {
     public static IEndpointRouteBuilder MapExpenseEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/giderler").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/giderler").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
 
         grp.MapPost("/create", async (ExpenseService svc,
             [FromForm] ExpenseType tip, [FromForm] string? vehicleId, [FromForm] string? cariId,
