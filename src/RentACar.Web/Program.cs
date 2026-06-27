@@ -83,6 +83,7 @@ app.MapAuthEndpoints();
 app.MapVehicleEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
+app.MapQuotationEndpoints();
 app.MapFinanceEndpoints();
 app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
