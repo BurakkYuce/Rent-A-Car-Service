@@ -24,9 +24,12 @@ public static class BookingMath
 
     public static (int Gun, decimal Tutar) Compute(BookingInput input)
     {
-        var hours = (input.BitTar - input.BasTar).TotalHours;
-        var gun = Math.Max(1, (int)Math.Ceiling(hours / 24.0)); // 24-saat bloğu, yukarı yuvarla
+        var gun = ComputeGun(input.BasTar, input.BitTar);
         var tutar = gun * input.GunlukUcret;
         return (gun, tutar);
     }
+
+    /// <summary>Gün sayısı: 24-saat bloğu, yukarı yuvarla (en az 1). Fiyat motoru da kullanır.</summary>
+    public static int ComputeGun(DateTimeOffset bas, DateTimeOffset bit)
+        => Math.Max(1, (int)Math.Ceiling((bit - bas).TotalHours / 24.0));
 }

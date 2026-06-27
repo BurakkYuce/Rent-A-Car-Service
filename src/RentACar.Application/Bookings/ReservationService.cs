@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Pricing;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -10,10 +11,11 @@ namespace RentACar.Application.Bookings;
 /// Rezervasyon iş mantığı + durum makinesi (Rezerv→Onaylı→KirayaCevrildi/İptal).
 /// Tenant izolasyonu/audit alt katmanda otomatik. Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class ReservationService(IBookingRepository repository, ICurrentUser currentUser)
+public sealed class ReservationService(IBookingRepository repository, ICurrentUser currentUser, PricingService pricing)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly PricingService _pricing = pricing;
 
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.Effective(_currentUser), ct);
@@ -24,7 +26,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     public async Task<Guid> CreateAsync(BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
-        var (gun, tutar) = BookingMath.Compute(input);
+        var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
