@@ -70,5 +70,7 @@ app.UseAuthorization();
 app.MapAuthApi();
 app.MapVehiclesApi();
 app.MapCustomersApi();
+app.MapReservationsApi();
+app.MapRentalsApi();
 
 app.Run();
