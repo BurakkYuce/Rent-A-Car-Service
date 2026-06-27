@@ -12,6 +12,7 @@ using RentACar.Web.Customers;
 using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
 using RentACar.Web.Persistence;
+using RentACar.Web.Regulation;
 using RentACar.Web.Vehicles;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +77,7 @@ app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapFinanceEndpoints();
 app.MapExpenseEndpoints();
+app.MapRegulationEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
