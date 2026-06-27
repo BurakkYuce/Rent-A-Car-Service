@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
+        services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
