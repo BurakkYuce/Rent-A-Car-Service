@@ -50,6 +50,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<InsurancePolicy> InsurancePolicies => Set<InsurancePolicy>();
     public DbSet<MtvRecord> MtvRecords => Set<MtvRecord>();
     public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();
+    public DbSet<Penalty> Penalties => Set<Penalty>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -220,6 +221,23 @@ public sealed class AppDbContext : DbContext
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
+        // ---- Penalty / Ceza (tenant-owned; başlık güncellenebilir, yansıtma defteri immutable) ----
+        b.Entity<Penalty>(e =>
+        {
+            e.ToTable("Penalties");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.CezaTuru).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Sebep).HasMaxLength(512);
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.CariId });
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- AuditLog (tenant-owned) ----
         b.Entity<AuditLog>(e =>
         {
@@ -255,6 +273,12 @@ public sealed class AppDbContext : DbContext
             });
             e.HasIndex(x => new { x.TenantId, x.AccountType, x.AccountRef });
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId });
+            // HGS yansıtma idempotency: aynı (cari,plaka,dönem) deterministik SourceId ile
+            // tek kez yazılabilir. Dengeli çift (Borç/Alacak) Direction'la ayrışır → ikisi de
+            // geçer; tekrar eden yansıtma çakışır. Yalnız 'Hgs' kaynak türü için (kısmi).
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction })
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'Hgs'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

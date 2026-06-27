@@ -3,6 +3,8 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
+using RentACar.Application.Hgs;
+using RentACar.Application.Penalties;
 using RentACar.Application.Regulation;
 using RentACar.Application.Vehicles;
 
@@ -21,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<ExpenseService>();
         services.AddScoped<RegulationService>();
         services.AddScoped<VadeService>();
+        services.AddScoped<PenaltyService>();
+        services.AddScoped<HgsReflectionService>();
         return services;
     }
 }
