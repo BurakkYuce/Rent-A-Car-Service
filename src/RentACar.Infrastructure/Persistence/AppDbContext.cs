@@ -40,6 +40,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<RentalContract> Rentals => Set<RentalContract>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -166,6 +167,27 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.HasIndex(x => new { x.TenantId, x.ReservationNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Quotation / Teklif (tenant-owned; operasyonel, güncellenebilir) ----
+        b.Entity<Quotation>(e =>
+        {
+            e.ToTable("Quotations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.CikisOfisi).HasMaxLength(64);
+            e.Property(x => x.DonusOfisi).HasMaxLength(64);
+            e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Durum });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
