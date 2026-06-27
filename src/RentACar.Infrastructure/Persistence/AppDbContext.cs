@@ -53,6 +53,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<Penalty> Penalties => Set<Penalty>();
     public DbSet<VehicleSale> VehicleSales => Set<VehicleSale>();
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
+    public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
+    public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -279,6 +281,37 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasIndex(x => new { x.TenantId, x.Durum });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- ServiceRecord / Servis-Bakım (tenant-owned; operasyonel, güncellenebilir) ----
+        b.Entity<ServiceRecord>(e =>
+        {
+            e.ToTable("ServiceRecords");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Tip).HasConversion<int>();
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.HasarSorumlu).HasConversion<int>();
+            e.Property(x => x.AtolyeAdi).HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.Property(x => x.KusurOrani).HasColumnType("numeric(5,4)");
+            e.Property(x => x.ToplamIscilik).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Durum });
+            e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.ServiceRecordId);
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<ServiceLine>(e =>
+        {
+            e.ToTable("ServiceLines");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Aciklama).IsRequired().HasMaxLength(512);
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.ServiceRecordId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
