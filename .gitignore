@@ -25,3 +25,7 @@ coverage*.xml
 # OS
 .DS_Store
 Thumbs.db
+
+# Yerel araç/geçici çıktılar
+.playwright-mcp/
+*.bundle
