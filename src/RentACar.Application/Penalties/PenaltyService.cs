@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -7,11 +8,12 @@ namespace RentACar.Application.Penalties;
 
 /// <summary>
 /// Trafik cezası: kayıt (tebliğ→vade) + müşteriye yansıtma (Borç Cari / Alacak Gelir,
-/// dengeli, idempotent) + durum (Öde/İptal).
+/// dengeli, idempotent) + durum (Öde/İptal). Yansıtma defter yazdığından FinanceWrite ister.
 /// </summary>
-public sealed class PenaltyService(IPenaltyRepository repository)
+public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser currentUser)
 {
     private readonly IPenaltyRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Penalty>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -44,6 +46,7 @@ public sealed class PenaltyService(IPenaltyRepository repository)
     /// <summary>Cezayı müşteriye yansıt (Borç Cari / Alacak Gelir). Yalnız Yeni ceza, cari zorunlu.</summary>
     public async Task<bool> YansitAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var penalty = await _repository.FindAsync(id, ct) ?? throw new ValidationException("Ceza bulunamadı.");
         if (penalty.Durum != CezaDurum.Yeni)
             throw new ValidationException("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.");

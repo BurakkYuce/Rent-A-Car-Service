@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Enums;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Regulation;
 
@@ -10,7 +12,7 @@ public static class RegulationEndpoints
 {
     public static IEndpointRouteBuilder MapRegulationEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/regulasyon").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/regulasyon").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         grp.MapPost("/sigorta", async (RegulationService svc,
             [FromForm] Guid vehicleId, [FromForm] InsuranceType tip,

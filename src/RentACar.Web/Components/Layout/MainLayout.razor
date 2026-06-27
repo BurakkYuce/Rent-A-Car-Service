@@ -7,19 +7,28 @@
             <Authorized>
                 <nav class="nav">
                     <a href="/">Panel</a>
-                    <a href="/vehicles">Araçlar</a>
-                    <a href="/cariler">Cariler</a>
-                    <a href="/rezervasyonlar">Rezervasyonlar</a>
-                    <a href="/kiralar">Kiralar</a>
-                    <a href="/giderler">Giderler</a>
+                    @* Operasyon (OperationsWrite: Admin/Yönetici/Operatör) *@
+                    <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
+                        <a href="/vehicles">Araçlar</a>
+                        <a href="/cariler">Cariler</a>
+                        <a href="/rezervasyonlar">Rezervasyonlar</a>
+                        <a href="/kiralar">Kiralar</a>
+                        <a href="/hasar">Hasar</a>
+                        <a href="/servisler">Servis</a>
+                        <a href="/regulasyon">Sigorta/MTV</a>
+                    </AuthorizeView>
+                    @* Finans (FinanceWrite: Admin/Yönetici/Muhasebe) *@
+                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
+                        <a href="/giderler">Giderler</a>
+                        <a href="/satislar">Satışlar</a>
+                    </AuthorizeView>
                     <a href="/cezalar">Cezalar</a>
-                    <a href="/satislar">Satışlar</a>
-                    <a href="/hasar">Hasar</a>
-                    <a href="/servisler">Servis</a>
-                    <a href="/regulasyon">Sigorta/MTV</a>
-                    <a href="/raporlar/gelir-gider">Raporlar</a>
-                    <a href="/raporlar/cari-bakiye">Cari Bakiye</a>
-                    <a href="/raporlar/filo">Filo</a>
+                    @* Raporlar (ViewReports: Admin/Yönetici/Muhasebe) *@
+                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="repCtx">
+                        <a href="/raporlar/gelir-gider">Raporlar</a>
+                        <a href="/raporlar/cari-bakiye">Cari Bakiye</a>
+                        <a href="/raporlar/filo">Filo</a>
+                    </AuthorizeView>
                     <a href="/vade">Vade</a>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <a href="/kullanicilar">Kullanıcılar</a>

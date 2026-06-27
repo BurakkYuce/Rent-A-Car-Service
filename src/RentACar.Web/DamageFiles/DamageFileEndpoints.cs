@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.DamageFiles;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.DamageFiles;
 
@@ -9,7 +11,7 @@ public static class DamageFileEndpoints
 {
     public static IEndpointRouteBuilder MapDamageFileEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/hasar").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/hasar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         grp.MapPost("/create", async (DamageFileService svc,
             [FromForm] Guid vehicleId, [FromForm] string? rentalId, [FromForm] string? cariId,

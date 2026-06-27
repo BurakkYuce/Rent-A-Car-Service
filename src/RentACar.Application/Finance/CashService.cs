@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -12,9 +13,10 @@ namespace RentACar.Application.Finance;
 /// Tahsilat: Borç Kasa, Alacak Cari → cari bakiye ↓.
 /// Ters kayıt: Borç Cari, Alacak Kasa → bakiye eski haline.
 /// </summary>
-public sealed class CashService(ICashRepository repository)
+public sealed class CashService(ICashRepository repository, ICurrentUser currentUser)
 {
     private readonly ICashRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -30,6 +32,7 @@ public sealed class CashService(ICashRepository repository)
 
     public async Task<Guid> CollectAsync(CashInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (input.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (input.Tutar <= 0) throw new ValidationException("Tahsilat tutarı pozitif olmalıdır.");
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
@@ -53,6 +56,7 @@ public sealed class CashService(ICashRepository repository)
 
     public async Task<Guid> ReverseAsync(Guid cashTransactionId, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var original = await _repository.FindAsync(cashTransactionId, ct)
             ?? throw new ValidationException("İşlem bulunamadı.");
         if (original.TersKayitMi)

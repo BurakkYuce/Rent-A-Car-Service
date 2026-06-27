@@ -1,5 +1,5 @@
 @page "/raporlar/cari-bakiye"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
 <PageTitle>Cari Bakiye / Yaşlandırma — TürevRent</PageTitle>

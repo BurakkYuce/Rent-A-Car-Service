@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Web.Identity;
 using RentACar.Application.VehicleSales;
 
 namespace RentACar.Web.VehicleSales;
@@ -9,7 +11,7 @@ public static class VehicleSaleEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleSaleEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/satislar").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/satislar").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
 
         grp.MapPost("/create", async (VehicleSaleService svc,
             [FromForm] Guid vehicleId, [FromForm] Guid aliciCariId, [FromForm] decimal satisNet,

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Domain.Enums;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Customers;
 
@@ -13,7 +15,7 @@ public static class CustomerEndpoints
 {
     public static IEndpointRouteBuilder MapCustomerEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/cariler").RequireAuthorization().DisableAntiforgery();
+        var group = app.MapGroup("/cariler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         group.MapPost("/create", async (CustomerService svc,
             [FromForm] CariType tip, [FromForm] string? ad, [FromForm] string? soyad, [FromForm] string? tcKimlik,

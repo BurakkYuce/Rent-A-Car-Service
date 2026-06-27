@@ -1,5 +1,5 @@
 @page "/raporlar/gelir-gider"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
 <PageTitle>Gelir-Gider Özeti — TürevRent</PageTitle>

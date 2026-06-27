@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Bookings;
 
@@ -9,7 +11,7 @@ public static class BookingEndpoints
 {
     public static IEndpointRouteBuilder MapBookingEndpoints(this IEndpointRouteBuilder app)
     {
-        var rez = app.MapGroup("/rezervasyonlar").RequireAuthorization().DisableAntiforgery();
+        var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         rez.MapPost("/create", async (ReservationService svc,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,

@@ -1,7 +1,7 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
-using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Users;
 
@@ -16,11 +16,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     private readonly IPasswordHasher _hasher = hasher;
     private readonly ICurrentUser _currentUser = currentUser;
 
-    private void RequireAdmin()
-    {
-        if (_currentUser.Role != UserRole.Admin)
-            throw new ValidationException("Bu işlem için yönetici (Admin) yetkisi gerekir.");
-    }
+    private void RequireAdmin() => PermissionGuard.Require(_currentUser, Permission.ManageUsers);
 
     public async Task<IReadOnlyList<UserListItem>> ListAsync(CancellationToken ct = default)
     {

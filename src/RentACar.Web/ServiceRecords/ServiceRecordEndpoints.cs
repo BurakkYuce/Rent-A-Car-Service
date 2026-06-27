@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.ServiceRecords;
 using RentACar.Domain.Enums;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.ServiceRecords;
 
@@ -10,7 +12,7 @@ public static class ServiceRecordEndpoints
 {
     public static IEndpointRouteBuilder MapServiceRecordEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/servisler").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/servisler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         grp.MapPost("/create", async (ServiceRecordService svc,
             [FromForm] Guid vehicleId, [FromForm] ServisTipi tip, [FromForm] string? atolyeAdi,

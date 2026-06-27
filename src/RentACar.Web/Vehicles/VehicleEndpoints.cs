@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Vehicles;
 
@@ -14,7 +16,7 @@ public static class VehicleEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/vehicles").RequireAuthorization().DisableAntiforgery();
+        var group = app.MapGroup("/vehicles").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
         group.MapPost("/create", async (
             VehicleService svc,
