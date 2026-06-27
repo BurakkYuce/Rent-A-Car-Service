@@ -1,4 +1,6 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -6,14 +8,15 @@ namespace RentACar.Application.Bookings;
 
 /// <summary>
 /// Rezervasyon iş mantığı + durum makinesi (Rezerv→Onaylı→KirayaCevrildi/İptal).
-/// Tenant izolasyonu/audit alt katmanda otomatik.
+/// Tenant izolasyonu/audit alt katmanda otomatik. Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class ReservationService(IBookingRepository repository)
+public sealed class ReservationService(IBookingRepository repository, ICurrentUser currentUser)
 {
     private readonly IBookingRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
-        => _repository.ListReservationsAsync(ct);
+        => _repository.ListReservationsAsync(BranchScope.Effective(_currentUser), ct);
 
     public Task<Reservation?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindReservationAsync(id, ct);

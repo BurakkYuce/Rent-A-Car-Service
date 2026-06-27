@@ -9,7 +9,8 @@ namespace RentACar.Application.Vehicles;
 /// </summary>
 public interface IVehicleRepository
 {
-    Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default);
+    /// <summary><paramref name="sube"/> verilirse yalnız o şubedeki araçlar (rol bazlı kapsam).</summary>
+    Task<IReadOnlyList<Vehicle>> ListAsync(string? sube = null, CancellationToken ct = default);
 
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 

@@ -26,4 +26,10 @@ public class User
 
     /// <summary>Sabit rol (yetki). Yeni kullanıcılar varsayılan en düşük yetki: Operator.</summary>
     public UserRole Rol { get; set; } = UserRole.Operator;
+
+    /// <summary>
+    /// Atanmış şube (Sube metni). Operatör YALNIZ bu şubenin kayıtlarını görür; boşsa veya
+    /// rol Admin/Yönetici/Muhasebe ise tüm şubeler görünür. (Master tablo değil — mevcut Sube metni.)
+    /// </summary>
+    public string? AtanmisSube { get; set; }
 }

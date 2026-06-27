@@ -16,9 +16,9 @@ public static class UserEndpoints
 
         grp.MapPost("/create", async (UserService svc,
             [FromForm] string userName, [FromForm] string? displayName,
-            [FromForm] UserRole rol, [FromForm] string password) =>
+            [FromForm] UserRole rol, [FromForm] string password, [FromForm] string? atanmisSube) =>
             await Run(() => svc.CreateAsync(new UserInput
-            { UserName = userName, DisplayName = displayName ?? "", Rol = rol, Password = password })));
+            { UserName = userName, DisplayName = displayName ?? "", Rol = rol, Password = password, AtanmisSube = atanmisSube })));
 
         grp.MapPost("/aktif", async (UserService svc, [FromForm] Guid id, [FromForm] bool active) =>
             await Run(() => svc.SetActiveAsync(id, active)));

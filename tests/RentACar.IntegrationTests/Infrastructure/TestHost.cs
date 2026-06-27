@@ -13,6 +13,7 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
     public Guid? UserId { get; set; }
     public string? UserName { get; set; }
     public UserRole? Role { get; set; }
+    public string? AssignedBranch { get; set; }
 }
 
 /// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>
@@ -49,7 +50,8 @@ public sealed class TestHost : IDisposable
     /// kısıtlar (ör. Operator).
     /// </summary>
     public IServiceScope ScopeFor(
-        Guid? tenantId, Guid? userId = null, string? userName = "tester", UserRole? role = UserRole.Admin)
+        Guid? tenantId, Guid? userId = null, string? userName = "tester",
+        UserRole? role = UserRole.Admin, string? assignedBranch = null)
     {
         var scope = _provider.CreateScope();
         var id = scope.ServiceProvider.GetRequiredService<TestIdentity>();
@@ -57,6 +59,7 @@ public sealed class TestHost : IDisposable
         id.UserId = userId;
         id.UserName = userName;
         id.Role = role;
+        id.AssignedBranch = assignedBranch;
         return scope;
     }
 

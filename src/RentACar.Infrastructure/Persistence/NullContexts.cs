@@ -17,4 +17,5 @@ public sealed class NullCurrentUser : ICurrentUser
     public Guid? UserId => null;
     public string? UserName => null;
     public UserRole? Role => null;
+    public string? AssignedBranch => null;
 }

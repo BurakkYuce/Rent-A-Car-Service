@@ -14,10 +14,12 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Vehicle>> ListAsync(string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Vehicles.AsNoTracking().OrderBy(v => v.Plaka).ToListAsync(ct);
+        var q = db.Vehicles.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(v => v.Sube == sube);
+        return await q.OrderBy(v => v.Plaka).ToListAsync(ct);
     }
 
     public async Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default)

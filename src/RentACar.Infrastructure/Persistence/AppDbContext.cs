@@ -81,6 +81,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.PasswordHash).IsRequired();
             e.Property(x => x.DisplayName).HasMaxLength(256);
             e.Property(x => x.Rol).HasConversion<int>();
+            e.Property(x => x.AtanmisSube).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.UserName }).IsUnique();
         });
 

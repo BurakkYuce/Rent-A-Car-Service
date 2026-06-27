@@ -23,7 +23,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         RequireAdmin();
         var users = await _repository.ListAsync(ct);
         return users
-            .Select(u => new UserListItem(u.Id, u.UserName, u.DisplayName, u.Rol, u.IsActive))
+            .Select(u => new UserListItem(u.Id, u.UserName, u.DisplayName, u.Rol, u.IsActive, u.AtanmisSube))
             .ToList();
     }
 
@@ -42,7 +42,8 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
             UserName = userName,
             DisplayName = string.IsNullOrWhiteSpace(input.DisplayName) ? userName : input.DisplayName.Trim(),
             Rol = input.Rol,
-            IsActive = true
+            IsActive = true,
+            AtanmisSube = string.IsNullOrWhiteSpace(input.AtanmisSube) ? null : input.AtanmisSube.Trim()
         };
         user.PasswordHash = _hasher.Hash(input.Password);
         await _repository.CreateAsync(user, ct);

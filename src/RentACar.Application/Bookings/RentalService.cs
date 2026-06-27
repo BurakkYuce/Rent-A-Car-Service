@@ -1,4 +1,6 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -7,14 +9,15 @@ namespace RentACar.Application.Bookings;
 /// <summary>
 /// Kira sözleşmesi iş mantığı. Doğrudan kira oluşturma + iptal. Double-booking,
 /// DB exclusion constraint ile garanti edilir (eşzamanlı istekte tek kazanan).
-/// Teslim/dönüş PR #4'te.
+/// Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class RentalService(IBookingRepository repository)
+public sealed class RentalService(IBookingRepository repository, ICurrentUser currentUser)
 {
     private readonly IBookingRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
-        => _repository.ListRentalsAsync(ct);
+        => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
 
     public Task<RentalContract?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindRentalAsync(id, ct);

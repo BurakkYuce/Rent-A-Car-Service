@@ -17,10 +17,12 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---- Rezervasyon ----
 
-    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Reservations.AsNoTracking().OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        var q = db.Reservations.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(r => r.CikisOfisi == sube);
+        return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task<Reservation?> FindReservationAsync(Guid id, CancellationToken ct = default)
@@ -52,10 +54,12 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---- Kira ----
 
-    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Rentals.AsNoTracking().OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        var q = db.Rentals.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(r => r.CikisOfisi == sube);
+        return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default)
