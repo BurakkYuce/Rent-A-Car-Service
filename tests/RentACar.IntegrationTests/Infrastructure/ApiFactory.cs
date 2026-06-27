@@ -1,3 +1,6 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -48,5 +51,20 @@ public static class ApiSeed
 
         await db.SaveChangesAsync();
         return tenant.Id;
+    }
+}
+
+/// <summary>API testleri için login → Bearer header'lı HttpClient.</summary>
+public static class ApiClientExtensions
+{
+    public static async Task<HttpClient> LoginClientAsync(this ApiFactory api, string firma, string user, string sifre)
+    {
+        var c = api.CreateClient();
+        var resp = await c.PostAsJsonAsync("/api/v1/auth/login", new { firma, kullanici = user, sifre });
+        resp.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var token = doc.RootElement.GetProperty("token").GetString();
+        c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return c;
     }
 }
