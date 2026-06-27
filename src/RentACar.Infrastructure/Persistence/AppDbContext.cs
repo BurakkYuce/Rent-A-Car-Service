@@ -46,6 +46,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -258,6 +259,30 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
             e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Expense / Gider (tenant-owned; append-only + DB-immutable) ----
+        b.Entity<Expense>(e =>
+        {
+            e.ToTable("Expenses");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Tip).HasConversion<int>();
+            e.Property(x => x.OdemeYontemi).HasConversion<int>();
+            e.Property(x => x.KasaBankaHesap).HasConversion<int>();
+            e.Property(x => x.Sube).HasMaxLength(64);
+            e.Property(x => x.EvrakNo).HasMaxLength(64);
+            e.Property(x => x.NetTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
