@@ -1,0 +1,44 @@
+@page "/faturalar"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject InvoiceService Invoices
+@inject CustomerService Customers
+
+<PageTitle>Faturalar — TürevRent</PageTitle>
+
+<h1>Faturalar</h1>
+
+<table class="grid">
+    <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Durum</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Fatura yok.</td></tr>
+        }
+        @foreach (var i in _list)
+        {
+            <tr>
+                <td>@i.No</td>
+                <td>@i.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@CustName(i.CariId)</td>
+                <td>@i.NetTutar.ToString("N2")</td>
+                <td>@i.KdvTutar.ToString("N2")</td>
+                <td>@i.GenelToplam.ToString("N2")</td>
+                <td>@i.Durum</td>
+                <td><a href="/faturalar/@i.Id/yazdir" class="link">Yazdır</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<Invoice> _list = [];
+    private Dictionary<Guid, string> _custMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Invoices.ListAsync();
+        _custMap = (await Customers.ListAsync()).ToDictionary(c => c.Id, c => c.DisplayName);
+    }
+
+    private string CustName(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";
+}
