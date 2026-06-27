@@ -1,11 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
+using RentACar.Application.DamageFiles;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
 using RentACar.Application.Penalties;
 using RentACar.Application.Regulation;
+using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 
 namespace RentACar.Application;
@@ -25,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<VadeService>();
         services.AddScoped<PenaltyService>();
         services.AddScoped<HgsReflectionService>();
+        services.AddScoped<VehicleSaleService>();
+        services.AddScoped<DamageFileService>();
         return services;
     }
 }

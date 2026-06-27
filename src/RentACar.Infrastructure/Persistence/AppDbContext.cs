@@ -51,6 +51,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<MtvRecord> MtvRecords => Set<MtvRecord>();
     public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();
     public DbSet<Penalty> Penalties => Set<Penalty>();
+    public DbSet<VehicleSale> VehicleSales => Set<VehicleSale>();
+    public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -235,6 +237,48 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- VehicleSale / Araç Satış (tenant-owned; mali belge → DB-immutable) ----
+        b.Entity<VehicleSale>(e =>
+        {
+            e.ToTable("VehicleSales");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.NoterNo).HasMaxLength(64);
+            e.Property(x => x.SatisNet).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.AliciCariId });
+            // Bir araç EN FAZLA bir kez 'Tamamlandi' satılabilir (çift satış güvencesi).
+            e.HasIndex(x => new { x.TenantId, x.VehicleId })
+                .IsUnique()
+                .HasFilter("\"Durum\" = 0");
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- DamageFile / BAF (tenant-owned; onay akışı, mali belge DEĞİL → güncellenebilir) ----
+        b.Entity<DamageFile>(e =>
+        {
+            e.ToTable("DamageFiles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.Property(x => x.TahminiTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.OnayNotu).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Durum });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

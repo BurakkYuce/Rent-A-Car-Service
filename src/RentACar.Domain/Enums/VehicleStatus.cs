@@ -10,5 +10,6 @@ public enum VehicleStatus
     Musait = 1,
     Kirada = 2,
     Serviste = 3,
-    Pasif = 4
+    Pasif = 4,
+    Satildi = 5
 }

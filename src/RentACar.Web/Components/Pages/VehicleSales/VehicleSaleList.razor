@@ -1,0 +1,93 @@
+@page "/satislar"
+@attribute [Authorize]
+@inject VehicleSaleService Sales
+@inject VehicleService Vehicles
+@inject CustomerService Customers
+
+<PageTitle>Araç Satışları — TürevRent</PageTitle>
+
+<h1>Araç Satışları</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Satış</summary>
+    <form method="post" action="/satislar/create" class="grid-form">
+        <label>Araç
+            <select name="vehicleId" required>
+                <option value="">—</option>
+                @foreach (var v in _satilabilir)
+                {
+                    <option value="@v.Id">@v.Plaka (@v.Durum)</option>
+                }
+            </select>
+        </label>
+        <label>Alıcı (Cari)
+            <select name="aliciCariId" required>
+                <option value="">—</option>
+                @foreach (var c in _customers)
+                {
+                    <option value="@c.Id">@c.DisplayName</option>
+                }
+            </select>
+        </label>
+        <label>Satış Net<input name="satisNet" type="number" step="0.01" required /></label>
+        <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" value="0.20" /></label>
+        <label>Noter No<input name="noterNo" /></label>
+        <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
+        <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <button type="submit">Sat</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead>
+        <tr><th>No</th><th>Tarih</th><th>Araç</th><th>Alıcı</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Durum</th></tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Satış yok.</td></tr>
+        }
+        @foreach (var s in _list)
+        {
+            <tr>
+                <td>@s.No</td>
+                <td>@s.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@VehLabel(s.VehicleId)</td>
+                <td>@CustLabel(s.AliciCariId)</td>
+                <td>@s.SatisNet.ToString("N2")</td>
+                <td>@s.KdvTutar.ToString("N2")</td>
+                <td>@s.GenelToplam.ToString("N2")</td>
+                <td>@s.Durum</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleSale> _list = [];
+    private IReadOnlyList<Vehicle> _satilabilir = [];
+    private IReadOnlyList<Customer> _customers = [];
+    private Dictionary<Guid, string> _vehMap = new();
+    private Dictionary<Guid, string> _custMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Sales.ListAsync();
+        var vehicles = await Vehicles.ListAsync();
+        _customers = await Customers.ListAsync();
+        _satilabilir = vehicles.Where(v => v.Durum != VehicleStatus.Satildi).ToList();
+        _vehMap = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+        _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
+    }
+
+    private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
+    private string CustLabel(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";
+}
