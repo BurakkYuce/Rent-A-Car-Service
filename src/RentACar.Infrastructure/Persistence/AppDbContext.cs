@@ -37,6 +37,7 @@ public sealed class AppDbContext : DbContext
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -99,6 +100,24 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Telefon).HasMaxLength(32);
             // Kod tenant içinde benzersiz (doğal iş anahtarı; servis büyük harfe normalize eder).
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- RateCard / Tarife (tenant-owned; fiyat master) ----
+        b.Entity<RateCard>(e =>
+        {
+            e.ToTable("RateCards");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Grup).IsRequired().HasMaxLength(64);
+            e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Doviz).HasMaxLength(3);
+            // Kod tenant içinde benzersiz (servis büyük harfe normalize eder).
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            // Lookup: grup bazlı arama (büyük/küçük harf duyarsız ILike ile).
+            e.HasIndex(x => new { x.TenantId, x.Grup });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

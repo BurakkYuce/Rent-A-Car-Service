@@ -1,0 +1,107 @@
+@page "/tarifeler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject RateCardService Rates
+
+<PageTitle>Tarifeler — TürevRent</PageTitle>
+
+<h1>Tarife Yönetimi</h1>
+<p class="muted small">Araç grubu + gün kademesi + dönem için günlük birim fiyat. Rezervasyon/teklif
+    fiyatlaması bu tabloyu okuyabilir (lookup: en dar kademe + en güncel dönem seçilir).</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Tarife</summary>
+    <form method="post" action="/tarifeler/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="B-STD" /></label>
+        <label>Ad<input name="ad" required placeholder="B Grubu Standart" /></label>
+        <label>Araç Grubu<input name="grup" required placeholder="B" /></label>
+        <label>Min Gün<input name="minGun" type="number" min="1" value="1" /></label>
+        <label>Max Gün<input name="maxGun" type="number" min="1" value="9999" /></label>
+        <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" required /></label>
+        <label>Döviz
+            <select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select>
+        </label>
+        <label>Geçerli Baş.<input name="gecerliBas" type="date" /></label>
+        <label>Geçerli Bit.<input name="gecerliBit" type="date" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead>
+        <tr><th>Kod</th><th>Ad</th><th>Grup</th><th>Gün</th><th>Günlük Ücret</th><th>Dönem</th><th>Durum</th><th>İşlem</th></tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Tarife tanımlı değil.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td class="mono">@r.Kod</td>
+                <td>@r.Ad</td>
+                <td>@r.Grup</td>
+                <td>@r.MinGun–@(r.MaxGun >= 9999 ? "∞" : r.MaxGun.ToString())</td>
+                <td>@r.GunlukUcret.ToString("N2") @r.Doviz</td>
+                <td>@Donem(r)</td>
+                <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/tarifeler/update" class="grid-form">
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <label>Kod<input name="kod" value="@r.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@r.Ad" required /></label>
+                            <label>Araç Grubu<input name="grup" value="@r.Grup" required /></label>
+                            <label>Min Gün<input name="minGun" type="number" min="1" value="@r.MinGun" /></label>
+                            <label>Max Gün<input name="maxGun" type="number" min="1" value="@r.MaxGun" /></label>
+                            <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" value="@r.GunlukUcret" required /></label>
+                            <label>Döviz
+                                <select name="doviz">
+                                    <option selected="@(r.Doviz == "TRY")">TRY</option>
+                                    <option selected="@(r.Doviz == "USD")">USD</option>
+                                    <option selected="@(r.Doviz == "EUR")">EUR</option>
+                                </select>
+                            </label>
+                            <label>Geçerli Baş.<input name="gecerliBas" type="date" value="@r.GecerliBas?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Geçerli Bit.<input name="gecerliBit" type="date" value="@r.GecerliBit?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@r.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!r.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/tarifeler/delete" onsubmit="return confirm('Tarife silinsin mi?')">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<RateCard> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Rates.ListAsync();
+
+    private static string Donem(RateCard r)
+    {
+        if (r.GecerliBas is null && r.GecerliBit is null) return "—";
+        var b = r.GecerliBas?.ToString("dd.MM.yyyy") ?? "…";
+        var e = r.GecerliBit?.ToString("dd.MM.yyyy") ?? "…";
+        return $"{b} – {e}";
+    }
+}
