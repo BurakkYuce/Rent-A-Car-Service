@@ -3,6 +3,7 @@
 @inject VehicleService Vehicles
 @inject CustomerService Customers
 @inject RentalService Rentals
+@inject ReservationService Reservations
 @inject VadeService Vade
 
 <PageTitle>Panel — TürevRent</PageTitle>
@@ -21,6 +22,14 @@
     <div class="card">
         <div class="card-num">@_aktifKira</div>
         <div class="card-label">Aktif Kira</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_bugunCikis</div>
+        <div class="card-label">Bugün Çıkış</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_bugunDonus</div>
+        <div class="card-label">Bugün Dönüş</div>
     </div>
     <div class="card">
         <div class="card-num">@_cariCount</div>
@@ -50,6 +59,8 @@
     private (int Total, int Musait, int Serviste) _counts;
     private int _cariCount;
     private int _aktifKira;
+    private int _bugunCikis;
+    private int _bugunDonus;
     private int _gecmis;
     private int _yakin;
 
@@ -61,7 +72,18 @@
             list.Count(v => v.Durum == VehicleStatus.Musait),
             list.Count(v => v.Durum == VehicleStatus.Serviste));
         _cariCount = (await Customers.ListAsync()).Count;
-        _aktifKira = (await Rentals.ListAsync()).Count(r => r.Durum == RentalStatus.Kirada);
+
+        var rentals = await Rentals.ListAsync();
+        _aktifKira = rentals.Count(r => r.Durum == RentalStatus.Kirada);
+
+        var bugun = DateTimeOffset.Now.Date;
+        // Bugün dönüşü planlanan aktif kiralar (bitiş tarihi bugün).
+        _bugunDonus = rentals.Count(r => r.Durum == RentalStatus.Kirada && r.BitTar.LocalDateTime.Date == bugun);
+        // Bugün çıkışı planlanan rezervasyonlar (henüz iptal/kiraya çevrilmemiş, başlangıç bugün).
+        var rezervler = await Reservations.ListAsync();
+        _bugunCikis = rezervler.Count(r =>
+            (r.Durum == ReservationStatus.Rezerv || r.Durum == ReservationStatus.Onayli)
+            && r.BasTar.LocalDateTime.Date == bugun);
 
         var warnings = await Vade.GetWarningsAsync();
         _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
