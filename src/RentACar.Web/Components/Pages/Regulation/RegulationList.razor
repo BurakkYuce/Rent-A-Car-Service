@@ -1,0 +1,90 @@
+@page "/regulasyon"
+@attribute [Authorize]
+@inject RegulationService Reg
+@inject VehicleService Vehicles
+
+<PageTitle>Sigorta / MTV / Muayene — TürevRent</PageTitle>
+
+<h1>Sigorta / MTV / Muayene</h1>
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+<p><a href="/vade">Vade Uyarıları →</a></p>
+
+<h2>Sigorta</h2>
+<form method="post" action="/regulasyon/sigorta" class="grid-form">
+    <label>Araç @VehicleSelect("vehicleId")</label>
+    <label>Tip<select name="tip">@foreach (var t in Enum.GetValues<InsuranceType>()){<option value="@t">@t</option>}</select></label>
+    <label>Başlangıç<input name="baslangic" type="date" required /></label>
+    <label>Bitiş<input name="bitis" type="date" required /></label>
+    <label>Prim<input name="prim" type="number" step="0.01" value="0" /></label>
+    <label>Poliçe No<input name="policeNo" /></label>
+    <label>Firma<input name="firma" /></label>
+    <button type="submit">Ekle</button>
+</form>
+<table class="grid"><thead><tr><th>Araç</th><th>Tip</th><th>Bitiş</th><th>Prim</th><th>Firma</th></tr></thead><tbody>
+@foreach (var s in _ins)
+{
+    <tr><td>@Plaka(s.VehicleId)</td><td>@s.Tip</td><td>@s.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@s.Prim.ToString("N2")</td><td>@s.Firma</td></tr>
+}
+</tbody></table>
+
+<h2>MTV</h2>
+<form method="post" action="/regulasyon/mtv" class="grid-form">
+    <label>Araç @VehicleSelect("vehicleId")</label>
+    <label>Dönem<input name="donem" placeholder="2026-1" required /></label>
+    <label>Tutar<input name="tutar" type="number" step="0.01" value="0" /></label>
+    <label>Vade<input name="vade" type="date" required /></label>
+    <button type="submit">Ekle</button>
+</form>
+<table class="grid"><thead><tr><th>Araç</th><th>Dönem</th><th>Tutar</th><th>Vade</th><th>Ödendi</th></tr></thead><tbody>
+@foreach (var m in _mtv)
+{
+    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td>@m.Tutar.ToString("N2")</td><td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td></tr>
+}
+</tbody></table>
+
+<h2>Muayene</h2>
+<form method="post" action="/regulasyon/muayene" class="grid-form">
+    <label>Araç @VehicleSelect("vehicleId")</label>
+    <label>Muayene Tarihi<input name="muayeneTarihi" type="date" required /></label>
+    <label>Bitiş<input name="bitis" type="date" required /></label>
+    <label>Ücret<input name="ucret" type="number" step="0.01" value="0" /></label>
+    <button type="submit">Ekle</button>
+</form>
+<table class="grid"><thead><tr><th>Araç</th><th>Muayene</th><th>Bitiş</th><th>Ücret</th></tr></thead><tbody>
+@foreach (var m in _insp)
+{
+    <tr><td>@Plaka(m.VehicleId)</td><td>@m.MuayeneTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Ucret.ToString("N2")</td></tr>
+}
+</tbody></table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<InsurancePolicy> _ins = [];
+    private IReadOnlyList<MtvRecord> _mtv = [];
+    private IReadOnlyList<InspectionRecord> _insp = [];
+    private IReadOnlyList<Vehicle> _vehicles = [];
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ins = await Reg.ListInsuranceAsync();
+        _mtv = await Reg.ListMtvAsync();
+        _insp = await Reg.ListInspectionAsync();
+        _vehicles = await Vehicles.ListAsync();
+        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+
+    private RenderFragment VehicleSelect(string name) =>@<select name="@name" required>
+        <option value="">— seç —</option>
+        @foreach (var v in _vehicles)
+        {
+            <option value="@v.Id">@v.Plaka</option>
+        }
+    </select>;
+}

@@ -1,0 +1,60 @@
+@page "/vade"
+@attribute [Authorize]
+@inject VadeService Vade
+@inject VehicleService Vehicles
+
+<PageTitle>Vade Uyarıları — TürevRent</PageTitle>
+
+<h1>Vade Uyarıları</h1>
+<p class="muted">Sigorta / MTV / Muayene bitiş takibi.</p>
+
+<table class="grid">
+    <thead>
+        <tr><th>Araç</th><th>Tür</th><th>Bitiş</th><th>Kalan Gün</th><th>Durum</th></tr>
+    </thead>
+    <tbody>
+        @if (_items.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Yaklaşan vade yok.</td></tr>
+        }
+        @foreach (var i in _items)
+        {
+            <tr>
+                <td>@Plaka(i.VehicleId)</td>
+                <td>@i.Tur</td>
+                <td>@i.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@i.KalanGun</td>
+                <td><span class="badge @BucketClass(i.Bucket)">@BucketLabel(i.Bucket)</span></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<VadeItem> _items = [];
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await Vade.GetAllAsync();
+        _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+
+    private static string BucketClass(VadeBucket b) => b switch
+    {
+        VadeBucket.Gecmis => "danger",
+        VadeBucket.YediGun => "danger",
+        VadeBucket.OtuzGun => "warn",
+        _ => ""
+    };
+
+    private static string BucketLabel(VadeBucket b) => b switch
+    {
+        VadeBucket.Gecmis => "Geçmiş",
+        VadeBucket.YediGun => "≤ 7 gün",
+        VadeBucket.OtuzGun => "≤ 30 gün",
+        _ => "İleri"
+    };
+}

@@ -47,6 +47,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<InsurancePolicy> InsurancePolicies => Set<InsurancePolicy>();
+    public DbSet<MtvRecord> MtvRecords => Set<MtvRecord>();
+    public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -176,6 +179,44 @@ public sealed class AppDbContext : DbContext
             e.ToTable("TenantSequences");
             e.HasKey(x => new { x.TenantId, x.Name });
             e.Property(x => x.Name).HasMaxLength(64);
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Regülasyon (tenant-owned; güncellenebilir, mali belge değil) ----
+        b.Entity<InsurancePolicy>(e =>
+        {
+            e.ToTable("InsurancePolicies");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Tip).HasConversion<int>();
+            e.Property(x => x.PoliceNo).HasMaxLength(64);
+            e.Property(x => x.Firma).HasMaxLength(128);
+            e.Property(x => x.Acenta).HasMaxLength(128);
+            e.Property(x => x.Prim).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Bitis });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<MtvRecord>(e =>
+        {
+            e.ToTable("MtvRecords");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Donem).IsRequired().HasMaxLength(16);
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Vade });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<InspectionRecord>(e =>
+        {
+            e.ToTable("InspectionRecords");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Ucret).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            e.HasIndex(x => new { x.TenantId, x.Bitis });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
