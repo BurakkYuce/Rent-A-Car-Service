@@ -3,14 +3,15 @@ using Microsoft.EntityFrameworkCore;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
 
-namespace RentACar.Web.Identity;
+namespace RentACar.Infrastructure.Identity;
 
 public sealed record LoginResult(Tenant Tenant, User User);
 
 /// <summary>
-/// İki aşamalı login'in doğrulaması: firma kodu → tenant, sonra (tenant + kullanıcı +
-/// şifre) → kullanıcı. Tenants/Users PLATFORM tablolarıdır (RLS yok) → anonim context
-/// ile okunabilir. Şifre ASP.NET Core PasswordHasher ile doğrulanır.
+/// İki aşamalı login doğrulaması: firma kodu → tenant, sonra (tenant + kullanıcı + şifre) →
+/// kullanıcı. Tenants/Users PLATFORM tablolarıdır (RLS yok) → anonim context ile okunur.
+/// Şifre ASP.NET Core PasswordHasher ile doğrulanır. Web (cookie) ve API (JWT) hostları
+/// ORTAK kullanır → tek doğruluk kaynağı (güvenlik-kritik, çoğaltılmaz).
 /// </summary>
 public sealed class LoginService(
     IDbContextFactory<AppDbContext> factory,

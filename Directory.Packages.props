@@ -18,6 +18,14 @@
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <!-- Şifre hash (IPasswordHasher<User>/PasswordHasher<User>) — paylaşılan LoginService için. -->
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.9" />
+  </ItemGroup>
+
+  <!-- REST API: JWT bearer auth + OpenAPI dokümanı -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
   </ItemGroup>
 
   <!-- Test paketleri -->
@@ -26,6 +34,7 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
   </ItemGroup>
 
 </Project>
