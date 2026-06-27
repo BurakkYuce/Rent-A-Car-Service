@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Web.Identity;
 
@@ -10,6 +11,7 @@ public static class IdentityClaims
     public const string TenantId = "tenant_id";
     public const string TenantCode = "tenant_code";
     public const string UserId = "user_id";
+    // Rol, standart ClaimTypes.Role olarak yazılır → [Authorize(Roles="Admin")] doğrudan çalışır.
 }
 
 /// <summary>
@@ -31,6 +33,9 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
 
     public string? UserName
         => User.FindFirst(ClaimTypes.Name)?.Value ?? User.Identity?.Name;
+
+    public UserRole? Role
+        => Enum.TryParse<UserRole>(User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : null;
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 
 namespace RentACar.Web.Persistence;
@@ -30,15 +31,17 @@ public static class DbInitializer
         db.Tenants.AddRange(t1, t2);
 
         db.Users.AddRange(
-            NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", hasher),
-            NewUser(t2.Id, "umit", "Ümit (Demo Filo)", hasher));
+            NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher),
+            NewUser(t1.Id, "operator", "Operatör (Yüce Rent)", UserRole.Operator, hasher),
+            NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher));
 
         await db.SaveChangesAsync();
     }
 
-    private static User NewUser(Guid tenantId, string userName, string displayName, IPasswordHasher<User> hasher)
+    private static User NewUser(
+        Guid tenantId, string userName, string displayName, UserRole rol, IPasswordHasher<User> hasher)
     {
-        var user = new User { TenantId = tenantId, UserName = userName, DisplayName = displayName };
+        var user = new User { TenantId = tenantId, UserName = userName, DisplayName = displayName, Rol = rol };
         user.PasswordHash = hasher.HashPassword(user, "umit1376");
         return user;
     }

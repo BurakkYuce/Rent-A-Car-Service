@@ -1,0 +1,67 @@
+@page "/kullanicilar"
+@attribute [Authorize(Roles = "Admin")]
+@using RentACar.Domain.Enums
+@inject UserService Users
+
+<PageTitle>Kullanıcılar — TürevRent</PageTitle>
+
+<h1>Kullanıcı Yönetimi</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Kullanıcı</summary>
+    <form method="post" action="/kullanicilar/create" class="grid-form">
+        <label>Kullanıcı Adı<input name="userName" required /></label>
+        <label>Görünen Ad<input name="displayName" /></label>
+        <label>Rol
+            <select name="rol">
+                @foreach (var r in Enum.GetValues<UserRole>())
+                {
+                    <option value="@r">@r</option>
+                }
+            </select>
+        </label>
+        <label>Parola<input name="password" type="password" required /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kullanıcı</th><th>Görünen Ad</th><th>Rol</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @foreach (var u in _list)
+        {
+            <tr>
+                <td>@u.UserName</td>
+                <td>@u.DisplayName</td>
+                <td>@u.Rol</td>
+                <td>@(u.IsActive ? "Aktif" : "Pasif")</td>
+                <td>
+                    <form method="post" action="/kullanicilar/aktif" class="inline">
+                        <input type="hidden" name="id" value="@u.Id" />
+                        <input type="hidden" name="active" value="@((!u.IsActive).ToString().ToLower())" />
+                        <button type="submit">@(u.IsActive ? "Pasifleştir" : "Aktifleştir")</button>
+                    </form>
+                    <form method="post" action="/kullanicilar/sifre" class="inline">
+                        <input type="hidden" name="id" value="@u.Id" />
+                        <input name="password" type="password" placeholder="Yeni parola" required style="width:8rem" />
+                        <button type="submit">Parola</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<UserListItem> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Users.ListAsync();
+}

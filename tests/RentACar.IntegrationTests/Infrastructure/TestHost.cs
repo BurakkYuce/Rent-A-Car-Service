@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application;
 using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
 using RentACar.Infrastructure;
 
 namespace RentACar.IntegrationTests.Infrastructure;
@@ -11,6 +12,14 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
     public Guid? TenantId { get; set; }
     public Guid? UserId { get; set; }
     public string? UserName { get; set; }
+    public UserRole? Role { get; set; }
+}
+
+/// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>
+public sealed class TestPasswordHasher : RentACar.Application.Common.IPasswordHasher
+{
+    public string Hash(string password) => "hash:" + password;
+    public bool Verify(string hash, string password) => hash == "hash:" + password;
 }
 
 /// <summary>
@@ -28,19 +37,22 @@ public sealed class TestHost : IDisposable
         services.AddScoped<TestIdentity>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TestIdentity>());
         services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<TestIdentity>());
+        services.AddSingleton<RentACar.Application.Common.IPasswordHasher, TestPasswordHasher>();
         services.AddApplication();
         services.AddInfrastructure(appConnectionString);
         _provider = services.BuildServiceProvider();
     }
 
-    /// <summary>Verilen tenant/kullanıcı için yeni bir DI scope'u açar.</summary>
-    public IServiceScope ScopeFor(Guid? tenantId, Guid? userId = null, string? userName = "tester")
+    /// <summary>Verilen tenant/kullanıcı(/rol) için yeni bir DI scope'u açar.</summary>
+    public IServiceScope ScopeFor(
+        Guid? tenantId, Guid? userId = null, string? userName = "tester", UserRole? role = null)
     {
         var scope = _provider.CreateScope();
         var id = scope.ServiceProvider.GetRequiredService<TestIdentity>();
         id.TenantId = tenantId;
         id.UserId = userId;
         id.UserName = userName;
+        id.Role = role;
         return scope;
     }
 

@@ -16,6 +16,7 @@ using RentACar.Web.Penalties;
 using RentACar.Web.Persistence;
 using RentACar.Web.Regulation;
 using RentACar.Web.ServiceRecords;
+using RentACar.Web.Users;
 using RentACar.Web.VehicleSales;
 using RentACar.Web.Vehicles;
 
@@ -56,6 +57,8 @@ builder.Services.AddInfrastructure(appConn);
 // Login servisi + şifre hash.
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+// Application IPasswordHasher → ASP.NET PasswordHasher köprüsü (kullanıcı yönetimi).
+builder.Services.AddSingleton<RentACar.Application.Common.IPasswordHasher, RentACar.Web.Identity.AspNetPasswordHasher>();
 
 var app = builder.Build();
 
@@ -86,6 +89,7 @@ app.MapPenaltyEndpoints();
 app.MapVehicleSaleEndpoints();
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
+app.MapUserEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
