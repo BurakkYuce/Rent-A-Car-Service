@@ -34,6 +34,7 @@
                 <td>@r.Bakiye.ToString("N2")</td>
                 <td>@r.Durum</td>
                 <td class="row-actions">
+                    <a href="/kiralar/@r.Id/yazdir" class="link">Sözleşme</a>
                     @if (r.Durum == RentalStatus.Kirada)
                     {
                         <form method="post" action="/kiralar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>

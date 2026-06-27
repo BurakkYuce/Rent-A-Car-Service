@@ -1,0 +1,80 @@
+@page "/kiralar/{Id:guid}/yazdir"
+@layout PrintLayout
+@attribute [Authorize]
+@inject RentalService Rentals
+@inject CustomerService Customers
+@inject VehicleService Vehicles
+
+<PageTitle>Kira Sözleşmesi @(_rental?.SozlesmeNo)</PageTitle>
+
+@if (_rental is null)
+{
+    <p class="error">Kira sözleşmesi bulunamadı.</p>
+}
+else
+{
+    <div class="print-actions no-print">
+        <button onclick="window.print()">Yazdır</button>
+        <a href="/kiralar">← Kiralar</a>
+    </div>
+
+    <div class="print-doc">
+        <header class="print-head">
+            <h1>KİRA SÖZLEŞMESİ</h1>
+            <div class="doc-no">No: <strong>@_rental.SozlesmeNo</strong></div>
+        </header>
+
+        <section class="print-cols">
+            <div>
+                <h3>Müşteri</h3>
+                <p>@(_customer?.DisplayName ?? "—")</p>
+                <p>@_customer?.CepTel</p>
+                <p>@_customer?.Adres</p>
+            </div>
+            <div>
+                <h3>Araç</h3>
+                <p><strong>@(_vehicle?.Plaka ?? "—")</strong> @_vehicle?.Marka</p>
+                <p>Grup: @_vehicle?.Grup</p>
+                <p>Çıkış Ofisi: @_rental.CikisOfisi</p>
+            </div>
+        </section>
+
+        <table class="print-table">
+            <tbody>
+                <tr><th>Başlangıç</th><td>@_rental.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <th>Bitiş</th><td>@_rental.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td></tr>
+                <tr><th>Gün</th><td>@_rental.Gun</td><th>Günlük Ücret</th><td>@_rental.GunlukUcret.ToString("N2") ₺</td></tr>
+                <tr><th>Kira Tutarı</th><td>@_rental.Tutar.ToString("N2") ₺</td>
+                    <th>Fazla KM Bedeli</th><td>@_rental.FazlaKmBedeli.ToString("N2") ₺</td></tr>
+                <tr><th>Yakıt Bedeli</th><td>@_rental.YakitBedeli.ToString("N2") ₺</td>
+                    <th>Uzatma Bedeli</th><td>@_rental.UzatmaBedeli.ToString("N2") ₺</td></tr>
+            </tbody>
+        </table>
+
+        <div class="print-totals">
+            <div>Genel Toplam: <strong>@_rental.GenelToplam.ToString("N2") ₺</strong></div>
+            <div>Tahsilat: @_rental.Tahsilat.ToString("N2") ₺</div>
+            <div>Bakiye: <strong>@_rental.Bakiye.ToString("N2") ₺</strong></div>
+        </div>
+
+        <section class="print-signs">
+            <div>Kiralayan<br /><span class="sign-line"></span></div>
+            <div>Kiracı<br /><span class="sign-line"></span></div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private RentalContract? _rental;
+    private Customer? _customer;
+    private Vehicle? _vehicle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _rental = await Rentals.GetAsync(Id);
+        if (_rental is null) return;
+        _customer = await Customers.GetAsync(_rental.MusteriId);
+        _vehicle = await Vehicles.GetAsync(_rental.VehicleId);
+    }
+}
