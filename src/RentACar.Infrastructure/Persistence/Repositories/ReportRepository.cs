@@ -63,4 +63,38 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             })
             .ToList();
     }
+
+    public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Vehicles.AsNoTracking().Select(v => v.Durum).ToListAsync(ct);
+    }
+
+    public async Task<int> GetActiveRentalCountAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Rentals.AsNoTracking().CountAsync(r => r.Durum == RentalStatus.Kirada, ct);
+    }
+
+    public async Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.ServiceRecords.AsNoTracking().Where(r => r.Durum == ServisDurum.Tamamlandi);
+        if (from is { } f) q = q.Where(r => r.CikisTarihi >= f);
+        if (to is { } t) q = q.Where(r => r.CikisTarihi <= t);
+
+        var rows = await q
+            .Select(r => new { r.VehicleId, r.Tip, r.ToplamIscilik })
+            .ToListAsync(ct);
+
+        var plaka = (await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v.Plaka);
+
+        return rows
+            .Select(r => new ServiceCostRowDto(
+                r.VehicleId, plaka.TryGetValue(r.VehicleId, out var p) ? p : "(bilinmeyen araç)", r.Tip, r.ToplamIscilik))
+            .ToList();
+    }
 }

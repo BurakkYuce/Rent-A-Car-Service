@@ -19,4 +19,17 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<CariLedgerRowDto>> GetCariLedgerRowsAsync(
         DateTimeOffset? asOf, CancellationToken ct = default);
+
+    /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
+    Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
+
+    /// <summary>Aktif (Kirada) kira sözleşmesi sayısı.</summary>
+    Task<int> GetActiveRentalCountAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Tamamlanmış servis kayıtları (CikisTarihi aralığında), araç plakası çözümlenmiş.
+    /// Servis maliyet özeti için ham satırlar.
+    /// </summary>
+    Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }
