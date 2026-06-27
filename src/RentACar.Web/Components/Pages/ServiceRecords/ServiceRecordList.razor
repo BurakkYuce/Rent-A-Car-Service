@@ -1,0 +1,120 @@
+@page "/servisler"
+@attribute [Authorize]
+@using RentACar.Domain.Enums
+@inject ServiceRecordService Services
+@inject VehicleService Vehicles
+
+<PageTitle>Servis / Bakım — TürevRent</PageTitle>
+
+<h1>Servis / Bakım</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Servis Kaydı</summary>
+    <form method="post" action="/servisler/create" class="grid-form">
+        <label>Araç
+            <select name="vehicleId" required>
+                <option value="">—</option>
+                @foreach (var v in _vehicles)
+                {
+                    <option value="@v.Id">@v.Plaka</option>
+                }
+            </select>
+        </label>
+        <label>Tür
+            <select name="tip">
+                @foreach (var t in Enum.GetValues<ServisTipi>())
+                {
+                    <option value="@t">@t</option>
+                }
+            </select>
+        </label>
+        <label>Atölye<input name="atolyeAdi" /></label>
+        <label>Giriş KM<input name="girisKm" type="number" value="0" /></label>
+        <label>Hasar Sorumlu
+            <select name="hasarSorumlu">
+                @foreach (var h in Enum.GetValues<HasarSorumlu>())
+                {
+                    <option value="@h">@h</option>
+                }
+            </select>
+        </label>
+        <label>Kusur Oranı<input name="kusurOrani" type="number" step="0.01" min="0" max="1" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead>
+        <tr><th>No</th><th>Araç</th><th>Tür</th><th>Giriş</th><th>KM</th><th>İşçilik</th><th>Durum</th><th>İşlem</th></tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Servis kaydı yok.</td></tr>
+        }
+        @foreach (var s in _list)
+        {
+            <tr>
+                <td>@s.No</td>
+                <td>@VehLabel(s.VehicleId)</td>
+                <td>@s.Tip</td>
+                <td>@s.GirisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@s.GirisKm@(s.CikisKm is int ck ? $" → {ck}" : "")</td>
+                <td>@s.ToplamIscilik.ToString("N2")</td>
+                <td>@s.Durum</td>
+                <td>
+                    @if (s.Durum == ServisDurum.Acik)
+                    {
+                        <form method="post" action="/servisler/baslat" class="inline">
+                            <input type="hidden" name="id" value="@s.Id" /><button type="submit">Servise Al</button>
+                        </form>
+                    }
+                    @if (s.Durum == ServisDurum.Serviste)
+                    {
+                        <form method="post" action="/servisler/tamamla" class="inline">
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <input name="cikisKm" type="number" placeholder="Çıkış KM" required style="width:7rem" />
+                            <input name="sonrakiBakimKm" type="number" placeholder="Sonraki bakım KM" style="width:9rem" />
+                            <button type="submit">Tamamla</button>
+                        </form>
+                    }
+                    @if (s.Durum is ServisDurum.Acik or ServisDurum.Serviste)
+                    {
+                        <form method="post" action="/servisler/kalem" class="inline">
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <input name="aciklama" placeholder="Kalem" required style="width:8rem" />
+                            <input name="tutar" type="number" step="0.01" placeholder="Tutar" required style="width:6rem" />
+                            <button type="submit">+ Kalem</button>
+                        </form>
+                        <form method="post" action="/servisler/iptal" class="inline">
+                            <input type="hidden" name="id" value="@s.Id" /><button type="submit">İptal</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<ServiceRecord> _list = [];
+    private IReadOnlyList<Vehicle> _vehicles = [];
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Services.ListAsync();
+        _vehicles = await Vehicles.ListAsync();
+        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
+}
