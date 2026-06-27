@@ -11,6 +11,7 @@ public static class IdentityClaims
     public const string TenantId = "tenant_id";
     public const string TenantCode = "tenant_code";
     public const string UserId = "user_id";
+    public const string AssignedBranch = "assigned_sube";
     // Rol, standart ClaimTypes.Role olarak yazılır → [Authorize(Roles="Admin")] doğrudan çalışır.
 }
 
@@ -36,6 +37,15 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
 
     public UserRole? Role
         => Enum.TryParse<UserRole>(User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : null;
+
+    public string? AssignedBranch
+    {
+        get
+        {
+            var v = User.FindFirst(IdentityClaims.AssignedBranch)?.Value;
+            return string.IsNullOrWhiteSpace(v) ? null : v;
+        }
+    }
 }
 
 /// <summary>

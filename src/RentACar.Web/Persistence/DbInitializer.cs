@@ -32,16 +32,19 @@ public static class DbInitializer
 
         db.Users.AddRange(
             NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher),
-            NewUser(t1.Id, "operator", "Operatör (Yüce Rent)", UserRole.Operator, hasher),
+            NewUser(t1.Id, "operator", "Operatör (Merkez şube)", UserRole.Operator, hasher, sube: "Merkez"),
             NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher));
 
         await db.SaveChangesAsync();
     }
 
     private static User NewUser(
-        Guid tenantId, string userName, string displayName, UserRole rol, IPasswordHasher<User> hasher)
+        Guid tenantId, string userName, string displayName, UserRole rol, IPasswordHasher<User> hasher, string? sube = null)
     {
-        var user = new User { TenantId = tenantId, UserName = userName, DisplayName = displayName, Rol = rol };
+        var user = new User
+        {
+            TenantId = tenantId, UserName = userName, DisplayName = displayName, Rol = rol, AtanmisSube = sube
+        };
         user.PasswordHash = hasher.HashPassword(user, "umit1376");
         return user;
     }

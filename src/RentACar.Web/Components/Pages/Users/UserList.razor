@@ -25,13 +25,14 @@
                 }
             </select>
         </label>
+        <label>Şube (operatör kapsamı)<input name="atanmisSube" placeholder="boş = tüm şubeler" /></label>
         <label>Parola<input name="password" type="password" required /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <table class="grid">
-    <thead><tr><th>Kullanıcı</th><th>Görünen Ad</th><th>Rol</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kullanıcı</th><th>Görünen Ad</th><th>Rol</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @foreach (var u in _list)
         {
@@ -39,6 +40,7 @@
                 <td>@u.UserName</td>
                 <td>@u.DisplayName</td>
                 <td>@u.Rol</td>
+                <td>@(string.IsNullOrEmpty(u.AtanmisSube) ? "— (tümü)" : u.AtanmisSube)</td>
                 <td>@(u.IsActive ? "Aktif" : "Pasif")</td>
                 <td>
                     <form method="post" action="/kullanicilar/aktif" class="inline">
