@@ -1,4 +1,5 @@
 using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence;
 
@@ -15,4 +16,5 @@ public sealed class NullCurrentUser : ICurrentUser
     public static readonly NullCurrentUser Instance = new();
     public Guid? UserId => null;
     public string? UserName => null;
+    public UserRole? Role => null;
 }

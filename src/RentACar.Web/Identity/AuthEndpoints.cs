@@ -26,6 +26,7 @@ public static class AuthEndpoints
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, result.User.UserName),
+                new(ClaimTypes.Role, result.User.Rol.ToString()),
                 new(IdentityClaims.UserId, result.User.Id.ToString()),
                 new(IdentityClaims.TenantId, result.Tenant.Id.ToString()),
                 new(IdentityClaims.TenantCode, result.Tenant.Code),

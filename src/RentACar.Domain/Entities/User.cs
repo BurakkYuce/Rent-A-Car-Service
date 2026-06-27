@@ -1,11 +1,13 @@
+using RentACar.Domain.Enums;
+
 namespace RentACar.Domain.Entities;
 
 /// <summary>
-/// Program kullanıcısı. Bir tenant'a bağlıdır (<see cref="TenantId"/>) ama PR #1'de
-/// PLATFORM/auth tablosu olarak ele alınır: RLS uygulanMAZ (login'in chicken-and-egg
-/// sorununu önlemek için), erişim aşama-1'de çözümlenen tenant ile AÇIK filtrelenir.
-/// İş verisi izolasyonu (Vehicle/AuditLog/Ledger) tam RLS ile korunur.
-/// (User tablosuna RLS = dokümante edilmiş bir sonraki adım.)
+/// Program kullanıcısı. Bir tenant'a bağlıdır (<see cref="TenantId"/>). PLATFORM/auth
+/// tablosudur: okuma (login bootstrap) tenant GUC'u olmadan da çalışsın diye SELECT açık;
+/// YAZMA (oluşturma/güncelleme) RLS ile tenant'a kısıtlıdır (WITH CHECK). Owner (migrator/
+/// seeder) RLS'i bypass eder (ENABLE, FORCE değil) → cross-tenant seed mümkün.
+/// İş verisi izolasyonu (Vehicle/AuditLog/Ledger) tam FORCE RLS ile korunur.
 /// </summary>
 public class User
 {
@@ -21,4 +23,7 @@ public class User
     public string DisplayName { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Sabit rol (yetki). Yeni kullanıcılar varsayılan en düşük yetki: Operator.</summary>
+    public UserRole Rol { get; set; } = UserRole.Operator;
 }
