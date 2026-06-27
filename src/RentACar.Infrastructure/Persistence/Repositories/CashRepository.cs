@@ -48,7 +48,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         await using var dbTx = await db.Database.BeginTransactionAsync(ct);
 
         var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-        tx.No = $"TH-{n:D6}";
+        tx.No = $"{(tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
         db.CashTransactions.Add(tx);
         db.AccountLedgerEntries.AddRange(entries);
 
