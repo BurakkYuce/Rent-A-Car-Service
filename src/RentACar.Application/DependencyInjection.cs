@@ -3,6 +3,7 @@ using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
+using RentACar.Application.Details;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<ReportService>();
         services.AddScoped<UserService>();
         services.AddScoped<AvailabilityService>();
+        services.AddScoped<DetailService>();
         return services;
     }
 }

@@ -62,6 +62,7 @@
                 <td>@v.Km</td>
                 <td>@v.Yakit</td>
                 <td>
+                    <a href="/araclar/@v.Id" class="link">Detay</a>
                     <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')">
                         <input type="hidden" name="id" value="@v.Id" />
                         <button type="submit" class="link danger">Sil</button>
