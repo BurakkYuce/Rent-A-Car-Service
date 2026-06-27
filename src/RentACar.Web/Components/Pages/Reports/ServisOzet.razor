@@ -1,0 +1,65 @@
+@page "/raporlar/servis-ozet"
+@attribute [Authorize]
+@inject ReportService Reports
+
+<PageTitle>Servis Maliyet Özeti — TürevRent</PageTitle>
+
+<h1>Servis / Bakım Maliyet Özeti</h1>
+<p class="muted">Yalnız tamamlanmış servisler (çıkış tarihine göre).</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num neg">@_toplam.ToString("N2")</div>
+        <div class="card-label">Toplam İşçilik ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_adet</div>
+        <div class="card-label">Tamamlanan Servis</div>
+    </div>
+</div>
+
+<table class="grid">
+    <thead><tr><th>Araç</th><th>Tür</th><th>Adet</th><th>Toplam İşçilik</th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Tamamlanmış servis yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.Plaka</td>
+                <td>@r.Tip</td>
+                <td>@r.Adet</td>
+                <td class="neg">@r.Toplam.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<ServiceCostSummaryDto> _rows = [];
+    private decimal _toplam;
+    private int _adet;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _rows = await Reports.GetServiceCostSummaryAsync(from, to);
+        _toplam = _rows.Sum(r => r.Toplam);
+        _adet = _rows.Sum(r => r.Adet);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
