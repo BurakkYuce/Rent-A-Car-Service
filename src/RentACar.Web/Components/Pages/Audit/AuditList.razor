@@ -1,0 +1,91 @@
+@page "/denetim"
+@attribute [Authorize(Roles = "Admin")]
+@using RentACar.Application.Auditing
+@using RentACar.Domain.Enums
+@inject AuditService Audit
+
+<PageTitle>Denetim Kayıtları — TürevRent</PageTitle>
+
+<h1>Denetim (Audit) Kayıtları</h1>
+<p class="muted">Kim, ne zaman, hangi kaydı değiştirdi. Salt-okunur — değiştirilemez.</p>
+
+<form method="get" class="filter-bar">
+    <input name="entity" value="@Entity" placeholder="Tablo (ör. Vehicles)" />
+    <input name="kullanici" value="@Kullanici" placeholder="Kullanıcı" />
+    <select name="islem">
+        <option value="">İşlem (tümü)</option>
+        @foreach (var a in Enum.GetValues<AuditAction>())
+        {
+            <option value="@a" selected="@(Islem == a.ToString())">@a</option>
+        }
+    </select>
+    <button type="submit">Filtrele</button>
+    @if (!string.IsNullOrEmpty(Entity) || !string.IsNullOrEmpty(Kullanici) || !string.IsNullOrEmpty(Islem))
+    {
+        <a href="/denetim" class="link">Temizle</a>
+    }
+</form>
+
+<table class="grid">
+    <thead><tr><th>Tarih</th><th>Kullanıcı</th><th>Tablo</th><th>Kayıt</th><th>İşlem</th><th>Eski → Yeni</th></tr></thead>
+    <tbody>
+        @if (_page.Items.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Denetim kaydı yok.</td></tr>
+        }
+        @foreach (var a in _page.Items)
+        {
+            <tr>
+                <td>@a.TimestampUtc.LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                <td>@(a.UserName ?? "—")</td>
+                <td>@a.EntityName</td>
+                <td class="mono">@Kisalt(a.EntityId)</td>
+                <td>@a.Action</td>
+                <td class="audit-diff">
+                    @if (a.OldValues is not null) { <div><span class="muted">eski:</span> @Kisalt(a.OldValues, 120)</div> }
+                    @if (a.NewValues is not null) { <div><span class="muted">yeni:</span> @Kisalt(a.NewValues, 120)</div> }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (_page.TotalPages > 1)
+{
+    <nav class="pager">
+        @if (_page.HasPrev) { <a href="@PageUrl(_page.Page - 1)">← Önceki</a> }
+        <span class="muted">Sayfa @_page.Page / @_page.TotalPages (@_page.Total kayıt)</span>
+        @if (_page.HasNext) { <a href="@PageUrl(_page.Page + 1)">Sonraki →</a> }
+    </nav>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "entity")] public string? Entity { get; set; }
+    [SupplyParameterFromQuery(Name = "kullanici")] public string? Kullanici { get; set; }
+    [SupplyParameterFromQuery(Name = "islem")] public string? Islem { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+
+    private PagedResult<AuditLog> _page = new([], 0, 1, 30);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var filter = new AuditFilter
+        {
+            EntityName = Entity, UserName = Kullanici, Page = Page ?? 1,
+            Action = Enum.TryParse<AuditAction>(Islem, out var a) ? a : null
+        };
+        _page = await Audit.SearchAsync(filter);
+    }
+
+    private static string Kisalt(string? s, int n = 12)
+        => string.IsNullOrEmpty(s) ? "" : (s.Length <= n ? s : s[..n] + "…");
+
+    private string PageUrl(int p)
+    {
+        var qs = new List<string> { $"page={p}" };
+        if (!string.IsNullOrEmpty(Entity)) qs.Add($"entity={Uri.EscapeDataString(Entity)}");
+        if (!string.IsNullOrEmpty(Kullanici)) qs.Add($"kullanici={Uri.EscapeDataString(Kullanici)}");
+        if (!string.IsNullOrEmpty(Islem)) qs.Add($"islem={Islem}");
+        return "/denetim?" + string.Join("&", qs);
+    }
+}

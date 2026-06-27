@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Auditing;
 using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
@@ -64,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
         services.AddScoped<IDetailRepository, DetailRepository>();
+        services.AddScoped<IAuditRepository, AuditRepository>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();
