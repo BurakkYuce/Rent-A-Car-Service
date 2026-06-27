@@ -1,0 +1,74 @@
+@page "/faturalar/{Id:guid}/yazdir"
+@layout PrintLayout
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject InvoiceService Invoices
+@inject CustomerService Customers
+
+<PageTitle>Fatura @(_invoice?.No)</PageTitle>
+
+@if (_invoice is null)
+{
+    <p class="error">Fatura bulunamadı.</p>
+}
+else
+{
+    <div class="print-actions no-print">
+        <button onclick="window.print()">Yazdır</button>
+        <a href="/faturalar">← Faturalar</a>
+    </div>
+
+    <div class="print-doc">
+        <header class="print-head">
+            <h1>FATURA</h1>
+            <div class="doc-no">No: <strong>@_invoice.No</strong><br />
+                Tarih: @_invoice.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</div>
+        </header>
+
+        <section class="print-cols">
+            <div>
+                <h3>Müşteri</h3>
+                <p>@(_customer?.DisplayName ?? "—")</p>
+                <p>@_customer?.VergiDairesi @_customer?.VergiNo</p>
+                <p>@_customer?.Adres</p>
+            </div>
+            <div>
+                @if (_invoice.EFaturaGonderildi)
+                {
+                    <h3>e-Fatura</h3>
+                    <p>ETTN: @_invoice.EFaturaEttn</p>
+                }
+            </div>
+        </section>
+
+        <table class="print-table">
+            <thead><tr><th>Açıklama</th><th>Miktar</th><th>Birim Net</th><th>KDV %</th><th>Satır Net</th><th>KDV</th><th>Toplam</th></tr></thead>
+            <tbody>
+                @foreach (var l in _invoice.Lines)
+                {
+                    <tr><td>@l.Aciklama</td><td>@l.Miktar.ToString("N2")</td><td>@l.BirimNetFiyat.ToString("N2")</td>
+                        <td>@((l.KdvOrani * 100).ToString("N0"))</td><td>@l.SatirNet.ToString("N2")</td>
+                        <td>@l.SatirKdv.ToString("N2")</td><td>@l.SatirToplam.ToString("N2")</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="print-totals">
+            <div>Net Tutar: @_invoice.NetTutar.ToString("N2") ₺</div>
+            <div>KDV: @_invoice.KdvTutar.ToString("N2") ₺</div>
+            <div>Genel Toplam: <strong>@_invoice.GenelToplam.ToString("N2") ₺</strong></div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private Invoice? _invoice;
+    private Customer? _customer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _invoice = await Invoices.GetAsync(Id);
+        if (_invoice is null) return;
+        _customer = await Customers.GetAsync(_invoice.CariId);
+    }
+}
