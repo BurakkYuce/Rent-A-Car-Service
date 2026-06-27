@@ -33,4 +33,16 @@ public sealed class KdvMathTests
         // net + kdv = kuruşa sabitlenmiş brüt (denge korunur).
         Assert.Equal(KdvMath.RoundGross(gross), net + kdv);
     }
+
+    [Theory]
+    [InlineData(100, 0.20, 20.00, 120.00)]  // gider: net+KDV
+    [InlineData(99.99, 0.18, 18.00, 117.99)]
+    [InlineData(250, 0.10, 25.00, 275.00)]
+    public void FromNet_adds_kdv(decimal net, decimal rate, decimal expKdv, decimal expGross)
+    {
+        var (kdv, gross) = KdvMath.FromNet(net, rate);
+        Assert.Equal(expKdv, kdv);
+        Assert.Equal(expGross, gross);
+        Assert.Equal(Math.Round(kdv, 2), kdv); // kuruş
+    }
 }
