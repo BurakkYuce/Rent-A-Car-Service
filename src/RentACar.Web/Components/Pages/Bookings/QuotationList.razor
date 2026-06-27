@@ -3,6 +3,7 @@
 @inject QuotationService Quotations
 @inject CustomerService Customers
 @inject VehicleService Vehicles
+@inject LocationService Locations
 
 <PageTitle>Teklifler — TürevRent</PageTitle>
 
@@ -38,8 +39,18 @@
         <label>Bitiş<input name="bitTar" type="datetime-local" value="@_defBit" required /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" value="0" /></label>
         <label>Geçerlilik<input name="gecerlilik" type="date" /></label>
-        <label>Çıkış Ofisi<input name="cikisOfisi" /></label>
-        <label>Dönüş Ofisi<input name="donusOfisi" /></label>
+        <label>Çıkış Ofisi
+            <select name="cikisOfisi">
+                <option value="">—</option>
+                @foreach (var o in _locations) { <option>@o.Ad</option> }
+            </select>
+        </label>
+        <label>Dönüş Ofisi
+            <select name="donusOfisi">
+                <option value="">—</option>
+                @foreach (var o in _locations) { <option>@o.Ad</option> }
+            </select>
+        </label>
         <button type="submit">Teklif Oluştur</button>
     </form>
 </details>
@@ -92,6 +103,7 @@
     private IReadOnlyList<Quotation> _list = [];
     private IReadOnlyList<Customer> _customers = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
+    private IReadOnlyList<Location> _locations = [];
     private Dictionary<Guid, string> _custMap = new();
     private Dictionary<Guid, string> _vehMap = new();
     private readonly string _defBas = DateTime.Now.ToString("yyyy-MM-ddT09:00");
@@ -102,6 +114,7 @@
         _list = await Quotations.ListAsync();
         _customers = await Customers.ListAsync();
         _vehicles = await Vehicles.ListAsync();
+        _locations = await Locations.ListActiveAsync();
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
     }

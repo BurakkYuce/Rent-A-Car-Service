@@ -1,0 +1,80 @@
+@page "/lokasyonlar"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject LocationService Locations
+
+<PageTitle>Lokasyonlar — TürevRent</PageTitle>
+
+<h1>Ofis / Lokasyon Yönetimi</h1>
+<p class="muted small">Alış/dönüş ofisleri. Rezervasyon, teklif ve kira formlarındaki Çıkış/Dönüş
+    Ofisi açılır listeleri bu tablodan beslenir. (Şubeden ayrıdır; bir şubede birden çok ofis olabilir.)</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Ofis</summary>
+    <form method="post" action="/lokasyonlar/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="IST-HVL" /></label>
+        <label>Ad<input name="ad" required placeholder="İstanbul Havalimanı" /></label>
+        <label>Adres<input name="adres" /></label>
+        <label>Telefon<input name="telefon" /></label>
+        <label>Şube<input name="sube" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Adres</th><th>Telefon</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">Ofis tanımlı değil.</td></tr>
+        }
+        @foreach (var l in _list)
+        {
+            <tr>
+                <td class="mono">@l.Kod</td>
+                <td>@l.Ad</td>
+                <td>@l.Adres</td>
+                <td>@l.Telefon</td>
+                <td>@l.Sube</td>
+                <td>@(l.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/lokasyonlar/update" class="grid-form">
+                            <input type="hidden" name="id" value="@l.Id" />
+                            <label>Kod<input name="kod" value="@l.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@l.Ad" required /></label>
+                            <label>Adres<input name="adres" value="@l.Adres" /></label>
+                            <label>Telefon<input name="telefon" value="@l.Telefon" /></label>
+                            <label>Şube<input name="sube" value="@l.Sube" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@l.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!l.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/lokasyonlar/delete" onsubmit="return confirm('Ofis silinsin mi?')">
+                        <input type="hidden" name="id" value="@l.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<Location> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Locations.ListAsync();
+}
