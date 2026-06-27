@@ -2,10 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
+using RentACar.Application.DamageFiles;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Penalties;
 using RentACar.Application.Regulation;
+using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Infrastructure.Integrations;
 using RentACar.Infrastructure.Persistence;
@@ -50,6 +52,8 @@ public static class DependencyInjection
         services.AddScoped<IRegulationRepository, RegulationRepository>();
         services.AddScoped<IPenaltyRepository, PenaltyRepository>();
         services.AddScoped<ILedgerPoster, LedgerPoster>();
+        services.AddScoped<IVehicleSaleRepository, VehicleSaleRepository>();
+        services.AddScoped<IDamageFileRepository, DamageFileRepository>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();
