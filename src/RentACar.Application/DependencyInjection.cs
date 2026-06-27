@@ -9,6 +9,7 @@ using RentACar.Application.Details;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
+using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
 using RentACar.Application.Pricing;
 using RentACar.Application.Regulation;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<CustomerService>();
         services.AddScoped<BranchService>();
         services.AddScoped<RateCardService>();
+        services.AddScoped<LocationService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
