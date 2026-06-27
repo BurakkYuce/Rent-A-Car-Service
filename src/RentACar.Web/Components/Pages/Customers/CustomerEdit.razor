@@ -1,0 +1,71 @@
+@page "/cariler/{Id:guid}"
+@attribute [Authorize]
+@inject CustomerService Customers
+
+<PageTitle>Cari Düzenle — TürevRent</PageTitle>
+
+<h1>Cari Düzenle</h1>
+
+@if (_c is null)
+{
+    <p class="error">Cari bulunamadı.</p>
+    <a href="/cariler">← Listeye dön</a>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(Hata))
+    {
+        <p class="error">@Hata</p>
+    }
+
+    <form method="post" action="/cariler/update" class="grid-form">
+        <input type="hidden" name="id" value="@_c.Id" />
+        <label>Tür
+            <select name="tip">
+                @foreach (var t in Enum.GetValues<CariType>())
+                {
+                    <option value="@t" selected="@(t == _c.Tip)">@t</option>
+                }
+            </select>
+        </label>
+        <label>Ad<input name="ad" value="@_c.Ad" /></label>
+        <label>Soyad<input name="soyad" value="@_c.Soyad" /></label>
+        <label>TC Kimlik<input name="tcKimlik" maxlength="11" value="@_c.TcKimlik" /></label>
+        <label>Ünvan<input name="unvan" value="@_c.Unvan" /></label>
+        <label>Vergi Dairesi<input name="vergiDairesi" value="@_c.VergiDairesi" /></label>
+        <label>Vergi No<input name="vergiNo" maxlength="10" value="@_c.VergiNo" /></label>
+        <label>Cep Tel<input name="cepTel" value="@_c.CepTel" /></label>
+        <label>E-posta<input name="email" type="email" value="@_c.Email" /></label>
+        <label>İl<input name="il" value="@_c.Il" /></label>
+        <label>İlçe<input name="ilce" value="@_c.Ilce" /></label>
+        <label>Tarife<input name="tarife" value="@_c.Tarife" /></label>
+        <label>Vade (gün)<input name="vadeGun" type="number" value="@_c.VadeGun" /></label>
+        <label>Risk Limiti<input name="riskLimiti" type="number" step="0.01" value="@_c.RiskLimiti" /></label>
+        <label>Kara Liste
+            <select name="karaListe">
+                <option value="false" selected="@(!_c.KaraListe)">Hayır</option>
+                <option value="true" selected="@_c.KaraListe">Evet</option>
+            </select>
+        </label>
+        <label>Pasif
+            <select name="pasif">
+                <option value="false" selected="@(!_c.Pasif)">Hayır</option>
+                <option value="true" selected="@_c.Pasif">Evet</option>
+            </select>
+        </label>
+        <button type="submit">Güncelle</button>
+        <a href="/cariler" class="link">İptal</a>
+    </form>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "hata")]
+    public string? Hata { get; set; }
+
+    private Customer? _c;
+
+    protected override async Task OnInitializedAsync()
+        => _c = await Customers.GetAsync(Id);
+}

@@ -1,0 +1,70 @@
+@page "/"
+@attribute [Authorize]
+@inject VehicleService Vehicles
+@inject CustomerService Customers
+@inject RentalService Rentals
+@inject VadeService Vade
+
+<PageTitle>Panel — TürevRent</PageTitle>
+
+<h1>Panel</h1>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_counts.Total</div>
+        <div class="card-label">Toplam Araç</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_counts.Musait</div>
+        <div class="card-label">Müsait</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_aktifKira</div>
+        <div class="card-label">Aktif Kira</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_cariCount</div>
+        <div class="card-label">Cari</div>
+    </div>
+</div>
+
+@if (_gecmis + _yakin > 0)
+{
+    <div class="vade-alert">
+        ⚠️ <strong>Vade uyarısı:</strong>
+        @if (_gecmis > 0) { <span class="badge danger">@_gecmis geçmiş</span> }
+        @if (_yakin > 0) { <span class="badge warn">@_yakin yaklaşan (≤30 gün)</span> }
+        <a href="/vade">Vade panosu →</a>
+    </div>
+}
+
+<p>
+    <a href="/vehicles">Araçlar →</a> &nbsp;
+    <a href="/cariler">Cariler →</a> &nbsp;
+    <a href="/rezervasyonlar">Rezervasyonlar →</a> &nbsp;
+    <a href="/kiralar">Kiralar →</a> &nbsp;
+    <a href="/giderler">Giderler →</a>
+</p>
+
+@code {
+    private (int Total, int Musait, int Serviste) _counts;
+    private int _cariCount;
+    private int _aktifKira;
+    private int _gecmis;
+    private int _yakin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var list = await Vehicles.ListAsync();
+        _counts = (
+            list.Count,
+            list.Count(v => v.Durum == VehicleStatus.Musait),
+            list.Count(v => v.Durum == VehicleStatus.Serviste));
+        _cariCount = (await Customers.ListAsync()).Count;
+        _aktifKira = (await Rentals.ListAsync()).Count(r => r.Durum == RentalStatus.Kirada);
+
+        var warnings = await Vade.GetWarningsAsync();
+        _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
+        _yakin = warnings.Count(w => w.Bucket != VadeBucket.Gecmis);
+    }
+}

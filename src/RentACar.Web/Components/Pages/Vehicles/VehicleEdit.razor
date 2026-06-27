@@ -1,0 +1,60 @@
+@page "/vehicles/{Id:guid}"
+@attribute [Authorize]
+@inject VehicleService Vehicles
+@inject NavigationManager Nav
+
+<PageTitle>Araç Düzenle — TürevRent</PageTitle>
+
+<h1>Araç Düzenle</h1>
+
+@if (_vehicle is null)
+{
+    <p class="error">Araç bulunamadı.</p>
+    <a href="/vehicles">← Listeye dön</a>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(Hata))
+    {
+        <p class="error">@Hata</p>
+    }
+
+    <form method="post" action="/vehicles/update" class="grid-form">
+        <input type="hidden" name="id" value="@_vehicle.Id" />
+        <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
+        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
+        <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
+        <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
+        <label>Durum
+            <select name="durum">
+                @foreach (var s in Enum.GetValues<VehicleStatus>())
+                {
+                    <option value="@s" selected="@(s == _vehicle.Durum)">@s</option>
+                }
+            </select>
+        </label>
+        <label>KM<input name="km" type="number" value="@_vehicle.Km" /></label>
+        <label>Yakıt
+            <select name="yakit">
+                @foreach (var f in Enum.GetValues<FuelType>())
+                {
+                    <option value="@f" selected="@(f == _vehicle.Yakit)">@f</option>
+                }
+            </select>
+        </label>
+        <button type="submit">Güncelle</button>
+        <a href="/vehicles" class="link">İptal</a>
+    </form>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "hata")]
+    public string? Hata { get; set; }
+
+    private Vehicle? _vehicle;
+
+    protected override async Task OnInitializedAsync()
+        => _vehicle = await Vehicles.GetAsync(Id);
+}

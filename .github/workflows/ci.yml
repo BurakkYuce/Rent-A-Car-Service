@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    # Entegrasyon testleri gerçek PostgreSQL ister (RLS rol/policy doğrulaması).
+    # GitHub-hosted runner Docker Hub'a erişebildiği için service container kullanıyoruz.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Test fixture'ının admin (superuser) bağlantısı. Fixture buradan
+      # racar_owner/racar_app rollerini ve çalıştırma başına benzersiz DB'yi oluşturur.
+      RACAR_TEST_PG_ADMIN: "Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=postgres"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # TFM ile birlikte değişen sürüm (bkz. Directory.Build.props).
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore RentACar.slnx
+
+      - name: Build
+        run: dotnet build RentACar.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test RentACar.slnx -c Release --no-build --verbosity normal

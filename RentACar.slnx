@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RentACar.Application/RentACar.Application.csproj" />
+    <Project Path="src/RentACar.Domain/RentACar.Domain.csproj" />
+    <Project Path="src/RentACar.Infrastructure/RentACar.Infrastructure.csproj" />
+    <Project Path="src/RentACar.Web/RentACar.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RentACar.IntegrationTests/RentACar.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
