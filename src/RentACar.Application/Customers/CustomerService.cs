@@ -17,6 +17,14 @@ public sealed class CustomerService(ICustomerRepository repository)
     public Task<IReadOnlyList<Customer>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
+    /// <summary>Liste ekranı: arama + sayfalama.</summary>
+    public Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
+    {
+        if (filter.Page < 1) filter.Page = 1;
+        if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
+        return _repository.SearchAsync(filter, ct);
+    }
+
     public Task<Customer?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 

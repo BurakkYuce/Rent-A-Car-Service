@@ -12,6 +12,9 @@ public interface IVehicleRepository
     /// <summary><paramref name="sube"/> verilirse yalnız o şubedeki araçlar (rol bazlı kapsam).</summary>
     Task<IReadOnlyList<Vehicle>> ListAsync(string? sube = null, CancellationToken ct = default);
 
+    /// <summary>Arama/filtre + sayfalama (liste ekranı). Sube filtresi <paramref name="filter"/>'da.</summary>
+    Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default);
+
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> PlakaExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default);

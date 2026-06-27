@@ -11,7 +11,7 @@
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_list.Count == 0)">
+<details class="new-vehicle" open="@(_page.Total == 0)">
     <summary>+ Yeni Cari</summary>
     <form method="post" action="/cariler/create" class="grid-form">
         <label>Tür
@@ -45,6 +45,12 @@
     </form>
 </details>
 
+<form method="get" class="filter-bar">
+    <input name="q" value="@Q" placeholder="Ad / ünvan / TC / vergi no ara" />
+    <button type="submit">Ara</button>
+    @if (!string.IsNullOrEmpty(Q)) { <a href="/cariler" class="link">Temizle</a> }
+</form>
+
 <table class="grid">
     <thead>
         <tr>
@@ -53,11 +59,11 @@
         </tr>
     </thead>
     <tbody>
-        @if (_list.Count == 0)
+        @if (_page.Items.Count == 0)
         {
             <tr><td colspan="8" class="muted">Kayıtlı cari yok.</td></tr>
         }
-        @foreach (var c in _list)
+        @foreach (var c in _page.Items)
         {
             <tr>
                 <td>@c.Tip</td>
@@ -83,12 +89,25 @@
     </tbody>
 </table>
 
-@code {
-    [SupplyParameterFromQuery(Name = "hata")]
-    public string? Hata { get; set; }
+@if (_page.TotalPages > 1)
+{
+    <nav class="pager">
+        @if (_page.HasPrev) { <a href="@PageUrl(_page.Page - 1)">← Önceki</a> }
+        <span class="muted">Sayfa @_page.Page / @_page.TotalPages (@_page.Total kayıt)</span>
+        @if (_page.HasNext) { <a href="@PageUrl(_page.Page + 1)">Sonraki →</a> }
+    </nav>
+}
 
-    private IReadOnlyList<Customer> _list = [];
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+
+    private PagedResult<Customer> _page = new([], 0, 1, 20);
 
     protected override async Task OnInitializedAsync()
-        => _list = await Customers.ListAsync();
+        => _page = await Customers.SearchAsync(new CustomerFilter { Query = Q, Page = Page ?? 1 });
+
+    private string PageUrl(int p)
+        => string.IsNullOrEmpty(Q) ? $"/cariler?page={p}" : $"/cariler?page={p}&q={Uri.EscapeDataString(Q)}";
 }

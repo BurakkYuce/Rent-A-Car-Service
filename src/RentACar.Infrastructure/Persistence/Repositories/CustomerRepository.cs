@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Domain.Entities;
 
@@ -20,6 +21,30 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Customers.AsNoTracking()
             .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
             .ToListAsync(ct);
+    }
+
+    public async Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.Customers.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var term = $"%{filter.Query.Trim()}%";
+            q = q.Where(c =>
+                (c.Ad != null && EF.Functions.ILike(c.Ad, term))
+                || (c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
+                || (c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
+                || (c.TcKimlik != null && EF.Functions.ILike(c.TcKimlik, term))
+                || (c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
+        }
+
+        var total = await q.CountAsync(ct);
+        var items = await q
+            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+            .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
+            .ToListAsync(ct);
+        return new PagedResult<Customer>(items, total, filter.Page, filter.PageSize);
     }
 
     public async Task<Customer?> FindAsync(Guid id, CancellationToken ct = default)

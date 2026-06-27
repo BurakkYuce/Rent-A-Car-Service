@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using RentACar.Application.Common;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 
@@ -20,6 +21,28 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         var q = db.Vehicles.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(v => v.Sube == sube);
         return await q.OrderBy(v => v.Plaka).ToListAsync(ct);
+    }
+
+    public async Task<PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.Vehicles.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(filter.Sube)) q = q.Where(v => v.Sube == filter.Sube);
+        if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
+        if (!string.IsNullOrWhiteSpace(filter.Grup)) q = q.Where(v => v.Grup == filter.Grup);
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var term = $"%{filter.Query.Trim()}%";
+            q = q.Where(v => EF.Functions.ILike(v.Plaka, term)
+                || (v.Marka != null && EF.Functions.ILike(v.Marka, term)));
+        }
+
+        var total = await q.CountAsync(ct);
+        var items = await q.OrderBy(v => v.Plaka)
+            .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
+            .ToListAsync(ct);
+        return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
     }
 
     public async Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default)
