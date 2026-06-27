@@ -4,6 +4,7 @@ using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
+using RentACar.Application.Details;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Penalties;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
+        services.AddScoped<IDetailRepository, DetailRepository>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();

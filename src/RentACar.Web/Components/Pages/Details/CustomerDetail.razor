@@ -1,0 +1,59 @@
+@page "/cariler/{Id:guid}/detay"
+@attribute [Authorize]
+@inject DetailService Details
+
+<PageTitle>Cari Detayı — TürevRent</PageTitle>
+
+@if (_d is null)
+{
+    <p class="error">Cari bulunamadı.</p>
+    <a href="/cariler">← Cariler</a>
+}
+else
+{
+    <h1>@_d.Customer.DisplayName</h1>
+    <div class="kv-inline">
+        <span>Tip: <strong>@_d.Customer.Tip</strong></span>
+        <span>Tel: <strong>@_d.Customer.CepTel</strong></span>
+        <span>Bakiye: <strong class="@(_d.Bakiye > 0 ? "neg" : "pos")">@_d.Bakiye.ToString("N2") ₺</strong>
+            <span class="muted">(pozitif = borçlu)</span></span>
+    </div>
+    <p><a href="/cariler/@_d.Customer.Id/ekstre">Tam ekstre →</a></p>
+
+    <h2>Kiralar (@_d.Rentals.Count)</h2>
+    <table class="grid">
+        <thead><tr><th>Sözleşme</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>Genel Toplam</th><th>Bakiye</th></tr></thead>
+        <tbody>
+            @if (_d.Rentals.Count == 0) { <tr><td colspan="6" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var r in _d.Rentals)
+            {
+                <tr><td>@r.SozlesmeNo</td><td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                    <td>@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@r.Durum</td>
+                    <td>@r.GenelToplam.ToString("N2")</td><td>@r.Bakiye.ToString("N2")</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Son Hareketler</h2>
+    <table class="grid">
+        <thead><tr><th>Tarih</th><th>Kaynak</th><th>Açıklama</th><th>Borç</th><th>Alacak</th></tr></thead>
+        <tbody>
+            @if (_d.RecentLedger.Count == 0) { <tr><td colspan="5" class="muted">Hareket yok.</td></tr> }
+            @foreach (var e in _d.RecentLedger)
+            {
+                <tr><td>@e.EntryDateUtc.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@e.SourceType</td><td>@e.Description</td>
+                    <td>@(e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase.ToString("N2") : "")</td>
+                    <td>@(e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase.ToString("N2") : "")</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <p><a href="/cariler">← Cariler</a></p>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private CustomerDetailDto? _d;
+
+    protected override async Task OnInitializedAsync() => _d = await Details.GetCustomerAsync(Id);
+}
