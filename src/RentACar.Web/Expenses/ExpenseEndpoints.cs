@@ -18,7 +18,7 @@ public static class ExpenseEndpoints
             [FromForm] ExpenseType tip, [FromForm] string? vehicleId, [FromForm] string? cariId,
             [FromForm] string? sube, [FromForm] string? evrakNo, [FromForm] decimal netTutar,
             [FromForm] decimal kdvOrani, [FromForm] OdemeYontemi odemeYontemi,
-            [FromForm] string? doviz, [FromForm] decimal? kur, [FromForm] string? aciklama) =>
+            [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama) =>
         {
             var input = new ExpenseInput
             {
@@ -27,7 +27,7 @@ public static class ExpenseEndpoints
                 CariId = Guid.TryParse(cariId, out var c) ? c : null,
                 Sube = sube, EvrakNo = evrakNo,
                 NetTutar = netTutar, KdvOrani = kdvOrani, OdemeYontemi = odemeYontemi,
-                Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = kur ?? 1m, Aciklama = aciklama
+                Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m, Aciklama = aciklama
             };
             try
             {
