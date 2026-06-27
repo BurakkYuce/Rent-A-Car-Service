@@ -1,19 +1,22 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Vehicles;
 
 /// <summary>
 /// Araç iş mantığı: doğrulama (plaka zorunlu + tenant içinde benzersiz) + CRUD.
-/// Tenant izolasyonu ve audit alt katmanda (DbContext filter + RLS + interceptor)
-/// otomatik uygulanır — bu servis tenant'tan habersizdir.
+/// Tenant izolasyonu ve audit alt katmanda (DbContext filter + RLS + interceptor) otomatik.
+/// Liste, rol bazlı ŞUBE kapsamıyla filtrelenir (operatör yalnız kendi şubesi).
 /// </summary>
-public sealed class VehicleService(IVehicleRepository repository)
+public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser)
 {
     private readonly IVehicleRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
 
     public Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);

@@ -9,14 +9,16 @@ namespace RentACar.Application.Bookings;
 public interface IBookingRepository
 {
     // Rezervasyon
-    Task<IReadOnlyList<Reservation>> ListReservationsAsync(CancellationToken ct = default);
+    /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
+    Task<IReadOnlyList<Reservation>> ListReservationsAsync(string? sube = null, CancellationToken ct = default);
     Task<Reservation?> FindReservationAsync(Guid id, CancellationToken ct = default);
     /// <summary>ReservationNo'yu boşluksuz tahsis edip ekler (transaction).</summary>
     Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default);
     Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default);
 
     // Kira
-    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(CancellationToken ct = default);
+    /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
+    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(string? sube = null, CancellationToken ct = default);
     Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default);
     /// <summary>SozlesmeNo'yu boşluksuz tahsis edip ekler; çakışmada AvailabilityConflictException.</summary>
     Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default);

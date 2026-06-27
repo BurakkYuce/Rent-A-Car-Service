@@ -13,4 +13,7 @@ public interface ICurrentUser
 
     /// <summary>Geçerli kullanıcının rolü (yetki). Anonim/bilinmiyorsa null.</summary>
     UserRole? Role { get; }
+
+    /// <summary>Atanmış şube (Sube metni). Rol bazlı şube kapsamı için; boş = tüm şubeler.</summary>
+    string? AssignedBranch { get; }
 }
