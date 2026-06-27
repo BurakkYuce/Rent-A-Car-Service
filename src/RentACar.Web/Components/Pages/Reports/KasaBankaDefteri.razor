@@ -1,0 +1,90 @@
+@page "/raporlar/kasa-banka"
+@attribute [Authorize]
+@using RentACar.Domain.Entities
+@using RentACar.Domain.Enums
+@inject ReportService Reports
+
+<PageTitle>Kasa / Banka Defteri — TürevRent</PageTitle>
+
+<h1>Kasa / Banka Defteri</h1>
+
+<form method="get" class="grid-form">
+    <label>Hesap
+        <select name="hesap">
+            <option value="Kasa" selected="@(_hesap == LedgerAccountType.Kasa)">Kasa</option>
+            <option value="Banka" selected="@(_hesap == LedgerAccountType.Banka)">Banka</option>
+        </select>
+    </label>
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num @(_summary.KasaBakiye < 0 ? "neg" : "pos")">@_summary.KasaBakiye.ToString("N2")</div>
+        <div class="card-label">Kasa Bakiye ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num @(_summary.BankaBakiye < 0 ? "neg" : "pos")">@_summary.BankaBakiye.ToString("N2")</div>
+        <div class="card-label">Banka Bakiye ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num pos">@Giris.ToString("N2")</div>
+        <div class="card-label">@_hesap Giriş ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num neg">@Cikis.ToString("N2")</div>
+        <div class="card-label">@_hesap Çıkış ₺</div>
+    </div>
+</div>
+
+<table class="grid">
+    <thead>
+        <tr><th>Tarih</th><th>Kaynak</th><th>Açıklama</th><th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
+    </thead>
+    <tbody>
+        @if (_lines.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Hareket yok.</td></tr>
+        }
+        @foreach (var l in _lines)
+        {
+            <tr>
+                <td>@l.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@l.SourceType</td>
+                <td>@l.Aciklama</td>
+                <td>@(l.Borc > 0 ? l.Borc.ToString("N2") : "")</td>
+                <td>@(l.Alacak > 0 ? l.Alacak.ToString("N2") : "")</td>
+                <td class="@(l.YuruyenBakiye < 0 ? "neg" : "pos")">@l.YuruyenBakiye.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hesap")] public string? Hesap { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private LedgerAccountType _hesap = LedgerAccountType.Kasa;
+    private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
+    private IReadOnlyList<LedgerLineDto> _lines = [];
+
+    private decimal Giris => _hesap == LedgerAccountType.Kasa ? _summary.KasaGiris : _summary.BankaGiris;
+    private decimal Cikis => _hesap == LedgerAccountType.Kasa ? _summary.KasaCikis : _summary.BankaCikis;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hesap = string.Equals(Hesap, "Banka", StringComparison.OrdinalIgnoreCase)
+            ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
+
+        _summary = await Reports.GetKasaBankaSummaryAsync(from, to);
+        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
