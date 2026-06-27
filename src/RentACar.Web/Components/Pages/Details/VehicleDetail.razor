@@ -1,0 +1,83 @@
+@page "/araclar/{Id:guid}"
+@attribute [Authorize]
+@inject DetailService Details
+
+<PageTitle>Araç Detayı — TürevRent</PageTitle>
+
+@if (_d is null)
+{
+    <p class="error">Araç bulunamadı.</p>
+    <a href="/vehicles">← Araçlar</a>
+}
+else
+{
+    <h1>@_d.Vehicle.Plaka <span class="muted">@_d.Vehicle.Marka</span></h1>
+    <div class="kv-inline">
+        <span>Grup: <strong>@_d.Vehicle.Grup</strong></span>
+        <span>Şube: <strong>@_d.Vehicle.Sube</strong></span>
+        <span>Durum: <strong>@_d.Vehicle.Durum</strong></span>
+        <span>KM: <strong>@_d.Vehicle.Km</strong></span>
+    </div>
+
+    <h2>Kira Geçmişi (@_d.Rentals.Count)</h2>
+    <table class="grid">
+        <thead><tr><th>Sözleşme</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>Genel Toplam</th></tr></thead>
+        <tbody>
+            @if (_d.Rentals.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var r in _d.Rentals)
+            {
+                <tr><td>@r.SozlesmeNo</td><td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                    <td>@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@r.Durum</td>
+                    <td>@r.GenelToplam.ToString("N2")</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Servis / Bakım (@_d.Services.Count)</h2>
+    <table class="grid">
+        <thead><tr><th>No</th><th>Tür</th><th>Giriş</th><th>Durum</th><th>İşçilik</th></tr></thead>
+        <tbody>
+            @if (_d.Services.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var s in _d.Services)
+            {
+                <tr><td>@s.No</td><td>@s.Tip</td><td>@s.GirisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                    <td>@s.Durum</td><td>@s.ToplamIscilik.ToString("N2")</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Cezalar (@_d.Penalties.Count)</h2>
+    <table class="grid">
+        <thead><tr><th>No</th><th>Tür</th><th>Tebliğ</th><th>Tutar</th><th>Durum</th></tr></thead>
+        <tbody>
+            @if (_d.Penalties.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var p in _d.Penalties)
+            {
+                <tr><td>@p.No</td><td>@p.CezaTuru</td><td>@p.TebligTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                    <td>@p.Tutar.ToString("N2")</td><td>@p.Durum</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Hasar Dosyaları (@_d.Damages.Count)</h2>
+    <table class="grid">
+        <thead><tr><th>No</th><th>Açılış</th><th>Tahmini</th><th>Durum</th></tr></thead>
+        <tbody>
+            @if (_d.Damages.Count == 0) { <tr><td colspan="4" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var d in _d.Damages)
+            {
+                <tr><td>@d.No</td><td>@d.AcilisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                    <td>@(d.TahminiTutar?.ToString("N2") ?? "—")</td><td>@d.Durum</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <p><a href="/vehicles">← Araçlar</a></p>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private VehicleDetailDto? _d;
+
+    protected override async Task OnInitializedAsync() => _d = await Details.GetVehicleAsync(Id);
+}

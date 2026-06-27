@@ -71,6 +71,7 @@
                     @if (c.Pasif) { <span class="badge">Pasif</span> }
                 </td>
                 <td class="row-actions">
+                    <a href="/cariler/@c.Id/detay" class="link">Detay</a>
                     <a href="/cariler/@c.Id/ekstre" class="link">Ekstre</a>
                     <form method="post" action="/cariler/delete" onsubmit="return confirm('Silinsin mi?')">
                         <input type="hidden" name="id" value="@c.Id" />
