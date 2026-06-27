@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Auditing;
 using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
+using RentACar.Application.Branches;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
 using RentACar.Application.Details;
@@ -51,6 +52,7 @@ public static class DependencyInjection
 
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
