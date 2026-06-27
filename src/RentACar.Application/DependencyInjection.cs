@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Auditing;
 using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
+using RentACar.Application.Branches;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
 using RentACar.Application.Details;
@@ -24,6 +25,7 @@ public static class DependencyInjection
     {
         services.AddScoped<VehicleService>();
         services.AddScoped<CustomerService>();
+        services.AddScoped<BranchService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<RentalService>();
         services.AddScoped<CashService>();

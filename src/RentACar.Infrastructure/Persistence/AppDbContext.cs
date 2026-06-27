@@ -36,6 +36,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
+    public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -83,6 +84,21 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Rol).HasConversion<int>();
             e.Property(x => x.AtanmisSube).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.UserName }).IsUnique();
+        });
+
+        // ---- Branch / Şube (tenant-owned; master sözlük) ----
+        b.Entity<Branch>(e =>
+        {
+            e.ToTable("Branches");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Adres).HasMaxLength(512);
+            e.Property(x => x.Telefon).HasMaxLength(32);
+            // Kod tenant içinde benzersiz (doğal iş anahtarı; servis büyük harfe normalize eder).
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
         // ---- Vehicle (tenant-owned) ----

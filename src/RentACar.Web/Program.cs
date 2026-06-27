@@ -8,6 +8,7 @@ using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Identity;
 using RentACar.Web.Bookings;
+using RentACar.Web.Branches;
 using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
@@ -90,6 +91,7 @@ app.MapVehicleSaleEndpoints();
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();
+app.MapBranchEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
