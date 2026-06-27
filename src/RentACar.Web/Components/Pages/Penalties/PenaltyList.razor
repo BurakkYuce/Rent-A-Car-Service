@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using RentACar.Domain.Enums
 @inject PenaltyService Penalties
+@inject PenaltyTypeService CezaTurleri
 @inject VehicleService Vehicles
 @inject CustomerService Customers
 
@@ -17,7 +18,13 @@
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Ceza</summary>
     <form method="post" action="/cezalar/create" class="grid-form">
-        <label>Ceza Türü<input name="cezaTuru" required /></label>
+        <label>Ceza Türü<input name="cezaTuru" required list="ceza-turu-list" placeholder="Tanımlı türden seç veya yaz" /></label>
+        <datalist id="ceza-turu-list">
+            @foreach (var t in _cezaTurleri)
+            {
+                <option value="@t.Ad">@t.Kod</option>
+            }
+        </datalist>
         <label>Tebliğ Tarihi<input name="tebligTarihi" type="date" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="15" /></label>
         <label>Araç
@@ -98,12 +105,14 @@
     private IReadOnlyList<Penalty> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
+    private IReadOnlyList<PenaltyType> _cezaTurleri = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Penalties.ListAsync();
+        _cezaTurleri = await CezaTurleri.ListActiveAsync();
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);

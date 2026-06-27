@@ -13,6 +13,7 @@ using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
+using RentACar.Application.PenaltyTypes;
 using RentACar.Application.Pricing;
 using RentACar.Application.Regulation;
 using RentACar.Application.Reporting;
@@ -70,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IRegulationRepository, RegulationRepository>();
         services.AddScoped<IPenaltyRepository, PenaltyRepository>();
+        services.AddScoped<IPenaltyTypeRepository, PenaltyTypeRepository>();
         services.AddScoped<ILedgerPoster, LedgerPoster>();
         services.AddScoped<IVehicleSaleRepository, VehicleSaleRepository>();
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
