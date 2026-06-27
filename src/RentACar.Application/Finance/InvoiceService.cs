@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Integrations;
@@ -16,9 +17,11 @@ namespace RentACar.Application.Finance;
 public sealed class InvoiceService(
     IInvoiceRepository repository,
     IBookingRepository bookingRepository,
-    IEInvoiceService eInvoice)
+    IEInvoiceService eInvoice,
+    ICurrentUser currentUser)
 {
     private const decimal DefaultKdvRate = 0.20m;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default)
         => repository.ListAsync(ct);
@@ -28,6 +31,7 @@ public sealed class InvoiceService(
 
     public async Task<Guid> CreateFromRentalAsync(Guid rentalId, decimal? kdvRate = null, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var rental = await bookingRepository.FindRentalAsync(rentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         if (rental.GenelToplam <= 0)

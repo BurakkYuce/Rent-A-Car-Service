@@ -43,9 +43,13 @@ public sealed class TestHost : IDisposable
         _provider = services.BuildServiceProvider();
     }
 
-    /// <summary>Verilen tenant/kullanıcı(/rol) için yeni bir DI scope'u açar.</summary>
+    /// <summary>
+    /// Verilen tenant/kullanıcı(/rol) için yeni bir DI scope'u açar. Rol VARSAYILANI Admin'dir:
+    /// çoğu test "yetkili kullanıcı X yapar" senaryosunu kurar; yetki REDDİ testleri rolü açıkça
+    /// kısıtlar (ör. Operator).
+    /// </summary>
     public IServiceScope ScopeFor(
-        Guid? tenantId, Guid? userId = null, string? userName = "tester", UserRole? role = null)
+        Guid? tenantId, Guid? userId = null, string? userName = "tester", UserRole? role = UserRole.Admin)
     {
         var scope = _provider.CreateScope();
         var id = scope.ServiceProvider.GetRequiredService<TestIdentity>();

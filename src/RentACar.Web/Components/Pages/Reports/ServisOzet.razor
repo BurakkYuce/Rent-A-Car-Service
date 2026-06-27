@@ -1,5 +1,5 @@
 @page "/raporlar/servis-ozet"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
 <PageTitle>Servis Maliyet Özeti — TürevRent</PageTitle>

@@ -1,5 +1,5 @@
 @page "/raporlar/filo"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
 <PageTitle>Filo Doluluk — TürevRent</PageTitle>
