@@ -1,0 +1,110 @@
+@page "/takvim"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject CalendarService Calendar
+@inject VehicleService Vehicles
+
+<PageTitle>Rezervasyon Takvimi — TürevRent</PageTitle>
+
+<h1>Rezervasyon Takvimi</h1>
+
+<div class="filter-bar">
+    <a href="/takvim?ay=@_prev">← @_prevLabel</a>
+    <strong>@_monthStart.ToString("MMMM yyyy")</strong>
+    <a href="/takvim?ay=@_next">@_nextLabel →</a>
+</div>
+
+<div class="cal-legend">
+    <span><i class="cal rez" style="border:1px solid #e2e5ea;background:#fde68a"></i> Rezervasyon</span>
+    <span><i class="cal kira" style="border:1px solid #e2e5ea;background:#93c5fd"></i> Kira</span>
+</div>
+
+<div class="cal-wrap">
+    <table class="cal">
+        <thead>
+            <tr>
+                <th class="veh">Araç</th>
+                @for (var d = 1; d <= _days; d++)
+                {
+                    var date = new DateTime(_monthStart.Year, _monthStart.Month, d);
+                    <th class="@(IsWeekend(date) ? "we" : null)">@d</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (_vehicles.Count == 0)
+            {
+                <tr><td class="veh">—</td><td colspan="@_days" class="muted">Araç yok.</td></tr>
+            }
+            @foreach (var v in _vehicles)
+            {
+                <tr>
+                    <td class="veh">@v.Plaka</td>
+                    @for (var d = 1; d <= _days; d++)
+                    {
+                        var date = new DateTime(_monthStart.Year, _monthStart.Month, d);
+                        var kind = Occupancy(v.Id, date);
+                        var cls = kind switch { "Kira" => "kira", "Rezervasyon" => "rez", _ => IsWeekend(date) ? "we" : null };
+                        var title = kind is null ? null : $"{v.Plaka} — {kind}";
+                        <td class="@cls" title="@title">@(kind == "Kira" ? "K" : kind == "Rezervasyon" ? "R" : "")</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<p class="muted small">Sarı = rezervasyon (Rezerv/Onaylı), mavi = aktif kira. Kira önceliklidir.
+    Operatör yalnız atanmış şubesini görür.</p>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ay")] public string? Ay { get; set; }
+
+    private DateTime _monthStart;
+    private int _days;
+    private string _prev = "", _next = "", _prevLabel = "", _nextLabel = "";
+    private IReadOnlyList<Vehicle> _vehicles = [];
+    // (VehicleId, gün) → tip; çakışmada Kira önceliklidir.
+    private readonly Dictionary<(Guid, int), string> _grid = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var now = DateTime.Now;
+        var anchor = DateTime.TryParse($"{Ay}-01", out var p) ? p : new DateTime(now.Year, now.Month, 1);
+        _monthStart = new DateTime(anchor.Year, anchor.Month, 1);
+        _days = DateTime.DaysInMonth(_monthStart.Year, _monthStart.Month);
+
+        var prev = _monthStart.AddMonths(-1);
+        var next = _monthStart.AddMonths(1);
+        _prev = prev.ToString("yyyy-MM"); _prevLabel = prev.ToString("MMM");
+        _next = next.ToString("yyyy-MM"); _nextLabel = next.ToString("MMM");
+
+        var from = new DateTimeOffset(_monthStart, TimeSpan.Zero);
+        var to = new DateTimeOffset(_monthStart.AddMonths(1), TimeSpan.Zero);
+
+        _vehicles = await Vehicles.ListAsync();
+        var spans = await Calendar.GetOccupancyAsync(from, to);
+
+        foreach (var s in spans)
+        {
+            for (var d = 1; d <= _days; d++)
+            {
+                var dayStart = new DateTimeOffset(new DateTime(_monthStart.Year, _monthStart.Month, d), TimeSpan.Zero);
+                var dayEnd = dayStart.AddDays(1);
+                // Gün ile span yarı-açık kesişimi.
+                if (s.Bas < dayEnd && dayStart < s.Bit)
+                {
+                    var key = (s.VehicleId, d);
+                    // Kira, rezervasyonu ezer (öncelik).
+                    if (s.Tip == "Kira" || !_grid.ContainsKey(key))
+                        _grid[key] = s.Tip;
+                }
+            }
+        }
+    }
+
+    private string? Occupancy(Guid vehicleId, DateTime date)
+        => _grid.GetValueOrDefault((vehicleId, date.Day));
+
+    private static bool IsWeekend(DateTime d)
+        => d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+}
