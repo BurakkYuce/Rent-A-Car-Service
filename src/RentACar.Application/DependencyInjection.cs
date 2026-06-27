@@ -9,6 +9,7 @@ using RentACar.Application.Penalties;
 using RentACar.Application.Regulation;
 using RentACar.Application.Reporting;
 using RentACar.Application.ServiceRecords;
+using RentACar.Application.Users;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<DamageFileService>();
         services.AddScoped<ServiceRecordService>();
         services.AddScoped<ReportService>();
+        services.AddScoped<UserService>();
         return services;
     }
 }
