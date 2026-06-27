@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Pricing;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -11,10 +12,11 @@ namespace RentACar.Application.Bookings;
 /// DB exclusion constraint ile garanti edilir (eşzamanlı istekte tek kazanan).
 /// Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class RentalService(IBookingRepository repository, ICurrentUser currentUser)
+public sealed class RentalService(IBookingRepository repository, ICurrentUser currentUser, PricingService pricing)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly PricingService _pricing = pricing;
 
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
         => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
@@ -25,7 +27,7 @@ public sealed class RentalService(IBookingRepository repository, ICurrentUser cu
     public async Task<Guid> CreateDirectAsync(BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
-        var (gun, tutar) = BookingMath.Compute(input);
+        var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
