@@ -1,0 +1,80 @@
+@page "/raporlar/cari-bakiye"
+@attribute [Authorize]
+@inject ReportService Reports
+
+<PageTitle>Cari Bakiye / Yaşlandırma — TürevRent</PageTitle>
+
+<h1>Cari Bakiye & Yaşlandırma</h1>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num neg">@_borcluToplam.ToString("N2")</div>
+        <div class="card-label">Toplam Alacağımız ₺ (müşteri borçlu)</div>
+    </div>
+    <div class="card">
+        <div class="card-num pos">@_alacakliToplam.ToString("N2")</div>
+        <div class="card-label">Toplam Borcumuz ₺ (tedarikçi/avans)</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_balances.Count</div>
+        <div class="card-label">Bakiyeli Cari</div>
+    </div>
+</div>
+
+<h2>Cari Bakiyeleri</h2>
+<table class="grid">
+    <thead><tr><th>Cari</th><th>Bakiye</th><th></th></tr></thead>
+    <tbody>
+        @if (_balances.Count == 0)
+        {
+            <tr><td colspan="3" class="muted">Bakiyeli cari yok.</td></tr>
+        }
+        @foreach (var b in _balances)
+        {
+            <tr>
+                <td>@b.Ad</td>
+                <td class="@(b.Bakiye > 0 ? "neg" : "pos")">@b.Bakiye.ToString("N2")</td>
+                <td><a href="/cariler/@b.CariId/ekstre">Ekstre →</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Borç Yaşlandırma <span class="muted">(brüt — tahsilat mahsubu yok)</span></h2>
+<table class="grid">
+    <thead><tr><th>Cari</th><th>0-30 gün</th><th>31-60</th><th>61-90</th><th>90+</th><th>Toplam</th></tr></thead>
+    <tbody>
+        @if (_aging.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Açık borç yok.</td></tr>
+        }
+        @foreach (var a in _aging)
+        {
+            <tr>
+                <td>@a.Ad</td>
+                <td>@Cell(a.B0_30)</td>
+                <td>@Cell(a.B31_60)</td>
+                <td>@Cell(a.B61_90)</td>
+                <td class="@(a.B90Plus > 0 ? "neg" : "")">@Cell(a.B90Plus)</td>
+                <td><strong>@a.Toplam.ToString("N2")</strong></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<CariBalanceDto> _balances = [];
+    private IReadOnlyList<AgingRowDto> _aging = [];
+    private decimal _borcluToplam;
+    private decimal _alacakliToplam;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _balances = await Reports.GetCariBalancesAsync();
+        _aging = await Reports.GetAgingAsync(DateTimeOffset.UtcNow);
+        _borcluToplam = _balances.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
+        _alacakliToplam = -_balances.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
+    }
+
+    private static string Cell(decimal v) => v == 0m ? "" : v.ToString("N2");
+}
