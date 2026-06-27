@@ -22,16 +22,36 @@ else
     }
 
     <details class="new-vehicle">
-        <summary>+ Tahsilat</summary>
+        <summary>+ Tahsilat (cari bakiye ↓)</summary>
         <form method="post" action="/finans/tahsilat" class="grid-form">
             <input type="hidden" name="cariId" value="@_customer.Id" />
             <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
+            <label>Hesap
+                <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+            </label>
             <label>Döviz
                 <select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select>
             </label>
             <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
             <label>Açıklama<input name="aciklama" /></label>
             <button type="submit">Tahsil Et</button>
+        </form>
+    </details>
+
+    <details class="new-vehicle">
+        <summary>+ Ödeme / Tediye (cari bakiye ↑)</summary>
+        <form method="post" action="/finans/odeme" class="grid-form">
+            <input type="hidden" name="cariId" value="@_customer.Id" />
+            <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
+            <label>Hesap
+                <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+            </label>
+            <label>Döviz
+                <select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select>
+            </label>
+            <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
+            <label>Açıklama<input name="aciklama" /></label>
+            <button type="submit">Öde</button>
         </form>
     </details>
 
@@ -56,7 +76,7 @@ else
                     <td>@(e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase.ToString("N2") : "")</td>
                     <td>@running.ToString("N2")</td>
                     <td>
-                        @if (e.SourceType == "Tahsilat")
+                        @if (e.SourceType is "Tahsilat" or "Odeme")
                         {
                             <form method="post" action="/finans/tahsilat/ters" onsubmit="return confirm('Ters kayıt alınsın mı?')">
                                 <input type="hidden" name="id" value="@e.SourceId" />
