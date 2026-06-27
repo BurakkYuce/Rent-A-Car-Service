@@ -2,6 +2,7 @@ using RentACar.Api.Common;
 using RentACar.Api.Dtos;
 using RentACar.Application.Authorization;
 using RentACar.Application.Vehicles;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Api.Endpoints;
 
@@ -13,8 +14,13 @@ public static class VehiclesApi
     {
         var grp = app.MapGroup("/api/v1/vehicles").WithTags("Vehicles").RequireAuthorization();
 
-        grp.MapGet("/", async (VehicleService svc, CancellationToken ct) =>
-            Results.Ok((await svc.ListAsync(ct)).Select(VehicleResponse.From)));
+        // Sayfalı + filtreli liste: ?q=&durum=&grup=&page=&pageSize=
+        grp.MapGet("/", async (VehicleService svc, CancellationToken ct,
+            string? q = null, VehicleStatus? durum = null, string? grup = null, int page = 1, int pageSize = 20) =>
+        {
+            var filter = new VehicleFilter { Query = q, Durum = durum, Grup = grup, Page = page, PageSize = pageSize };
+            return Results.Ok(PagedResponse.From(await svc.SearchAsync(filter, ct), VehicleResponse.From));
+        });
 
         grp.MapGet("/{id:guid}", async (Guid id, VehicleService svc, CancellationToken ct) =>
             await svc.GetAsync(id, ct) is { } v
