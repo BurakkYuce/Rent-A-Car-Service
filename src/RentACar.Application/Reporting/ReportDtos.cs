@@ -37,6 +37,16 @@ public sealed record AgingRowDto(
 /// <summary>SourceType kırılım kalemi (gelir/gider drill-down).</summary>
 public sealed record GelirGiderKalemDto(string SourceType, decimal Tutar);
 
+/// <summary>Filo durum dağılımı + aktif kira (operasyonel rapor).</summary>
+public sealed record FleetUtilizationDto(
+    int Toplam, int Stokta, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);
+
+/// <summary>Tek tamamlanmış servis kaydı (ham) — araç plakası çözümlenmiş.</summary>
+public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal ToplamIscilik);
+
+/// <summary>Araç+tip başına servis maliyet özeti (gruplanmış).</summary>
+public sealed record ServiceCostSummaryDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal Toplam, int Adet);
+
 /// <summary>Dönem gelir-gider özeti + KDV + net kâr + kaynak kırılımı (base para).</summary>
 public sealed record GelirGiderDto(
     decimal GelirToplam, decimal GiderToplam,

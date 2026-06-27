@@ -1,0 +1,55 @@
+@page "/raporlar/filo"
+@attribute [Authorize]
+@inject ReportService Reports
+
+<PageTitle>Filo Doluluk — TürevRent</PageTitle>
+
+<h1>Filo Doluluk</h1>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_f.Toplam</div>
+        <div class="card-label">Toplam Araç</div>
+    </div>
+    <div class="card">
+        <div class="card-num pos">@_f.Kirada</div>
+        <div class="card-label">Kirada</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_f.AktifKira</div>
+        <div class="card-label">Aktif Kira Sözleşmesi</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@DolulukYuzde</div>
+        <div class="card-label">Doluluk (Kirada / Aktif Filo)</div>
+    </div>
+</div>
+
+<table class="grid">
+    <thead><tr><th>Durum</th><th>Adet</th></tr></thead>
+    <tbody>
+        <tr><td>Stokta</td><td>@_f.Stokta</td></tr>
+        <tr><td>Müsait</td><td>@_f.Musait</td></tr>
+        <tr><td>Kirada</td><td>@_f.Kirada</td></tr>
+        <tr><td>Serviste</td><td>@_f.Serviste</td></tr>
+        <tr><td>Pasif</td><td>@_f.Pasif</td></tr>
+        <tr><td>Satıldı</td><td>@_f.Satildi</td></tr>
+    </tbody>
+</table>
+
+@code {
+    private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0, 0);
+
+    // Aktif filo = satılmış ve pasif hariç (kiralanabilir havuz).
+    private string DolulukYuzde
+    {
+        get
+        {
+            var aktif = _f.Toplam - _f.Satildi - _f.Pasif;
+            return aktif <= 0 ? "—" : $"%{Math.Round(100m * _f.Kirada / aktif, 1)}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+        => _f = await Reports.GetFleetUtilizationAsync();
+}

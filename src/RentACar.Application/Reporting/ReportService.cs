@@ -110,6 +110,32 @@ public sealed class ReportService(IReportRepository repository)
             .ToList();
     }
 
+    /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
+    public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
+    {
+        var statuses = await _repository.GetVehicleStatusesAsync(ct);
+        var aktifKira = await _repository.GetActiveRentalCountAsync(ct);
+        int Count(VehicleStatus s) => statuses.Count(x => x == s);
+        return new FleetUtilizationDto(
+            statuses.Count,
+            Count(VehicleStatus.Stokta), Count(VehicleStatus.Musait), Count(VehicleStatus.Kirada),
+            Count(VehicleStatus.Serviste), Count(VehicleStatus.Pasif), Count(VehicleStatus.Satildi),
+            aktifKira);
+    }
+
+    /// <summary>Tamamlanmış servislerin araç+tip başına maliyet özeti (Σ ToplamIscilik + adet).</summary>
+    public async Task<IReadOnlyList<ServiceCostSummaryDto>> GetServiceCostSummaryAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetServiceCostRowsAsync(from, to, ct);
+        return rows
+            .GroupBy(r => (r.VehicleId, r.Plaka, r.Tip))
+            .Select(g => new ServiceCostSummaryDto(
+                g.Key.VehicleId, g.Key.Plaka, g.Key.Tip, g.Sum(r => r.ToplamIscilik), g.Count()))
+            .OrderByDescending(s => s.Toplam)
+            .ToList();
+    }
+
     private static decimal Signed(CariLedgerRowDto r)
         => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
 
