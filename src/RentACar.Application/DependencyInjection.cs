@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Auditing;
 using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<UserService>();
         services.AddScoped<AvailabilityService>();
         services.AddScoped<DetailService>();
+        services.AddScoped<AuditService>();
         return services;
     }
 }
