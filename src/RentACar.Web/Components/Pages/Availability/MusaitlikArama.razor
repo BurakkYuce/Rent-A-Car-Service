@@ -1,0 +1,78 @@
+@page "/musaitlik"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.Availability
+@inject AvailabilityService Availability
+
+<PageTitle>Müsait Araç Ara — TürevRent</PageTitle>
+
+<h1>Müsait Araç Ara</h1>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" required /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" required /></label>
+    <label>Grup<input name="grup" value="@Grup" placeholder="(tümü)" /></label>
+    <label>Şube<input name="sube" value="@Sube" placeholder="(tümü)" /></label>
+    <button type="submit">Ara</button>
+</form>
+
+@if (_searched)
+{
+    <p class="muted">@From – @To arası @_list.Count müsait araç.</p>
+    <table class="grid">
+        <thead><tr><th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th><th>Durum</th><th></th></tr></thead>
+        <tbody>
+            @if (_list.Count == 0)
+            {
+                <tr><td colspan="6" class="muted">Bu aralıkta müsait araç yok.</td></tr>
+            }
+            @foreach (var v in _list)
+            {
+                <tr>
+                    <td>@v.Plaka</td>
+                    <td>@v.Marka</td>
+                    <td>@v.Grup</td>
+                    <td>@v.Sube</td>
+                    <td>@v.Durum</td>
+                    <td><a href="/rezervasyonlar">Rezervasyon →</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+
+    private IReadOnlyList<Vehicle> _list = [];
+    private bool _searched;
+    private string? Hata;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To);
+        if (from is null || to is null) return; // ilk açılış: arama yok
+
+        _searched = true;
+        try
+        {
+            _list = await Availability.FindAvailableAsync(from.Value, to.Value, Grup, Sube);
+        }
+        catch (RentACar.Application.Common.ValidationException ex)
+        {
+            Hata = ex.Message;
+            _searched = false;
+        }
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
