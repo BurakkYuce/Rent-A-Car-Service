@@ -62,6 +62,9 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .report-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1rem 0; }
 .kv-inline { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: .5rem 0 1rem; color: var(--muted); }
 .kv-inline strong { color: var(--text, #111); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+.filter-bar input, .filter-bar select { padding: .4rem .6rem; border: 1px solid var(--line); border-radius: .4rem; }
+.pager { display: flex; gap: 1rem; align-items: center; margin: 1rem 0; }
 
 .grid { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; }
 .grid th, .grid td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--line); font-size: .92rem; }
