@@ -1,0 +1,94 @@
+@page "/raporlar/gelir-gider"
+@attribute [Authorize]
+@inject ReportService Reports
+
+<PageTitle>Gelir-Gider Özeti — TürevRent</PageTitle>
+
+<h1>Gelir-Gider Özeti</h1>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num pos">@_data.GelirToplam.ToString("N2")</div>
+        <div class="card-label">Gelir Toplam ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num neg">@_data.GiderToplam.ToString("N2")</div>
+        <div class="card-label">Gider Toplam ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num @(_data.NetKar < 0 ? "neg" : "pos")">@_data.NetKar.ToString("N2")</div>
+        <div class="card-label">Net Kâr ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@((_data.KdvTahsil - _data.KdvIndirilecek).ToString("N2"))</div>
+        <div class="card-label">KDV Net (Tahsil − İndirilecek) ₺</div>
+    </div>
+</div>
+
+<div class="report-cols">
+    <div>
+        <h2>Gelir Kırılımı</h2>
+        <table class="grid">
+            <thead><tr><th>Kaynak</th><th>Tutar</th></tr></thead>
+            <tbody>
+                @if (_data.GelirKirilim.Count == 0)
+                {
+                    <tr><td colspan="2" class="muted">Gelir yok.</td></tr>
+                }
+                @foreach (var k in _data.GelirKirilim)
+                {
+                    <tr><td>@KaynakAd(k.SourceType)</td><td class="pos">@k.Tutar.ToString("N2")</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div>
+        <h2>Gider Kırılımı</h2>
+        <table class="grid">
+            <thead><tr><th>Kaynak</th><th>Tutar</th></tr></thead>
+            <tbody>
+                @if (_data.GiderKirilim.Count == 0)
+                {
+                    <tr><td colspan="2" class="muted">Gider yok.</td></tr>
+                }
+                @foreach (var k in _data.GiderKirilim)
+                {
+                    <tr><td>@KaynakAd(k.SourceType)</td><td class="neg">@k.Tutar.ToString("N2")</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private GelirGiderDto _data = new(0, 0, 0, 0, 0, [], []);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _data = await Reports.GetGelirGiderAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+
+    private static string KaynakAd(string sourceType) => sourceType switch
+    {
+        "Fatura" => "Fatura",
+        "AracSatis" => "Araç Satış",
+        "Ceza" => "Ceza Yansıtma",
+        "Hgs" => "HGS Yansıtma",
+        "Gider" => "Gider",
+        _ => sourceType
+    };
+}

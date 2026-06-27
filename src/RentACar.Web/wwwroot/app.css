@@ -57,6 +57,9 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .card { background: #fff; border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; text-align: center; }
 .card-num { font-size: 1.8rem; font-weight: 700; color: var(--brand); }
 .card-label { color: var(--muted); font-size: .85rem; }
+.card-num.pos { color: #15803d; }
+.card-num.neg { color: #b91c1c; }
+.report-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1rem 0; }
 
 .grid { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; }
 .grid th, .grid td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--line); font-size: .92rem; }
