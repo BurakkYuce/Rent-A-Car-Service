@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Identity;
 using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 
-namespace RentACar.Web.Identity;
+namespace RentACar.Infrastructure.Identity;
 
 /// <summary>
 /// IPasswordHasher (Application) → ASP.NET Core PasswordHasher&lt;User&gt; köprüsü. Login ve
-/// kullanıcı yönetimi aynı algoritmayı kullanır (seed'deki ile tutarlı).
+/// kullanıcı yönetimi aynı algoritmayı kullanır (seed'deki ile tutarlı). Web + API ortak
+/// (AddInfrastructure'da kayıtlı).
 /// </summary>
 public sealed class AspNetPasswordHasher : IPasswordHasher
 {

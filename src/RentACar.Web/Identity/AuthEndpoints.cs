@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using RentACar.Infrastructure.Identity;
 
 namespace RentACar.Web.Identity;
 

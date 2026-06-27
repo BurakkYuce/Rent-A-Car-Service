@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/RentACar.Api/RentACar.Api.csproj" />
     <Project Path="src/RentACar.Application/RentACar.Application.csproj" />
     <Project Path="src/RentACar.Domain/RentACar.Domain.csproj" />
     <Project Path="src/RentACar.Infrastructure/RentACar.Infrastructure.csproj" />

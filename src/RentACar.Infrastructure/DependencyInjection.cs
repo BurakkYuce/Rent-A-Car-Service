@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Auditing;
@@ -18,6 +19,8 @@ using RentACar.Application.ServiceRecords;
 using RentACar.Application.Users;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
+using RentACar.Domain.Entities;
+using RentACar.Infrastructure.Identity;
 using RentACar.Infrastructure.Integrations;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Infrastructure.Persistence.Interceptors;
@@ -74,6 +77,11 @@ public static class DependencyInjection
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
         services.AddScoped<IDetailRepository, DetailRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
+
+        // Kimlik/şifre: paylaşılan login doğrulaması (Web cookie + API JWT ortak kullanır).
+        services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<RentACar.Application.Common.IPasswordHasher, AspNetPasswordHasher>();
+        services.AddScoped<LoginService>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();

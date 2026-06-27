@@ -57,11 +57,8 @@ builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContext
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn);
 
-// Login servisi + şifre hash.
-builder.Services.AddScoped<LoginService>();
-builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
-// Application IPasswordHasher → ASP.NET PasswordHasher köprüsü (kullanıcı yönetimi).
-builder.Services.AddSingleton<RentACar.Application.Common.IPasswordHasher, RentACar.Web.Identity.AspNetPasswordHasher>();
+// LoginService + IPasswordHasher<User> + Application IPasswordHasher köprüsü artık
+// AddInfrastructure'da (Web cookie + API JWT ortak kullanır).
 
 var app = builder.Build();
 

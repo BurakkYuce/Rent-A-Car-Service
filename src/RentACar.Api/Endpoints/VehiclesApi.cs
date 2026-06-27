@@ -1,0 +1,45 @@
+using RentACar.Api.Common;
+using RentACar.Api.Dtos;
+using RentACar.Application.Authorization;
+using RentACar.Application.Vehicles;
+
+namespace RentACar.Api.Endpoints;
+
+/// <summary>Araç JSON CRUD. Okuma: kimlik doğrulanmış; yazma: OperationsWrite (403). Tenant
+/// izolasyonu JWT → ApiIdentity → RLS ile otomatik.</summary>
+public static class VehiclesApi
+{
+    public static IEndpointRouteBuilder MapVehiclesApi(this IEndpointRouteBuilder app)
+    {
+        var grp = app.MapGroup("/api/v1/vehicles").WithTags("Vehicles").RequireAuthorization();
+
+        grp.MapGet("/", async (VehicleService svc, CancellationToken ct) =>
+            Results.Ok((await svc.ListAsync(ct)).Select(VehicleResponse.From)));
+
+        grp.MapGet("/{id:guid}", async (Guid id, VehicleService svc, CancellationToken ct) =>
+            await svc.GetAsync(id, ct) is { } v
+                ? Results.Ok(VehicleResponse.From(v))
+                : Results.Json(new ApiError("not_found", "Araç bulunamadı."), statusCode: StatusCodes.Status404NotFound));
+
+        grp.MapPost("/", async (VehicleRequest req, VehicleService svc, CancellationToken ct) =>
+        {
+            var id = await svc.CreateAsync(req.ToInput(), ct);
+            var created = await svc.GetAsync(id, ct);
+            return Results.Created($"/api/v1/vehicles/{id}", VehicleResponse.From(created!));
+        }).RequirePermission(Permission.OperationsWrite);
+
+        grp.MapPut("/{id:guid}", async (Guid id, VehicleRequest req, VehicleService svc, CancellationToken ct) =>
+            await svc.UpdateAsync(id, req.ToInput(), ct)
+                ? Results.Ok(VehicleResponse.From((await svc.GetAsync(id, ct))!))
+                : Results.Json(new ApiError("not_found", "Araç bulunamadı."), statusCode: StatusCodes.Status404NotFound))
+            .RequirePermission(Permission.OperationsWrite);
+
+        grp.MapDelete("/{id:guid}", async (Guid id, VehicleService svc, CancellationToken ct) =>
+            await svc.DeleteAsync(id, ct)
+                ? Results.NoContent()
+                : Results.Json(new ApiError("not_found", "Araç bulunamadı."), statusCode: StatusCodes.Status404NotFound))
+            .RequirePermission(Permission.OperationsWrite);
+
+        return app;
+    }
+}
