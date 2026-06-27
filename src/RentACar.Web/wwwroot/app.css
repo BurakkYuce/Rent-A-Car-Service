@@ -119,3 +119,15 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .content h2 { margin-top: 1.5rem; font-size: 1.1rem; }
 .pos { color: #1f8b4c; }
 .neg { color: #c0392b; }
+
+/* ---- Rezervasyon takvimi ---- */
+.cal { border-collapse: collapse; font-size: .75rem; background: #fff; border: 1px solid var(--line); }
+.cal th, .cal td { border: 1px solid var(--line); padding: .15rem .3rem; text-align: center; min-width: 1.4rem; }
+.cal th.veh, .cal td.veh { text-align: left; white-space: nowrap; min-width: 7rem; position: sticky; left: 0; background: #fafbfc; }
+.cal td.we { background: #f3f4f6; }
+.cal td.rez { background: #fde68a; }
+.cal td.kira { background: #93c5fd; }
+.cal-wrap { overflow-x: auto; margin: 1rem 0; }
+.cal-legend { display: flex; gap: 1rem; align-items: center; margin: .5rem 0; font-size: .85rem; }
+.cal-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.cal-legend i { width: 1rem; height: 1rem; border-radius: .2rem; display: inline-block; }
