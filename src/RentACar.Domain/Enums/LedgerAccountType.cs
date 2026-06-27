@@ -7,5 +7,6 @@ public enum LedgerAccountType
     Kasa = 1,   // nakit kasa
     Banka = 2,  // banka
     Gelir = 3,  // gelir (satış)
-    Kdv = 4     // KDV
+    Kdv = 4,    // KDV
+    Gider = 5   // gider (masraf)
 }
