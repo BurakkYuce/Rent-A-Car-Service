@@ -14,16 +14,16 @@ public static class FinanceEndpoints
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
 
         grp.MapPost("/tahsilat", async (CashService svc,
-            [FromForm] Guid cariId, [FromForm] Guid? rentalId, [FromForm] decimal tutar,
-            [FromForm] string? doviz, [FromForm] decimal? kur, [FromForm] string? aciklama,
+            [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
+            [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? donus) =>
         {
             try
             {
                 await svc.CollectAsync(new CashInput
                 {
-                    CariId = cariId, RentalId = rentalId, Tutar = tutar,
-                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = kur ?? 1m, Aciklama = aciklama
+                    CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
+                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m, Aciklama = aciklama
                 });
                 return Results.Redirect(donus ?? $"/cariler/{cariId}/ekstre");
             }

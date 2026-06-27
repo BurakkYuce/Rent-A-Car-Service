@@ -15,14 +15,14 @@ public static class DamageFileEndpoints
 
         grp.MapPost("/create", async (DamageFileService svc,
             [FromForm] Guid vehicleId, [FromForm] string? rentalId, [FromForm] string? cariId,
-            [FromForm] string? aciklama, [FromForm] decimal? tahminiTutar) =>
+            [FromForm] string? aciklama, [FromForm] string? tahminiTutar) =>
         {
             var input = new DamageFileInput
             {
                 VehicleId = vehicleId,
                 RentalId = Guid.TryParse(rentalId, out var r) ? r : null,
                 CariId = Guid.TryParse(cariId, out var c) ? c : null,
-                Aciklama = aciklama, TahminiTutar = tahminiTutar
+                Aciklama = aciklama, TahminiTutar = FormParse.Dec(tahminiTutar)
             };
             try
             {

@@ -12,15 +12,15 @@ public static class PenaltyEndpoints
         var grp = app.MapGroup("/cezalar").RequireAuthorization().DisableAntiforgery();
 
         grp.MapPost("/create", async (PenaltyService svc,
-            [FromForm] string cezaTuru, [FromForm] DateTimeOffset? tebligTarihi, [FromForm] int? vadeGun,
+            [FromForm] string cezaTuru, [FromForm] string? tebligTarihi, [FromForm] string? vadeGun,
             [FromForm] string? vehicleId, [FromForm] string? cariId, [FromForm] string? rentalId,
             [FromForm] decimal tutar, [FromForm] string? sebep) =>
         {
             var input = new PenaltyInput
             {
                 CezaTuru = cezaTuru,
-                TebligTarihi = tebligTarihi,
-                VadeGun = vadeGun ?? 15,
+                TebligTarihi = FormParse.Date(tebligTarihi),
+                VadeGun = FormParse.Int(vadeGun) ?? 15,
                 VehicleId = Guid.TryParse(vehicleId, out var v) ? v : null,
                 CariId = Guid.TryParse(cariId, out var c) ? c : null,
                 RentalId = Guid.TryParse(rentalId, out var r) ? r : null,

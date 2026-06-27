@@ -16,13 +16,13 @@ public static class VehicleSaleEndpoints
         grp.MapPost("/create", async (VehicleSaleService svc,
             [FromForm] Guid vehicleId, [FromForm] Guid aliciCariId, [FromForm] decimal satisNet,
             [FromForm] decimal kdvOrani, [FromForm] string? noterNo, [FromForm] string? doviz,
-            [FromForm] decimal? kur, [FromForm] string? aciklama) =>
+            [FromForm] string? kur, [FromForm] string? aciklama) =>
         {
             var input = new VehicleSaleInput
             {
                 VehicleId = vehicleId, AliciCariId = aliciCariId, SatisNet = satisNet, KdvOrani = kdvOrani,
                 NoterNo = noterNo, Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz,
-                Kur = kur ?? 1m, Aciklama = aciklama
+                Kur = FormParse.Dec(kur) ?? 1m, Aciklama = aciklama
             };
             try
             {
