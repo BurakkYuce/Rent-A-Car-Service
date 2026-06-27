@@ -13,8 +13,13 @@ public static class CustomersApi
     {
         var grp = app.MapGroup("/api/v1/customers").WithTags("Customers").RequireAuthorization();
 
-        grp.MapGet("/", async (CustomerService svc, CancellationToken ct) =>
-            Results.Ok((await svc.ListAsync(ct)).Select(CustomerResponse.From)));
+        // Sayfalı + aramalı liste: ?q=&page=&pageSize=
+        grp.MapGet("/", async (CustomerService svc, CancellationToken ct,
+            string? q = null, int page = 1, int pageSize = 20) =>
+        {
+            var filter = new CustomerFilter { Query = q, Page = page, PageSize = pageSize };
+            return Results.Ok(PagedResponse.From(await svc.SearchAsync(filter, ct), CustomerResponse.From));
+        });
 
         grp.MapGet("/{id:guid}", async (Guid id, CustomerService svc, CancellationToken ct) =>
             await svc.GetAsync(id, ct) is { } c

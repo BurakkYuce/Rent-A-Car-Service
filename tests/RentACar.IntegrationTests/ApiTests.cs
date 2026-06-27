@@ -19,6 +19,7 @@ public sealed class ApiTests(PostgresFixture fx)
     private sealed record LoginBody(string token, DateTimeOffset expiresAt, string tenantCode, string userName, string role);
     private sealed record VehicleBody(Guid id, string plaka, string? grup, string durum, int km, string yakit);
     private sealed record ErrBody(string error, string message);
+    private sealed record Paged<T>(List<T> items, int total, int page, int pageSize, int totalPages);
 
     private static async Task<HttpClient> LoginAsync(ApiFactory api, string firma, string user, string sifre)
     {
@@ -71,13 +72,13 @@ public sealed class ApiTests(PostgresFixture fx)
             new { plaka = "34ISOA1", durum = "Musait", km = 0, yakit = "Benzin" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
-        var aList = await ca.GetFromJsonAsync<List<VehicleBody>>("/api/v1/vehicles");
-        Assert.Contains(aList!, v => v.plaka == "34ISOA1");
+        var aList = await ca.GetFromJsonAsync<Paged<VehicleBody>>("/api/v1/vehicles");
+        Assert.Contains(aList!.items, v => v.plaka == "34ISOA1");
 
         // Tenant B, A'nın aracını GÖRMEMELİ (JWT tenant → RLS).
         var cb = await LoginAsync(api, codeB, "umit", "p");
-        var bList = await cb.GetFromJsonAsync<List<VehicleBody>>("/api/v1/vehicles");
-        Assert.DoesNotContain(bList!, v => v.plaka == "34ISOA1");
+        var bList = await cb.GetFromJsonAsync<Paged<VehicleBody>>("/api/v1/vehicles");
+        Assert.DoesNotContain(bList!.items, v => v.plaka == "34ISOA1");
     }
 
     [Fact]
