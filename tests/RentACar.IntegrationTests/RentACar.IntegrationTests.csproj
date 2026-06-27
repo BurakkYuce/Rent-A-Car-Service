@@ -13,6 +13,7 @@
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\RentACar.Api\RentACar.Api.csproj" />
     <ProjectReference Include="..\..\src\RentACar.Web\RentACar.Web.csproj" />
     <ProjectReference Include="..\..\src\RentACar.Infrastructure\RentACar.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\RentACar.Application\RentACar.Application.csproj" />
