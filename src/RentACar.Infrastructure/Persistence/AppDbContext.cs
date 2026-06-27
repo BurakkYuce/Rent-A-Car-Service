@@ -40,6 +40,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
+    public DbSet<KdvRate> KdvOranlari => Set<KdvRate>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -133,6 +134,19 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.BirimUcret).HasColumnType("numeric(19,4)");
             e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- KdvRate / KDV oranı (tenant-owned; master sözlük) ----
+        b.Entity<KdvRate>(e =>
+        {
+            e.ToTable("KdvOranlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Oran).HasColumnType("numeric(9,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
