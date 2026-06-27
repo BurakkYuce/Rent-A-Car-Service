@@ -18,6 +18,7 @@ using RentACar.Application.Regulation;
 using RentACar.Application.Reporting;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Users;
+using RentACar.Application.VehicleGroups;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IRateCardRepository, RateCardRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();
+        services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();

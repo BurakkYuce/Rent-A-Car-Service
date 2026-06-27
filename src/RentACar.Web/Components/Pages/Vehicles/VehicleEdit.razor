@@ -1,6 +1,7 @@
 @page "/vehicles/{Id:guid}"
 @attribute [Authorize]
 @inject VehicleService Vehicles
+@inject VehicleGroupService AracGruplari
 @inject NavigationManager Nav
 
 <PageTitle>Araç Düzenle — TürevRent</PageTitle>
@@ -23,7 +24,15 @@ else
         <input type="hidden" name="id" value="@_vehicle.Id" />
         <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
         <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
-        <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
+        <label>Grup
+            <input name="grup" value="@_vehicle.Grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" />
+        </label>
+        <datalist id="arac-grup-list">
+            @foreach (var g in _gruplar)
+            {
+                <option value="@g.Ad">@g.Kod</option>
+            }
+        </datalist>
         <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
         <label>Durum
             <select name="durum">
@@ -54,7 +63,11 @@ else
     public string? Hata { get; set; }
 
     private Vehicle? _vehicle;
+    private IReadOnlyList<VehicleGroup> _gruplar = [];
 
     protected override async Task OnInitializedAsync()
-        => _vehicle = await Vehicles.GetAsync(Id);
+    {
+        _vehicle = await Vehicles.GetAsync(Id);
+        _gruplar = await AracGruplari.ListActiveAsync();
+    }
 }

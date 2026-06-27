@@ -1,0 +1,75 @@
+@page "/arac-gruplari"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleGroupService AracGruplari
+
+<PageTitle>Araç Grupları — TürevRent</PageTitle>
+
+<h1>Araç Grubu Tanımları</h1>
+<p class="muted small">Araçların gruplandığı kısa sözlük (ör. "EKO" = Ekonomik, "SUV"). Araç kayıt/
+    düzenleme formundaki Grup açılır listesi buradan beslenir. (Basit sözlük; SIPP/segment/KM
+    limiti gibi fiyat-kural alanları ayrı, daha kapsamlı bir tanımın konusudur.)</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Araç Grubu</summary>
+    <form method="post" action="/arac-gruplari/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="EKO" /></label>
+        <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
+        <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Araç grubu tanımlı değil.</td></tr>
+        }
+        @foreach (var g in _list)
+        {
+            <tr>
+                <td class="mono">@g.Kod</td>
+                <td>@g.Ad</td>
+                <td>@g.Aciklama</td>
+                <td>@(g.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/arac-gruplari/update" class="grid-form">
+                            <input type="hidden" name="id" value="@g.Id" />
+                            <label>Kod<input name="kod" value="@g.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@g.Ad" required /></label>
+                            <label>Açıklama<input name="aciklama" value="@g.Aciklama" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@g.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!g.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/arac-gruplari/delete" onsubmit="return confirm('Araç grubu silinsin mi?')">
+                        <input type="hidden" name="id" value="@g.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleGroup> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await AracGruplari.ListAsync();
+}
