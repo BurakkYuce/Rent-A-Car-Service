@@ -38,6 +38,7 @@ public sealed class AppDbContext : DbContext
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<RateCard> RateCards => Set<RateCard>();
+    public DbSet<Location> Locations => Set<Location>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -118,6 +119,21 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             // Lookup: grup bazlı arama (büyük/küçük harf duyarsız ILike ile).
             e.HasIndex(x => new { x.TenantId, x.Grup });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Location / Ofis (tenant-owned; master sözlük) ----
+        b.Entity<Location>(e =>
+        {
+            e.ToTable("Locations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Adres).HasMaxLength(512);
+            e.Property(x => x.Telefon).HasMaxLength(32);
+            e.Property(x => x.Sube).HasMaxLength(64);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
