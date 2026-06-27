@@ -11,7 +11,7 @@
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_list.Count == 0)">
+<details class="new-vehicle" open="@(_page.Total == 0)">
     <summary>+ Yeni Araç</summary>
     <form method="post" action="/vehicles/create" class="grid-form">
         <label>Plaka<input name="plaka" required /></label>
@@ -39,6 +39,23 @@
     </form>
 </details>
 
+<form method="get" class="filter-bar">
+    <input name="q" value="@Q" placeholder="Plaka / marka ara" />
+    <input name="grup" value="@Grup" placeholder="Grup" />
+    <select name="durum">
+        <option value="">Durum (tümü)</option>
+        @foreach (var s in Enum.GetValues<VehicleStatus>())
+        {
+            <option value="@s" selected="@(Durum == s.ToString())">@s</option>
+        }
+    </select>
+    <button type="submit">Filtrele</button>
+    @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Durum))
+    {
+        <a href="/vehicles" class="link">Temizle</a>
+    }
+</form>
+
 <table class="grid">
     <thead>
         <tr>
@@ -47,11 +64,11 @@
         </tr>
     </thead>
     <tbody>
-        @if (_list.Count == 0)
+        @if (_page.Items.Count == 0)
         {
             <tr><td colspan="8" class="muted">Kayıtlı araç yok.</td></tr>
         }
-        @foreach (var v in _list)
+        @foreach (var v in _page.Items)
         {
             <tr>
                 <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
@@ -73,12 +90,40 @@
     </tbody>
 </table>
 
-@code {
-    [SupplyParameterFromQuery(Name = "hata")]
-    public string? Hata { get; set; }
+@if (_page.TotalPages > 1)
+{
+    <nav class="pager">
+        @if (_page.HasPrev) { <a href="@PageUrl(_page.Page - 1)">← Önceki</a> }
+        <span class="muted">Sayfa @_page.Page / @_page.TotalPages (@_page.Total kayıt)</span>
+        @if (_page.HasNext) { <a href="@PageUrl(_page.Page + 1)">Sonraki →</a> }
+    </nav>
+}
 
-    private IReadOnlyList<Vehicle> _list = [];
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+
+    private PagedResult<Vehicle> _page = new([], 0, 1, 20);
 
     protected override async Task OnInitializedAsync()
-        => _list = await Vehicles.ListAsync();
+    {
+        var filter = new VehicleFilter
+        {
+            Query = Q, Grup = Grup, Page = Page ?? 1,
+            Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null
+        };
+        _page = await Vehicles.SearchAsync(filter);
+    }
+
+    private string PageUrl(int p)
+    {
+        var qs = new List<string> { $"page={p}" };
+        if (!string.IsNullOrEmpty(Q)) qs.Add($"q={Uri.EscapeDataString(Q)}");
+        if (!string.IsNullOrEmpty(Grup)) qs.Add($"grup={Uri.EscapeDataString(Grup)}");
+        if (!string.IsNullOrEmpty(Durum)) qs.Add($"durum={Durum}");
+        return "/vehicles?" + string.Join("&", qs);
+    }
 }

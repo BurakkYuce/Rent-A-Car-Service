@@ -18,6 +18,16 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
 
+    /// <summary>Liste ekranı: arama/filtre + sayfalama. Rol bazlı şube kapsamı zorlanır.</summary>
+    public Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default)
+    {
+        var scope = BranchScope.Effective(_currentUser);
+        if (scope is not null) filter.Sube = scope; // operatör kendi şubesi dışına çıkamaz
+        if (filter.Page < 1) filter.Page = 1;
+        if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
+        return _repository.SearchAsync(filter, ct);
+    }
+
     public Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
