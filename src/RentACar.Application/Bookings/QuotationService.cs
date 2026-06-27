@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Pricing;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -11,10 +12,11 @@ namespace RentACar.Application.Bookings;
 /// Gün/tutar BookingMath ile (rezervasyonla aynı hesap). Kabul = rezervasyona dönüştür.
 /// Yazma OperationsWrite gerektirir; liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class QuotationService(IQuotationRepository repository, ICurrentUser currentUser)
+public sealed class QuotationService(IQuotationRepository repository, ICurrentUser currentUser, PricingService pricing)
 {
     private readonly IQuotationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly PricingService _pricing = pricing;
 
     public Task<IReadOnlyList<Quotation>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
@@ -27,7 +29,8 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var booking = input.ToBooking();
         BookingMath.Validate(booking);
-        var (gun, tutar) = BookingMath.Compute(booking);
+        // Fiyat motoru: manuel >0 kazanır, yoksa tarife → booking.GunlukUcret efektif ücretle güncellenir.
+        var (gun, tutar) = await _pricing.PriceAsync(booking, ct);
         if (input.GecerlilikTarihi is { } g && g < input.BasTar)
             throw new ValidationException("Geçerlilik tarihi başlangıç tarihinden önce olamaz.");
 
@@ -41,7 +44,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             CikisOfisi = input.CikisOfisi,
             DonusOfisi = input.DonusOfisi,
             Gun = gun,
-            GunlukUcret = input.GunlukUcret,
+            GunlukUcret = booking.GunlukUcret, // efektif ücret (fiyat motoru sonrası)
             Tutar = tutar,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
