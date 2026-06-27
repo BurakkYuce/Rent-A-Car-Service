@@ -39,6 +39,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -119,6 +120,20 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             // Lookup: grup bazlı arama (büyük/küçük harf duyarsız ILike ile).
             e.HasIndex(x => new { x.TenantId, x.Grup });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- EkHizmetTanim / Ek hizmet tanımı (tenant-owned; master sözlük) ----
+        b.Entity<EkHizmetTanim>(e =>
+        {
+            e.ToTable("EkHizmetTanimlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.BirimUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
