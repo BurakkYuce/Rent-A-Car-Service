@@ -70,6 +70,49 @@ public sealed class ReportService(IReportRepository repository)
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
     }
 
+    /// <summary>Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.</summary>
+    public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(CancellationToken ct = default)
+    {
+        var rows = await _repository.GetCariLedgerRowsAsync(asOf: null, ct);
+        return rows
+            .GroupBy(r => (r.CariId, r.Ad))
+            .Select(g => new CariBalanceDto(g.Key.CariId, g.Key.Ad, g.Sum(Signed)))
+            .Where(b => b.Bakiye != 0m)
+            .OrderByDescending(b => b.Bakiye)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Cari borç yaşlandırma (v1: BRÜT borç, tahsilat mahsubu yok). Borç satırları yaşa (asOf−Tarih,
+    /// gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına. Yalnız borç bakiyesi olan cariler.
+    /// </summary>
+    public async Task<IReadOnlyList<AgingRowDto>> GetAgingAsync(DateTimeOffset asOf, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetCariLedgerRowsAsync(asOf, ct);
+        return rows
+            .Where(r => r.Direction == LedgerDirection.Debit) // yalnız borç (brüt)
+            .GroupBy(r => (r.CariId, r.Ad))
+            .Select(g =>
+            {
+                decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
+                foreach (var r in g)
+                {
+                    var gun = (asOf.UtcDateTime.Date - r.Tarih.UtcDateTime.Date).Days;
+                    if (gun <= 30) b0 += r.Base;
+                    else if (gun <= 60) b30 += r.Base;
+                    else if (gun <= 90) b60 += r.Base;
+                    else b90 += r.Base;
+                }
+                return new AgingRowDto(g.Key.CariId, g.Key.Ad, b0, b30, b60, b90, b0 + b30 + b60 + b90);
+            })
+            .Where(a => a.Toplam != 0m)
+            .OrderByDescending(a => a.Toplam)
+            .ToList();
+    }
+
+    private static decimal Signed(CariLedgerRowDto r)
+        => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
+
     private static List<GelirGiderKalemDto> Kirilim(IEnumerable<LedgerRowDto> rows)
         => rows.GroupBy(r => r.SourceType)
             .Select(g => new GelirGiderKalemDto(g.Key, g.Sum(r => r.Base)))
