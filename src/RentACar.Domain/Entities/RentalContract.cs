@@ -60,6 +60,16 @@ public class RentalContract : ITenantOwned, IAuditable
     public decimal Tahsilat { get; set; }
     public decimal Bakiye { get; set; }          // GenelToplam - Tahsilat
 
+    // ---- Ödeme-derinlik alanları (roadmap A2; additive, NULLABLE) ----
+    // BİLGİ AMAÇLI: deftere/bakiyeye YANSIMAZ (GenelToplam/Tahsilat/Bakiye'yi etkilemez). Provizyon/depozito
+    // bloke tutarlar; komisyon acente/kaynak; drop farklı yere teslim; sonra-öde peşin-olmayan oran.
+    public decimal? Provizyon { get; set; }
+    public decimal? Depozito { get; set; }
+    public decimal? KomisyonOran { get; set; }   // %
+    public decimal? KomisyonTutar { get; set; }
+    public decimal? DropUcreti { get; set; }
+    public decimal? SonraOdeOran { get; set; }   // %
+
     public string? Aciklama { get; set; }
 
     /// <summary>Kira ek hizmet kalemleri (bebek koltuğu, GPS…). GenelToplam'a brüt olarak girer.</summary>

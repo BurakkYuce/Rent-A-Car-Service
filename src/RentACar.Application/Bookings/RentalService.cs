@@ -64,6 +64,12 @@ public sealed class RentalService(
             GenelToplam = tutar,
             Tahsilat = 0m,
             Bakiye = tutar,
+            Provizyon = input.Provizyon,
+            Depozito = input.Depozito,
+            KomisyonOran = input.KomisyonOran,
+            KomisyonTutar = input.KomisyonTutar,
+            DropUcreti = input.DropUcreti,
+            SonraOdeOran = input.SonraOdeOran,
             Aciklama = input.Aciklama
         };
         await _repository.CreateRentalAsync(contract, ct);

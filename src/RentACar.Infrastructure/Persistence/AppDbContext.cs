@@ -655,6 +655,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
             e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
             e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Depozito).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KomisyonOran).HasColumnType("numeric(9,4)");
+            e.Property(x => x.KomisyonTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.DropUcreti).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.HasIndex(x => new { x.TenantId, x.ReservationNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
@@ -702,6 +708,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
             e.Property(x => x.YakitBedeli).HasColumnType("numeric(19,4)");
             e.Property(x => x.UzatmaBedeli).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Depozito).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KomisyonOran).HasColumnType("numeric(9,4)");
+            e.Property(x => x.KomisyonTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.DropUcreti).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
