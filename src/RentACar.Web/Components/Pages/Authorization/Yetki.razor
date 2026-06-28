@@ -1,0 +1,65 @@
+@page "/yetki"
+@attribute [Authorize(Roles = "Admin")]
+@inject ScreenPermissionService Yetkiler
+@using RentACar.Domain.Enums
+
+<PageTitle>Ekran Yetkileri — TürevRent</PageTitle>
+
+<h1>Ekran Yetkileri (override)</h1>
+<p class="muted small">Rol-izin matrisi (floor) ÜSTÜNE ekran-bazlı sıkılaştırma. Bir ekran için override
+    tanımlarsanız <strong>yalnız seçili roller</strong> erişir (deny-by-default), ama matris izni yine şarttır
+    (override yetkiyi GENİŞLETMEZ). Override yoksa matris aynen geçerlidir.</p>
+@if (Ok == "1")
+{
+    <p class="ok">Kaydedildi.</p>
+}
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<table class="grid">
+    <thead><tr><th>Ekran Kodu</th><th>İzinli Roller</th><th>Aktif</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Override yok (tüm ekranlar matris floor'una göre).</td></tr>
+        }
+        @foreach (var s in _list)
+        {
+            <tr>
+                <td>@s.EkranKodu</td>
+                <td>@s.AllowedRolesCsv</td>
+                <td>@(s.Aktif ? "Evet" : "Hayır")</td>
+                <td>
+                    <form method="post" action="/yetki/sil" onsubmit="return confirm('Override kaldırılsın mı?');">
+                        <input type="hidden" name="ekranKodu" value="@s.EkranKodu" />
+                        <button type="submit" class="btn-danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Override Ekle / Güncelle</h2>
+<form method="post" action="/yetki/set" class="grid-form">
+    <label>Ekran Kodu<input name="ekranKodu" placeholder="ör. personel, donem-kapanis" required /></label>
+    <fieldset>
+        <legend>İzinli Roller</legend>
+        @foreach (var r in Enum.GetValues<UserRole>())
+        {
+            <label><input type="checkbox" name="roller" value="@r" /> @r</label>
+        }
+    </fieldset>
+    <label>Aktif<input type="checkbox" name="aktif" value="true" checked /></label>
+    <button type="submit">Kaydet</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<RentACar.Domain.Entities.ScreenPermission> _list = [];
+    protected override async Task OnInitializedAsync() => _list = await Yetkiler.ListAsync();
+}
