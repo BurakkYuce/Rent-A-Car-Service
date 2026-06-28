@@ -16,14 +16,29 @@ public sealed class CustomerInput
     public string? VergiNo { get; set; }
 
     public string? CepTel { get; set; }
+    public string? Gsm2 { get; set; }
     public string? Email { get; set; }
     public string? Il { get; set; }
     public string? Ilce { get; set; }
     public string? Adres { get; set; }
 
+    public string? Kaynak { get; set; }
+    public string? MusteriTemsilcisi { get; set; }
+    public bool IysIzinli { get; set; }
+    public bool Uyari { get; set; }
+    public string? UyariNedeni { get; set; }
+
+    public string? EhliyetNo { get; set; }
+    public string? EhliyetSinifi { get; set; }
+    public DateTimeOffset? EhliyetTarihi { get; set; }
+    public string? EhliyetYeri { get; set; }
+
     public string? Tarife { get; set; }
     public int VadeGun { get; set; }
     public decimal RiskLimiti { get; set; }
+    public string? RiskMesaji { get; set; }
+    public DateTimeOffset? RiskTarihi { get; set; }
+    public string? HgsYansitmaTuru { get; set; }
     public bool KaraListe { get; set; }
     public bool Pasif { get; set; }
 }

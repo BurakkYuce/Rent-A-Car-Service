@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260628061740_CariZenginlestirme")]
+    partial class CariZenginlestirme
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,45 +25,6 @@ namespace RentACar.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("RentACar.Domain.Entities.Accessory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Aksesuarlar", (string)null);
-                });
 
             modelBuilder.Entity("RentACar.Domain.Entities.AccountLedgerEntry", b =>
                 {
@@ -170,41 +134,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.Bank", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Bankalar", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.Branch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -246,76 +175,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Branches", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.Brand", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Markalar", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.CancelReason", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("IptalSebepleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.CashTransaction", b =>
@@ -390,119 +249,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasFilter("\"TersAlinanId\" IS NOT NULL");
 
                     b.ToTable("CashTransactions", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.Country", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Ulkeler", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.Currency", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("Sembol")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Dovizler", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.CustomCode", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("OzelKodlar", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Customer", b =>
@@ -643,41 +389,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("Customers", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.CustomerGroup", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("MusteriGruplari", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.DamageFile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -733,41 +444,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "VehicleId");
 
                     b.ToTable("DamageFiles", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.Department", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Departmanlar", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.EkHizmetTanim", b =>
@@ -887,119 +563,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("Expenses", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.ExpenseCategory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("GiderTurleri", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.FinancialAccount", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Doviz")
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Tur")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Hesaplar", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.FuelKind", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("YakitTurleri", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.InspectionRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1033,45 +596,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "VehicleId");
 
                     b.ToTable("InspectionRecords", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.InsuranceCompany", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Telefon")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("SigortaSirketleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.InsurancePolicy", b =>
@@ -1188,10 +712,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
 
-                    b.HasIndex("TenantId", "RentalId")
-                        .IsUnique()
-                        .HasFilter("\"RentalId\" IS NOT NULL");
-
                     b.ToTable("Invoices", (string)null);
                 });
 
@@ -1236,44 +756,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "InvoiceId");
 
                     b.ToTable("InvoiceLines", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.KdvRate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<decimal>("Oran")
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("KdvOranlari", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Location", b =>
@@ -1363,41 +845,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("MtvRecords", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.PaymentType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("OdemeTipleri", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.Penalty", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1457,44 +904,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "VehicleId");
 
                     b.ToTable("Penalties", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.PenaltyType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal?>("VarsayilanTutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("CezaTurleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Quotation", b =>
@@ -1639,58 +1048,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("RateCards", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.RentalAddOn", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<decimal>("BirimNetFiyat")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EkHizmetTanimId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("KdvOrani")
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<decimal>("KdvTutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("Miktar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("NetTutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid>("RentalId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Toplam")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RentalId");
-
-                    b.HasIndex("TenantId", "RentalId");
-
-                    b.ToTable("RentalAddOns", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.RentalContract", b =>
@@ -1889,41 +1246,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("Reservations", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.ReservationSource", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("RezervasyonKaynaklari", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.ServiceLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2070,41 +1392,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("TenantSequences", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.TransmissionType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("VitesTurleri", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2156,9 +1443,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("FiloDurum")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Grup")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -2170,33 +1454,10 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<int?>("ModelYili")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("MotorNo")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<string>("Plaka")
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
-
-                    b.Property<string>("Renk")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("SasiNo")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Segment")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Sipp")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("Sube")
                         .HasMaxLength(64)
@@ -2205,15 +1466,8 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Tip")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("Vites")
-                        .HasColumnType("integer");
 
                     b.Property<int>("Yakit")
                         .HasColumnType("integer");
@@ -2224,161 +1478,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Vehicles", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleColor", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Renkler", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleGroup", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("AsimKmUcreti")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("BagajSayisi")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("EhliyetMinYil")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("GencSurucuYas")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("GunlukKmLimiti")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("KapiSayisi")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("KasaTuru")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<int?>("KoltukSayisi")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("MuafiyetTutari")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal?>("Provizyon")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Segment")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Sipp")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
-
-                    b.Property<int?>("SurucuMinYas")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("AracGruplari", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleOwner", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Tur")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("AracSahipleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.VehicleSale", b =>
@@ -2451,98 +1550,11 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("VehicleSales", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleSegment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("Segmentler", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Marka")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("AracTipleri", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.InvoiceLine", b =>
                 {
                     b.HasOne("RentACar.Domain.Entities.Invoice", null)
                         .WithMany("Lines")
                         .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.RentalAddOn", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.RentalContract", null)
-                        .WithMany("EkHizmetler")
-                        .HasForeignKey("RentalId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -2559,11 +1571,6 @@ namespace RentACar.Infrastructure.Migrations
             modelBuilder.Entity("RentACar.Domain.Entities.Invoice", b =>
                 {
                     b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.RentalContract", b =>
-                {
-                    b.Navigation("EkHizmetler");
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.ServiceRecord", b =>
