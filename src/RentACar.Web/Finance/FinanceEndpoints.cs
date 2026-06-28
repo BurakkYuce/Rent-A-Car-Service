@@ -102,6 +102,26 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        grp.MapPost("/cari-virman", async (CashService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var kaynak = FormParse.Id(f["kaynakCariId"].ToString()) ?? Guid.Empty;
+            var hedef = FormParse.Id(f["hedefCariId"].ToString()) ?? Guid.Empty;
+            var tutar = FormParse.Dec(f["tutar"].ToString()) ?? 0m;
+            var doviz = f["doviz"].ToString();
+            var kur = FormParse.Dec(f["kur"].ToString()) ?? 1m;
+            var aciklama = f["aciklama"].ToString();
+            var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
+            try
+            {
+                await svc.TransferBetweenCariAsync(kaynak, hedef, tutar,
+                    string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, kur,
+                    string.IsNullOrWhiteSpace(aciklama) ? null : aciklama, anahtar);
+                return Results.Redirect("/cari-virman?ok=1");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/cari-virman?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }

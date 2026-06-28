@@ -1,0 +1,51 @@
+@page "/cari-virman"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject CustomerService Cariler
+
+<PageTitle>Cari Virman — TürevRent</PageTitle>
+
+<h1>Cari ↔ Cari Virman</h1>
+<p class="muted small">İki cari arası bakiye aktarımı. Dengeli çift kayıt: kaynak cari alacaklandırılır
+    (bakiye azalır), hedef cari borçlandırılır (bakiye artar). Her iki carinin ekstresinde görünür.</p>
+
+@if (Ok == "1")
+{
+    <p class="ok">Virman kaydedildi.</p>
+}
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<form method="post" action="/finans/cari-virman" class="grid-form">
+    <input type="hidden" name="islemAnahtari" value="@_token" />
+    <label>Kaynak Cari (alacak)
+        <select name="kaynakCariId" required>
+            <option value="">— Seçin —</option>
+            @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+        </select>
+    </label>
+    <label>Hedef Cari (borç)
+        <select name="hedefCariId" required>
+            <option value="">— Seçin —</option>
+            @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+        </select>
+    </label>
+    <label>Tutar<input name="tutar" type="number" step="0.01" min="0.01" required /></label>
+    <label>Döviz<input name="doviz" value="TRY" maxlength="3" /></label>
+    <label>Kur<input name="kur" type="number" step="0.000001" min="0.000001" value="1" /></label>
+    <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+    <button type="submit">Virman Yap</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
+    private IReadOnlyList<Customer> _cariler = [];
+    // Her form açılışında sabit token → aynı formun çift-submit'i (çift tıklama/geri-gönder) tek virman.
+    private readonly Guid _token = Guid.NewGuid();
+
+    protected override async Task OnInitializedAsync()
+        => _cariler = await Cariler.ListAsync();
+}
