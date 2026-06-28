@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<PricingService>();
         services.AddScoped<LocationService>();
         services.AddScoped<EkHizmetTanimService>();
+        services.AddScoped<RentACar.Application.Accessories.AccessoryService>();
         services.AddScoped<CancelReasonService>();
         services.AddScoped<ReservationSourceService>();
         services.AddScoped<RentACar.Application.VehicleSegments.VehicleSegmentService>();
