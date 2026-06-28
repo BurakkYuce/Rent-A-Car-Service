@@ -43,8 +43,10 @@ public class Vehicle : ITenantOwned, IAuditable
 
     public string? MotorNo { get; set; }
 
-    /// <summary>İşlem şubesi.</summary>
+    /// <summary>İşlem şubesi (serbest metin — geriye-uyum; görüntü/yedek).</summary>
     public string? Sube { get; set; }
+    /// <summary>Şube FK (Branch master, roadmap F1). Tenant içi çözülür; eşleşmeyen eski kayıtta null.</summary>
+    public Guid? SubeId { get; set; }
 
     /// <summary>Operasyonel durum (Boş/Kirada/Serviste…).</summary>
     public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;
