@@ -1,0 +1,71 @@
+@page "/bankalar"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject BankService Bankalar
+
+<PageTitle>Bankalar — TürevRent</PageTitle>
+
+<h1>Banka Tanımları</h1>
+<p class="muted small">Bankaların sözlüğü (ör. "Ziraat", "İş Bankası", "Garanti"). Banka hesabı /
+    çek-senet formlarındaki Banka açılır listesini besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Banka</summary>
+    <form method="post" action="/bankalar/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="ZIRAAT" /></label>
+        <label>Ad<input name="ad" required placeholder="Ziraat Bankası" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Banka tanımlı değil.</td></tr>
+        }
+        @foreach (var b in _list)
+        {
+            <tr>
+                <td class="mono">@b.Kod</td>
+                <td>@b.Ad</td>
+                <td>@(b.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/bankalar/update" class="grid-form">
+                            <input type="hidden" name="id" value="@b.Id" />
+                            <label>Kod<input name="kod" value="@b.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@b.Ad" required /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@b.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!b.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/bankalar/delete" onsubmit="return confirm('Banka silinsin mi?')">
+                        <input type="hidden" name="id" value="@b.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<Bank> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Bankalar.ListAsync();
+}
