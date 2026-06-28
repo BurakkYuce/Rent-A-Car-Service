@@ -435,9 +435,15 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Sipp).HasMaxLength(8);
             e.Property(x => x.Segment).HasMaxLength(64);
             e.Property(x => x.KasaTuru).HasMaxLength(32);
+            e.Property(x => x.Marka).HasMaxLength(64);
+            e.Property(x => x.Tipi).HasMaxLength(64);
             e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Provizyon2).HasColumnType("numeric(19,4)");
             e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Muafiyet2).HasColumnType("numeric(19,4)");
             e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
+            e.Property(x => x.YakitFiyati).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
