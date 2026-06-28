@@ -69,7 +69,7 @@ public static class FinanceApi
             // İstemci-kontrollü kdvRate sınırı (0..1) → geçersizse 400 (adversarial: negatif 500'e kaçmasın).
             if (kdvRate is < 0m or > 1m)
                 throw new ValidationException("KDV oranı 0 ile 1 arasında olmalıdır.");
-            var id = await svc.CreateFromRentalAsync(rentalId, kdvRate, ct);
+            var id = await svc.CreateFromRentalAsync(rentalId, kdvRate, ct: ct);
             return Results.Created($"/api/v1/finance/invoices/{id}", InvoiceResponse.From((await svc.GetAsync(id, ct))!));
         });
 

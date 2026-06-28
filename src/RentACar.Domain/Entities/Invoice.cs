@@ -33,6 +33,23 @@ public class Invoice : ITenantOwned, IAuditable
     public string? EFaturaEttn { get; set; }
     public bool EFaturaGonderildi { get; set; }
 
+    // ---- Vergi/belge alanları (parite #8; additive, BİLGİ AMAÇLI) ----
+    // Defter postlamasını DEĞİŞTİRMEZ: kayıt halen Borç Cari (GenelToplam) / Alacak Gelir (NetTutar) /
+    // Alacak KDV (KdvTutar) — dengeli. Bu alanlar faturada gösterilir; v1'de ledger'a yansımaz
+    // (docs/parite/05; tevkifat/ÖTV/damga ledger entegrasyonu ileride dengeli olarak eklenebilir).
+    /// <summary>ÖTV tutarı (bilgi amaçlı).</summary>
+    public decimal? Otv { get; set; }
+    /// <summary>Tevkifat (stopaj) oranı (%).</summary>
+    public decimal? TevkifatOran { get; set; }
+    /// <summary>Tevkifat tutarı.</summary>
+    public decimal? TevkifatTutar { get; set; }
+    /// <summary>Damga vergisi.</summary>
+    public decimal? DamgaVergisi { get; set; }
+    /// <summary>İade/return faturası mı.</summary>
+    public bool IadeMi { get; set; }
+    /// <summary>Kiradan bağımsız manuel fatura mı.</summary>
+    public bool ManuelMi { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public List<InvoiceLine> Lines { get; set; } = [];
