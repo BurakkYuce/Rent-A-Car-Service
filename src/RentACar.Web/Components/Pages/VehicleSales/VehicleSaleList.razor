@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Satış</summary>
-    <form method="post" action="/satislar/create" class="grid-form">
+    <form method="post" action="/satislar/create" class="grid-form"><AntiforgeryToken />
         <label>Araç
             <select name="vehicleId" required>
                 <option value="">—</option>

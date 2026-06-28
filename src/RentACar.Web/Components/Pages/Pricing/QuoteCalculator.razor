@@ -16,7 +16,7 @@
     <p class="error">@Hata</p>
 }
 
-<form method="post" action="/fiyat-hesapla/hesapla" class="grid-form">
+<form method="post" action="/fiyat-hesapla/hesapla" class="grid-form"><AntiforgeryToken />
     <label>Araç Grubu Kodu
         <input name="aracGrupKod" list="grup-list" required value="@Grup" placeholder="EKO" />
     </label>

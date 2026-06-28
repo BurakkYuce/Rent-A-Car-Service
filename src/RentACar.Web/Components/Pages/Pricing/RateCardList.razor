@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Tarife</summary>
-    <form method="post" action="/tarifeler/create" class="grid-form">
+    <form method="post" action="/tarifeler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="B-STD" /></label>
         <label>Ad<input name="ad" required placeholder="B Grubu Standart" /></label>
         <label>Araç Grubu<input name="grup" required placeholder="B" /></label>
@@ -53,7 +53,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/tarifeler/update" class="grid-form">
+                        <form method="post" action="/tarifeler/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
                             <label>Kod<input name="kod" value="@r.Kod" required /></label>
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
@@ -79,7 +79,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/tarifeler/delete" onsubmit="return confirm('Tarife silinsin mi?')">
+                    <form method="post" action="/tarifeler/delete" onsubmit="return confirm('Tarife silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

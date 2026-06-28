@@ -18,12 +18,12 @@
 <p class="muted small">Kapanış tarihi ve <strong>öncesine</strong> tahsilat/ödeme/virman/cari-virman/ters kayıt/
     fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest.</p>
 
-<form method="post" action="/donem-kapanis/kilitle" class="grid-form">
+<form method="post" action="/donem-kapanis/kilitle" class="grid-form"><AntiforgeryToken />
     <label>Kapanış Tarihi<input name="kapanisTarihi" type="date" required /></label>
     <button type="submit">Dönemi Kapat</button>
 </form>
 
-<form method="post" action="/donem-kapanis/ac">
+<form method="post" action="/donem-kapanis/ac"><AntiforgeryToken />
     <button type="submit" class="btn-secondary">Kilidi Kaldır</button>
 </form>
 

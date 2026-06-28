@@ -12,7 +12,7 @@ public static class CrmEndpoints
 {
     public static IEndpointRouteBuilder MapCrmEndpoints(this IEndpointRouteBuilder app)
     {
-        var an = app.MapGroup("/anketler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var an = app.MapGroup("/anketler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
         an.MapPost("/create", async (AnketService svc, HttpRequest req) =>
             await Run("/anketler", () => svc.CreateAsync(BuildAnket(req.Form))));
         an.MapPost("/update", async (AnketService svc, HttpRequest req, [FromForm] Guid id) =>
@@ -20,7 +20,7 @@ public static class CrmEndpoints
         an.MapPost("/delete", async (AnketService svc, [FromForm] Guid id) =>
             await Run("/anketler", () => svc.DeleteAsync(id)));
 
-        var sk = app.MapGroup("/sikayetler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var sk = app.MapGroup("/sikayetler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
         sk.MapPost("/create", async (SikayetService svc, HttpRequest req) =>
             await Run("/sikayetler", () => svc.CreateAsync(BuildSikayet(req.Form))));
         sk.MapPost("/update", async (SikayetService svc, HttpRequest req, [FromForm] Guid id) =>

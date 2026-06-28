@@ -11,7 +11,7 @@ public static class TransmissionTypeEndpoints
 {
     public static IEndpointRouteBuilder MapTransmissionTypeEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/vites-turleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/vites-turleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (TransmissionTypeService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new TransmissionTypeInput { Kod = kod, Ad = ad, Aktif = true })));

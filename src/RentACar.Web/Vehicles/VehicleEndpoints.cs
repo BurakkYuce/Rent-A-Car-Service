@@ -18,7 +18,7 @@ public static class VehicleEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/vehicles").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var group = app.MapGroup("/vehicles").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         group.MapPost("/create", async (VehicleService svc, HttpRequest req) =>
         {

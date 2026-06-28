@@ -11,7 +11,7 @@ public static class ReservationSourceEndpoints
 {
     public static IEndpointRouteBuilder MapReservationSourceEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/rezervasyon-kaynaklari").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/rezervasyon-kaynaklari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (ReservationSourceService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new ReservationSourceInput { Kod = kod, Ad = ad, Aktif = true })));

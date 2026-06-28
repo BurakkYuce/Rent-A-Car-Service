@@ -12,7 +12,7 @@ public static class ServiceRecordEndpoints
 {
     public static IEndpointRouteBuilder MapServiceRecordEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/servisler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/servisler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (ServiceRecordService svc,
             [FromForm] Guid vehicleId, [FromForm] ServisTipi tip, [FromForm] string? atolyeAdi,

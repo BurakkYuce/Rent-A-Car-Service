@@ -11,7 +11,7 @@ public static class BrandEndpoints
 {
     public static IEndpointRouteBuilder MapBrandEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/markalar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/markalar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (BrandService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new BrandInput { Kod = kod, Ad = ad, Aktif = true })));

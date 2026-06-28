@@ -11,7 +11,7 @@ public static class QuotationEndpoints
 {
     public static IEndpointRouteBuilder MapQuotationEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/teklifler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/teklifler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (QuotationService svc,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,

@@ -14,7 +14,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Kullanıcı</summary>
-    <form method="post" action="/kullanicilar/create" class="grid-form">
+    <form method="post" action="/kullanicilar/create" class="grid-form"><AntiforgeryToken />
         <label>Kullanıcı Adı<input name="userName" required /></label>
         <label>Görünen Ad<input name="displayName" /></label>
         <label>Rol
@@ -43,12 +43,12 @@
                 <td>@(string.IsNullOrEmpty(u.AtanmisSube) ? "— (tümü)" : u.AtanmisSube)</td>
                 <td>@(u.IsActive ? "Aktif" : "Pasif")</td>
                 <td>
-                    <form method="post" action="/kullanicilar/aktif" class="inline">
+                    <form method="post" action="/kullanicilar/aktif" class="inline"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@u.Id" />
                         <input type="hidden" name="active" value="@((!u.IsActive).ToString().ToLower())" />
                         <button type="submit">@(u.IsActive ? "Pasifleştir" : "Aktifleştir")</button>
                     </form>
-                    <form method="post" action="/kullanicilar/sifre" class="inline">
+                    <form method="post" action="/kullanicilar/sifre" class="inline"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@u.Id" />
                         <input name="password" type="password" placeholder="Yeni parola" required style="width:8rem" />
                         <button type="submit">Parola</button>

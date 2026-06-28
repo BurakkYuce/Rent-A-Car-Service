@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Yakıt Türü</summary>
-    <form method="post" action="/yakit-turleri/create" class="grid-form">
+    <form method="post" action="/yakit-turleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="DIZEL" /></label>
         <label>Ad<input name="ad" required placeholder="Dizel" /></label>
         <button type="submit">Oluştur</button>
@@ -38,7 +38,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/yakit-turleri/update" class="grid-form">
+                        <form method="post" action="/yakit-turleri/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@k.Id" />
                             <label>Kod<input name="kod" value="@k.Kod" required /></label>
                             <label>Ad<input name="ad" value="@k.Ad" required /></label>
@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/yakit-turleri/delete" onsubmit="return confirm('Yakıt türü silinsin mi?')">
+                    <form method="post" action="/yakit-turleri/delete" onsubmit="return confirm('Yakıt türü silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@k.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

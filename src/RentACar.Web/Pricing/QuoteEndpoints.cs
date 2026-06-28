@@ -13,7 +13,7 @@ public static class QuoteEndpoints
 {
     public static IEndpointRouteBuilder MapQuoteEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/fiyat-hesapla").RequirePermission(Permission.ViewReports).DisableAntiforgery();
+        var grp = app.MapGroup("/fiyat-hesapla").RequirePermission(Permission.ViewReports).AntiforgeryByEnv();
 
         grp.MapPost("/hesapla", async (RentalQuoteEngine engine, HttpRequest req) =>
         {

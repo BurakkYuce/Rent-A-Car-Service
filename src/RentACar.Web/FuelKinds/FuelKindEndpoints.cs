@@ -11,7 +11,7 @@ public static class FuelKindEndpoints
 {
     public static IEndpointRouteBuilder MapFuelKindEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/yakit-turleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/yakit-turleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (FuelKindService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new FuelKindInput { Kod = kod, Ad = ad, Aktif = true })));

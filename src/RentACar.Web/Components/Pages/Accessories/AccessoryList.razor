@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Aksesuar</summary>
-    <form method="post" action="/aksesuarlar/create" class="grid-form">
+    <form method="post" action="/aksesuarlar/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="BEBEK-KOLTUGU" /></label>
         <label>Ad<input name="ad" required placeholder="Bebek Koltuğu" /></label>
         <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
@@ -40,7 +40,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/aksesuarlar/update" class="grid-form">
+                        <form method="post" action="/aksesuarlar/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@a.Id" />
                             <label>Kod<input name="kod" value="@a.Kod" required /></label>
                             <label>Ad<input name="ad" value="@a.Ad" required /></label>
@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/aksesuarlar/delete" onsubmit="return confirm('Aksesuar silinsin mi?')">
+                    <form method="post" action="/aksesuarlar/delete" onsubmit="return confirm('Aksesuar silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

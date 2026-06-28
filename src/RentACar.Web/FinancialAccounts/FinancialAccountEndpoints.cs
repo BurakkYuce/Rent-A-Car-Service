@@ -11,7 +11,7 @@ public static class FinancialAccountEndpoints
 {
     public static IEndpointRouteBuilder MapFinancialAccountEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/hesaplar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/hesaplar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (FinancialAccountService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz) =>

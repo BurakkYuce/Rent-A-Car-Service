@@ -10,7 +10,7 @@
     <p class="ok">Ayarlar kaydedildi.</p>
 }
 
-<form method="post" action="/ayarlar/kaydet" class="grid-form">
+<form method="post" action="/ayarlar/kaydet" class="grid-form"><AntiforgeryToken />
     <fieldset>
         <legend>Firma</legend>
         <label>Ünvan<input name="firmaUnvan" value="@_m.FirmaUnvan" /></label>
