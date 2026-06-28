@@ -905,6 +905,15 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction })
                 .IsUnique()
                 .HasFilter("\"SourceType\" = 'Hgs'");
+            // Cari↔cari virman idempotency: işlem anahtarı (SourceId) verilince çift-submit yutulur.
+            // Dengeli çift (hedef Borç / kaynak Alacak) farklı AccountRef'le ayrışır → ikisi de geçer;
+            // aynı anahtarla tekrar gönderim çakışır (kısmi, yalnız 'CariVirman'). NOT: kolon kümesi
+            // Hgs index'inden (…SourceId,Direction) FARKLI olmalı (…SourceId,AccountRef) ki EF iki ayrı
+            // kısmi index üretsin, birini diğerinin yerine düşürmesin.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.AccountRef })
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'CariVirman'")
+                .HasDatabaseName("IX_AccountLedgerEntries_CariVirman_Idem");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
