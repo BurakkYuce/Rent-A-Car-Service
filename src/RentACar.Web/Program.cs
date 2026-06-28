@@ -91,6 +91,7 @@ builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContext
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn);
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
+builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 
 // LoginService + IPasswordHasher<User> + Application IPasswordHasher köprüsü artık
 // AddInfrastructure'da (Web cookie + API JWT ortak kullanır).
@@ -158,6 +159,7 @@ app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
 app.MapReportExportEndpoints();
+app.MapPdfEndpoints();
 app.MapTenantSettingsEndpoints();
 app.MapPersonelEndpoints();
 app.MapHukukEndpoints();
