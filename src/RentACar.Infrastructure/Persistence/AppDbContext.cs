@@ -114,6 +114,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<User>(e =>
         {
             e.ToTable("Users");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.AtanmisSubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK)
+            e.HasIndex(x => x.AtanmisSubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.UserName).IsRequired().HasMaxLength(128);
@@ -260,6 +262,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<Personel>(e =>
         {
             e.ToTable("Personeller");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -565,6 +569,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<RateMatrix>(e =>
         {
             e.ToTable("TarifeMatris");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -611,6 +617,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<RentalRule>(e =>
         {
             e.ToTable("KiralamaKurallari");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -644,6 +652,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<Location>(e =>
         {
             e.ToTable("Locations");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -659,6 +669,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<Vehicle>(e =>
         {
             e.ToTable("Vehicles");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Plaka).IsRequired().HasMaxLength(16);
@@ -1101,6 +1113,8 @@ public sealed class AppDbContext : DbContext
         b.Entity<Expense>(e =>
         {
             e.ToTable("Expenses");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+            e.HasIndex(x => x.SubeId);
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.No).IsRequired().HasMaxLength(32);

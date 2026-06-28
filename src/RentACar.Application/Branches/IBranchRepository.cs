@@ -12,6 +12,9 @@ public interface IBranchRepository
 
     Task<Branch?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Ada göre (tenant içi, case-insensitive) şube bul — F1 forward-resolution. Yoksa null.</summary>
+    Task<Branch?> FindByAdAsync(string ad, CancellationToken ct = default);
+
     /// <summary>Tenant içinde aynı kod (büyük/küçük harf duyarsız) başka kayıtta var mı?</summary>
     Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
 
