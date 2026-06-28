@@ -1,0 +1,74 @@
+@page "/segmentler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleSegmentService Segmentler
+
+<PageTitle>Segmentler — TürevRent</PageTitle>
+
+<h1>Araç Segment Tanımları</h1>
+<p class="muted small">Araçların pazarlama/fiyat segmentleri (ör. "Ekonomik", "Orta", "SUV"). Araç ve
+    araç grubu formlarındaki Segment açılır listesini besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Segment</summary>
+    <form method="post" action="/segmentler/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="EKO" /></label>
+        <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
+        <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Segment tanımlı değil.</td></tr>
+        }
+        @foreach (var s in _list)
+        {
+            <tr>
+                <td class="mono">@s.Kod</td>
+                <td>@s.Ad</td>
+                <td>@s.Aciklama</td>
+                <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/segmentler/update" class="grid-form">
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <label>Kod<input name="kod" value="@s.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@s.Ad" required /></label>
+                            <label>Açıklama<input name="aciklama" value="@s.Aciklama" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@s.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!s.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/segmentler/delete" onsubmit="return confirm('Segment silinsin mi?')">
+                        <input type="hidden" name="id" value="@s.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleSegment> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Segmentler.ListAsync();
+}
