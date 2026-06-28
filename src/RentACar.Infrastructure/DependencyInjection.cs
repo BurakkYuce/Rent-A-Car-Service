@@ -16,6 +16,7 @@ using RentACar.Application.Penalties;
 using RentACar.Application.Pricing;
 using RentACar.Application.Regulation;
 using RentACar.Application.Reporting;
+using RentACar.Application.ReservationSources;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Users;
 using RentACar.Application.VehicleSales;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IRateCardRepository, RateCardRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();
+        services.AddScoped<IReservationSourceRepository, ReservationSourceRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
