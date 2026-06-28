@@ -25,7 +25,10 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
     /// Fiyat lookup: grup + gün sayısı + tarih için EN UYGUN aktif tarifeyi seç. Kural:
     /// kapsayan adaylar arasından en YÜKSEK MinGun (en dar/özel kademe); eşitlikte en SON
     /// başlayan dönem (GecerliBas, null = en eski). Eşleşme yoksa null. Yetki gerektirmez.
+    /// DEPRECATED (roadmap A1): fiyat çözümü artık <see cref="RentalQuoteEngine"/> (RateMatrix) üzerinden;
+    /// bu metod yalnız PricingService geriye-uyum fallback'i (matris eşleşmezse). Yeni tarifeler RateMatrix'e.
     /// </summary>
+    [Obsolete("RentalQuoteEngine/RateMatrix kullanın; RateCard fiyat çözümü yalnız geriye-uyum fallback'idir.")]
     public async Task<RateCard?> GetRateAsync(string grup, int gun, DateTimeOffset tarih, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(grup) || gun < 1) return null;
