@@ -14,7 +14,7 @@
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_list.Count == 0)">
+<details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
     <form method="post" action="/kiralar/create" class="grid-form">
         <label>Müşteri
@@ -48,26 +48,56 @@
     </form>
 </details>
 
+<form method="get" class="filter-bar">
+    <input name="q" value="@Q" placeholder="Sözleşme / müşteri / plaka ara" />
+    <select name="durum">
+        <option value="">Durum (tümü)</option>
+        @foreach (var s in Enum.GetValues<RentalStatus>())
+        {
+            <option value="@s" selected="@(Durum == s.ToString())">@s</option>
+        }
+    </select>
+    <select name="fatura">
+        <option value="">Fatura (tümü)</option>
+        <option value="true" selected="@(Fatura == "true")">Faturalı</option>
+        <option value="false" selected="@(Fatura == "false")">Faturasız</option>
+    </select>
+    <input name="basMin" type="date" value="@BasMin" title="Başlangıç ≥" />
+    <input name="basMax" type="date" value="@BasMax" title="Başlangıç ≤" />
+    <select name="ofis">
+        <option value="">Ofis (tümü)</option>
+        @foreach (var o in _locations) { <option value="@o.Ad" selected="@(Ofis == o.Ad)">@o.Ad</option> }
+    </select>
+    <button type="submit">Filtrele</button>
+    @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Durum) || !string.IsNullOrEmpty(Fatura) || !string.IsNullOrEmpty(Ofis) || !string.IsNullOrEmpty(BasMin) || !string.IsNullOrEmpty(BasMax))
+    {
+        <a href="/kiralar" class="link">Temizle</a>
+    }
+</form>
+
+<p class="muted small">@_rows.Count sözleşme • @_rows.Count(r => r.Durum == RentalStatus.Kirada) kirada • @_rows.Count(r => !r.Faturali) faturasız</p>
+
 <table class="grid">
     <thead>
-        <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th></th></tr>
+        <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th>Fatura</th><th></th></tr>
     </thead>
     <tbody>
-        @if (_list.Count == 0)
+        @if (_rows.Count == 0)
         {
-            <tr><td colspan="9" class="muted">Kira sözleşmesi yok. Rezervasyonlardan "Kiraya Çevir" ile oluşturabilirsiniz.</td></tr>
+            <tr><td colspan="10" class="muted">Kayıt yok.</td></tr>
         }
-        @foreach (var r in _list)
+        @foreach (var r in _rows)
         {
             <tr>
                 <td><a href="/kiralar/@r.Id">@r.SozlesmeNo</a></td>
-                <td>@Cust(r.MusteriId)</td>
-                <td>@Veh(r.VehicleId)</td>
+                <td>@r.MusteriAd</td>
+                <td>@r.Plaka</td>
                 <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
                 <td>@r.Gun</td>
-                <td>@r.Tutar.ToString("N2")</td>
-                <td>@r.Bakiye.ToString("N2")</td>
+                <td class="num">@r.Tutar.ToString("N2")</td>
+                <td class="num">@r.Bakiye.ToString("N2")</td>
                 <td>@r.Durum</td>
+                <td>@(r.Faturali ? "Faturalı" : "—")</td>
                 <td class="row-actions">
                     <a href="/kiralar/@r.Id/yazdir" class="link">Sözleşme</a>
                     @if (r.Durum == RentalStatus.Kirada)
@@ -82,24 +112,34 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "fatura")] public string? Fatura { get; set; }
+    [SupplyParameterFromQuery(Name = "basMin")] public string? BasMin { get; set; }
+    [SupplyParameterFromQuery(Name = "basMax")] public string? BasMax { get; set; }
+    [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
 
-    private IReadOnlyList<RentalContract> _list = [];
+    private IReadOnlyList<RentalRow> _rows = [];
     private IReadOnlyList<Customer> _customers = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Location> _locations = [];
-    private Dictionary<Guid, string> _custMap = new();
-    private Dictionary<Guid, string> _vehMap = new();
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Rentals.ListAsync();
+        // Yeni-kira formu açılır listeleri.
         _customers = await Customers.ListAsync();
         _vehicles = await Vehicles.ListAsync();
         _locations = await Locations.ListActiveAsync();
-        _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
-        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-    }
 
-    private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");
-    private string Veh(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+        var filter = new RentalFilter
+        {
+            Query = string.IsNullOrWhiteSpace(Q) ? null : Q,
+            Durum = Enum.TryParse<RentalStatus>(Durum, out var d) ? d : null,
+            Faturali = Fatura switch { "true" => true, "false" => false, _ => null },
+            BaslangicMin = DateTimeOffset.TryParse(BasMin, out var mn) ? mn : null,
+            BaslangicMax = DateTimeOffset.TryParse(BasMax, out var mx) ? mx.AddDays(1).AddSeconds(-1) : null,
+            Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis
+        };
+        _rows = await Rentals.SearchAsync(filter);
+    }
 }
