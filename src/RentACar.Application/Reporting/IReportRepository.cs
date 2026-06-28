@@ -32,4 +32,11 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// İptal olmayan kiraların ek hizmet kalemleri (RentalAddOn.CreatedAtUtc aralığında), base para.
+    /// Ek hizmet satış raporu (Extralar_Raporu) için ham satırlar.
+    /// </summary>
+    Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }
