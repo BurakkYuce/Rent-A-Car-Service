@@ -23,9 +23,13 @@ public static class ReportExportEndpoints
             var gun = FormParse.Date(req.Query["gun"].ToString()) ?? DateTimeOffset.UtcNow;
             var hesap = string.Equals(req.Query["hesap"].ToString(), "Banka", StringComparison.OrdinalIgnoreCase)
                 ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            string? sube = NullIfEmpty(req.Query["sube"].ToString());
+            string? grup = NullIfEmpty(req.Query["grup"].ToString());
+            string? plaka = NullIfEmpty(req.Query["plaka"].ToString());
 
             Table? t = rapor switch
             {
+                "karlilik" => Karlilik(await rs.GetKarlilikAsync(from, to, sube, grup, plaka)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
                 "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to)),
                 "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync()),
@@ -50,8 +54,17 @@ public static class ReportExportEndpoints
         return app;
     }
 
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
     private static Table KV(string sheet, params (string K, object? V)[] kv)
         => new(sheet, new[] { "Metrik", "Değer" }, kv.Select(x => new object?[] { x.K, x.V }).ToList());
+
+    private static Table Karlilik(KarlilikDto d)
+    {
+        var rows = d.Satirlar.Select(s => new object?[] { s.Plaka, s.Sube, s.Grup, s.Gelir, s.Gider, s.NetKar }).ToList();
+        rows.Add(new object?[] { "TOPLAM", null, null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar });
+        return new Table("Kârlılık", new[] { "Plaka", "Şube", "Grup", "Gelir", "Gider", "Net Kâr" }, rows);
+    }
 
     private static Table GelirGider(GelirGiderDto d)
     {
