@@ -76,6 +76,54 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         }
     }
 
+    public async Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default)
+    {
+        if (items.Count == 0) throw new ValidationException("Toplu işlem en az bir satır içermelidir.");
+
+        // Her satır dengeli olmalı (yapısal invariant).
+        foreach (var it in items)
+        {
+            var d = it.Entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+            var c = it.Entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+            if (d != c) throw new ValidationException($"Defter dengesiz: borç {d} ≠ alacak {c}.");
+        }
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var dbTx = await db.Database.BeginTransactionAsync(ct);
+
+        // ATOMİK: tüm satırlar TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
+        foreach (var it in items)
+        {
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
+            it.Tx.No = $"{(it.Tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
+            db.CashTransactions.Add(it.Tx);
+            db.AccountLedgerEntries.AddRange(it.Entries);
+
+            if (it.Tx.RentalId is Guid rentalId)
+            {
+                var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
+                if (rental is not null)
+                {
+                    rental.Tahsilat += it.RentalTahsilatDelta;
+                    rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
+                    rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                }
+            }
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await dbTx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // İşlem anahtarı çakışması (aynı toplu işlem yeniden gönderildi) → TÜM batch geri alınır (idempotent).
+            await dbTx.RollbackAsync(ct);
+            throw new ValidationException("Bu toplu işlem zaten kaydedilmiş.");
+        }
+    }
+
     public async Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

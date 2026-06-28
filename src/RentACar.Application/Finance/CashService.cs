@@ -68,6 +68,66 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
         return tx.Id;
     }
 
+    /// <summary>Toplu tahsilat (parite #10): çok cariye tek seferde tahsilat. ATOMİK (hep-ya-hiç) +
+    /// satır-bazlı dengeli. <paramref name="batchAnahtari"/> verilirse her satır deterministik idempotency
+    /// anahtarı alır → çift-submit tüm batch'i geri alır. Bir satır geçersizse HİÇBİRİ yazılmaz.</summary>
+    public Task BatchCollectAsync(
+        IReadOnlyList<CashInput> satirlar, Guid? batchAnahtari = null, CancellationToken ct = default)
+        => BatchCashAsync(satirlar, CashTransactionType.Tahsilat, batchAnahtari, ct);
+
+    /// <summary>Toplu ödeme/tediye: çok cariye tek seferde ödeme. ATOMİK + idempotent (bkz. BatchCollectAsync).</summary>
+    public Task BatchPayAsync(
+        IReadOnlyList<CashInput> satirlar, Guid? batchAnahtari = null, CancellationToken ct = default)
+        => BatchCashAsync(satirlar, CashTransactionType.Odeme, batchAnahtari, ct);
+
+    private async Task BatchCashAsync(
+        IReadOnlyList<CashInput> satirlar, CashTransactionType tip, Guid? batchAnahtari, CancellationToken ct)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (satirlar.Count == 0) throw new ValidationException("Toplu işlem en az bir satır içermelidir.");
+        if (satirlar.Count > 500) throw new ValidationException("Toplu işlem en çok 500 satır olabilir.");
+
+        // TÜM satırlar önce doğrulanır (fail-fast) → repo'ya yalnız geçerli set gider; atomiklik repo'da.
+        var postings = new List<CashPosting>(satirlar.Count);
+        for (var i = 0; i < satirlar.Count; i++)
+        {
+            var input = satirlar[i];
+            if (input.CariId == Guid.Empty) throw new ValidationException($"Satır {i + 1}: cari seçilmelidir.");
+            if (input.Tutar <= 0) throw new ValidationException($"Satır {i + 1}: tutar pozitif olmalıdır.");
+            if (input.Kur <= 0) throw new ValidationException($"Satır {i + 1}: kur pozitif olmalıdır.");
+            EnsureKasaBanka(input.Hesap);
+
+            var money = new Money(input.Tutar, (input.Doviz ?? "TRY").Trim().ToUpperInvariant(), input.Kur);
+            var tx = new CashTransaction
+            {
+                Tip = tip,
+                CariId = input.CariId,
+                RentalId = input.RentalId,
+                Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
+                Amount = money,
+                KarsiHesap = input.Hesap,
+                Aciklama = input.Aciklama,
+                IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null
+            };
+            var entries = Natural(tx);
+            var delta = tip == CashTransactionType.Tahsilat ? money.AmountInBase : -money.AmountInBase;
+            postings.Add(new CashPosting(tx, entries, delta));
+        }
+
+        await _repository.PostBatchAsync(postings, ct);
+    }
+
+    /// <summary>Toplu işlem anahtarından satır-bazlı deterministik idempotency anahtarı (batch ⊕ index).</summary>
+    internal static Guid RowKey(Guid batch, int index)
+    {
+        var b = batch.ToByteArray();
+        b[0] ^= (byte)(index & 0xFF);
+        b[1] ^= (byte)((index >> 8) & 0xFF);
+        b[2] ^= (byte)((index >> 16) & 0xFF);
+        b[3] ^= (byte)((index >> 24) & 0xFF);
+        return new Guid(b);
+    }
+
     /// <summary>Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).</summary>
     public async Task TransferAsync(
         LedgerAccountType kaynak, LedgerAccountType hedef, decimal tutar,

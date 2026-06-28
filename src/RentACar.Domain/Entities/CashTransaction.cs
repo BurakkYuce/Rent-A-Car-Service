@@ -34,5 +34,9 @@ public class CashTransaction : ITenantOwned, IAuditable
     public bool TersKayitMi { get; set; }
     public Guid? TersAlinanId { get; set; }
 
+    /// <summary>Toplu işlem idempotency anahtarı (parite #10). Dolu olduğunda tenant içinde benzersiz
+    /// (kısmi unique index) → aynı toplu işlemin çift-submit'i çakışır, atomik batch geri alınır.</summary>
+    public Guid? IslemAnahtari { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

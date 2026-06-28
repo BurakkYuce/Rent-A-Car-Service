@@ -1,0 +1,55 @@
+@page "/toplu-tahsilat"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject CustomerService Cariler
+
+<PageTitle>Toplu Tahsilat — TürevRent</PageTitle>
+
+<h1>Toplu Tahsilat</h1>
+<p class="muted small">Çok cariye tek seferde tahsilat. <strong>ATOMİK</strong>: bir satır geçersizse hiçbiri
+    kaydedilmez. Her satır ayrı dengeli kayıt + ayrı No alır. Aynı form çift-submit edilirse (çift tıklama)
+    tek kez işlenir (idempotency). Satır biçimi: <code>cariId;tutar;açıklama(ops)</code> — her satır bir cari.</p>
+
+@if (!string.IsNullOrEmpty(Ok))
+{
+    <p class="ok">@Ok satır tahsilat kaydedildi.</p>
+}
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<form method="post" action="/finans/toplu-tahsilat" class="grid-form">
+    <input type="hidden" name="islemAnahtari" value="@_token" />
+    <label>Hesap
+        <select name="hesap"><option value="Kasa">Kasa</option><option value="Banka">Banka</option></select>
+    </label>
+    <label>Satırlar (cariId;tutar;açıklama)
+        <textarea name="satirlar" rows="8" style="width:100%;font-family:monospace"
+                  placeholder="11111111-1111-1111-1111-111111111111;1500;Mart tahsilatı&#10;22222222-...;2000"></textarea>
+    </label>
+    <button type="submit">Toplu Tahsilat Yap</button>
+</form>
+
+<details style="margin-top:1rem">
+    <summary class="link">Cari kimlikleri (kopyala)</summary>
+    <table class="grid">
+        <thead><tr><th>Cari</th><th>Id</th></tr></thead>
+        <tbody>
+            @foreach (var c in _cariler)
+            {
+                <tr><td>@c.DisplayName</td><td class="mono">@c.Id</td></tr>
+            }
+        </tbody>
+    </table>
+</details>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
+    private IReadOnlyList<Customer> _cariler = [];
+    private readonly Guid _token = Guid.NewGuid();
+
+    protected override async Task OnInitializedAsync()
+        => _cariler = await Cariler.ListAsync();
+}
