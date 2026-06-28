@@ -1,0 +1,74 @@
+@page "/arac-sahipleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleOwnerService AracSahipleri
+
+<PageTitle>Araç Sahipleri — TürevRent</PageTitle>
+
+<h1>Araç Sahip Tanımları</h1>
+<p class="muted small">Aracın mülkiyet grubu (ör. "Bizim", "Dış", "Filo Kiralama"). Araç sahip
+    filtrelerini ve raporları besler. Tür opsiyonel (serbest metin: Bizim/Dış).</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Araç Sahibi</summary>
+    <form method="post" action="/arac-sahipleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="BIZIM" /></label>
+        <label>Ad<input name="ad" required placeholder="Bizim Filo" /></label>
+        <label>Tür<input name="tur" placeholder="Bizim / Dış" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Araç sahibi tanımlı değil.</td></tr>
+        }
+        @foreach (var o in _list)
+        {
+            <tr>
+                <td class="mono">@o.Kod</td>
+                <td>@o.Ad</td>
+                <td>@o.Tur</td>
+                <td>@(o.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/arac-sahipleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@o.Id" />
+                            <label>Kod<input name="kod" value="@o.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@o.Ad" required /></label>
+                            <label>Tür<input name="tur" value="@o.Tur" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@o.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!o.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/arac-sahipleri/delete" onsubmit="return confirm('Araç sahibi silinsin mi?')">
+                        <input type="hidden" name="id" value="@o.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleOwner> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await AracSahipleri.ListAsync();
+}
