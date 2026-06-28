@@ -17,7 +17,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Ceza</summary>
-    <form method="post" action="/cezalar/create" class="grid-form">
+    <form method="post" action="/cezalar/create" class="grid-form"><AntiforgeryToken />
         <label>Ceza Türü<input name="cezaTuru" required list="ceza-turu-list" placeholder="Tanımlı türden seç veya yaz" /></label>
         <datalist id="ceza-turu-list">
             @foreach (var t in _cezaTurleri)
@@ -74,21 +74,21 @@
                 <td>
                     @if (p.Durum == CezaDurum.Yeni && p.CariId is not null)
                     {
-                        <form method="post" action="/cezalar/yansit" class="inline">
+                        <form method="post" action="/cezalar/yansit" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@p.Id" />
                             <button type="submit">Yansıt</button>
                         </form>
                     }
                     @if (p.Durum is CezaDurum.Yeni or CezaDurum.Yansitildi)
                     {
-                        <form method="post" action="/cezalar/ode" class="inline">
+                        <form method="post" action="/cezalar/ode" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@p.Id" />
                             <button type="submit">Öde</button>
                         </form>
                     }
                     @if (p.Durum == CezaDurum.Yeni)
                     {
-                        <form method="post" action="/cezalar/iptal" class="inline">
+                        <form method="post" action="/cezalar/iptal" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@p.Id" />
                             <button type="submit">İptal</button>
                         </form>

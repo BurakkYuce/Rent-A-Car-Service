@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Banka</summary>
-    <form method="post" action="/bankalar/create" class="grid-form">
+    <form method="post" action="/bankalar/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="ZIRAAT" /></label>
         <label>Ad<input name="ad" required placeholder="Ziraat Bankası" /></label>
         <button type="submit">Oluştur</button>
@@ -38,7 +38,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/bankalar/update" class="grid-form">
+                        <form method="post" action="/bankalar/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@b.Id" />
                             <label>Kod<input name="kod" value="@b.Kod" required /></label>
                             <label>Ad<input name="ad" value="@b.Ad" required /></label>
@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/bankalar/delete" onsubmit="return confirm('Banka silinsin mi?')">
+                    <form method="post" action="/bankalar/delete" onsubmit="return confirm('Banka silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@b.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

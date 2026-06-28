@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Döviz</summary>
-    <form method="post" action="/dovizler/create" class="grid-form">
+    <form method="post" action="/dovizler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required maxlength="3" placeholder="USD" /></label>
         <label>Ad<input name="ad" required placeholder="ABD Doları" /></label>
         <label>Sembol<input name="sembol" placeholder="$" /></label>
@@ -40,7 +40,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/dovizler/update" class="grid-form">
+                        <form method="post" action="/dovizler/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@c.Id" />
                             <label>Kod<input name="kod" value="@c.Kod" maxlength="3" required /></label>
                             <label>Ad<input name="ad" value="@c.Ad" required /></label>
@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/dovizler/delete" onsubmit="return confirm('Döviz silinsin mi?')">
+                    <form method="post" action="/dovizler/delete" onsubmit="return confirm('Döviz silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@c.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

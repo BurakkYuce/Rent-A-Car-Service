@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Şube</summary>
-    <form method="post" action="/subeler/create" class="grid-form">
+    <form method="post" action="/subeler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="MERKEZ" /></label>
         <label>Ad<input name="ad" required placeholder="Merkez Ofis" /></label>
         <label>Adres<input name="adres" /></label>
@@ -42,7 +42,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/subeler/update" class="grid-form">
+                        <form method="post" action="/subeler/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <label>Kod<input name="kod" value="@s.Kod" required /></label>
                             <label>Ad<input name="ad" value="@s.Ad" required /></label>
@@ -57,7 +57,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/subeler/delete" onsubmit="return confirm('Şube silinsin mi?')">
+                    <form method="post" action="/subeler/delete" onsubmit="return confirm('Şube silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

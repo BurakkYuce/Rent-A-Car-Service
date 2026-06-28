@@ -11,7 +11,7 @@ public static class LocationEndpoints
 {
     public static IEndpointRouteBuilder MapLocationEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/lokasyonlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/lokasyonlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (LocationService svc,
             [FromForm] string kod, [FromForm] string ad,

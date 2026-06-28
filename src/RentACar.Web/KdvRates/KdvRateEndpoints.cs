@@ -13,7 +13,7 @@ public static class KdvRateEndpoints
 {
     public static IEndpointRouteBuilder MapKdvRateEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/kdv-oranlari").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/kdv-oranlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (KdvRateService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? oran) =>

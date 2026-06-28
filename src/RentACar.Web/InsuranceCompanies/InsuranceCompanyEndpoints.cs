@@ -11,7 +11,7 @@ public static class InsuranceCompanyEndpoints
 {
     public static IEndpointRouteBuilder MapInsuranceCompanyEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/sigorta-sirketleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/sigorta-sirketleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (InsuranceCompanyService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? telefon) =>

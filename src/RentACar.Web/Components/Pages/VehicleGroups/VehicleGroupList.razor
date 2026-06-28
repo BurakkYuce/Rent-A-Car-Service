@@ -17,7 +17,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Araç Grubu</summary>
-    <form method="post" action="/arac-gruplari/create" class="grid-form">
+    <form method="post" action="/arac-gruplari/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="EKO" /></label>
         <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
         <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
@@ -73,7 +73,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/arac-gruplari/update" class="grid-form">
+                        <form method="post" action="/arac-gruplari/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@g.Id" />
                             <label>Kod<input name="kod" value="@g.Kod" required /></label>
                             <label>Ad<input name="ad" value="@g.Ad" required /></label>
@@ -119,7 +119,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/arac-gruplari/delete" onsubmit="return confirm('Araç grubu silinsin mi?')">
+                    <form method="post" action="/arac-gruplari/delete" onsubmit="return confirm('Araç grubu silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@g.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

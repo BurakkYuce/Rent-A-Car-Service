@@ -39,13 +39,13 @@ public static class AuthEndpoints
                 new ClaimsPrincipal(identity));
 
             return Results.Redirect("/vehicles");
-        }).DisableAntiforgery();
+        }).AntiforgeryByEnv();
 
         app.MapPost("/auth/logout", async (HttpContext http) =>
         {
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.Redirect("/login");
-        }).DisableAntiforgery();
+        }).AntiforgeryByEnv();
 
         return app;
     }

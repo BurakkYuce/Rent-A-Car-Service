@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Marka</summary>
-    <form method="post" action="/markalar/create" class="grid-form">
+    <form method="post" action="/markalar/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="FIAT" /></label>
         <label>Ad<input name="ad" required placeholder="Fiat" /></label>
         <button type="submit">Oluştur</button>
@@ -38,7 +38,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/markalar/update" class="grid-form">
+                        <form method="post" action="/markalar/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@m.Id" />
                             <label>Kod<input name="kod" value="@m.Kod" required /></label>
                             <label>Ad<input name="ad" value="@m.Ad" required /></label>
@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/markalar/delete" onsubmit="return confirm('Marka silinsin mi?')">
+                    <form method="post" action="/markalar/delete" onsubmit="return confirm('Marka silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@m.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

@@ -11,7 +11,7 @@ public static class RateCardEndpoints
 {
     public static IEndpointRouteBuilder MapRateCardEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/tarifeler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/tarifeler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (RateCardService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string grup,

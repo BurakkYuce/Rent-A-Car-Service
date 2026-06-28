@@ -11,7 +11,7 @@ public static class CustomerGroupEndpoints
 {
     public static IEndpointRouteBuilder MapCustomerGroupEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/musteri-gruplari").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/musteri-gruplari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CustomerGroupService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new CustomerGroupInput { Kod = kod, Ad = ad, Aktif = true })));

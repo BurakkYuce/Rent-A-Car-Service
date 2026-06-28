@@ -10,7 +10,7 @@ public static class DonemKapanisEndpoints
 {
     public static IEndpointRouteBuilder MapDonemKapanisEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/donem-kapanis").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/donem-kapanis").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         grp.MapPost("/kilitle", async (DonemKilidiService svc, HttpRequest req) =>
         {

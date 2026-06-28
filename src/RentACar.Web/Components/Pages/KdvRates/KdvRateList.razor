@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni KDV Oranı</summary>
-    <form method="post" action="/kdv-oranlari/create" class="grid-form">
+    <form method="post" action="/kdv-oranlari/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="KDV20" /></label>
         <label>Ad<input name="ad" required placeholder="Genel %20" /></label>
         <label>Oran<input name="oran" type="number" step="0.01" min="0" max="1" value="0.20" placeholder="0.20 = %20" /></label>
@@ -41,7 +41,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/kdv-oranlari/update" class="grid-form">
+                        <form method="post" action="/kdv-oranlari/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
                             <label>Kod<input name="kod" value="@r.Kod" required /></label>
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
@@ -55,7 +55,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/kdv-oranlari/delete" onsubmit="return confirm('KDV oranı silinsin mi?')">
+                    <form method="post" action="/kdv-oranlari/delete" onsubmit="return confirm('KDV oranı silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

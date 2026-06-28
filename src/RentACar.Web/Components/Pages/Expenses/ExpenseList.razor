@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Gider</summary>
-    <form method="post" action="/giderler/create" class="grid-form">
+    <form method="post" action="/giderler/create" class="grid-form"><AntiforgeryToken />
         <label>Tür
             <select name="tip">
                 @foreach (var t in Enum.GetValues<ExpenseType>())

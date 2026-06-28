@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Ceza Türü</summary>
-    <form method="post" action="/ceza-turleri/create" class="grid-form">
+    <form method="post" action="/ceza-turleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="HIZ" /></label>
         <label>Ad<input name="ad" required placeholder="Hız İhlali" /></label>
         <label>Varsayılan Tutar<input name="varsayilanTutar" type="number" step="0.01" min="0" placeholder="(opsiyonel)" /></label>
@@ -41,7 +41,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/ceza-turleri/update" class="grid-form">
+                        <form method="post" action="/ceza-turleri/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@t.Id" />
                             <label>Kod<input name="kod" value="@t.Kod" required /></label>
                             <label>Ad<input name="ad" value="@t.Ad" required /></label>
@@ -55,7 +55,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/ceza-turleri/delete" onsubmit="return confirm('Ceza türü silinsin mi?')">
+                    <form method="post" action="/ceza-turleri/delete" onsubmit="return confirm('Ceza türü silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

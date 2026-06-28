@@ -11,7 +11,7 @@ public static class VehicleSegmentEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleSegmentEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/segmentler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/segmentler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleSegmentService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama) =>
