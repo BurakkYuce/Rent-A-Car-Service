@@ -13,15 +13,17 @@ namespace RentACar.Application.Personnel;
 /// Tenant izolasyonu/audit alt katmanda.
 /// </summary>
 public sealed class PersonelService(
-    IPersonelRepository repository, ICurrentUser currentUser, ISecretProtector secrets)
+    IPersonelRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens)
 {
     private readonly IPersonelRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly ISecretProtector _secrets = secrets;
+    private readonly ScreenPermissionService _screens = screens; // roadmap F3: ekran override (floor üstüne)
 
     public async Task<IReadOnlyList<Personel>> ListAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         return await _repository.ListAsync(ct);
     }
 
@@ -29,6 +31,7 @@ public sealed class PersonelService(
     public async Task<PersonelDetail?> GetDetailAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         var r = await _repository.FindAsync(id, ct);
         if (r is null) return null;
         return new PersonelDetail(
@@ -39,6 +42,7 @@ public sealed class PersonelService(
     public async Task<Guid> CreateAsync(PersonelInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         var n = Normalize(input);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod!, excludeId: null, ct))
@@ -55,6 +59,7 @@ public sealed class PersonelService(
     public async Task<bool> UpdateAsync(Guid id, PersonelInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         var n = Normalize(input);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod!, excludeId: id, ct))
@@ -70,10 +75,11 @@ public sealed class PersonelService(
         }, ct);
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        return _repository.DeleteAsync(id, ct);
+        await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
+        return await _repository.DeleteAsync(id, ct);
     }
 
     private static void Validate(PersonelInput n)
