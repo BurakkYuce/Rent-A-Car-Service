@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<IKdvRateRepository, KdvRateRepository>();
         services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<ICashRepository, CashRepository>();

@@ -12,11 +12,16 @@ namespace RentACar.Application.Bookings;
 /// DB exclusion constraint ile garanti edilir (eşzamanlı istekte tek kazanan).
 /// Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class RentalService(IBookingRepository repository, ICurrentUser currentUser, PricingService pricing)
+public sealed class RentalService(
+    IBookingRepository repository,
+    ICurrentUser currentUser,
+    PricingService pricing,
+    RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
+    private readonly RentACar.Application.RentalAddOns.IRentalAddOnRepository _addOnRepository = addOnRepository;
 
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
         => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
@@ -81,6 +86,8 @@ public sealed class RentalService(IBookingRepository repository, ICurrentUser cu
     public async Task<bool> ReturnAsync(
         Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus, CancellationToken ct = default)
     {
+        // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer).
+        var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
         return await _repository.UpdateRentalAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)
@@ -102,8 +109,9 @@ public sealed class RentalService(IBookingRepository repository, ICurrentUser cu
             c.YakitBedeli = r.YakitBedeli;
             c.UzatmaGun = r.UzatmaGun;
             c.UzatmaBedeli = r.UzatmaBedeli;
-            c.GenelToplam = r.GenelToplam;
-            c.Bakiye = r.GenelToplam - c.Tahsilat;
+            // r.GenelToplam = baz brüt (ek hizmet hariç); ek hizmet brütünü ekle (RentalTotals ile tutarlı).
+            c.GenelToplam = r.GenelToplam + ekHizmetToplam;
+            c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
