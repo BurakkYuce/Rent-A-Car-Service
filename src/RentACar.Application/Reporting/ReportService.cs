@@ -79,6 +79,9 @@ public sealed class ReportService(IReportRepository repository)
         var from = new DateTimeOffset(gun.Date, TimeSpan.Zero);
         var to = from.AddDays(1).AddTicks(-1);
         return _repository.GetGunlukFaaliyetAsync(from, to, ct);
+    }
+
+    /// <summary>
     /// KDV listesi: dönemdeki (fatura tarihi) İptal olmayan faturaların KDV oranı bazında
     /// kırılımı (Net/KDV/Brüt + o oranı içeren fatura adedi) + genel toplamlar. Beyanname/muhasebe.
     /// </summary>

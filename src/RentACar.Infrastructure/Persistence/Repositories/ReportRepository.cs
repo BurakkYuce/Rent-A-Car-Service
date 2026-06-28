@@ -174,6 +174,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return new GunlukFaaliyetDto(
             yeniRez, yeniKira, cikis, donus,
             tahsilatlar.Count, tahsilatTutar, faturalar.Count, faturaTutar);
+    }
+
     public async Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
