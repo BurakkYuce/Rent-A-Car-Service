@@ -1,0 +1,92 @@
+@page "/fiyat-hesapla"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@inject VehicleGroupService AracGruplari
+@inject CoverageProductService SigortaUrunleri
+
+<PageTitle>Fiyat Hesapla — TürevRent</PageTitle>
+
+<h1>Fiyat Motoru — Kira Teklifi Hesapla</h1>
+<p class="muted small">Tarife matrisi + araç grubu kuralları + kiralama kuralı (iskonto/hediye gün) +
+    sigorta/ek hizmet kataloğundan kalemli kira teklifi. Salt-hesap — deftere/bakiyeye yazmaz.
+    <em>Not: gün sayma + kuruş yuvarlama "makul varsayılan"; canlı Gün_Hesapla paritesiyle henüz kalibre
+    edilmedi.</em></p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<form method="post" action="/fiyat-hesapla/hesapla" class="grid-form">
+    <label>Araç Grubu Kodu
+        <input name="aracGrupKod" list="grup-list" required value="@Grup" placeholder="EKO" />
+    </label>
+    <datalist id="grup-list">
+        @foreach (var g in _gruplar) { <option value="@g.Kod">@g.Ad</option> }
+    </datalist>
+    <label>Kanal<input name="kanal" placeholder="WEB/ACENTA" /></label>
+    <label>Şube<input name="sube" /></label>
+    <label>Başlangıç<input name="basTar" type="datetime-local" required /></label>
+    <label>Bitiş<input name="bitTar" type="datetime-local" required /></label>
+    <label>Sürücü Yaşı<input name="surucuYas" type="number" min="0" /></label>
+    <label>Tahmini KM<input name="tahminiKm" type="number" min="0" /></label>
+    <label>Sigorta Ürün Kodları (virgüllü)<input name="sigortaKodlari" placeholder="SCDW,IMM" /></label>
+    <button type="submit">Hesapla</button>
+</form>
+
+@if (_gruplar.Count > 0 || _urunler.Count > 0)
+{
+    <p class="muted small">Tanımlı gruplar: @string.Join(", ", _gruplar.Select(g => g.Kod)) ·
+        Sigorta ürünleri: @string.Join(", ", _urunler.Select(u => u.Kod))</p>
+}
+
+@if (Ok == "1")
+{
+    <div class="card">
+        <h2>Teklif Sonucu — @Grup</h2>
+        <table class="grid">
+            <tbody>
+                <tr><td>Gün</td><td class="num">@Gun</td></tr>
+                <tr><td>Günlük Ücret</td><td class="num">@Gunluk</td></tr>
+                <tr><td>Baz Tutar</td><td class="num">@Baz</td></tr>
+                <tr><td>KM Aşım</td><td class="num">@Km</td></tr>
+                <tr><td>Sigorta/Ek Hizmet Toplam</td><td class="num">@Sig</td></tr>
+                <tr><td>Ara Toplam</td><td class="num">@Ara</td></tr>
+                <tr><td>İskonto (@IskOran %)</td><td class="num">−@Isk</td></tr>
+                <tr><th>Genel Toplam</th><th class="num">@Toplam</th></tr>
+                <tr><td>Provizyon (bloke)</td><td class="num">@Prov</td></tr>
+                <tr><td>Muafiyet</td><td class="num">@Muaf</td></tr>
+            </tbody>
+        </table>
+        @if (!string.IsNullOrWhiteSpace(Notlar))
+        {
+            <p class="muted small">Notlar: @Notlar</p>
+        }
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "gun")] public string? Gun { get; set; }
+    [SupplyParameterFromQuery(Name = "gunluk")] public string? Gunluk { get; set; }
+    [SupplyParameterFromQuery(Name = "baz")] public string? Baz { get; set; }
+    [SupplyParameterFromQuery(Name = "km")] public string? Km { get; set; }
+    [SupplyParameterFromQuery(Name = "sig")] public string? Sig { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "iskOran")] public string? IskOran { get; set; }
+    [SupplyParameterFromQuery(Name = "isk")] public string? Isk { get; set; }
+    [SupplyParameterFromQuery(Name = "toplam")] public string? Toplam { get; set; }
+    [SupplyParameterFromQuery(Name = "prov")] public string? Prov { get; set; }
+    [SupplyParameterFromQuery(Name = "muaf")] public string? Muaf { get; set; }
+    [SupplyParameterFromQuery(Name = "not")] public string? Notlar { get; set; }
+
+    private IReadOnlyList<VehicleGroup> _gruplar = [];
+    private IReadOnlyList<CoverageProduct> _urunler = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _gruplar = await AracGruplari.ListActiveAsync();
+        _urunler = await SigortaUrunleri.ListActiveAsync();
+    }
+}
