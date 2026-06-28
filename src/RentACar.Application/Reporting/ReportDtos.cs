@@ -41,6 +41,19 @@ public sealed record GelirGiderKalemDto(string SourceType, decimal Tutar);
 public sealed record FleetUtilizationDto(
     int Toplam, int Stokta, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);
 
+/// <summary>
+/// Kira efektif aralığı (doluluk hesabı için ham satır): başlangıç + efektif bitiş
+/// (gerçek dönüş varsa o, yoksa planlanan bitiş). İptal kiralar repo'da hariç tutulur.
+/// </summary>
+public sealed record DolulukKiraRowDto(DateTimeOffset Bas, DateTimeOffset Bit);
+
+/// <summary>
+/// Dönem doluluk özeti: araç-gün kapasitesi (AracSayisi×DonemGun) üzerinden kira-gün oranı.
+/// KiraGun = Σ (kira efektif aralığı ∩ dönem) takvim-günü (kapsayıcı). Yüzde 2 hane yuvarlı.
+/// </summary>
+public sealed record DolulukDto(
+    int AracSayisi, int DonemGun, int AracGun, int KiraGun, decimal DolulukYuzde);
+
 /// <summary>Tek tamamlanmış servis kaydı (ham) — araç plakası çözümlenmiş.</summary>
 public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal ToplamIscilik);
 

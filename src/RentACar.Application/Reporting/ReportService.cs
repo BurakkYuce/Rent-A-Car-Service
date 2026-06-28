@@ -110,6 +110,35 @@ public sealed class ReportService(IReportRepository repository)
             .ToList();
     }
 
+    /// <summary>
+    /// Dönem doluluk: araç-gün kapasitesi üzerinden kira-gün oranı. DonemGun = (to−from) takvim-günü
+    /// (kapsayıcı). KiraGun = Σ (kira aralığı ∩ dönem) kapsayıcı takvim-günü. Yüzde = KiraGun/AracGun×100.
+    /// Beklenen değerler senaryodan türetilir (bkz. DolulukTests bağımsız oracle).
+    /// </summary>
+    public async Task<DolulukDto> GetDolulukAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        var aracSayisi = (await _repository.GetVehicleStatusesAsync(ct)).Count;
+        var rows = await _repository.GetRentalIntervalsAsync(from, to, ct);
+
+        var fromD = from.UtcDateTime.Date;
+        var toD = to.UtcDateTime.Date;
+        int donemGun = toD >= fromD ? (toD - fromD).Days + 1 : 0;
+
+        int kiraGun = rows.Sum(r => OverlapDays(r.Bas.UtcDateTime.Date, r.Bit.UtcDateTime.Date, fromD, toD));
+        int aracGun = aracSayisi * donemGun;
+        decimal yuzde = aracGun > 0 ? Math.Round((decimal)kiraGun * 100m / aracGun, 2, MidpointRounding.AwayFromZero) : 0m;
+
+        return new DolulukDto(aracSayisi, donemGun, aracGun, kiraGun, yuzde);
+    }
+
+    /// <summary>İki kapsayıcı tarih aralığının kesişim gün sayısı (kesişim yoksa 0).</summary>
+    private static int OverlapDays(DateTime aBas, DateTime aBit, DateTime bBas, DateTime bBit)
+    {
+        var lo = aBas > bBas ? aBas : bBas;
+        var hi = aBit < bBit ? aBit : bBit;
+        return hi >= lo ? (hi - lo).Days + 1 : 0;
+    }
+
     /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
     public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
     {
