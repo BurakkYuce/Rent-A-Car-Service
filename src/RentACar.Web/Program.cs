@@ -44,6 +44,7 @@ using RentACar.Web.Regulation;
 using RentACar.Web.CoverageProducts;
 using RentACar.Web.RateMatrices;
 using RentACar.Web.RentalRules;
+using RentACar.Web.Reports;
 using RentACar.Web.ServiceRecords;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
@@ -83,6 +84,7 @@ builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContext
 // ---- Uygulama + altyapı ----
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn);
+builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 
 // LoginService + IPasswordHasher<User> + Application IPasswordHasher köprüsü artık
 // AddInfrastructure'da (Web cookie + API JWT ortak kullanır).
@@ -145,6 +147,7 @@ app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
+app.MapReportExportEndpoints();
 app.MapRateMatrixEndpoints();
 app.MapCoverageProductEndpoints();
 app.MapRentalRuleEndpoints();
