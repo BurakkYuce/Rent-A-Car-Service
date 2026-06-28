@@ -1,0 +1,67 @@
+@page "/raporlar/karlilik"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Kârlılık Raporu — TürevRent</PageTitle>
+
+<h1>Kârlılık Raporu (Araç-bazlı P&L)</h1>
+<p class="muted small">Defterden türetilen araç-bazlı kâr/zarar (Gelir − Gider). Gelir <strong>fatura→kira</strong>,
+    <strong>araç satışı</strong> ve <strong>ceza</strong> ile araca; gider doğrudan araç-gideri (defter AccountRef)
+    ile atfedilir. Atfedilemeyenler "(Atanmamış)" satırına toplanır: <em>HGS yansıtması (plaka-bazlı), manuel/
+    kiradan bağımsız fatura</em>. NOT: servis işçiliği ayrı gider girilmedikçe maliyete yansımaz; iade faturası
+    (v1) gelir-azaltıcı değildir. Filtresiz toplamlar gelir-gider defter toplamıyla mutabıktır.</p>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
+    <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a></p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <label>Şube<input name="sube" value="@Sube" /></label>
+    <label>Grup<input name="grup" value="@Grup" /></label>
+    <label>Plaka<input name="plaka" value="@Plaka" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
+    <tbody>
+        @if (_d.Satirlar.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var r in _d.Satirlar)
+        {
+            <tr>
+                <td>@r.Plaka</td><td>@r.Sube</td><td>@r.Grup</td>
+                <td class="num">@r.Gelir.ToString("N2")</td>
+                <td class="num">@r.Gider.ToString("N2")</td>
+                <td class="num">@r.NetKar.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr><th colspan="3">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
+            <th class="num">@_d.ToplamGelir.ToString("N2")</th>
+            <th class="num">@_d.ToplamGider.ToString("N2")</th>
+            <th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr>
+    </tfoot>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+
+    private KarlilikDto _d = new([], 0m, 0m, 0m);
+    private bool _filtreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Grup) || !string.IsNullOrWhiteSpace(Plaka);
+
+    protected override async Task OnInitializedAsync()
+    {
+        DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
+        DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
+        _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka);
+    }
+}

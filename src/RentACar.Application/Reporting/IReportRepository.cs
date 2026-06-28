@@ -65,4 +65,12 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// Araç-bazlı kârlılık (roadmap B2): DEFTERDEN. Gider(Debit) AccountRef=araç → araç gideri; Gelir(Credit)
+    /// base, SourceId→Fatura→Kira→Araç ile atfedilir. Araca bağlanamayan gelir/gider null VehicleId
+    /// "(Atanmamış)" satırına toplanır. Σ satır Gelir/Gider = defter Gelir/Gider toplamı (invariant).
+    /// </summary>
+    Task<IReadOnlyList<KarlilikSatirDto>> GetKarlilikRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }
