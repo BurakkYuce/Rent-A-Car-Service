@@ -43,4 +43,13 @@ public sealed class VehicleInput
     public string? OzelKod3 { get; set; }
     public string? OzelKod4 { get; set; }
     public string? OzelKod5 { get; set; }
+
+    // roadmap G1
+    public string? HgsNo { get; set; }
+    public string? OgsNo { get; set; }
+    public string? KasaTipi { get; set; }
+    public string? DetayTipi { get; set; }
+    public string? AlimFaturaNo { get; set; }
+    public string? AlimYapilanFirma { get; set; }
+    public int? KiraKmLimiti { get; set; }
 }
