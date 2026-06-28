@@ -31,6 +31,7 @@ using RentACar.Web.Brands;
 using RentACar.Web.Currencies;
 using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
+using RentACar.Web.EkHizmetler;
 using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
 using RentACar.Web.KdvRates;
@@ -141,6 +142,7 @@ app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
+app.MapEkHizmetEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
