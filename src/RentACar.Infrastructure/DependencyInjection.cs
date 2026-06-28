@@ -7,6 +7,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Branches;
 using RentACar.Application.CancelReasons;
 using RentACar.Application.Brands;
+using RentACar.Application.Currencies;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
 using RentACar.Application.Details;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
+        services.AddScoped<ICurrencyRepository, CurrencyRepository>();
         services.AddScoped<IRateCardRepository, RateCardRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();
