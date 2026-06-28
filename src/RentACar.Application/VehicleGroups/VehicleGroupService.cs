@@ -66,21 +66,75 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Araç grubu kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Araç grubu kodu en çok 32 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Araç grubu adı zorunludur.");
+
+        if (!string.IsNullOrEmpty(n.Sipp) && n.Sipp.Length != 4)
+            throw new ValidationException("SIPP kodu 4 harf olmalıdır (ör. CDMD).");
+        RequireNonNegativeInt(n.KoltukSayisi, "Koltuk sayısı");
+        RequireNonNegativeInt(n.KapiSayisi, "Kapı sayısı");
+        RequireNonNegativeInt(n.BagajSayisi, "Bagaj sayısı");
+        RequireNonNegativeInt(n.GunlukKmLimiti, "Günlük KM limiti");
+        RequireNonNegativeDec(n.Provizyon, "Provizyon");
+        RequireNonNegativeDec(n.MuafiyetTutari, "Muafiyet tutarı");
+        RequireNonNegativeDec(n.AsimKmUcreti, "Aşım KM ücreti");
+        if (n.SurucuMinYas is < 16 or > 99)
+            throw new ValidationException("Sürücü min. yaş 16 ile 99 arasında olmalıdır.");
+        if (n.GencSurucuYas is < 16 or > 99)
+            throw new ValidationException("Genç sürücü yaşı 16 ile 99 arasında olmalıdır.");
+        if (n.EhliyetMinYil is < 0 or > 80)
+            throw new ValidationException("Ehliyet min. yıl 0 ile 80 arasında olmalıdır.");
+    }
+
+    private static void RequireNonNegativeInt(int? v, string label)
+    {
+        if (v is < 0) throw new ValidationException($"{label} negatif olamaz.");
+    }
+
+    private static void RequireNonNegativeDec(decimal? v, string label)
+    {
+        if (v is < 0m) throw new ValidationException($"{label} negatif olamaz.");
     }
 
     private static VehicleGroupInput Normalize(VehicleGroupInput input) => new()
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
-        Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim(),
+        Aciklama = TrimOrNull(input.Aciklama),
+        Sipp = string.IsNullOrWhiteSpace(input.Sipp) ? null : input.Sipp.Trim().ToUpperInvariant(),
+        Segment = TrimOrNull(input.Segment),
+        KasaTuru = TrimOrNull(input.KasaTuru),
+        KoltukSayisi = input.KoltukSayisi,
+        KapiSayisi = input.KapiSayisi,
+        BagajSayisi = input.BagajSayisi,
+        SurucuMinYas = input.SurucuMinYas,
+        GencSurucuYas = input.GencSurucuYas,
+        EhliyetMinYil = input.EhliyetMinYil,
+        Provizyon = input.Provizyon,
+        MuafiyetTutari = input.MuafiyetTutari,
+        GunlukKmLimiti = input.GunlukKmLimiti,
+        AsimKmUcreti = input.AsimKmUcreti,
         Aktif = input.Aktif
     };
+
+    private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     private static void Apply(VehicleGroup group, VehicleGroupInput n)
     {
         group.Kod = n.Kod;
         group.Ad = n.Ad;
         group.Aciklama = n.Aciklama;
+        group.Sipp = n.Sipp;
+        group.Segment = n.Segment;
+        group.KasaTuru = n.KasaTuru;
+        group.KoltukSayisi = n.KoltukSayisi;
+        group.KapiSayisi = n.KapiSayisi;
+        group.BagajSayisi = n.BagajSayisi;
+        group.SurucuMinYas = n.SurucuMinYas;
+        group.GencSurucuYas = n.GencSurucuYas;
+        group.EhliyetMinYil = n.EhliyetMinYil;
+        group.Provizyon = n.Provizyon;
+        group.MuafiyetTutari = n.MuafiyetTutari;
+        group.GunlukKmLimiti = n.GunlukKmLimiti;
+        group.AsimKmUcreti = n.AsimKmUcreti;
         group.Aktif = n.Aktif;
     }
 }
