@@ -1,0 +1,71 @@
+@page "/vites-turleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject TransmissionTypeService VitesTurleri
+
+<PageTitle>Vites Türleri — TürevRent</PageTitle>
+
+<h1>Vites Türü Tanımları</h1>
+<p class="muted small">Araç şanzıman tiplerinin sözlüğü (ör. "Manuel", "Otomatik", "CVT").
+    Tanım/raporlama için.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Vites Türü</summary>
+    <form method="post" action="/vites-turleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="OTOMATIK" /></label>
+        <label>Ad<input name="ad" required placeholder="Otomatik" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Vites türü tanımlı değil.</td></tr>
+        }
+        @foreach (var t in _list)
+        {
+            <tr>
+                <td class="mono">@t.Kod</td>
+                <td>@t.Ad</td>
+                <td>@(t.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/vites-turleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <label>Kod<input name="kod" value="@t.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@t.Ad" required /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@t.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!t.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/vites-turleri/delete" onsubmit="return confirm('Vites türü silinsin mi?')">
+                        <input type="hidden" name="id" value="@t.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<TransmissionType> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await VitesTurleri.ListAsync();
+}
