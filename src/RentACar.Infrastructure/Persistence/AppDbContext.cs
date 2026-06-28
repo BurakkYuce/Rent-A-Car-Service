@@ -47,6 +47,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleOwner> VehicleOwners => Set<VehicleOwner>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<FinancialAccount> FinancialAccounts => Set<FinancialAccount>();
+    public DbSet<CustomCode> CustomCodes => Set<CustomCode>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -158,6 +159,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<FinancialAccount>(e =>
         {
             e.ToTable("Hesaplar");
+        // ---- CustomCode / Özel kod (tenant-owned; master sözlük) ----
+        b.Entity<CustomCode>(e =>
+        {
+            e.ToTable("OzelKodlar");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);

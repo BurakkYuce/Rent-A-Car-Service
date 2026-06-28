@@ -16,6 +16,7 @@ using RentACar.Web.VehicleTypes;
 using RentACar.Web.VehicleOwners;
 using RentACar.Web.ExpenseCategories;
 using RentACar.Web.FinancialAccounts;
+using RentACar.Web.CustomCodes;
 using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
@@ -108,6 +109,7 @@ app.MapVehicleTypeEndpoints();
 app.MapVehicleOwnerEndpoints();
 app.MapExpenseCategoryEndpoints();
 app.MapFinancialAccountEndpoints();
+app.MapCustomCodeEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
