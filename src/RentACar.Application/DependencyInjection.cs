@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
         services.AddScoped<Dashboard.DashboardService>();
+        services.AddScoped<Authorization.ScreenPermissionService>();
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();

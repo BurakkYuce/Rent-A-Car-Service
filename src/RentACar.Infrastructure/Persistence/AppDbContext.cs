@@ -93,6 +93,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Anket> Anketler => Set<Anket>();
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
+    public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -319,6 +320,18 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.TenantId).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- ScreenPermission / Ekran yetki override (tenant-owned, roadmap E3) ----
+        b.Entity<ScreenPermission>(e =>
+        {
+            e.ToTable("EkranYetkileri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.EkranKodu).IsRequired().HasMaxLength(64);
+            e.Property(x => x.AllowedRolesCsv).HasMaxLength(256);
+            e.HasIndex(x => new { x.TenantId, x.EkranKodu }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
