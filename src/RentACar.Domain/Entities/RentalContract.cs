@@ -62,6 +62,9 @@ public class RentalContract : ITenantOwned, IAuditable
 
     public string? Aciklama { get; set; }
 
+    /// <summary>Kira ek hizmet kalemleri (bebek koltuğu, GPS…). GenelToplam'a brüt olarak girer.</summary>
+    public List<RentalAddOn> EkHizmetler { get; set; } = [];
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

@@ -17,6 +17,7 @@ namespace RentACar.Application.Finance;
 public sealed class InvoiceService(
     IInvoiceRepository repository,
     IBookingRepository bookingRepository,
+    RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
     IEInvoiceService eInvoice,
     ICurrentUser currentUser)
 {
@@ -36,10 +37,24 @@ public sealed class InvoiceService(
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         if (rental.GenelToplam <= 0)
             throw new ValidationException("Faturalanacak tutar yok.");
+        // İdempotency: aynı kira iki kez faturalanıp cari ÇİFT borçlanmasın (DB kısmi unique index
+        // son güvence; bu ön-kontrol kullanıcı dostu hata verir).
+        if (await addOnRepository.IsRentalInvoicedAsync(rental.Id, ct))
+            throw new ValidationException("Kira zaten faturalanmış.");
 
         var rate = kdvRate ?? DefaultKdvRate;
-        var gross = KdvMath.RoundGross(rental.GenelToplam); // KDV-dahil, kuruşa sabit
-        var (net, kdv) = KdvMath.FromGross(gross, rate);    // net+kdv = gross (denge)
+
+        // Ek hizmet kalemleri: her biri KENDİ KDV oranını korur (farklı oranlar karışmaz).
+        var addOns = await addOnRepository.ListForRentalAsync(rental.Id, ct);
+        var addOnGross = addOns.Sum(a => a.Toplam);
+
+        // Baz kira (ek hizmet hariç) brütünden net+KDV ayrıştır.
+        var baseGross = KdvMath.RoundGross(rental.GenelToplam - addOnGross);
+        var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
+
+        var net = baseNet + addOns.Sum(a => a.NetTutar);
+        var kdv = baseKdv + addOns.Sum(a => a.KdvTutar);
+        var gross = net + kdv; // denge: NetTutar + KdvTutar = GenelToplam (her zaman)
 
         var invoice = new Invoice
         {
@@ -58,12 +73,26 @@ public sealed class InvoiceService(
             InvoiceId = invoice.Id,
             Aciklama = $"Kira sözleşmesi {rental.SozlesmeNo}",
             Miktar = 1m,
-            BirimNetFiyat = net,
+            BirimNetFiyat = baseNet,
             KdvOrani = rate,
-            SatirNet = net,
-            SatirKdv = kdv,
-            SatirToplam = gross
+            SatirNet = baseNet,
+            SatirKdv = baseKdv,
+            SatirToplam = baseNet + baseKdv
         });
+        foreach (var a in addOns)
+        {
+            invoice.Lines.Add(new InvoiceLine
+            {
+                InvoiceId = invoice.Id,
+                Aciklama = $"{a.Ad} (ek hizmet)",
+                Miktar = a.Miktar,
+                BirimNetFiyat = a.BirimNetFiyat,
+                KdvOrani = a.KdvOrani,
+                SatirNet = a.NetTutar,
+                SatirKdv = a.KdvTutar,
+                SatirToplam = a.Toplam
+            });
+        }
 
         // e-Fatura stub (Faz 2'de gerçek): ETTN al.
         var result = await eInvoice.SendAsync(
