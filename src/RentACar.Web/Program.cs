@@ -42,6 +42,7 @@ using RentACar.Web.Pricing;
 using RentACar.Web.Regulation;
 using RentACar.Web.ServiceRecords;
 using RentACar.Web.Users;
+using RentACar.Web.VehicleGroups;
 using RentACar.Web.VehicleSales;
 using RentACar.Web.Vehicles;
 
@@ -138,6 +139,7 @@ app.MapBrandEndpoints();
 app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
+app.MapVehicleGroupEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
