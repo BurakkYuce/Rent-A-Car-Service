@@ -113,6 +113,8 @@ public static class DependencyInjection
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsRepository,
             Persistence.Repositories.TenantSettingsRepository>();
+        services.AddScoped<RentACar.Application.Personnel.IPersonelRepository,
+            Persistence.Repositories.PersonelRepository>();
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();

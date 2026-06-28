@@ -1,0 +1,80 @@
+@page "/personel"
+@attribute [Authorize(Roles = "Admin")]
+@inject PersonelService Personel
+@inject NavigationManager Nav
+
+<PageTitle>Personel — TürevRent</PageTitle>
+
+<h1>Personel</h1>
+<p class="muted small">🔒 TC Kimlik ve Maaş <strong>şifreli</strong> saklanır (yalnız Admin görür). Düzenlemede
+    bu alanları boş bırakırsanız mevcut değer korunur.</p>
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<table class="grid">
+    <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Şube</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var p in _list)
+        {
+            <tr>
+                <td>@p.Kod</td>
+                <td>@p.Ad @p.Soyad</td>
+                <td>@p.Sube</td>
+                <td>@(p.IseGiris?.ToString("yyyy-MM-dd"))</td>
+                <td>@(p.Aktif ? "Aktif" : "Pasif")</td>
+                <td><a href="/personel?duzenle=@p.Id">Düzenle</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>@(_edit is null ? "Yeni Personel" : $"Düzenle: {_edit.Kod}")</h2>
+<form method="post" action="@(_edit is null ? "/personel/create" : "/personel/update")" class="grid-form">
+    @if (_edit is not null)
+    {
+        <input type="hidden" name="id" value="@_edit.Id" />
+    }
+    <label>Sicil<input name="kod" value="@_edit?.Kod" required /></label>
+    <label>Ad<input name="ad" value="@_edit?.Ad" required /></label>
+    <label>Soyad<input name="soyad" value="@_edit?.Soyad" required /></label>
+    <label>TC Kimlik<input name="tcKimlik" value="@_edit?.TcKimlik" placeholder="@(_edit is not null ? "(boş = değişmez)" : "")" /></label>
+    <label>Sürücü Belge No<input name="surucuBelgeNo" value="@_edit?.SurucuBelgeNo" /></label>
+    <label>Maaş<input name="maas" type="number" step="0.01" min="0" value="@_edit?.Maas" /></label>
+    <label>İşe Giriş<input name="iseGiris" type="date" value="@(_edit?.IseGiris?.ToString("yyyy-MM-dd"))" /></label>
+    <label>İşten Çıkış<input name="iseCikis" type="date" value="@(_edit?.IseCikis?.ToString("yyyy-MM-dd"))" /></label>
+    <label>Şube<input name="sube" value="@_edit?.Sube" /></label>
+    <label>Aktif<input name="aktif" type="checkbox" value="true" checked="@(_edit?.Aktif ?? true)" /></label>
+    <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
+    @if (_edit is not null)
+    {
+        <a href="/personel" class="btn-secondary">İptal</a>
+    }
+</form>
+
+@if (_edit is not null)
+{
+    <form method="post" action="/personel/delete" onsubmit="return confirm('Personel silinsin mi?');">
+        <input type="hidden" name="id" value="@_edit.Id" />
+        <button type="submit" class="btn-danger">Sil</button>
+    </form>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "duzenle")] public Guid? Duzenle { get; set; }
+
+    private IReadOnlyList<RentACar.Domain.Entities.Personel> _list = [];
+    private PersonelDetail? _edit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Personel.ListAsync();
+        if (Duzenle is { } id) _edit = await Personel.GetDetailAsync(id);
+    }
+}
