@@ -53,3 +53,12 @@ public sealed record GelirGiderDto(
     decimal KdvTahsil, decimal KdvIndirilecek, decimal NetKar,
     IReadOnlyList<GelirGiderKalemDto> GelirKirilim,
     IReadOnlyList<GelirGiderKalemDto> GiderKirilim);
+
+/// <summary>
+/// Günlük faaliyet özeti: bir günün operasyonel sayaçları + tutarları. Yeni rezervasyon/kira
+/// (oluşturma tarihi), çıkış (kira başlangıcı), dönüş (gerçek dönüş), tahsilat (adet+tutar, ters
+/// kayıt hariç), fatura (adet+tutar, İptal hariç). Salt-okunur sayım/toplam.
+/// </summary>
+public sealed record GunlukFaaliyetDto(
+    int YeniRezervasyon, int YeniKira, int Cikis, int Donus,
+    int TahsilatAdet, decimal TahsilatTutar, int FaturaAdet, decimal FaturaTutar);
