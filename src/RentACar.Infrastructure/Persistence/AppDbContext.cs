@@ -41,6 +41,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
+    public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -128,6 +129,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<CancelReason>(e =>
         {
             e.ToTable("IptalSebepleri");
+        // ---- ReservationSource / Rezervasyon kaynağı (tenant-owned; master sözlük) ----
+        b.Entity<ReservationSource>(e =>
+        {
+            e.ToTable("RezervasyonKaynaklari");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
