@@ -84,6 +84,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
 
         return raw.Select(r => new DolulukKiraRowDto(r.BasTar, r.Bit)).ToList();
+    }
+
     public async Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {

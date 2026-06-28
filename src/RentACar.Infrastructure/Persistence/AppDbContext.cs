@@ -135,30 +135,91 @@ public sealed class AppDbContext : DbContext
         b.Entity<CancelReason>(e =>
         {
             e.ToTable("IptalSebepleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- ReservationSource / Rezervasyon kaynağı (tenant-owned; master sözlük) ----
         b.Entity<ReservationSource>(e =>
         {
             e.ToTable("RezervasyonKaynaklari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- VehicleSegment / Araç segment (tenant-owned; master sözlük) ----
         b.Entity<VehicleSegment>(e =>
         {
             e.ToTable("Segmentler");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- VehicleType / Araç tip (tenant-owned; master sözlük) ----
         b.Entity<VehicleType>(e =>
         {
             e.ToTable("AracTipleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Marka).HasMaxLength(64);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- VehicleOwner / Araç sahip (tenant-owned; master sözlük) ----
         b.Entity<VehicleOwner>(e =>
         {
             e.ToTable("AracSahipleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Tur).HasMaxLength(32);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- ExpenseCategory / Gider türü (tenant-owned; master sözlük) ----
         b.Entity<ExpenseCategory>(e =>
         {
             e.ToTable("GiderTurleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- FinancialAccount / Kasa-Banka hesap (tenant-owned; master sözlük) ----
         b.Entity<FinancialAccount>(e =>
         {
             e.ToTable("Hesaplar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Tur).HasMaxLength(32);
+            e.Property(x => x.Doviz).HasMaxLength(3);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- CustomCode / Özel kod (tenant-owned; master sözlük) ----
         b.Entity<CustomCode>(e =>
         {
@@ -168,10 +229,6 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Aciklama).HasMaxLength(512);
-            e.Property(x => x.Marka).HasMaxLength(64);
-            e.Property(x => x.Tur).HasMaxLength(32);
-            e.Property(x => x.Tur).HasMaxLength(32);
-            e.Property(x => x.Doviz).HasMaxLength(3);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
