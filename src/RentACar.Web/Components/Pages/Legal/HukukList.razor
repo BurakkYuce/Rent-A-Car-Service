@@ -1,0 +1,90 @@
+@page "/hukuk"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject HukukDosyaService Hukuk
+@using RentACar.Domain.Enums
+
+<PageTitle>Hukuk — TürevRent</PageTitle>
+
+<h1>Hukuk Dosyaları</h1>
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<table class="grid">
+    <thead><tr><th>Dosya No</th><th>Tür</th><th>Avukat</th><th class="num">Tutar</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var h in _list)
+        {
+            <tr>
+                <td>@h.DosyaNo</td>
+                <td>@h.Tur</td>
+                <td>@h.Avukat</td>
+                <td class="num">@h.Tutar.ToString("N2")</td>
+                <td>@h.Durum</td>
+                <td>@h.Tarih.ToString("yyyy-MM-dd")</td>
+                <td><a href="/hukuk?duzenle=@h.Id">Düzenle</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>@(_edit is null ? "Yeni Dosya" : $"Düzenle: {_edit.DosyaNo}")</h2>
+<form method="post" action="@(_edit is null ? "/hukuk/create" : "/hukuk/update")" class="grid-form">
+    @if (_edit is not null)
+    {
+        <input type="hidden" name="id" value="@_edit.Id" />
+    }
+    <label>Dosya No<input name="dosyaNo" value="@_edit?.DosyaNo" required /></label>
+    <label>Tür
+        <select name="tur">
+            @foreach (var t in Enum.GetValues<HukukTuru>())
+            {
+                <option value="@t" selected="@(_edit?.Tur == t)">@t</option>
+            }
+        </select></label>
+    <label>Avukat<input name="avukat" value="@_edit?.Avukat" /></label>
+    <label>Tutar<input name="tutar" type="number" step="0.01" min="0" value="@_edit?.Tutar" /></label>
+    <label>Durum
+        <select name="durum">
+            @foreach (var d in Enum.GetValues<HukukDurum>())
+            {
+                <option value="@d" selected="@(_edit?.Durum == d)">@d</option>
+            }
+        </select></label>
+    <label>Tarih<input name="tarih" type="date" value="@(_edit?.Tarih.ToString("yyyy-MM-dd"))" /></label>
+    <label>Cari ID (ops.)<input name="cariId" value="@_edit?.CariId" /></label>
+    <label>Açıklama<input name="aciklama" value="@_edit?.Aciklama" /></label>
+    <label>Aktif<input name="aktif" type="checkbox" value="true" checked="@(_edit?.Aktif ?? true)" /></label>
+    <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
+    @if (_edit is not null)
+    {
+        <a href="/hukuk" class="btn-secondary">İptal</a>
+    }
+</form>
+
+@if (_edit is not null)
+{
+    <form method="post" action="/hukuk/delete" onsubmit="return confirm('Dosya silinsin mi?');">
+        <input type="hidden" name="id" value="@_edit.Id" />
+        <button type="submit" class="btn-danger">Sil</button>
+    </form>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "duzenle")] public Guid? Duzenle { get; set; }
+
+    private IReadOnlyList<RentACar.Domain.Entities.HukukDosya> _list = [];
+    private RentACar.Domain.Entities.HukukDosya? _edit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Hukuk.ListAsync();
+        if (Duzenle is { } id) _edit = await Hukuk.GetAsync(id);
+    }
+}
