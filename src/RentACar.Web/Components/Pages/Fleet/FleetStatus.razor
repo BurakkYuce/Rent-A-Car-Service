@@ -1,0 +1,111 @@
+@page "/arac-durum"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject FleetStatusService Fleet
+
+<PageTitle>Araç Güncel Durum — TürevRent</PageTitle>
+
+<h1>Araç Güncel Durum</h1>
+<p class="muted small">Filonun anlık görünümü: her aracın operasyonel durumu, filo statüsü ve (kiradaysa)
+    aktif kira özeti tek tabloda. Operatör yalnız kendi şubesini görür.</p>
+
+<form method="get" class="filter-bar">
+    <input name="q" value="@Q" placeholder="Plaka / marka ara" />
+    <select name="durum">
+        <option value="">Durum (tümü)</option>
+        @foreach (var s in Enum.GetValues<VehicleStatus>())
+        {
+            <option value="@s" selected="@(Durum == s.ToString())">@s</option>
+        }
+    </select>
+    <select name="filo">
+        <option value="">Filo Status (tümü)</option>
+        @foreach (var f in Enum.GetValues<FiloStatus>())
+        {
+            <option value="@f" selected="@(Filo == f.ToString())">@f</option>
+        }
+    </select>
+    <select name="vites">
+        <option value="">Vites (tümü)</option>
+        @foreach (var vt in Enum.GetValues<Vites>())
+        {
+            <option value="@vt" selected="@(VitesF == vt.ToString())">@vt</option>
+        }
+    </select>
+    <select name="yakit">
+        <option value="">Yakıt (tümü)</option>
+        @foreach (var yk in Enum.GetValues<FuelType>())
+        {
+            <option value="@yk" selected="@(Yakit == yk.ToString())">@yk</option>
+        }
+    </select>
+    <input name="grup" value="@Grup" placeholder="Grup" />
+    <input name="marka" value="@Marka" placeholder="Marka" />
+    <select name="kirada">
+        <option value="">Kira (tümü)</option>
+        <option value="true" selected="@(Kirada == "true")">Yalnız kirada</option>
+        <option value="false" selected="@(Kirada == "false")">Yalnız boşta</option>
+    </select>
+    <button type="submit">Filtrele</button>
+    <a href="/arac-durum" class="link">Temizle</a>
+</form>
+
+<p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada</p>
+
+<table class="grid">
+    <thead>
+        <tr>
+            <th>Plaka</th><th>Marka/Tip</th><th>Grup</th><th>Filo</th><th>Durum</th>
+            <th>Müşteri (aktif kira)</th><th>Bitiş</th><th>Bakiye</th><th>KM</th><th>Şube</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="10" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td><a href="/vehicles/@r.VehicleId">@r.Plaka</a></td>
+                <td>@r.Marka @r.Tip</td>
+                <td>@r.Grup</td>
+                <td>@(r.FiloDurum?.ToString() ?? "—")</td>
+                <td>@r.Durum</td>
+                <td>@(r.MusteriAd ?? "—")</td>
+                <td>@(r.KiraBitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td class="num">@(r.KiraBakiye?.ToString("N2") ?? "—")</td>
+                <td class="num">@r.Km</td>
+                <td>@r.Sube</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "filo")] public string? Filo { get; set; }
+    [SupplyParameterFromQuery(Name = "vites")] public string? VitesF { get; set; }
+    [SupplyParameterFromQuery(Name = "yakit")] public string? Yakit { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "marka")] public string? Marka { get; set; }
+    [SupplyParameterFromQuery(Name = "kirada")] public string? Kirada { get; set; }
+
+    private IReadOnlyList<FleetStatusRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var filter = new FleetStatusFilter
+        {
+            Query = Q,
+            Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null,
+            FiloDurum = Enum.TryParse<FiloStatus>(Filo, out var f) ? f : null,
+            Vites = Enum.TryParse<Vites>(VitesF, out var vt) ? vt : null,
+            Yakit = Enum.TryParse<FuelType>(Yakit, out var yk) ? yk : null,
+            Grup = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
+            Marka = string.IsNullOrWhiteSpace(Marka) ? null : Marka,
+            KiradaMi = Kirada switch { "true" => true, "false" => false, _ => null }
+        };
+        _rows = await Fleet.QueryAsync(filter);
+    }
+}
