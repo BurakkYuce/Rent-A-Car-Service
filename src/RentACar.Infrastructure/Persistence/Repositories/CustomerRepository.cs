@@ -3,6 +3,7 @@ using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -23,11 +24,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory) 
             .ToListAsync(ct);
     }
 
-    public async Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
+    /// <summary>Ortak filtre (arama + Tip + İYS/uyarı/kara-liste) — SearchAsync ve SearchRowsAsync paylaşır.</summary>
+    private static IQueryable<Customer> ApplyFilter(IQueryable<Customer> q, CustomerFilter filter)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var q = db.Customers.AsNoTracking();
-
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
             var term = $"%{filter.Query.Trim()}%";
@@ -38,6 +37,17 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory) 
                 || (c.TcKimlik != null && EF.Functions.ILike(c.TcKimlik, term))
                 || (c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
         }
+        if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
+        if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);
+        if (filter.Uyari is { } uy) q = q.Where(c => c.Uyari == uy);
+        if (filter.KaraListe is { } kl) q = q.Where(c => c.KaraListe == kl);
+        return q;
+    }
+
+    public async Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = ApplyFilter(db.Customers.AsNoTracking(), filter);
 
         var total = await q.CountAsync(ct);
         var items = await q
@@ -45,6 +55,44 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory) 
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
         return new PagedResult<Customer>(items, total, filter.Page, filter.PageSize);
+    }
+
+    public async Task<PagedResult<CustomerRow>> SearchRowsAsync(CustomerFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = ApplyFilter(db.Customers.AsNoTracking(), filter);
+
+        var total = await q.CountAsync(ct);
+        var page = await q
+            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+            .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
+            .ToListAsync(ct);
+
+        // Sayfadaki cariler için kira agregaları (İptal hariç): adet, ciro (GenelToplam Σ), son kira tarihi.
+        var ids = page.Select(c => c.Id).ToList();
+        var aggList = await db.Rentals.AsNoTracking()
+            .Where(r => ids.Contains(r.MusteriId) && r.Durum != RentalStatus.Iptal)
+            .GroupBy(r => r.MusteriId)
+            .Select(g => new { MusteriId = g.Key, Adet = g.Count(), Ciro = g.Sum(r => r.GenelToplam), SonKira = g.Max(r => r.BasTar) })
+            .ToListAsync(ct);
+        var agg = aggList.ToDictionary(a => a.MusteriId);
+
+        var rows = page.Select(c =>
+        {
+            agg.TryGetValue(c.Id, out var a);
+            return new CustomerRow
+            {
+                Id = c.Id, Tip = c.Tip, DisplayName = c.DisplayName,
+                TcKimlik = c.TcKimlik, VergiNo = c.VergiNo, CepTel = c.CepTel, Email = c.Email,
+                Il = c.Il, Kaynak = c.Kaynak,
+                KaraListe = c.KaraListe, Pasif = c.Pasif, Uyari = c.Uyari, IysIzinli = c.IysIzinli,
+                KiraAdet = a?.Adet ?? 0,
+                Ciro = a?.Ciro ?? 0m,
+                SonKira = a is null ? null : a.SonKira
+            };
+        }).ToList();
+
+        return new PagedResult<CustomerRow>(rows, total, filter.Page, filter.PageSize);
     }
 
     public async Task<Customer?> FindAsync(Guid id, CancellationToken ct = default)
