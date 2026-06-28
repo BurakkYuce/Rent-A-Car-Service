@@ -1,0 +1,77 @@
+@page "/hesaplar"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject FinancialAccountService Hesaplar
+
+<PageTitle>Hesaplar — TürevRent</PageTitle>
+
+<h1>Kasa/Banka Hesap Tanımları</h1>
+<p class="muted small">Nakit kasaları ve banka hesapları (ör. "Merkez Kasa", "Ziraat TL").
+    Tahsilat/ödeme/virman formlarındaki Hesap açılır listesini besler. Tür (Kasa/Banka) ve Döviz opsiyonel.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Hesap</summary>
+    <form method="post" action="/hesaplar/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="KASA-MERKEZ" /></label>
+        <label>Ad<input name="ad" required placeholder="Merkez Kasa" /></label>
+        <label>Tür<input name="tur" placeholder="Kasa / Banka" /></label>
+        <label>Döviz<input name="doviz" maxlength="3" placeholder="TRY" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Hesap tanımlı değil.</td></tr>
+        }
+        @foreach (var a in _list)
+        {
+            <tr>
+                <td class="mono">@a.Kod</td>
+                <td>@a.Ad</td>
+                <td>@a.Tur</td>
+                <td class="mono">@a.Doviz</td>
+                <td>@(a.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/hesaplar/update" class="grid-form">
+                            <input type="hidden" name="id" value="@a.Id" />
+                            <label>Kod<input name="kod" value="@a.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@a.Ad" required /></label>
+                            <label>Tür<input name="tur" value="@a.Tur" /></label>
+                            <label>Döviz<input name="doviz" value="@a.Doviz" maxlength="3" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@a.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!a.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/hesaplar/delete" onsubmit="return confirm('Hesap silinsin mi?')">
+                        <input type="hidden" name="id" value="@a.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<FinancialAccount> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Hesaplar.ListAsync();
+}
