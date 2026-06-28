@@ -92,6 +92,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
     public DbSet<Anket> Anketler => Set<Anket>();
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
+    public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -308,6 +309,16 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Durum).HasConversion<int>();
             e.Property(x => x.Cozum).HasMaxLength(2048);
             e.HasIndex(x => new { x.TenantId, x.Tarih });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- DonemKilidi / Dönem kapanışı (tenant-owned; tenant başına TEK satır, roadmap D2) ----
+        b.Entity<DonemKilidi>(e =>
+        {
+            e.ToTable("DonemKilitleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => x.TenantId).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

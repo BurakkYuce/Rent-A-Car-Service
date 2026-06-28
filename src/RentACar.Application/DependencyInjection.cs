@@ -76,6 +76,8 @@ public static class DependencyInjection
         services.AddScoped<Crm.AnketService>();
         services.AddScoped<Crm.SikayetService>();
         services.AddScoped<Search.SearchService>();
+        services.AddScoped<Periods.DonemKilidiService>();
+        services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();

@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -15,11 +16,13 @@ namespace RentACar.Application.Finance;
 ///   Virman:   Borç Hedef / Alacak Kaynak (cari yok)
 ///   Ters:     orijinalin yönleri çevrilir.
 /// </summary>
-public sealed class CashService(ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser)
+public sealed class CashService(
+    ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock)
 {
     private readonly ICashRepository _repository = repository;
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -60,6 +63,7 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
             KarsiHesap = input.Hesap,
             Aciklama = input.Aciklama
         };
+        await _lock.EnsureOpenAsync(tx.Tarih, ct); // dönem kilidi: kapalı tarihe tahsilat/ödeme YOK
 
         var entries = Natural(tx);
         // Kira bağlıysa: tahsilat tahsilatı artırır, ödeme (iade) azaltır.
@@ -87,6 +91,9 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
         if (satirlar.Count == 0) throw new ValidationException("Toplu işlem en az bir satır içermelidir.");
         if (satirlar.Count > 500) throw new ValidationException("Toplu işlem en çok 500 satır olabilir.");
 
+        // Dönem kilidi: kapanış tarihini bir kez oku, her satırın tarihini yerelde karşılaştır.
+        var closing = await _lock.GetClosingDateAsync(ct);
+
         // TÜM satırlar önce doğrulanır (fail-fast) → repo'ya yalnız geçerli set gider; atomiklik repo'da.
         var postings = new List<CashPosting>(satirlar.Count);
         for (var i = 0; i < satirlar.Count; i++)
@@ -109,6 +116,7 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
                 Aciklama = input.Aciklama,
                 IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null
             };
+            PeriodLock.ThrowIfClosed(tx.Tarih, closing, $"Satır {i + 1}"); // dönem kilidi (satır-bazlı)
             var entries = Natural(tx);
             var delta = tip == CashTransactionType.Tahsilat ? money.AmountInBase : -money.AmountInBase;
             postings.Add(new CashPosting(tx, entries, delta));
@@ -140,6 +148,7 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
+        await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
         var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
         var sourceId = Guid.NewGuid();
         var desc = aciklama ?? $"Virman {kaynak}→{hedef}";
@@ -177,6 +186,7 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
+        await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (cari virman bugün tarihli)
         var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? "Cari virman";
@@ -213,6 +223,7 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
             TersKayitMi = true,
             TersAlinanId = original.Id
         };
+        await _lock.EnsureOpenAsync(reversal.Tarih, ct); // dönem kilidi: ters kayıt bugün tarihli postlanır
 
         // Orijinalle aynı hesap/cari/tutar; doğal yönler çevrilir, ters kayıt tarihiyle.
         var entries = Natural(reversal, flip: true);

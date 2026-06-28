@@ -1,6 +1,7 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -13,10 +14,12 @@ namespace RentACar.Application.VehicleSales;
 /// Maliyet/sabit-kıymet defteri bu sürümde tutulmaz (gelir tam net olarak yazılır), tıpkı
 /// kira gelirinde olduğu gibi; gelecekte amortisman/defter-değeri eklenebilir.
 /// </summary>
-public sealed class VehicleSaleService(IVehicleSaleRepository repository, ICurrentUser currentUser)
+public sealed class VehicleSaleService(
+    IVehicleSaleRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
 {
     private readonly IVehicleSaleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -48,6 +51,7 @@ public sealed class VehicleSaleService(IVehicleSaleRepository repository, ICurre
             Aciklama = input.Aciklama,
             Durum = SatisDurum.Tamamlandi
         };
+        await _lock.EnsureOpenAsync(sale.Tarih, ct); // dönem kilidi: kapalı tarihe araç satışı postlanamaz
 
         await _repository.PostAsync(sale, BuildEntries(sale), ct);
         return sale.Id;
