@@ -1,0 +1,55 @@
+@page "/raporlar/tahsilat-fatura"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Tahsilat-Fatura Mutabakatı — TürevRent</PageTitle>
+
+<h1>Tahsilat-Fatura Mutabakatı</h1>
+<p class="muted small">Seçilen dönemde kesilen fatura toplamı (İptal hariç) ile alınan tahsilat
+    toplamı (ters kayıt hariç) ve fark. Fark = Fatura − Tahsilat (pozitif = tahsil edilmemiş bakiye).</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_data.FaturaAdet</div>
+        <div class="card-label">Fatura Adedi</div>
+    </div>
+    <div class="card">
+        <div class="card-num neg">@_data.FaturaToplam.ToString("N2")</div>
+        <div class="card-label">Fatura Toplam ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.TahsilatAdet</div>
+        <div class="card-label">Tahsilat Adedi</div>
+    </div>
+    <div class="card">
+        <div class="card-num pos">@_data.TahsilatToplam.ToString("N2")</div>
+        <div class="card-label">Tahsilat Toplam ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num @(_data.Fark > 0 ? "neg" : "pos")">@_data.Fark.ToString("N2")</div>
+        <div class="card-label">Fark (Fatura − Tahsilat) ₺</div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private TahsilatFaturaDto _data = new(0, 0m, 0, 0m, 0m);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _data = await Reports.GetTahsilatFaturaAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}

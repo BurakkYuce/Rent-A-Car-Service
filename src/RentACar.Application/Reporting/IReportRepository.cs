@@ -29,6 +29,11 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<DolulukKiraRowDto>> GetRentalIntervalsAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+    /// Dönem ([from,to]) tahsilat-fatura mutabakatı: fatura (İptal hariç, GenelToplam×Kur) ve
+    /// tahsilat (ters kayıt hariç, Amount×Rate) adet+toplamları. Fark service'te hesaplanır.
+    /// </summary>
+    Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>Aktif (Kirada) kira sözleşmesi sayısı.</summary>
     Task<int> GetActiveRentalCountAsync(CancellationToken ct = default);
