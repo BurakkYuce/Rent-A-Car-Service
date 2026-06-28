@@ -33,6 +33,19 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         return await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
+    public async Task<Branch?> FindByAdAsync(string ad, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // Tenant-scoped (query filter + RLS) + EXACT case-insensitive eşleşme (adversarial M2: ILike pattern
+        // "M_rkez"/"%" yanlış eşleşiyordu + backfill exact ile uyumsuzdu). lower()=lower() backfill ile birebir.
+        // Kod sırası → aynı adlı şubede deterministik seçim (L2).
+        var norm = ad.Trim().ToLowerInvariant();
+        return await db.Branches.AsNoTracking()
+            .Where(b => b.Ad.ToLower() == norm)
+            .OrderBy(b => b.Kod)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -81,7 +94,15 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         if (branch is null) return false;
 
         db.Branches.Remove(branch);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            // roadmap F1: composite FK Restrict → kullanımdaki şube silinemez (dostça hata).
+            throw new ValidationException("Bu şube araç/gider/personel/kural kaydında kullanılıyor; önce bağı kaldırın.");
+        }
         return true;
     }
 }

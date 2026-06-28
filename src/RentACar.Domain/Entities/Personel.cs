@@ -22,6 +22,7 @@ public class Personel : ITenantOwned, IAuditable
     public string? SurucuBelgeNo { get; set; }
     public string? MaasEnc { get; set; }       // PII — şifreli
     public string? Sube { get; set; }
+    public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

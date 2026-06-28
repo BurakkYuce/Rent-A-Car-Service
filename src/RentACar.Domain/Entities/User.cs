@@ -32,4 +32,6 @@ public class User
     /// rol Admin/Yönetici/Muhasebe ise tüm şubeler görünür. (Master tablo değil — mevcut Sube metni.)
     /// </summary>
     public string? AtanmisSube { get; set; }
+    /// <summary>Atanmış şube FK (Branch master, roadmap F1; metin korunur).</summary>
+    public Guid? AtanmisSubeId { get; set; }
 }

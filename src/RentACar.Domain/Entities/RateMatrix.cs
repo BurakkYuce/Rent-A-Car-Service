@@ -25,6 +25,7 @@ public class RateMatrix : ITenantOwned, IAuditable
     /// <summary>Kanal = Rez Kaynağı (ör. WEB, ACENTA, ÇAĞRI).</summary>
     public string? Kanal { get; set; }
     public string? Sube { get; set; }
+    public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
     public string? Lokasyon { get; set; }
     /// <summary>Araç grubu kodu (RateMatrix grup bazlıdır; VehicleGroup.Kod'a serbest metin referans).</summary>
     public string? AracGrupKod { get; set; }

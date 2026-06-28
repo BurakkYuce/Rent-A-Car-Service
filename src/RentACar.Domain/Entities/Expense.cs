@@ -25,6 +25,7 @@ public class Expense : ITenantOwned, IAuditable
     public Guid? CariId { get; set; }
 
     public string? Sube { get; set; }
+    public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
     public string? EvrakNo { get; set; }
 
     public decimal NetTutar { get; set; }

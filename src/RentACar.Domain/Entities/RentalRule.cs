@@ -23,6 +23,7 @@ public class RentalRule : ITenantOwned, IAuditable
     /// <summary>Kanal = Rez Kaynağı (boş → tümü).</summary>
     public string? Kanal { get; set; }
     public string? Sube { get; set; }
+    public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
     public string? AracGrupKod { get; set; }
 
     // Gün kısıtları
