@@ -13,7 +13,7 @@ public static class BookingEndpoints
     {
         var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
-        rez.MapPost("/create", async (ReservationService svc,
+        rez.MapPost("/create", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
@@ -21,11 +21,13 @@ public static class BookingEndpoints
         {
             try
             {
-                await svc.CreateAsync(new BookingInput
+                var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
-                });
+                };
+                ApplyOdemeDerinlik(input, req.Form);
+                await svc.CreateAsync(input);
                 return Results.Redirect("/rezervasyonlar");
             }
             catch (ValidationException ex)
@@ -61,7 +63,7 @@ public static class BookingEndpoints
 
         var kira = app.MapGroup("/kiralar").RequireAuthorization().DisableAntiforgery();
 
-        kira.MapPost("/create", async (RentalService svc,
+        kira.MapPost("/create", async (RentalService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
@@ -69,11 +71,13 @@ public static class BookingEndpoints
         {
             try
             {
-                await svc.CreateDirectAsync(new BookingInput
+                var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
-                });
+                };
+                ApplyOdemeDerinlik(input, req.Form);
+                await svc.CreateDirectAsync(input);
                 return Results.Redirect("/kiralar");
             }
             catch (ValidationException ex)
@@ -103,5 +107,17 @@ public static class BookingEndpoints
         });
 
         return app;
+    }
+
+    /// <summary>Opsiyonel ödeme-derinlik alanlarını forma göre doldurur (roadmap A2; bilgi amaçlı,
+    /// deftere yansımaz). Boş → null (FormParse.Dec).</summary>
+    private static void ApplyOdemeDerinlik(BookingInput input, IFormCollection f)
+    {
+        input.Provizyon = FormParse.Dec(f["provizyon"].ToString());
+        input.Depozito = FormParse.Dec(f["depozito"].ToString());
+        input.KomisyonOran = FormParse.Dec(f["komisyonOran"].ToString());
+        input.KomisyonTutar = FormParse.Dec(f["komisyonTutar"].ToString());
+        input.DropUcreti = FormParse.Dec(f["dropUcreti"].ToString());
+        input.SonraOdeOran = FormParse.Dec(f["sonraOdeOran"].ToString());
     }
 }
