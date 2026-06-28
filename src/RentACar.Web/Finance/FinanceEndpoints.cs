@@ -122,6 +122,36 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/cari-virman?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        grp.MapPost("/toplu-tahsilat", async (CashService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
+            var hesap = string.Equals(f["hesap"].ToString(), "Banka", StringComparison.OrdinalIgnoreCase)
+                ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            // Her satır: "cariId;tutar[;açıklama]" (boş satırlar atlanır).
+            var satirlar = new List<CashInput>();
+            foreach (var line in (f["satirlar"].ToString() ?? string.Empty)
+                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var p = line.Split(';', StringSplitOptions.TrimEntries);
+                satirlar.Add(new CashInput
+                {
+                    CariId = FormParse.Id(p.Length > 0 ? p[0] : null) ?? Guid.Empty,
+                    Tutar = FormParse.Dec(p.Length > 1 ? p[1] : null) ?? 0m,
+                    Hesap = hesap,
+                    Doviz = "TRY",
+                    Kur = 1m,
+                    Aciklama = p.Length > 2 && !string.IsNullOrWhiteSpace(p[2]) ? p[2] : "Toplu tahsilat"
+                });
+            }
+            try
+            {
+                await svc.BatchCollectAsync(satirlar, anahtar);
+                return Results.Redirect($"/toplu-tahsilat?ok={satirlar.Count}");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/toplu-tahsilat?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }

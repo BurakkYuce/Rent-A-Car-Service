@@ -939,6 +939,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.TersAlinanId })
                 .IsUnique()
                 .HasFilter("\"TersAlinanId\" IS NOT NULL");
+            // Toplu işlem idempotency: aynı IslemAnahtari iki kez yazılamaz (çift-submit batch'i geri alır).
+            e.HasIndex(x => new { x.TenantId, x.IslemAnahtari })
+                .IsUnique()
+                .HasFilter("\"IslemAnahtari\" IS NOT NULL");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
@@ -992,6 +996,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Aciklama).HasMaxLength(512);
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
+            // Toplu gider idempotency: aynı IslemAnahtari iki kez yazılamaz (çift-submit batch'i geri alır).
+            e.HasIndex(x => new { x.TenantId, x.IslemAnahtari })
+                .IsUnique()
+                .HasFilter("\"IslemAnahtari\" IS NOT NULL");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
