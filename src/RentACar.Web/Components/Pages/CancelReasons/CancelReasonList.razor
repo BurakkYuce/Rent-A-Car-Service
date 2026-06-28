@@ -1,0 +1,71 @@
+@page "/iptal-sebepleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject CancelReasonService IptalSebepleri
+
+<PageTitle>İptal Sebepleri — TürevRent</PageTitle>
+
+<h1>İptal Sebebi Tanımları</h1>
+<p class="muted small">Rezervasyon/kira iptallerinde seçilen sebeplerin sözlüğü (ör. "Müşteri Vazgeçti",
+    "Araç Arızası"). İptal akışlarındaki açılır listeyi besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni İptal Sebebi</summary>
+    <form method="post" action="/iptal-sebepleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="VAZGECTI" /></label>
+        <label>Ad<input name="ad" required placeholder="Müşteri Vazgeçti" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">İptal sebebi tanımlı değil.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td class="mono">@r.Kod</td>
+                <td>@r.Ad</td>
+                <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/iptal-sebepleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <label>Kod<input name="kod" value="@r.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@r.Ad" required /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@r.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!r.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/iptal-sebepleri/delete" onsubmit="return confirm('İptal sebebi silinsin mi?')">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<CancelReason> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await IptalSebepleri.ListAsync();
+}
