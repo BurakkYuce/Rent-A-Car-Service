@@ -8,10 +8,12 @@ namespace RentACar.Application.Periods;
 /// Dönem kapanışı iş mantığı (roadmap D2) + <see cref="IPeriodLockGuard"/> uygulaması. Kilitle/aç →
 /// FinanceWrite (mali yetki). Guard (EnsureOpenAsync) yetki gerektirmez — postlama yollarınca çağrılır.
 /// </summary>
-public sealed class DonemKilidiService(IDonemKilidiRepository repository, ICurrentUser currentUser) : IPeriodLockGuard
+public sealed class DonemKilidiService(
+    IDonemKilidiRepository repository, ICurrentUser currentUser, Authorization.ScreenPermissionService screens) : IPeriodLockGuard
 {
     private readonly IDonemKilidiRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly Authorization.ScreenPermissionService _screens = screens; // roadmap F3
 
     /// <summary>Geçerli kapanış tarihi (UI + guard).</summary>
     public async Task<DateTimeOffset?> GetClosingDateAsync(CancellationToken ct = default)
@@ -24,6 +26,7 @@ public sealed class DonemKilidiService(IDonemKilidiRepository repository, ICurre
     public async Task LockAsync(DateTimeOffset kapanisTarihi, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        await _screens.EnsureScreenAccessAsync("donem-kapanis", Permission.FinanceWrite, ct);
         await _repository.UpsertAsync(k =>
         {
             k.KapanisTarihi = kapanisTarihi;
@@ -35,6 +38,7 @@ public sealed class DonemKilidiService(IDonemKilidiRepository repository, ICurre
     public async Task UnlockAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        await _screens.EnsureScreenAccessAsync("donem-kapanis", Permission.FinanceWrite, ct);
         await _repository.UpsertAsync(k =>
         {
             k.KapanisTarihi = null;
