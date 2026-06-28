@@ -40,6 +40,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -120,6 +121,18 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             // Lookup: grup bazlı arama (büyük/küçük harf duyarsız ILike ile).
             e.HasIndex(x => new { x.TenantId, x.Grup });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- ExpenseCategory / Gider türü (tenant-owned; master sözlük) ----
+        b.Entity<ExpenseCategory>(e =>
+        {
+            e.ToTable("GiderTurleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

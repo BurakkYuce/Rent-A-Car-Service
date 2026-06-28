@@ -1,0 +1,71 @@
+@page "/gider-turleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject ExpenseCategoryService GiderTurleri
+
+<PageTitle>Gider Türleri — TürevRent</PageTitle>
+
+<h1>Gider Türü Tanımları</h1>
+<p class="muted small">Gider kategorilerinin sözlüğü (ör. "Yakıt", "Bakım", "Sigorta", "Kira").
+    Gider formundaki Kategori açılır listesini besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Gider Türü</summary>
+    <form method="post" action="/gider-turleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="YAKIT" /></label>
+        <label>Ad<input name="ad" required placeholder="Yakıt" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Gider türü tanımlı değil.</td></tr>
+        }
+        @foreach (var c in _list)
+        {
+            <tr>
+                <td class="mono">@c.Kod</td>
+                <td>@c.Ad</td>
+                <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/gider-turleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <label>Kod<input name="kod" value="@c.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@c.Ad" required /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@c.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!c.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/gider-turleri/delete" onsubmit="return confirm('Gider türü silinsin mi?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<ExpenseCategory> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await GiderTurleri.ListAsync();
+}

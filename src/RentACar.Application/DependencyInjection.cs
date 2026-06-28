@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<PricingService>();
         services.AddScoped<LocationService>();
         services.AddScoped<EkHizmetTanimService>();
+        services.AddScoped<RentACar.Application.ExpenseCategories.ExpenseCategoryService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
