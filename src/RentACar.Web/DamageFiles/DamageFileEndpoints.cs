@@ -11,7 +11,7 @@ public static class DamageFileEndpoints
 {
     public static IEndpointRouteBuilder MapDamageFileEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/hasar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/hasar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (DamageFileService svc,
             [FromForm] Guid vehicleId, [FromForm] string? rentalId, [FromForm] string? cariId,

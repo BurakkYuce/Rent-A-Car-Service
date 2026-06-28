@@ -12,7 +12,7 @@
         <p class="error">Firma, kullanıcı veya şifre hatalı.</p>
     }
 
-    <form method="post" action="/auth/login">
+    <form method="post" action="/auth/login"><AntiforgeryToken />
         <label>Firma
             <input name="firma" value="yucerent" autocomplete="off" />
         </label>

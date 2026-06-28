@@ -13,7 +13,7 @@ public static class VehicleGroupEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleGroupEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/arac-gruplari").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/arac-gruplari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleGroupService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form, aktif: true))));

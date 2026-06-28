@@ -23,7 +23,7 @@ else
 
     <details class="new-vehicle">
         <summary>+ Tahsilat (cari bakiye ↓)</summary>
-        <form method="post" action="/finans/tahsilat" class="grid-form">
+        <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="cariId" value="@_customer.Id" />
             <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
             <label>Hesap
@@ -40,7 +40,7 @@ else
 
     <details class="new-vehicle">
         <summary>+ Ödeme / Tediye (cari bakiye ↑)</summary>
-        <form method="post" action="/finans/odeme" class="grid-form">
+        <form method="post" action="/finans/odeme" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="cariId" value="@_customer.Id" />
             <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
             <label>Hesap
@@ -78,7 +78,7 @@ else
                     <td>
                         @if (e.SourceType is "Tahsilat" or "Odeme")
                         {
-                            <form method="post" action="/finans/tahsilat/ters" onsubmit="return confirm('Ters kayıt alınsın mı?')">
+                            <form method="post" action="/finans/tahsilat/ters" onsubmit="return confirm('Ters kayıt alınsın mı?')"><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@e.SourceId" />
                                 <input type="hidden" name="cariId" value="@_customer.Id" />
                                 <button type="submit" class="link danger">Ters Kayıt</button>

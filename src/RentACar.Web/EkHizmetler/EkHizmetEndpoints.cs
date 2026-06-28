@@ -13,7 +13,7 @@ public static class EkHizmetEndpoints
 {
     public static IEndpointRouteBuilder MapEkHizmetEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/ek-hizmetler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/ek-hizmetler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (EkHizmetTanimService svc,
             [FromForm] string kod, [FromForm] string ad,

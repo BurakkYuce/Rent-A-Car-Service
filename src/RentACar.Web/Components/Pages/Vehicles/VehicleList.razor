@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_page.Total == 0)">
     <summary>+ Yeni Araç</summary>
-    <form method="post" action="/vehicles/create" class="grid-form">
+    <form method="post" action="/vehicles/create" class="grid-form"><AntiforgeryToken />
         <label>Plaka<input name="plaka" required /></label>
         <label>Marka<input name="marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>
         <datalist id="marka-list">
@@ -121,7 +121,7 @@
                 <td>@v.Yakit</td>
                 <td>
                     <a href="/araclar/@v.Id" class="link">Detay</a>
-                    <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')">
+                    <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@v.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

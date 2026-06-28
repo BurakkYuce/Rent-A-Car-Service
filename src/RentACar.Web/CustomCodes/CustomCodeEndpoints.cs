@@ -11,7 +11,7 @@ public static class CustomCodeEndpoints
 {
     public static IEndpointRouteBuilder MapCustomCodeEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/ozel-kodlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/ozel-kodlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CustomCodeService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama) =>

@@ -11,7 +11,7 @@ public static class BookingEndpoints
 {
     public static IEndpointRouteBuilder MapBookingEndpoints(this IEndpointRouteBuilder app)
     {
-        var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         rez.MapPost("/create", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
@@ -61,7 +61,7 @@ public static class BookingEndpoints
             }
         });
 
-        var kira = app.MapGroup("/kiralar").RequireAuthorization().DisableAntiforgery();
+        var kira = app.MapGroup("/kiralar").RequireAuthorization().AntiforgeryByEnv();
 
         kira.MapPost("/create", async (RentalService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,

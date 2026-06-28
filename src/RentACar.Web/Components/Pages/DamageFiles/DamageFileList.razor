@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Hasar Dosyası</summary>
-    <form method="post" action="/hasar/create" class="grid-form">
+    <form method="post" action="/hasar/create" class="grid-form"><AntiforgeryToken />
         <label>Araç
             <select name="vehicleId" required>
                 <option value="">—</option>
@@ -62,22 +62,22 @@
                 <td>
                     @if (f.Durum == HasarDurum.Acik)
                     {
-                        <form method="post" action="/hasar/onaya-gonder" class="inline">
+                        <form method="post" action="/hasar/onaya-gonder" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Onaya Gönder</button>
                         </form>
                     }
                     @if (f.Durum == HasarDurum.Onayda)
                     {
-                        <form method="post" action="/hasar/onayla" class="inline">
+                        <form method="post" action="/hasar/onayla" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Onayla</button>
                         </form>
-                        <form method="post" action="/hasar/reddet" class="inline">
+                        <form method="post" action="/hasar/reddet" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Reddet</button>
                         </form>
                     }
                     @if (f.Durum is HasarDurum.Onaylandi or HasarDurum.Reddedildi)
                     {
-                        <form method="post" action="/hasar/kapat" class="inline">
+                        <form method="post" action="/hasar/kapat" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Kapat</button>
                         </form>
                     }

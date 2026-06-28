@@ -12,7 +12,7 @@ public static class ExpenseEndpoints
 {
     public static IEndpointRouteBuilder MapExpenseEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/giderler").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/giderler").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (ExpenseService svc,
             [FromForm] ExpenseType tip, [FromForm] string? vehicleId, [FromForm] string? cariId,

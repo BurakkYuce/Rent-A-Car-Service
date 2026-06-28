@@ -12,7 +12,7 @@ public static class PersonelEndpoints
 {
     public static IEndpointRouteBuilder MapPersonelEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/personel").RequirePermission(Permission.ManageUsers).DisableAntiforgery();
+        var grp = app.MapGroup("/personel").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (PersonelService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));

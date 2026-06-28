@@ -11,7 +11,7 @@ public static class BankEndpoints
 {
     public static IEndpointRouteBuilder MapBankEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/bankalar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/bankalar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (BankService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new BankInput { Kod = kod, Ad = ad, Aktif = true })));

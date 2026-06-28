@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Servis Kaydı</summary>
-    <form method="post" action="/servisler/create" class="grid-form">
+    <form method="post" action="/servisler/create" class="grid-form"><AntiforgeryToken />
         <label>Araç
             <select name="vehicleId" required>
                 <option value="">—</option>
@@ -71,13 +71,13 @@
                 <td>
                     @if (s.Durum == ServisDurum.Acik)
                     {
-                        <form method="post" action="/servisler/baslat" class="inline">
+                        <form method="post" action="/servisler/baslat" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" /><button type="submit">Servise Al</button>
                         </form>
                     }
                     @if (s.Durum == ServisDurum.Serviste)
                     {
-                        <form method="post" action="/servisler/tamamla" class="inline">
+                        <form method="post" action="/servisler/tamamla" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <input name="cikisKm" type="number" placeholder="Çıkış KM" required style="width:7rem" />
                             <input name="sonrakiBakimKm" type="number" placeholder="Sonraki bakım KM" style="width:9rem" />
@@ -86,13 +86,13 @@
                     }
                     @if (s.Durum is ServisDurum.Acik or ServisDurum.Serviste)
                     {
-                        <form method="post" action="/servisler/kalem" class="inline">
+                        <form method="post" action="/servisler/kalem" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <input name="aciklama" placeholder="Kalem" required style="width:8rem" />
                             <input name="tutar" type="number" step="0.01" placeholder="Tutar" required style="width:6rem" />
                             <button type="submit">+ Kalem</button>
                         </form>
-                        <form method="post" action="/servisler/iptal" class="inline">
+                        <form method="post" action="/servisler/iptal" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" /><button type="submit">İptal</button>
                         </form>
                     }

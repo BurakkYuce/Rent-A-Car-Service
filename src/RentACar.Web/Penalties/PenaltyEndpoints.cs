@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Common;
 using RentACar.Application.Penalties;
 
+using RentACar.Web.Identity;
+
 namespace RentACar.Web.Penalties;
 
 /// <summary>Ceza form post uçları (kayıt + yansıt/öde/iptal). Tenant HttpContext claim'inden (RLS).</summary>
@@ -9,7 +11,7 @@ public static class PenaltyEndpoints
 {
     public static IEndpointRouteBuilder MapPenaltyEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/cezalar").RequireAuthorization().DisableAntiforgery();
+        var grp = app.MapGroup("/cezalar").RequireAuthorization().AntiforgeryByEnv();
 
         grp.MapPost("/create", async (PenaltyService svc,
             [FromForm] string cezaTuru, [FromForm] string? tebligTarihi, [FromForm] string? vadeGun,

@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Sigorta Şirketi</summary>
-    <form method="post" action="/sigorta-sirketleri/create" class="grid-form">
+    <form method="post" action="/sigorta-sirketleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="ALLIANZ" /></label>
         <label>Ad<input name="ad" required placeholder="Allianz Sigorta" /></label>
         <label>Telefon<input name="telefon" placeholder="(opsiyonel)" /></label>
@@ -40,7 +40,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/sigorta-sirketleri/update" class="grid-form">
+                        <form method="post" action="/sigorta-sirketleri/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@c.Id" />
                             <label>Kod<input name="kod" value="@c.Kod" required /></label>
                             <label>Ad<input name="ad" value="@c.Ad" required /></label>
@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/sigorta-sirketleri/delete" onsubmit="return confirm('Sigorta şirketi silinsin mi?')">
+                    <form method="post" action="/sigorta-sirketleri/delete" onsubmit="return confirm('Sigorta şirketi silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@c.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

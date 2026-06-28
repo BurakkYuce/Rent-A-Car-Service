@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Teklif</summary>
-    <form method="post" action="/teklifler/create" class="grid-form">
+    <form method="post" action="/teklifler/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri
             <select name="musteriId" required>
                 <option value="">— seç —</option>
@@ -84,12 +84,12 @@
                 <td class="row-actions">
                     @if (t.Durum == QuotationStatus.Taslak)
                     {
-                        <form method="post" action="/teklifler/gonder"><input type="hidden" name="id" value="@t.Id" /><button class="link">Gönder</button></form>
+                        <form method="post" action="/teklifler/gonder"><AntiforgeryToken /><input type="hidden" name="id" value="@t.Id" /><button class="link">Gönder</button></form>
                     }
                     @if (t.Durum is QuotationStatus.Taslak or QuotationStatus.Gonderildi)
                     {
-                        <form method="post" action="/teklifler/kabul" onsubmit="return confirm('Teklif kabul edilip rezervasyona çevrilsin mi?')"><input type="hidden" name="id" value="@t.Id" /><button class="link">Kabul → Rezervasyon</button></form>
-                        <form method="post" action="/teklifler/reddet" onsubmit="return confirm('Reddedilsin mi?')"><input type="hidden" name="id" value="@t.Id" /><button class="link danger">Reddet</button></form>
+                        <form method="post" action="/teklifler/kabul" onsubmit="return confirm('Teklif kabul edilip rezervasyona çevrilsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@t.Id" /><button class="link">Kabul → Rezervasyon</button></form>
+                        <form method="post" action="/teklifler/reddet" onsubmit="return confirm('Reddedilsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@t.Id" /><button class="link danger">Reddet</button></form>
                     }
                 </td>
             </tr>

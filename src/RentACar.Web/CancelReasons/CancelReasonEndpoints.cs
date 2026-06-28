@@ -11,7 +11,7 @@ public static class CancelReasonEndpoints
 {
     public static IEndpointRouteBuilder MapCancelReasonEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/iptal-sebepleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/iptal-sebepleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CancelReasonService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new CancelReasonInput { Kod = kod, Ad = ad, Aktif = true })));

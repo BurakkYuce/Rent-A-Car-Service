@@ -12,7 +12,7 @@ public static class RegulationEndpoints
 {
     public static IEndpointRouteBuilder MapRegulationEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/regulasyon").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/regulasyon").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/sigorta", async (RegulationService svc,
             [FromForm] Guid vehicleId, [FromForm] InsuranceType tip,

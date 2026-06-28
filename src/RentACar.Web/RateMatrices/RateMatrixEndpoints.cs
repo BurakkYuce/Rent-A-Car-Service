@@ -14,7 +14,7 @@ public static class RateMatrixEndpoints
 {
     public static IEndpointRouteBuilder MapRateMatrixEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/tarife-matris").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/tarife-matris").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (RateMatrixService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));

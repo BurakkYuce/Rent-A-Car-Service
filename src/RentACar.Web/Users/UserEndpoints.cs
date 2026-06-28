@@ -3,6 +3,8 @@ using RentACar.Application.Common;
 using RentACar.Application.Users;
 using RentACar.Domain.Enums;
 
+using RentACar.Web.Identity;
+
 namespace RentACar.Web.Users;
 
 /// <summary>Kullanıcı yönetimi form uçları — yalnız Admin (RequireRole + servis guard çift savunma).</summary>
@@ -12,7 +14,7 @@ public static class UserEndpoints
     {
         var grp = app.MapGroup("/kullanicilar")
             .RequireAuthorization(p => p.RequireRole(nameof(UserRole.Admin)))
-            .DisableAntiforgery();
+            .AntiforgeryByEnv();
 
         grp.MapPost("/create", async (UserService svc,
             [FromForm] string userName, [FromForm] string? displayName,
