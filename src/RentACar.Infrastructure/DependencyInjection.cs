@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.Departments.IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<RentACar.Application.PaymentTypes.IPaymentTypeRepository, PaymentTypeRepository>();
         services.AddScoped<RentACar.Application.Countries.ICountryRepository, CountryRepository>();
+        services.AddScoped<RentACar.Application.Accessories.IAccessoryRepository, AccessoryRepository>();
         services.AddScoped<ICancelReasonRepository, CancelReasonRepository>();
         services.AddScoped<IReservationSourceRepository, ReservationSourceRepository>();
         services.AddScoped<RentACar.Application.VehicleSegments.IVehicleSegmentRepository, VehicleSegmentRepository>();
