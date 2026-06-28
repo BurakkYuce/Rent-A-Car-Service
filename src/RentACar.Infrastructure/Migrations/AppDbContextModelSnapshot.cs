@@ -587,6 +587,40 @@ namespace RentACar.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ad")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("Aktif")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Kod")
+                        .IsUnique();
+
+                    b.ToTable("GiderTurleri", (string)null);
+                });
+
             modelBuilder.Entity("RentACar.Domain.Entities.FinancialAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -627,7 +661,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Kod")
                         .IsUnique();
 
-                    b.ToTable("GiderTurleri", (string)null);
                     b.ToTable("Hesaplar", (string)null);
                 });
 
@@ -1693,7 +1726,6 @@ namespace RentACar.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.VehicleSegment", b =>
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleType", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -1701,6 +1733,41 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<string>("Aciklama")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Ad")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("Aktif")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Kod")
+                        .IsUnique();
+
+                    b.ToTable("Segmentler", (string)null);
+                });
+
+            modelBuilder.Entity("RentACar.Domain.Entities.VehicleType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Ad")
                         .IsRequired()
@@ -1733,7 +1800,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Kod")
                         .IsUnique();
 
-                    b.ToTable("Segmentler", (string)null);
                     b.ToTable("AracTipleri", (string)null);
                 });
 
