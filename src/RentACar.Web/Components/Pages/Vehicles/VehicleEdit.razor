@@ -1,6 +1,7 @@
 @page "/vehicles/{Id:guid}"
 @attribute [Authorize]
 @inject VehicleService Vehicles
+@inject BrandService Markalar
 @inject NavigationManager Nav
 
 <PageTitle>Araç Düzenle — TürevRent</PageTitle>
@@ -22,7 +23,10 @@ else
     <form method="post" action="/vehicles/update" class="grid-form">
         <input type="hidden" name="id" value="@_vehicle.Id" />
         <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
-        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
+        <label>Marka<input name="marka" value="@_vehicle.Marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>
+        <datalist id="marka-list">
+            @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
+        </datalist>
         <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
         <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
         <label>Durum
@@ -54,7 +58,11 @@ else
     public string? Hata { get; set; }
 
     private Vehicle? _vehicle;
+    private IReadOnlyList<Brand> _markalar = [];
 
     protected override async Task OnInitializedAsync()
-        => _vehicle = await Vehicles.GetAsync(Id);
+    {
+        _vehicle = await Vehicles.GetAsync(Id);
+        _markalar = await Markalar.ListActiveAsync();
+    }
 }

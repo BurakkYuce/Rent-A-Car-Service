@@ -1,6 +1,7 @@
 @page "/vehicles"
 @attribute [Authorize]
 @inject VehicleService Vehicles
+@inject BrandService Markalar
 
 <PageTitle>Araçlar — TürevRent</PageTitle>
 
@@ -15,7 +16,10 @@
     <summary>+ Yeni Araç</summary>
     <form method="post" action="/vehicles/create" class="grid-form">
         <label>Plaka<input name="plaka" required /></label>
-        <label>Marka<input name="marka" /></label>
+        <label>Marka<input name="marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>
+        <datalist id="marka-list">
+            @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
+        </datalist>
         <label>Grup<input name="grup" /></label>
         <label>Şube<input name="sube" /></label>
         <label>Durum
@@ -107,6 +111,7 @@
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
 
     private PagedResult<Vehicle> _page = new([], 0, 1, 20);
+    private IReadOnlyList<Brand> _markalar = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,6 +121,7 @@
             Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null
         };
         _page = await Vehicles.SearchAsync(filter);
+        _markalar = await Markalar.ListActiveAsync();
     }
 
     private string PageUrl(int p)
