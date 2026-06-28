@@ -44,4 +44,11 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
+    /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
+    /// </summary>
+    Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }

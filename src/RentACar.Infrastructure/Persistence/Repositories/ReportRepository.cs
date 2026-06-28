@@ -140,4 +140,39 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 r.VehicleId, plaka.TryGetValue(r.VehicleId, out var p) ? p : "(bilinmeyen araç)", r.Tip, r.ToplamIscilik))
             .ToList();
     }
+
+    public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var yeniRez = await db.Reservations.AsNoTracking()
+            .CountAsync(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to, ct);
+        var yeniKira = await db.Rentals.AsNoTracking()
+            .CountAsync(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to, ct);
+        // Çıkış: o gün başlayan (İptal olmayan) kiralar. Dönüş: o gün gerçek dönüşü yapılan kiralar.
+        var cikis = await db.Rentals.AsNoTracking()
+            .CountAsync(r => r.Durum != RentalStatus.Iptal && r.BasTar >= from && r.BasTar <= to, ct);
+        var donus = await db.Rentals.AsNoTracking()
+            .CountAsync(r => r.GercekDonusTar != null && r.GercekDonusTar >= from && r.GercekDonusTar <= to, ct);
+
+        // Tahsilat: ters kayıt hariç; base tutar (Amount×Rate) bellek-içi toplanır.
+        var tahsilatlar = await db.CashTransactions.AsNoTracking()
+            .Where(c => c.Tip == CashTransactionType.Tahsilat && !c.TersKayitMi && c.Tarih >= from && c.Tarih <= to)
+            .Select(c => new { c.Amount.Amount, c.Amount.Rate })
+            .ToListAsync(ct);
+        var tahsilatTutar = tahsilatlar.Sum(t => t.Amount * t.Rate);
+
+        // Fatura: İptal hariç; GenelToplam base zaten (Currency/Kur ayrı tutulur ama GenelToplam fatura
+        // para birimindedir → günlük faaliyet sayacında brüt toplam olarak gösterilir).
+        var faturalar = await db.Invoices.AsNoTracking()
+            .Where(i => i.Durum != InvoiceStatus.Iptal && i.Tarih >= from && i.Tarih <= to)
+            .Select(i => new { i.GenelToplam, i.Kur })
+            .ToListAsync(ct);
+        var faturaTutar = faturalar.Sum(f => f.GenelToplam * f.Kur);
+
+        return new GunlukFaaliyetDto(
+            yeniRez, yeniKira, cikis, donus,
+            tahsilatlar.Count, tahsilatTutar, faturalar.Count, faturaTutar);
+    }
 }

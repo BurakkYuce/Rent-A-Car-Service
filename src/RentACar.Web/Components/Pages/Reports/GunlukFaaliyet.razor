@@ -1,0 +1,68 @@
+@page "/raporlar/gunluk"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Günlük Faaliyet — TürevRent</PageTitle>
+
+<h1>Günlük Faaliyet Raporu</h1>
+<p class="muted small">Seçilen günün operasyonel özeti: yeni rezervasyon/kira, çıkış (kira başlangıcı),
+    dönüş (gerçek dönüş), tahsilat ve fatura. Tutarlar baz para (₺). Salt-okunur.</p>
+
+<form method="get" class="filter-bar">
+    <label>Gün<input name="gun" type="date" value="@GunStr" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<p class="muted small">@_gun.ToString("dd.MM.yyyy") günü</p>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_data.YeniRezervasyon</div>
+        <div class="card-label">Yeni Rezervasyon</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.YeniKira</div>
+        <div class="card-label">Yeni Kira</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.Cikis</div>
+        <div class="card-label">Çıkış (Teslim)</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.Donus</div>
+        <div class="card-label">Dönüş</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.TahsilatAdet</div>
+        <div class="card-label">Tahsilat Adedi</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.TahsilatTutar.ToString("N2")</div>
+        <div class="card-label">Tahsilat Tutarı ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.FaturaAdet</div>
+        <div class="card-label">Fatura Adedi</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.FaturaTutar.ToString("N2")</div>
+        <div class="card-label">Fatura Tutarı ₺</div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "gun")] public string? GunStr { get; set; }
+
+    private DateTimeOffset _gun;
+    private GunlukFaaliyetDto _data = new(0, 0, 0, 0, 0, 0, 0, 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var parsed = DateTimeOffset.TryParse(GunStr, out var d)
+            ? new DateTimeOffset(d.Date, TimeSpan.Zero)
+            : new DateTimeOffset(DateTimeOffset.Now.Date, TimeSpan.Zero);
+        _gun = parsed;
+        GunStr ??= parsed.ToString("yyyy-MM-dd");
+        _data = await Reports.GetGunlukFaaliyetAsync(parsed);
+    }
+}
