@@ -110,6 +110,14 @@ public sealed class ReportService(IReportRepository repository)
             .ToList();
     }
 
+    /// <summary>
+    /// Dönem tahsilat-fatura mutabakatı: kesilen fatura (İptal hariç) vs alınan tahsilat (ters hariç)
+    /// + fark. Repo sayım/toplamı yapar; Fark = FaturaToplam − TahsilatToplam (repo'da hesaplı). Pass-through.
+    /// </summary>
+    public Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        => _repository.GetTahsilatFaturaAsync(from, to, ct);
+
     /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
     public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
     {

@@ -41,6 +41,14 @@ public sealed record GelirGiderKalemDto(string SourceType, decimal Tutar);
 public sealed record FleetUtilizationDto(
     int Toplam, int Stokta, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);
 
+/// <summary>
+/// Dönem tahsilat-fatura mutabakatı: kesilen fatura toplamı (İptal hariç, GenelToplam×Kur) vs
+/// alınan tahsilat toplamı (ters kayıt hariç, Amount×Rate) + fark. Fark = FaturaToplam − TahsilatToplam
+/// (pozitif = tahsil edilmemiş bakiye). Salt sayım/toplam, base para.
+/// </summary>
+public sealed record TahsilatFaturaDto(
+    int FaturaAdet, decimal FaturaToplam, int TahsilatAdet, decimal TahsilatToplam, decimal Fark);
+
 /// <summary>Tek tamamlanmış servis kaydı (ham) — araç plakası çözümlenmiş.</summary>
 public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal ToplamIscilik);
 
