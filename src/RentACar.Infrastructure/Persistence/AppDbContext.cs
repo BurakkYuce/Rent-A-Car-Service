@@ -183,12 +183,21 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.VergiDairesi).HasMaxLength(128);
             e.Property(x => x.VergiNo).HasMaxLength(16);
             e.Property(x => x.CepTel).HasMaxLength(32);
+            e.Property(x => x.Gsm2).HasMaxLength(32);
             e.Property(x => x.Email).HasMaxLength(256);
             e.Property(x => x.Il).HasMaxLength(64);
             e.Property(x => x.Ilce).HasMaxLength(64);
             e.Property(x => x.Adres).HasMaxLength(512);
+            e.Property(x => x.Kaynak).HasMaxLength(64);
+            e.Property(x => x.MusteriTemsilcisi).HasMaxLength(128);
+            e.Property(x => x.UyariNedeni).HasMaxLength(256);
+            e.Property(x => x.EhliyetNo).HasMaxLength(32);
+            e.Property(x => x.EhliyetSinifi).HasMaxLength(16);
+            e.Property(x => x.EhliyetYeri).HasMaxLength(64);
             e.Property(x => x.Tarife).HasMaxLength(64);
             e.Property(x => x.RiskLimiti).HasColumnType("numeric(19,4)");
+            e.Property(x => x.RiskMesaji).HasMaxLength(256);
+            e.Property(x => x.HgsYansitmaTuru).HasMaxLength(32);
             e.Ignore(x => x.DisplayName);
             // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
             e.HasIndex(x => new { x.TenantId, x.TcKimlik })
