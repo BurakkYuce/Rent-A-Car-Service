@@ -53,3 +53,16 @@ public sealed record GelirGiderDto(
     decimal KdvTahsil, decimal KdvIndirilecek, decimal NetKar,
     IReadOnlyList<GelirGiderKalemDto> GelirKirilim,
     IReadOnlyList<GelirGiderKalemDto> GiderKirilim);
+
+/// <summary>Satılan bir kira ek hizmet kalemi (ham): ad + miktar + base para tutarları + kira referansı.</summary>
+public sealed record EkHizmetSalesRowDto(
+    string Ad, decimal Miktar, decimal Net, decimal Kdv, decimal Brut, Guid RentalId);
+
+/// <summary>Ek hizmet adına göre dönem satış özeti (toplam miktar/net/kdv/brüt + kaç kirada satıldı).</summary>
+public sealed record EkHizmetRaporRowDto(
+    string Ad, decimal ToplamMiktar, decimal Net, decimal Kdv, decimal Brut, int KiraAdet);
+
+/// <summary>Dönem ek hizmet satış raporu: ek-hizmet satırları + genel toplamlar + toplam kira adedi.</summary>
+public sealed record EkHizmetRaporDto(
+    IReadOnlyList<EkHizmetRaporRowDto> Satirlar,
+    decimal ToplamNet, decimal ToplamKdv, decimal ToplamBrut, int KiraAdet);

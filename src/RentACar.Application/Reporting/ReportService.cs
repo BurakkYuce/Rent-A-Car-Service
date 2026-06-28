@@ -70,6 +70,35 @@ public sealed class ReportService(IReportRepository repository)
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
     }
 
+    /// <summary>
+    /// Ek hizmet satış raporu: dönemde (kalem eklenme tarihi) İptal olmayan kiralara satılan ek
+    /// hizmetlerin ADINA göre özeti (toplam miktar/net/KDV/brüt + kaç kirada) + genel toplamlar.
+    /// </summary>
+    public async Task<EkHizmetRaporDto> GetEkHizmetRaporuAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetEkHizmetSalesRowsAsync(from, to, ct);
+
+        var satirlar = rows
+            .GroupBy(r => r.Ad)
+            .Select(g => new EkHizmetRaporRowDto(
+                g.Key,
+                g.Sum(r => r.Miktar),
+                g.Sum(r => r.Net),
+                g.Sum(r => r.Kdv),
+                g.Sum(r => r.Brut),
+                g.Select(r => r.RentalId).Distinct().Count()))
+            .OrderByDescending(s => s.Brut)
+            .ToList();
+
+        return new EkHizmetRaporDto(
+            satirlar,
+            satirlar.Sum(s => s.Net),
+            satirlar.Sum(s => s.Kdv),
+            satirlar.Sum(s => s.Brut),
+            rows.Select(r => r.RentalId).Distinct().Count());
+    }
+
     /// <summary>Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.</summary>
     public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(CancellationToken ct = default)
     {
