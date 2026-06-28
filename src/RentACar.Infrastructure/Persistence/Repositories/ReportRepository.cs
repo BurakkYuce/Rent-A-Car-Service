@@ -177,6 +177,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     }
 
     public async Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+    public async Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -195,5 +196,15 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(r => new KdvLineRowDto(
                 r.KdvOrani, r.SatirNet * r.Kur, r.SatirKdv * r.Kur, r.SatirToplam * r.Kur, r.InvoiceId))
             .ToList();
+        // İptal kiraların ek hizmetleri satış sayılmaz. Tarih: kalemin eklenme zamanı (CreatedAtUtc).
+        var aktifKiraIds = db.Rentals.AsNoTracking().Where(r => r.Durum != RentalStatus.Iptal).Select(r => r.Id);
+        var q = db.RentalAddOns.AsNoTracking().Where(a => aktifKiraIds.Contains(a.RentalId));
+        if (from is { } f) q = q.Where(a => a.CreatedAtUtc >= f);
+        if (to is { } t) q = q.Where(a => a.CreatedAtUtc <= t);
+
+        // RentalAddOn tutarları baz para (TRY) olarak saklanır (Kur yok) → doğrudan kullanılır.
+        return await q
+            .Select(a => new EkHizmetSalesRowDto(a.Ad, a.Miktar, a.NetTutar, a.KdvTutar, a.Toplam, a.RentalId))
+            .ToListAsync(ct);
     }
 }
