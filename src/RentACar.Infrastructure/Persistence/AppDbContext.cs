@@ -63,6 +63,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<PenaltyType> CezaTurleri => Set<PenaltyType>();
     public DbSet<KdvRate> KdvOranlari => Set<KdvRate>();
     public DbSet<VehicleGroup> VehicleGroups => Set<VehicleGroup>();
+    public DbSet<RateMatrix> RateMatrices => Set<RateMatrix>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -444,6 +445,34 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
             e.Property(x => x.YakitFiyati).HasColumnType("numeric(19,4)");
             e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- RateMatrix / Tarife Matrisi (tenant-owned; fiyat-tanım, defter postalamaz) ----
+        b.Entity<RateMatrix>(e =>
+        {
+            e.ToTable("TarifeMatris");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Kanal).HasMaxLength(64);
+            e.Property(x => x.Sube).HasMaxLength(64);
+            e.Property(x => x.Lokasyon).HasMaxLength(64);
+            e.Property(x => x.AracGrupKod).HasMaxLength(32);
+            e.Property(x => x.ParaBirimi).HasMaxLength(8);
+            e.Property(x => x.Onaylayan).HasMaxLength(128);
+            e.Property(x => x.OnayDurumu).HasConversion<int>();
+            e.Property(x => x.Gun1).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun2).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun3).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun4).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun5).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun6).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Gun7).HasColumnType("numeric(19,4)");
+            e.Property(x => x.MaxEsneklik).HasColumnType("numeric(9,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

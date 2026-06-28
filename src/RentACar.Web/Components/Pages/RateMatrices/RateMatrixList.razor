@@ -1,0 +1,126 @@
+@page "/tarife-matris"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject RateMatrixService TarifeMatris
+
+<PageTitle>Tarife Matrisi — TürevRent</PageTitle>
+
+<h1>Tarife Matrisi (XML Tarife)</h1>
+<p class="muted small">Asıl günlük kira fiyat listesi: kanal (rez kaynağı) + şube + lokasyon + araç grubu
+    bazında, geçerlilik tarihli, onay iş akışlı, gün-kademesi (1..7) başına günlük fiyat + dinamik indirim
+    oranı. Fiyat motorunun birincil girdisidir. Saf fiyat-tanım — deftere kayıt postlamaz.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Tarife Satırı</summary>
+    <form method="post" action="/tarife-matris/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="WEB-EKO-2026" /></label>
+        <label>Ad<input name="ad" required placeholder="Web Ekonomik 2026" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <label>Kanal<input name="kanal" placeholder="WEB/ACENTA/ÇAĞRI" /></label>
+        <label>Şube<input name="sube" /></label>
+        <label>Lokasyon<input name="lokasyon" /></label>
+        <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="EKO" /></label>
+        <label>Para Birimi<input name="paraBirimi" placeholder="TRY" maxlength="8" /></label>
+        <label>Başlangıç<input name="basTar" type="date" /></label>
+        <label>Bitiş<input name="bitTar" type="date" /></label>
+        <label>Gün 1 Fiyat<input name="gun1" type="number" step="0.01" min="0" /></label>
+        <label>Gün 2 Fiyat<input name="gun2" type="number" step="0.01" min="0" /></label>
+        <label>Gün 3 Fiyat<input name="gun3" type="number" step="0.01" min="0" /></label>
+        <label>Gün 4 Fiyat<input name="gun4" type="number" step="0.01" min="0" /></label>
+        <label>Gün 5 Fiyat<input name="gun5" type="number" step="0.01" min="0" /></label>
+        <label>Gün 6 Fiyat<input name="gun6" type="number" step="0.01" min="0" /></label>
+        <label>Gün 7 Fiyat<input name="gun7" type="number" step="0.01" min="0" /></label>
+        <label>Esneklik %<input name="maxEsneklik" type="number" step="0.01" min="0" max="100" /></label>
+        <label>Onay Durumu
+            <select name="onayDurumu">
+                @foreach (var o in Enum.GetValues<TarifeOnayDurumu>())
+                {
+                    <option value="@o">@o</option>
+                }
+            </select>
+        </label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Grup</th><th>Gün1</th><th>Onay</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Tarife matrisi tanımlı değil.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td class="mono">@r.Kod</td>
+                <td>@r.Ad</td>
+                <td>@r.Kanal</td>
+                <td class="mono">@r.AracGrupKod</td>
+                <td class="num">@(r.Gun1?.ToString("N2") ?? "—")</td>
+                <td>@r.OnayDurumu</td>
+                <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/tarife-matris/update" class="grid-form">
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <label>Kod<input name="kod" value="@r.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@r.Ad" required /></label>
+                            <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
+                            <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
+                            <label>Şube<input name="sube" value="@r.Sube" /></label>
+                            <label>Lokasyon<input name="lokasyon" value="@r.Lokasyon" /></label>
+                            <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
+                            <label>Para Birimi<input name="paraBirimi" value="@r.ParaBirimi" maxlength="8" /></label>
+                            <label>Başlangıç<input name="basTar" type="date" value="@r.BasTar?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Bitiş<input name="bitTar" type="date" value="@r.BitTar?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Gün 1<input name="gun1" type="number" step="0.01" min="0" value="@r.Gun1" /></label>
+                            <label>Gün 2<input name="gun2" type="number" step="0.01" min="0" value="@r.Gun2" /></label>
+                            <label>Gün 3<input name="gun3" type="number" step="0.01" min="0" value="@r.Gun3" /></label>
+                            <label>Gün 4<input name="gun4" type="number" step="0.01" min="0" value="@r.Gun4" /></label>
+                            <label>Gün 5<input name="gun5" type="number" step="0.01" min="0" value="@r.Gun5" /></label>
+                            <label>Gün 6<input name="gun6" type="number" step="0.01" min="0" value="@r.Gun6" /></label>
+                            <label>Gün 7<input name="gun7" type="number" step="0.01" min="0" value="@r.Gun7" /></label>
+                            <label>Esneklik %<input name="maxEsneklik" type="number" step="0.01" min="0" max="100" value="@r.MaxEsneklik" /></label>
+                            <label>Onay Durumu
+                                <select name="onayDurumu">
+                                    @foreach (var o in Enum.GetValues<TarifeOnayDurumu>())
+                                    {
+                                        <option value="@o" selected="@(r.OnayDurumu == o)">@o</option>
+                                    }
+                                </select>
+                            </label>
+                            <label>Onaylayan<input name="onaylayan" value="@r.Onaylayan" /></label>
+                            <label>Onay Zamanı<input name="onayZaman" type="date" value="@r.OnayZaman?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@r.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!r.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/tarife-matris/delete" onsubmit="return confirm('Tarife satırı silinsin mi?')">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<RateMatrix> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await TarifeMatris.ListAsync();
+}
