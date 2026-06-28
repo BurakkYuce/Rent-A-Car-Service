@@ -12,6 +12,8 @@
   <ItemGroup>
     <!-- dotnet ef CLI'nin Web'i startup project olarak kullanabilmesi için -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <!-- Rapor export (roadmap B1): Excel (.xlsx) -->
+    <PackageReference Include="ClosedXML" />
   </ItemGroup>
 
 </Project>
