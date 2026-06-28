@@ -26,6 +26,31 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     public async Task<Guid> CreateAsync(ExpenseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        var posting = BuildPosting(input, islemAnahtari: null);
+        await _repository.PostAsync(posting.Expense, posting.Entries, ct);
+        return posting.Expense.Id;
+    }
+
+    /// <summary>Toplu gider (parite #10): çok kalem gideri TEK transaction'da işler. ATOMİK (hep-ya-hiç) +
+    /// kalem-bazlı dengeli. <paramref name="batchAnahtari"/> verilirse her kalem deterministik idempotency
+    /// anahtarı alır → çift-submit tüm batch'i geri alır. Bir kalem geçersizse HİÇBİRİ yazılmaz.</summary>
+    public async Task BatchCreateAsync(
+        IReadOnlyList<ExpenseInput> kalemler, Guid? batchAnahtari = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (kalemler.Count == 0) throw new ValidationException("Toplu gider en az bir kalem içermelidir.");
+        if (kalemler.Count > 500) throw new ValidationException("Toplu gider en çok 500 kalem olabilir.");
+
+        var postings = new List<ExpensePosting>(kalemler.Count);
+        for (var i = 0; i < kalemler.Count; i++)
+            postings.Add(BuildPosting(kalemler[i], batchAnahtari is { } b ? CashService.RowKey(b, i) : null));
+
+        await _repository.PostBatchAsync(postings, ct);
+    }
+
+    /// <summary>Bir gider girişini doğrular + Expense belgesi + dengeli defter kümesi kurar (tek + toplu ortak).</summary>
+    private static ExpensePosting BuildPosting(ExpenseInput input, Guid? islemAnahtari)
+    {
         if (input.NetTutar <= 0) throw new ValidationException("Gider tutarı pozitif olmalıdır.");
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");
@@ -58,12 +83,12 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             Kur = input.Kur,
             OdemeYontemi = input.OdemeYontemi,
             KasaBankaHesap = karsiHesap == LedgerAccountType.Cari ? LedgerAccountType.Kasa : karsiHesap,
-            Aciklama = input.Aciklama
+            Aciklama = input.Aciklama,
+            IslemAnahtari = islemAnahtari
         };
 
         var entries = BuildEntries(expense, karsiHesap, net, kdv, gross);
-        await _repository.PostAsync(expense, entries, ct);
-        return expense.Id;
+        return new ExpensePosting(expense, entries);
     }
 
     /// <summary>Borç Gider(net) + Borç KDV(kdv) / Alacak karşıHesap(gross). DENGELİ.</summary>

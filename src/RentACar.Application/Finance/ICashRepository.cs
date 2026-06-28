@@ -2,6 +2,10 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Finance;
 
+/// <summary>Toplu nakit işleminde tek satır: belge + dengeli defter kümesi + (kira bağlıysa) tahsilat deltası.</summary>
+public sealed record CashPosting(
+    CashTransaction Tx, IReadOnlyList<AccountLedgerEntry> Entries, decimal RentalTahsilatDelta);
+
 public interface ICashRepository
 {
     Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default);
@@ -17,6 +21,13 @@ public interface ICashRepository
     Task PostAsync(
         CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
         decimal rentalTahsilatDelta, CancellationToken ct = default);
+
+    /// <summary>
+    /// Toplu nakit işlemi: çok satır dengeli kayıt + No tahsisi TEK transaction'da (ATOMİK hep-ya-hiç).
+    /// Bir satır geçersiz/çakışırsa hiçbiri yazılmaz; No boşluğu oluşmaz. IslemAnahtari kısmi unique index
+    /// → aynı toplu işlemin çift-submit'i UniqueViolation ile tüm batch'i geri alır (idempotent).
+    /// </summary>
+    Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default);
 
     /// <summary>Cari bakiye (yerel para) = Σ (Borç +, Alacak −). Pozitif = müşteri borçlu.</summary>
     Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default);
