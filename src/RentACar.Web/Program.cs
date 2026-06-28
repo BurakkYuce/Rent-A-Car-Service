@@ -33,6 +33,7 @@ using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
+using RentACar.Web.KdvRates;
 using RentACar.Web.Locations;
 using RentACar.Web.Penalties;
 using RentACar.Web.PenaltyTypes;
@@ -136,6 +137,7 @@ app.MapCustomCodeEndpoints();
 app.MapBrandEndpoints();
 app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
+app.MapKdvRateEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
