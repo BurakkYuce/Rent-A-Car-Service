@@ -1,0 +1,61 @@
+@page "/raporlar/doluluk"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Doluluk Raporu — TürevRent</PageTitle>
+
+<h1>Doluluk Raporu</h1>
+<p class="muted small">Seçilen dönemde filo doluluk oranı. Araç-gün kapasitesi (araç sayısı × dönem günü)
+    üzerinden kira-gün toplamı. KiraGün = kiraların efektif aralığının dönemle kesişen takvim günleri
+    (kapsayıcı); İptal kiralar hariç, gerçek dönüş varsa onunla.</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_data.AracSayisi</div>
+        <div class="card-label">Araç Sayısı</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.DonemGun</div>
+        <div class="card-label">Dönem Günü</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.AracGun</div>
+        <div class="card-label">Araç-Gün Kapasite</div>
+    </div>
+    <div class="card">
+        <div class="card-num pos">@_data.KiraGun</div>
+        <div class="card-label">Kira-Gün</div>
+    </div>
+    <div class="card">
+        <div class="card-num">%@_data.DolulukYuzde.ToString("N2")</div>
+        <div class="card-label">Doluluk</div>
+    </div>
+</div>
+
+<p class="muted small">Dönem: @_from.ToString("yyyy-MM-dd") — @_to.ToString("yyyy-MM-dd")</p>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private DolulukDto _data = new(0, 0, 0, 0, 0m);
+    private DateTimeOffset _from;
+    private DateTimeOffset _to;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var bugun = DateTimeOffset.Now.Date;
+        _from = ParseDate(From) ?? new DateTimeOffset(new DateTime(bugun.Year, bugun.Month, 1), TimeSpan.Zero);
+        _to = ParseDate(To) ?? new DateTimeOffset(bugun, TimeSpan.Zero);
+        _data = await Reports.GetDolulukAsync(_from, _to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}

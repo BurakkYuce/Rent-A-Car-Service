@@ -23,6 +23,13 @@ public interface IReportRepository
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// İptal olmayan, [from,to] dönemiyle çakışan kiraların efektif aralıkları (Bas + gerçek/planlı
+    /// bitiş). Doluluk raporu için. Çakışma: efektifBitiş >= from AND Bas &lt;= to.
+    /// </summary>
+    Task<IReadOnlyList<DolulukKiraRowDto>> GetRentalIntervalsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+
     /// <summary>Aktif (Kirada) kira sözleşmesi sayısı.</summary>
     Task<int> GetActiveRentalCountAsync(CancellationToken ct = default);
 
