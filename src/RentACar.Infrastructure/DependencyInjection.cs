@@ -121,6 +121,8 @@ public static class DependencyInjection
             Persistence.Repositories.AnketRepository>();
         services.AddScoped<RentACar.Application.Crm.ISikayetRepository,
             Persistence.Repositories.SikayetRepository>();
+        services.AddScoped<RentACar.Application.Search.ISearchRepository,
+            Persistence.Repositories.SearchRepository>();
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();
