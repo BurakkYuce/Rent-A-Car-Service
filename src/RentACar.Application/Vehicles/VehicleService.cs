@@ -148,6 +148,14 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         v.OzelKod3 = Trim(input.OzelKod3);
         v.OzelKod4 = Trim(input.OzelKod4);
         v.OzelKod5 = Trim(input.OzelKod5);
+        // roadmap G1
+        v.HgsNo = Trim(input.HgsNo);
+        v.OgsNo = Trim(input.OgsNo);
+        v.KasaTipi = Trim(input.KasaTipi);
+        v.DetayTipi = Trim(input.DetayTipi);
+        v.AlimFaturaNo = Trim(input.AlimFaturaNo);
+        v.AlimYapilanFirma = Trim(input.AlimYapilanFirma);
+        v.KiraKmLimiti = input.KiraKmLimiti;
     }
 
     private static string? Trim(string? s)

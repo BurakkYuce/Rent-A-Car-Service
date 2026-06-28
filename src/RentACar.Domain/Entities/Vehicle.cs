@@ -97,6 +97,15 @@ public class Vehicle : ITenantOwned, IAuditable
     public string? OzelKod4 { get; set; }
     public string? OzelKod5 { get; set; }
 
+    // roadmap G1: araç kartı ek alanlar (additive — HGS/OGS, kasa/detay tipi, alış fatura/firma, km limiti)
+    public string? HgsNo { get; set; }
+    public string? OgsNo { get; set; }
+    public string? KasaTipi { get; set; }
+    public string? DetayTipi { get; set; }
+    public string? AlimFaturaNo { get; set; }
+    public string? AlimYapilanFirma { get; set; }
+    public int? KiraKmLimiti { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? UpdatedAtUtc { get; set; }

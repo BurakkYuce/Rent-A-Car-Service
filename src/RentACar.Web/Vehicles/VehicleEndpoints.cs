@@ -83,7 +83,14 @@ public static class VehicleEndpoints
         OzelKod2 = Str(f, "ozelKod2"),
         OzelKod3 = Str(f, "ozelKod3"),
         OzelKod4 = Str(f, "ozelKod4"),
-        OzelKod5 = Str(f, "ozelKod5")
+        OzelKod5 = Str(f, "ozelKod5"),
+        HgsNo = Str(f, "hgsNo"),
+        OgsNo = Str(f, "ogsNo"),
+        KasaTipi = Str(f, "kasaTipi"),
+        DetayTipi = Str(f, "detayTipi"),
+        AlimFaturaNo = Str(f, "alimFaturaNo"),
+        AlimYapilanFirma = Str(f, "alimYapilanFirma"),
+        KiraKmLimiti = FormParse.Int(Str(f, "kiraKmLimiti"))
     };
 
     private static string? Str(IFormCollection f, string key)
