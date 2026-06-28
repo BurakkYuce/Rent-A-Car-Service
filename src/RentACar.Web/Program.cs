@@ -43,6 +43,7 @@ using RentACar.Web.Pricing;
 using RentACar.Web.Regulation;
 using RentACar.Web.CoverageProducts;
 using RentACar.Web.RateMatrices;
+using RentACar.Web.RentalRules;
 using RentACar.Web.ServiceRecords;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
@@ -146,6 +147,7 @@ app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
 app.MapRateMatrixEndpoints();
 app.MapCoverageProductEndpoints();
+app.MapRentalRuleEndpoints();
 app.MapEkHizmetEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
