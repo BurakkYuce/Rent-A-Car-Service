@@ -89,6 +89,8 @@ public sealed class CustomerService(ICustomerRepository repository)
             throw new ValidationException("Vade günü negatif olamaz.");
         if (n.RiskLimiti < 0)
             throw new ValidationException("Risk limiti negatif olamaz.");
+        if (n.TevkifatOrani is < 0m or > 100m)
+            throw new ValidationException("Tevkifat oranı 0 ile 100 arasında olmalıdır (%).");
     }
 
     private async Task EnsureUniqueAsync(CustomerInput n, Guid? excludeId, CancellationToken ct)
@@ -130,7 +132,26 @@ public sealed class CustomerService(ICustomerRepository repository)
         RiskTarihi = input.RiskTarihi,
         HgsYansitmaTuru = Trim(input.HgsYansitmaTuru),
         KaraListe = input.KaraListe,
-        Pasif = input.Pasif
+        Pasif = input.Pasif,
+        Sinif = Trim(input.Sinif),
+        MailIzin = input.MailIzin,
+        SmsIzin = input.SmsIzin,
+        TelefonIzin = input.TelefonIzin,
+        DogumTarihi = input.DogumTarihi,
+        BabaAdi = Trim(input.BabaAdi),
+        AnaAdi = Trim(input.AnaAdi),
+        PasaportNo = Trim(input.PasaportNo),
+        FaturaDonemi = Trim(input.FaturaDonemi),
+        TevkifatOrani = input.TevkifatOrani,
+        Yetkili1Ad = Trim(input.Yetkili1Ad),
+        Yetkili1Tel = Trim(input.Yetkili1Tel),
+        Yetkili1Mail = Trim(input.Yetkili1Mail),
+        Yetkili2Ad = Trim(input.Yetkili2Ad),
+        Yetkili2Tel = Trim(input.Yetkili2Tel),
+        Yetkili2Mail = Trim(input.Yetkili2Mail),
+        Yetkili3Ad = Trim(input.Yetkili3Ad),
+        Yetkili3Tel = Trim(input.Yetkili3Tel),
+        Yetkili3Mail = Trim(input.Yetkili3Mail)
     };
 
     private static void Apply(Customer c, CustomerInput n)
@@ -165,6 +186,25 @@ public sealed class CustomerService(ICustomerRepository repository)
         c.HgsYansitmaTuru = n.HgsYansitmaTuru;
         c.KaraListe = n.KaraListe;
         c.Pasif = n.Pasif;
+        c.Sinif = n.Sinif;
+        c.MailIzin = n.MailIzin;
+        c.SmsIzin = n.SmsIzin;
+        c.TelefonIzin = n.TelefonIzin;
+        c.DogumTarihi = n.DogumTarihi;
+        c.BabaAdi = n.BabaAdi;
+        c.AnaAdi = n.AnaAdi;
+        c.PasaportNo = n.PasaportNo;
+        c.FaturaDonemi = n.FaturaDonemi;
+        c.TevkifatOrani = n.TevkifatOrani;
+        c.Yetkili1Ad = n.Yetkili1Ad;
+        c.Yetkili1Tel = n.Yetkili1Tel;
+        c.Yetkili1Mail = n.Yetkili1Mail;
+        c.Yetkili2Ad = n.Yetkili2Ad;
+        c.Yetkili2Tel = n.Yetkili2Tel;
+        c.Yetkili2Mail = n.Yetkili2Mail;
+        c.Yetkili3Ad = n.Yetkili3Ad;
+        c.Yetkili3Tel = n.Yetkili3Tel;
+        c.Yetkili3Mail = n.Yetkili3Mail;
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
