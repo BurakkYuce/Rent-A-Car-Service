@@ -53,3 +53,14 @@ public sealed record GelirGiderDto(
     decimal KdvTahsil, decimal KdvIndirilecek, decimal NetKar,
     IReadOnlyList<GelirGiderKalemDto> GelirKirilim,
     IReadOnlyList<GelirGiderKalemDto> GiderKirilim);
+
+/// <summary>KDV listesi: bir fatura satırının base para (Kur uygulanmış) tutarları + fatura referansı.</summary>
+public sealed record KdvLineRowDto(decimal Oran, decimal Net, decimal Kdv, decimal Brut, Guid InvoiceId);
+
+/// <summary>KDV oranı bazında dönem kırılımı (Net/KDV/Brüt + o oranı içeren fatura adedi).</summary>
+public sealed record KdvListesiRowDto(decimal Oran, decimal Net, decimal Kdv, decimal Brut, int FaturaAdet);
+
+/// <summary>Dönem KDV listesi raporu: oran satırları + genel toplamlar + toplam fatura adedi.</summary>
+public sealed record KdvListesiDto(
+    IReadOnlyList<KdvListesiRowDto> Satirlar,
+    decimal ToplamNet, decimal ToplamKdv, decimal ToplamBrut, int FaturaAdet);

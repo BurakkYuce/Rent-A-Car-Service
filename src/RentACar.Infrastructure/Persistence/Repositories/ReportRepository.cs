@@ -97,4 +97,25 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 r.VehicleId, plaka.TryGetValue(r.VehicleId, out var p) ? p : "(bilinmeyen araç)", r.Tip, r.ToplamIscilik))
             .ToList();
     }
+
+    public async Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var inv = db.Invoices.AsNoTracking().Where(i => i.Durum != InvoiceStatus.Iptal);
+        if (from is { } f) inv = inv.Where(i => i.Tarih >= f);
+        if (to is { } t) inv = inv.Where(i => i.Tarih <= t);
+
+        // Satır tutarları fatura para birimindedir → base para için Kur ile çarp (bellek-içi).
+        var raw = await (from l in db.InvoiceLines.AsNoTracking()
+                         join i in inv on l.InvoiceId equals i.Id
+                         select new { l.KdvOrani, l.SatirNet, l.SatirKdv, l.SatirToplam, i.Kur, InvoiceId = i.Id })
+            .ToListAsync(ct);
+
+        return raw
+            .Select(r => new KdvLineRowDto(
+                r.KdvOrani, r.SatirNet * r.Kur, r.SatirKdv * r.Kur, r.SatirToplam * r.Kur, r.InvoiceId))
+            .ToList();
+    }
 }
