@@ -81,3 +81,13 @@ public sealed record GelirGiderDto(
 public sealed record GunlukFaaliyetDto(
     int YeniRezervasyon, int YeniKira, int Cikis, int Donus,
     int TahsilatAdet, decimal TahsilatTutar, int FaturaAdet, decimal FaturaTutar);
+/// <summary>KDV listesi: bir fatura satırının base para (Kur uygulanmış) tutarları + fatura referansı.</summary>
+public sealed record KdvLineRowDto(decimal Oran, decimal Net, decimal Kdv, decimal Brut, Guid InvoiceId);
+
+/// <summary>KDV oranı bazında dönem kırılımı (Net/KDV/Brüt + o oranı içeren fatura adedi).</summary>
+public sealed record KdvListesiRowDto(decimal Oran, decimal Net, decimal Kdv, decimal Brut, int FaturaAdet);
+
+/// <summary>Dönem KDV listesi raporu: oran satırları + genel toplamlar + toplam fatura adedi.</summary>
+public sealed record KdvListesiDto(
+    IReadOnlyList<KdvListesiRowDto> Satirlar,
+    decimal ToplamNet, decimal ToplamKdv, decimal ToplamBrut, int FaturaAdet);

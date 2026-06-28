@@ -1,0 +1,89 @@
+@page "/raporlar/kdv-listesi"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>KDV Listesi — TürevRent</PageTitle>
+
+<h1>KDV Listesi Raporu</h1>
+<p class="muted small">Seçilen dönemdeki (fatura tarihi) İptal olmayan faturaların KDV oranı bazında
+    kırılımı. Tutarlar baz para (kur uygulanmış). Beyanname/muhasebe için.</p>
+
+<form method="get" class="filter-bar">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+    @if (!string.IsNullOrEmpty(From) || !string.IsNullOrEmpty(To))
+    {
+        <a href="/raporlar/kdv-listesi" class="link">Temizle</a>
+    }
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_data.ToplamNet.ToString("N2")</div>
+        <div class="card-label">Toplam Net ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.ToplamKdv.ToString("N2")</div>
+        <div class="card-label">Toplam KDV ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.ToplamBrut.ToString("N2")</div>
+        <div class="card-label">Genel Toplam ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_data.FaturaAdet</div>
+        <div class="card-label">Fatura Adedi</div>
+    </div>
+</div>
+
+<table class="grid">
+    <thead>
+        <tr><th>KDV Oranı</th><th>Fatura Adedi</th><th>Net</th><th>KDV</th><th>Brüt</th></tr>
+    </thead>
+    <tbody>
+        @if (_data.Satirlar.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Bu dönemde fatura yok.</td></tr>
+        }
+        @foreach (var s in _data.Satirlar)
+        {
+            <tr>
+                <td>@($"%{s.Oran * 100:0.##}")</td>
+                <td class="num">@s.FaturaAdet</td>
+                <td class="num">@s.Net.ToString("N2")</td>
+                <td class="num">@s.Kdv.ToString("N2")</td>
+                <td class="num">@s.Brut.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+    @if (_data.Satirlar.Count > 0)
+    {
+        <tfoot>
+            <tr>
+                <th>Toplam</th>
+                <th class="num">@_data.FaturaAdet</th>
+                <th class="num">@_data.ToplamNet.ToString("N2")</th>
+                <th class="num">@_data.ToplamKdv.ToString("N2")</th>
+                <th class="num">@_data.ToplamBrut.ToString("N2")</th>
+            </tr>
+        </tfoot>
+    }
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private KdvListesiDto _data = new([], 0, 0, 0, 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
+        _data = await Reports.GetKdvListesiAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
