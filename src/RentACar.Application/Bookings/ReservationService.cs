@@ -47,6 +47,12 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
+            Provizyon = input.Provizyon,
+            Depozito = input.Depozito,
+            KomisyonOran = input.KomisyonOran,
+            KomisyonTutar = input.KomisyonTutar,
+            DropUcreti = input.DropUcreti,
+            SonraOdeOran = input.SonraOdeOran,
             Aciklama = input.Aciklama
         };
         await _repository.CreateReservationAsync(reservation, ct);
@@ -86,6 +92,12 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             GenelToplam = res.Tutar,
             Tahsilat = 0m,
             Bakiye = res.Tutar,
+            Provizyon = res.Provizyon,
+            Depozito = res.Depozito,
+            KomisyonOran = res.KomisyonOran,
+            KomisyonTutar = res.KomisyonTutar,
+            DropUcreti = res.DropUcreti,
+            SonraOdeOran = res.SonraOdeOran,
             Aciklama = res.Aciklama
         }, ct);
     }

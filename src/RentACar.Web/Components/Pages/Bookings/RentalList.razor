@@ -32,6 +32,17 @@
         <label>Başlangıç<input name="basTar" type="datetime-local" required /></label>
         <label>Bitiş<input name="bitTar" type="datetime-local" required /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" required /></label>
+        <details>
+            <summary class="link">Ödeme/komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</summary>
+            <div class="grid-form">
+                <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" /></label>
+                <label>Depozito<input name="depozito" type="number" step="0.01" min="0" /></label>
+                <label>Komisyon %<input name="komisyonOran" type="number" step="0.01" min="0" /></label>
+                <label>Komisyon Tutar<input name="komisyonTutar" type="number" step="0.01" min="0" /></label>
+                <label>Drop Ücreti<input name="dropUcreti" type="number" step="0.01" min="0" /></label>
+                <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" /></label>
+            </div>
+        </details>
         <label>Çıkış Ofisi
             <select name="cikisOfisi">
                 <option value="">—</option>

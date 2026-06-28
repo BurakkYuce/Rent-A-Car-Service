@@ -36,6 +36,14 @@ public class Reservation : ITenantOwned, IAuditable
     public decimal FazlaKmUcret { get; set; }
     public decimal YakitBirimUcret { get; set; }
 
+    // ---- Ödeme-derinlik alanları (roadmap A2; additive, NULLABLE; deftere YANSIMAZ — bilgi amaçlı) ----
+    public decimal? Provizyon { get; set; }
+    public decimal? Depozito { get; set; }
+    public decimal? KomisyonOran { get; set; }   // %
+    public decimal? KomisyonTutar { get; set; }
+    public decimal? DropUcreti { get; set; }
+    public decimal? SonraOdeOran { get; set; }   // %
+
     public string? Aciklama { get; set; }
 
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
