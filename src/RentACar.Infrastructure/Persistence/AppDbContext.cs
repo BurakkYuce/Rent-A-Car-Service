@@ -43,6 +43,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
+    public DbSet<VehicleType> VehicleTypes => Set<VehicleType>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -138,11 +139,16 @@ public sealed class AppDbContext : DbContext
         b.Entity<VehicleSegment>(e =>
         {
             e.ToTable("Segmentler");
+        // ---- VehicleType / Araç tip (tenant-owned; master sözlük) ----
+        b.Entity<VehicleType>(e =>
+        {
+            e.ToTable("AracTipleri");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Marka).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260628100311_AddAracTipleri")]
+    partial class AddAracTipleri
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -172,41 +175,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Branches", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.CancelReason", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("IptalSebepleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.CashTransaction", b =>
@@ -1230,41 +1198,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("Reservations", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.ReservationSource", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Kod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Kod")
-                        .IsUnique();
-
-                    b.ToTable("RezervasyonKaynaklari", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.ServiceLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1569,15 +1502,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("VehicleSales", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.VehicleSegment", b =>
             modelBuilder.Entity("RentACar.Domain.Entities.VehicleType", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("Ad")
                         .IsRequired()
@@ -1610,7 +1538,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Kod")
                         .IsUnique();
 
-                    b.ToTable("Segmentler", (string)null);
                     b.ToTable("AracTipleri", (string)null);
                 });
 

@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<ICancelReasonRepository, CancelReasonRepository>();
         services.AddScoped<IReservationSourceRepository, ReservationSourceRepository>();
         services.AddScoped<RentACar.Application.VehicleSegments.IVehicleSegmentRepository, VehicleSegmentRepository>();
+        services.AddScoped<RentACar.Application.VehicleTypes.IVehicleTypeRepository, VehicleTypeRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
