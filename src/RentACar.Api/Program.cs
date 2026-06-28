@@ -77,6 +77,7 @@ app.MapRentalsApi();
 app.MapReportsApi();
 app.MapFinanceApi();
 app.MapEkHizmetlerApi();
+app.MapModulesApi();
 
 // Sağlık (readiness): DB bağlanabiliyor mu? Anonim (ops ping'i).
 app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>

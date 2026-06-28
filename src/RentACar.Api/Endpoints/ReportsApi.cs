@@ -35,6 +35,10 @@ public static class ReportsApi
         grp.MapGet("/servis-maliyet", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetServiceCostSummaryAsync(from, to, ct)));
 
+        grp.MapGet("/karlilik", async (ReportService svc, CancellationToken ct,
+            DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null, string? grup = null, string? plaka = null) =>
+            Results.Ok(await svc.GetKarlilikAsync(from, to, sube, grup, plaka, ct)));
+
         return app;
     }
 }
