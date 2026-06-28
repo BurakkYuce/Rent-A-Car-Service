@@ -14,6 +14,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <!-- Rapor export (roadmap B1): Excel (.xlsx) -->
     <PackageReference Include="ClosedXML" />
+    <!-- PDF export (roadmap F4): sözleşme/fatura -->
+    <PackageReference Include="QuestPDF" />
   </ItemGroup>
 
 </Project>

@@ -38,6 +38,11 @@
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.9" />
   </ItemGroup>
 
+  <!-- PDF export (roadmap F4): sözleşme/fatura PDF — QuestPDF Community (kimliksiz, runtime key gerekmez). -->
+  <ItemGroup>
+    <PackageVersion Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
   <!-- Test paketleri -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
