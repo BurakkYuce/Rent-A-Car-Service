@@ -46,6 +46,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleType> VehicleTypes => Set<VehicleType>();
     public DbSet<VehicleOwner> VehicleOwners => Set<VehicleOwner>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+    public DbSet<FinancialAccount> FinancialAccounts => Set<FinancialAccount>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -153,6 +154,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<ExpenseCategory>(e =>
         {
             e.ToTable("GiderTurleri");
+        // ---- FinancialAccount / Kasa-Banka hesap (tenant-owned; master sözlük) ----
+        b.Entity<FinancialAccount>(e =>
+        {
+            e.ToTable("Hesaplar");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -160,6 +165,8 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Aciklama).HasMaxLength(512);
             e.Property(x => x.Marka).HasMaxLength(64);
             e.Property(x => x.Tur).HasMaxLength(32);
+            e.Property(x => x.Tur).HasMaxLength(32);
+            e.Property(x => x.Doviz).HasMaxLength(3);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
