@@ -1,0 +1,74 @@
+@page "/dovizler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject CurrencyService Dovizler
+
+<PageTitle>Dövizler — TürevRent</PageTitle>
+
+<h1>Döviz Tanımları</h1>
+<p class="muted small">Tenant'ın kullandığı para birimleri (TRY, USD, EUR…). Kasa/banka tahsilat-ödeme
+    ve fatura döviz açılır listelerini besler. Kod 3 harfli ISO. Anlık kur işlem anında girilir.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Döviz</summary>
+    <form method="post" action="/dovizler/create" class="grid-form">
+        <label>Kod<input name="kod" required maxlength="3" placeholder="USD" /></label>
+        <label>Ad<input name="ad" required placeholder="ABD Doları" /></label>
+        <label>Sembol<input name="sembol" placeholder="$" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Sembol</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Döviz tanımlı değil.</td></tr>
+        }
+        @foreach (var c in _list)
+        {
+            <tr>
+                <td class="mono">@c.Kod</td>
+                <td>@c.Ad</td>
+                <td>@c.Sembol</td>
+                <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/dovizler/update" class="grid-form">
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <label>Kod<input name="kod" value="@c.Kod" maxlength="3" required /></label>
+                            <label>Ad<input name="ad" value="@c.Ad" required /></label>
+                            <label>Sembol<input name="sembol" value="@c.Sembol" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@c.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!c.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/dovizler/delete" onsubmit="return confirm('Döviz silinsin mi?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<Currency> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Dovizler.ListAsync();
+}
