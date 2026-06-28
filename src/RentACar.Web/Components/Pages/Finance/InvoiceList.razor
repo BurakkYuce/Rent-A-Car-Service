@@ -30,9 +30,32 @@
     </tbody>
 </table>
 
+<h2>Manuel Fatura</h2>
+<p class="muted small">Kiradan bağımsız serbest fatura (Borç Cari / Alacak Gelir+KDV, dengeli; dönem kilidine tabi).</p>
+<form method="post" class="grid-form">
+    <AntiforgeryToken />
+    <input type="hidden" name="islemAnahtari" value="@_token" />@* çift-submit idempotency *@
+    <label>Cari
+        <select name="cariId" required>
+            <option value="">—</option>
+            @foreach (var c in _custMap)
+            {
+                <option value="@c.Key">@c.Value</option>
+            }
+        </select>
+    </label>
+    <label>Net Tutar<input name="netTutar" type="number" step="0.01" min="0" required /></label>
+    <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" min="0" value="0.20" /></label>
+    <label>Tarih<input name="tarih" type="date" /></label>
+    <label>Vade<input name="vadeTarihi" type="date" /></label>
+    <label>Açıklama<input name="aciklama" /></label>
+    <button type="submit" formaction="/finans/fatura-manuel">Manuel Fatura Kes</button>
+</form>
+
 @code {
     private IReadOnlyList<Invoice> _list = [];
     private Dictionary<Guid, string> _custMap = new();
+    private readonly Guid _token = Guid.NewGuid(); // manuel fatura çift-submit idempotency token
 
     protected override async Task OnInitializedAsync()
     {
