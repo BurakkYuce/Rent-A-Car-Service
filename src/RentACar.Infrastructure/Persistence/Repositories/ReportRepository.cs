@@ -70,6 +70,22 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return await db.Vehicles.AsNoTracking().Select(v => v.Durum).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<DolulukKiraRowDto>> GetRentalIntervalsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // İptal hariç; efektif bitiş = gerçek dönüş ?? planlı bitiş. Dönemle çakışanlar:
+        // efektifBitiş >= from AND Bas <= to. (?? → COALESCE; EF çevirir.)
+        var raw = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new { r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
+            .Where(r => r.Bit >= from && r.BasTar <= to)
+            .ToListAsync(ct);
+
+        return raw.Select(r => new DolulukKiraRowDto(r.BasTar, r.Bit)).ToList();
+    }
+
     public async Task<int> GetActiveRentalCountAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
