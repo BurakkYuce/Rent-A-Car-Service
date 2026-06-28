@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<BranchService>();
         services.AddScoped<RateCardService>();
         services.AddScoped<PricingService>();
+        services.AddScoped<RentalQuoteEngine>();
         services.AddScoped<LocationService>();
         services.AddScoped<EkHizmetTanimService>();
         services.AddScoped<RentACar.Application.FuelKinds.FuelKindService>();
