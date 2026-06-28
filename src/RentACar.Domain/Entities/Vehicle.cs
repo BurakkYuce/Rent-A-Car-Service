@@ -20,13 +20,37 @@ public class Vehicle : ITenantOwned, IAuditable
 
     public string? Marka { get; set; }
 
+    /// <summary>Model/tip (ör. Egea, Clio).</summary>
+    public string? Tip { get; set; }
+
     /// <summary>Araç grubu / fiyat sınıfı (rate-class).</summary>
     public string? Grup { get; set; }
+
+    /// <summary>Segment (ör. Ekonomik, Orta, SUV).</summary>
+    public string? Segment { get; set; }
+
+    /// <summary>SIPP/ACRISS kodu (4 harf, ör. CDMD).</summary>
+    public string? Sipp { get; set; }
+
+    public string? Renk { get; set; }
+
+    /// <summary>Model yılı (opsiyonel).</summary>
+    public int? ModelYili { get; set; }
+
+    public Vites? Vites { get; set; }
+
+    public string? SasiNo { get; set; }
+
+    public string? MotorNo { get; set; }
 
     /// <summary>İşlem şubesi.</summary>
     public string? Sube { get; set; }
 
+    /// <summary>Operasyonel durum (Boş/Kirada/Serviste…).</summary>
     public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;
+
+    /// <summary>Filo yaşam döngüsü statüsü (stok/havuz/tahsis…); operasyonel <see cref="Durum"/>'dan ayrı.</summary>
+    public FiloStatus? FiloDurum { get; set; }
 
     public int Km { get; set; }
 

@@ -39,12 +39,39 @@ else
                 <option value="@g.Ad">@g.Kod</option>
             }
         </datalist>
+        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
+        <label>Tip<input name="tip" value="@_vehicle.Tip" /></label>
+        <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
+        <label>Segment<input name="segment" value="@_vehicle.Segment" /></label>
+        <label>SIPP<input name="sipp" value="@_vehicle.Sipp" maxlength="4" placeholder="CDMD" /></label>
+        <label>Renk<input name="renk" value="@_vehicle.Renk" /></label>
+        <label>Model Yılı<input name="modelYili" type="number" value="@_vehicle.ModelYili" /></label>
+        <label>Vites
+            <select name="vites">
+                <option value="">—</option>
+                @foreach (var vt in Enum.GetValues<Vites>())
+                {
+                    <option value="@vt" selected="@(_vehicle.Vites == vt)">@vt</option>
+                }
+            </select>
+        </label>
+        <label>Şasi No<input name="sasiNo" value="@_vehicle.SasiNo" /></label>
+        <label>Motor No<input name="motorNo" value="@_vehicle.MotorNo" /></label>
         <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
         <label>Durum
             <select name="durum">
                 @foreach (var s in Enum.GetValues<VehicleStatus>())
                 {
                     <option value="@s" selected="@(s == _vehicle.Durum)">@s</option>
+                }
+            </select>
+        </label>
+        <label>Filo Status
+            <select name="filoDurum">
+                <option value="">—</option>
+                @foreach (var fs in Enum.GetValues<FiloStatus>())
+                {
+                    <option value="@fs" selected="@(_vehicle.FiloDurum == fs)">@fs</option>
                 }
             </select>
         </label>
