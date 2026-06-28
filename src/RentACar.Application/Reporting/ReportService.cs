@@ -15,6 +15,30 @@ public sealed class ReportService(IReportRepository repository)
 {
     private readonly IReportRepository _repository = repository;
 
+    /// <summary>
+    /// Araç-bazlı kârlılık raporu (roadmap B2): defterden türetilen Gelir/Gider satırları (repo'da
+    /// SourceId→Fatura→Kira→Araç atfı). Opsiyonel şube/grup/plaka filtresi (filtre varsa "(Atanmamış)"
+    /// satırı hariç). Filtresiz toplamlar defter Gelir/Gider toplamıyla MUTABIK (invariant). NetKar desc sıralı.
+    /// </summary>
+    public async Task<KarlilikDto> GetKarlilikAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null,
+        string? sube = null, string? grup = null, string? plaka = null, CancellationToken ct = default)
+    {
+        const StringComparison OIC = StringComparison.OrdinalIgnoreCase;
+        var rows = await _repository.GetKarlilikRowsAsync(from, to, ct);
+
+        var filtreVar = !string.IsNullOrWhiteSpace(sube) || !string.IsNullOrWhiteSpace(grup) || !string.IsNullOrWhiteSpace(plaka);
+        IEnumerable<KarlilikSatirDto> q = rows;
+        if (filtreVar)
+            q = rows.Where(r => r.VehicleId != null
+                && (string.IsNullOrWhiteSpace(sube) || string.Equals(r.Sube, sube.Trim(), OIC))
+                && (string.IsNullOrWhiteSpace(grup) || string.Equals(r.Grup, grup.Trim(), OIC))
+                && (string.IsNullOrWhiteSpace(plaka) || r.Plaka.Contains(plaka.Trim(), OIC)));
+
+        var list = q.OrderByDescending(r => r.NetKar).ThenBy(r => r.Plaka, StringComparer.OrdinalIgnoreCase).ToList();
+        return new KarlilikDto(list, list.Sum(r => r.Gelir), list.Sum(r => r.Gider), list.Sum(r => r.NetKar));
+    }
+
     /// <summary>Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.</summary>
     public async Task<IReadOnlyList<LedgerLineDto>> GetAccountLedgerAsync(
         LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
