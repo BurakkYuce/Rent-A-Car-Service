@@ -35,12 +35,35 @@ else
         <label>Vergi Dairesi<input name="vergiDairesi" value="@_c.VergiDairesi" /></label>
         <label>Vergi No<input name="vergiNo" maxlength="10" value="@_c.VergiNo" /></label>
         <label>Cep Tel<input name="cepTel" value="@_c.CepTel" /></label>
+        <label>GSM 2<input name="gsm2" value="@_c.Gsm2" /></label>
         <label>E-posta<input name="email" type="email" value="@_c.Email" /></label>
         <label>İl<input name="il" value="@_c.Il" /></label>
         <label>İlçe<input name="ilce" value="@_c.Ilce" /></label>
+        <label>Kaynak<input name="kaynak" value="@_c.Kaynak" placeholder="Web/Telefon/Bayi…" /></label>
+        <label>Müşteri Temsilcisi<input name="musteriTemsilcisi" value="@_c.MusteriTemsilcisi" /></label>
+        <label>İYS İzinli
+            <select name="iysIzinli">
+                <option value="false" selected="@(!_c.IysIzinli)">Hayır</option>
+                <option value="true" selected="@_c.IysIzinli">Evet</option>
+            </select>
+        </label>
+        <label>Uyarı
+            <select name="uyari">
+                <option value="false" selected="@(!_c.Uyari)">Hayır</option>
+                <option value="true" selected="@_c.Uyari">Evet</option>
+            </select>
+        </label>
+        <label>Uyarı Nedeni<input name="uyariNedeni" value="@_c.UyariNedeni" /></label>
+        <label>Ehliyet No<input name="ehliyetNo" value="@_c.EhliyetNo" /></label>
+        <label>Ehliyet Sınıfı<input name="ehliyetSinifi" value="@_c.EhliyetSinifi" placeholder="B" /></label>
+        <label>Ehliyet Tarihi<input name="ehliyetTarihi" type="date" value="@_c.EhliyetTarihi?.ToString("yyyy-MM-dd")" /></label>
+        <label>Ehliyet Yeri<input name="ehliyetYeri" value="@_c.EhliyetYeri" /></label>
+        <label>HGS Yansıtma Türü<input name="hgsYansitmaTuru" value="@_c.HgsYansitmaTuru" placeholder="Faturalı/Faturasız…" /></label>
         <label>Tarife<input name="tarife" value="@_c.Tarife" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="@_c.VadeGun" /></label>
         <label>Risk Limiti<input name="riskLimiti" type="number" step="0.01" value="@_c.RiskLimiti" /></label>
+        <label>Risk Mesajı<input name="riskMesaji" value="@_c.RiskMesaji" /></label>
+        <label>Risk Tarihi<input name="riskTarihi" type="date" value="@_c.RiskTarihi?.ToString("yyyy-MM-dd")" /></label>
         <label>Kara Liste
             <select name="karaListe">
                 <option value="false" selected="@(!_c.KaraListe)">Hayır</option>
