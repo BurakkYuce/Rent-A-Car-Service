@@ -103,3 +103,15 @@ public sealed record EkHizmetRaporRowDto(
 public sealed record EkHizmetRaporDto(
     IReadOnlyList<EkHizmetRaporRowDto> Satirlar,
     decimal ToplamNet, decimal ToplamKdv, decimal ToplamBrut, int KiraAdet);
+
+/// <summary>
+/// Araç-bazlı kârlılık satırı (roadmap B2). Tutarlar DEFTERDEN: Gider = Σ Gider(Debit) AccountRef=araç;
+/// Gelir = Σ Gelir(Credit) base, SourceId→Fatura→Kira→Araç ile atfedilir. VehicleId null = "(Atanmamış)"
+/// (araca bağlanamayan genel gelir/gider). NetKar = Gelir − Gider.
+/// </summary>
+public sealed record KarlilikSatirDto(
+    Guid? VehicleId, string Plaka, string? Sube, string? Grup, decimal Gelir, decimal Gider, decimal NetKar);
+
+/// <summary>Dönem kârlılık raporu: araç/atanmamış satırları + genel toplamlar (defter Gelir/Gider ile mutabık).</summary>
+public sealed record KarlilikDto(
+    IReadOnlyList<KarlilikSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Reporting;
+using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
@@ -212,5 +213,77 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return await q
             .Select(a => new EkHizmetSalesRowDto(a.Ad, a.Miktar, a.NetTutar, a.KdvTutar, a.Toplam, a.RentalId))
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<KarlilikSatirDto>> GetKarlilikRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Gider (Debit) — AccountRef = araç (null = araca bağlanmamış genel gider). Base = Amount×Rate.
+        var gq = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit);
+        if (from is { } gf) gq = gq.Where(e => e.EntryDateUtc >= gf);
+        if (to is { } gt) gq = gq.Where(e => e.EntryDateUtc <= gt);
+        var giderRaw = await gq.Select(e => new { e.AccountRef, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
+        var giderByVeh = giderRaw.GroupBy(x => x.AccountRef ?? Guid.Empty)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.A * x.R));
+
+        // Gelir (Credit) — SourceId(Fatura) → Kira → Araç ile atfedilir; atfedilemeyen → Guid.Empty.
+        var lq = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gelir && e.Direction == LedgerDirection.Credit);
+        if (from is { } ef) lq = lq.Where(e => e.EntryDateUtc >= ef);
+        if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
+        var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
+
+        // Atfetme haritaları: kaynak türüne göre araç çözümü.
+        var invMap = (await db.Invoices.AsNoTracking().Where(i => i.RentalId != null)
+            .Select(i => new { i.Id, RentalId = i.RentalId!.Value }).ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => x.RentalId);
+        var rentalToVeh = (await db.Rentals.AsNoTracking().Select(r => new { r.Id, r.VehicleId }).ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => x.VehicleId);
+        var saleToVeh = (await db.VehicleSales.AsNoTracking().Select(s => new { s.Id, s.VehicleId }).ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => x.VehicleId);
+        var cezaToVeh = (await db.Penalties.AsNoTracking().Where(p => p.VehicleId != null)
+            .Select(p => new { p.Id, VehicleId = p.VehicleId!.Value }).ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => x.VehicleId);
+
+        var gelirByVeh = new Dictionary<Guid, decimal>();
+        foreach (var e in gelirRaw)
+        {
+            // Fatura→kira→araç, AracSatis→satış→araç, Ceza→ceza→araç. HGS (plaka-bazlı, araç-Id yok) ve
+            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial: satış/ceza geliri artık atfedilir.)
+            var veh = Guid.Empty;
+            switch (e.SourceType)
+            {
+                case "Fatura" when invMap.TryGetValue(e.SourceId, out var rid) && rentalToVeh.TryGetValue(rid, out var vid):
+                    veh = vid; break;
+                case "AracSatis" when saleToVeh.TryGetValue(e.SourceId, out var sv):
+                    veh = sv; break;
+                case "Ceza" when cezaToVeh.TryGetValue(e.SourceId, out var cv):
+                    veh = cv; break;
+            }
+            gelirByVeh[veh] = gelirByVeh.GetValueOrDefault(veh) + e.A * e.R;
+        }
+
+        var vehIds = giderByVeh.Keys.Concat(gelirByVeh.Keys).Where(k => k != Guid.Empty).Distinct().ToList();
+        var dims = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.Plaka, v.Sube, v.Grup }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => (v.Plaka, v.Sube, v.Grup));
+
+        var rows = new List<KarlilikSatirDto>();
+        foreach (var key in giderByVeh.Keys.Concat(gelirByVeh.Keys).Distinct())
+        {
+            var gelir = gelirByVeh.GetValueOrDefault(key);
+            var gider = giderByVeh.GetValueOrDefault(key);
+            if (key == Guid.Empty)
+                rows.Add(new KarlilikSatirDto(null, "(Atanmamış)", null, null, gelir, gider, gelir - gider));
+            else
+            {
+                var d = dims.TryGetValue(key, out var x) ? x : ("(bilinmeyen araç)", (string?)null, (string?)null);
+                rows.Add(new KarlilikSatirDto(key, d.Item1, d.Item2, d.Item3, gelir, gider, gelir - gider));
+            }
+        }
+        return rows;
     }
 }
