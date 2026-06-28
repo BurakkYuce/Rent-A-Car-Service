@@ -1,0 +1,74 @@
+@page "/arac-tipleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleTypeService AracTipleri
+
+<PageTitle>Araç Tipleri — TürevRent</PageTitle>
+
+<h1>Araç Tip Tanımları</h1>
+<p class="muted small">Araç modellerinin sözlüğü (ör. "Egea", "Clio"). Araç formundaki Tip açılır
+    listesini besler. Marka opsiyonel (serbest metin).</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Araç Tipi</summary>
+    <form method="post" action="/arac-tipleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="EGEA" /></label>
+        <label>Ad<input name="ad" required placeholder="Fiat Egea" /></label>
+        <label>Marka<input name="marka" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Marka</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Araç tipi tanımlı değil.</td></tr>
+        }
+        @foreach (var t in _list)
+        {
+            <tr>
+                <td class="mono">@t.Kod</td>
+                <td>@t.Ad</td>
+                <td>@t.Marka</td>
+                <td>@(t.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/arac-tipleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <label>Kod<input name="kod" value="@t.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@t.Ad" required /></label>
+                            <label>Marka<input name="marka" value="@t.Marka" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@t.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!t.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/arac-tipleri/delete" onsubmit="return confirm('Araç tipi silinsin mi?')">
+                        <input type="hidden" name="id" value="@t.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleType> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await AracTipleri.ListAsync();
+}
