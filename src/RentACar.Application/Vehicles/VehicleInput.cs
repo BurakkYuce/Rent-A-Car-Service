@@ -21,4 +21,26 @@ public sealed class VehicleInput
     public FiloStatus? FiloDurum { get; set; }
     public int Km { get; set; }
     public FuelType Yakit { get; set; } = FuelType.Benzin;
+
+    // Parite zenginleştirme (additive, opsiyonel)
+    public int? MotorGucu { get; set; }
+    public int? SilindirHacmi { get; set; }
+    public string? RuhsatNo { get; set; }
+    public DateTimeOffset? TescilTarihi { get; set; }
+    public string? AracSahibi { get; set; }
+    public decimal? AlimBedeli { get; set; }
+    public DateTimeOffset? AlimTarihi { get; set; }
+    public decimal? AlisVergisiz { get; set; }
+    public decimal? AlisOtv { get; set; }
+    public decimal? AlisKdv { get; set; }
+    public decimal? AylikMaliyet { get; set; }
+    public decimal? FiloYonetimMaliyeti { get; set; }
+    public decimal? IkinciElDeger { get; set; }
+    public DateTimeOffset? FiloGirisTarih { get; set; }
+    public DateTimeOffset? FiloCikisTarih { get; set; }
+    public string? OzelKod1 { get; set; }
+    public string? OzelKod2 { get; set; }
+    public string? OzelKod3 { get; set; }
+    public string? OzelKod4 { get; set; }
+    public string? OzelKod5 { get; set; }
 }
