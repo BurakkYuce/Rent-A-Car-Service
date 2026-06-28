@@ -20,8 +20,10 @@ public class Location : ITenantOwned, IAuditable
     public string? Adres { get; set; }
     public string? Telefon { get; set; }
 
-    /// <summary>Opsiyonel şube bağı (serbest metin; Branch master'ıyla FK değil).</summary>
+    /// <summary>Opsiyonel şube bağı (serbest metin — geriye-uyum; görüntü/yedek).</summary>
     public string? Sube { get; set; }
+    /// <summary>Şube FK (Branch master, roadmap F1; metin korunur).</summary>
+    public Guid? SubeId { get; set; }
 
     /// <summary>Pasif ofisler açılır listelerde gizlenir ama kayıtlar korunur.</summary>
     public bool Aktif { get; set; } = true;

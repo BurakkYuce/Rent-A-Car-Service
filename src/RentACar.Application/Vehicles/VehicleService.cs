@@ -1,4 +1,5 @@
 using RentACar.Application.Authorization;
+using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -10,10 +11,15 @@ namespace RentACar.Application.Vehicles;
 /// Tenant izolasyonu ve audit alt katmanda (DbContext filter + RLS + interceptor) otomatik.
 /// Liste, rol bazlı ŞUBE kapsamıyla filtrelenir (operatör yalnız kendi şubesi).
 /// </summary>
-public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser)
+public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches)
 {
     private readonly IVehicleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IBranchRepository _branches = branches;
+
+    /// <summary>Serbest-metin şubeyi tenant içi Branch FK'sine çözer (roadmap F1); eşleşmezse null (metin korunur).</summary>
+    private async Task<Guid?> ResolveSubeAsync(string? sube, CancellationToken ct)
+        => string.IsNullOrWhiteSpace(sube) ? null : (await _branches.FindByAdAsync(sube.Trim(), ct))?.Id;
 
     public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
@@ -39,6 +45,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         if (await _repository.PlakaExistsAsync(plaka, excludeId: null, ct))
             throw new DuplicatePlakaException(plaka);
 
+        var subeId = await ResolveSubeAsync(input.Sube, ct);
         var vehicle = new Vehicle
         {
             Plaka = plaka,
@@ -53,6 +60,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             SasiNo = Trim(input.SasiNo),
             MotorNo = Trim(input.MotorNo),
             Sube = Trim(input.Sube),
+            SubeId = subeId,
             Durum = input.Durum,
             FiloDurum = input.FiloDurum,
             Km = input.Km,
@@ -73,6 +81,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         if (await _repository.PlakaExistsAsync(plaka, excludeId: id, ct))
             throw new DuplicatePlakaException(plaka);
 
+        var subeId = await ResolveSubeAsync(input.Sube, ct);
         return await _repository.UpdateAsync(id, v =>
         {
             v.Plaka = plaka;
@@ -87,6 +96,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             v.SasiNo = Trim(input.SasiNo);
             v.MotorNo = Trim(input.MotorNo);
             v.Sube = Trim(input.Sube);
+            v.SubeId = subeId;
             v.Durum = input.Durum;
             v.FiloDurum = input.FiloDurum;
             v.Km = input.Km;
