@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
@@ -45,7 +46,16 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         db.Invoices.Add(invoice);          // satırlar cascade
         db.AccountLedgerEntries.AddRange(entries);
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Kira-fatura kısmi unique index (eşzamanlı çift fatura) → idempotent reddet.
+            await tx.RollbackAsync(ct);
+            throw new ValidationException("Kira zaten faturalanmış.");
+        }
     }
 }

@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();
         services.AddScoped<IQuotationRepository, QuotationRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
