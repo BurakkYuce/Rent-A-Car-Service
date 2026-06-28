@@ -388,14 +388,40 @@ public sealed class AppDbContext : DbContext
         b.Entity<Brand>(e =>
         {
             e.ToTable("Markalar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- PenaltyType / Ceza türü (tenant-owned; master sözlük) ----
         b.Entity<PenaltyType>(e =>
         {
             e.ToTable("CezaTurleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.VarsayilanTutar).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- KdvRate / KDV oranı (tenant-owned; master sözlük) ----
         b.Entity<KdvRate>(e =>
         {
             e.ToTable("KdvOranlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Oran).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- VehicleGroup / Araç grubu (tenant-owned; tanım + fiyat-kural master) ----
         b.Entity<VehicleGroup>(e =>
         {
@@ -404,6 +430,17 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Sipp).HasMaxLength(8);
+            e.Property(x => x.Segment).HasMaxLength(64);
+            e.Property(x => x.KasaTuru).HasMaxLength(32);
+            e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
+            e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
         // ---- Currency / Döviz (tenant-owned; master sözlük) ----
         b.Entity<Currency>(e =>
         {
@@ -413,15 +450,6 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Sembol).HasMaxLength(8);
-            e.Property(x => x.VarsayilanTutar).HasColumnType("numeric(19,4)");
-            e.Property(x => x.Oran).HasColumnType("numeric(9,4)");
-            e.Property(x => x.Aciklama).HasMaxLength(512);
-            e.Property(x => x.Sipp).HasMaxLength(8);
-            e.Property(x => x.Segment).HasMaxLength(64);
-            e.Property(x => x.KasaTuru).HasMaxLength(32);
-            e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
-            e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");
-            e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
