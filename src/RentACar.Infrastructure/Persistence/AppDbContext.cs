@@ -160,9 +160,17 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Plaka).IsRequired().HasMaxLength(16);
             e.Property(x => x.Marka).HasMaxLength(64);
+            e.Property(x => x.Tip).HasMaxLength(64);
             e.Property(x => x.Grup).HasMaxLength(64);
+            e.Property(x => x.Segment).HasMaxLength(64);
+            e.Property(x => x.Sipp).HasMaxLength(8);
+            e.Property(x => x.Renk).HasMaxLength(32);
+            e.Property(x => x.SasiNo).HasMaxLength(32);
+            e.Property(x => x.MotorNo).HasMaxLength(32);
             e.Property(x => x.Sube).HasMaxLength(64);
             e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.FiloDurum).HasConversion<int>();
+            e.Property(x => x.Vites).HasConversion<int>();
             e.Property(x => x.Yakit).HasConversion<int>();
             // Plaka tenant içinde benzersiz (doğal iş anahtarı).
             e.HasIndex(x => new { x.TenantId, x.Plaka }).IsUnique();

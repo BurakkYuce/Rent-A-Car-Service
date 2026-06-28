@@ -10,6 +10,8 @@ namespace RentACar.Web.Vehicles;
 /// <summary>
 /// Araç create/update/delete form post uçları. Tenant, HttpContext.User claim'inden
 /// (ITenantContext → RLS) gelir; servis tenant'tan habersizdir.
+/// Opsiyonel sayısal/enum alanlar (modelYili, vites, filoDurum) boş "" gelince 400 vermesin
+/// diye <c>string?</c> alınıp FormParse/Enum.TryParse ile çevrilir.
 /// NOT: PR #1 smoke kolaylığı için antiforgery devre dışı — ÜRETİMDE açılmalı (follow-up).
 /// </summary>
 public static class VehicleEndpoints
@@ -20,10 +22,14 @@ public static class VehicleEndpoints
 
         group.MapPost("/create", async (
             VehicleService svc,
-            [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? grup,
-            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] int km, [FromForm] FuelType yakit) =>
+            [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? tip, [FromForm] string? grup,
+            [FromForm] string? segment, [FromForm] string? sipp, [FromForm] string? renk, [FromForm] string? modelYili,
+            [FromForm] string? vites, [FromForm] string? sasiNo, [FromForm] string? motorNo,
+            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] string? filoDurum,
+            [FromForm] int km, [FromForm] FuelType yakit) =>
         {
-            var input = Build(plaka, marka, grup, sube, durum, km, yakit);
+            var input = Build(plaka, marka, tip, grup, segment, sipp, renk, modelYili, vites,
+                sasiNo, motorNo, sube, durum, filoDurum, km, yakit);
             try
             {
                 await svc.CreateAsync(input);
@@ -37,10 +43,14 @@ public static class VehicleEndpoints
 
         group.MapPost("/update", async (
             VehicleService svc,
-            [FromForm] Guid id, [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? grup,
-            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] int km, [FromForm] FuelType yakit) =>
+            [FromForm] Guid id, [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? tip,
+            [FromForm] string? grup, [FromForm] string? segment, [FromForm] string? sipp, [FromForm] string? renk,
+            [FromForm] string? modelYili, [FromForm] string? vites, [FromForm] string? sasiNo, [FromForm] string? motorNo,
+            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] string? filoDurum,
+            [FromForm] int km, [FromForm] FuelType yakit) =>
         {
-            var input = Build(plaka, marka, grup, sube, durum, km, yakit);
+            var input = Build(plaka, marka, tip, grup, segment, sipp, renk, modelYili, vites,
+                sasiNo, motorNo, sube, durum, filoDurum, km, yakit);
             try
             {
                 var ok = await svc.UpdateAsync(id, input);
@@ -62,15 +72,30 @@ public static class VehicleEndpoints
     }
 
     private static VehicleInput Build(
-        string plaka, string? marka, string? grup, string? sube, VehicleStatus durum, int km, FuelType yakit)
+        string plaka, string? marka, string? tip, string? grup, string? segment, string? sipp, string? renk,
+        string? modelYili, string? vites, string? sasiNo, string? motorNo, string? sube,
+        VehicleStatus durum, string? filoDurum, int km, FuelType yakit)
         => new()
         {
             Plaka = plaka,
             Marka = marka,
+            Tip = tip,
             Grup = grup,
+            Segment = segment,
+            Sipp = sipp,
+            Renk = renk,
+            ModelYili = FormParse.Int(modelYili),
+            Vites = ParseEnum<Vites>(vites),
+            SasiNo = sasiNo,
+            MotorNo = motorNo,
             Sube = sube,
             Durum = durum,
+            FiloDurum = ParseEnum<FiloStatus>(filoDurum),
             Km = km,
             Yakit = yakit
         };
+
+    /// <summary>Boş/whitespace/geçersiz → null; aksi halde enum değeri.</summary>
+    private static T? ParseEnum<T>(string? s) where T : struct, Enum
+        => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;
 }
