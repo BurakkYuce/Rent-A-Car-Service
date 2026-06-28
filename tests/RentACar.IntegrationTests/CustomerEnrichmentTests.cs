@@ -13,6 +13,55 @@ namespace RentACar.IntegrationTests;
 public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 {
     [Fact]
+    public async Task Parite_crm_fields_roundtrip()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+
+        // Canlı musteri_kayit/musteri_crm parite alanları (docs/parite/03). Beklenenler senaryodan.
+        var dogum = new DateTimeOffset(1985, 7, 20, 0, 0, 0, TimeSpan.Zero);
+        var id = await svc.CreateAsync(new CustomerInput
+        {
+            Tip = CariType.Kurumsal, Unvan = "Yüce Turizm A.Ş.", VergiNo = "1234567890",
+            Sinif = "VIP", MailIzin = true, SmsIzin = false, TelefonIzin = true,
+            DogumTarihi = dogum, BabaAdi = "Ahmet", AnaAdi = "Fatma", PasaportNo = "U1234567",
+            FaturaDonemi = "Aylık", TevkifatOrani = 20.00m,
+            Yetkili1Ad = "Ali Veli", Yetkili1Tel = "5551112233", Yetkili1Mail = "ali@yuce.com",
+            Yetkili2Ad = "Veli Ali", Yetkili2Tel = "5324445566", Yetkili2Mail = "veli@yuce.com",
+            Yetkili3Ad = "Can Can", Yetkili3Tel = "5061112233", Yetkili3Mail = "can@yuce.com"
+        });
+
+        var c = await svc.GetAsync(id);
+        Assert.NotNull(c);
+        Assert.Equal("VIP", c!.Sinif);
+        Assert.True(c.MailIzin);
+        Assert.False(c.SmsIzin);
+        Assert.True(c.TelefonIzin);
+        Assert.Equal(dogum, c.DogumTarihi);
+        Assert.Equal("Ahmet", c.BabaAdi);
+        Assert.Equal("Fatma", c.AnaAdi);
+        Assert.Equal("U1234567", c.PasaportNo);
+        Assert.Equal("Aylık", c.FaturaDonemi);
+        Assert.Equal(20.00m, c.TevkifatOrani);
+        Assert.Equal("Ali Veli", c.Yetkili1Ad);
+        Assert.Equal("veli@yuce.com", c.Yetkili2Mail);
+        Assert.Equal("5061112233", c.Yetkili3Tel);
+    }
+
+    [Fact]
+    public async Task Tevkifat_orani_out_of_range_rejected()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => svc.CreateAsync(new CustomerInput
+            { Tip = CariType.Kurumsal, Unvan = "X A.Ş.", TevkifatOrani = 120m }));
+    }
+
+    [Fact]
     public async Task New_crm_fields_roundtrip()
     {
         using var host = new TestHost(fx.AppConnectionString);

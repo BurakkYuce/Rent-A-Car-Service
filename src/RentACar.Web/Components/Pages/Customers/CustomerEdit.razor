@@ -76,6 +76,43 @@ else
                 <option value="true" selected="@_c.Pasif">Evet</option>
             </select>
         </label>
+        <label>Sınıf<input name="sinif" value="@_c.Sinif" placeholder="Düşük/Orta/Yüksek/VIP…" /></label>
+        <label>Mail İzin
+            <select name="mailIzin">
+                <option value="" selected="@(_c.MailIzin == null)">—</option>
+                <option value="true" selected="@(_c.MailIzin == true)">Evet</option>
+                <option value="false" selected="@(_c.MailIzin == false)">Hayır</option>
+            </select>
+        </label>
+        <label>SMS İzin
+            <select name="smsIzin">
+                <option value="" selected="@(_c.SmsIzin == null)">—</option>
+                <option value="true" selected="@(_c.SmsIzin == true)">Evet</option>
+                <option value="false" selected="@(_c.SmsIzin == false)">Hayır</option>
+            </select>
+        </label>
+        <label>Telefon İzin
+            <select name="telefonIzin">
+                <option value="" selected="@(_c.TelefonIzin == null)">—</option>
+                <option value="true" selected="@(_c.TelefonIzin == true)">Evet</option>
+                <option value="false" selected="@(_c.TelefonIzin == false)">Hayır</option>
+            </select>
+        </label>
+        <label>Doğum Tarihi<input name="dogumTarihi" type="date" value="@_c.DogumTarihi?.ToString("yyyy-MM-dd")" /></label>
+        <label>Baba Adı<input name="babaAdi" value="@_c.BabaAdi" /></label>
+        <label>Ana Adı<input name="anaAdi" value="@_c.AnaAdi" /></label>
+        <label>Pasaport No<input name="pasaportNo" value="@_c.PasaportNo" /></label>
+        <label>Fatura Dönemi<input name="faturaDonemi" value="@_c.FaturaDonemi" placeholder="Aylık/15 günlük/Peşin" /></label>
+        <label>Tevkifat Oranı %<input name="tevkifatOrani" type="number" step="0.01" min="0" max="100" value="@_c.TevkifatOrani" /></label>
+        <label>Yetkili 1 Ad<input name="yetkili1Ad" value="@_c.Yetkili1Ad" /></label>
+        <label>Yetkili 1 Tel<input name="yetkili1Tel" value="@_c.Yetkili1Tel" /></label>
+        <label>Yetkili 1 Mail<input name="yetkili1Mail" type="email" value="@_c.Yetkili1Mail" /></label>
+        <label>Yetkili 2 Ad<input name="yetkili2Ad" value="@_c.Yetkili2Ad" /></label>
+        <label>Yetkili 2 Tel<input name="yetkili2Tel" value="@_c.Yetkili2Tel" /></label>
+        <label>Yetkili 2 Mail<input name="yetkili2Mail" type="email" value="@_c.Yetkili2Mail" /></label>
+        <label>Yetkili 3 Ad<input name="yetkili3Ad" value="@_c.Yetkili3Ad" /></label>
+        <label>Yetkili 3 Tel<input name="yetkili3Tel" value="@_c.Yetkili3Tel" /></label>
+        <label>Yetkili 3 Mail<input name="yetkili3Mail" type="email" value="@_c.Yetkili3Mail" /></label>
         <button type="submit">Güncelle</button>
         <a href="/cariler" class="link">İptal</a>
     </form>
