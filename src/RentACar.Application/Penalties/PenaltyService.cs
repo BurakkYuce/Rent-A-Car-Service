@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -10,10 +11,11 @@ namespace RentACar.Application.Penalties;
 /// Trafik cezası: kayıt (tebliğ→vade) + müşteriye yansıtma (Borç Cari / Alacak Gelir,
 /// dengeli, idempotent) + durum (Öde/İptal). Yansıtma defter yazdığından FinanceWrite ister.
 /// </summary>
-public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser currentUser)
+public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
 {
     private readonly IPenaltyRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<Penalty>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -52,6 +54,7 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
             throw new ValidationException("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.");
         if (penalty.CariId is null || penalty.CariId == Guid.Empty)
             throw new ValidationException("Yansıtma için müşteri (cari) seçilmelidir.");
+        await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi: yansıtma bugün tarihli postlanır
 
         return await _repository.ReflectAsync(id, p =>
         [
