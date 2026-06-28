@@ -30,15 +30,36 @@ public class Customer : ITenantOwned, IAuditable
 
     // İletişim / adres
     public string? CepTel { get; set; }
+    public string? Gsm2 { get; set; }
     public string? Email { get; set; }
     public string? Il { get; set; }
     public string? Ilce { get; set; }
     public string? Adres { get; set; }
 
+    // CRM
+    /// <summary>Müşteri kaynağı (ör. Web, Telefon, Bayi, Tavsiye).</summary>
+    public string? Kaynak { get; set; }
+    public string? MusteriTemsilcisi { get; set; }
+    /// <summary>İYS (ileti yönetim sistemi) izinli mi?</summary>
+    public bool IysIzinli { get; set; }
+    /// <summary>Operasyonel uyarı bayrağı (kara listeden ayrı, hafif uyarı).</summary>
+    public bool Uyari { get; set; }
+    public string? UyariNedeni { get; set; }
+
+    // Ehliyet
+    public string? EhliyetNo { get; set; }
+    public string? EhliyetSinifi { get; set; }
+    public DateTimeOffset? EhliyetTarihi { get; set; }
+    public string? EhliyetYeri { get; set; }
+
     // Finans / risk
     public string? Tarife { get; set; }
     public int VadeGun { get; set; }
     public decimal RiskLimiti { get; set; }
+    public string? RiskMesaji { get; set; }
+    public DateTimeOffset? RiskTarihi { get; set; }
+    /// <summary>HGS/geçiş yansıtma türü (ör. Faturalı, Faturasız, Yansıtılmaz).</summary>
+    public string? HgsYansitmaTuru { get; set; }
     public bool KaraListe { get; set; }
     public bool Pasif { get; set; }
 
