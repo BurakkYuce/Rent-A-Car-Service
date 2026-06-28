@@ -947,6 +947,11 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Currency).HasMaxLength(3);
             e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
             e.Property(x => x.EFaturaEttn).HasMaxLength(64);
+            // Vergi/belge alanları (parite #8; bilgi amaçlı, postlamaya yansımaz)
+            e.Property(x => x.Otv).HasColumnType("numeric(19,4)");
+            e.Property(x => x.TevkifatOran).HasColumnType("numeric(9,4)");
+            e.Property(x => x.TevkifatTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.DamgaVergisi).HasColumnType("numeric(19,4)");
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
             // İdempotency: bir kira EN ÇOK bir kez faturalanır (RentalId dolu olduğunda benzersiz).
