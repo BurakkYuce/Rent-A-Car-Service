@@ -1,0 +1,74 @@
+@page "/sigorta-sirketleri"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject InsuranceCompanyService SigortaSirketleri
+
+<PageTitle>Sigorta Şirketleri — TürevRent</PageTitle>
+
+<h1>Sigorta Şirketi Tanımları</h1>
+<p class="muted small">Poliçe sağlayan sigorta şirketlerinin sözlüğü (ör. "Allianz", "Axa",
+    "Anadolu Sigorta"). Sigorta poliçe formundaki Şirket açılır listesini besler. Telefon opsiyonel.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Sigorta Şirketi</summary>
+    <form method="post" action="/sigorta-sirketleri/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="ALLIANZ" /></label>
+        <label>Ad<input name="ad" required placeholder="Allianz Sigorta" /></label>
+        <label>Telefon<input name="telefon" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Telefon</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Sigorta şirketi tanımlı değil.</td></tr>
+        }
+        @foreach (var c in _list)
+        {
+            <tr>
+                <td class="mono">@c.Kod</td>
+                <td>@c.Ad</td>
+                <td>@c.Telefon</td>
+                <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/sigorta-sirketleri/update" class="grid-form">
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <label>Kod<input name="kod" value="@c.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@c.Ad" required /></label>
+                            <label>Telefon<input name="telefon" value="@c.Telefon" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@c.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!c.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/sigorta-sirketleri/delete" onsubmit="return confirm('Sigorta şirketi silinsin mi?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<InsuranceCompany> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await SigortaSirketleri.ListAsync();
+}
