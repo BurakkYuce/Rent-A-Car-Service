@@ -70,6 +70,17 @@ public sealed class ReportService(IReportRepository repository)
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
     }
 
+    /// <summary>
+    /// Günlük faaliyet raporu: verilen günün ([gün 00:00, ertesi gün − tick]) operasyonel
+    /// sayaçları + tutarları. Repo'da sayım/toplam; burası gün sınırlarını kurar.
+    /// </summary>
+    public Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(DateTimeOffset gun, CancellationToken ct = default)
+    {
+        var from = new DateTimeOffset(gun.Date, TimeSpan.Zero);
+        var to = from.AddDays(1).AddTicks(-1);
+        return _repository.GetGunlukFaaliyetAsync(from, to, ct);
+    }
+
     /// <summary>Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.</summary>
     public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(CancellationToken ct = default)
     {
