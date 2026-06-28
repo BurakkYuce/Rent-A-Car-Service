@@ -4,6 +4,7 @@ using RentACar.Application.Availability;
 using RentACar.Application.Bookings;
 using RentACar.Application.Branches;
 using RentACar.Application.CancelReasons;
+using RentACar.Application.Brands;
 using RentACar.Application.Customers;
 using RentACar.Application.DamageFiles;
 using RentACar.Application.Details;
@@ -53,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.ExpenseCategories.ExpenseCategoryService>();
         services.AddScoped<RentACar.Application.FinancialAccounts.FinancialAccountService>();
         services.AddScoped<RentACar.Application.CustomCodes.CustomCodeService>();
+        services.AddScoped<BrandService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
