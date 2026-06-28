@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.VehicleColors.IVehicleColorRepository, VehicleColorRepository>();
         services.AddScoped<RentACar.Application.CustomerGroups.ICustomerGroupRepository, CustomerGroupRepository>();
         services.AddScoped<RentACar.Application.InsuranceCompanies.IInsuranceCompanyRepository, InsuranceCompanyRepository>();
+        services.AddScoped<RentACar.Application.Banks.IBankRepository, BankRepository>();
         services.AddScoped<ICancelReasonRepository, CancelReasonRepository>();
         services.AddScoped<IReservationSourceRepository, ReservationSourceRepository>();
         services.AddScoped<RentACar.Application.VehicleSegments.IVehicleSegmentRepository, VehicleSegmentRepository>();
