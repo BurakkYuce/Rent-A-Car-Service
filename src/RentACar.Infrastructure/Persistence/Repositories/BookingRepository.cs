@@ -68,6 +68,60 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Rentals.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
+    public async Task<IReadOnlyList<RentalRow>> SearchRentalRowsAsync(RentalFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Rentals.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(filter.Sube)) q = q.Where(r => r.CikisOfisi == filter.Sube);
+        if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
+        if (filter.BaslangicMin is { } min) q = q.Where(r => r.BasTar >= min);
+        if (filter.BaslangicMax is { } max) q = q.Where(r => r.BasTar <= max);
+        if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            q = q.Where(r => r.CikisOfisi == filter.Ofis || r.DonusOfisi == filter.Ofis);
+
+        var rentals = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+
+        var custIds = rentals.Select(r => r.MusteriId).Distinct().ToList();
+        var vehIds = rentals.Select(r => r.VehicleId).Distinct().ToList();
+        var rentalIds = rentals.Select(r => r.Id).ToList();
+
+        var custNames = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id)).ToListAsync(ct))
+            .ToDictionary(c => c.Id, c => c.DisplayName);
+        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+            .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v.Plaka);
+        var invoicedSet = (await db.Invoices.AsNoTracking()
+            .Where(i => i.RentalId != null && rentalIds.Contains(i.RentalId!.Value))
+            .Select(i => i.RentalId!.Value).ToListAsync(ct)).ToHashSet();
+
+        var rows = rentals.Select(r => new RentalRow
+        {
+            Id = r.Id,
+            SozlesmeNo = r.SozlesmeNo,
+            MusteriAd = custNames.GetValueOrDefault(r.MusteriId, "—"),
+            Plaka = plakalar.GetValueOrDefault(r.VehicleId, "—"),
+            BasTar = r.BasTar,
+            BitTar = r.BitTar,
+            Gun = r.Gun,
+            Tutar = r.Tutar,
+            Bakiye = r.Bakiye,
+            Durum = r.Durum,
+            Faturali = invoicedSet.Contains(r.Id)
+        }).AsEnumerable();
+
+        if (filter.Faturali is { } fat) rows = rows.Where(r => r.Faturali == fat);
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var t = filter.Query.Trim();
+            rows = rows.Where(r =>
+                r.SozlesmeNo.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase));
+        }
+        return rows.ToList();
+    }
+
     public async Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

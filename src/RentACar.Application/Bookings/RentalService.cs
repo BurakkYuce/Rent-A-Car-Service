@@ -21,6 +21,14 @@ public sealed class RentalService(IBookingRepository repository, ICurrentUser cu
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
         => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
 
+    /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu. Rol bazlı şube kapsamı zorlanır.</summary>
+    public Task<IReadOnlyList<RentalRow>> SearchAsync(RentalFilter filter, CancellationToken ct = default)
+    {
+        var scope = BranchScope.Effective(_currentUser);
+        if (scope is not null) filter.Sube = scope; // operatör kendi şubesi dışına çıkamaz
+        return _repository.SearchRentalRowsAsync(filter, ct);
+    }
+
     public Task<RentalContract?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindRentalAsync(id, ct);
 
