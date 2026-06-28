@@ -1,0 +1,71 @@
+@page "/renkler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleColorService Renkler
+
+<PageTitle>Renkler — TürevRent</PageTitle>
+
+<h1>Renk Tanımları</h1>
+<p class="muted small">Araç renklerinin sözlüğü (ör. "Beyaz", "Siyah", "Gri"). Araç formundaki Renk
+    açılır listesini besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Renk</summary>
+    <form method="post" action="/renkler/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="BEYAZ" /></label>
+        <label>Ad<input name="ad" required placeholder="Beyaz" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Renk tanımlı değil.</td></tr>
+        }
+        @foreach (var c in _list)
+        {
+            <tr>
+                <td class="mono">@c.Kod</td>
+                <td>@c.Ad</td>
+                <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/renkler/update" class="grid-form">
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <label>Kod<input name="kod" value="@c.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@c.Ad" required /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@c.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!c.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/renkler/delete" onsubmit="return confirm('Renk silinsin mi?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleColor> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Renkler.ListAsync();
+}
