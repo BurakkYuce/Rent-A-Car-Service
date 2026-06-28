@@ -25,6 +25,14 @@ public sealed class CustomerService(ICustomerRepository repository)
         return _repository.SearchAsync(filter, ct);
     }
 
+    /// <summary>CRM liste ekranı: arama/filtre + sayfalama + kira agregaları (adet/ciro/son kira).</summary>
+    public Task<PagedResult<CustomerRow>> SearchRowsAsync(CustomerFilter filter, CancellationToken ct = default)
+    {
+        if (filter.Page < 1) filter.Page = 1;
+        if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
+        return _repository.SearchRowsAsync(filter, ct);
+    }
+
     public Task<Customer?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
