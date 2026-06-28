@@ -28,6 +28,7 @@ using RentACar.Web.ExpenseCategories;
 using RentACar.Web.FinancialAccounts;
 using RentACar.Web.CustomCodes;
 using RentACar.Web.Brands;
+using RentACar.Web.Currencies;
 using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
@@ -132,6 +133,7 @@ app.MapExpenseCategoryEndpoints();
 app.MapFinancialAccountEndpoints();
 app.MapCustomCodeEndpoints();
 app.MapBrandEndpoints();
+app.MapCurrencyEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
