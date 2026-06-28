@@ -89,6 +89,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<Personel> Personeller => Set<Personel>();
+    public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -265,6 +266,22 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.MaasEnc).HasMaxLength(1024);
             e.Property(x => x.Sube).HasMaxLength(128);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- HukukDosya (tenant-owned; master, roadmap C2) ----
+        b.Entity<HukukDosya>(e =>
+        {
+            e.ToTable("HukukDosyalari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.DosyaNo).IsRequired().HasMaxLength(64);
+            e.Property(x => x.Avukat).HasMaxLength(128);
+            e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Tur).HasConversion<int>();
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.Aciklama).HasMaxLength(1024);
+            e.HasIndex(x => new { x.TenantId, x.DosyaNo }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
