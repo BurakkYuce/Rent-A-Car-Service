@@ -40,6 +40,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
+    public DbSet<Department> Departments => Set<Department>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
@@ -229,6 +230,18 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Department / Departman (tenant-owned; master sözlük) ----
+        b.Entity<Department>(e =>
+        {
+            e.ToTable("Departmanlar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
