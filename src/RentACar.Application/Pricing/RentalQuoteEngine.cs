@@ -149,6 +149,7 @@ public sealed class RentalQuoteEngine(
             IskontoTutar = iskontoTutar,
             GenelToplam = genelToplam,
             ParaBirimi = paraBirimi,
+            TarifeKodu = matris?.Kod,
             Provizyon = provizyon,
             Muafiyet = muafiyet,
             GencSurucu = gencSurucu,
@@ -157,8 +158,10 @@ public sealed class RentalQuoteEngine(
         };
     }
 
-    /// <summary>Kanal/şube/grup/tarih eşleşen en spesifik ONAYLI tarife matrisi (grup-özel &gt; kanal-özel &gt; şube-özel).
-    /// Onaylanmamış (Bekliyor) tarifeyle fiyatlama YAPILMAZ (onay iş akışı).</summary>
+    /// <summary>Kanal/şube/grup/tarih eşleşen ONAYLI tarife matrisi. Onaylanmamış (Bekliyor) kullanılmaz.
+    /// İstek kanalı/şubesi NULL ise (ör. booking akışı, kanal bilinmiyor) o boyut "hepsini eşle" olur →
+    /// kanal/şube-özel matrisler de aday olur (HIGH-2: aksi halde booking sessizce 0 yazardı). Sıralama:
+    /// grup-özel &gt; tam-kanal-eşleşme &gt; kanal-agnostik(base) &gt; tam-şube &gt; şube-agnostik &gt; Kod.</summary>
     private static RateMatrix? SelectMatrix(
         IReadOnlyList<RateMatrix> all, string grupKod, string? kanal, string? sube, DateTimeOffset tarih)
         => all.Where(m =>
@@ -166,11 +169,13 @@ public sealed class RentalQuoteEngine(
                 (m.AracGrupKod == null || m.AracGrupKod == grupKod) &&
                 (m.BasTar == null || m.BasTar <= tarih) &&
                 (m.BitTar == null || m.BitTar >= tarih) &&
-                (m.Kanal == null || string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
-                (m.Sube == null || string.Equals(m.Sube, sube, StringComparison.OrdinalIgnoreCase)))
+                (kanal == null || m.Kanal == null || string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
+                (sube == null || m.Sube == null || string.Equals(m.Sube, sube, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(m => m.AracGrupKod == grupKod ? 1 : 0)
-            .ThenByDescending(m => m.Kanal != null ? 1 : 0)
-            .ThenByDescending(m => m.Sube != null ? 1 : 0)
+            .ThenByDescending(m => kanal != null && string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ThenByDescending(m => m.Kanal == null ? 1 : 0)
+            .ThenByDescending(m => sube != null && string.Equals(m.Sube, sube, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ThenByDescending(m => m.Sube == null ? 1 : 0)
             .ThenBy(m => m.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
 

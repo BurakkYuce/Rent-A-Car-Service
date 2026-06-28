@@ -37,6 +37,9 @@ public sealed class QuoteResult
     public decimal GenelToplam { get; init; }
     /// <summary>Teklif para birimi (tarife matrisinden; varsayılan TRY). Tüm tutarlar bu birimdedir.</summary>
     public string ParaBirimi { get; init; } = "TRY";
+    /// <summary>Eşleşen tarife matrisinin kodu; matris bulunmadıysa null. ("matris eşleşti ama kademe boş" →
+    /// kodu dolu + GunlukUcret 0; "hiç matris yok" → null. Çağıran fallback kararı için ayırt edebilsin.)</summary>
+    public string? TarifeKodu { get; init; }
     /// <summary>Bilgi amaçlı bloke (deftere yazılmaz).</summary>
     public decimal Provizyon { get; init; }
     public decimal Muafiyet { get; init; }
