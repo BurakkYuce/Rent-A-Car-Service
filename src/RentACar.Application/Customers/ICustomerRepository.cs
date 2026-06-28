@@ -9,6 +9,9 @@ public interface ICustomerRepository
     /// <summary>Arama (ad/ünvan/TC/vergi) + sayfalama (liste ekranı).</summary>
     Task<Common.PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default);
 
+    /// <summary>Arama/filtre + sayfalama + kira agregaları (adet/ciro/son kira) — CRM liste ekranı.</summary>
+    Task<Common.PagedResult<CustomerRow>> SearchRowsAsync(CustomerFilter filter, CancellationToken ct = default);
+
     Task<Customer?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Verilen alanda (TcKimlik/VergiNo) tenant içinde başka kayıt var mı?</summary>
