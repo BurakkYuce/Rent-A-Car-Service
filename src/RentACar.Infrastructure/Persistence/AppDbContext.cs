@@ -44,6 +44,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<TransmissionType> TransmissionTypes => Set<TransmissionType>();
     public DbSet<VehicleColor> VehicleColors => Set<VehicleColor>();
     public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
+    public DbSet<InsuranceCompany> InsuranceCompanies => Set<InsuranceCompany>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
@@ -253,10 +254,15 @@ public sealed class AppDbContext : DbContext
         b.Entity<CustomerGroup>(e =>
         {
             e.ToTable("MusteriGruplari");
+        // ---- InsuranceCompany / Sigorta şirketi (tenant-owned; master sözlük) ----
+        b.Entity<InsuranceCompany>(e =>
+        {
+            e.ToTable("SigortaSirketleri");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Telefon).HasMaxLength(32);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
