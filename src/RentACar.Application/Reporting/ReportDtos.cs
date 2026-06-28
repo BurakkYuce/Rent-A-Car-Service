@@ -53,6 +53,12 @@ public sealed record DolulukKiraRowDto(DateTimeOffset Bas, DateTimeOffset Bit);
 /// </summary>
 public sealed record DolulukDto(
     int AracSayisi, int DonemGun, int AracGun, int KiraGun, decimal DolulukYuzde);
+/// Dönem tahsilat-fatura mutabakatı: kesilen fatura toplamı (İptal hariç, GenelToplam×Kur) vs
+/// alınan tahsilat toplamı (ters kayıt hariç, Amount×Rate) + fark. Fark = FaturaToplam − TahsilatToplam
+/// (pozitif = tahsil edilmemiş bakiye). Salt sayım/toplam, base para.
+/// </summary>
+public sealed record TahsilatFaturaDto(
+    int FaturaAdet, decimal FaturaToplam, int TahsilatAdet, decimal TahsilatToplam, decimal Fark);
 
 /// <summary>Tek tamamlanmış servis kaydı (ham) — araç plakası çözümlenmiş.</summary>
 public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal ToplamIscilik);

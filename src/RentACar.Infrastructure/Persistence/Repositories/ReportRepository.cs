@@ -84,6 +84,31 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
 
         return raw.Select(r => new DolulukKiraRowDto(r.BasTar, r.Bit)).ToList();
+    public async Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Fatura: İptal hariç; base = GenelToplam × Kur (Kur düz kolon, bellek-içi çarpılır).
+        var fq = db.Invoices.AsNoTracking().Where(i => i.Durum != InvoiceStatus.Iptal);
+        if (from is { } ff) fq = fq.Where(i => i.Tarih >= ff);
+        if (to is { } ft) fq = fq.Where(i => i.Tarih <= ft);
+        var faturalar = await fq.Select(i => new { i.GenelToplam, i.Kur }).ToListAsync(ct);
+        int faturaAdet = faturalar.Count;
+        decimal faturaToplam = faturalar.Sum(f => f.GenelToplam * f.Kur);
+
+        // Tahsilat: Tip=Tahsilat, ters kayıt hariç; base = Amount × Rate.
+        var tq = db.CashTransactions.AsNoTracking()
+            .Where(c => c.Tip == CashTransactionType.Tahsilat && !c.TersKayitMi);
+        if (from is { } tf) tq = tq.Where(c => c.Tarih >= tf);
+        if (to is { } tt) tq = tq.Where(c => c.Tarih <= tt);
+        var tahsilatlar = await tq
+            .Select(c => new { Amount = c.Amount.Amount, Rate = c.Amount.Rate }).ToListAsync(ct);
+        int tahsilatAdet = tahsilatlar.Count;
+        decimal tahsilatToplam = tahsilatlar.Sum(t => t.Amount * t.Rate);
+
+        return new TahsilatFaturaDto(
+            faturaAdet, faturaToplam, tahsilatAdet, tahsilatToplam, faturaToplam - tahsilatToplam);
     }
 
     public async Task<int> GetActiveRentalCountAsync(CancellationToken ct = default)
