@@ -35,6 +35,7 @@ using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
 using RentACar.Web.Locations;
 using RentACar.Web.Penalties;
+using RentACar.Web.PenaltyTypes;
 using RentACar.Web.Persistence;
 using RentACar.Web.Pricing;
 using RentACar.Web.Regulation;
@@ -134,6 +135,7 @@ app.MapFinancialAccountEndpoints();
 app.MapCustomCodeEndpoints();
 app.MapBrandEndpoints();
 app.MapCurrencyEndpoints();
+app.MapPenaltyTypeEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
