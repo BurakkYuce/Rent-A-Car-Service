@@ -11,11 +11,12 @@ namespace RentACar.Application.TenantSettings;
 /// Sır alanı yazmada BOŞ ise mevcut korunur (her kayıtta sır yeniden girilmesin).
 /// </summary>
 public sealed class TenantSettingsService(
-    ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets)
+    ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens)
 {
     public async Task<TenantSettingsModel> GetAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
         var s = await repository.GetAsync(ct);
         if (s is null) return new TenantSettingsModel();
         return new TenantSettingsModel
@@ -38,6 +39,7 @@ public sealed class TenantSettingsService(
     public async Task SaveAsync(TenantSettingsModel m, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
         await repository.UpsertAsync(s =>
         {
             s.FirmaUnvan = Trim(m.FirmaUnvan);
