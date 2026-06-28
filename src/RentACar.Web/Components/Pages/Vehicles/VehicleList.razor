@@ -24,12 +24,39 @@
         <label>Grup<input name="grup" /></label>
         <label>Marka<input name="marka" /></label>
         <label>Grup<input name="grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" /></label>
+        <label>Marka<input name="marka" /></label>
+        <label>Tip<input name="tip" /></label>
+        <label>Grup<input name="grup" /></label>
+        <label>Segment<input name="segment" /></label>
+        <label>SIPP<input name="sipp" maxlength="4" placeholder="CDMD" /></label>
+        <label>Renk<input name="renk" /></label>
+        <label>Model Yılı<input name="modelYili" type="number" /></label>
+        <label>Vites
+            <select name="vites">
+                <option value="">—</option>
+                @foreach (var vt in Enum.GetValues<Vites>())
+                {
+                    <option value="@vt">@vt</option>
+                }
+            </select>
+        </label>
+        <label>Şasi No<input name="sasiNo" /></label>
+        <label>Motor No<input name="motorNo" /></label>
         <label>Şube<input name="sube" /></label>
         <label>Durum
             <select name="durum">
                 @foreach (var s in Enum.GetValues<VehicleStatus>())
                 {
                     <option value="@s">@s</option>
+                }
+            </select>
+        </label>
+        <label>Filo Status
+            <select name="filoDurum">
+                <option value="">—</option>
+                @foreach (var fs in Enum.GetValues<FiloStatus>())
+                {
+                    <option value="@fs">@fs</option>
                 }
             </select>
         </label>
