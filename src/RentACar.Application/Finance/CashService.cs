@@ -92,6 +92,45 @@ public sealed class CashService(ICashRepository repository, ILedgerPoster ledger
         ], ct);
     }
 
+    /// <summary>
+    /// Cari↔cari virman (parite #9): iki cari arası bakiye aktarımı. DENGELİ çift kayıt —
+    /// hedef cari Borç (Debit, bakiye +), kaynak cari Alacak (Credit, bakiye −); ikisi de AccountType=Cari,
+    /// iki farklı AccountRef, aynı Money → Σ borç(base) = Σ alacak(base). LedgerPoster dengeyi zorlar.
+    /// Belge/No yazmaz (TransferAsync deseni). Her iki carinin ekstresinde görünür.
+    ///
+    /// İDEMPOTENCY: <paramref name="islemAnahtari"/> verilirse SourceId o olur ve kısmi unique index
+    /// (SourceType='CariVirman') çift-submit'i yutar (web formu her açılışta sabit token gönderir →
+    /// çift tıklama tek virman). Verilmezse her çağrı AYRI virmandır (Guid.NewGuid).
+    /// DÜZELTME: ledger-only (CashTransaction/storno yok) → düzeltme, AYNI KUR ile ters yön virmandır
+    /// (kaynak↔hedef değiş); FARKLI kurda baz para kalıntısı kalır (bakiye baz-para'da tutulur).
+    /// </summary>
+    public async Task TransferBetweenCariAsync(
+        Guid kaynakCariId, Guid hedefCariId, decimal tutar,
+        string? doviz = "TRY", decimal kur = 1m, string? aciklama = null,
+        Guid? islemAnahtari = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (kaynakCariId == Guid.Empty || hedefCariId == Guid.Empty)
+            throw new ValidationException("Kaynak ve hedef cari seçilmelidir.");
+        if (kaynakCariId == hedefCariId)
+            throw new ValidationException("Kaynak ve hedef cari farklı olmalıdır.");
+        if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
+        if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
+
+        var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
+        var desc = aciklama ?? "Cari virman";
+        await _ledger.PostAsync(
+        [
+            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari,
+                AccountRef = hedefCariId, Direction = LedgerDirection.Debit, Amount = money,
+                SourceType = "CariVirman", SourceId = sourceId, Description = desc },
+            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari,
+                AccountRef = kaynakCariId, Direction = LedgerDirection.Credit, Amount = money,
+                SourceType = "CariVirman", SourceId = sourceId, Description = desc }
+        ], ct);
+    }
+
     public async Task<Guid> ReverseAsync(Guid cashTransactionId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
