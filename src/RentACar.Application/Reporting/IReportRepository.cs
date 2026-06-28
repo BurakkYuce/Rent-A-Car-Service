@@ -23,6 +23,13 @@ public interface IReportRepository
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Dönem ([from,to]) tahsilat-fatura mutabakatı: fatura (İptal hariç, GenelToplam×Kur) ve
+    /// tahsilat (ters kayıt hariç, Amount×Rate) adet+toplamları. Fark service'te hesaplanır.
+    /// </summary>
+    Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
     /// <summary>Aktif (Kirada) kira sözleşmesi sayısı.</summary>
     Task<int> GetActiveRentalCountAsync(CancellationToken ct = default);
 
