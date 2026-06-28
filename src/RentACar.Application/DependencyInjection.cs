@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ReservationSourceService>();
         services.AddScoped<RentACar.Application.VehicleSegments.VehicleSegmentService>();
         services.AddScoped<RentACar.Application.VehicleTypes.VehicleTypeService>();
+        services.AddScoped<RentACar.Application.VehicleOwners.VehicleOwnerService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
