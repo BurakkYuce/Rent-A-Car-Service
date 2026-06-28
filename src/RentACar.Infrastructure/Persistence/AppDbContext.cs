@@ -45,6 +45,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
     public DbSet<VehicleType> VehicleTypes => Set<VehicleType>();
     public DbSet<VehicleOwner> VehicleOwners => Set<VehicleOwner>();
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -148,6 +149,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<VehicleOwner>(e =>
         {
             e.ToTable("AracSahipleri");
+        // ---- ExpenseCategory / Gider türü (tenant-owned; master sözlük) ----
+        b.Entity<ExpenseCategory>(e =>
+        {
+            e.ToTable("GiderTurleri");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
