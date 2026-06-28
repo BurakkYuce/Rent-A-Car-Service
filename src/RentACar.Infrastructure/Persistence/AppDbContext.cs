@@ -43,6 +43,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<FuelKind> FuelKinds => Set<FuelKind>();
     public DbSet<TransmissionType> TransmissionTypes => Set<TransmissionType>();
     public DbSet<VehicleColor> VehicleColors => Set<VehicleColor>();
+    public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
@@ -248,6 +249,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<VehicleColor>(e =>
         {
             e.ToTable("Renkler");
+        // ---- CustomerGroup / Müşteri grubu (tenant-owned; master sözlük) ----
+        b.Entity<CustomerGroup>(e =>
+        {
+            e.ToTable("MusteriGruplari");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
