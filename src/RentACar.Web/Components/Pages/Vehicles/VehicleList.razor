@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject VehicleService Vehicles
 @inject BrandService Markalar
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Araçlar — TürevRent</PageTitle>
 
@@ -21,6 +22,8 @@
             @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
         </datalist>
         <label>Grup<input name="grup" /></label>
+        <label>Marka<input name="marka" /></label>
+        <label>Grup<input name="grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" /></label>
         <label>Şube<input name="sube" /></label>
         <label>Durum
             <select name="durum">
@@ -43,9 +46,16 @@
     </form>
 </details>
 
+<datalist id="arac-grup-list">
+    @foreach (var g in _gruplar)
+    {
+        <option value="@g.Ad">@g.Kod</option>
+    }
+</datalist>
+
 <form method="get" class="filter-bar">
     <input name="q" value="@Q" placeholder="Plaka / marka ara" />
-    <input name="grup" value="@Grup" placeholder="Grup" />
+    <input name="grup" value="@Grup" list="arac-grup-list" placeholder="Grup" />
     <select name="durum">
         <option value="">Durum (tümü)</option>
         @foreach (var s in Enum.GetValues<VehicleStatus>())
@@ -112,6 +122,7 @@
 
     private PagedResult<Vehicle> _page = new([], 0, 1, 20);
     private IReadOnlyList<Brand> _markalar = [];
+    private IReadOnlyList<VehicleGroup> _gruplar = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,6 +133,7 @@
         };
         _page = await Vehicles.SearchAsync(filter);
         _markalar = await Markalar.ListActiveAsync();
+        _gruplar = await AracGruplari.ListActiveAsync();
     }
 
     private string PageUrl(int p)

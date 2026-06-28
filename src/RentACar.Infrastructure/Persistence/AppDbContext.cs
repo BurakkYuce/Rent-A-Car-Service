@@ -62,6 +62,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<PenaltyType> CezaTurleri => Set<PenaltyType>();
     public DbSet<KdvRate> KdvOranlari => Set<KdvRate>();
+    public DbSet<VehicleGroup> VehicleGroups => Set<VehicleGroup>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -395,6 +396,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<KdvRate>(e =>
         {
             e.ToTable("KdvOranlari");
+        // ---- VehicleGroup / Araç grubu (tenant-owned; tanım + fiyat-kural master) ----
+        b.Entity<VehicleGroup>(e =>
+        {
+            e.ToTable("AracGruplari");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -410,6 +415,13 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Sembol).HasMaxLength(8);
             e.Property(x => x.VarsayilanTutar).HasColumnType("numeric(19,4)");
             e.Property(x => x.Oran).HasColumnType("numeric(9,4)");
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Sipp).HasMaxLength(8);
+            e.Property(x => x.Segment).HasMaxLength(64);
+            e.Property(x => x.KasaTuru).HasMaxLength(32);
+            e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
+            e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

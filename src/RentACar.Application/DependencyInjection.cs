@@ -23,6 +23,7 @@ using RentACar.Application.Reporting;
 using RentACar.Application.ReservationSources;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Users;
+using RentACar.Application.VehicleGroups;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 
@@ -60,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<BrandService>();
         services.AddScoped<CurrencyService>();
         services.AddScoped<KdvRateService>();
+        services.AddScoped<VehicleGroupService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();

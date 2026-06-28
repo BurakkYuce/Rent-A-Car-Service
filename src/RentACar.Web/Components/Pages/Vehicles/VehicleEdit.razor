@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject VehicleService Vehicles
 @inject BrandService Markalar
+@inject VehicleGroupService AracGruplari
 @inject NavigationManager Nav
 
 <PageTitle>Araç Düzenle — TürevRent</PageTitle>
@@ -28,6 +29,16 @@ else
             @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
         </datalist>
         <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
+        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
+        <label>Grup
+            <input name="grup" value="@_vehicle.Grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" />
+        </label>
+        <datalist id="arac-grup-list">
+            @foreach (var g in _gruplar)
+            {
+                <option value="@g.Ad">@g.Kod</option>
+            }
+        </datalist>
         <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
         <label>Durum
             <select name="durum">
@@ -59,10 +70,12 @@ else
 
     private Vehicle? _vehicle;
     private IReadOnlyList<Brand> _markalar = [];
+    private IReadOnlyList<VehicleGroup> _gruplar = [];
 
     protected override async Task OnInitializedAsync()
     {
         _vehicle = await Vehicles.GetAsync(Id);
         _markalar = await Markalar.ListActiveAsync();
+        _gruplar = await AracGruplari.ListActiveAsync();
     }
 }

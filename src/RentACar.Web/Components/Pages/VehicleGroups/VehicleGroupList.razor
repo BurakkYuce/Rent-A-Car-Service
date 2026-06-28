@@ -1,0 +1,105 @@
+@page "/arac-gruplari"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject VehicleGroupService AracGruplari
+
+<PageTitle>Araç Grupları — TürevRent</PageTitle>
+
+<h1>Araç Grubu Tanımları</h1>
+<p class="muted small">Araçların gruplandığı liste (ör. "EKO" = Ekonomik, "SUV") VE gruba bağlı kira
+    kuralları (SIPP/segment/kasa türü, koltuk/kapı/bagaj, sürücü yaşı/ehliyet yılı, provizyon/muafiyet,
+    günlük KM limiti + aşım ücreti). Araç formundaki Grup açılır listesi buradan beslenir. Kural
+    alanları opsiyoneldir — yalnız Kod/Ad ile basit sözlük olarak da kullanılabilir.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Araç Grubu</summary>
+    <form method="post" action="/arac-gruplari/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="EKO" /></label>
+        <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
+        <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+        <label>SIPP<input name="sipp" maxlength="4" placeholder="CDMD" /></label>
+        <label>Segment<input name="segment" /></label>
+        <label>Kasa Türü<input name="kasaTuru" placeholder="Sedan/SUV…" /></label>
+        <label>Koltuk<input name="koltukSayisi" type="number" min="0" /></label>
+        <label>Kapı<input name="kapiSayisi" type="number" min="0" /></label>
+        <label>Bagaj<input name="bagajSayisi" type="number" min="0" /></label>
+        <label>Sürücü Min. Yaş<input name="surucuMinYas" type="number" min="16" max="99" /></label>
+        <label>Genç Sürücü Yaşı<input name="gencSurucuYas" type="number" min="16" max="99" /></label>
+        <label>Ehliyet Min. Yıl<input name="ehliyetMinYil" type="number" min="0" max="80" /></label>
+        <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" /></label>
+        <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" /></label>
+        <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" /></label>
+        <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>SIPP</th><th>Segment</th><th>Günlük KM</th><th>Provizyon</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Araç grubu tanımlı değil.</td></tr>
+        }
+        @foreach (var g in _list)
+        {
+            <tr>
+                <td class="mono">@g.Kod</td>
+                <td>@g.Ad</td>
+                <td class="mono">@g.Sipp</td>
+                <td>@g.Segment</td>
+                <td class="num">@(g.GunlukKmLimiti?.ToString() ?? "—")</td>
+                <td class="num">@(g.Provizyon?.ToString("N2") ?? "—")</td>
+                <td>@(g.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/arac-gruplari/update" class="grid-form">
+                            <input type="hidden" name="id" value="@g.Id" />
+                            <label>Kod<input name="kod" value="@g.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@g.Ad" required /></label>
+                            <label>Açıklama<input name="aciklama" value="@g.Aciklama" /></label>
+                            <label>SIPP<input name="sipp" value="@g.Sipp" maxlength="4" /></label>
+                            <label>Segment<input name="segment" value="@g.Segment" /></label>
+                            <label>Kasa Türü<input name="kasaTuru" value="@g.KasaTuru" /></label>
+                            <label>Koltuk<input name="koltukSayisi" type="number" min="0" value="@g.KoltukSayisi" /></label>
+                            <label>Kapı<input name="kapiSayisi" type="number" min="0" value="@g.KapiSayisi" /></label>
+                            <label>Bagaj<input name="bagajSayisi" type="number" min="0" value="@g.BagajSayisi" /></label>
+                            <label>Sürücü Min. Yaş<input name="surucuMinYas" type="number" min="16" max="99" value="@g.SurucuMinYas" /></label>
+                            <label>Genç Sürücü Yaşı<input name="gencSurucuYas" type="number" min="16" max="99" value="@g.GencSurucuYas" /></label>
+                            <label>Ehliyet Min. Yıl<input name="ehliyetMinYil" type="number" min="0" max="80" value="@g.EhliyetMinYil" /></label>
+                            <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" value="@g.Provizyon" /></label>
+                            <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" value="@g.MuafiyetTutari" /></label>
+                            <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" value="@g.GunlukKmLimiti" /></label>
+                            <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" value="@g.AsimKmUcreti" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@g.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!g.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/arac-gruplari/delete" onsubmit="return confirm('Araç grubu silinsin mi?')">
+                        <input type="hidden" name="id" value="@g.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<VehicleGroup> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await AracGruplari.ListAsync();
+}
