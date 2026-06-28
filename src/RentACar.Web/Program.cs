@@ -41,6 +41,7 @@ using RentACar.Web.PenaltyTypes;
 using RentACar.Web.Persistence;
 using RentACar.Web.Pricing;
 using RentACar.Web.Regulation;
+using RentACar.Web.RateMatrices;
 using RentACar.Web.ServiceRecords;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
@@ -142,6 +143,7 @@ app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
+app.MapRateMatrixEndpoints();
 app.MapEkHizmetEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
