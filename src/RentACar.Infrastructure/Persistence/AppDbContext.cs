@@ -60,6 +60,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<CustomCode> CustomCodes => Set<CustomCode>();
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Currency> Currencies => Set<Currency>();
+    public DbSet<PenaltyType> CezaTurleri => Set<PenaltyType>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -385,6 +386,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<Brand>(e =>
         {
             e.ToTable("Markalar");
+        // ---- PenaltyType / Ceza türü (tenant-owned; master sözlük) ----
+        b.Entity<PenaltyType>(e =>
+        {
+            e.ToTable("CezaTurleri");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -398,6 +403,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Sembol).HasMaxLength(8);
+            e.Property(x => x.VarsayilanTutar).HasColumnType("numeric(19,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

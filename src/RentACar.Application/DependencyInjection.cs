@@ -15,6 +15,7 @@ using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
 using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
+using RentACar.Application.PenaltyTypes;
 using RentACar.Application.Pricing;
 using RentACar.Application.Regulation;
 using RentACar.Application.Reporting;
@@ -67,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<RegulationService>();
         services.AddScoped<VadeService>();
         services.AddScoped<PenaltyService>();
+        services.AddScoped<PenaltyTypeService>();
         services.AddScoped<HgsReflectionService>();
         services.AddScoped<VehicleSaleService>();
         services.AddScoped<DamageFileService>();
