@@ -41,6 +41,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
     public DbSet<FuelKind> FuelKinds => Set<FuelKind>();
+    public DbSet<TransmissionType> TransmissionTypes => Set<TransmissionType>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
@@ -238,6 +239,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<FuelKind>(e =>
         {
             e.ToTable("YakitTurleri");
+        // ---- TransmissionType / Vites türü (tenant-owned; master sözlük) ----
+        b.Entity<TransmissionType>(e =>
+        {
+            e.ToTable("VitesTurleri");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
