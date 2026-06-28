@@ -4,6 +4,10 @@ using RentACar.Application.Pricing;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 
+// roadmap A1: RateCardService.GetRateAsync [Obsolete] (RentalQuoteEngine birincil); bu testler eski
+// RateCard geriye-uyum fallback'ini bilinçli doğruluyor → CS0618 bu dosyada bastırılır.
+#pragma warning disable CS0618
+
 namespace RentACar.IntegrationTests;
 
 /// <summary>

@@ -139,8 +139,9 @@ public sealed class PricingTests(PostgresFixture fx)
         var pricing = scope.ServiceProvider.GetRequiredService<PricingService>();
         var (_, v) = await SeedAsync(scope);
 
-        Assert.Equal(100m, await pricing.ResolveDailyRateAsync(v, 2, Bas));   // B, 2 gün
-        Assert.Equal(80m, await pricing.ResolveDailyRateAsync(v, 7, Bas));    // B, 7 gün → 4+ kademe
-        Assert.Equal(0m, await pricing.ResolveDailyRateAsync(Guid.NewGuid(), 2, Bas)); // araç yok → 0
+        // roadmap A1: imza (basTar,bitTar); motor matrisi yok → RateCard fallback aynı tier'i verir.
+        Assert.Equal(100m, await pricing.ResolveDailyRateAsync(v, Bas, Bas.AddDays(2)));   // B, 2 gün
+        Assert.Equal(80m, await pricing.ResolveDailyRateAsync(v, Bas, Bas.AddDays(7)));    // B, 7 gün → 4+ kademe
+        Assert.Equal(0m, await pricing.ResolveDailyRateAsync(Guid.NewGuid(), Bas, Bas.AddDays(2))); // araç yok → 0
     }
 }
