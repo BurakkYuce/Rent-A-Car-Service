@@ -30,7 +30,8 @@ public sealed class InvoiceService(
     public Task<Invoice?> GetAsync(Guid id, CancellationToken ct = default)
         => repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateFromRentalAsync(Guid rentalId, decimal? kdvRate = null, CancellationToken ct = default)
+    public async Task<Guid> CreateFromRentalAsync(
+        Guid rentalId, decimal? kdvRate = null, InvoiceTaxInfo? vergi = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var rental = await bookingRepository.FindRentalAsync(rentalId, ct)
@@ -98,6 +99,9 @@ public sealed class InvoiceService(
             });
         }
 
+        // Vergi/belge metadata (bilgi amaçlı; defter postlamasına YANSIMAZ → denge bozulmaz).
+        ApplyVergi(invoice, vergi);
+
         // e-Fatura stub (Faz 2'de gerçek): ETTN al.
         var result = await eInvoice.SendAsync(
             new EInvoiceRequest("", "", net, kdv, "TRY"), ct);
@@ -110,6 +114,23 @@ public sealed class InvoiceService(
         var entries = BuildEntries(invoice);
         await repository.PostAsync(invoice, entries, ct);
         return invoice.Id;
+    }
+
+    /// <summary>Vergi/belge metadata uygular (bilgi amaçlı). Negatif tutar / aralık dışı tevkifat reddedilir.
+    /// Postlamaya DOKUNMAZ — fatura net/kdv/brüt ve dengeli kayıt aynı kalır.</summary>
+    private static void ApplyVergi(Invoice inv, InvoiceTaxInfo? v)
+    {
+        if (v is null) return;
+        if (v.Otv is < 0m) throw new ValidationException("ÖTV negatif olamaz.");
+        if (v.TevkifatTutar is < 0m) throw new ValidationException("Tevkifat tutarı negatif olamaz.");
+        if (v.DamgaVergisi is < 0m) throw new ValidationException("Damga vergisi negatif olamaz.");
+        if (v.TevkifatOran is < 0m or > 100m) throw new ValidationException("Tevkifat oranı 0 ile 100 arasında olmalıdır (%).");
+        inv.Otv = v.Otv;
+        inv.TevkifatOran = v.TevkifatOran;
+        inv.TevkifatTutar = v.TevkifatTutar;
+        inv.DamgaVergisi = v.DamgaVergisi;
+        inv.IadeMi = v.IadeMi;
+        inv.ManuelMi = v.ManuelMi;
     }
 
     /// <summary>Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv). DENGELİ.</summary>
