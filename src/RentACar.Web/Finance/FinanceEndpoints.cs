@@ -84,9 +84,21 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{cariId}/ekstre?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/fatura", async (InvoiceService svc, [FromForm] Guid rentalId) =>
+        grp.MapPost("/fatura", async (InvoiceService svc, HttpRequest req) =>
         {
-            try { await svc.CreateFromRentalAsync(rentalId); return Results.Redirect($"/kiralar/{rentalId}"); }
+            var f = req.Form;
+            var rentalId = FormParse.Id(f["rentalId"].ToString()) ?? Guid.Empty;
+            string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
+            bool B(string k) => S(k) is "true" or "True" or "on";
+            // Opsiyonel vergi/belge metadata (bilgi amaçlı; defter postlamasına yansımaz).
+            var vergi = new InvoiceTaxInfo(
+                Otv: FormParse.Dec(S("otv")),
+                TevkifatOran: FormParse.Dec(S("tevkifatOran")),
+                TevkifatTutar: FormParse.Dec(S("tevkifatTutar")),
+                DamgaVergisi: FormParse.Dec(S("damgaVergisi")),
+                IadeMi: B("iadeMi"),
+                ManuelMi: B("manuelMi"));
+            try { await svc.CreateFromRentalAsync(rentalId, vergi: vergi); return Results.Redirect($"/kiralar/{rentalId}"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
