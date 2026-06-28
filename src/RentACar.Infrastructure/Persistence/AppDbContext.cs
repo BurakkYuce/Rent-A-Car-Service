@@ -65,6 +65,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleGroup> VehicleGroups => Set<VehicleGroup>();
     public DbSet<RateMatrix> RateMatrices => Set<RateMatrix>();
     public DbSet<CoverageProduct> CoverageProducts => Set<CoverageProduct>();
+    public DbSet<RentalRule> RentalRules => Set<RentalRule>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -492,6 +493,26 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Tur).HasConversion<int>();
             e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
             e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- RentalRule / Kiralama kuralı-promosyon (tenant-owned; kural-tanım, defter postalamaz) ----
+        b.Entity<RentalRule>(e =>
+        {
+            e.ToTable("KiralamaKurallari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Kanal).HasMaxLength(64);
+            e.Property(x => x.Sube).HasMaxLength(64);
+            e.Property(x => x.AracGrupKod).HasMaxLength(32);
+            e.Property(x => x.KampanyaKodu).HasMaxLength(64);
+            e.Property(x => x.SartMetni).HasMaxLength(4000);
+            e.Property(x => x.Iskonto).HasColumnType("numeric(9,4)");
+            e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
