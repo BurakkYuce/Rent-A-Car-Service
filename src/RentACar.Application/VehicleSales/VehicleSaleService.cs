@@ -49,6 +49,10 @@ public sealed class VehicleSaleService(
             Currency = string.IsNullOrWhiteSpace(input.Doviz) ? "TRY" : input.Doviz.Trim().ToUpperInvariant(),
             Kur = input.Kur,
             Aciklama = input.Aciklama,
+            HedefFiyat = input.HedefFiyat,
+            SatisKm = input.SatisKm,
+            SatisKanali = string.IsNullOrWhiteSpace(input.SatisKanali) ? null : input.SatisKanali.Trim(),
+            Devir = string.IsNullOrWhiteSpace(input.Devir) ? null : input.Devir.Trim(),
             Durum = SatisDurum.Tamamlandi
         };
         await _lock.EnsureOpenAsync(sale.Tarih, ct); // dönem kilidi: kapalı tarihe araç satışı postlanamaz

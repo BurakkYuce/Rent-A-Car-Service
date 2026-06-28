@@ -12,4 +12,10 @@ public sealed class VehicleSaleInput
     public string Doviz { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
     public string? Aciklama { get; set; }
+
+    // roadmap G2 (additive — bilgilendirme; deftere yansımaz)
+    public decimal? HedefFiyat { get; set; }
+    public int? SatisKm { get; set; }
+    public string? SatisKanali { get; set; }
+    public string? Devir { get; set; }
 }

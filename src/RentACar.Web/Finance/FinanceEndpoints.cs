@@ -102,6 +102,9 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        grp.MapPost("/fatura-manuel", async (InvoiceService svc, HttpRequest req) =>
+            await ManuelFaturaAsync(svc, req));
+
         grp.MapPost("/cari-virman", async (CashService svc, HttpRequest req) =>
         {
             var f = req.Form;
@@ -153,5 +156,28 @@ public static class FinanceEndpoints
         });
 
         return app;
+    }
+
+    /// <summary>Manuel/serbest fatura (roadmap G2) — kiradan bağımsız fatura kesimi.</summary>
+    private static async Task<IResult> ManuelFaturaAsync(InvoiceService svc, HttpRequest req)
+    {
+        var f = req.Form;
+        string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
+        var input = new ManualInvoiceInput
+        {
+            CariId = FormParse.Id(S("cariId")) ?? Guid.Empty,
+            Aciklama = S("aciklama"),
+            NetTutar = FormParse.Dec(S("netTutar")) ?? 0m,
+            KdvOrani = FormParse.Dec(S("kdvOrani")) ?? 0.20m,
+            Tarih = FormParse.Date(S("tarih")),
+            VadeTarihi = FormParse.Date(S("vadeTarihi")),
+            IslemAnahtari = FormParse.Id(S("islemAnahtari")) // çift-submit idempotency (adversarial M#1)
+        };
+        try
+        {
+            await svc.CreateManualAsync(input);
+            return Results.Redirect("/faturalar?ok=1");
+        }
+        catch (ValidationException ex) { return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }
