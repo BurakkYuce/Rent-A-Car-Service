@@ -68,6 +68,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<RentalContract> Rentals => Set<RentalContract>();
+    public DbSet<RentalAddOn> RentalAddOns => Set<RentalAddOn>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
@@ -582,7 +583,25 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
+            e.HasMany(x => x.EkHizmetler).WithOne().HasForeignKey(a => a.RentalId).OnDelete(DeleteBehavior.Cascade);
             // Double-booking exclusion constraint + generated Period kolonu migration'da (raw SQL).
+        });
+
+        // ---- RentalAddOn / Kira ek hizmet kalemi (tenant-owned; mutable, fatura öncesi) ----
+        b.Entity<RentalAddOn>(e =>
+        {
+            e.ToTable("RentalAddOns");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Miktar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.BirimNetFiyat).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.NetTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Toplam).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.TenantId, x.RentalId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
         // ---- TenantSequence (tenant-owned; boşluksuz sıra) ----
@@ -807,6 +826,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.EFaturaEttn).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CariId });
+            // İdempotency: bir kira EN ÇOK bir kez faturalanır (RentalId dolu olduğunda benzersiz).
+            e.HasIndex(x => new { x.TenantId, x.RentalId })
+                .IsUnique()
+                .HasFilter("\"RentalId\" IS NOT NULL");
             e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

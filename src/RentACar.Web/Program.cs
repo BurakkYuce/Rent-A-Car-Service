@@ -105,6 +105,7 @@ app.MapAuthEndpoints();
 app.MapVehicleEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
+app.MapRentalAddOnEndpoints();
 app.MapQuotationEndpoints();
 app.MapFinanceEndpoints();
 app.MapExpenseEndpoints();

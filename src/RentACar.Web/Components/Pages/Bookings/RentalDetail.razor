@@ -1,6 +1,8 @@
 @page "/kiralar/{Id:guid}"
 @attribute [Authorize]
 @inject RentalService Rentals
+@inject RentACar.Application.RentalAddOns.RentalAddOnService EkHizmetler
+@inject EkHizmetTanimService EkHizmetTanimlari
 
 <PageTitle>Kira Detayı — TürevRent</PageTitle>
 
@@ -52,6 +54,53 @@ else
         </form>
     }
 
+    <h2>Ek Hizmetler</h2>
+    <table class="grid">
+        <thead><tr><th>Hizmet</th><th>Miktar</th><th>Birim NET</th><th>KDV</th><th>Net</th><th>KDV Tutar</th><th>Toplam</th><th></th></tr></thead>
+        <tbody>
+            @if (_addons.Count == 0)
+            {
+                <tr><td colspan="8" class="muted">Ek hizmet eklenmemiş.</td></tr>
+            }
+            @foreach (var a in _addons)
+            {
+                <tr>
+                    <td>@a.Ad</td>
+                    <td class="num">@a.Miktar</td>
+                    <td class="num">@a.BirimNetFiyat.ToString("N2")</td>
+                    <td class="num">@($"%{a.KdvOrani * 100:0.##}")</td>
+                    <td class="num">@a.NetTutar.ToString("N2")</td>
+                    <td class="num">@a.KdvTutar.ToString("N2")</td>
+                    <td class="num">@a.Toplam.ToString("N2")</td>
+                    <td>
+                        <form method="post" action="/kiralar/ekhizmet-sil" onsubmit="return confirm('Ek hizmet silinsin mi?')">
+                            <input type="hidden" name="addOnId" value="@a.Id" />
+                            <input type="hidden" name="rentalId" value="@_c.Id" />
+                            <button type="submit" class="link danger">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (_c.Durum != RentalStatus.Iptal)
+    {
+        <form method="post" action="/kiralar/ekhizmet-ekle" class="grid-form">
+            <input type="hidden" name="rentalId" value="@_c.Id" />
+            <label>Hizmet
+                <select name="ekHizmetTanimId" required>
+                    <option value="">— seç —</option>
+                    @foreach (var t in _tanimlar)
+                    {
+                        <option value="@t.Id">@t.Ad (@t.BirimUcret.ToString("N2") net)</option>
+                    }
+                </select>
+            </label>
+            <label>Miktar<input name="miktar" type="number" step="0.01" min="0.01" value="1" required /></label>
+            <button type="submit">Ekle</button>
+        </form>
+    }
+
     @if (_c.Bakiye > 0 && _c.Durum != RentalStatus.Iptal)
     {
         <h2>Tahsilat</h2>
@@ -82,7 +131,16 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private RentalContract? _c;
+    private IReadOnlyList<RentACar.Domain.Entities.RentalAddOn> _addons = [];
+    private IReadOnlyList<RentACar.Domain.Entities.EkHizmetTanim> _tanimlar = [];
 
     protected override async Task OnInitializedAsync()
-        => _c = await Rentals.GetAsync(Id);
+    {
+        _c = await Rentals.GetAsync(Id);
+        if (_c is not null)
+        {
+            _addons = await EkHizmetler.ListAsync(Id);
+            _tanimlar = await EkHizmetTanimlari.ListActiveAsync();
+        }
+    }
 }
