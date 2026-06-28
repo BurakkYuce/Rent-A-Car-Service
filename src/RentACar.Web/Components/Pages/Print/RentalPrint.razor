@@ -7,6 +7,8 @@
 
 <PageTitle>Kira Sözleşmesi @(_rental?.SozlesmeNo)</PageTitle>
 
+<p class="no-print"><a href="/kiralar/@Id/pdf">📄 PDF indir</a></p>
+
 @if (_rental is null)
 {
     <p class="error">Kira sözleşmesi bulunamadı.</p>

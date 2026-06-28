@@ -6,6 +6,8 @@
 
 <PageTitle>Fatura @(_invoice?.No)</PageTitle>
 
+<p class="no-print"><a href="/faturalar/@Id/pdf">📄 PDF indir</a></p>
+
 @if (_invoice is null)
 {
     <p class="error">Fatura bulunamadı.</p>
