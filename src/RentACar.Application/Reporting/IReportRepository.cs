@@ -55,5 +55,9 @@ public interface IReportRepository
     /// KDV oranı bazlı dönem kırılımı (KDV listesi raporu) için ham satırlar.
     /// </summary>
     Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+    /// İptal olmayan kiraların ek hizmet kalemleri (RentalAddOn.CreatedAtUtc aralığında), base para.
+    /// Ek hizmet satış raporu (Extralar_Raporu) için ham satırlar.
+    /// </summary>
+    Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }
