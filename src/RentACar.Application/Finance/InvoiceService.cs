@@ -2,6 +2,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Integrations;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -19,10 +20,12 @@ public sealed class InvoiceService(
     IBookingRepository bookingRepository,
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
     IEInvoiceService eInvoice,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IPeriodLockGuard periodLock)
 {
     private const decimal DefaultKdvRate = 0.20m;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default)
         => repository.ListAsync(ct);
@@ -73,6 +76,7 @@ public sealed class InvoiceService(
             Currency = "TRY",
             Kur = 1m
         };
+        await _lock.EnsureOpenAsync(invoice.Tarih, ct); // dönem kilidi: kapalı döneme fatura kesilemez
         invoice.Lines.Add(new InvoiceLine
         {
             InvoiceId = invoice.Id,

@@ -3,6 +3,7 @@ using System.Text;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
 using RentACar.Application.Integrations;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -16,7 +17,7 @@ public sealed record HgsReflectionResult(int GecisSayisi, decimal ToplamGecis, d
 /// oranıyla (örn. 1.03 = +%3) çarpıp cari'ye yansıtır (Borç Cari / Alacak Gelir, dengeli).
 /// Gerçek HGS API'si Faz 3'te stub'ın arkasına gelir; stub boş döner → no-op.
 /// </summary>
-public sealed class HgsReflectionService(IHgsService hgs, ILedgerPoster ledger)
+public sealed class HgsReflectionService(IHgsService hgs, ILedgerPoster ledger, IPeriodLockGuard periodLock)
 {
     public async Task<HgsReflectionResult> ReflectAsync(
         Guid cariId, string plaka, DateTimeOffset from, DateTimeOffset to,
@@ -31,6 +32,8 @@ public sealed class HgsReflectionService(IHgsService hgs, ILedgerPoster ledger)
 
         if (yansitilan <= 0)
             return new HgsReflectionResult(crossings.Count, toplam, 0m);
+
+        await periodLock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi: yansıtma bugün tarihli
 
         // İDEMPOTENT: SourceId aynı (cari, plaka, dönem) için DETERMİNİSTİK türetilir →
         // aynı yansıtmanın tekrarı (retry/çift-tık/batch yeniden-çalışma) defterde kısmi

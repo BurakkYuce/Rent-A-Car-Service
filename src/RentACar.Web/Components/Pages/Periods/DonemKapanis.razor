@@ -1,0 +1,36 @@
+@page "/donem-kapanis"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject DonemKilidiService Donem
+
+<PageTitle>Dönem Kapanışı — TürevRent</PageTitle>
+
+<h1>Dönem Kapanışı</h1>
+@if (Ok == "1")
+{
+    <p class="ok">Dönem kilidi güncellendi.</p>
+}
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<p>Mevcut kilit: <strong>@(_closing?.ToString("yyyy-MM-dd") ?? "yok (tüm dönemler açık)")</strong></p>
+<p class="muted small">Kapanış tarihi ve <strong>öncesine</strong> tahsilat/ödeme/virman/cari-virman/ters kayıt/
+    fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest.</p>
+
+<form method="post" action="/donem-kapanis/kilitle" class="grid-form">
+    <label>Kapanış Tarihi<input name="kapanisTarihi" type="date" required /></label>
+    <button type="submit">Dönemi Kapat</button>
+</form>
+
+<form method="post" action="/donem-kapanis/ac">
+    <button type="submit" class="btn-secondary">Kilidi Kaldır</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private DateTimeOffset? _closing;
+    protected override async Task OnInitializedAsync() => _closing = await Donem.GetClosingDateAsync();
+}

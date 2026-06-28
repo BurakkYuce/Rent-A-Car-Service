@@ -1,6 +1,7 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
+using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -12,10 +13,11 @@ namespace RentACar.Application.Expenses;
 ///   Borç Gider(net) + Borç KDV(indirilecek, kdv) / Alacak Kasa·Banka·Cari(gross).
 /// Nakit/Banka → Kasa/Banka azalır; AçıkHesap → tedarikçi cari'ye borçlanılır (Alacak).
 /// </summary>
-public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser)
+public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
 {
     private readonly IExpenseRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -27,6 +29,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var posting = BuildPosting(input, islemAnahtari: null);
+        await _lock.EnsureOpenAsync(posting.Expense.Tarih, ct); // dönem kilidi: kapalı tarihe gider YOK
         await _repository.PostAsync(posting.Expense, posting.Entries, ct);
         return posting.Expense.Id;
     }
@@ -41,9 +44,14 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         if (kalemler.Count == 0) throw new ValidationException("Toplu gider en az bir kalem içermelidir.");
         if (kalemler.Count > 500) throw new ValidationException("Toplu gider en çok 500 kalem olabilir.");
 
+        var closing = await _lock.GetClosingDateAsync(ct); // dönem kilidi: bir kez oku, kalem-bazlı karşılaştır
         var postings = new List<ExpensePosting>(kalemler.Count);
         for (var i = 0; i < kalemler.Count; i++)
-            postings.Add(BuildPosting(kalemler[i], batchAnahtari is { } b ? CashService.RowKey(b, i) : null));
+        {
+            var p = BuildPosting(kalemler[i], batchAnahtari is { } b ? CashService.RowKey(b, i) : null);
+            PeriodLock.ThrowIfClosed(p.Expense.Tarih, closing, $"Kalem {i + 1}");
+            postings.Add(p);
+        }
 
         await _repository.PostBatchAsync(postings, ct);
     }
