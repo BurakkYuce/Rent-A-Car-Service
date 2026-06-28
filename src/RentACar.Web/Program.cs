@@ -10,6 +10,7 @@ using RentACar.Web.Identity;
 using RentACar.Web.Bookings;
 using RentACar.Web.Branches;
 using RentACar.Web.CancelReasons;
+using RentACar.Web.ReservationSources;
 using RentACar.Web.Customers;
 using RentACar.Web.DamageFiles;
 using RentACar.Web.Expenses;
@@ -96,6 +97,7 @@ app.MapBranchEndpoints();
 app.MapRateCardEndpoints();
 app.MapLocationEndpoints();
 app.MapCancelReasonEndpoints();
+app.MapReservationSourceEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
