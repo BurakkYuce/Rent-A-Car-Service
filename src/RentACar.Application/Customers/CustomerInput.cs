@@ -28,6 +28,27 @@ public sealed class CustomerInput
     public bool Uyari { get; set; }
     public string? UyariNedeni { get; set; }
 
+    // CRM parite zenginleştirme (additive, opsiyonel)
+    public string? Sinif { get; set; }
+    public bool? MailIzin { get; set; }
+    public bool? SmsIzin { get; set; }
+    public bool? TelefonIzin { get; set; }
+    public DateTimeOffset? DogumTarihi { get; set; }
+    public string? BabaAdi { get; set; }
+    public string? AnaAdi { get; set; }
+    public string? PasaportNo { get; set; }
+    public string? FaturaDonemi { get; set; }
+    public decimal? TevkifatOrani { get; set; }
+    public string? Yetkili1Ad { get; set; }
+    public string? Yetkili1Tel { get; set; }
+    public string? Yetkili1Mail { get; set; }
+    public string? Yetkili2Ad { get; set; }
+    public string? Yetkili2Tel { get; set; }
+    public string? Yetkili2Mail { get; set; }
+    public string? Yetkili3Ad { get; set; }
+    public string? Yetkili3Tel { get; set; }
+    public string? Yetkili3Mail { get; set; }
+
     public string? EhliyetNo { get; set; }
     public string? EhliyetSinifi { get; set; }
     public DateTimeOffset? EhliyetTarihi { get; set; }

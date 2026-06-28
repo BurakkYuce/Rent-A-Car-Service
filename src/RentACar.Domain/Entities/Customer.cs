@@ -46,6 +46,35 @@ public class Customer : ITenantOwned, IAuditable
     public bool Uyari { get; set; }
     public string? UyariNedeni { get; set; }
 
+    // ---- CRM parite zenginleştirme (docs/parite/03; additive, NULLABLE) ----
+    /// <summary>Müşteri sınıfı/segment (canlı Mst_Sinif: Düşük/Orta/Yüksek/VIP/Personel/Problemli).</summary>
+    public string? Sinif { get; set; }
+    /// <summary>Kanal-bazlı izin: e-posta (İYS'den ayrı, kanal granülerliği).</summary>
+    public bool? MailIzin { get; set; }
+    /// <summary>Kanal-bazlı izin: SMS.</summary>
+    public bool? SmsIzin { get; set; }
+    /// <summary>Kanal-bazlı izin: telefon arama.</summary>
+    public bool? TelefonIzin { get; set; }
+    public DateTimeOffset? DogumTarihi { get; set; }
+    public string? BabaAdi { get; set; }
+    public string? AnaAdi { get; set; }
+    public string? PasaportNo { get; set; }
+    /// <summary>Fatura dönemi (ör. Aylık, 15 günlük, Peşin).</summary>
+    public string? FaturaDonemi { get; set; }
+    /// <summary>Tevkifat oranı (% — kurumsal stopaj).</summary>
+    public decimal? TevkifatOrani { get; set; }
+
+    // Kurumsal yetkili kişiler (×3)
+    public string? Yetkili1Ad { get; set; }
+    public string? Yetkili1Tel { get; set; }
+    public string? Yetkili1Mail { get; set; }
+    public string? Yetkili2Ad { get; set; }
+    public string? Yetkili2Tel { get; set; }
+    public string? Yetkili2Mail { get; set; }
+    public string? Yetkili3Ad { get; set; }
+    public string? Yetkili3Tel { get; set; }
+    public string? Yetkili3Mail { get; set; }
+
     // Ehliyet
     public string? EhliyetNo { get; set; }
     public string? EhliyetSinifi { get; set; }

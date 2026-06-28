@@ -545,6 +545,22 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.RiskLimiti).HasColumnType("numeric(19,4)");
             e.Property(x => x.RiskMesaji).HasMaxLength(256);
             e.Property(x => x.HgsYansitmaTuru).HasMaxLength(32);
+            // CRM parite zenginleştirme (additive)
+            e.Property(x => x.Sinif).HasMaxLength(32);
+            e.Property(x => x.BabaAdi).HasMaxLength(128);
+            e.Property(x => x.AnaAdi).HasMaxLength(128);
+            e.Property(x => x.PasaportNo).HasMaxLength(32);
+            e.Property(x => x.FaturaDonemi).HasMaxLength(32);
+            e.Property(x => x.TevkifatOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.Yetkili1Ad).HasMaxLength(128);
+            e.Property(x => x.Yetkili1Tel).HasMaxLength(32);
+            e.Property(x => x.Yetkili1Mail).HasMaxLength(256);
+            e.Property(x => x.Yetkili2Ad).HasMaxLength(128);
+            e.Property(x => x.Yetkili2Tel).HasMaxLength(32);
+            e.Property(x => x.Yetkili2Mail).HasMaxLength(256);
+            e.Property(x => x.Yetkili3Ad).HasMaxLength(128);
+            e.Property(x => x.Yetkili3Tel).HasMaxLength(32);
+            e.Property(x => x.Yetkili3Mail).HasMaxLength(256);
             e.Ignore(x => x.DisplayName);
             // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
             e.HasIndex(x => new { x.TenantId, x.TcKimlik })
