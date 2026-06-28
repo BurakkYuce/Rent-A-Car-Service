@@ -25,6 +25,7 @@ using RentACar.Application.Reporting;
 using RentACar.Application.ReservationSources;
 using RentACar.Application.CoverageProducts;
 using RentACar.Application.RateMatrices;
+using RentACar.Application.RentalRules;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Users;
 using RentACar.Application.VehicleGroups;
@@ -96,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
+        services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();
