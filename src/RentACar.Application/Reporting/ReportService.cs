@@ -102,6 +102,14 @@ public sealed class ReportService(IReportRepository repository)
             .ToList();
 
         return new KdvListesiDto(
+            satirlar,
+            satirlar.Sum(s => s.Net),
+            satirlar.Sum(s => s.Kdv),
+            satirlar.Sum(s => s.Brut),
+            rows.Select(r => r.InvoiceId).Distinct().Count());
+    }
+
+    /// <summary>
     /// Ek hizmet satış raporu: dönemde (kalem eklenme tarihi) İptal olmayan kiralara satılan ek
     /// hizmetlerin ADINA göre özeti (toplam miktar/net/KDV/brüt + kaç kirada) + genel toplamlar.
     /// </summary>
@@ -127,7 +135,6 @@ public sealed class ReportService(IReportRepository repository)
             satirlar.Sum(s => s.Net),
             satirlar.Sum(s => s.Kdv),
             satirlar.Sum(s => s.Brut),
-            rows.Select(r => r.InvoiceId).Distinct().Count());
             rows.Select(r => r.RentalId).Distinct().Count());
     }
 

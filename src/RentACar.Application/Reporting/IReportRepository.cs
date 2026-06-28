@@ -51,10 +51,15 @@ public interface IReportRepository
     /// </summary>
     Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+
+    /// <summary>
     /// İptal olmayan faturaların satırları (Invoice.Tarih aralığında), base para (× Kur) tutarlarıyla.
     /// KDV oranı bazlı dönem kırılımı (KDV listesi raporu) için ham satırlar.
     /// </summary>
     Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
     /// İptal olmayan kiraların ek hizmet kalemleri (RentalAddOn.CreatedAtUtc aralığında), base para.
     /// Ek hizmet satış raporu (Extralar_Raporu) için ham satırlar.
     /// </summary>
