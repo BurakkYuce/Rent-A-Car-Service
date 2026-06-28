@@ -11,6 +11,7 @@ using RentACar.Application.DamageFiles;
 using RentACar.Application.Details;
 using RentACar.Application.EkHizmetler;
 using RentACar.Application.Expenses;
+using RentACar.Application.KdvRates;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
 using RentACar.Application.Locations;
@@ -58,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.CustomCodes.CustomCodeService>();
         services.AddScoped<BrandService>();
         services.AddScoped<CurrencyService>();
+        services.AddScoped<KdvRateService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
