@@ -46,6 +46,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
     public DbSet<InsuranceCompany> InsuranceCompanies => Set<InsuranceCompany>();
     public DbSet<Bank> Banks => Set<Bank>();
+    public DbSet<Department> Departments => Set<Department>();
     public DbSet<CancelReason> CancelReasons => Set<CancelReason>();
     public DbSet<ReservationSource> ReservationSources => Set<ReservationSource>();
     public DbSet<VehicleSegment> VehicleSegments => Set<VehicleSegment>();
@@ -263,6 +264,10 @@ public sealed class AppDbContext : DbContext
         b.Entity<Bank>(e =>
         {
             e.ToTable("Bankalar");
+        // ---- Department / Departman (tenant-owned; master sözlük) ----
+        b.Entity<Department>(e =>
+        {
+            e.ToTable("Departmanlar");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
