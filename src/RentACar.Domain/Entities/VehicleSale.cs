@@ -32,5 +32,11 @@ public class VehicleSale : ITenantOwned, IAuditable
     public string? Aciklama { get; set; }
     public SatisDurum Durum { get; set; } = SatisDurum.Tamamlandi;
 
+    // roadmap G2 (additive — bilgilendirme; deftere yansımaz)
+    public decimal? HedefFiyat { get; set; }
+    public int? SatisKm { get; set; }
+    public string? SatisKanali { get; set; }
+    public string? Devir { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

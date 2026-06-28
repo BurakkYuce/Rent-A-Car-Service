@@ -22,6 +22,7 @@ public class Invoice : ITenantOwned, IAuditable
     public Guid? RentalId { get; set; }
 
     public DateTimeOffset Tarih { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? VadeTarihi { get; set; } // roadmap G2
 
     public decimal NetTutar { get; set; }
     public decimal KdvTutar { get; set; }
