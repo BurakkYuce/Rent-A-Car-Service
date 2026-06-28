@@ -137,6 +137,53 @@ public sealed class InvoiceService(
         inv.ManuelMi = v.ManuelMi;
     }
 
+    /// <summary>
+    /// Manuel/serbest fatura (kiradan bağımsız, roadmap G2). DENGELİ defter: Borç Cari / Alacak Gelir + KDV
+    /// (kira faturasıyla aynı yön/semantik). Dönem-kilidi guard + opsiyonel idempotency (IslemAnahtari →
+    /// çift-submit aynı faturayı döner). NOT: iade faturası (ledger ters) gelir/KDV rapor netleştirmesi
+    /// gerektirdiğinden ayrı dikkatli artışa ertelendi (B2'deki dokümante limitle aynı kapsam).
+    /// </summary>
+    public async Task<Guid> CreateManualAsync(ManualInvoiceInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (input.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
+        if (input.NetTutar <= 0) throw new ValidationException("Net tutar pozitif olmalıdır.");
+        if (input.KdvOrani is < 0m or > 1m) throw new ValidationException("KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // adversarial Low: %500 footgun
+
+        // İdempotency: anahtar verilmiş + zaten kesilmişse aynı faturayı döndür (çift-submit güvenli).
+        if (input.IslemAnahtari is { } key && key != Guid.Empty && await repository.FindAsync(key, ct) is not null)
+            return key;
+
+        var (kdv, gross) = KdvMath.FromNet(input.NetTutar, input.KdvOrani);
+        var net = KdvMath.RoundGross(input.NetTutar);
+        var invoice = new Invoice
+        {
+            Id = input.IslemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid(),
+            Durum = InvoiceStatus.Kesildi,
+            CariId = input.CariId,
+            RentalId = null,
+            Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
+            VadeTarihi = input.VadeTarihi,
+            NetTutar = net,
+            KdvTutar = kdv,
+            GenelToplam = net + kdv,
+            Currency = "TRY",
+            Kur = 1m,
+            ManuelMi = true
+        };
+        await _lock.EnsureOpenAsync(invoice.Tarih, ct); // dönem kilidi: kapalı döneme manuel fatura YOK
+        invoice.Lines.Add(new InvoiceLine
+        {
+            InvoiceId = invoice.Id,
+            Aciklama = input.Aciklama ?? "Manuel fatura",
+            Miktar = 1m, BirimNetFiyat = net, KdvOrani = input.KdvOrani,
+            SatirNet = net, SatirKdv = kdv, SatirToplam = net + kdv
+        });
+
+        await repository.PostAsync(invoice, BuildEntries(invoice), ct);
+        return invoice.Id;
+    }
+
     /// <summary>Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv). DENGELİ.</summary>
     private static List<AccountLedgerEntry> BuildEntries(Invoice inv)
     {
