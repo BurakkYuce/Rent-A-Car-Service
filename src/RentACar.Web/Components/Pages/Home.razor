@@ -5,6 +5,7 @@
 @inject RentalService Rentals
 @inject ReservationService Reservations
 @inject VadeService Vade
+@inject DashboardService Dashboard
 
 <PageTitle>Panel — TürevRent</PageTitle>
 
@@ -37,6 +38,28 @@
     </div>
 </div>
 
+@* Finans özeti (roadmap D3) — yalnız mali yetkili roller (kasa/banka/açık bakiye hassas). *@
+<AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
+    <div class="cards">
+        <div class="card">
+            <div class="card-num">@_dash.KasaBakiye.ToString("N2")</div>
+            <div class="card-label">Kasa Bakiye</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_dash.BankaBakiye.ToString("N2")</div>
+            <div class="card-label">Banka Bakiye</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_dash.AcikBakiye.ToString("N2")</div>
+            <div class="card-label">Açık Bakiye (fatura−tahsilat)</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_dash.BugunTahsilatTutar.ToString("N2")</div>
+            <div class="card-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet adet)</div>
+        </div>
+    </div>
+</AuthorizeView>
+
 @if (_gecmis + _yakin > 0)
 {
     <div class="vade-alert">
@@ -63,9 +86,11 @@
     private int _bugunDonus;
     private int _gecmis;
     private int _yakin;
+    private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
 
     protected override async Task OnInitializedAsync()
     {
+        _dash = await Dashboard.GetAsync(DateTimeOffset.UtcNow);
         var list = await Vehicles.ListAsync();
         _counts = (
             list.Count,
