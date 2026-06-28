@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<RateMatrixService>();
         services.AddScoped<CoverageProductService>();
         services.AddScoped<RentalRuleService>();
+        services.AddScoped<TenantSettings.TenantSettingsService>();
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();

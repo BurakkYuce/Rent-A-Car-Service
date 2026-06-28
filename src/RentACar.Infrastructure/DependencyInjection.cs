@@ -1,3 +1,5 @@
+using System.IO;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +55,17 @@ public static class DependencyInjection
         services.AddScoped<TenantConnectionInterceptor>();
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
+        // Şifreleme (roadmap D1): hassas tenant kimliklerini at-rest şifrele. Key-ring KALICI
+        // (PersistKeysToFileSystem + SetApplicationName) → restart/redeploy sonrası aynı anahtarla çözülür.
+        var keysDir = Environment.GetEnvironmentVariable("RACAR_DP_KEYS")
+            ?? Path.Combine(AppContext.BaseDirectory, "dp-keys");
+        Directory.CreateDirectory(keysDir);
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(keysDir))
+            .SetApplicationName("RentACar");
+        services.AddSingleton<RentACar.Application.Common.ISecretProtector,
+            RentACar.Infrastructure.Security.DataProtectionSecretProtector>();
+
         // DbContextOptions scope başına kurulur; interceptor'lar oradan eklenir.
         services.AddScoped(sp =>
         {
@@ -98,6 +111,8 @@ public static class DependencyInjection
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
+        services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsRepository,
+            Persistence.Repositories.TenantSettingsRepository>();
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();

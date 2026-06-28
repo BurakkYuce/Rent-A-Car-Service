@@ -1,0 +1,47 @@
+@page "/ayarlar"
+@attribute [Authorize(Roles = "Admin,Yonetici")]
+@inject TenantSettingsService Settings
+
+<PageTitle>Ayarlar — TürevRent</PageTitle>
+
+<h1>Ayarlar</h1>
+@if (Ok == "1")
+{
+    <p class="ok">Ayarlar kaydedildi.</p>
+}
+
+<form method="post" action="/ayarlar/kaydet" class="grid-form">
+    <fieldset>
+        <legend>Firma</legend>
+        <label>Ünvan<input name="firmaUnvan" value="@_m.FirmaUnvan" /></label>
+        <label>Vergi Dairesi<input name="firmaVergiDairesi" value="@_m.FirmaVergiDairesi" /></label>
+        <label>Vergi No<input name="firmaVergiNo" value="@_m.FirmaVergiNo" /></label>
+        <label>Adres<input name="firmaAdres" value="@_m.FirmaAdres" /></label>
+        <label>Telefon<input name="firmaTel" value="@_m.FirmaTel" /></label>
+        <label>E-posta<input name="firmaEmail" type="email" value="@_m.FirmaEmail" /></label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Entegrasyon kimlikleri</legend>
+        <p class="muted small">🔒 Sır alanları (şifre/anahtar) <strong>şifreli</strong> saklanır. Değiştirmek için
+            doldurun; <strong>boş bırakırsanız mevcut değer korunur</strong>.</p>
+        <label>e-Fatura Kullanıcı<input name="eFaturaKullanici" value="@_m.EFaturaKullanici" /></label>
+        <label>e-Fatura Şifre<input name="eFaturaSifre" type="password" placeholder="@Placeholder(_m.EFaturaSifre)" /></label>
+        <label>SMS Başlık<input name="smsBaslik" value="@_m.SmsBaslik" /></label>
+        <label>SMS API Key<input name="smsApiKey" type="password" placeholder="@Placeholder(_m.SmsApiKey)" /></label>
+        <label>POS Merchant ID<input name="posMerchantId" value="@_m.PosMerchantId" /></label>
+        <label>POS API Key<input name="posApiKey" type="password" placeholder="@Placeholder(_m.PosApiKey)" /></label>
+    </fieldset>
+
+    <button type="submit">Kaydet</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
+    private TenantSettingsModel _m = new();
+
+    private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
+
+    protected override async Task OnInitializedAsync() => _m = await Settings.GetAsync();
+}
