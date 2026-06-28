@@ -87,6 +87,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
+    public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -222,6 +223,29 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- TenantSettings / Ayarlar (tenant-owned; tenant başına TEK satır, roadmap D1) ----
+        // Sır alanları (*Enc) ŞİFRELİ cipher saklar (servis ISecretProtector ile); kolon düz metin değildir.
+        b.Entity<TenantSettings>(e =>
+        {
+            e.ToTable("Ayarlar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.FirmaUnvan).HasMaxLength(256);
+            e.Property(x => x.FirmaVergiDairesi).HasMaxLength(128);
+            e.Property(x => x.FirmaVergiNo).HasMaxLength(32);
+            e.Property(x => x.FirmaAdres).HasMaxLength(512);
+            e.Property(x => x.FirmaTel).HasMaxLength(64);
+            e.Property(x => x.FirmaEmail).HasMaxLength(128);
+            e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
+            e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
+            e.Property(x => x.SmsBaslik).HasMaxLength(64);
+            e.Property(x => x.SmsApiKeyEnc).HasMaxLength(1024);
+            e.Property(x => x.PosMerchantId).HasMaxLength(128);
+            e.Property(x => x.PosApiKeyEnc).HasMaxLength(1024);
+            e.HasIndex(x => x.TenantId).IsUnique(); // tenant başına tek satır
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
