@@ -84,6 +84,26 @@ else
                 }
             </select>
         </label>
+        <label>Araç Sahibi<input name="aracSahibi" value="@_vehicle.AracSahibi" /></label>
+        <label>Motor Gücü (HP)<input name="motorGucu" type="number" min="0" value="@_vehicle.MotorGucu" /></label>
+        <label>Silindir Hacmi (cc)<input name="silindirHacmi" type="number" min="0" value="@_vehicle.SilindirHacmi" /></label>
+        <label>Ruhsat No<input name="ruhsatNo" value="@_vehicle.RuhsatNo" /></label>
+        <label>Tescil Tarihi<input name="tescilTarihi" type="date" value="@(_vehicle.TescilTarihi?.ToString("yyyy-MM-dd"))" /></label>
+        <label>Alım Bedeli<input name="alimBedeli" type="number" step="0.01" min="0" value="@_vehicle.AlimBedeli" /></label>
+        <label>Alım Tarihi<input name="alimTarihi" type="date" value="@(_vehicle.AlimTarihi?.ToString("yyyy-MM-dd"))" /></label>
+        <label>Alış Vergisiz<input name="alisVergisiz" type="number" step="0.01" min="0" value="@_vehicle.AlisVergisiz" /></label>
+        <label>Alış ÖTV<input name="alisOtv" type="number" step="0.01" min="0" value="@_vehicle.AlisOtv" /></label>
+        <label>Alış KDV<input name="alisKdv" type="number" step="0.01" min="0" value="@_vehicle.AlisKdv" /></label>
+        <label>Aylık Maliyet<input name="aylikMaliyet" type="number" step="0.01" min="0" value="@_vehicle.AylikMaliyet" /></label>
+        <label>Filo Yön. Maliyeti<input name="filoYonetimMaliyeti" type="number" step="0.01" min="0" value="@_vehicle.FiloYonetimMaliyeti" /></label>
+        <label>2.El Değer<input name="ikinciElDeger" type="number" step="0.01" min="0" value="@_vehicle.IkinciElDeger" /></label>
+        <label>Filo Giriş<input name="filoGirisTarih" type="date" value="@(_vehicle.FiloGirisTarih?.ToString("yyyy-MM-dd"))" /></label>
+        <label>Filo Çıkış<input name="filoCikisTarih" type="date" value="@(_vehicle.FiloCikisTarih?.ToString("yyyy-MM-dd"))" /></label>
+        <label>Özel Kod 1<input name="ozelKod1" value="@_vehicle.OzelKod1" /></label>
+        <label>Özel Kod 2<input name="ozelKod2" value="@_vehicle.OzelKod2" /></label>
+        <label>Özel Kod 3<input name="ozelKod3" value="@_vehicle.OzelKod3" /></label>
+        <label>Özel Kod 4<input name="ozelKod4" value="@_vehicle.OzelKod4" /></label>
+        <label>Özel Kod 5<input name="ozelKod5" value="@_vehicle.OzelKod5" /></label>
         <button type="submit">Güncelle</button>
         <a href="/vehicles" class="link">İptal</a>
     </form>

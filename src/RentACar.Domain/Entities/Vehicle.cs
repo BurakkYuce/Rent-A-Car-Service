@@ -56,6 +56,45 @@ public class Vehicle : ITenantOwned, IAuditable
 
     public FuelType Yakit { get; set; } = FuelType.Benzin;
 
+    // ---- Parite zenginleştirme (docs/parite/01; additive, NULLABLE) ----
+    /// <summary>Motor gücü (HP).</summary>
+    public int? MotorGucu { get; set; }
+    /// <summary>Silindir hacmi (cc).</summary>
+    public int? SilindirHacmi { get; set; }
+    /// <summary>Ruhsat belge no.</summary>
+    public string? RuhsatNo { get; set; }
+    /// <summary>Tescil tarihi.</summary>
+    public DateTimeOffset? TescilTarihi { get; set; }
+    /// <summary>Araç sahibi (VehicleOwner master'ından serbest metin besleme; FK YOK).</summary>
+    public string? AracSahibi { get; set; }
+
+    // Alış / maliyet
+    public decimal? AlimBedeli { get; set; }
+    public DateTimeOffset? AlimTarihi { get; set; }
+    /// <summary>Alış fatura vergisiz tutar.</summary>
+    public decimal? AlisVergisiz { get; set; }
+    /// <summary>Alış ÖTV.</summary>
+    public decimal? AlisOtv { get; set; }
+    /// <summary>Alış KDV.</summary>
+    public decimal? AlisKdv { get; set; }
+    /// <summary>Aylık maliyet.</summary>
+    public decimal? AylikMaliyet { get; set; }
+    /// <summary>Filo yönetim maliyeti.</summary>
+    public decimal? FiloYonetimMaliyeti { get; set; }
+    /// <summary>2.el / güncel değer.</summary>
+    public decimal? IkinciElDeger { get; set; }
+
+    // Filo yaşam döngüsü tarihleri
+    public DateTimeOffset? FiloGirisTarih { get; set; }
+    public DateTimeOffset? FiloCikisTarih { get; set; }
+
+    // Kullanıcı tanımlı özel kodlar (5 adet)
+    public string? OzelKod1 { get; set; }
+    public string? OzelKod2 { get; set; }
+    public string? OzelKod3 { get; set; }
+    public string? OzelKod4 { get; set; }
+    public string? OzelKod5 { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? UpdatedAtUtc { get; set; }
