@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<CoverageProductService>();
         services.AddScoped<RentalRuleService>();
         services.AddScoped<TenantSettings.TenantSettingsService>();
+        services.AddScoped<Personnel.PersonelService>();
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
