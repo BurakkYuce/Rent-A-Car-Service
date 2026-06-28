@@ -1,0 +1,44 @@
+@page "/ara"
+@attribute [Authorize]
+@inject SearchService Search
+
+<PageTitle>Arama — TürevRent</PageTitle>
+
+<h1>Genel Arama</h1>
+<form method="get" class="grid-form">
+    <label>Ara<input name="q" value="@Q" placeholder="plaka, cari, kira/rez/fatura no..." /></label>
+    <button type="submit">Ara</button>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Q))
+{
+    @if (_hits.Count == 0)
+    {
+        <p class="muted">"@Q" için sonuç yok.</p>
+    }
+    else
+    {
+        @foreach (var grup in _hits.GroupBy(h => h.Tur))
+        {
+            <h2>@grup.Key (@grup.Count())</h2>
+            <ul>
+                @foreach (var h in grup)
+                {
+                    <li>
+                        <a href="@h.Url">@h.Baslik</a>
+                        @if (!string.IsNullOrWhiteSpace(h.Alt))
+                        {
+                            <span class="muted">— @h.Alt</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    private IReadOnlyList<SearchHit> _hits = [];
+    protected override async Task OnInitializedAsync() => _hits = await Search.SearchAsync(Q);
+}

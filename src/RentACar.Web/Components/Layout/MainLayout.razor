@@ -7,6 +7,7 @@
             <Authorized>
                 <nav class="nav">
                     <a href="/">Panel</a>
+                    <a href="/ara">🔍 Ara</a>
                     @* Operasyon (OperationsWrite: Admin/Yönetici/Operatör) *@
                     <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
                         <a href="/vehicles">Araçlar</a>
