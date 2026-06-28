@@ -35,6 +35,12 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
         await using var db = await _factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+        // Lost-update koruması (CRITICAL): RecomputeAsync mutlak SUM okuyup GenelToplam'ı yazar.
+        // SUM'dan ÖNCE parent kira satırını kilitle → eşzamanlı ek hizmet ekleme/silme serileşir,
+        // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
+
         var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId, ct))
@@ -54,6 +60,10 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
 
         var addOn = await db.RentalAddOns.FirstOrDefaultAsync(a => a.Id == addOnId, ct);
         if (addOn is null) return false;
+
+        // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
 
         var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct);
         if (rental is not null && await db.Invoices.AnyAsync(i => i.RentalId == rental.Id, ct))
