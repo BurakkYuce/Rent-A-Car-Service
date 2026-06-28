@@ -43,6 +43,66 @@ public sealed class VehicleEnrichmentTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Parite_fields_roundtrip()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
+
+        // Canlı arac_kayit parite alanları (docs/parite/01). Beklenenler senaryodan.
+        var tescil = new DateTimeOffset(2021, 3, 15, 0, 0, 0, TimeSpan.Zero);
+        var alim = new DateTimeOffset(2021, 2, 1, 0, 0, 0, TimeSpan.Zero);
+        var giris = new DateTimeOffset(2021, 2, 5, 0, 0, 0, TimeSpan.Zero);
+        var id = await svc.CreateAsync(new VehicleInput
+        {
+            Plaka = "34 PAR 01", AracSahibi = "Yüce Filo A.Ş.",
+            MotorGucu = 150, SilindirHacmi = 1598, RuhsatNo = "RZ-7788", TescilTarihi = tescil,
+            AlimBedeli = 850000.00m, AlimTarihi = alim,
+            AlisVergisiz = 600000.00m, AlisOtv = 150000.00m, AlisKdv = 100000.00m,
+            AylikMaliyet = 12500.50m, FiloYonetimMaliyeti = 800.25m, IkinciElDeger = 700000.00m,
+            FiloGirisTarih = giris,
+            OzelKod1 = "A1", OzelKod2 = "B2", OzelKod3 = "C3", OzelKod4 = "D4", OzelKod5 = "E5"
+        });
+
+        var v = await svc.GetAsync(id);
+        Assert.NotNull(v);
+        Assert.Equal("Yüce Filo A.Ş.", v!.AracSahibi);
+        Assert.Equal(150, v.MotorGucu);
+        Assert.Equal(1598, v.SilindirHacmi);
+        Assert.Equal("RZ-7788", v.RuhsatNo);
+        Assert.Equal(tescil, v.TescilTarihi);
+        Assert.Equal(850000.00m, v.AlimBedeli);
+        Assert.Equal(alim, v.AlimTarihi);
+        Assert.Equal(600000.00m, v.AlisVergisiz);
+        Assert.Equal(150000.00m, v.AlisOtv);
+        Assert.Equal(100000.00m, v.AlisKdv);
+        Assert.Equal(12500.50m, v.AylikMaliyet);
+        Assert.Equal(800.25m, v.FiloYonetimMaliyeti);
+        Assert.Equal(700000.00m, v.IkinciElDeger);
+        Assert.Equal(giris, v.FiloGirisTarih);
+        Assert.Null(v.FiloCikisTarih);
+        Assert.Equal("A1", v.OzelKod1);
+        Assert.Equal("E5", v.OzelKod5);
+    }
+
+    [Fact]
+    public async Task Parite_fields_default_null()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
+
+        var id = await svc.CreateAsync(new VehicleInput { Plaka = "06 PNL 02" });
+        var v = await svc.GetAsync(id);
+        Assert.Null(v!.AracSahibi);
+        Assert.Null(v.MotorGucu);
+        Assert.Null(v.AlimBedeli);
+        Assert.Null(v.AlisOtv);
+        Assert.Null(v.OzelKod1);
+        Assert.Null(v.TescilTarihi);
+    }
+
+    [Fact]
     public async Task Optional_fields_default_null()
     {
         using var host = new TestHost(fx.AppConnectionString);
