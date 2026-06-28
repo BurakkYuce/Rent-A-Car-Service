@@ -18,7 +18,7 @@
     <p class="error">@Hata</p>
 }
 
-<form method="post" action="/finans/toplu-tahsilat" class="grid-form">
+<form method="post" action="/finans/toplu-tahsilat" class="grid-form"><AntiforgeryToken />
     <input type="hidden" name="islemAnahtari" value="@_token" />
     <label>Hesap
         <select name="hesap"><option value="Kasa">Kasa</option><option value="Banka">Banka</option></select>

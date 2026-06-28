@@ -11,7 +11,7 @@ public static class DepartmentEndpoints
 {
     public static IEndpointRouteBuilder MapDepartmentEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/departmanlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/departmanlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (DepartmentService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new DepartmentInput { Kod = kod, Ad = ad, Aktif = true })));

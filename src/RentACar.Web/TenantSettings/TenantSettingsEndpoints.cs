@@ -10,7 +10,7 @@ public static class TenantSettingsEndpoints
 {
     public static IEndpointRouteBuilder MapTenantSettingsEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/ayarlar").RequirePermission(Permission.ManageUsers).DisableAntiforgery();
+        var grp = app.MapGroup("/ayarlar").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
         grp.MapPost("/kaydet", async (HttpRequest req, TenantSettingsService svc) =>
         {

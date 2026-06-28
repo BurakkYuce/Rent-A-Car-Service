@@ -17,7 +17,7 @@
     <p class="error">@Hata</p>
 }
 
-<form method="post" action="/finans/cari-virman" class="grid-form">
+<form method="post" action="/finans/cari-virman" class="grid-form"><AntiforgeryToken />
     <input type="hidden" name="islemAnahtari" value="@_token" />
     <label>Kaynak Cari (alacak)
         <select name="kaynakCariId" required>

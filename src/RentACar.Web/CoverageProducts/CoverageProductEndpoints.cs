@@ -13,7 +13,7 @@ public static class CoverageProductEndpoints
 {
     public static IEndpointRouteBuilder MapCoverageProductEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/sigorta-urunleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/sigorta-urunleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CoverageProductService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));

@@ -18,7 +18,7 @@ else
         <p class="error">@Hata</p>
     }
 
-    <form method="post" action="/cariler/update" class="grid-form">
+    <form method="post" action="/cariler/update" class="grid-form"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_c.Id" />
         <label>Tür
             <select name="tip">

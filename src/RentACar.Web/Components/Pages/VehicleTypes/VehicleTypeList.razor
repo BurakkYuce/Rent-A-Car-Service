@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Araç Tipi</summary>
-    <form method="post" action="/arac-tipleri/create" class="grid-form">
+    <form method="post" action="/arac-tipleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="EGEA" /></label>
         <label>Ad<input name="ad" required placeholder="Fiat Egea" /></label>
         <label>Marka<input name="marka" placeholder="(opsiyonel)" /></label>
@@ -40,7 +40,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/arac-tipleri/update" class="grid-form">
+                        <form method="post" action="/arac-tipleri/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@t.Id" />
                             <label>Kod<input name="kod" value="@t.Kod" required /></label>
                             <label>Ad<input name="ad" value="@t.Ad" required /></label>
@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/arac-tipleri/delete" onsubmit="return confirm('Araç tipi silinsin mi?')">
+                    <form method="post" action="/arac-tipleri/delete" onsubmit="return confirm('Araç tipi silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

@@ -11,7 +11,7 @@ public static class AccessoryEndpoints
 {
     public static IEndpointRouteBuilder MapAccessoryEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/aksesuarlar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/aksesuarlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (AccessoryService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama) =>

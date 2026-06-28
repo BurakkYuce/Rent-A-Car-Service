@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Ek Hizmet</summary>
-    <form method="post" action="/ek-hizmetler/create" class="grid-form">
+    <form method="post" action="/ek-hizmetler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="GPS" /></label>
         <label>Ad<input name="ad" required placeholder="Navigasyon" /></label>
         <label>Birim Ücret (NET)<input name="birimUcret" type="number" step="0.01" min="0" value="0" /></label>
@@ -43,7 +43,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/ek-hizmetler/update" class="grid-form">
+                        <form method="post" action="/ek-hizmetler/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@e.Id" />
                             <label>Kod<input name="kod" value="@e.Kod" required /></label>
                             <label>Ad<input name="ad" value="@e.Ad" required /></label>
@@ -58,7 +58,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/ek-hizmetler/delete" onsubmit="return confirm('Ek hizmet silinsin mi?')">
+                    <form method="post" action="/ek-hizmetler/delete" onsubmit="return confirm('Ek hizmet silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@e.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

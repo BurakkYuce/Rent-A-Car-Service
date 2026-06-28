@@ -13,7 +13,7 @@ public static class PenaltyTypeEndpoints
 {
     public static IEndpointRouteBuilder MapPenaltyTypeEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/ceza-turleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/ceza-turleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (PenaltyTypeService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? varsayilanTutar) =>

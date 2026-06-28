@@ -32,7 +32,7 @@
 </table>
 
 <h2>@(_edit is null ? "Yeni Şikayet" : "Düzenle")</h2>
-<form method="post" action="@(_edit is null ? "/sikayetler/create" : "/sikayetler/update")" class="grid-form">
+<form method="post" action="@(_edit is null ? "/sikayetler/create" : "/sikayetler/update")" class="grid-form"><AntiforgeryToken />
     @if (_edit is not null)
     {
         <input type="hidden" name="id" value="@_edit.Id" />
@@ -58,7 +58,7 @@
 
 @if (_edit is not null)
 {
-    <form method="post" action="/sikayetler/delete" onsubmit="return confirm('Silinsin mi?');">
+    <form method="post" action="/sikayetler/delete" onsubmit="return confirm('Silinsin mi?');"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_edit.Id" /><button type="submit" class="btn-danger">Sil</button>
     </form>
 }

@@ -11,7 +11,7 @@ public static class CurrencyEndpoints
 {
     public static IEndpointRouteBuilder MapCurrencyEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/dovizler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/dovizler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CurrencyService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? sembol) =>

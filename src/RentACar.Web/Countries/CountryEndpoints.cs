@@ -11,7 +11,7 @@ public static class CountryEndpoints
 {
     public static IEndpointRouteBuilder MapCountryEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/ulkeler").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/ulkeler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CountryService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new CountryInput { Kod = kod, Ad = ad, Aktif = true })));

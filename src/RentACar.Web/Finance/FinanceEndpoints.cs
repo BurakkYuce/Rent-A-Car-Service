@@ -17,7 +17,7 @@ public static class FinanceEndpoints
 
     public static IEndpointRouteBuilder MapFinanceEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         grp.MapPost("/tahsilat", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,

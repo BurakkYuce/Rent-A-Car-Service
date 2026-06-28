@@ -35,7 +35,7 @@
 </table>
 
 <h2>@(_edit is null ? "Yeni Personel" : $"Düzenle: {_edit.Kod}")</h2>
-<form method="post" action="@(_edit is null ? "/personel/create" : "/personel/update")" class="grid-form">
+<form method="post" action="@(_edit is null ? "/personel/create" : "/personel/update")" class="grid-form"><AntiforgeryToken />
     @if (_edit is not null)
     {
         <input type="hidden" name="id" value="@_edit.Id" />
@@ -59,7 +59,7 @@
 
 @if (_edit is not null)
 {
-    <form method="post" action="/personel/delete" onsubmit="return confirm('Personel silinsin mi?');">
+    <form method="post" action="/personel/delete" onsubmit="return confirm('Personel silinsin mi?');"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_edit.Id" />
         <button type="submit" class="btn-danger">Sil</button>
     </form>

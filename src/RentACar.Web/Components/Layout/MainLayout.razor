@@ -92,7 +92,7 @@
                     @context.User.Identity?.Name
                     <span class="muted">@context.User.FindFirst("tenant_code")?.Value</span>
                 </span>
-                <form method="post" action="/auth/logout" class="logout-form">
+                <form method="post" action="/auth/logout" class="logout-form"><AntiforgeryToken />
                     <button type="submit" class="link">Çıkış</button>
                 </form>
             </Authorized>

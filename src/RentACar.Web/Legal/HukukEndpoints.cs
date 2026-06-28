@@ -13,7 +13,7 @@ public static class HukukEndpoints
 {
     public static IEndpointRouteBuilder MapHukukEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/hukuk").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/hukuk").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (HukukDosyaService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));

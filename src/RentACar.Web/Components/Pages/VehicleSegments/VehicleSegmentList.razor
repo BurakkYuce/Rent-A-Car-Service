@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Segment</summary>
-    <form method="post" action="/segmentler/create" class="grid-form">
+    <form method="post" action="/segmentler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="EKO" /></label>
         <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
         <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
@@ -40,7 +40,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/segmentler/update" class="grid-form">
+                        <form method="post" action="/segmentler/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <label>Kod<input name="kod" value="@s.Kod" required /></label>
                             <label>Ad<input name="ad" value="@s.Ad" required /></label>
@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/segmentler/delete" onsubmit="return confirm('Segment silinsin mi?')">
+                    <form method="post" action="/segmentler/delete" onsubmit="return confirm('Segment silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

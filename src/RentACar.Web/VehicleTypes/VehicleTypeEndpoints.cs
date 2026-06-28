@@ -11,7 +11,7 @@ public static class VehicleTypeEndpoints
 {
     public static IEndpointRouteBuilder MapVehicleTypeEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/arac-tipleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/arac-tipleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleTypeService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka) =>

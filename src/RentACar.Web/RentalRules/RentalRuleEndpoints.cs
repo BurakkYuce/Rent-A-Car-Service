@@ -12,7 +12,7 @@ public static class RentalRuleEndpoints
 {
     public static IEndpointRouteBuilder MapRentalRuleEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/kira-kurallari").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/kira-kurallari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (RentalRuleService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));

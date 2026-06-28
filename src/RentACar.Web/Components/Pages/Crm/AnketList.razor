@@ -25,7 +25,7 @@
                 <td>@a.Yorum</td>
                 <td>@a.Kaynak</td>
                 <td>
-                    <form method="post" action="/anketler/delete" onsubmit="return confirm('Silinsin mi?');">
+                    <form method="post" action="/anketler/delete" onsubmit="return confirm('Silinsin mi?');"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" /><button type="submit" class="btn-danger">Sil</button>
                     </form>
                 </td>
@@ -35,7 +35,7 @@
 </table>
 
 <h2>Yeni Anket</h2>
-<form method="post" action="/anketler/create" class="grid-form">
+<form method="post" action="/anketler/create" class="grid-form"><AntiforgeryToken />
     <label>Puan (0-10)<input name="puan" type="number" min="0" max="10" required /></label>
     <label>Yorum<input name="yorum" /></label>
     <label>Kaynak<input name="kaynak" placeholder="Telefon/Web/..." /></label>

@@ -34,7 +34,7 @@ else
     @if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is null)
     {
         <h2>Teslim (Çıkış)</h2>
-        <form method="post" action="/kiralar/teslim" class="grid-form">
+        <form method="post" action="/kiralar/teslim" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="id" value="@_c.Id" />
             <label>Çıkış KM<input name="cikisKm" type="number" value="0" required /></label>
             <label>Çıkış Yakıt (0–12)<input name="cikisYakit" type="number" value="8" required /></label>
@@ -45,7 +45,7 @@ else
     @if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is not null)
     {
         <h2>Dönüş</h2>
-        <form method="post" action="/kiralar/donus" class="grid-form">
+        <form method="post" action="/kiralar/donus" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="id" value="@_c.Id" />
             <label>Dönüş KM<input name="donusKm" type="number" value="@_c.CikisKm" required /></label>
             <label>Dönüş Yakıt (0–12)<input name="donusYakit" type="number" value="@_c.CikisYakit" required /></label>
@@ -73,7 +73,7 @@ else
                     <td class="num">@a.KdvTutar.ToString("N2")</td>
                     <td class="num">@a.Toplam.ToString("N2")</td>
                     <td>
-                        <form method="post" action="/kiralar/ekhizmet-sil" onsubmit="return confirm('Ek hizmet silinsin mi?')">
+                        <form method="post" action="/kiralar/ekhizmet-sil" onsubmit="return confirm('Ek hizmet silinsin mi?')"><AntiforgeryToken />
                             <input type="hidden" name="addOnId" value="@a.Id" />
                             <input type="hidden" name="rentalId" value="@_c.Id" />
                             <button type="submit" class="link danger">Sil</button>
@@ -85,7 +85,7 @@ else
     </table>
     @if (_c.Durum != RentalStatus.Iptal)
     {
-        <form method="post" action="/kiralar/ekhizmet-ekle" class="grid-form">
+        <form method="post" action="/kiralar/ekhizmet-ekle" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="rentalId" value="@_c.Id" />
             <label>Hizmet
                 <select name="ekHizmetTanimId" required>
@@ -104,7 +104,7 @@ else
     @if (_c.Bakiye > 0 && _c.Durum != RentalStatus.Iptal)
     {
         <h2>Tahsilat</h2>
-        <form method="post" action="/finans/tahsilat" class="grid-form">
+        <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
             <input type="hidden" name="cariId" value="@_c.MusteriId" />
             <input type="hidden" name="rentalId" value="@_c.Id" />
             <input type="hidden" name="donus" value="/kiralar/@_c.Id" />
@@ -117,7 +117,7 @@ else
 
     @if (_c.GenelToplam > 0 && _c.Durum != RentalStatus.Iptal)
     {
-        <form method="post" action="/finans/fatura" style="margin-top:1rem">
+        <form method="post" action="/finans/fatura" style="margin-top:1rem"><AntiforgeryToken />
             <input type="hidden" name="rentalId" value="@_c.Id" />
             <details>
                 <summary class="link">Vergi/belge alanları (opsiyonel)</summary>

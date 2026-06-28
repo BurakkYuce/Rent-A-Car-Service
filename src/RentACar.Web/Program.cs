@@ -111,6 +111,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+// roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
+// (AntiforgeryByEnv build-time okur). Formlar <AntiforgeryToken/> taşır → prod'da CSRF korumalı.
+RentACar.Web.Identity.FormSecurity.EnforceAntiforgery = app.Environment.IsProduction();
+
 app.MapStaticAssets();
 app.MapAuthEndpoints();
 app.MapVehicleEndpoints();

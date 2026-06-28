@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Rezervasyon</summary>
-    <form method="post" action="/rezervasyonlar/create" class="grid-form">
+    <form method="post" action="/rezervasyonlar/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri
             <select name="musteriId" required>
                 <option value="">— seç —</option>
@@ -87,12 +87,12 @@
                 <td class="row-actions">
                     @if (r.Durum == ReservationStatus.Rezerv)
                     {
-                        <form method="post" action="/rezervasyonlar/confirm"><input type="hidden" name="id" value="@r.Id" /><button class="link">Onayla</button></form>
+                        <form method="post" action="/rezervasyonlar/confirm"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link">Onayla</button></form>
                     }
                     @if (r.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli)
                     {
-                        <form method="post" action="/rezervasyonlar/convert"><input type="hidden" name="id" value="@r.Id" /><button class="link">Kiraya Çevir</button></form>
-                        <form method="post" action="/rezervasyonlar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                        <form method="post" action="/rezervasyonlar/convert"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link">Kiraya Çevir</button></form>
+                        <form method="post" action="/rezervasyonlar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
                     }
                 </td>
             </tr>

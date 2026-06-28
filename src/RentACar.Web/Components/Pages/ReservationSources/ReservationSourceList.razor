@@ -15,7 +15,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Kaynak</summary>
-    <form method="post" action="/rezervasyon-kaynaklari/create" class="grid-form">
+    <form method="post" action="/rezervasyon-kaynaklari/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="WEB" /></label>
         <label>Ad<input name="ad" required placeholder="Web Sitesi" /></label>
         <button type="submit">Oluştur</button>
@@ -38,7 +38,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/rezervasyon-kaynaklari/update" class="grid-form">
+                        <form method="post" action="/rezervasyon-kaynaklari/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <label>Kod<input name="kod" value="@s.Kod" required /></label>
                             <label>Ad<input name="ad" value="@s.Ad" required /></label>
@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/rezervasyon-kaynaklari/delete" onsubmit="return confirm('Kaynak silinsin mi?')">
+                    <form method="post" action="/rezervasyon-kaynaklari/delete" onsubmit="return confirm('Kaynak silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

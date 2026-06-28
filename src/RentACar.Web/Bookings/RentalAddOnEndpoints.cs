@@ -12,7 +12,7 @@ public static class RentalAddOnEndpoints
 {
     public static IEndpointRouteBuilder MapRentalAddOnEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/ekhizmet-ekle", async (RentalAddOnService svc,
             [FromForm] Guid rentalId, [FromForm] Guid ekHizmetTanimId, [FromForm] string? miktar) =>

@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Tarife Satırı</summary>
-    <form method="post" action="/tarife-matris/create" class="grid-form">
+    <form method="post" action="/tarife-matris/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="WEB-EKO-2026" /></label>
         <label>Ad<input name="ad" required placeholder="Web Ekonomik 2026" /></label>
         <label>Açıklama<input name="aciklama" /></label>
@@ -67,7 +67,7 @@
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
-                        <form method="post" action="/tarife-matris/update" class="grid-form">
+                        <form method="post" action="/tarife-matris/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
                             <label>Kod<input name="kod" value="@r.Kod" required /></label>
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
@@ -106,7 +106,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/tarife-matris/delete" onsubmit="return confirm('Tarife satırı silinsin mi?')">
+                    <form method="post" action="/tarife-matris/delete" onsubmit="return confirm('Tarife satırı silinsin mi?')"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

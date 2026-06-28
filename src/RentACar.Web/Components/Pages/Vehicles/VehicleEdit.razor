@@ -21,7 +21,7 @@ else
         <p class="error">@Hata</p>
     }
 
-    <form method="post" action="/vehicles/update" class="grid-form">
+    <form method="post" action="/vehicles/update" class="grid-form"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_vehicle.Id" />
         <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
         <label>Marka<input name="marka" value="@_vehicle.Marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>

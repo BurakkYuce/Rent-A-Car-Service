@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
-    <form method="post" action="/kiralar/create" class="grid-form">
+    <form method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri
             <select name="musteriId" required>
                 <option value="">—</option>
@@ -113,7 +113,7 @@
                     <a href="/kiralar/@r.Id/yazdir" class="link">Sözleşme</a>
                     @if (r.Durum == RentalStatus.Kirada)
                     {
-                        <form method="post" action="/kiralar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                        <form method="post" action="/kiralar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
                     }
                 </td>
             </tr>

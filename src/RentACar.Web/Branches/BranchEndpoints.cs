@@ -3,6 +3,8 @@ using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Domain.Enums;
 
+using RentACar.Web.Identity;
+
 namespace RentACar.Web.Branches;
 
 /// <summary>Şube yönetimi form uçları — yalnız Admin (RequireRole + servis guard çift savunma).</summary>
@@ -12,7 +14,7 @@ public static class BranchEndpoints
     {
         var grp = app.MapGroup("/subeler")
             .RequireAuthorization(p => p.RequireRole(nameof(UserRole.Admin)))
-            .DisableAntiforgery();
+            .AntiforgeryByEnv();
 
         grp.MapPost("/create", async (BranchService svc,
             [FromForm] string kod, [FromForm] string ad,

@@ -11,7 +11,7 @@ public static class PaymentTypeEndpoints
 {
     public static IEndpointRouteBuilder MapPaymentTypeEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/odeme-tipleri").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
+        var grp = app.MapGroup("/odeme-tipleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (PaymentTypeService svc, [FromForm] string kod, [FromForm] string ad) =>
             await Run(() => svc.CreateAsync(new PaymentTypeInput { Kod = kod, Ad = ad, Aktif = true })));

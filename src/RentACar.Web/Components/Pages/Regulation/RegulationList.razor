@@ -13,7 +13,7 @@
 <p><a href="/vade">Vade Uyarıları →</a></p>
 
 <h2>Sigorta</h2>
-<form method="post" action="/regulasyon/sigorta" class="grid-form">
+<form method="post" action="/regulasyon/sigorta" class="grid-form"><AntiforgeryToken />
     <label>Araç @VehicleSelect("vehicleId")</label>
     <label>Tip<select name="tip">@foreach (var t in Enum.GetValues<InsuranceType>()){<option value="@t">@t</option>}</select></label>
     <label>Başlangıç<input name="baslangic" type="date" required /></label>
@@ -31,7 +31,7 @@
 </tbody></table>
 
 <h2>MTV</h2>
-<form method="post" action="/regulasyon/mtv" class="grid-form">
+<form method="post" action="/regulasyon/mtv" class="grid-form"><AntiforgeryToken />
     <label>Araç @VehicleSelect("vehicleId")</label>
     <label>Dönem<input name="donem" placeholder="2026-1" required /></label>
     <label>Tutar<input name="tutar" type="number" step="0.01" value="0" /></label>
@@ -46,7 +46,7 @@
 </tbody></table>
 
 <h2>Muayene</h2>
-<form method="post" action="/regulasyon/muayene" class="grid-form">
+<form method="post" action="/regulasyon/muayene" class="grid-form"><AntiforgeryToken />
     <label>Araç @VehicleSelect("vehicleId")</label>
     <label>Muayene Tarihi<input name="muayeneTarihi" type="date" required /></label>
     <label>Bitiş<input name="bitis" type="date" required /></label>
