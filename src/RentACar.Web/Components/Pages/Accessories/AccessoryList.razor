@@ -1,0 +1,74 @@
+@page "/aksesuarlar"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject AccessoryService Aksesuarlar
+
+<PageTitle>Aksesuarlar — TürevRent</PageTitle>
+
+<h1>Aksesuar Tanımları</h1>
+<p class="muted small">Araç ek donanımlarının sözlüğü (ör. "Bebek Koltuğu", "Kar Lastiği",
+    "Navigasyon"). Araç/kira formlarındaki Aksesuar açılır listesini besler.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Aksesuar</summary>
+    <form method="post" action="/aksesuarlar/create" class="grid-form">
+        <label>Kod<input name="kod" required placeholder="BEBEK-KOLTUGU" /></label>
+        <label>Ad<input name="ad" required placeholder="Bebek Koltuğu" /></label>
+        <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Aksesuar tanımlı değil.</td></tr>
+        }
+        @foreach (var a in _list)
+        {
+            <tr>
+                <td class="mono">@a.Kod</td>
+                <td>@a.Ad</td>
+                <td>@a.Aciklama</td>
+                <td>@(a.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/aksesuarlar/update" class="grid-form">
+                            <input type="hidden" name="id" value="@a.Id" />
+                            <label>Kod<input name="kod" value="@a.Kod" required /></label>
+                            <label>Ad<input name="ad" value="@a.Ad" required /></label>
+                            <label>Açıklama<input name="aciklama" value="@a.Aciklama" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@a.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!a.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/aksesuarlar/delete" onsubmit="return confirm('Aksesuar silinsin mi?')">
+                        <input type="hidden" name="id" value="@a.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<Accessory> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Aksesuarlar.ListAsync();
+}
