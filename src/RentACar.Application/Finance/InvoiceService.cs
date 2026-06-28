@@ -48,8 +48,12 @@ public sealed class InvoiceService(
         var addOns = await addOnRepository.ListForRentalAsync(rental.Id, ct);
         var addOnGross = addOns.Sum(a => a.Toplam);
 
-        // Baz kira (ek hizmet hariç) brütünden net+KDV ayrıştır.
-        var baseGross = KdvMath.RoundGross(rental.GenelToplam - addOnGross);
+        // Baz kira (ek hizmet hariç) brütü: GenelToplam'dan ÇIKARMA yerine doğrudan baz formülünden
+        // (Tutar + dönüş bedelleri) hesaplanır → GenelToplam (SUM-türevi) bayatsa/yanlışsa bile fatura
+        // doğru kalır (savunma derinliği). baseGross + Σ addon.Toplam = gerçek tam tutar.
+        var baseGross = KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
+        if (baseGross < 0)
+            throw new ValidationException("Baz kira tutarı negatif olamaz.");
         var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
 
         var net = baseNet + addOns.Sum(a => a.NetTutar);
