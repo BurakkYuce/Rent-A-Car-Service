@@ -90,6 +90,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<Personel> Personeller => Set<Personel>();
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
+    public DbSet<Anket> Anketler => Set<Anket>();
+    public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -282,6 +284,30 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Durum).HasConversion<int>();
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.HasIndex(x => new { x.TenantId, x.DosyaNo }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Anket / Sikayet (tenant-owned; CRM, roadmap C3) ----
+        b.Entity<Anket>(e =>
+        {
+            e.ToTable("Anketler");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Yorum).HasMaxLength(1024);
+            e.Property(x => x.Kaynak).HasMaxLength(64);
+            e.HasIndex(x => new { x.TenantId, x.Tarih });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<Sikayet>(e =>
+        {
+            e.ToTable("Sikayetler");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Konu).IsRequired().HasMaxLength(256);
+            e.Property(x => x.Detay).HasMaxLength(2048);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.Property(x => x.Cozum).HasMaxLength(2048);
+            e.HasIndex(x => new { x.TenantId, x.Tarih });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

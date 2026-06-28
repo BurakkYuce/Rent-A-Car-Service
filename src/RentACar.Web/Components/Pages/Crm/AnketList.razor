@@ -1,0 +1,51 @@
+@page "/anketler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject AnketService Anketler
+
+<PageTitle>Anketler — TürevRent</PageTitle>
+
+<h1>Müşteri Anketleri</h1>
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<table class="grid">
+    <thead><tr><th>Tarih</th><th class="num">Puan</th><th>Yorum</th><th>Kaynak</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var a in _list)
+        {
+            <tr>
+                <td>@a.Tarih.ToString("yyyy-MM-dd")</td>
+                <td class="num">@a.Puan</td>
+                <td>@a.Yorum</td>
+                <td>@a.Kaynak</td>
+                <td>
+                    <form method="post" action="/anketler/delete" onsubmit="return confirm('Silinsin mi?');">
+                        <input type="hidden" name="id" value="@a.Id" /><button type="submit" class="btn-danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Yeni Anket</h2>
+<form method="post" action="/anketler/create" class="grid-form">
+    <label>Puan (0-10)<input name="puan" type="number" min="0" max="10" required /></label>
+    <label>Yorum<input name="yorum" /></label>
+    <label>Kaynak<input name="kaynak" placeholder="Telefon/Web/..." /></label>
+    <label>Cari ID (ops.)<input name="cariId" /></label>
+    <label>Tarih<input name="tarih" type="date" /></label>
+    <button type="submit">Ekle</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    private IReadOnlyList<RentACar.Domain.Entities.Anket> _list = [];
+    protected override async Task OnInitializedAsync() => _list = await Anketler.ListAsync();
+}
