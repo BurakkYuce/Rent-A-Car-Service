@@ -73,6 +73,8 @@ public static class DependencyInjection
         services.AddScoped<TenantSettings.TenantSettingsService>();
         services.AddScoped<Personnel.PersonelService>();
         services.AddScoped<Legal.HukukDosyaService>();
+        services.AddScoped<Crm.AnketService>();
+        services.AddScoped<Crm.SikayetService>();
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<QuotationService>();
