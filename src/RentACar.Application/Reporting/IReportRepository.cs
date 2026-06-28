@@ -32,4 +32,11 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// İptal olmayan faturaların satırları (Invoice.Tarih aralığında), base para (× Kur) tutarlarıyla.
+    /// KDV oranı bazlı dönem kırılımı (KDV listesi raporu) için ham satırlar.
+    /// </summary>
+    Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }

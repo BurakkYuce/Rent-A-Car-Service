@@ -70,6 +70,34 @@ public sealed class ReportService(IReportRepository repository)
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
     }
 
+    /// <summary>
+    /// KDV listesi: dönemdeki (fatura tarihi) İptal olmayan faturaların KDV oranı bazında
+    /// kırılımı (Net/KDV/Brüt + o oranı içeren fatura adedi) + genel toplamlar. Beyanname/muhasebe.
+    /// </summary>
+    public async Task<KdvListesiDto> GetKdvListesiAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetKdvLineRowsAsync(from, to, ct);
+
+        var satirlar = rows
+            .GroupBy(r => r.Oran)
+            .Select(g => new KdvListesiRowDto(
+                g.Key,
+                g.Sum(r => r.Net),
+                g.Sum(r => r.Kdv),
+                g.Sum(r => r.Brut),
+                g.Select(r => r.InvoiceId).Distinct().Count()))
+            .OrderBy(s => s.Oran)
+            .ToList();
+
+        return new KdvListesiDto(
+            satirlar,
+            satirlar.Sum(s => s.Net),
+            satirlar.Sum(s => s.Kdv),
+            satirlar.Sum(s => s.Brut),
+            rows.Select(r => r.InvoiceId).Distinct().Count());
+    }
+
     /// <summary>Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.</summary>
     public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(CancellationToken ct = default)
     {
