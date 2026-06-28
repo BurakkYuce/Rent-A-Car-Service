@@ -496,6 +496,21 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.FiloDurum).HasConversion<int>();
             e.Property(x => x.Vites).HasConversion<int>();
             e.Property(x => x.Yakit).HasConversion<int>();
+            // Parite zenginleştirme (additive)
+            e.Property(x => x.RuhsatNo).HasMaxLength(32);
+            e.Property(x => x.AracSahibi).HasMaxLength(128);
+            e.Property(x => x.OzelKod1).HasMaxLength(64);
+            e.Property(x => x.OzelKod2).HasMaxLength(64);
+            e.Property(x => x.OzelKod3).HasMaxLength(64);
+            e.Property(x => x.OzelKod4).HasMaxLength(64);
+            e.Property(x => x.OzelKod5).HasMaxLength(64);
+            e.Property(x => x.AlimBedeli).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AlisVergisiz).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AlisOtv).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AlisKdv).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AylikMaliyet).HasColumnType("numeric(19,4)");
+            e.Property(x => x.FiloYonetimMaliyeti).HasColumnType("numeric(19,4)");
+            e.Property(x => x.IkinciElDeger).HasColumnType("numeric(19,4)");
             // Plaka tenant içinde benzersiz (doğal iş anahtarı).
             e.HasIndex(x => new { x.TenantId, x.Plaka }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);

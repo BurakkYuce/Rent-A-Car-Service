@@ -58,6 +58,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             Km = input.Km,
             Yakit = input.Yakit
         };
+        ApplyExtended(vehicle, input);
 
         // Yarış koşulunda DB benzersiz index son güvencedir → repo 23505'i çevirir.
         await _repository.CreateAsync(vehicle, ct);
@@ -90,6 +91,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             v.FiloDurum = input.FiloDurum;
             v.Km = input.Km;
             v.Yakit = input.Yakit;
+            ApplyExtended(v, input);
             v.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -112,6 +114,31 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
 
     private static string Normalize(string? plaka)
         => (plaka ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
+
+    /// <summary>Parite zenginleştirme alanlarını uygular (Create + Update ortak). Hepsi opsiyonel.</summary>
+    private static void ApplyExtended(Vehicle v, VehicleInput input)
+    {
+        v.MotorGucu = input.MotorGucu;
+        v.SilindirHacmi = input.SilindirHacmi;
+        v.RuhsatNo = Trim(input.RuhsatNo);
+        v.TescilTarihi = input.TescilTarihi;
+        v.AracSahibi = Trim(input.AracSahibi);
+        v.AlimBedeli = input.AlimBedeli;
+        v.AlimTarihi = input.AlimTarihi;
+        v.AlisVergisiz = input.AlisVergisiz;
+        v.AlisOtv = input.AlisOtv;
+        v.AlisKdv = input.AlisKdv;
+        v.AylikMaliyet = input.AylikMaliyet;
+        v.FiloYonetimMaliyeti = input.FiloYonetimMaliyeti;
+        v.IkinciElDeger = input.IkinciElDeger;
+        v.FiloGirisTarih = input.FiloGirisTarih;
+        v.FiloCikisTarih = input.FiloCikisTarih;
+        v.OzelKod1 = Trim(input.OzelKod1);
+        v.OzelKod2 = Trim(input.OzelKod2);
+        v.OzelKod3 = Trim(input.OzelKod3);
+        v.OzelKod4 = Trim(input.OzelKod4);
+        v.OzelKod5 = Trim(input.OzelKod5);
+    }
 
     private static string? Trim(string? s)
         => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

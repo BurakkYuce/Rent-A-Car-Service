@@ -10,8 +10,8 @@ namespace RentACar.Web.Vehicles;
 /// <summary>
 /// Araç create/update/delete form post uçları. Tenant, HttpContext.User claim'inden
 /// (ITenantContext → RLS) gelir; servis tenant'tan habersizdir.
-/// Opsiyonel sayısal/enum alanlar (modelYili, vites, filoDurum) boş "" gelince 400 vermesin
-/// diye <c>string?</c> alınıp FormParse/Enum.TryParse ile çevrilir.
+/// Çok sayıda opsiyonel alan (parite zenginleştirme dahil) boş "" ile [FromForm] tipli bind 400
+/// vermesin diye tüm form <see cref="IFormCollection"/>'dan okunup FormParse/Enum.TryParse ile çevrilir.
 /// NOT: PR #1 smoke kolaylığı için antiforgery devre dışı — ÜRETİMDE açılmalı (follow-up).
 /// </summary>
 public static class VehicleEndpoints
@@ -20,46 +20,20 @@ public static class VehicleEndpoints
     {
         var group = app.MapGroup("/vehicles").RequirePermission(Permission.OperationsWrite).DisableAntiforgery();
 
-        group.MapPost("/create", async (
-            VehicleService svc,
-            [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? tip, [FromForm] string? grup,
-            [FromForm] string? segment, [FromForm] string? sipp, [FromForm] string? renk, [FromForm] string? modelYili,
-            [FromForm] string? vites, [FromForm] string? sasiNo, [FromForm] string? motorNo,
-            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] string? filoDurum,
-            [FromForm] int km, [FromForm] FuelType yakit) =>
+        group.MapPost("/create", async (VehicleService svc, HttpRequest req) =>
         {
-            var input = Build(plaka, marka, tip, grup, segment, sipp, renk, modelYili, vites,
-                sasiNo, motorNo, sube, durum, filoDurum, km, yakit);
-            try
-            {
-                await svc.CreateAsync(input);
-                return Results.Redirect("/vehicles");
-            }
-            catch (ValidationException ex)
-            {
-                return Results.Redirect($"/vehicles?hata={Uri.EscapeDataString(ex.Message)}");
-            }
+            try { await svc.CreateAsync(Build(req.Form)); return Results.Redirect("/vehicles"); }
+            catch (ValidationException ex) { return Results.Redirect($"/vehicles?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        group.MapPost("/update", async (
-            VehicleService svc,
-            [FromForm] Guid id, [FromForm] string plaka, [FromForm] string? marka, [FromForm] string? tip,
-            [FromForm] string? grup, [FromForm] string? segment, [FromForm] string? sipp, [FromForm] string? renk,
-            [FromForm] string? modelYili, [FromForm] string? vites, [FromForm] string? sasiNo, [FromForm] string? motorNo,
-            [FromForm] string? sube, [FromForm] VehicleStatus durum, [FromForm] string? filoDurum,
-            [FromForm] int km, [FromForm] FuelType yakit) =>
+        group.MapPost("/update", async (VehicleService svc, HttpRequest req, [FromForm] Guid id) =>
         {
-            var input = Build(plaka, marka, tip, grup, segment, sipp, renk, modelYili, vites,
-                sasiNo, motorNo, sube, durum, filoDurum, km, yakit);
             try
             {
-                var ok = await svc.UpdateAsync(id, input);
+                var ok = await svc.UpdateAsync(id, Build(req.Form));
                 return ok ? Results.Redirect("/vehicles") : Results.NotFound();
             }
-            catch (ValidationException ex)
-            {
-                return Results.Redirect($"/vehicles/{id}?hata={Uri.EscapeDataString(ex.Message)}");
-            }
+            catch (ValidationException ex) { return Results.Redirect($"/vehicles/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         group.MapPost("/delete", async (VehicleService svc, [FromForm] Guid id) =>
@@ -71,29 +45,52 @@ public static class VehicleEndpoints
         return app;
     }
 
-    private static VehicleInput Build(
-        string plaka, string? marka, string? tip, string? grup, string? segment, string? sipp, string? renk,
-        string? modelYili, string? vites, string? sasiNo, string? motorNo, string? sube,
-        VehicleStatus durum, string? filoDurum, int km, FuelType yakit)
-        => new()
-        {
-            Plaka = plaka,
-            Marka = marka,
-            Tip = tip,
-            Grup = grup,
-            Segment = segment,
-            Sipp = sipp,
-            Renk = renk,
-            ModelYili = FormParse.Int(modelYili),
-            Vites = ParseEnum<Vites>(vites),
-            SasiNo = sasiNo,
-            MotorNo = motorNo,
-            Sube = sube,
-            Durum = durum,
-            FiloDurum = ParseEnum<FiloStatus>(filoDurum),
-            Km = km,
-            Yakit = yakit
-        };
+    private static VehicleInput Build(IFormCollection f) => new()
+    {
+        Plaka = f["plaka"].ToString(),
+        Marka = Str(f, "marka"),
+        Tip = Str(f, "tip"),
+        Grup = Str(f, "grup"),
+        Segment = Str(f, "segment"),
+        Sipp = Str(f, "sipp"),
+        Renk = Str(f, "renk"),
+        ModelYili = FormParse.Int(Str(f, "modelYili")),
+        Vites = ParseEnum<Vites>(Str(f, "vites")),
+        SasiNo = Str(f, "sasiNo"),
+        MotorNo = Str(f, "motorNo"),
+        Sube = Str(f, "sube"),
+        Durum = ParseEnum<VehicleStatus>(Str(f, "durum")) ?? VehicleStatus.Stokta,
+        FiloDurum = ParseEnum<FiloStatus>(Str(f, "filoDurum")),
+        Km = FormParse.Int(Str(f, "km")) ?? 0,
+        Yakit = ParseEnum<FuelType>(Str(f, "yakit")) ?? FuelType.Benzin,
+        // Parite zenginleştirme
+        MotorGucu = FormParse.Int(Str(f, "motorGucu")),
+        SilindirHacmi = FormParse.Int(Str(f, "silindirHacmi")),
+        RuhsatNo = Str(f, "ruhsatNo"),
+        TescilTarihi = FormParse.Date(Str(f, "tescilTarihi")),
+        AracSahibi = Str(f, "aracSahibi"),
+        AlimBedeli = FormParse.Dec(Str(f, "alimBedeli")),
+        AlimTarihi = FormParse.Date(Str(f, "alimTarihi")),
+        AlisVergisiz = FormParse.Dec(Str(f, "alisVergisiz")),
+        AlisOtv = FormParse.Dec(Str(f, "alisOtv")),
+        AlisKdv = FormParse.Dec(Str(f, "alisKdv")),
+        AylikMaliyet = FormParse.Dec(Str(f, "aylikMaliyet")),
+        FiloYonetimMaliyeti = FormParse.Dec(Str(f, "filoYonetimMaliyeti")),
+        IkinciElDeger = FormParse.Dec(Str(f, "ikinciElDeger")),
+        FiloGirisTarih = FormParse.Date(Str(f, "filoGirisTarih")),
+        FiloCikisTarih = FormParse.Date(Str(f, "filoCikisTarih")),
+        OzelKod1 = Str(f, "ozelKod1"),
+        OzelKod2 = Str(f, "ozelKod2"),
+        OzelKod3 = Str(f, "ozelKod3"),
+        OzelKod4 = Str(f, "ozelKod4"),
+        OzelKod5 = Str(f, "ozelKod5")
+    };
+
+    private static string? Str(IFormCollection f, string key)
+    {
+        var v = f[key].ToString();
+        return string.IsNullOrWhiteSpace(v) ? null : v;
+    }
 
     /// <summary>Boş/whitespace/geçersiz → null; aksi halde enum değeri.</summary>
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
