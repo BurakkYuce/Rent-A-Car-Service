@@ -1,0 +1,86 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using RentACar.Application.Common;
+using RentACar.Application.Countries;
+using RentACar.Domain.Entities;
+
+namespace RentACar.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// ICountryRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + query filter ile
+/// otomatik. Kod benzersizliği DB unique index ile; ihlal (23505) ValidationException.
+/// </summary>
+public sealed class CountryRepository(IDbContextFactory<AppDbContext> factory) : ICountryRepository
+{
+    private readonly IDbContextFactory<AppDbContext> _factory = factory;
+
+    public async Task<IReadOnlyList<Country>> ListAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Countries.AsNoTracking().OrderBy(c => c.Kod).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Country>> ListActiveAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Countries.AsNoTracking().Where(c => c.Aktif).OrderBy(c => c.Ad).ToListAsync(ct);
+    }
+
+    public async Task<Country?> FindAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Countries.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+    }
+
+    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var k = kod.Trim().ToUpperInvariant();
+        return await db.Countries.AsNoTracking()
+            .Where(c => c.Kod == k && (excludeId == null || c.Id != excludeId))
+            .AnyAsync(ct);
+    }
+
+    public async Task CreateAsync(Country country, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        db.Countries.Add(country);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{country.Kod}' kodlu ülke zaten var.");
+        }
+    }
+
+    public async Task<bool> UpdateAsync(Guid id, Action<Country> apply, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var country = await db.Countries.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (country is null) return false;
+
+        apply(country);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{country.Kod}' kodlu ülke zaten var.");
+        }
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var country = await db.Countries.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (country is null) return false;
+
+        db.Countries.Remove(country);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+}
