@@ -64,6 +64,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<KdvRate> KdvOranlari => Set<KdvRate>();
     public DbSet<VehicleGroup> VehicleGroups => Set<VehicleGroup>();
     public DbSet<RateMatrix> RateMatrices => Set<RateMatrix>();
+    public DbSet<CoverageProduct> CoverageProducts => Set<CoverageProduct>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -473,6 +474,24 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Gun6).HasColumnType("numeric(19,4)");
             e.Property(x => x.Gun7).HasColumnType("numeric(19,4)");
             e.Property(x => x.MaxEsneklik).HasColumnType("numeric(9,4)");
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- CoverageProduct / Sigorta-Ek hizmet ürün kataloğu (tenant-owned; fiyat-tanım) ----
+        b.Entity<CoverageProduct>(e =>
+        {
+            e.ToTable("SigortaUrunleri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.AdEn).HasMaxLength(128);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Doviz).HasMaxLength(8);
+            e.Property(x => x.Tur).HasConversion<int>();
+            e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
