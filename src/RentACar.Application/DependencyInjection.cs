@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<ExpenseService>();
         services.AddScoped<RegulationService>();
         services.AddScoped<VadeService>();
+        services.AddScoped<Notifications.BildirimService>(); // roadmap G6: bildirim merkezi agrega
         services.AddScoped<PenaltyService>();
         services.AddScoped<PenaltyTypeService>();
         services.AddScoped<HgsReflectionService>();
