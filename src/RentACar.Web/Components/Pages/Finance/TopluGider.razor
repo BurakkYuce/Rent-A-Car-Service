@@ -1,0 +1,37 @@
+@page "/toplu-gider"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Domain.Enums
+
+<PageTitle>Toplu Gider — TürevRent</PageTitle>
+
+<h1>Toplu Gider</h1>
+<p class="muted small">Tek seferde çok gider kalemi. ATOMİK (hep-ya-hiç) + dengeli defter. Her satır:
+    <code>netTutar;açıklama</code> (açıklama opsiyonel). Tip/ödeme/KDV tüm kalemler için ortak.</p>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (Ok is not null) { <p class="muted">@Ok kalem işlendi.</p> }
+
+<form method="post" action="/finans/toplu-gider" class="grid-form"><AntiforgeryToken />
+    <input type="hidden" name="islemAnahtari" value="@_token" />
+    <label>Gider Tipi
+        <select name="tip">
+            @foreach (var t in Enum.GetValues<ExpenseType>()) { <option>@t</option> }
+        </select>
+    </label>
+    <label>Ödeme Yöntemi
+        <select name="odemeYontemi">
+            @foreach (var o in Enum.GetValues<OdemeYontemi>()) { <option>@o</option> }
+        </select>
+    </label>
+    <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" min="0" value="0.20" /></label>
+    <label>Satırlar (netTutar;açıklama)
+        <textarea name="satirlar" rows="8" placeholder="1000;Yakıt&#10;500;Bakım" required></textarea>
+    </label>
+    <button type="submit">Toplu Kaydet</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    private readonly Guid _token = Guid.NewGuid(); // çift-submit idempotency
+}
