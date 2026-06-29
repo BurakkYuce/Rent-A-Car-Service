@@ -41,6 +41,7 @@ public static class ReportExportEndpoints
                 "km-detay" => KmDetay(await rs.GetKmDetayAsync(from, to)),
                 "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(from, to)),
                 "fatura-donem" => FaturaDonem(await rs.GetFaturaDonemAsync(from, to)),
+                "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(from, to)),
                 "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),
                 "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
                 "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
@@ -124,6 +125,10 @@ public static class ReportExportEndpoints
     private static Table FaturaDonem(IReadOnlyList<FaturaDonemRow> rows)
         => new("Fatura Dönem", new[] { "No", "Tarih", "Vade", "Cari", "Toplam", "Durum", "İade" },
             rows.Select(r => new object?[] { r.No, r.Tarih, r.VadeTarihi, r.Cari, r.GenelToplam, r.Durum, r.IadeMi ? "Evet" : "Hayır" }).ToList());
+
+    private static Table AracDurumTakip(IReadOnlyList<AracDurumTakipRow> rows)
+        => new("Araç Durum Takip", new[] { "Gün", "Toplam", "Dolu", "Bakım", "Boş" },
+            rows.Select(r => new object?[] { r.Gun.ToString("yyyy-MM-dd"), r.ToplamArac, r.Dolu, r.Bakim, r.Bos }).ToList());
 
     private static Table Gunluk(GunlukFaaliyetDto d)
         => KV("Günlük Faaliyet", ("Yeni Rezervasyon", d.YeniRezervasyon), ("Yeni Kira", d.YeniKira),
