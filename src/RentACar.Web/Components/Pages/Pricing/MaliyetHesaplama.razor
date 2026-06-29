@@ -1,0 +1,94 @@
+@page "/maliyet-hesapla"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Application.Pricing
+
+<PageTitle>Filo Maliyet Hesaplayıcı — TürevRent</PageTitle>
+
+<h1>Filo / Uzun Dönem Maliyet Hesaplayıcı</h1>
+<p class="muted small">Araç satın alıp uzun-dönem kiralamanın maliyet/başabaş/kâr/teklif modeli (kira teklifi
+    <a href="/fiyat-hesapla">/fiyat-hesapla</a>'dan farklı). Salt-hesap — deftere/bakiyeye yazmaz.
+    <em>Makul varsayım; canlı kuruş paritesi değil.</em></p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<form method="get" class="grid-form">
+    <label>Alış Bedeli (net)<input name="alisBedeli" type="number" step="0.01" min="0" value="@AlisBedeli" required /></label>
+    <label>Kalıntı Değer %<input name="residual" type="number" step="0.01" min="0" max="1" value="@(Residual ?? "0.30")" /></label>
+    <label>Süre (Ay)<input name="sureAy" type="number" min="1" max="120" value="@(SureAy ?? "36")" /></label>
+    <label>Yıllık Faiz<input name="faiz" type="number" step="0.01" min="0" value="@(Faiz ?? "0")" /></label>
+    <label>KKDF<input name="kkdf" type="number" step="0.01" min="0" value="@(Kkdf ?? "0.15")" /></label>
+    <label>BSMV<input name="bsmv" type="number" step="0.01" min="0" value="@(Bsmv ?? "0.15")" /></label>
+    <label>Damga Oranı<input name="damga" type="number" step="0.0001" min="0" value="@(Damga ?? "0")" /></label>
+    <label>Aylık Gider<input name="aylikGider" type="number" step="0.01" min="0" value="@(AylikGider ?? "0")" /></label>
+    <label>Kâr Marjı<input name="kar" type="number" step="0.01" min="0" value="@(Kar ?? "0.20")" /></label>
+    <label>KDV Oranı<input name="kdv" type="number" step="0.01" min="0" max="1" value="@(Kdv ?? "0.20")" /></label>
+    <button type="submit">Hesapla</button>
+</form>
+
+@if (_sonuc is { } s)
+{
+    <div class="cards">
+        <div class="card"><div class="card-num">@s.ToplamMaliyet.ToString("N2")</div><div class="card-label">Toplam Maliyet</div></div>
+        <div class="card"><div class="card-num">@s.BasaBasAylik.ToString("N2")</div><div class="card-label">Başabaş (aylık)</div></div>
+        <div class="card"><div class="card-num">@s.TeklifAylikNet.ToString("N2")</div><div class="card-label">Teklif (aylık net)</div></div>
+        <div class="card"><div class="card-num">@s.TeklifKdvli.ToString("N2")</div><div class="card-label">Teklif (KDV dahil toplam)</div></div>
+    </div>
+    <table class="grid">
+        <tbody>
+            <tr><td>Kalıntı Değer</td><td class="num">@s.ResidualDeger.ToString("N2")</td></tr>
+            <tr><td>Net Amortisman</td><td class="num">@s.NetAmortisman.ToString("N2")</td></tr>
+            <tr><td>Finansman Faiz</td><td class="num">@s.FinansmanFaiz.ToString("N2")</td></tr>
+            <tr><td>Finansman Vergi (KKDF+BSMV)</td><td class="num">@s.FinansmanVergi.ToString("N2")</td></tr>
+            <tr><td>Damga</td><td class="num">@s.Damga.ToString("N2")</td></tr>
+            <tr><td>Toplam İşletme Gideri</td><td class="num">@s.ToplamGider.ToString("N2")</td></tr>
+            <tr><td><strong>Toplam Maliyet</strong></td><td class="num"><strong>@s.ToplamMaliyet.ToString("N2")</strong></td></tr>
+            <tr><td>Kâr</td><td class="num">@s.Kar.ToString("N2")</td></tr>
+            <tr><td>Teklif (net)</td><td class="num">@s.TeklifNet.ToString("N2")</td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "alisBedeli")] public string? AlisBedeli { get; set; }
+    [SupplyParameterFromQuery(Name = "residual")] public string? Residual { get; set; }
+    [SupplyParameterFromQuery(Name = "sureAy")] public string? SureAy { get; set; }
+    [SupplyParameterFromQuery(Name = "faiz")] public string? Faiz { get; set; }
+    [SupplyParameterFromQuery(Name = "kkdf")] public string? Kkdf { get; set; }
+    [SupplyParameterFromQuery(Name = "bsmv")] public string? Bsmv { get; set; }
+    [SupplyParameterFromQuery(Name = "damga")] public string? Damga { get; set; }
+    [SupplyParameterFromQuery(Name = "aylikGider")] public string? AylikGider { get; set; }
+    [SupplyParameterFromQuery(Name = "kar")] public string? Kar { get; set; }
+    [SupplyParameterFromQuery(Name = "kdv")] public string? Kdv { get; set; }
+
+    private MaliyetHesapSonuc? _sonuc;
+    private string? Hata;
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrWhiteSpace(AlisBedeli)) return; // ilk açılış: hesap yok
+        try
+        {
+            _sonuc = MaliyetHesapService.Hesapla(new MaliyetHesapInput
+            {
+                AlisBedeli = D(AlisBedeli) ?? 0m,
+                ResidualYuzde = D(Residual) ?? 0.30m,
+                SureAy = I(SureAy) ?? 36,
+                FaizOran = D(Faiz) ?? 0m,
+                KkdfOran = D(Kkdf) ?? 0.15m,
+                BsmvOran = D(Bsmv) ?? 0.15m,
+                DamgaOran = D(Damga) ?? 0m,
+                AylikGider = D(AylikGider) ?? 0m,
+                KarMarji = D(Kar) ?? 0.20m,
+                KdvOran = D(Kdv) ?? 0.20m
+            });
+        }
+        catch (RentACar.Application.Common.ValidationException ex) { Hata = ex.Message; }
+    }
+
+    private static decimal? D(string? s) => decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+        System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+    private static int? I(string? s) => int.TryParse(s, out var v) ? v : null;
+}
