@@ -1,7 +1,9 @@
 @page "/musaitlik"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @using RentACar.Application.Availability
+@using RentACar.Application.Pricing
 @inject AvailabilityService Availability
+@inject RentalQuoteEngine Quotes
 
 <PageTitle>Müsait Araç Ara — TürevRent</PageTitle>
 
@@ -24,20 +26,23 @@
 {
     <p class="muted">@From – @To arası @_list.Count müsait araç.</p>
     <table class="grid">
-        <thead><tr><th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th><th>Durum</th><th></th></tr></thead>
+        <thead><tr><th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th><th class="num">Günlük</th><th class="num">Toplam</th><th>Döviz</th><th></th></tr></thead>
         <tbody>
             @if (_list.Count == 0)
             {
-                <tr><td colspan="6" class="muted">Bu aralıkta müsait araç yok.</td></tr>
+                <tr><td colspan="8" class="muted">Bu aralıkta müsait araç yok.</td></tr>
             }
             @foreach (var v in _list)
             {
+                var f = Fiyat(v.Grup);
                 <tr>
                     <td>@v.Plaka</td>
                     <td>@v.Marka</td>
                     <td>@v.Grup</td>
                     <td>@v.Sube</td>
-                    <td>@v.Durum</td>
+                    <td class="num">@(f is null ? "—" : f.Value.Gunluk.ToString("N2"))</td>
+                    <td class="num">@(f is null ? "—" : f.Value.Toplam.ToString("N2"))</td>
+                    <td>@(f?.Para)</td>
                     <td><a href="/rezervasyonlar">Rezervasyon →</a></td>
                 </tr>
             }
@@ -52,8 +57,12 @@
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private IReadOnlyList<Vehicle> _list = [];
+    private readonly Dictionary<string, (decimal Gunluk, decimal Toplam, string Para)> _fiyat = new(StringComparer.OrdinalIgnoreCase);
     private bool _searched;
     private string? Hata;
+
+    private (decimal Gunluk, decimal Toplam, string Para)? Fiyat(string? grup)
+        => grup is not null && _fiyat.TryGetValue(grup, out var f) ? f : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,6 +74,18 @@
         try
         {
             _list = await Availability.FindAvailableAsync(from.Value, to.Value, Grup, Sube);
+            // roadmap G4: her müsait grup için fiyat motorundan teklif (kanal=null booking akışı).
+            foreach (var grup in _list.Select(v => v.Grup)
+                .Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var q = await Quotes.QuoteAsync(new QuoteRequest
+                    { AracGrupKod = grup!, BasTar = from.Value, BitTar = to.Value, Sube = Sube, SigortaUrunKodlari = [] });
+                    _fiyat[grup!] = (q.GunlukUcret, q.GenelToplam, q.ParaBirimi);
+                }
+                catch (RentACar.Application.Common.ValidationException) { /* grup/tarih geçersiz → fiyat gösterilmez */ }
+            }
         }
         catch (RentACar.Application.Common.ValidationException ex)
         {
