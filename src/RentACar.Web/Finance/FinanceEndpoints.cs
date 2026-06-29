@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
@@ -153,6 +154,40 @@ public static class FinanceEndpoints
                 return Results.Redirect($"/toplu-tahsilat?ok={satirlar.Count}");
             }
             catch (ValidationException ex) { return Results.Redirect($"/toplu-tahsilat?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        grp.MapPost("/toplu-gider", async (ExpenseService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
+            var tip = Enum.TryParse<ExpenseType>(f["tip"].ToString(), out var t) ? t : ExpenseType.Genel;
+            var odeme = Enum.TryParse<OdemeYontemi>(f["odemeYontemi"].ToString(), out var o) ? o : OdemeYontemi.Nakit;
+            var hesap = odeme == OdemeYontemi.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            var kdvOrani = FormParse.Dec(f["kdvOrani"].ToString()) ?? 0m;
+            // Her satır: "netTutar[;açıklama]" (boş satırlar atlanır).
+            var kalemler = new List<ExpenseInput>();
+            foreach (var line in (f["satirlar"].ToString() ?? string.Empty)
+                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var p = line.Split(';', StringSplitOptions.TrimEntries);
+                kalemler.Add(new ExpenseInput
+                {
+                    Tip = tip,
+                    NetTutar = FormParse.Dec(p.Length > 0 ? p[0] : null) ?? 0m,
+                    KdvOrani = kdvOrani,
+                    Doviz = "TRY",
+                    Kur = 1m,
+                    OdemeYontemi = odeme,
+                    KasaBankaHesap = hesap,
+                    Aciklama = p.Length > 1 && !string.IsNullOrWhiteSpace(p[1]) ? p[1] : "Toplu gider"
+                });
+            }
+            try
+            {
+                await svc.BatchCreateAsync(kalemler, anahtar);
+                return Results.Redirect($"/toplu-gider?ok={kalemler.Count}");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/toplu-gider?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         return app;
