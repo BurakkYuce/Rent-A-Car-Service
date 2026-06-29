@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<FiloKiralamalar.FiloKiralamaService>(); // roadmap L1
         services.AddScoped<AracSiparisleri.AracSiparisService>(); // roadmap L3
         services.AddScoped<AracKredileri.AracKrediService>(); // roadmap L4
+        services.AddScoped<Baflar.BafService>(); // roadmap L5
         services.AddScoped<DamageFileService>();
         services.AddScoped<ServiceRecordService>();
         services.AddScoped<ReportService>();

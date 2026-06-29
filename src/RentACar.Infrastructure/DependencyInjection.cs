@@ -143,6 +143,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.FiloKiralamalar.IFiloKiralamaRepository, Persistence.Repositories.FiloKiralamaRepository>(); // roadmap L1
         services.AddScoped<RentACar.Application.AracSiparisleri.IAracSiparisRepository, Persistence.Repositories.AracSiparisRepository>(); // roadmap L3
         services.AddScoped<RentACar.Application.AracKredileri.IAracKrediRepository, Persistence.Repositories.AracKrediRepository>(); // roadmap L4
+        services.AddScoped<RentACar.Application.Baflar.IBafRepository, Persistence.Repositories.BafRepository>(); // roadmap L5
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
