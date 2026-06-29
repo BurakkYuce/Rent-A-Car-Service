@@ -84,6 +84,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();
     public DbSet<Penalty> Penalties => Set<Penalty>();
     public DbSet<VehicleSale> VehicleSales => Set<VehicleSale>();
+    public DbSet<FiloKiralama> FiloKiralamalar => Set<FiloKiralama>(); // roadmap L1
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
@@ -947,6 +948,25 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.VehicleId })
                 .IsUnique()
                 .HasFilter("\"Durum\" = 0");
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- FiloKiralama (uzun-dönem kira sözleşmesi; full-CRUD, mali belge DEĞİL → roadmap L1) ----
+        b.Entity<FiloKiralama>(e =>
+        {
+            e.ToTable("FiloKiralamalar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.AylikUcret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+            e.Property(x => x.DamgaVergisi).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.MusteriId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
