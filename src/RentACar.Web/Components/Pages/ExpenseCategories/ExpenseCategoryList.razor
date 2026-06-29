@@ -18,6 +18,7 @@
     <form method="post" action="/gider-turleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="YAKIT" /></label>
         <label>Ad<input name="ad" required placeholder="Yakıt" /></label>
+        <label>Tür<input name="tur" placeholder="Ofis/Araç/Servis/Personel" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -42,6 +43,7 @@
                             <input type="hidden" name="id" value="@c.Id" />
                             <label>Kod<input name="kod" value="@c.Kod" required /></label>
                             <label>Ad<input name="ad" value="@c.Ad" required /></label>
+                            <label>Tür<input name="tur" value="@c.Tur" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@c.Aktif">Aktif</option>

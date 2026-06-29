@@ -19,6 +19,7 @@
         <label>Kod<input name="kod" required placeholder="VIP" /></label>
         <label>Ad<input name="ad" required placeholder="VIP Müşteri" /></label>
         <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
+        <label>Tür<input name="turu" placeholder="(opsiyonel sınıflandırma)" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -45,6 +46,7 @@
                             <label>Kod<input name="kod" value="@c.Kod" required /></label>
                             <label>Ad<input name="ad" value="@c.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@c.Aciklama" /></label>
+                            <label>Tür<input name="turu" value="@c.Turu" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@c.Aktif">Aktif</option>
