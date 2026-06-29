@@ -147,7 +147,16 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null) return false;
         apply(r);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsExclusionViolation(ex))
+        {
+            // Kira uzatma (ExtendAsync) tarih aralığını değiştirdiğinde GiST exclusion'a takılabilir →
+            // CreateRentalAsync ile aynı zarif hata (adversarial I1 MEDIUM-1).
+            throw new AvailabilityConflictException();
+        }
         return true;
     }
 
