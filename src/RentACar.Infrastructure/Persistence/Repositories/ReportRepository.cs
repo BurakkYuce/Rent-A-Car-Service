@@ -191,6 +191,48 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
+    public async Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Reservations.AsNoTracking();
+        if (from is { } f) q = q.Where(r => r.BasTar >= f);
+        if (to is { } t) q = q.Where(r => r.BasTar <= t);
+
+        var rows = await q.Select(r => new { r.Kaynak, r.Gun, r.Tutar }).ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Kaynak) ? "(belirtilmemiş)" : r.Kaynak!)
+            .Select(g => new RezervasyonKaynakRow(g.Key, g.Count(), g.Sum(r => r.Gun), g.Sum(r => r.Tutar)))
+            .OrderByDescending(r => r.ToplamCiro)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Invoices.AsNoTracking();
+        if (from is { } f) q = q.Where(i => i.Tarih >= f);
+        if (to is { } t) q = q.Where(i => i.Tarih <= t);
+
+        var rows = await q
+            .Select(i => new { i.Id, i.No, i.Tarih, i.VadeTarihi, i.CariId, i.GenelToplam, i.Durum, i.IadeMi })
+            .ToListAsync(ct);
+
+        var cust = (await db.Customers.AsNoTracking().ToListAsync(ct)).ToDictionary(c => c.Id, c => c.DisplayName);
+
+        return rows
+            .OrderByDescending(i => i.Tarih)
+            .Select(i => new FaturaDonemRow(
+                i.Id, i.No, i.Tarih, i.VadeTarihi,
+                cust.TryGetValue(i.CariId, out var n) ? n : "(bilinmeyen cari)",
+                i.GenelToplam, i.Durum.ToString(), i.IadeMi))
+            .ToList();
+    }
+
     public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {

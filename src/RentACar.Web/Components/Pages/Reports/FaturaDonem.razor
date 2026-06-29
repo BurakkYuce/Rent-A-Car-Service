@@ -1,0 +1,56 @@
+@page "/raporlar/fatura-donem"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Fatura Dönem Raporu — TürevRent</PageTitle>
+
+<h1>Fatura Dönem Raporu</h1>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/fatura-donem?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+    <a href="/raporlar/export/fatura-donem?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<p class="muted">Dönem faturaları: tarih/vade/cari/tutar/durum (fatura tarihine göre).</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>No</th><th>Tarih</th><th>Vade</th><th>Cari</th><th class="num">Toplam</th><th>Durum</th><th>İade</th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">Bu aralıkta fatura yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.No</td>
+                <td>@r.Tarih.ToString("yyyy-MM-dd")</td>
+                <td>@(r.VadeTarihi?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@r.Cari</td>
+                <td class="num">@r.GenelToplam.ToString("N2")</td>
+                <td>@r.Durum</td>
+                <td>@(r.IadeMi ? "Evet" : "")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<FaturaDonemRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _rows = await Reports.GetFaturaDonemAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}

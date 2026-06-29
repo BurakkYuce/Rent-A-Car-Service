@@ -17,14 +17,15 @@ public static class BookingEndpoints
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
-            [FromForm] string? aciklama) =>
+            [FromForm] string? aciklama, [FromForm] string? kaynak) =>
         {
             try
             {
                 var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
-                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
+                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
+                    Kaynak = kaynak
                 };
                 ApplyOdemeDerinlik(input, req.Form);
                 await svc.CreateAsync(input);

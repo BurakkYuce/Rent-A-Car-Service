@@ -272,6 +272,16 @@ public sealed class ReportService(IReportRepository repository)
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
         => _repository.GetKmDetayRowsAsync(from, to, ct);
 
+    /// <summary>Rezervasyon kaynak raporu (roadmap H2): kaynak başına adet/gün/ciro.</summary>
+    public Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        => _repository.GetRezervasyonKaynakRowsAsync(from, to, ct);
+
+    /// <summary>Fatura dönem raporu (roadmap H2): tarih filtreli fatura listesi (vade/cari/tutar/durum).</summary>
+    public Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        => _repository.GetFaturaDonemRowsAsync(from, to, ct);
+
     private static decimal Signed(CariLedgerRowDto r)
         => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
 

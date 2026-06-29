@@ -45,6 +45,7 @@ public class Reservation : ITenantOwned, IAuditable
     public decimal? SonraOdeOran { get; set; }   // %
 
     public string? Aciklama { get; set; }
+    public string? Kaynak { get; set; } // roadmap H2: rezervasyon kaynağı (ReservationSource kodu/adı)
 
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
     public Guid? RentalContractId { get; set; }

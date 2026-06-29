@@ -74,6 +74,14 @@ public sealed record KmDetayRow(
     Guid RentalId, string SozlesmeNo, string Plaka, int CikisKm, int DonusKm,
     int KatedilenKm, int KmLimit, int FazlaKm, decimal FazlaKmBedeli);
 
+/// <summary>Rezervasyon kaynak özeti — roadmap H2. Kaynak başına adet/gün/ciro.</summary>
+public sealed record RezervasyonKaynakRow(string Kaynak, int Adet, int ToplamGun, decimal ToplamCiro);
+
+/// <summary>Fatura dönem satırı — roadmap H2. Vade/cari/tutar/durum.</summary>
+public sealed record FaturaDonemRow(
+    Guid InvoiceId, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi,
+    string Cari, decimal GenelToplam, string Durum, bool IadeMi);
+
 /// <summary>Dönem gelir-gider özeti + KDV + net kâr + kaynak kırılımı (base para).</summary>
 public sealed record GelirGiderDto(
     decimal GelirToplam, decimal GiderToplam,
