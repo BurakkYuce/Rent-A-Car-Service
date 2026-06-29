@@ -282,6 +282,15 @@ public sealed class ReportService(IReportRepository repository)
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
         => _repository.GetFaturaDonemRowsAsync(from, to, ct);
 
+    /// <summary>Araç durum-takip raporu (roadmap H3): gün kırılımı dolu/bakım/boş (varsayılan son 30 gün).</summary>
+    public Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var bit = to ?? DateTimeOffset.UtcNow;
+        var bas = from ?? bit.AddDays(-29);
+        return _repository.GetAracDurumTakipRowsAsync(bas, bit, ct);
+    }
+
     private static decimal Signed(CariLedgerRowDto r)
         => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
 
