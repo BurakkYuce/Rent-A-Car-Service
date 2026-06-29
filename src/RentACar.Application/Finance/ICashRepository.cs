@@ -32,6 +32,9 @@ public interface ICashRepository
     /// <summary>Cari bakiye (yerel para) = Σ (Borç +, Alacak −). Pozitif = müşteri borçlu.</summary>
     Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default);
 
+    /// <summary>Cari'nin elde tutulan depozito bakiyesi (roadmap I3): Σ Depozito (Alacak:+ Borç:−) = tutulan tutar.</summary>
+    Task<decimal> GetDepozitoBakiyeAsync(Guid cariId, CancellationToken ct = default);
+
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
     Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default);
 }
