@@ -131,6 +131,48 @@ public sealed class RentalService(
         }, ct);
     }
 
+    /// <summary>
+    /// Kira uzatma (roadmap I1): aktif (Kirada) sözleşmenin bitiş tarihini ileri iter; ek gün × günlük ücret
+    /// kadar UzatmaBedeli + GenelToplam + Bakiye artar (ReturnAsync ile aynı operasyonel model — DEFTER POSTLAMAZ,
+    /// kontrat bakiyesi güncellenir; tahsilat/fatura ayrı). Uzatılan aralıkta başka aktif kira çakışması red.
+    /// </summary>
+    public async Task<bool> ExtendAsync(Guid id, DateTimeOffset yeniBitTar, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var c = await _repository.FindRentalAsync(id, ct);
+        if (c is null) return false;
+        if (c.Durum != RentalStatus.Kirada)
+            throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
+        if (yeniBitTar <= c.BitTar)
+            throw new ValidationException("Yeni bitiş tarihi mevcut bitişten sonra olmalıdır.");
+
+        // Uzatılan aralıkta (kendisi hariç) başka aktif kira çakışması olmamalı.
+        if (await _repository.HasOverlappingActiveRentalAsync(c.VehicleId, c.BasTar, yeniBitTar, id, ct))
+            throw new AvailabilityConflictException();
+
+        return await _repository.UpdateRentalAsync(id, x =>
+        {
+            if (x.Durum != RentalStatus.Kirada)
+                throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
+            if (yeniBitTar <= x.BitTar)
+                throw new ValidationException("Yeni bitiş tarihi mevcut bitişten sonra olmalıdır.");
+
+            var yeniGun = BookingMath.ComputeGun(x.BasTar, yeniBitTar);
+            var ekGun = yeniGun - x.Gun;
+            if (ekGun <= 0) throw new ValidationException("Uzatma en az 1 gün olmalıdır.");
+            var ekBedel = ekGun * x.GunlukUcret;
+
+            x.BitTar = yeniBitTar;
+            x.Gun = yeniGun;
+            x.UzatmaGun += ekGun;            // kümülatif (birden çok uzatma)
+            x.UzatmaBedeli += ekBedel;
+            x.Tutar += ekBedel;
+            x.GenelToplam += ekBedel;
+            x.Bakiye = x.GenelToplam - x.Tahsilat;
+            x.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         return await _repository.UpdateRentalAsync(id, c =>

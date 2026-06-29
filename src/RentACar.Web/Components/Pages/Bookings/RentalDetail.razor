@@ -54,6 +54,17 @@ else
         </form>
     }
 
+    @if (_c.Durum == RentalStatus.Kirada)
+    {
+        <h2>Kira Uzatma</h2>
+        <p class="muted small">Bitiş tarihini ileri iter; ek gün × günlük ücret bakiyeye eklenir (defter etkilemez).</p>
+        <form method="post" action="/kiralar/uzat" class="grid-form"><AntiforgeryToken />
+            <input type="hidden" name="id" value="@_c.Id" />
+            <label>Yeni Bitiş<input name="yeniBitTar" type="datetime-local" value="@_c.BitTar.AddDays(1).LocalDateTime.ToString("yyyy-MM-ddTHH:mm")" required /></label>
+            <button type="submit">Uzat</button>
+        </form>
+    }
+
     <h2>Ek Hizmetler</h2>
     <table class="grid">
         <thead><tr><th>Hizmet</th><th>Miktar</th><th>Birim NET</th><th>KDV</th><th>Net</th><th>KDV Tutar</th><th>Toplam</th><th></th></tr></thead>
