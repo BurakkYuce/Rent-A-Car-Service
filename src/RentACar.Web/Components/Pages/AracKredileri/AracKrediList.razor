@@ -1,0 +1,67 @@
+@page "/arac-kredi"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@using RentACar.Application.AracKredileri
+@using RentACar.Domain.Enums
+@inject AracKrediService Krediler
+
+<PageTitle>Araç Kredisi — TürevRent</PageTitle>
+
+<h1>Araç Kredisi Takip</h1>
+<p class="muted small">Banka kredisi + taksit planı + kalan bakiye. Banka entegrasyonu yok; defter postlamaz (salt takip).</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details>
+    <summary>Yeni Kredi</summary>
+    <form method="post" action="/arac-kredi/create" class="grid-form"><AntiforgeryToken />
+        <label>Banka<input name="bankaAdi" required /></label>
+        <label>Kredi Tutarı<input name="krediTutari" type="number" step="0.01" min="0" required /></label>
+        <label>Yıllık Faiz<input name="faizOran" type="number" step="0.0001" min="0" value="0" /></label>
+        <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="360" required /></label>
+        <label>Başlangıç<input name="baslangicTarihi" type="date" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>No</th><th>Banka</th><th class="num">Kredi</th><th class="num">Aylık Taksit</th><th class="num">Ödenen/Toplam</th><th class="num">Kalan Bakiye</th><th>Durum</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Kredi yok.</td></tr>
+        }
+        @foreach (var k in _list)
+        {
+            var o = AracKrediService.Hesapla(k);
+            <tr>
+                <td>@k.No</td>
+                <td>@k.BankaAdi</td>
+                <td class="num">@k.KrediTutari.ToString("N2")</td>
+                <td class="num">@o.AylikTaksit.ToString("N2")</td>
+                <td class="num">@k.OdenenTaksit / @k.TaksitSayisi</td>
+                <td class="num">@o.KalanBakiye.ToString("N2") @k.Currency</td>
+                <td>@k.Durum</td>
+                <td>
+                    @if (k.Durum == KrediDurum.Aktif)
+                    {
+                        <form method="post" action="/arac-kredi/taksit-ode" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" /><button type="submit">Taksit Öde</button></form>
+                        <form method="post" action="/arac-kredi/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<AracKredi> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await Krediler.ListAsync();
+}
