@@ -135,6 +135,17 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return rows.Sum(r => r.Direction == LedgerDirection.Debit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
     }
 
+    public async Task<decimal> GetDepozitoBakiyeAsync(Guid cariId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // Depozito yükümlülük: Alacak (al) +AmountInBase, Borç (iade/mahsup) −AmountInBase → elde tutulan.
+        var rows = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef == cariId)
+            .Select(e => new { e.Direction, e.Amount })
+            .ToListAsync(ct);
+        return rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
+    }
+
     public async Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

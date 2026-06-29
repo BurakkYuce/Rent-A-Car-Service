@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629222955_AddDepozitoIdemIndex")]
+    partial class AddDepozitoIdemIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,7 +133,7 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.HasIndex(new[] { "TenantId", "SourceType", "SourceId", "Direction" }, "IX_AccountLedgerEntries_Depozito_Idem")
                         .IsUnique()
-                        .HasFilter("\"SourceType\" LIKE 'Depozito%'");
+                        .HasFilter("\"SourceType\" = 'Depozito'");
 
                     b.ToTable("AccountLedgerEntries", (string)null);
                 });
