@@ -1,0 +1,39 @@
+@page "/drop-tanimlari"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.DropTanimlari
+@inject DropTanimService Droplar
+
+<PageTitle>Drop Matris — TürevRent</PageTitle>
+
+<h1>Lokasyon-Şube Drop Matrisi</h1>
+<p class="muted small">Aracı bir lokasyonda alıp başka şubeye bırakma (drop) konfigürasyonu.</p>
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<form method="post" action="/drop-tanimlari/create" class="grid-form"><AntiforgeryToken />
+    <label>Lokasyon<input name="lokasyon" required /></label>
+    <label>Şube<input name="sube" required /></label>
+    <label>Karşılama Şekli<input name="karsilamaSekli" /></label>
+    <label>Çalışma Şekli<input name="calismaSekli" /></label>
+    <label>Özel İletişim<input name="ozelIletisim" /></label>
+    <button type="submit">Ekle</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Lokasyon</th><th>Şube</th><th>Karşılama</th><th>Çalışma</th><th>İletişim</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0) { <tr><td colspan="6" class="muted">Kayıt yok.</td></tr> }
+        @foreach (var d in _list)
+        {
+            <tr>
+                <td>@d.Lokasyon</td><td>@d.Sube</td><td>@d.KarsilamaSekli</td><td>@d.CalismaSekli</td><td>@d.OzelIletisim</td>
+                <td><form method="post" action="/drop-tanimlari/delete" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@d.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    private IReadOnlyList<DropTanim> _list = [];
+    protected override async Task OnInitializedAsync() => _list = await Droplar.ListAsync();
+}

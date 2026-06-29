@@ -90,6 +90,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Baf> Baflar => Set<Baf>(); // roadmap L5
     public DbSet<HesapKodu> HesapKodlari => Set<HesapKodu>(); // roadmap N1
     public DbSet<ServisTanim> ServisTanimlari => Set<ServisTanim>(); // roadmap N1
+    public DbSet<DropTanim> DropTanimlari => Set<DropTanim>(); // roadmap N2
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
@@ -1049,6 +1050,19 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.AracTipi).IsRequired().HasMaxLength(100);
             e.Property(x => x.Aciklama).HasMaxLength(512);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<DropTanim>(e =>
+        {
+            e.ToTable("DropTanimlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Lokasyon).IsRequired().HasMaxLength(150);
+            e.Property(x => x.Sube).IsRequired().HasMaxLength(150);
+            e.Property(x => x.KarsilamaSekli).HasMaxLength(100);
+            e.Property(x => x.CalismaSekli).HasMaxLength(100);
+            e.Property(x => x.OzelIletisim).HasMaxLength(200);
+            e.HasIndex(x => new { x.TenantId, x.Lokasyon, x.Sube }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
