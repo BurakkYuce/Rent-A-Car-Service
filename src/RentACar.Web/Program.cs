@@ -132,6 +132,7 @@ app.MapBookingEndpoints();
 app.MapRentalAddOnEndpoints();
 app.MapQuotationEndpoints();
 app.MapFinanceEndpoints();
+app.MapDepozitoEndpoints(); // roadmap I3
 app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
 app.MapPenaltyEndpoints();

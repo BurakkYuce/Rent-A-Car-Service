@@ -8,5 +8,6 @@ public enum LedgerAccountType
     Banka = 2,  // banka
     Gelir = 3,  // gelir (satış)
     Kdv = 4,    // KDV
-    Gider = 5   // gider (masraf)
+    Gider = 5,  // gider (masraf)
+    Depozito = 6 // müşteri depozito/emanet yükümlülüğü (AccountRef = CariId) — roadmap I3
 }

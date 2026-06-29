@@ -1,0 +1,62 @@
+@page "/depozito"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject CustomerService Customers
+@inject RentACar.Application.Finance.DepozitoService Depozitolar
+
+<PageTitle>Depozito — TürevRent</PageTitle>
+
+<h1>Depozito (Emanet) İşlemleri</h1>
+<p class="muted small">Nakit depozito al / iade / cari borca mahsup. Dengeli defter: Al → Borç Kasa-Banka / Alacak
+    Depozito; İade → ters; Mahsup → Borç Depozito / Alacak Cari. İade/mahsup tutulanı aşamaz.</p>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (Ok is not null) { <p class="muted">İşlem tamam.</p> }
+
+<form method="post" class="grid-form"><AntiforgeryToken />
+    <input type="hidden" name="islemAnahtari" value="@_token" />
+    <label>Cari
+        <select name="cariId" required>
+            <option value="">—</option>
+            @foreach (var c in _custMap) { <option value="@c.Key">@c.Value</option> }
+        </select>
+    </label>
+    <label>Tutar<input name="tutar" type="number" step="0.01" min="0" required /></label>
+    <label>Hesap
+        <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+    </label>
+    <button type="submit" formaction="/depozito/al">Al</button>
+    <button type="submit" formaction="/depozito/iade" class="btn-secondary">İade</button>
+    <button type="submit" formaction="/depozito/mahsup" class="btn-secondary">Mahsup</button>
+</form>
+
+<h2>Tutulan Depozitolar</h2>
+<table class="grid">
+    <thead><tr><th>Cari</th><th class="num">Depozito Bakiye</th></tr></thead>
+    <tbody>
+        @if (_bakiyeler.Count == 0) { <tr><td colspan="2" class="muted">Tutulan depozito yok.</td></tr> }
+        @foreach (var b in _bakiyeler)
+        {
+            <tr><td>@(_custMap.TryGetValue(b.Key, out var n) ? n : "—")</td><td class="num">@b.Value.ToString("N2")</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
+    private Dictionary<Guid, string> _custMap = new();
+    private readonly Guid _token = Guid.NewGuid();
+    private Dictionary<Guid, decimal> _bakiyeler = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var custs = await Customers.ListAsync();
+        _custMap = custs.ToDictionary(c => c.Id, c => c.DisplayName);
+        foreach (var c in custs)
+        {
+            var b = await Depozitolar.GetBakiyeAsync(c.Id);
+            if (b != 0m) _bakiyeler[c.Id] = b;
+        }
+    }
+}
