@@ -58,6 +58,7 @@ using RentACar.Web.VehicleSales;
 using RentACar.Web.FiloKiralamalar;
 using RentACar.Web.AracSiparisleri;
 using RentACar.Web.AracKredileri;
+using RentACar.Web.Baflar;
 using RentACar.Web.Vehicles;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -135,6 +136,7 @@ app.MapVehicleSaleEndpoints();
 app.MapFiloKiralamaEndpoints(); // roadmap L1
 app.MapAracSiparisEndpoints(); // roadmap L3
 app.MapAracKrediEndpoints(); // roadmap L4
+app.MapBafEndpoints(); // roadmap L5
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();
