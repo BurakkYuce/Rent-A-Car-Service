@@ -1164,6 +1164,12 @@ public sealed class AppDbContext : DbContext
                 .IsUnique()
                 .HasFilter("\"SourceType\" = 'CariVirman'")
                 .HasDatabaseName("IX_AccountLedgerEntries_CariVirman_Idem");
+            // Depozito idempotency (roadmap I3): aynı SourceId ile çift-submit yutulur. Dengeli çift
+            // (Borç/Alacak) Direction'la ayrışır → ikisi de geçer; tekrar çakışır. Named overload ile
+            // Hgs index'iyle (aynı kolon seti) ÇAKIŞMAYAN ayrı kısmi index üretilir.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_Depozito_Idem")
+                .IsUnique()
+                .HasFilter("\"SourceType\" LIKE 'Depozito%'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

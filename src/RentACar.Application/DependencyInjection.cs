@@ -87,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<RentalService>();
         services.AddScoped<RentACar.Application.RentalAddOns.RentalAddOnService>();
         services.AddScoped<CashService>();
+        services.AddScoped<Finance.DepozitoService>(); // roadmap I3
         services.AddScoped<InvoiceService>();
         services.AddScoped<ExpenseService>();
         services.AddScoped<RegulationService>();
