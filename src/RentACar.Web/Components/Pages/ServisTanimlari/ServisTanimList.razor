@@ -1,0 +1,38 @@
+@page "/servis-tanimlari"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@using RentACar.Application.ServisTanimlari
+@inject ServisTanimService Tanimlar
+
+<PageTitle>Servis Tanımları — TürevRent</PageTitle>
+
+<h1>Periyodik Bakım Tanım Tablosu</h1>
+<p class="muted small">Araç tipi → periyodik bakım KM aralığı (periyodik servis raporunun zemini).</p>
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<form method="post" action="/servis-tanimlari/create" class="grid-form"><AntiforgeryToken />
+    <label>Kod<input name="kod" required placeholder="EKO-PER" /></label>
+    <label>Araç Tipi<input name="aracTipi" required placeholder="Ekonomik" /></label>
+    <label>Bakım KM<input name="bakimKm" type="number" min="0" required placeholder="15000" /></label>
+    <label>Açıklama<input name="aciklama" /></label>
+    <button type="submit">Ekle</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Araç Tipi</th><th class="num">Bakım KM</th><th>Açıklama</th><th>Aktif</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0) { <tr><td colspan="6" class="muted">Kayıt yok.</td></tr> }
+        @foreach (var s in _list)
+        {
+            <tr>
+                <td>@s.Kod</td><td>@s.AracTipi</td><td class="num">@s.BakimKm</td><td>@s.Aciklama</td><td>@(s.Aktif ? "Evet" : "Hayır")</td>
+                <td><form method="post" action="/servis-tanimlari/delete" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    private IReadOnlyList<ServisTanim> _list = [];
+    protected override async Task OnInitializedAsync() => _list = await Tanimlar.ListAsync();
+}
