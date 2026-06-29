@@ -66,6 +66,14 @@ public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi 
 /// <summary>Araç+tip başına servis maliyet özeti (gruplanmış).</summary>
 public sealed record ServiceCostSummaryDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal Toplam, int Adet);
 
+/// <summary>Periyodik servis (KM-bazlı bakım uyarısı) satırı — roadmap H1. KalanKm = SonrakiBakimKm − GuncelKm.</summary>
+public sealed record PeriyodikServisRow(Guid VehicleId, string Plaka, int GuncelKm, int SonrakiBakimKm, int KalanKm);
+
+/// <summary>Kira KM detay satırı — roadmap H1. KatedilenKm = DonusKm − CikisKm.</summary>
+public sealed record KmDetayRow(
+    Guid RentalId, string SozlesmeNo, string Plaka, int CikisKm, int DonusKm,
+    int KatedilenKm, int KmLimit, int FazlaKm, decimal FazlaKmBedeli);
+
 /// <summary>Dönem gelir-gider özeti + KDV + net kâr + kaynak kırılımı (base para).</summary>
 public sealed record GelirGiderDto(
     decimal GelirToplam, decimal GiderToplam,

@@ -1,0 +1,57 @@
+@page "/raporlar/km-detay"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>KM Detay Listesi — TürevRent</PageTitle>
+
+<h1>Kira KM Detay</h1>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/km-detay?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+    <a href="/raporlar/export/km-detay?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<p class="muted">Dönmüş kiralar (çıkış+dönüş KM girilmiş): katedilen km + limit aşımı.</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Sözleşme</th><th>Plaka</th><th class="num">Çıkış</th><th class="num">Dönüş</th><th class="num">Katedilen</th><th class="num">Limit</th><th class="num">Fazla KM</th><th class="num">Fazla Bedel</th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Bu aralıkta dönmüş kira yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.SozlesmeNo</td>
+                <td>@r.Plaka</td>
+                <td class="num">@r.CikisKm</td>
+                <td class="num">@r.DonusKm</td>
+                <td class="num">@r.KatedilenKm</td>
+                <td class="num">@(r.KmLimit == 0 ? "∞" : r.KmLimit.ToString())</td>
+                <td class="num">@r.FazlaKm</td>
+                <td class="num">@r.FazlaKmBedeli.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<KmDetayRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _rows = await Reports.GetKmDetayAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}

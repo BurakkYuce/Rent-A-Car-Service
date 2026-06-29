@@ -45,6 +45,13 @@ public interface IReportRepository
     Task<IReadOnlyList<ServiceCostRowDto>> GetServiceCostRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
+    /// <summary>Periyodik servis: her aracın en yüksek SonrakiBakimKm'si + güncel km (roadmap H1).</summary>
+    Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(CancellationToken ct = default);
+
+    /// <summary>Dönmüş kiraların (CikisKm+DonusKm dolu) KM detayı (roadmap H1).</summary>
+    Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
     /// <summary>
     /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
