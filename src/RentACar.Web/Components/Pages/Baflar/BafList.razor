@@ -1,0 +1,92 @@
+@page "/baf"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.Baflar
+@using RentACar.Application.Personnel
+@using RentACar.Domain.Enums
+@inject BafService Baflar
+@inject PersonelService Personeller
+@inject VehicleService Vehicles
+
+<PageTitle>BAF — Personel Araç Tahsis — TürevRent</PageTitle>
+
+<h1>BAF — Personel Araç Tahsis</h1>
+<p class="muted small">Personele araç zimmetleme: çıkış (km/yakıt/şube) → teslim al (dönüş km/yakıt). Defter postlamaz.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details>
+    <summary>Yeni Tahsis</summary>
+    <form method="post" action="/baf/create" class="grid-form"><AntiforgeryToken />
+        <label>Personel
+            <select name="personelId" required>
+                <option value="">—</option>
+                @foreach (var p in _persMap) { <option value="@p.Key">@p.Value</option> }
+            </select>
+        </label>
+        <label>Araç
+            <select name="vehicleId" required>
+                <option value="">—</option>
+                @foreach (var v in _vehMap) { <option value="@v.Key">@v.Value</option> }
+            </select>
+        </label>
+        <label>Çıkış Tarihi<input name="cikisTarihi" type="date" /></label>
+        <label>Çıkış KM<input name="cikisKm" type="number" min="0" value="0" /></label>
+        <label>Çıkış Yakıt<input name="cikisYakit" type="number" min="0" /></label>
+        <label>Şube<input name="sube" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <button type="submit">Tahsis Et</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>No</th><th>Personel</th><th>Araç</th><th class="num">Çıkış KM</th><th class="num">Dönüş KM</th><th>Durum</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">Tahsis yok.</td></tr>
+        }
+        @foreach (var b in _list)
+        {
+            <tr>
+                <td>@b.No</td>
+                <td>@PersName(b.PersonelId)</td>
+                <td>@VehName(b.VehicleId)</td>
+                <td class="num">@b.CikisKm</td>
+                <td class="num">@(b.DonusKm?.ToString() ?? "—")</td>
+                <td>@b.Durum</td>
+                <td>
+                    @if (b.Durum == BafDurum.Acik)
+                    {
+                        <form method="post" action="/baf/teslim-al" style="display:inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@b.Id" />
+                            <input name="donusKm" type="number" min="@b.CikisKm" placeholder="Dönüş KM" required style="width:7rem" />
+                            <button type="submit">Teslim Al</button>
+                        </form>
+                        <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<Baf> _list = [];
+    private Dictionary<Guid, string> _persMap = new();
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Baflar.ListAsync();
+        _persMap = (await Personeller.ListAsync()).ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
+        _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string PersName(Guid id) => _persMap.TryGetValue(id, out var n) ? n : "—";
+    private string VehName(Guid id) => _vehMap.TryGetValue(id, out var n) ? n : "—";
+}

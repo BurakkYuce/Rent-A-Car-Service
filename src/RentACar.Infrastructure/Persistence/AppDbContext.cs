@@ -87,6 +87,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<FiloKiralama> FiloKiralamalar => Set<FiloKiralama>(); // roadmap L1
     public DbSet<AracSiparis> AracSiparisleri => Set<AracSiparis>(); // roadmap L3
     public DbSet<AracKredi> AracKredileri => Set<AracKredi>(); // roadmap L4
+    public DbSet<Baf> Baflar => Set<Baf>(); // roadmap L5
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
@@ -1007,6 +1008,21 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Aciklama).HasMaxLength(512);
             e.Property(x => x.Durum).HasConversion<int>();
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Baf (personel araç tahsis; full-CRUD, mali belge DEĞİL → roadmap L5) ----
+        b.Entity<Baf>(e =>
+        {
+            e.ToTable("Baflar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Sube).HasMaxLength(100);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.PersonelId });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
