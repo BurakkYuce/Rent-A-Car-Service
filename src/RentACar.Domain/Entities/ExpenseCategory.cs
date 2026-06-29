@@ -16,6 +16,8 @@ public class ExpenseCategory : ITenantOwned, IAuditable
     /// <summary>Kısa kod (tenant içinde benzersiz; servis büyük harfe normalize eder).</summary>
     public string Kod { get; set; } = string.Empty;
     public string Ad { get; set; } = string.Empty;
+    /// <summary>Gider türü kırılımı (roadmap G5): Ofis/Araç/Servis/Personel vb. — opsiyonel.</summary>
+    public string? Tur { get; set; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
