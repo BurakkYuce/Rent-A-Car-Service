@@ -146,6 +146,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.Baflar.IBafRepository, Persistence.Repositories.BafRepository>(); // roadmap L5
         services.AddScoped<RentACar.Application.HesapKodlari.IHesapKoduRepository, Persistence.Repositories.HesapKoduRepository>(); // roadmap N1
         services.AddScoped<RentACar.Application.ServisTanimlari.IServisTanimRepository, Persistence.Repositories.ServisTanimRepository>(); // roadmap N1
+        services.AddScoped<RentACar.Application.DropTanimlari.IDropTanimRepository, Persistence.Repositories.DropTanimRepository>(); // roadmap N2
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();

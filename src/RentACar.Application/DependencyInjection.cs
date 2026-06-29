@@ -102,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<Baflar.BafService>(); // roadmap L5
         services.AddScoped<HesapKodlari.HesapKoduService>(); // roadmap N1
         services.AddScoped<ServisTanimlari.ServisTanimService>(); // roadmap N1
+        services.AddScoped<DropTanimlari.DropTanimService>(); // roadmap N2
         services.AddScoped<DamageFileService>();
         services.AddScoped<ServiceRecordService>();
         services.AddScoped<ReportService>();
