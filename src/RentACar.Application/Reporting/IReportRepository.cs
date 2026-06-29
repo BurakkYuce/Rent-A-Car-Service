@@ -52,6 +52,14 @@ public interface IReportRepository
     Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
+    /// <summary>Rezervasyon kaynak özeti (roadmap H2): BasTar [from,to] filtreli, kaynak başına agrega.</summary>
+    Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>Fatura dönem listesi (roadmap H2): Tarih [from,to] filtreli, cari adıyla.</summary>
+    Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
     /// <summary>
     /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
