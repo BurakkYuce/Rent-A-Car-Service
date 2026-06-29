@@ -96,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<PenaltyTypeService>();
         services.AddScoped<HgsReflectionService>();
         services.AddScoped<VehicleSaleService>();
+        services.AddScoped<FiloKiralamalar.FiloKiralamaService>(); // roadmap L1
         services.AddScoped<DamageFileService>();
         services.AddScoped<ServiceRecordService>();
         services.AddScoped<ReportService>();

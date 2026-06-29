@@ -1,0 +1,95 @@
+@page "/filo-kiralama"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.FiloKiralamalar
+@inject FiloKiralamaService Kiralamalar
+@inject CustomerService Customers
+@inject VehicleService Vehicles
+
+<PageTitle>Filo / Uzun Dönem Kiralama — TürevRent</PageTitle>
+
+<h1>Filo / Uzun Dönem Kiralama</h1>
+<p class="muted small">Aylık ücretli, çok-aylık operasyonel kiralama sözleşmeleri. Sözleşme + taksit planı kaydı;
+    gelir aylık faturalama (Manuel Fatura) ile tanınır — bu ekran deftere/bakiyeye yazmaz.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details>
+    <summary>Yeni Sözleşme</summary>
+    <form method="post" action="/filo-kiralama/create" class="grid-form"><AntiforgeryToken />
+        <label>Müşteri
+            <select name="musteriId" required>
+                <option value="">—</option>
+                @foreach (var c in _custMap) { <option value="@c.Key">@c.Value</option> }
+            </select>
+        </label>
+        <label>Araç
+            <select name="vehicleId" required>
+                <option value="">—</option>
+                @foreach (var v in _vehMap) { <option value="@v.Key">@v.Value</option> }
+            </select>
+        </label>
+        <label>Başlangıç<input name="basTar" type="date" /></label>
+        <label>Süre (Ay)<input name="sureAy" type="number" min="1" max="120" required /></label>
+        <label>Aylık Ücret<input name="aylikUcret" type="number" step="0.01" min="0" required /></label>
+        <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" min="0" max="1" value="0.20" /></label>
+        <label>Toplam KM Limiti<input name="toplamKmLimiti" type="number" min="0" /></label>
+        <label>Damga Vergisi<input name="damgaVergisi" type="number" step="0.01" min="0" /></label>
+        <label>Açıklama<input name="aciklama" /></label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid">
+    <thead><tr><th>No</th><th>Müşteri</th><th>Araç</th><th class="num">Süre Ay</th><th class="num">Aylık</th><th class="num">Genel Toplam</th><th>Durum</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">Sözleşme yok.</td></tr>
+        }
+        @foreach (var k in _list)
+        {
+            var ozet = FiloKiralamaService.TaksitPlani(k);
+            <tr>
+                <td>@k.No</td>
+                <td>@CustName(k.MusteriId)</td>
+                <td>@VehName(k.VehicleId)</td>
+                <td class="num">@k.SureAy</td>
+                <td class="num">@k.AylikUcret.ToString("N2")</td>
+                <td class="num">@ozet.GenelToplam.ToString("N2") @k.Currency</td>
+                <td>@k.Durum</td>
+                <td>
+                    @if (k.Durum == RentACar.Domain.Enums.FiloKiraDurum.Aktif)
+                    {
+                        <form method="post" action="/filo-kiralama/tamamla" style="display:inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@k.Id" /><button type="submit">Tamamla</button>
+                        </form>
+                        <form method="post" action="/filo-kiralama/iptal" style="display:inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<FiloKiralama> _list = [];
+    private Dictionary<Guid, string> _custMap = new();
+    private Dictionary<Guid, string> _vehMap = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Kiralamalar.ListAsync();
+        _custMap = (await Customers.ListAsync()).ToDictionary(c => c.Id, c => c.DisplayName);
+        _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    private string CustName(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";
+    private string VehName(Guid id) => _vehMap.TryGetValue(id, out var n) ? n : "—";
+}

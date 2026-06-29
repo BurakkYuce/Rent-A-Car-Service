@@ -55,6 +55,7 @@ using RentACar.Web.Authorization;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
 using RentACar.Web.VehicleSales;
+using RentACar.Web.FiloKiralamalar;
 using RentACar.Web.Vehicles;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -129,6 +130,7 @@ app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
 app.MapPenaltyEndpoints();
 app.MapVehicleSaleEndpoints();
+app.MapFiloKiralamaEndpoints(); // roadmap L1
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();
