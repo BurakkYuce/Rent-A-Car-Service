@@ -37,6 +37,28 @@ public static class BookingEndpoints
             }
         });
 
+        rez.MapPost("/update", async (ReservationService svc, HttpRequest req,
+            [FromForm] Guid id, [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
+            [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
+            [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
+            [FromForm] string? aciklama, [FromForm] string? kaynak) =>
+        {
+            try
+            {
+                var input = new BookingInput
+                {
+                    MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
+                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
+                    Kaynak = kaynak
+                };
+                ApplyOdemeDerinlik(input, req.Form);
+                await svc.UpdateAsync(id, input);
+                return Results.Redirect("/rezervasyonlar?ok=1");
+            }
+            catch (AvailabilityConflictException) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString("Seçilen tarihte araç müsait değil.")}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         rez.MapPost("/confirm", async (ReservationService svc, [FromForm] Guid id) =>
         {
             try { await svc.ConfirmAsync(id); return Results.Redirect("/rezervasyonlar"); }
