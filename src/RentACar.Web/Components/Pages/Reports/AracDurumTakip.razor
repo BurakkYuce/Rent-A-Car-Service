@@ -1,0 +1,54 @@
+@page "/raporlar/arac-durum-takip"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Araç Durum Takip — TürevRent</PageTitle>
+
+<h1>Araç Durum Takip (Gün Kırılımı)</h1>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/arac-durum-takip?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+    <a href="/raporlar/export/arac-durum-takip?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<p class="muted">Her gün için filo dağılımı: dolu (kirada) / bakım (serviste) / boş. Varsayılan son 30 gün.</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Gün</th><th class="num">Toplam</th><th class="num">Dolu</th><th class="num">Bakım</th><th class="num">Boş</th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Kayıt yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.Gun.ToString("yyyy-MM-dd")</td>
+                <td class="num">@r.ToplamArac</td>
+                <td class="num">@r.Dolu</td>
+                <td class="num">@r.Bakim</td>
+                <td class="num">@r.Bos</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<AracDurumTakipRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To);
+        _rows = await Reports.GetAracDurumTakipAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}

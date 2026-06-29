@@ -233,6 +233,33 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
+    public async Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var toplam = await db.Vehicles.AsNoTracking().CountAsync(ct);
+
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new { r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
+            .ToListAsync(ct);
+
+        var servisler = await db.ServiceRecords.AsNoTracking()
+            .Select(s => new { s.GirisTarihi, Cikis = s.CikisTarihi })
+            .ToListAsync(ct);
+
+        var sonuc = new List<AracDurumTakipRow>();
+        for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
+        {
+            var dolu = kiralar.Count(k => k.BasTar.Date <= d && k.Bit.Date >= d);
+            var bakim = servisler.Count(s => s.GirisTarihi.Date <= d && (s.Cikis ?? to).Date >= d);
+            var bos = Math.Max(0, toplam - dolu - bakim);
+            sonuc.Add(new AracDurumTakipRow(new DateTimeOffset(d, TimeSpan.Zero), toplam, dolu, bakim, bos));
+        }
+        return sonuc;
+    }
+
     public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
