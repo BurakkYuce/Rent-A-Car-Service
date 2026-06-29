@@ -82,6 +82,9 @@ public sealed record FaturaDonemRow(
     Guid InvoiceId, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi,
     string Cari, decimal GenelToplam, string Durum, bool IadeMi);
 
+/// <summary>Araç durum-takip (gün kırılımı) satırı — roadmap H3. Bos = Toplam − Dolu − Bakim (≥0).</summary>
+public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos);
+
 /// <summary>Dönem gelir-gider özeti + KDV + net kâr + kaynak kırılımı (base para).</summary>
 public sealed record GelirGiderDto(
     decimal GelirToplam, decimal GiderToplam,

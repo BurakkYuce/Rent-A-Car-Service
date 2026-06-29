@@ -60,6 +60,10 @@ public interface IReportRepository
     Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
+    /// <summary>Araç durum-takip (roadmap H3): [from,to] her gün için dolu/bakım/boş sayısı (gün kırılımı).</summary>
+    Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+
     /// <summary>
     /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
