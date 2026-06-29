@@ -14,12 +14,12 @@ public static class CustomCodeEndpoints
         var grp = app.MapGroup("/ozel-kodlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CustomCodeService svc,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama) =>
-            await Run(() => svc.CreateAsync(new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = true })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] string? turu) =>
+            await Run(() => svc.CreateAsync(new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = true })));
 
         grp.MapPost("/update", async (CustomCodeService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = aktif })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] string? turu, [FromForm] bool aktif) =>
+            await Run(() => svc.UpdateAsync(id, new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = aktif })));
 
         grp.MapPost("/delete", async (CustomCodeService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
