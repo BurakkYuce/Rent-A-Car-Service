@@ -86,6 +86,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleSale> VehicleSales => Set<VehicleSale>();
     public DbSet<FiloKiralama> FiloKiralamalar => Set<FiloKiralama>(); // roadmap L1
     public DbSet<AracSiparis> AracSiparisleri => Set<AracSiparis>(); // roadmap L3
+    public DbSet<AracKredi> AracKredileri => Set<AracKredi>(); // roadmap L4
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
@@ -983,6 +984,24 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Tip).HasMaxLength(100);
             e.Property(x => x.Grup).HasMaxLength(100);
             e.Property(x => x.BirimFiyat).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.Property(x => x.Durum).HasConversion<int>();
+            e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- AracKredi (banka kredisi takibi; full-CRUD, mali belge DEĞİL → roadmap L4) ----
+        b.Entity<AracKredi>(e =>
+        {
+            e.ToTable("AracKredileri");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.No).IsRequired().HasMaxLength(32);
+            e.Property(x => x.BankaAdi).IsRequired().HasMaxLength(200);
+            e.Property(x => x.KrediTutari).HasColumnType("numeric(19,4)");
+            e.Property(x => x.FaizOran).HasColumnType("numeric(9,4)");
             e.Property(x => x.Currency).HasMaxLength(3);
             e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
             e.Property(x => x.Aciklama).HasMaxLength(512);
