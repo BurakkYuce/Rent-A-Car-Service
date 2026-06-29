@@ -64,6 +64,12 @@ public interface IReportRepository
     Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 
+    /// <summary>Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).</summary>
+    Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default);
+
+    /// <summary>Personel çalışma (roadmap N3): personel başına BAF (araç tahsis) sayısı.</summary>
+    Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default);
+
     /// <summary>
     /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.

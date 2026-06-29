@@ -260,6 +260,46 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return sonuc;
     }
 
+    public async Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var grup = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .GroupBy(r => r.MusteriId)
+            .Select(g => new { MusteriId = g.Key, KiraSayisi = g.Count(), ToplamCiro = g.Sum(r => r.GenelToplam), SonIslem = g.Max(r => r.BasTar) })
+            .ToListAsync(ct);
+
+        var cust = (await db.Customers.AsNoTracking().ToListAsync(ct)).ToDictionary(c => c.Id, c => c.DisplayName);
+
+        return grup
+            .Select(g => new MusteriSegmentRow(
+                g.MusteriId, cust.TryGetValue(g.MusteriId, out var n) ? n : "(bilinmeyen cari)",
+                g.KiraSayisi, g.ToplamCiro, g.SonIslem,
+                g.ToplamCiro >= 10000m ? "VIP" : g.ToplamCiro > 0m ? "Standart" : "Pasif"))
+            .OrderByDescending(r => r.ToplamCiro)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var grup = await db.Baflar.AsNoTracking()
+            .GroupBy(b => b.PersonelId)
+            .Select(g => new { PersonelId = g.Key, TahsisSayisi = g.Count() })
+            .ToListAsync(ct);
+
+        var pers = (await db.Personeller.AsNoTracking().ToListAsync(ct))
+            .ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
+
+        return grup
+            .Select(g => new PersonelCalismaRow(
+                g.PersonelId, pers.TryGetValue(g.PersonelId, out var n) ? n : "(bilinmeyen personel)", g.TahsisSayisi))
+            .OrderByDescending(r => r.TahsisSayisi)
+            .ToList();
+    }
+
     public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {

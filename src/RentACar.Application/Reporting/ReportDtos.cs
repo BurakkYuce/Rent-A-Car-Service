@@ -85,6 +85,12 @@ public sealed record FaturaDonemRow(
 /// <summary>Araç durum-takip (gün kırılımı) satırı — roadmap H3. Bos = Toplam − Dolu − Bakim (≥0).</summary>
 public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos);
 
+/// <summary>Müşteri CRM segment satırı — roadmap N3. Segment ciro eşiğiyle (VIP/Standart/Pasif).</summary>
+public sealed record MusteriSegmentRow(Guid CariId, string Ad, int KiraSayisi, decimal ToplamCiro, DateTimeOffset? SonIslem, string Segment);
+
+/// <summary>Personel çalışma satırı — roadmap N3. BAF (araç tahsis) sayısı.</summary>
+public sealed record PersonelCalismaRow(Guid PersonelId, string Ad, int TahsisSayisi);
+
 /// <summary>Dönem gelir-gider özeti + KDV + net kâr + kaynak kırılımı (base para).</summary>
 public sealed record GelirGiderDto(
     decimal GelirToplam, decimal GiderToplam,
