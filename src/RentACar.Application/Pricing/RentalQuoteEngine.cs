@@ -130,8 +130,14 @@ public sealed class RentalQuoteEngine(
         var faturalananGun = Math.Max(0, gun - hediyeGun);
         var bazTutar = R(gunlukUcret * faturalananGun);
 
-        // 5) Ara toplam → iskonto → genel toplam. İskonto matrahı = araToplam (baz + km aşım + sigorta).
-        var araToplam = R(bazTutar + kmAsim + sigortaToplam);
+        // 4b) Hafta sonu farkı (roadmap G3, opt-in): faturalanan dönemdeki Cmt/Pzr günlerine günlük ücret × oran.
+        var hsOran = kural?.HaftaSonuFarkOran ?? 0m;
+        var hsGun = hsOran > 0m ? WeekendDays(req.BasTar, faturalananGun) : 0;
+        var haftaSonuFark = R(gunlukUcret * hsGun * hsOran / 100m);
+        if (haftaSonuFark > 0m) notlar.Add($"Hafta sonu farkı: {hsGun} gün × %{hsOran} = {haftaSonuFark}.");
+
+        // 5) Ara toplam → iskonto → genel toplam. İskonto matrahı = araToplam (baz + hafta sonu + km aşım + sigorta).
+        var araToplam = R(bazTutar + haftaSonuFark + kmAsim + sigortaToplam);
         var iskontoTutar = R(araToplam * iskontoOran / 100m);
         var genelToplam = R(araToplam - iskontoTutar);
 
@@ -142,6 +148,7 @@ public sealed class RentalQuoteEngine(
             FaturalananGun = faturalananGun,
             GunlukUcret = gunlukUcret,
             BazTutar = bazTutar,
+            HaftaSonuFark = haftaSonuFark,
             KmAsimTutar = kmAsim,
             SigortaToplam = sigortaToplam,
             AraToplam = araToplam,
@@ -191,6 +198,18 @@ public sealed class RentalQuoteEngine(
             if (tiers[t - 1] is { } v) return v;
         notlar.Add($"Tarife '{m.Kod}' için gün-kademesi fiyatı tanımlı değil; günlük ücret 0.");
         return 0m;
+    }
+
+    /// <summary>[bas, bas+gun) aralığındaki Cumartesi/Pazar gün sayısı (hafta sonu farkı için, roadmap G3).</summary>
+    private static int WeekendDays(DateTimeOffset bas, int gun)
+    {
+        var count = 0;
+        for (var i = 0; i < gun; i++)
+        {
+            var d = bas.Date.AddDays(i).DayOfWeek;
+            if (d is DayOfWeek.Saturday or DayOfWeek.Sunday) count++;
+        }
+        return count;
     }
 
     /// <summary>Kapsam + tarih + min/max gün eşleşen tek kural seçilir (promosyonlar stack'lenmez).

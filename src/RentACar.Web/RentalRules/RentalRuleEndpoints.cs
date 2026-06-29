@@ -37,6 +37,7 @@ public static class RentalRuleEndpoints
         MinGun = FormParse.Int(Str(f, "minGun")),
         MaxGun = FormParse.Int(Str(f, "maxGun")),
         Iskonto = FormParse.Dec(Str(f, "iskonto")),
+        HaftaSonuFarkOran = FormParse.Dec(Str(f, "haftaSonuFarkOran")),
         SonraOdeOran = FormParse.Dec(Str(f, "sonraOdeOran")),
         HediyeGun = FormParse.Int(Str(f, "hediyeGun")),
         KampanyaMi = (Str(f, "kampanyaMi")) is "true" or "True" or "on",
