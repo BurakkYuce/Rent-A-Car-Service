@@ -60,6 +60,51 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
         return reservation.Id;
     }
 
+    /// <summary>
+    /// Rezervasyon düzenleme (roadmap I2): yalnız Rezerv/Onaylı durumda — tarih/araç/fiyat/ek alanlar/kaynak
+    /// güncellenir, fiyat yeniden hesaplanır, aktif kira çakışması yeniden kontrol edilir. Defter etkilemez.
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
+    {
+        BookingMath.Validate(input);
+        var existing = await _repository.FindReservationAsync(id, ct);
+        if (existing is null) return false;
+        if (existing.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
+            throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon düzenlenebilir.");
+
+        var (gun, tutar) = await _pricing.PriceAsync(input, ct);
+
+        if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
+            throw new AvailabilityConflictException();
+
+        return await _repository.UpdateReservationAsync(id, r =>
+        {
+            if (r.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
+                throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon düzenlenebilir.");
+            r.MusteriId = input.MusteriId;
+            r.VehicleId = input.VehicleId;
+            r.BasTar = input.BasTar;
+            r.BitTar = input.BitTar;
+            r.CikisOfisi = input.CikisOfisi;
+            r.DonusOfisi = input.DonusOfisi;
+            r.Gun = gun;
+            r.GunlukUcret = input.GunlukUcret;
+            r.Tutar = tutar;
+            r.KmLimit = input.KmLimit;
+            r.FazlaKmUcret = input.FazlaKmUcret;
+            r.YakitBirimUcret = input.YakitBirimUcret;
+            r.Provizyon = input.Provizyon;
+            r.Depozito = input.Depozito;
+            r.KomisyonOran = input.KomisyonOran;
+            r.KomisyonTutar = input.KomisyonTutar;
+            r.DropUcreti = input.DropUcreti;
+            r.SonraOdeOran = input.SonraOdeOran;
+            r.Aciklama = input.Aciklama;
+            r.Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim();
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)
         => Transition(id, ReservationStatus.Onayli, [ReservationStatus.Rezerv], ct);
 
