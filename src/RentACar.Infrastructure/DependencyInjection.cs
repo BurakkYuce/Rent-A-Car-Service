@@ -140,6 +140,7 @@ public static class DependencyInjection
         services.AddScoped<IPenaltyTypeRepository, PenaltyTypeRepository>();
         services.AddScoped<ILedgerPoster, LedgerPoster>();
         services.AddScoped<IVehicleSaleRepository, VehicleSaleRepository>();
+        services.AddScoped<RentACar.Application.FiloKiralamalar.IFiloKiralamaRepository, Persistence.Repositories.FiloKiralamaRepository>(); // roadmap L1
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
