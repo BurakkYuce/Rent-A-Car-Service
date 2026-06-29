@@ -88,6 +88,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<AracSiparis> AracSiparisleri => Set<AracSiparis>(); // roadmap L3
     public DbSet<AracKredi> AracKredileri => Set<AracKredi>(); // roadmap L4
     public DbSet<Baf> Baflar => Set<Baf>(); // roadmap L5
+    public DbSet<HesapKodu> HesapKodlari => Set<HesapKodu>(); // roadmap N1
+    public DbSet<ServisTanim> ServisTanimlari => Set<ServisTanim>(); // roadmap N1
     public DbSet<DamageFile> DamageFiles => Set<DamageFile>();
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
@@ -1023,6 +1025,30 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Durum).HasConversion<int>();
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.PersonelId });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- HesapKodu / ServisTanim (basit Kod-master; full-CRUD → roadmap N1) ----
+        b.Entity<HesapKodu>(e =>
+        {
+            e.ToTable("HesapKodlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+        b.Entity<ServisTanim>(e =>
+        {
+            e.ToTable("ServisTanimlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+            e.Property(x => x.AracTipi).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Aciklama).HasMaxLength(512);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
