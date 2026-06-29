@@ -70,6 +70,7 @@ public sealed class ExpenseCategoryService(IExpenseCategoryRepository repository
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
+        Tur = string.IsNullOrWhiteSpace(input.Tur) ? null : input.Tur.Trim(),
         Aktif = input.Aktif
     };
 
@@ -77,6 +78,7 @@ public sealed class ExpenseCategoryService(IExpenseCategoryRepository repository
     {
         category.Kod = n.Kod;
         category.Ad = n.Ad;
+        category.Tur = n.Tur;
         category.Aktif = n.Aktif;
     }
 }

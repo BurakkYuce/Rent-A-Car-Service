@@ -13,12 +13,12 @@ public static class ExpenseCategoryEndpoints
     {
         var grp = app.MapGroup("/gider-turleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (ExpenseCategoryService svc, [FromForm] string kod, [FromForm] string ad) =>
-            await Run(() => svc.CreateAsync(new ExpenseCategoryInput { Kod = kod, Ad = ad, Aktif = true })));
+        grp.MapPost("/create", async (ExpenseCategoryService svc, [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur) =>
+            await Run(() => svc.CreateAsync(new ExpenseCategoryInput { Kod = kod, Ad = ad, Tur = tur, Aktif = true })));
 
         grp.MapPost("/update", async (ExpenseCategoryService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new ExpenseCategoryInput { Kod = kod, Ad = ad, Aktif = aktif })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] bool aktif) =>
+            await Run(() => svc.UpdateAsync(id, new ExpenseCategoryInput { Kod = kod, Ad = ad, Tur = tur, Aktif = aktif })));
 
         grp.MapPost("/delete", async (ExpenseCategoryService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));

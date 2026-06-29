@@ -71,6 +71,7 @@ public sealed class CustomCodeService(ICustomCodeRepository repository, ICurrent
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
         Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim(),
+        Turu = string.IsNullOrWhiteSpace(input.Turu) ? null : input.Turu.Trim(),
         Aktif = input.Aktif
     };
 
@@ -79,6 +80,7 @@ public sealed class CustomCodeService(ICustomCodeRepository repository, ICurrent
         code.Kod = n.Kod;
         code.Ad = n.Ad;
         code.Aciklama = n.Aciklama;
+        code.Turu = n.Turu;
         code.Aktif = n.Aktif;
     }
 }

@@ -16,6 +16,8 @@ public class CustomCode : ITenantOwned, IAuditable
     public string Kod { get; set; } = string.Empty;
     public string Ad { get; set; } = string.Empty;
     public string? Aciklama { get; set; }
+    /// <summary>Sınıflandırma türü (roadmap G5): tüketici formlar tür-bazlı filtreleyebilsin — opsiyonel.</summary>
+    public string? Turu { get; set; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
