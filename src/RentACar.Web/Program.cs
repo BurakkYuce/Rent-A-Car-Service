@@ -159,6 +159,7 @@ app.MapPenaltyTypeEndpoints();
 app.MapKdvRateEndpoints();
 app.MapVehicleGroupEndpoints();
 app.MapReportExportEndpoints();
+app.MapListExportEndpoints(); // roadmap G6: liste export
 app.MapPdfEndpoints();
 app.MapTenantSettingsEndpoints();
 app.MapPersonelEndpoints();
