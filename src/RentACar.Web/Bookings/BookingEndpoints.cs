@@ -107,6 +107,13 @@ public static class BookingEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        kira.MapPost("/uzat", async (RentalService svc, [FromForm] Guid id, [FromForm] DateTimeOffset yeniBitTar) =>
+        {
+            try { await svc.ExtendAsync(id, yeniBitTar); return Results.Redirect($"/kiralar/{id}"); }
+            catch (RentACar.Application.Bookings.AvailabilityConflictException) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString("Uzatılan tarihte araç müsait değil.")}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 
