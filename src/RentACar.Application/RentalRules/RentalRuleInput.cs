@@ -15,6 +15,7 @@ public sealed class RentalRuleInput
     public int? MaxGun { get; set; }
 
     public decimal? Iskonto { get; set; }
+    public decimal? HaftaSonuFarkOran { get; set; } // roadmap G3
     public decimal? SonraOdeOran { get; set; }
     public int? HediyeGun { get; set; }
     public bool KampanyaMi { get; set; }
