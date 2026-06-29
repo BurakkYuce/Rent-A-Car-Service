@@ -142,6 +142,55 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
+    public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Her araç için tanımlı en yüksek SonrakiBakimKm (en ileri bakım hedefi).
+        var bakim = await db.ServiceRecords.AsNoTracking()
+            .Where(r => r.SonrakiBakimKm != null)
+            .GroupBy(r => r.VehicleId)
+            .Select(g => new { VehicleId = g.Key, Sonraki = g.Max(r => r.SonrakiBakimKm!.Value) })
+            .ToListAsync(ct);
+
+        var arac = (await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka, v.Km }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v);
+
+        return bakim
+            .Where(b => arac.ContainsKey(b.VehicleId))
+            .Select(b =>
+            {
+                var v = arac[b.VehicleId];
+                return new PeriyodikServisRow(b.VehicleId, v.Plaka, v.Km, b.Sonraki, b.Sonraki - v.Km);
+            })
+            .OrderBy(r => r.KalanKm)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Rentals.AsNoTracking().Where(r => r.CikisKm != null && r.DonusKm != null);
+        if (from is { } f) q = q.Where(r => r.BasTar >= f);
+        if (to is { } t) q = q.Where(r => r.BasTar <= t);
+
+        var rows = await q
+            .Select(r => new { r.Id, r.SozlesmeNo, r.VehicleId, r.CikisKm, r.DonusKm, r.KmLimit, r.FazlaKm, r.FazlaKmBedeli })
+            .ToListAsync(ct);
+
+        var plaka = (await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v.Plaka);
+
+        return rows
+            .Select(r => new KmDetayRow(
+                r.Id, r.SozlesmeNo, plaka.TryGetValue(r.VehicleId, out var p) ? p : "(bilinmeyen araç)",
+                r.CikisKm!.Value, r.DonusKm!.Value, r.DonusKm!.Value - r.CikisKm!.Value,
+                r.KmLimit, r.FazlaKm, r.FazlaKmBedeli))
+            .ToList();
+    }
+
     public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {

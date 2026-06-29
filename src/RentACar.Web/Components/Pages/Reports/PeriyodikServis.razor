@@ -1,0 +1,38 @@
+@page "/raporlar/periyodik-servis"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Periyodik Servis Raporu — TürevRent</PageTitle>
+
+<h1>Periyodik Servis (KM Bakım Uyarısı)</h1>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/periyodik-servis?format=excel">Excel</a> ·
+    <a href="/raporlar/export/periyodik-servis?format=csv">CSV</a></p>
+<p class="muted">Her aracın sonraki bakım KM hedefine kalan mesafe (kalan KM artan sıralı). Negatif = bakım zamanı geçti.</p>
+
+<table class="grid">
+    <thead><tr><th>Plaka</th><th class="num">Güncel KM</th><th class="num">Sonraki Bakım KM</th><th class="num">Kalan KM</th><th></th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Bakım hedefi (Sonraki Bakım KM) tanımlı araç yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.Plaka</td>
+                <td class="num">@r.GuncelKm</td>
+                <td class="num">@r.SonrakiBakimKm</td>
+                <td class="num">@r.KalanKm</td>
+                <td>@(r.KalanKm <= 0 ? "⚠️ geçti" : r.KalanKm <= 1000 ? "yaklaştı" : "")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<PeriyodikServisRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+        => _rows = await Reports.GetPeriyodikServisAsync();
+}
