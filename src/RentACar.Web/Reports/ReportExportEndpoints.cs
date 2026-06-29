@@ -37,6 +37,8 @@ public static class ReportExportEndpoints
                 "doluluk" => Doluluk(await rs.GetDolulukAsync(from ?? gun.AddMonths(-1), to ?? gun)),
                 "filo" => Filo(await rs.GetFleetUtilizationAsync()),
                 "servis-ozet" => Servis(await rs.GetServiceCostSummaryAsync(from, to)),
+                "periyodik-servis" => PeriyodikServis(await rs.GetPeriyodikServisAsync()),
+                "km-detay" => KmDetay(await rs.GetKmDetayAsync(from, to)),
                 "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),
                 "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
                 "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
@@ -104,6 +106,14 @@ public static class ReportExportEndpoints
     private static Table Servis(IReadOnlyList<ServiceCostSummaryDto> rows)
         => new("Servis Özet", new[] { "Plaka", "Tip", "Toplam", "Adet" },
             rows.Select(s => new object?[] { s.Plaka, s.Tip.ToString(), s.Toplam, s.Adet }).ToList());
+
+    private static Table PeriyodikServis(IReadOnlyList<PeriyodikServisRow> rows)
+        => new("Periyodik Servis", new[] { "Plaka", "Güncel KM", "Sonraki Bakım KM", "Kalan KM" },
+            rows.Select(r => new object?[] { r.Plaka, r.GuncelKm, r.SonrakiBakimKm, r.KalanKm }).ToList());
+
+    private static Table KmDetay(IReadOnlyList<KmDetayRow> rows)
+        => new("KM Detay", new[] { "Sözleşme", "Plaka", "Çıkış KM", "Dönüş KM", "Katedilen", "Limit", "Fazla KM", "Fazla Bedel" },
+            rows.Select(r => new object?[] { r.SozlesmeNo, r.Plaka, r.CikisKm, r.DonusKm, r.KatedilenKm, r.KmLimit, r.FazlaKm, r.FazlaKmBedeli }).ToList());
 
     private static Table Gunluk(GunlukFaaliyetDto d)
         => KV("Günlük Faaliyet", ("Yeni Rezervasyon", d.YeniRezervasyon), ("Yeni Kira", d.YeniKira),
