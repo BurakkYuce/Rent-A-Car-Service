@@ -1,0 +1,36 @@
+@page "/hesap-kodlari"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
+@using RentACar.Application.HesapKodlari
+@inject HesapKoduService Hesaplar
+
+<PageTitle>Hesap Kodları — TürevRent</PageTitle>
+
+<h1>Muhasebe Hesap Kodları</h1>
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<form method="post" action="/hesap-kodlari/create" class="grid-form"><AntiforgeryToken />
+    <label>Kod<input name="kod" required placeholder="600" /></label>
+    <label>Ad<input name="ad" required placeholder="Yurtiçi Satışlar" /></label>
+    <label>Açıklama<input name="aciklama" /></label>
+    <button type="submit">Ekle</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>Aktif</th><th></th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
+        @foreach (var h in _list)
+        {
+            <tr>
+                <td>@h.Kod</td><td>@h.Ad</td><td>@h.Aciklama</td><td>@(h.Aktif ? "Evet" : "Hayır")</td>
+                <td><form method="post" action="/hesap-kodlari/delete" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@h.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    private IReadOnlyList<HesapKodu> _list = [];
+    protected override async Task OnInitializedAsync() => _list = await Hesaplar.ListAsync();
+}
