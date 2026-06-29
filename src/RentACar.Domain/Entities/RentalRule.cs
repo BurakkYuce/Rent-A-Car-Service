@@ -33,6 +33,8 @@ public class RentalRule : ITenantOwned, IAuditable
     // İndirim / promosyon
     /// <summary>İskonto oranı (%).</summary>
     public decimal? Iskonto { get; set; }
+    /// <summary>Hafta sonu (Cmt/Pzr) günlük ücrete ek fark oranı (%) — roadmap G3 (opt-in).</summary>
+    public decimal? HaftaSonuFarkOran { get; set; }
     /// <summary>"Sonra Öde" oranı (%).</summary>
     public decimal? SonraOdeOran { get; set; }
     /// <summary>Hediye gün (kampanya: N gün al, M gün öde).</summary>
