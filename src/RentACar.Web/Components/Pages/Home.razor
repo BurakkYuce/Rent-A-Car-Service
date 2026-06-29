@@ -6,6 +6,7 @@
 @inject ReservationService Reservations
 @inject VadeService Vade
 @inject DashboardService Dashboard
+@inject RentACar.Application.Crm.SikayetService Sikayet
 
 <PageTitle>Panel — TürevRent</PageTitle>
 
@@ -35,6 +36,10 @@
     <div class="card">
         <div class="card-num">@_cariCount</div>
         <div class="card-label">Cari</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_acikSikayet</div>
+        <div class="card-label"><a href="/bildirimler">Açık Şikayet</a></div>
     </div>
 </div>
 
@@ -86,6 +91,7 @@
     private int _bugunDonus;
     private int _gecmis;
     private int _yakin;
+    private int _acikSikayet;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
 
     protected override async Task OnInitializedAsync()
@@ -113,5 +119,7 @@
         var warnings = await Vade.GetWarningsAsync();
         _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
         _yakin = warnings.Count(w => w.Bucket != VadeBucket.Gecmis);
+
+        _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.SikayetDurum.Acik);
     }
 }

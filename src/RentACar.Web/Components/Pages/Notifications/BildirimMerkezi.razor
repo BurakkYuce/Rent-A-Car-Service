@@ -1,0 +1,77 @@
+@page "/bildirimler"
+@attribute [Authorize]
+@using RentACar.Application.Notifications
+@using RentACar.Domain.Enums
+@inject BildirimService Bildirimler
+
+<PageTitle>Bildirim Merkezi — TürevRent</PageTitle>
+
+<h1>Bildirim Merkezi</h1>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_d.VadeGecmis</div>
+        <div class="card-label">Geçmiş Vade</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_d.VadeYakin</div>
+        <div class="card-label">Yaklaşan Vade (≤30 gün)</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_d.AcikSikayet</div>
+        <div class="card-label">Açık Şikayet</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@(_d.DonemKapanis is null ? "Açık" : _d.DonemKapanis.Value.ToString("yyyy-MM-dd"))</div>
+        <div class="card-label">Dönem Kapanış</div>
+    </div>
+</div>
+
+<h2>Vade Uyarıları</h2>
+@if (_d.Vadeler.Count == 0)
+{
+    <p class="muted">Yaklaşan/geçmiş vade yok.</p>
+}
+else
+{
+    <table class="grid">
+        <thead><tr><th>Tür</th><th>Bitiş</th><th class="num">Kalan Gün</th><th>Durum</th></tr></thead>
+        <tbody>
+            @foreach (var v in _d.Vadeler)
+            {
+                <tr>
+                    <td>@v.Tur</td>
+                    <td>@v.Bitis.ToString("yyyy-MM-dd")</td>
+                    <td class="num">@v.KalanGun</td>
+                    <td>@(v.Bucket == VadeBucket.Gecmis ? "Geçmiş" : "Yaklaşan")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Açık Şikayetler</h2>
+@if (_d.Sikayetler.Count == 0)
+{
+    <p class="muted">Açık şikayet yok.</p>
+}
+else
+{
+    <table class="grid">
+        <thead><tr><th>Konu</th><th>Tarih</th></tr></thead>
+        <tbody>
+            @foreach (var s in _d.Sikayetler)
+            {
+                <tr><td>@s.Konu</td><td>@s.Tarih.ToString("yyyy-MM-dd")</td></tr>
+            }
+        </tbody>
+    </table>
+    <p><a href="/sikayetler">Şikayetler →</a></p>
+}
+
+@code {
+    private BildirimDto _d = new(0, 0, [], 0, [], null);
+
+    protected override async Task OnInitializedAsync()
+        => _d = await Bildirimler.GetAsync();
+}
