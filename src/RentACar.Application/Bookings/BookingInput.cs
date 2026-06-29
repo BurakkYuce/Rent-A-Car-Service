@@ -23,4 +23,5 @@ public sealed class BookingInput
     public decimal? SonraOdeOran { get; set; }
 
     public string? Aciklama { get; set; }
+    public string? Kaynak { get; set; } // roadmap H2
 }

@@ -1,0 +1,48 @@
+@page "/raporlar/rezervasyon-kaynak"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Rezervasyon Kaynak Raporu — TürevRent</PageTitle>
+
+<h1>Rezervasyon Kaynak Raporu</h1>
+<p class="muted small">📥 İndir:
+    <a href="/raporlar/export/rezervasyon-kaynak?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+    <a href="/raporlar/export/rezervasyon-kaynak?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<p class="muted">Kaynak/kanal başına rezervasyon adedi, toplam gün ve ciro (başlangıç tarihine göre).</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<table class="grid">
+    <thead><tr><th>Kaynak</th><th class="num">Adet</th><th class="num">Toplam Gün</th><th class="num">Toplam Ciro</th></tr></thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Bu aralıkta rezervasyon yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr><td>@r.Kaynak</td><td class="num">@r.Adet</td><td class="num">@r.ToplamGun</td><td class="num">@r.ToplamCiro.ToString("N2")</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<RezervasyonKaynakRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        _rows = await Reports.GetRezervasyonKaynakAsync(from, to);
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
