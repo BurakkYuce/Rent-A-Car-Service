@@ -291,6 +291,14 @@ public sealed class ReportService(IReportRepository repository)
         return _repository.GetAracDurumTakipRowsAsync(bas, bit, ct);
     }
 
+    /// <summary>Müşteri CRM segment (roadmap N3): kira sayısı/ciro/segment.</summary>
+    public Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentAsync(CancellationToken ct = default)
+        => _repository.GetMusteriSegmentRowsAsync(ct);
+
+    /// <summary>Personel çalışma grafiği (roadmap N3): personel başına BAF tahsis sayısı.</summary>
+    public Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaAsync(CancellationToken ct = default)
+        => _repository.GetPersonelCalismaRowsAsync(ct);
+
     private static decimal Signed(CariLedgerRowDto r)
         => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
 

@@ -1,0 +1,49 @@
+@page "/crm"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>CRM Analiz — TürevRent</PageTitle>
+
+<h1>CRM — Müşteri Segment & Personel Çalışma</h1>
+<p class="muted small">Salt-okur agrega: müşteri kira/ciro segmenti + personel BAF (araç tahsis) çalışma sayısı.</p>
+
+<h2>Müşteri Segment</h2>
+<table class="grid">
+    <thead><tr><th>Müşteri</th><th class="num">Kira Sayısı</th><th class="num">Toplam Ciro</th><th>Son İşlem</th><th>Segment</th></tr></thead>
+    <tbody>
+        @if (_segment.Count == 0) { <tr><td colspan="5" class="muted">Veri yok.</td></tr> }
+        @foreach (var s in _segment)
+        {
+            <tr>
+                <td>@s.Ad</td>
+                <td class="num">@s.KiraSayisi</td>
+                <td class="num">@s.ToplamCiro.ToString("N2")</td>
+                <td>@(s.SonIslem?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@s.Segment</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Personel Çalışma (BAF)</h2>
+<table class="grid">
+    <thead><tr><th>Personel</th><th class="num">Tahsis Sayısı</th></tr></thead>
+    <tbody>
+        @if (_personel.Count == 0) { <tr><td colspan="2" class="muted">Veri yok.</td></tr> }
+        @foreach (var p in _personel)
+        {
+            <tr><td>@p.Ad</td><td class="num">@p.TahsisSayisi</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<MusteriSegmentRow> _segment = [];
+    private IReadOnlyList<PersonelCalismaRow> _personel = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _segment = await Reports.GetMusteriSegmentAsync();
+        _personel = await Reports.GetPersonelCalismaAsync();
+    }
+}
