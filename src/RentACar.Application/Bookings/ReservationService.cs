@@ -53,7 +53,8 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             KomisyonTutar = input.KomisyonTutar,
             DropUcreti = input.DropUcreti,
             SonraOdeOran = input.SonraOdeOran,
-            Aciklama = input.Aciklama
+            Aciklama = input.Aciklama,
+            Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim()
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
