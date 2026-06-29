@@ -141,6 +141,7 @@ public static class DependencyInjection
         services.AddScoped<ILedgerPoster, LedgerPoster>();
         services.AddScoped<IVehicleSaleRepository, VehicleSaleRepository>();
         services.AddScoped<RentACar.Application.FiloKiralamalar.IFiloKiralamaRepository, Persistence.Repositories.FiloKiralamaRepository>(); // roadmap L1
+        services.AddScoped<RentACar.Application.AracSiparisleri.IAracSiparisRepository, Persistence.Repositories.AracSiparisRepository>(); // roadmap L3
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
