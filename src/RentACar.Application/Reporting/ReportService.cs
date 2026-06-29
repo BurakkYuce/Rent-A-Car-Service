@@ -263,6 +263,15 @@ public sealed class ReportService(IReportRepository repository)
             .ToList();
     }
 
+    /// <summary>Periyodik servis raporu (roadmap H1): KM-bazlı bakım uyarısı, KalanKm artan sıralı.</summary>
+    public Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisAsync(CancellationToken ct = default)
+        => _repository.GetPeriyodikServisRowsAsync(ct);
+
+    /// <summary>Kira KM detay raporu (roadmap H1): dönmüş kiraların çıkış/dönüş/katedilen km'si.</summary>
+    public Task<IReadOnlyList<KmDetayRow>> GetKmDetayAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        => _repository.GetKmDetayRowsAsync(from, to, ct);
+
     private static decimal Signed(CariLedgerRowDto r)
         => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
 
