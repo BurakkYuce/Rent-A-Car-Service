@@ -29,6 +29,7 @@ public sealed class QuoteResult
     public int FaturalananGun { get; init; }
     public decimal GunlukUcret { get; init; }
     public decimal BazTutar { get; init; }
+    public decimal HaftaSonuFark { get; init; } // roadmap G3
     public decimal KmAsimTutar { get; init; }
     public decimal SigortaToplam { get; init; }
     public decimal AraToplam { get; init; }

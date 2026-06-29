@@ -70,6 +70,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
             throw new ValidationException("Max gün, min günden küçük olamaz.");
         if (n.HediyeGun is < 0) throw new ValidationException("Hediye gün negatif olamaz.");
         if (n.Iskonto is < 0m or > 100m) throw new ValidationException("İskonto oranı 0 ile 100 arasında olmalıdır (%).");
+        if (n.HaftaSonuFarkOran is < 0m or > 200m) throw new ValidationException("Hafta sonu fark oranı 0 ile 200 arasında olmalıdır (%).");
         if (n.SonraOdeOran is < 0m or > 100m) throw new ValidationException("Sonra öde oranı 0 ile 100 arasında olmalıdır (%).");
         if (n.GecerlilikBas is { } b && n.GecerlilikBit is { } t && t < b)
             throw new ValidationException("Geçerlilik bitişi başlangıçtan önce olamaz.");
@@ -86,6 +87,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         MinGun = input.MinGun,
         MaxGun = input.MaxGun,
         Iskonto = input.Iskonto,
+        HaftaSonuFarkOran = input.HaftaSonuFarkOran,
         SonraOdeOran = input.SonraOdeOran,
         HediyeGun = input.HediyeGun,
         KampanyaMi = input.KampanyaMi,
@@ -109,6 +111,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         row.MinGun = n.MinGun;
         row.MaxGun = n.MaxGun;
         row.Iskonto = n.Iskonto;
+        row.HaftaSonuFarkOran = n.HaftaSonuFarkOran;
         row.SonraOdeOran = n.SonraOdeOran;
         row.HediyeGun = n.HediyeGun;
         row.KampanyaMi = n.KampanyaMi;
