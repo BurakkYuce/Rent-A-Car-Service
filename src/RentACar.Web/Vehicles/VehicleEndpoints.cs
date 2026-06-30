@@ -90,8 +90,27 @@ public static class VehicleEndpoints
         DetayTipi = Str(f, "detayTipi"),
         AlimFaturaNo = Str(f, "alimFaturaNo"),
         AlimYapilanFirma = Str(f, "alimYapilanFirma"),
-        KiraKmLimiti = FormParse.Int(Str(f, "kiraKmLimiti"))
+        KiraKmLimiti = FormParse.Int(Str(f, "kiraKmLimiti")),
+        // roadmap K2 — operasyon bayrakları + bakım/lastik
+        WebRezKapat = Flag(f, "webRezKapat"),
+        OfisRezKapat = Flag(f, "ofisRezKapat"),
+        ZIzni = Flag(f, "zIzni"),
+        Utts = Flag(f, "utts"),
+        KarLastigi = Flag(f, "karLastigi"),
+        YedekAnahtar = Flag(f, "yedekAnahtar"),
+        Temizlik = Flag(f, "temizlik"),
+        Rehin = Flag(f, "rehin"),
+        SonBakimTarih = FormParse.Date(Str(f, "sonBakimTarih")),
+        SonBakimKm = FormParse.Int(Str(f, "sonBakimKm")),
+        LastikDurumu = Str(f, "lastikDurumu")
     };
+
+    /// <summary>Checkbox: değer "true"/"on" ise true; yoksa false.</summary>
+    private static bool Flag(IFormCollection f, string key)
+    {
+        var v = f[key].ToString();
+        return v is "true" or "on" or "True";
+    }
 
     private static string? Str(IFormCollection f, string key)
     {
