@@ -17,6 +17,12 @@ public class VehicleType : ITenantOwned, IAuditable
     public string Ad { get; set; } = string.Empty;
     /// <summary>İlişkili marka (serbest metin, opsiyonel).</summary>
     public string? Marka { get; set; }
+    /// <summary>Varsayılan vites türü (serbest metin: Manuel/Otomatik) — roadmap K1.</summary>
+    public string? Vites { get; set; }
+    /// <summary>Varsayılan yakıt türü (serbest metin: Benzin/Dizel/Elektrik…) — roadmap K1.</summary>
+    public string? Yakit { get; set; }
+    /// <summary>İlişkili araç grubu (serbest metin) — roadmap K1.</summary>
+    public string? Grup { get; set; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

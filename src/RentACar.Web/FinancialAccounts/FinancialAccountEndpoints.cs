@@ -14,12 +14,16 @@ public static class FinancialAccountEndpoints
         var grp = app.MapGroup("/hesaplar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (FinancialAccountService svc,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz) =>
-            await Run(() => svc.CreateAsync(new FinancialAccountInput { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Aktif = true })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz,
+            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube) =>
+            await Run(() => svc.CreateAsync(new FinancialAccountInput
+            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube, Aktif = true })));
 
         grp.MapPost("/update", async (FinancialAccountService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new FinancialAccountInput { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Aktif = aktif })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz,
+            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube, [FromForm] bool aktif) =>
+            await Run(() => svc.UpdateAsync(id, new FinancialAccountInput
+            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube, Aktif = aktif })));
 
         grp.MapPost("/delete", async (FinancialAccountService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
