@@ -3,6 +3,7 @@
 @using RentACar.Domain.Enums
 @inject ServiceRecordService Services
 @inject VehicleService Vehicles
+@inject CustomerService Customers
 
 <PageTitle>Servis / Bakım — TürevRent</PageTitle>
 
@@ -96,6 +97,19 @@
                             <input type="hidden" name="id" value="@s.Id" /><button type="submit">İptal</button>
                         </form>
                     }
+                    @if (s.Durum == ServisDurum.Tamamlandi && !s.Yansitildi
+                         && s.HasarSorumlu is HasarSorumlu.Musteri or HasarSorumlu.Sigorta && s.KusurOrani > 0m)
+                    {
+                        <form method="post" action="/servis-yansitma/yansit" class="inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <select name="cariId" required>
+                                <option value="">Cari…</option>
+                                @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
+                            </select>
+                            <button type="submit" title="Maliyet × kusur oranı cari'ye yansıtılır">Rücu Yansıt</button>
+                        </form>
+                    }
+                    @if (s.Yansitildi) { <span class="muted small">Yansıtıldı: @s.YansitilanTutar.ToString("N2")</span> }
                 </td>
             </tr>
         }
@@ -107,12 +121,14 @@
 
     private IReadOnlyList<ServiceRecord> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
+    private IReadOnlyList<Customer> _customers = [];
     private Dictionary<Guid, string> _vehMap = new();
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Services.ListAsync();
         _vehicles = await Vehicles.ListAsync();
+        _customers = await Customers.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
     }
 

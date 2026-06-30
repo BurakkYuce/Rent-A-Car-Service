@@ -34,6 +34,11 @@ public static class ServiceRecordEndpoints
         grp.MapPost("/kalem", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] string aciklama, [FromForm] decimal tutar)
             => Run(() => svc.KalemEkleAsync(id, aciklama, tutar)));
 
+        // Servis maliyeti rücu/yansıtma→defter (roadmap J4): FinanceWrite (mali işlem).
+        var ode = app.MapGroup("/servis-yansitma").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
+        ode.MapPost("/yansit", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] Guid cariId)
+            => Run(() => svc.YansitAsync(id, cariId)));
+
         return app;
     }
 
