@@ -38,6 +38,13 @@ public class ServiceRecord : ITenantOwned, IAuditable
     /// <summary>İşçilik kalemleri toplamı (Lines'tan türetilir, kalıcılaştırılır).</summary>
     public decimal ToplamIscilik { get; set; }
 
+    /// <summary>Rücu/yansıtma yapıldı mı (roadmap J4): true → defter kaydı yazılmış, tekrar yansıtılamaz.</summary>
+    public bool Yansitildi { get; set; }
+    /// <summary>Yansıtılan tutar (roadmap J4): ToplamIscilik × KusurOrani.</summary>
+    public decimal YansitilanTutar { get; set; }
+    /// <summary>Yansıtmanın borçlandırıldığı cari (roadmap J4).</summary>
+    public Guid? YansitilanCariId { get; set; }
+
     public List<ServiceLine> Lines { get; set; } = [];
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
