@@ -151,7 +151,15 @@ public sealed class CustomerService(ICustomerRepository repository)
         Yetkili2Mail = Trim(input.Yetkili2Mail),
         Yetkili3Ad = Trim(input.Yetkili3Ad),
         Yetkili3Tel = Trim(input.Yetkili3Tel),
-        Yetkili3Mail = Trim(input.Yetkili3Mail)
+        Yetkili3Mail = Trim(input.Yetkili3Mail),
+        // roadmap K4
+        KvkkOnay = input.KvkkOnay,
+        KvkkOnayTarih = input.KvkkOnayTarih,
+        EkAdres = Trim(input.EkAdres),
+        BankaIban = string.IsNullOrWhiteSpace(input.BankaIban) ? null : input.BankaIban.Trim().ToUpperInvariant(),
+        BankaAdi = Trim(input.BankaAdi),
+        FaturaAdresi = Trim(input.FaturaAdresi),
+        FaturaUnvan = Trim(input.FaturaUnvan)
     };
 
     private static void Apply(Customer c, CustomerInput n)
@@ -205,6 +213,14 @@ public sealed class CustomerService(ICustomerRepository repository)
         c.Yetkili3Ad = n.Yetkili3Ad;
         c.Yetkili3Tel = n.Yetkili3Tel;
         c.Yetkili3Mail = n.Yetkili3Mail;
+        // roadmap K4
+        c.KvkkOnay = n.KvkkOnay;
+        c.KvkkOnayTarih = n.KvkkOnayTarih;
+        c.EkAdres = n.EkAdres;
+        c.BankaIban = n.BankaIban;
+        c.BankaAdi = n.BankaAdi;
+        c.FaturaAdresi = n.FaturaAdresi;
+        c.FaturaUnvan = n.FaturaUnvan;
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

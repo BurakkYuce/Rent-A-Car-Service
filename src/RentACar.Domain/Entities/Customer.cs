@@ -92,6 +92,22 @@ public class Customer : ITenantOwned, IAuditable
     public bool KaraListe { get; set; }
     public bool Pasif { get; set; }
 
+    // ---- KVKK + ek adres/banka/fatura adresi (roadmap K4; additive, nullable) ----
+    /// <summary>KVKK açık rıza onayı verildi mi.</summary>
+    public bool? KvkkOnay { get; set; }
+    /// <summary>KVKK onay tarihi.</summary>
+    public DateTimeOffset? KvkkOnayTarih { get; set; }
+    /// <summary>İkincil/ek adres.</summary>
+    public string? EkAdres { get; set; }
+    /// <summary>Banka IBAN (iade/ödeme için).</summary>
+    public string? BankaIban { get; set; }
+    /// <summary>Banka adı.</summary>
+    public string? BankaAdi { get; set; }
+    /// <summary>Faturada kullanılacak farklı adres.</summary>
+    public string? FaturaAdresi { get; set; }
+    /// <summary>Faturada kullanılacak farklı ünvan.</summary>
+    public string? FaturaUnvan { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 

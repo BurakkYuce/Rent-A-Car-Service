@@ -778,6 +778,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Yetkili3Ad).HasMaxLength(128);
             e.Property(x => x.Yetkili3Tel).HasMaxLength(32);
             e.Property(x => x.Yetkili3Mail).HasMaxLength(256);
+            // roadmap K4
+            e.Property(x => x.EkAdres).HasMaxLength(512);
+            e.Property(x => x.BankaIban).HasMaxLength(34);
+            e.Property(x => x.BankaAdi).HasMaxLength(128);
+            e.Property(x => x.FaturaAdresi).HasMaxLength(512);
+            e.Property(x => x.FaturaUnvan).HasMaxLength(256);
             e.Ignore(x => x.DisplayName);
             // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
             e.HasIndex(x => new { x.TenantId, x.TcKimlik })
