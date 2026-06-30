@@ -24,6 +24,11 @@ public class InsurancePolicy : ITenantOwned, IAuditable
     public decimal Prim { get; set; }
     public string Currency { get; set; } = "TRY";
 
+    /// <summary>Zeyil/ek prim (roadmap J3): ödemede prime eklenir.</summary>
+    public decimal ZeyilPrim { get; set; }
+    /// <summary>Ödendi mi (roadmap J3): true → defter kaydı yazılmış, tekrar ödenemez.</summary>
+    public bool Odendi { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

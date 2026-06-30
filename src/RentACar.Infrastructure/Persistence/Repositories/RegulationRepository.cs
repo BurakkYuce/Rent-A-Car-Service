@@ -121,6 +121,41 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         }
     }
 
+    public async Task<InsurancePolicy?> FindInsuranceAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.InsurancePolicies.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
+    public async Task PostSigortaOdemeAsync(Guid policyId, decimal zeyilPrim, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+    {
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        if (debit != credit) throw new ValidationException($"Sigorta ödeme defteri dengesiz: borç {debit} ≠ alacak {credit}.");
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var rec = await db.InsurancePolicies.FirstOrDefaultAsync(x => x.Id == policyId, ct)
+            ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
+        if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
+        rec.Odendi = true;
+        rec.ZeyilPrim = zeyilPrim;
+        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        db.AccountLedgerEntries.AddRange(entries);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await tx.RollbackAsync(ct);
+            throw new ValidationException("Sigorta zaten ödendi.");
+        }
+    }
+
     public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
