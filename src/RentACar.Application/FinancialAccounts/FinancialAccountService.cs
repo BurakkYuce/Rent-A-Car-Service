@@ -74,6 +74,10 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         Ad = (input.Ad ?? string.Empty).Trim(),
         Tur = string.IsNullOrWhiteSpace(input.Tur) ? null : input.Tur.Trim(),
         Doviz = string.IsNullOrWhiteSpace(input.Doviz) ? null : input.Doviz.Trim().ToUpperInvariant(),
+        Iban = string.IsNullOrWhiteSpace(input.Iban) ? null : input.Iban.Trim().ToUpperInvariant(),
+        HesapNo = string.IsNullOrWhiteSpace(input.HesapNo) ? null : input.HesapNo.Trim(),
+        Banka = string.IsNullOrWhiteSpace(input.Banka) ? null : input.Banka.Trim(),
+        Sube = string.IsNullOrWhiteSpace(input.Sube) ? null : input.Sube.Trim(),
         Aktif = input.Aktif
     };
 
@@ -83,6 +87,10 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         account.Ad = n.Ad;
         account.Tur = n.Tur;
         account.Doviz = n.Doviz;
+        account.Iban = n.Iban;
+        account.HesapNo = n.HesapNo;
+        account.Banka = n.Banka;
+        account.Sube = n.Sube;
         account.Aktif = n.Aktif;
     }
 }

@@ -19,16 +19,19 @@
         <label>Kod<input name="kod" required placeholder="EGEA" /></label>
         <label>Ad<input name="ad" required placeholder="Fiat Egea" /></label>
         <label>Marka<input name="marka" placeholder="(opsiyonel)" /></label>
+        <label>Vites<input name="vites" placeholder="Manuel/Otomatik" /></label>
+        <label>Yakıt<input name="yakit" placeholder="Benzin/Dizel/Elektrik" /></label>
+        <label>Grup<input name="grup" placeholder="(opsiyonel)" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <table class="grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Marka</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Marka</th><th>Vites</th><th>Yakıt</th><th>Grup</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="5" class="muted">Araç tipi tanımlı değil.</td></tr>
+            <tr><td colspan="8" class="muted">Araç tipi tanımlı değil.</td></tr>
         }
         @foreach (var t in _list)
         {
@@ -36,6 +39,9 @@
                 <td class="mono">@t.Kod</td>
                 <td>@t.Ad</td>
                 <td>@t.Marka</td>
+                <td>@t.Vites</td>
+                <td>@t.Yakit</td>
+                <td>@t.Grup</td>
                 <td>@(t.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -45,6 +51,9 @@
                             <label>Kod<input name="kod" value="@t.Kod" required /></label>
                             <label>Ad<input name="ad" value="@t.Ad" required /></label>
                             <label>Marka<input name="marka" value="@t.Marka" /></label>
+                            <label>Vites<input name="vites" value="@t.Vites" /></label>
+                            <label>Yakıt<input name="yakit" value="@t.Yakit" /></label>
+                            <label>Grup<input name="grup" value="@t.Grup" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@t.Aktif">Aktif</option>
