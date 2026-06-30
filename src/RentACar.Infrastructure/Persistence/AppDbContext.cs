@@ -1099,6 +1099,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Aciklama).HasMaxLength(1024);
             e.Property(x => x.KusurOrani).HasColumnType("numeric(5,4)");
             e.Property(x => x.ToplamIscilik).HasColumnType("numeric(19,4)");
+            e.Property(x => x.YansitilanTutar).HasColumnType("numeric(19,4)"); // roadmap J4
             e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasIndex(x => new { x.TenantId, x.Durum });
@@ -1184,6 +1185,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_SigortaOdeme_Idem")
                 .IsUnique()
                 .HasFilter("\"SourceType\" = 'SigortaOdeme'");
+            // Servis yansıtma/rücu idempotency (roadmap J4): SourceId=serviceId; çift-yansıtma reddedilir.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_ServisYansitma_Idem")
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'ServisYansitma'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

@@ -21,4 +21,9 @@ public interface IServiceRecordRepository
 
     /// <summary>İşçilik/parça kalemi ekler ve ToplamIscilik'i yeniden hesaplar (kapanmamış serviste).</summary>
     Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default);
+
+    /// <summary>Servis yansıtma/rücu (roadmap J4): tek transaction'da Yansitildi=true + YansitilanTutar/CariId +
+    /// DENGELİ defter. SourceId=serviceId deterministik → çift-yansıtma idempotency index ile reddedilir.</summary>
+    Task PostYansitmaAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
+        IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 }
