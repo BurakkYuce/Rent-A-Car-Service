@@ -22,6 +22,12 @@ public interface IRegulationRepository
     /// deterministik → çift-ödeme idempotency index ile reddedilir (eşzamanlı yarış güvenli).</summary>
     Task PostMtvOdemeAsync(Guid mtvId, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
+    Task<InspectionRecord?> FindInspectionAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Muayene ödeme (roadmap J2): tek transaction'da Odendi=true + Ceza güncelle + DENGELİ defter
+    /// kümesi. SourceId=inspectionId deterministik → çift-ödeme idempotency index ile reddedilir.</summary>
+    Task PostMuayeneOdemeAsync(Guid inspectionId, decimal ceza, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
     /// <summary>Birleşik vade kaynakları: sigorta(Bitiş) + ödenmemiş MTV(Vade) + muayene(Bitiş).</summary>
     Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default);
 }
