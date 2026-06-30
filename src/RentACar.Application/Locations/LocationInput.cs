@@ -7,6 +7,9 @@ public sealed class LocationInput
     public string Ad { get; set; } = string.Empty;
     public string? Adres { get; set; }
     public string? Telefon { get; set; }
+    public string? Eposta { get; set; }
+    public string? CalismaSaatleri { get; set; }
+    public decimal? TeslimUcreti { get; set; }
     public string? Sube { get; set; }
     public bool Aktif { get; set; } = true;
 }

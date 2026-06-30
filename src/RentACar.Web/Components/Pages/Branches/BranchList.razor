@@ -20,24 +20,33 @@
         <label>Ad<input name="ad" required placeholder="Merkez Ofis" /></label>
         <label>Adres<input name="adres" /></label>
         <label>Telefon<input name="telefon" /></label>
+        <label>E-posta<input name="eposta" type="email" /></label>
+        <label>İl<input name="il" /></label>
+        <label>İlçe<input name="ilce" /></label>
+        <label>Yetkili<input name="yetkili" /></label>
+        <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="09:00-18:00" /></label>
+        <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" placeholder="0.10" /></label>
+        <label>Evrak No Öneki<input name="evrakNoOnek" placeholder="MRK-" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <table class="grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Adres</th><th>Telefon</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>İl/İlçe</th><th>Yetkili</th><th>Telefon</th><th>Komisyon</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Şube tanımlı değil.</td></tr>
+            <tr><td colspan="8" class="muted">Şube tanımlı değil.</td></tr>
         }
         @foreach (var s in _list)
         {
             <tr>
                 <td class="mono">@s.Kod</td>
                 <td>@s.Ad</td>
-                <td>@s.Adres</td>
+                <td>@s.Il@(string.IsNullOrEmpty(s.Ilce) ? "" : " / " + s.Ilce)</td>
+                <td>@s.Yetkili</td>
                 <td>@s.Telefon</td>
+                <td>@(s.KomisyonOran.HasValue ? s.KomisyonOran.Value.ToString("P2") : "")</td>
                 <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -48,6 +57,13 @@
                             <label>Ad<input name="ad" value="@s.Ad" required /></label>
                             <label>Adres<input name="adres" value="@s.Adres" /></label>
                             <label>Telefon<input name="telefon" value="@s.Telefon" /></label>
+                            <label>E-posta<input name="eposta" type="email" value="@s.Eposta" /></label>
+                            <label>İl<input name="il" value="@s.Il" /></label>
+                            <label>İlçe<input name="ilce" value="@s.Ilce" /></label>
+                            <label>Yetkili<input name="yetkili" value="@s.Yetkili" /></label>
+                            <label>Çalışma Saatleri<input name="calismaSaatleri" value="@s.CalismaSaatleri" /></label>
+                            <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" value="@s.KomisyonOran" /></label>
+                            <label>Evrak No Öneki<input name="evrakNoOnek" value="@s.EvrakNoOnek" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@s.Aktif">Aktif</option>

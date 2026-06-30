@@ -143,6 +143,14 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Adres).HasMaxLength(512);
             e.Property(x => x.Telefon).HasMaxLength(32);
+            // roadmap K3 derinlik
+            e.Property(x => x.Eposta).HasMaxLength(128);
+            e.Property(x => x.Il).HasMaxLength(64);
+            e.Property(x => x.Ilce).HasMaxLength(64);
+            e.Property(x => x.Yetkili).HasMaxLength(128);
+            e.Property(x => x.CalismaSaatleri).HasMaxLength(64);
+            e.Property(x => x.KomisyonOran).HasColumnType("numeric(5,4)");
+            e.Property(x => x.EvrakNoOnek).HasMaxLength(16);
             // Kod tenant içinde benzersiz (doğal iş anahtarı; servis büyük harfe normalize eder).
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
@@ -674,6 +682,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Adres).HasMaxLength(512);
             e.Property(x => x.Telefon).HasMaxLength(32);
+            // roadmap K3 derinlik
+            e.Property(x => x.Eposta).HasMaxLength(128);
+            e.Property(x => x.CalismaSaatleri).HasMaxLength(64);
+            e.Property(x => x.TeslimUcreti).HasColumnType("numeric(19,4)");
             e.Property(x => x.Sube).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
