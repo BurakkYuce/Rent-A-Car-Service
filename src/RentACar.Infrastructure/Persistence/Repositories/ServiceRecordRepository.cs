@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.ServiceRecords;
 using RentACar.Domain.Entities;
@@ -81,5 +82,36 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task PostYansitmaAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
+        IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+    {
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        if (debit != credit) throw new ValidationException($"Servis yansıtma defteri dengesiz: borç {debit} ≠ alacak {credit}.");
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var rec = await db.ServiceRecords.FirstOrDefaultAsync(r => r.Id == serviceId, ct)
+            ?? throw new ValidationException("Servis kaydı bulunamadı.");
+        if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
+        rec.Yansitildi = true;
+        rec.YansitilanTutar = yansitilanTutar;
+        rec.YansitilanCariId = cariId;
+        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        db.AccountLedgerEntries.AddRange(entries);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await tx.RollbackAsync(ct);
+            throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
+        }
     }
 }
