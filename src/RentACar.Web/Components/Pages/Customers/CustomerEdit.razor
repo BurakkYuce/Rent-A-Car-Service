@@ -113,6 +113,19 @@ else
         <label>Yetkili 3 Ad<input name="yetkili3Ad" value="@_c.Yetkili3Ad" /></label>
         <label>Yetkili 3 Tel<input name="yetkili3Tel" value="@_c.Yetkili3Tel" /></label>
         <label>Yetkili 3 Mail<input name="yetkili3Mail" type="email" value="@_c.Yetkili3Mail" /></label>
+        <label>KVKK Onay
+            <select name="kvkkOnay">
+                <option value="" selected="@(_c.KvkkOnay is null)">—</option>
+                <option value="true" selected="@(_c.KvkkOnay == true)">Onaylı</option>
+                <option value="false" selected="@(_c.KvkkOnay == false)">Onaysız</option>
+            </select>
+        </label>
+        <label>KVKK Onay Tarihi<input name="kvkkOnayTarih" type="date" value="@_c.KvkkOnayTarih?.ToString("yyyy-MM-dd")" /></label>
+        <label>Ek Adres<input name="ekAdres" value="@_c.EkAdres" /></label>
+        <label>Banka IBAN<input name="bankaIban" maxlength="34" value="@_c.BankaIban" /></label>
+        <label>Banka Adı<input name="bankaAdi" value="@_c.BankaAdi" /></label>
+        <label>Fatura Adresi<input name="faturaAdresi" value="@_c.FaturaAdresi" /></label>
+        <label>Fatura Ünvanı<input name="faturaUnvan" value="@_c.FaturaUnvan" /></label>
         <button type="submit">Güncelle</button>
         <a href="/cariler" class="link">İptal</a>
     </form>

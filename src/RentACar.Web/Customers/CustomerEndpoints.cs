@@ -95,7 +95,15 @@ public static class CustomerEndpoints
         Yetkili2Mail = Str(f, "yetkili2Mail"),
         Yetkili3Ad = Str(f, "yetkili3Ad"),
         Yetkili3Tel = Str(f, "yetkili3Tel"),
-        Yetkili3Mail = Str(f, "yetkili3Mail")
+        Yetkili3Mail = Str(f, "yetkili3Mail"),
+        // roadmap K4 — KVKK + ek adres/banka/fatura adresi
+        KvkkOnay = BoolN(f, "kvkkOnay"),
+        KvkkOnayTarih = FormParse.Date(Str(f, "kvkkOnayTarih")),
+        EkAdres = Str(f, "ekAdres"),
+        BankaIban = Str(f, "bankaIban"),
+        BankaAdi = Str(f, "bankaAdi"),
+        FaturaAdresi = Str(f, "faturaAdresi"),
+        FaturaUnvan = Str(f, "faturaUnvan")
     };
 
     private static string? Str(IFormCollection f, string key)
