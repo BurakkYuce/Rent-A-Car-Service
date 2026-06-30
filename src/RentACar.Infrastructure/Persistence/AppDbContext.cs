@@ -888,6 +888,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Firma).HasMaxLength(128);
             e.Property(x => x.Acenta).HasMaxLength(128);
             e.Property(x => x.Prim).HasColumnType("numeric(19,4)");
+            e.Property(x => x.ZeyilPrim).HasColumnType("numeric(19,4)"); // roadmap J3
             e.Property(x => x.Currency).HasMaxLength(3);
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasIndex(x => new { x.TenantId, x.Bitis });
@@ -1179,6 +1180,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_MuayeneOdeme_Idem")
                 .IsUnique()
                 .HasFilter("\"SourceType\" = 'MuayeneOdeme'");
+            // Sigorta ödeme idempotency (roadmap J3): SourceId=policyId; çift-ödeme reddedilir.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_SigortaOdeme_Idem")
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'SigortaOdeme'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

@@ -28,6 +28,12 @@ public interface IRegulationRepository
     /// kümesi. SourceId=inspectionId deterministik → çift-ödeme idempotency index ile reddedilir.</summary>
     Task PostMuayeneOdemeAsync(Guid inspectionId, decimal ceza, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
+    Task<InsurancePolicy?> FindInsuranceAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Sigorta ödeme (roadmap J3): tek transaction'da Odendi=true + ZeyilPrim güncelle + DENGELİ defter
+    /// kümesi. SourceId=policyId deterministik → çift-ödeme idempotency index ile reddedilir.</summary>
+    Task PostSigortaOdemeAsync(Guid policyId, decimal zeyilPrim, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
     /// <summary>Birleşik vade kaynakları: sigorta(Bitiş) + ödenmemiş MTV(Vade) + muayene(Bitiş).</summary>
     Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default);
 }
