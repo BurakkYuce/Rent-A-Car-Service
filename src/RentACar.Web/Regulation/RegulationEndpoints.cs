@@ -46,6 +46,14 @@ public static class RegulationEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        ode.MapPost("/muayene", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? ceza) =>
+        {
+            var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            var c = FormParse.Dec(ceza) ?? 0m;
+            try { await svc.MuayeneOdeAsync(id, h, c); return Results.Redirect("/regulasyon?ok=1"); }
+            catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }
