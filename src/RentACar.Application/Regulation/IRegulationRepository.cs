@@ -16,6 +16,12 @@ public interface IRegulationRepository
     Task AddMtvAsync(MtvRecord record, CancellationToken ct = default);
     Task AddInspectionAsync(InspectionRecord record, CancellationToken ct = default);
 
+    Task<MtvRecord?> FindMtvAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>MTV ödeme (roadmap J1): tek transaction'da Odendi=true + DENGELİ defter kümesi. SourceId=mtvId
+    /// deterministik → çift-ödeme idempotency index ile reddedilir (eşzamanlı yarış güvenli).</summary>
+    Task PostMtvOdemeAsync(Guid mtvId, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
     /// <summary>Birleşik vade kaynakları: sigorta(Bitiş) + ödenmemiş MTV(Vade) + muayene(Bitiş).</summary>
     Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default);
 }
