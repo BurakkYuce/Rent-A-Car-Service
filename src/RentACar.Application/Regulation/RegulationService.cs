@@ -89,6 +89,38 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         ], ct);
     }
 
+    /// <summary>
+    /// Muayene ödeme (roadmap J2): DENGELİ defter — Borç Gider / Alacak Kasa-Banka (Ucret + ceza). FinanceWrite +
+    /// dönem-kilidi + idempotency (SourceId=inspectionId). InspectionRecord.Odendi=true + Ceza (atomik, tek tx).
+    /// </summary>
+    public async Task MuayeneOdeAsync(Guid inspectionId, LedgerAccountType hesap, decimal ceza = 0m,
+        DateTimeOffset? odemeTarih = null, string? doviz = "TRY", decimal kur = 1m, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+            throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
+        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
+        if (ceza < 0m) throw new ValidationException("Ceza negatif olamaz.");
+
+        var rec = await _repository.FindInspectionAsync(inspectionId, ct) ?? throw new ValidationException("Muayene kaydı bulunamadı.");
+        if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
+        var toplam = rec.Ucret + ceza;
+        if (toplam <= 0m) throw new ValidationException("Muayene ödeme tutarı pozitif olmalıdır.");
+
+        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
+
+        var money = new Money(toplam, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var desc = $"Muayene ödeme {rec.MuayeneTarihi.LocalDateTime:dd.MM.yyyy}" + (ceza > 0m ? $" (+ceza {ceza})" : "");
+        await _repository.PostMuayeneOdemeAsync(inspectionId, ceza,
+        [
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+                Direction = LedgerDirection.Debit, Amount = money, SourceType = "MuayeneOdeme", SourceId = inspectionId, Description = desc },
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = inspectionId, Description = desc }
+        ], ct);
+    }
+
     private static void RequireVehicle(Guid vehicleId)
     {
         if (vehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");

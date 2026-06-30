@@ -910,6 +910,7 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Ucret).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Ceza).HasColumnType("numeric(19,4)"); // roadmap J2
             e.HasIndex(x => new { x.TenantId, x.VehicleId });
             e.HasIndex(x => new { x.TenantId, x.Bitis });
             e.HasQueryFilter(x => x.TenantId == TenantId);
@@ -1174,6 +1175,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_MtvOdeme_Idem")
                 .IsUnique()
                 .HasFilter("\"SourceType\" = 'MtvOdeme'");
+            // Muayene ödeme idempotency (roadmap J2): SourceId=inspectionId; çift-ödeme reddedilir.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_MuayeneOdeme_Idem")
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'MuayeneOdeme'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
