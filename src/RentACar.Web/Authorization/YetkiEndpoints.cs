@@ -37,6 +37,23 @@ public static class YetkiEndpoints
             return Results.Redirect("/yetki?ok=1");
         });
 
+        // Yetki şablonu/kopyala (roadmap M2): kaynak rolün ekran erişimini hedef role klonla (sadece ekleme).
+        grp.MapPost("/kopyala", async (ScreenPermissionService svc, HttpRequest req) =>
+        {
+            try
+            {
+                if (!Enum.TryParse<UserRole>(req.Form["kaynak"].ToString(), out var kaynak) ||
+                    !Enum.TryParse<UserRole>(req.Form["hedef"].ToString(), out var hedef))
+                    return Results.Redirect($"/yetki?hata={Uri.EscapeDataString("Kaynak ve hedef rol seçilmelidir.")}");
+                var n = await svc.KopyalaRolAsync(kaynak, hedef);
+                return Results.Redirect($"/yetki?ok={n}");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/yetki?hata={Uri.EscapeDataString(ex.Message)}");
+            }
+        });
+
         return app;
     }
 }
