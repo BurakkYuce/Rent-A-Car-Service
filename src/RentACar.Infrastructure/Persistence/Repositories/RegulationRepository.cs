@@ -86,6 +86,41 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         }
     }
 
+    public async Task<InspectionRecord?> FindInspectionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.InspectionRecords.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
+    public async Task PostMuayeneOdemeAsync(Guid inspectionId, decimal ceza, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+    {
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        if (debit != credit) throw new ValidationException($"Muayene ödeme defteri dengesiz: borç {debit} ≠ alacak {credit}.");
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var rec = await db.InspectionRecords.FirstOrDefaultAsync(x => x.Id == inspectionId, ct)
+            ?? throw new ValidationException("Muayene kaydı bulunamadı.");
+        if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
+        rec.Odendi = true;
+        rec.Ceza = ceza;
+        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        db.AccountLedgerEntries.AddRange(entries);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await tx.RollbackAsync(ct);
+            throw new ValidationException("Muayene zaten ödendi.");
+        }
+    }
+
     public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

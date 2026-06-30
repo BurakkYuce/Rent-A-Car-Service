@@ -14,6 +14,11 @@ public class InspectionRecord : ITenantOwned, IAuditable
     public DateTimeOffset Bitis { get; set; }
     public decimal Ucret { get; set; }
 
+    /// <summary>Gecikme/eksik cezası (roadmap J2): ödemede ücrete eklenir.</summary>
+    public decimal Ceza { get; set; }
+    /// <summary>Ödendi mi (roadmap J2): true → defter kaydı yazılmış, tekrar ödenemez.</summary>
+    public bool Odendi { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }
