@@ -19,6 +19,14 @@ public class FinancialAccount : ITenantOwned, IAuditable
     public string? Tur { get; set; }
     /// <summary>Hesap para birimi (3 harf, ör. "TRY", "USD"). Opsiyonel.</summary>
     public string? Doviz { get; set; }
+    /// <summary>IBAN (banka hesapları için) — roadmap K1.</summary>
+    public string? Iban { get; set; }
+    /// <summary>Banka hesap numarası — roadmap K1.</summary>
+    public string? HesapNo { get; set; }
+    /// <summary>Banka adı — roadmap K1.</summary>
+    public string? Banka { get; set; }
+    /// <summary>Banka şubesi — roadmap K1.</summary>
+    public string? Sube { get; set; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

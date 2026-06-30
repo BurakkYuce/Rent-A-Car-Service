@@ -20,16 +20,20 @@
         <label>Ad<input name="ad" required placeholder="Merkez Kasa" /></label>
         <label>Tür<input name="tur" placeholder="Kasa / Banka" /></label>
         <label>Döviz<input name="doviz" maxlength="3" placeholder="TRY" /></label>
+        <label>IBAN<input name="iban" maxlength="34" placeholder="TR.. (banka için)" /></label>
+        <label>Hesap No<input name="hesapNo" placeholder="(opsiyonel)" /></label>
+        <label>Banka<input name="banka" placeholder="(opsiyonel)" /></label>
+        <label>Şube<input name="sube" placeholder="(opsiyonel)" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <table class="grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>IBAN</th><th>Banka</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Hesap tanımlı değil.</td></tr>
+            <tr><td colspan="9" class="muted">Hesap tanımlı değil.</td></tr>
         }
         @foreach (var a in _list)
         {
@@ -38,6 +42,9 @@
                 <td>@a.Ad</td>
                 <td>@a.Tur</td>
                 <td class="mono">@a.Doviz</td>
+                <td class="mono">@a.Iban</td>
+                <td>@a.Banka</td>
+                <td>@a.Sube</td>
                 <td>@(a.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -48,6 +55,10 @@
                             <label>Ad<input name="ad" value="@a.Ad" required /></label>
                             <label>Tür<input name="tur" value="@a.Tur" /></label>
                             <label>Döviz<input name="doviz" value="@a.Doviz" maxlength="3" /></label>
+                            <label>IBAN<input name="iban" value="@a.Iban" maxlength="34" /></label>
+                            <label>Hesap No<input name="hesapNo" value="@a.HesapNo" /></label>
+                            <label>Banka<input name="banka" value="@a.Banka" /></label>
+                            <label>Şube<input name="sube" value="@a.Sube" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@a.Aktif">Aktif</option>

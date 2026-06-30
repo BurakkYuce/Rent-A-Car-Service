@@ -212,6 +212,9 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Marka).HasMaxLength(64);
+            e.Property(x => x.Vites).HasMaxLength(32);  // roadmap K1
+            e.Property(x => x.Yakit).HasMaxLength(32);  // roadmap K1
+            e.Property(x => x.Grup).HasMaxLength(64);   // roadmap K1
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
@@ -356,6 +359,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Tur).HasMaxLength(32);
             e.Property(x => x.Doviz).HasMaxLength(3);
+            e.Property(x => x.Iban).HasMaxLength(34);     // roadmap K1 (IBAN max 34)
+            e.Property(x => x.HesapNo).HasMaxLength(64);  // roadmap K1
+            e.Property(x => x.Banka).HasMaxLength(128);   // roadmap K1
+            e.Property(x => x.Sube).HasMaxLength(128);    // roadmap K1
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

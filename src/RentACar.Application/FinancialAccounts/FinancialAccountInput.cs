@@ -7,5 +7,9 @@ public sealed class FinancialAccountInput
     public string Ad { get; set; } = string.Empty;
     public string? Tur { get; set; }
     public string? Doviz { get; set; }
+    public string? Iban { get; set; }
+    public string? HesapNo { get; set; }
+    public string? Banka { get; set; }
+    public string? Sube { get; set; }
     public bool Aktif { get; set; } = true;
 }

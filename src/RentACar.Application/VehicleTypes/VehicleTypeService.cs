@@ -71,6 +71,9 @@ public sealed class VehicleTypeService(IVehicleTypeRepository repository, ICurre
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
         Marka = string.IsNullOrWhiteSpace(input.Marka) ? null : input.Marka.Trim(),
+        Vites = string.IsNullOrWhiteSpace(input.Vites) ? null : input.Vites.Trim(),
+        Yakit = string.IsNullOrWhiteSpace(input.Yakit) ? null : input.Yakit.Trim(),
+        Grup = string.IsNullOrWhiteSpace(input.Grup) ? null : input.Grup.Trim(),
         Aktif = input.Aktif
     };
 
@@ -79,6 +82,9 @@ public sealed class VehicleTypeService(IVehicleTypeRepository repository, ICurre
         type.Kod = n.Kod;
         type.Ad = n.Ad;
         type.Marka = n.Marka;
+        type.Vites = n.Vites;
+        type.Yakit = n.Yakit;
+        type.Grup = n.Grup;
         type.Aktif = n.Aktif;
     }
 }

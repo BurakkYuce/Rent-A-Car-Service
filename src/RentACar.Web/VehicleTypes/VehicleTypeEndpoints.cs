@@ -14,12 +14,16 @@ public static class VehicleTypeEndpoints
         var grp = app.MapGroup("/arac-tipleri").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleTypeService svc,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka) =>
-            await Run(() => svc.CreateAsync(new VehicleTypeInput { Kod = kod, Ad = ad, Marka = marka, Aktif = true })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka,
+            [FromForm] string? vites, [FromForm] string? yakit, [FromForm] string? grup) =>
+            await Run(() => svc.CreateAsync(new VehicleTypeInput
+            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = true })));
 
         grp.MapPost("/update", async (VehicleTypeService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new VehicleTypeInput { Kod = kod, Ad = ad, Marka = marka, Aktif = aktif })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka,
+            [FromForm] string? vites, [FromForm] string? yakit, [FromForm] string? grup, [FromForm] bool aktif) =>
+            await Run(() => svc.UpdateAsync(id, new VehicleTypeInput
+            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = aktif })));
 
         grp.MapPost("/delete", async (VehicleTypeService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
