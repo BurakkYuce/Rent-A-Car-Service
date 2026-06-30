@@ -48,6 +48,49 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task M1_derinlik_roundtrip_ve_smtp_sifre_cipher()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var svc = sp.GetRequiredService<TenantSettingsService>();
+
+        await svc.SaveAsync(new TenantSettingsModel
+        {
+            VarsayilanDoviz = "try", VarsayilanKdvOrani = 0.20m, MinKiraGun = 1, MaxKiraGun = 30,
+            RezOnayZorunlu = true, LogoUrl = "https://cdn/logo.png",
+            SmtpHost = "smtp.firma.com", SmtpPort = 587, SmtpKullanici = "no-reply@firma.com",
+            SmtpSifre = "smtp-gizli-1", SmtpSsl = true
+        });
+
+        var m = await svc.GetAsync();
+        Assert.Equal("TRY", m.VarsayilanDoviz);       // büyük harfe normalize
+        Assert.Equal(0.20m, m.VarsayilanKdvOrani);
+        Assert.Equal(1, m.MinKiraGun);
+        Assert.Equal(30, m.MaxKiraGun);
+        Assert.True(m.RezOnayZorunlu);
+        Assert.Equal("https://cdn/logo.png", m.LogoUrl);
+        Assert.Equal("smtp.firma.com", m.SmtpHost);
+        Assert.Equal(587, m.SmtpPort);
+        Assert.Equal("no-reply@firma.com", m.SmtpKullanici);
+        Assert.Equal("smtp-gizli-1", m.SmtpSifre);    // roundtrip
+        Assert.True(m.SmtpSsl);
+
+        // SMTP şifre ham kolonda CIPHER (düz metin değil)
+        await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+        var raw = await db.TenantSettings.AsNoTracking().FirstAsync();
+        Assert.NotNull(raw.SmtpSifreEnc);
+        Assert.NotEqual("smtp-gizli-1", raw.SmtpSifreEnc);
+        Assert.DoesNotContain("smtp-gizli-1", raw.SmtpSifreEnc!);
+
+        // SMTP şifre boş → mevcut korunur (diğer alan değişir)
+        await svc.SaveAsync(new TenantSettingsModel { SmtpHost = "smtp2.firma.com", SmtpSifre = null });
+        var m2 = await svc.GetAsync();
+        Assert.Equal("smtp2.firma.com", m2.SmtpHost);
+        Assert.Equal("smtp-gizli-1", m2.SmtpSifre);   // korundu
+    }
+
+    [Fact]
     public async Task Blank_secret_keeps_existing()
     {
         using var host = new TestHost(fx.AppConnectionString);
