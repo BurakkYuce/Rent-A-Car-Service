@@ -121,6 +121,39 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         ], ct);
     }
 
+    /// <summary>
+    /// Sigorta ödeme (roadmap J3): DENGELİ defter — Borç Gider / Alacak Kasa-Banka (Prim + zeyil ek prim).
+    /// FinanceWrite + dönem-kilidi + idempotency (SourceId=policyId). InsurancePolicy.Odendi=true + ZeyilPrim
+    /// (atomik, tek tx). Para birimi poliçenin Currency'si; kur ile baz tutara çevrilir.
+    /// </summary>
+    public async Task SigortaOdeAsync(Guid policyId, LedgerAccountType hesap, decimal zeyilEkPrim = 0m,
+        DateTimeOffset? odemeTarih = null, decimal kur = 1m, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+            throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
+        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
+        if (zeyilEkPrim < 0m) throw new ValidationException("Zeyil ek prim negatif olamaz.");
+
+        var rec = await _repository.FindInsuranceAsync(policyId, ct) ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
+        if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
+        var toplam = rec.Prim + zeyilEkPrim;
+        if (toplam <= 0m) throw new ValidationException("Sigorta ödeme tutarı pozitif olmalıdır.");
+
+        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
+
+        var money = new Money(toplam, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var desc = $"Sigorta ödeme {rec.Tip}" + (zeyilEkPrim > 0m ? $" (+zeyil {zeyilEkPrim})" : "");
+        await _repository.PostSigortaOdemeAsync(policyId, zeyilEkPrim,
+        [
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+                Direction = LedgerDirection.Debit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc },
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                Direction = LedgerDirection.Credit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc }
+        ], ct);
+    }
+
     private static void RequireVehicle(Guid vehicleId)
     {
         if (vehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");
