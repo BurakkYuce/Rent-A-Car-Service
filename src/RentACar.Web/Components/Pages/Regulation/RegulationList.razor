@@ -38,10 +38,21 @@
     <label>Vade<input name="vade" type="date" required /></label>
     <button type="submit">Ekle</button>
 </form>
-<table class="grid"><thead><tr><th>Araç</th><th>Dönem</th><th>Tutar</th><th>Vade</th><th>Ödendi</th></tr></thead><tbody>
+<table class="grid"><thead><tr><th>Araç</th><th>Dönem</th><th>Tutar</th><th>Vade</th><th>Ödendi</th><th></th></tr></thead><tbody>
 @foreach (var m in _mtv)
 {
-    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td>@m.Tutar.ToString("N2")</td><td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td></tr>
+    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td>@m.Tutar.ToString("N2")</td><td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td>
+        <td>
+            @if (!m.Odendi)
+            {
+                <form method="post" action="/regulasyon-odeme/mtv" style="display:inline"><AntiforgeryToken />
+                    <input type="hidden" name="id" value="@m.Id" />
+                    <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                    <button type="submit">Öde</button>
+                </form>
+            }
+        </td>
+    </tr>
 }
 </tbody></table>
 
