@@ -52,4 +52,18 @@ public sealed class VehicleInput
     public string? AlimFaturaNo { get; set; }
     public string? AlimYapilanFirma { get; set; }
     public int? KiraKmLimiti { get; set; }
+
+    // Operasyon bayrakları (roadmap K2)
+    public bool WebRezKapat { get; set; }
+    public bool OfisRezKapat { get; set; }
+    public bool ZIzni { get; set; }
+    public bool Utts { get; set; }
+    public bool KarLastigi { get; set; }
+    public bool YedekAnahtar { get; set; }
+    public bool Temizlik { get; set; }
+    public bool Rehin { get; set; }
+    // Bakım/lastik (roadmap K2)
+    public DateTimeOffset? SonBakimTarih { get; set; }
+    public int? SonBakimKm { get; set; }
+    public string? LastikDurumu { get; set; }
 }
