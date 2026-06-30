@@ -37,6 +37,15 @@ public static class RegulationEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        // MTV ödeme→defter (roadmap J1): FinanceWrite (mali işlem).
+        var ode = app.MapGroup("/regulasyon-odeme").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
+        ode.MapPost("/mtv", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap) =>
+        {
+            var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            try { await svc.MtvOdeAsync(id, h); return Results.Redirect("/regulasyon?ok=1"); }
+            catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 }
