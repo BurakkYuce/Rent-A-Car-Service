@@ -74,6 +74,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         Ad = (input.Ad ?? string.Empty).Trim(),
         Adres = Trim(input.Adres),
         Telefon = Trim(input.Telefon),
+        Eposta = Trim(input.Eposta),
+        CalismaSaatleri = Trim(input.CalismaSaatleri),
+        TeslimUcreti = input.TeslimUcreti,
         Sube = Trim(input.Sube),
         Aktif = input.Aktif
     };
@@ -84,6 +87,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         loc.Ad = n.Ad;
         loc.Adres = n.Adres;
         loc.Telefon = n.Telefon;
+        loc.Eposta = n.Eposta;
+        loc.CalismaSaatleri = n.CalismaSaatleri;
+        loc.TeslimUcreti = n.TeslimUcreti;
         loc.Sube = n.Sube;
         loc.Aktif = n.Aktif;
     }
