@@ -82,7 +82,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var desc = $"MTV ödeme {rec.Donem}";
         await _repository.PostMtvOdemeAsync(mtvId,
         [
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "MtvOdeme", SourceId = mtvId, Description = desc },
             new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = mtvId, Description = desc }
@@ -114,7 +114,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var desc = $"Muayene ödeme {rec.MuayeneTarihi.LocalDateTime:dd.MM.yyyy}" + (ceza > 0m ? $" (+ceza {ceza})" : "");
         await _repository.PostMuayeneOdemeAsync(inspectionId, ceza,
         [
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "MuayeneOdeme", SourceId = inspectionId, Description = desc },
             new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = inspectionId, Description = desc }
@@ -147,7 +147,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var desc = $"Sigorta ödeme {rec.Tip}" + (zeyilEkPrim > 0m ? $" (+zeyil {zeyilEkPrim})" : "");
         await _repository.PostSigortaOdemeAsync(policyId, zeyilEkPrim,
         [
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc },
             new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc }
