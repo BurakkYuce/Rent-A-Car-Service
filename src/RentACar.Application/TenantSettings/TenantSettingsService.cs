@@ -32,7 +32,19 @@ public sealed class TenantSettingsService(
             SmsBaslik = s.SmsBaslik,
             SmsApiKey = secrets.Unprotect(s.SmsApiKeyEnc),
             PosMerchantId = s.PosMerchantId,
-            PosApiKey = secrets.Unprotect(s.PosApiKeyEnc)
+            PosApiKey = secrets.Unprotect(s.PosApiKeyEnc),
+            // roadmap M1
+            LogoUrl = s.LogoUrl,
+            VarsayilanDoviz = s.VarsayilanDoviz,
+            VarsayilanKdvOrani = s.VarsayilanKdvOrani,
+            MinKiraGun = s.MinKiraGun,
+            MaxKiraGun = s.MaxKiraGun,
+            RezOnayZorunlu = s.RezOnayZorunlu,
+            SmtpHost = s.SmtpHost,
+            SmtpPort = s.SmtpPort,
+            SmtpKullanici = s.SmtpKullanici,
+            SmtpSifre = secrets.Unprotect(s.SmtpSifreEnc),
+            SmtpSsl = s.SmtpSsl
         };
     }
 
@@ -55,6 +67,18 @@ public sealed class TenantSettingsService(
             s.EFaturaSifreEnc = Secret(m.EFaturaSifre, s.EFaturaSifreEnc);
             s.SmsApiKeyEnc = Secret(m.SmsApiKey, s.SmsApiKeyEnc);
             s.PosApiKeyEnc = Secret(m.PosApiKey, s.PosApiKeyEnc);
+            // roadmap M1 — görünüm/operasyon (düz) + SMTP (host/port/user düz, şifre Enc)
+            s.LogoUrl = Trim(m.LogoUrl);
+            s.VarsayilanDoviz = string.IsNullOrWhiteSpace(m.VarsayilanDoviz) ? null : m.VarsayilanDoviz.Trim().ToUpperInvariant();
+            s.VarsayilanKdvOrani = m.VarsayilanKdvOrani;
+            s.MinKiraGun = m.MinKiraGun;
+            s.MaxKiraGun = m.MaxKiraGun;
+            s.RezOnayZorunlu = m.RezOnayZorunlu;
+            s.SmtpHost = Trim(m.SmtpHost);
+            s.SmtpPort = m.SmtpPort;
+            s.SmtpKullanici = Trim(m.SmtpKullanici);
+            s.SmtpSifreEnc = Secret(m.SmtpSifre, s.SmtpSifreEnc);
+            s.SmtpSsl = m.SmtpSsl;
         }, ct);
     }
 

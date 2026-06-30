@@ -29,6 +29,23 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? PosMerchantId { get; set; }
     public string? PosApiKeyEnc { get; set; }
 
+    // ---- Görünüm + operasyon kuralları + SMTP (roadmap M1; additive, nullable) ----
+    public string? LogoUrl { get; set; }
+    /// <summary>Varsayılan döviz (3 harf).</summary>
+    public string? VarsayilanDoviz { get; set; }
+    /// <summary>Varsayılan KDV oranı (0..1).</summary>
+    public decimal? VarsayilanKdvOrani { get; set; }
+    public int? MinKiraGun { get; set; }
+    public int? MaxKiraGun { get; set; }
+    /// <summary>Rezervasyon onayı zorunlu mu (operasyon kuralı).</summary>
+    public bool? RezOnayZorunlu { get; set; }
+    // SMTP (host/port/kullanıcı düz metin; şifre *Enc şifreli)
+    public string? SmtpHost { get; set; }
+    public int? SmtpPort { get; set; }
+    public string? SmtpKullanici { get; set; }
+    public string? SmtpSifreEnc { get; set; }
+    public bool? SmtpSsl { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

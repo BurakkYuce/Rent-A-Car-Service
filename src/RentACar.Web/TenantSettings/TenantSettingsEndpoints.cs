@@ -28,7 +28,19 @@ public static class TenantSettingsEndpoints
                 SmsBaslik = f["smsBaslik"].ToString(),
                 SmsApiKey = f["smsApiKey"].ToString(),
                 PosMerchantId = f["posMerchantId"].ToString(),
-                PosApiKey = f["posApiKey"].ToString()
+                PosApiKey = f["posApiKey"].ToString(),
+                // roadmap M1
+                LogoUrl = f["logoUrl"].ToString(),
+                VarsayilanDoviz = f["varsayilanDoviz"].ToString(),
+                VarsayilanKdvOrani = FormParse.Dec(f["varsayilanKdvOrani"].ToString()),
+                MinKiraGun = FormParse.Int(f["minKiraGun"].ToString()),
+                MaxKiraGun = FormParse.Int(f["maxKiraGun"].ToString()),
+                RezOnayZorunlu = f["rezOnayZorunlu"].ToString() is "true" or "on",
+                SmtpHost = f["smtpHost"].ToString(),
+                SmtpPort = FormParse.Int(f["smtpPort"].ToString()),
+                SmtpKullanici = f["smtpKullanici"].ToString(),
+                SmtpSifre = f["smtpSifre"].ToString(),
+                SmtpSsl = f["smtpSsl"].ToString() is "true" or "on"
             };
             await svc.SaveAsync(m);
             return Results.Redirect("/ayarlar?ok=1");
