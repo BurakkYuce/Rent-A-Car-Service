@@ -56,6 +56,23 @@
     <button type="submit">Kaydet</button>
 </form>
 
+<h2>Rol Yetki Kopyala (şablon)</h2>
+<p class="muted small">Kaynak rolün erişebildiği TÜM ekran override'larına hedef rolü ekler (yalnız ekleme;
+    kimsenin erişimi kaldırılmaz). Yeni bir rolü hızlı yetkilendirmek için.</p>
+<form method="post" action="/yetki/kopyala" class="grid-form" onsubmit="return confirm('Kaynak rolün ekran erişimi hedefe kopyalansın mı?');">
+    <label>Kaynak Rol
+        <select name="kaynak" required>
+            @foreach (var r in Enum.GetValues<UserRole>()) { <option value="@r">@r</option> }
+        </select>
+    </label>
+    <label>Hedef Rol
+        <select name="hedef" required>
+            @foreach (var r in Enum.GetValues<UserRole>()) { <option value="@r">@r</option> }
+        </select>
+    </label>
+    <button type="submit">Kopyala</button>
+</form>
+
 @code {
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
