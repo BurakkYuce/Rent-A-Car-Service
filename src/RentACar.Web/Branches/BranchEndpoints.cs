@@ -18,15 +18,24 @@ public static class BranchEndpoints
 
         grp.MapPost("/create", async (BranchService svc,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon) =>
+            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
+            [FromForm] string? il, [FromForm] string? ilce, [FromForm] string? yetkili,
+            [FromForm] string? calismaSaatleri, [FromForm] string? komisyonOran, [FromForm] string? evrakNoOnek) =>
             await Run(() => svc.CreateAsync(new BranchInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Aktif = true })));
+            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, Il = il, Ilce = ilce,
+              Yetkili = yetkili, CalismaSaatleri = calismaSaatleri, KomisyonOran = FormParse.Dec(komisyonOran),
+              EvrakNoOnek = evrakNoOnek, Aktif = true })));
 
         grp.MapPost("/update", async (BranchService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] bool aktif) =>
+            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
+            [FromForm] string? il, [FromForm] string? ilce, [FromForm] string? yetkili,
+            [FromForm] string? calismaSaatleri, [FromForm] string? komisyonOran, [FromForm] string? evrakNoOnek,
+            [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new BranchInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Aktif = aktif })));
+            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, Il = il, Ilce = ilce,
+              Yetkili = yetkili, CalismaSaatleri = calismaSaatleri, KomisyonOran = FormParse.Dec(komisyonOran),
+              EvrakNoOnek = evrakNoOnek, Aktif = aktif })));
 
         grp.MapPost("/delete", async (BranchService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));

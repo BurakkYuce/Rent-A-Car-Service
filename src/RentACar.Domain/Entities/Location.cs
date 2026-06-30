@@ -20,6 +20,13 @@ public class Location : ITenantOwned, IAuditable
     public string? Adres { get; set; }
     public string? Telefon { get; set; }
 
+    // ---- Derinlik (roadmap K3; additive, nullable) ----
+    public string? Eposta { get; set; }
+    /// <summary>Çalışma saatleri (serbest metin, ör. "07:00-23:00").</summary>
+    public string? CalismaSaatleri { get; set; }
+    /// <summary>Lokasyon teslim/alış ek ücreti (drop dışı, sabit lokasyon ücreti).</summary>
+    public decimal? TeslimUcreti { get; set; }
+
     /// <summary>Opsiyonel şube bağı (serbest metin — geriye-uyum; görüntü/yedek).</summary>
     public string? Sube { get; set; }
     /// <summary>Şube FK (Branch master, roadmap F1; metin korunur).</summary>

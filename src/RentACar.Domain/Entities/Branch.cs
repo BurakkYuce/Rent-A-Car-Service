@@ -24,6 +24,19 @@ public class Branch : ITenantOwned, IAuditable
 
     public string? Telefon { get; set; }
 
+    // ---- Derinlik (roadmap K3; additive, nullable) ----
+    public string? Eposta { get; set; }
+    public string? Il { get; set; }
+    public string? Ilce { get; set; }
+    /// <summary>Şube yetkilisi/sorumlusu.</summary>
+    public string? Yetkili { get; set; }
+    /// <summary>Çalışma saatleri (serbest metin, ör. "09:00-18:00").</summary>
+    public string? CalismaSaatleri { get; set; }
+    /// <summary>Şube komisyon oranı (0..1).</summary>
+    public decimal? KomisyonOran { get; set; }
+    /// <summary>Belge/evrak no öneki (ör. "MRK-").</summary>
+    public string? EvrakNoOnek { get; set; }
+
     /// <summary>Pasif şubeler açılır listelerde gizlenir ama kayıtlar korunur (silme yerine).</summary>
     public bool Aktif { get; set; } = true;
 
