@@ -62,4 +62,13 @@ public sealed class CustomerInput
     public string? HgsYansitmaTuru { get; set; }
     public bool KaraListe { get; set; }
     public bool Pasif { get; set; }
+
+    // KVKK + ek adres/banka/fatura adresi (roadmap K4)
+    public bool? KvkkOnay { get; set; }
+    public DateTimeOffset? KvkkOnayTarih { get; set; }
+    public string? EkAdres { get; set; }
+    public string? BankaIban { get; set; }
+    public string? BankaAdi { get; set; }
+    public string? FaturaAdresi { get; set; }
+    public string? FaturaUnvan { get; set; }
 }
