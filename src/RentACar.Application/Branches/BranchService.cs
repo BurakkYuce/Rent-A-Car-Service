@@ -77,6 +77,13 @@ public sealed class BranchService(IBranchRepository repository, ICurrentUser cur
         Ad = (input.Ad ?? string.Empty).Trim(),
         Adres = Trim(input.Adres),
         Telefon = Trim(input.Telefon),
+        Eposta = Trim(input.Eposta),
+        Il = Trim(input.Il),
+        Ilce = Trim(input.Ilce),
+        Yetkili = Trim(input.Yetkili),
+        CalismaSaatleri = Trim(input.CalismaSaatleri),
+        KomisyonOran = input.KomisyonOran,
+        EvrakNoOnek = Trim(input.EvrakNoOnek),
         Aktif = input.Aktif
     };
 
@@ -86,6 +93,13 @@ public sealed class BranchService(IBranchRepository repository, ICurrentUser cur
         b.Ad = n.Ad;
         b.Adres = n.Adres;
         b.Telefon = n.Telefon;
+        b.Eposta = n.Eposta;
+        b.Il = n.Il;
+        b.Ilce = n.Ilce;
+        b.Yetkili = n.Yetkili;
+        b.CalismaSaatleri = n.CalismaSaatleri;
+        b.KomisyonOran = n.KomisyonOran;
+        b.EvrakNoOnek = n.EvrakNoOnek;
         b.Aktif = n.Aktif;
     }
 

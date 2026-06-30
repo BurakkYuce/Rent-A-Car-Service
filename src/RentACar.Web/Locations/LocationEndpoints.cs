@@ -15,15 +15,19 @@ public static class LocationEndpoints
 
         grp.MapPost("/create", async (LocationService svc,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? sube) =>
+            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
+            [FromForm] string? calismaSaatleri, [FromForm] string? teslimUcreti, [FromForm] string? sube) =>
             await Run(() => svc.CreateAsync(new LocationInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Sube = sube, Aktif = true })));
+            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, CalismaSaatleri = calismaSaatleri,
+              TeslimUcreti = FormParse.Dec(teslimUcreti), Sube = sube, Aktif = true })));
 
         grp.MapPost("/update", async (LocationService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? sube, [FromForm] bool aktif) =>
+            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
+            [FromForm] string? calismaSaatleri, [FromForm] string? teslimUcreti, [FromForm] string? sube, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new LocationInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Sube = sube, Aktif = aktif })));
+            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, CalismaSaatleri = calismaSaatleri,
+              TeslimUcreti = FormParse.Dec(teslimUcreti), Sube = sube, Aktif = aktif })));
 
         grp.MapPost("/delete", async (LocationService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));

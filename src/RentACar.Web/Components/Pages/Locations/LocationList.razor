@@ -20,25 +20,29 @@
         <label>Ad<input name="ad" required placeholder="İstanbul Havalimanı" /></label>
         <label>Adres<input name="adres" /></label>
         <label>Telefon<input name="telefon" /></label>
+        <label>E-posta<input name="eposta" type="email" /></label>
+        <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="07:00-23:00" /></label>
+        <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" /></label>
         <label>Şube<input name="sube" placeholder="(opsiyonel)" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <table class="grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Adres</th><th>Telefon</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Telefon</th><th>Çalışma</th><th>Teslim Ücreti</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="7" class="muted">Ofis tanımlı değil.</td></tr>
+            <tr><td colspan="8" class="muted">Ofis tanımlı değil.</td></tr>
         }
         @foreach (var l in _list)
         {
             <tr>
                 <td class="mono">@l.Kod</td>
                 <td>@l.Ad</td>
-                <td>@l.Adres</td>
                 <td>@l.Telefon</td>
+                <td>@l.CalismaSaatleri</td>
+                <td>@(l.TeslimUcreti.HasValue ? l.TeslimUcreti.Value.ToString("N2") : "")</td>
                 <td>@l.Sube</td>
                 <td>@(l.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
@@ -50,6 +54,9 @@
                             <label>Ad<input name="ad" value="@l.Ad" required /></label>
                             <label>Adres<input name="adres" value="@l.Adres" /></label>
                             <label>Telefon<input name="telefon" value="@l.Telefon" /></label>
+                            <label>E-posta<input name="eposta" type="email" value="@l.Eposta" /></label>
+                            <label>Çalışma Saatleri<input name="calismaSaatleri" value="@l.CalismaSaatleri" /></label>
+                            <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" value="@l.TeslimUcreti" /></label>
                             <label>Şube<input name="sube" value="@l.Sube" /></label>
                             <label>Durum
                                 <select name="aktif">
