@@ -17,4 +17,17 @@ public sealed class TenantSettingsModel
     public string? SmsApiKey { get; set; }
     public string? PosMerchantId { get; set; }
     public string? PosApiKey { get; set; }
+
+    // Görünüm + operasyon kuralları + SMTP (roadmap M1)
+    public string? LogoUrl { get; set; }
+    public string? VarsayilanDoviz { get; set; }
+    public decimal? VarsayilanKdvOrani { get; set; }
+    public int? MinKiraGun { get; set; }
+    public int? MaxKiraGun { get; set; }
+    public bool? RezOnayZorunlu { get; set; }
+    public string? SmtpHost { get; set; }
+    public int? SmtpPort { get; set; }
+    public string? SmtpKullanici { get; set; }
+    public string? SmtpSifre { get; set; }
+    public bool? SmtpSsl { get; set; }
 }

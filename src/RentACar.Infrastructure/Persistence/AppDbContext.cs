@@ -271,6 +271,13 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.SmsApiKeyEnc).HasMaxLength(1024);
             e.Property(x => x.PosMerchantId).HasMaxLength(128);
             e.Property(x => x.PosApiKeyEnc).HasMaxLength(1024);
+            // roadmap M1 derinlik
+            e.Property(x => x.LogoUrl).HasMaxLength(512);
+            e.Property(x => x.VarsayilanDoviz).HasMaxLength(3);
+            e.Property(x => x.VarsayilanKdvOrani).HasColumnType("numeric(5,4)");
+            e.Property(x => x.SmtpHost).HasMaxLength(256);
+            e.Property(x => x.SmtpKullanici).HasMaxLength(256);
+            e.Property(x => x.SmtpSifreEnc).HasMaxLength(1024);
             e.HasIndex(x => x.TenantId).IsUnique(); // tenant başına tek satır
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
