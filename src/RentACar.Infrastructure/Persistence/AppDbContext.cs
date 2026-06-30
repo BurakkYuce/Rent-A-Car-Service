@@ -1170,6 +1170,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_Depozito_Idem")
                 .IsUnique()
                 .HasFilter("\"SourceType\" LIKE 'Depozito%'");
+            // MTV ödeme idempotency (roadmap J1): SourceId=mtvId; çift-ödeme reddedilir. Ayrı named kısmi index.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_MtvOdeme_Idem")
+                .IsUnique()
+                .HasFilter("\"SourceType\" = 'MtvOdeme'");
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 

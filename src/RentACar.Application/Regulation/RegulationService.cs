@@ -1,13 +1,18 @@
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Periods;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Regulation;
 
-/// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı).</summary>
-public sealed class RegulationService(IRegulationRepository repository)
+/// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı) + MTV ödeme→defter (J1).</summary>
+public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
 {
     private readonly IRegulationRepository _repository = repository;
+    private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<InsurancePolicy>> ListInsuranceAsync(CancellationToken ct = default)
         => _repository.ListInsuranceAsync(ct);
@@ -52,6 +57,36 @@ public sealed class RegulationService(IRegulationRepository repository)
         var i = new InspectionRecord { VehicleId = vehicleId, MuayeneTarihi = muayeneTarihi, Bitis = bitis, Ucret = ucret };
         await _repository.AddInspectionAsync(i, ct);
         return i.Id;
+    }
+
+    /// <summary>
+    /// MTV ödeme (roadmap J1): DENGELİ defter — Borç Gider / Alacak Kasa-Banka. FinanceWrite + dönem-kilidi +
+    /// idempotency (SourceId=mtvId; çift-ödeme reddedilir). MtvRecord.Odendi=true (atomik, tek transaction).
+    /// </summary>
+    public async Task MtvOdeAsync(Guid mtvId, LedgerAccountType hesap, DateTimeOffset? odemeTarih = null,
+        string? doviz = "TRY", decimal kur = 1m, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+            throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
+        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
+
+        var rec = await _repository.FindMtvAsync(mtvId, ct) ?? throw new ValidationException("MTV kaydı bulunamadı.");
+        if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
+        if (rec.Tutar <= 0m) throw new ValidationException("MTV tutarı pozitif olmalıdır.");
+
+        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi: kapalı döneme MTV ödemesi YOK
+
+        var money = new Money(rec.Tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var desc = $"MTV ödeme {rec.Donem}";
+        await _repository.PostMtvOdemeAsync(mtvId,
+        [
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = null,
+                Direction = LedgerDirection.Debit, Amount = money, SourceType = "MtvOdeme", SourceId = mtvId, Description = desc },
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = mtvId, Description = desc }
+        ], ct);
     }
 
     private static void RequireVehicle(Guid vehicleId)
