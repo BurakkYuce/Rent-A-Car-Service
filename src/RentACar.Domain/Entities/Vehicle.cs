@@ -106,6 +106,30 @@ public class Vehicle : ITenantOwned, IAuditable
     public string? AlimYapilanFirma { get; set; }
     public int? KiraKmLimiti { get; set; }
 
+    // ---- Operasyon bayrakları (roadmap K2; varsayılan false) ----
+    /// <summary>Web kanalına rezervasyona kapalı.</summary>
+    public bool WebRezKapat { get; set; }
+    /// <summary>Ofis/çağrı rezervasyonuna kapalı.</summary>
+    public bool OfisRezKapat { get; set; }
+    /// <summary>Z raporu/izin (özel kullanım izni).</summary>
+    public bool ZIzni { get; set; }
+    /// <summary>UTTS (ulusal taşıt tanıma) takılı.</summary>
+    public bool Utts { get; set; }
+    /// <summary>Kar/kış lastiği takılı.</summary>
+    public bool KarLastigi { get; set; }
+    /// <summary>Yedek anahtar mevcut.</summary>
+    public bool YedekAnahtar { get; set; }
+    /// <summary>Temizlik tamamlandı/temiz.</summary>
+    public bool Temizlik { get; set; }
+    /// <summary>Araç rehinli/ipotekli.</summary>
+    public bool Rehin { get; set; }
+
+    // ---- Bakım/lastik (roadmap K2) ----
+    public DateTimeOffset? SonBakimTarih { get; set; }
+    public int? SonBakimKm { get; set; }
+    /// <summary>Lastik durumu (serbest metin: Yazlık/Kışlık/Yıpranmış…).</summary>
+    public string? LastikDurumu { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? UpdatedAtUtc { get; set; }

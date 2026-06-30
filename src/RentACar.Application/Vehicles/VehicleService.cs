@@ -156,6 +156,18 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         v.AlimFaturaNo = Trim(input.AlimFaturaNo);
         v.AlimYapilanFirma = Trim(input.AlimYapilanFirma);
         v.KiraKmLimiti = input.KiraKmLimiti;
+        // roadmap K2 — operasyon bayrakları + bakım/lastik
+        v.WebRezKapat = input.WebRezKapat;
+        v.OfisRezKapat = input.OfisRezKapat;
+        v.ZIzni = input.ZIzni;
+        v.Utts = input.Utts;
+        v.KarLastigi = input.KarLastigi;
+        v.YedekAnahtar = input.YedekAnahtar;
+        v.Temizlik = input.Temizlik;
+        v.Rehin = input.Rehin;
+        v.SonBakimTarih = input.SonBakimTarih;
+        v.SonBakimKm = input.SonBakimKm;
+        v.LastikDurumu = Trim(input.LastikDurumu);
     }
 
     private static string? Trim(string? s)

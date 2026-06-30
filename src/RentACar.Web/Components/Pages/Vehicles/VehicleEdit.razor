@@ -111,6 +111,20 @@ else
         <label>Alım Fatura No<input name="alimFaturaNo" value="@_vehicle.AlimFaturaNo" /></label>
         <label>Alım Yapılan Firma<input name="alimYapilanFirma" value="@_vehicle.AlimYapilanFirma" /></label>
         <label>Kira KM Limiti<input name="kiraKmLimiti" type="number" min="0" value="@_vehicle.KiraKmLimiti" /></label>
+        <label>Son Bakım Tarihi<input name="sonBakimTarih" type="date" value="@_vehicle.SonBakimTarih?.ToString("yyyy-MM-dd")" /></label>
+        <label>Son Bakım KM<input name="sonBakimKm" type="number" min="0" value="@_vehicle.SonBakimKm" /></label>
+        <label>Lastik Durumu<input name="lastikDurumu" value="@_vehicle.LastikDurumu" placeholder="Yazlık/Kışlık..." /></label>
+        <fieldset class="flags">
+            <legend>Operasyon Bayrakları</legend>
+            <label><input type="checkbox" name="webRezKapat" value="true" checked="@_vehicle.WebRezKapat" /> Web rez. kapalı</label>
+            <label><input type="checkbox" name="ofisRezKapat" value="true" checked="@_vehicle.OfisRezKapat" /> Ofis rez. kapalı</label>
+            <label><input type="checkbox" name="zIzni" value="true" checked="@_vehicle.ZIzni" /> Z izni</label>
+            <label><input type="checkbox" name="utts" value="true" checked="@_vehicle.Utts" /> UTTS</label>
+            <label><input type="checkbox" name="karLastigi" value="true" checked="@_vehicle.KarLastigi" /> Kar lastiği</label>
+            <label><input type="checkbox" name="yedekAnahtar" value="true" checked="@_vehicle.YedekAnahtar" /> Yedek anahtar</label>
+            <label><input type="checkbox" name="temizlik" value="true" checked="@_vehicle.Temizlik" /> Temizlik</label>
+            <label><input type="checkbox" name="rehin" value="true" checked="@_vehicle.Rehin" /> Rehin</label>
+        </fieldset>
         <button type="submit">Güncelle</button>
         <a href="/vehicles" class="link">İptal</a>
     </form>
