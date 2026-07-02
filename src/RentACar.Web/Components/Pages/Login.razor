@@ -1,5 +1,6 @@
 @page "/login"
 @attribute [AllowAnonymous]
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
 <PageTitle>Giriş — referans sistem</PageTitle>
 
@@ -16,19 +17,23 @@
         <p class="error">Çok fazla giriş denemesi yapıldı. Lütfen bir dakika bekleyip yeniden deneyin.</p>
     }
 
+    @* Seed kimlik ön-doldurma YALNIZ Development'ta — üretimde kimlik bilgisi sızdırılmaz. *@
     <form method="post" action="/auth/login"><AntiforgeryToken />
         <label>Firma
-            <input name="firma" value="yucerent" autocomplete="off" />
+            <input name="firma" value="@(Env.IsDevelopment() ? "yucerent" : "")" autocomplete="off" />
         </label>
         <label>Kullanıcı
-            <input name="kullanici" value="umit" autocomplete="off" />
+            <input name="kullanici" value="@(Env.IsDevelopment() ? "umit" : "")" autocomplete="off" />
         </label>
         <label>Şifre
-            <input name="sifre" type="password" value="***REMOVED***" />
+            <input name="sifre" type="password" value="@(Env.IsDevelopment() ? "***REMOVED***" : "")" />
         </label>
         <button type="submit">Giriş</button>
     </form>
-    <p class="muted small">Seed: firma <code>yucerent</code> / <code>demo</code>, kullanıcı <code>umit</code>, şifre <code>***REMOVED***</code>.</p>
+    @if (Env.IsDevelopment())
+    {
+        <p class="muted small">Seed: firma <code>yucerent</code> / <code>demo</code>, kullanıcı <code>umit</code>, şifre <code>***REMOVED***</code>.</p>
+    }
 </div>
 
 @code {
