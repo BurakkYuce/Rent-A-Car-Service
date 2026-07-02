@@ -1,4 +1,5 @@
 using RentACar.Application.Common;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Domain.Validation;
@@ -9,10 +10,20 @@ namespace RentACar.Application.Customers;
 /// Cari iş mantığı: türe göre doğrulama + benzersizlik + CRUD. Tenant izolasyonu ve
 /// audit alt katmanda otomatik. Bireysel: Ad zorunlu, TC (varsa) checksum + tenant'ta
 /// benzersiz. Kurumsal/Servis: Ünvan zorunlu, Vergi No (varsa) format + benzersiz.
+/// KVKK/F2: TC/ehliyet/pasaport at-rest ŞİFRELİ (ISecretProtector), TC benzersizliği ve
+/// tam-eşleşme araması HMAC blind-index (IPiiHasher) üzerinden — düz metin DB'ye yazılmaz.
 /// </summary>
-public sealed class CustomerService(ICustomerRepository repository)
+public sealed class CustomerService(
+    ICustomerRepository repository, ISecretProtector secrets, IPiiHasher pii, ITenantContext tenant)
 {
     private readonly ICustomerRepository _repository = repository;
+    private readonly ISecretProtector _secrets = secrets;
+    private readonly IPiiHasher _pii = pii;
+    private readonly ITenantContext _tenant = tenant;
+
+    /// <summary>Blind-index tuzu için tenant (PII yazan/arayan akışlar daima kimlikli).</summary>
+    private Guid TenantId => _tenant.TenantId
+        ?? throw new ValidationException("Tenant bağlamı yok — PII işlemi yapılamaz.");
 
     public Task<IReadOnlyList<Customer>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -22,6 +33,7 @@ public sealed class CustomerService(ICustomerRepository repository)
     {
         if (filter.Page < 1) filter.Page = 1;
         if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
+        PrepareTcSearch(filter);
         return _repository.SearchAsync(filter, ct);
     }
 
@@ -30,7 +42,16 @@ public sealed class CustomerService(ICustomerRepository repository)
     {
         if (filter.Page < 1) filter.Page = 1;
         if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
+        PrepareTcSearch(filter);
         return _repository.SearchRowsAsync(filter, ct);
+    }
+
+    /// <summary>Sorgu 11 haneli TC ise blind-index özetini filtreye koyar (şifreli TC'de
+    /// ILike çalışmaz; tam-eşleşme hash üzerinden). Kısmi TC araması bilinçli olarak yok.</summary>
+    private void PrepareTcSearch(CustomerFilter filter)
+    {
+        var digits = OnlyDigitsOrNull(filter.Query);
+        filter.TcHash = digits?.Length == 11 ? _pii.Hash(TenantId, digits) : null;
     }
 
     public Task<Customer?> GetAsync(Guid id, CancellationToken ct = default)
@@ -95,7 +116,10 @@ public sealed class CustomerService(ICustomerRepository repository)
 
     private async Task EnsureUniqueAsync(CustomerInput n, Guid? excludeId, CancellationToken ct)
     {
-        if (!string.IsNullOrEmpty(n.TcKimlik) && await _repository.TcKimlikExistsAsync(n.TcKimlik!, excludeId, ct))
+        // TC benzersizliği blind-index üzerinden (düz metin DB'de yok) — DB'deki kısmi unique
+        // index (TenantId, TcKimlikHash) yarışta ikinci savunmadır.
+        if (!string.IsNullOrEmpty(n.TcKimlik)
+            && await _repository.TcKimlikHashExistsAsync(_pii.Hash(TenantId, n.TcKimlik)!, excludeId, ct))
             throw new DuplicateCariException("TC Kimlik No", n.TcKimlik!);
         if (!string.IsNullOrEmpty(n.VergiNo) && await _repository.VergiNoExistsAsync(n.VergiNo!, excludeId, ct))
             throw new DuplicateCariException("Vergi No", n.VergiNo!);
@@ -162,12 +186,15 @@ public sealed class CustomerService(ICustomerRepository repository)
         FaturaUnvan = Trim(input.FaturaUnvan)
     };
 
-    private static void Apply(Customer c, CustomerInput n)
+    private void Apply(Customer c, CustomerInput n)
     {
         c.Tip = n.Tip;
         c.Ad = n.Ad;
         c.Soyad = n.Soyad;
-        c.TcKimlik = n.TcKimlik;
+        // KVKK/F2: düz metin PII DB'ye yazılmaz — cipher + tenant-tuzlu blind-index; eski kolonlar null.
+        c.TcKimlik = null;
+        c.TcKimlikEnc = _secrets.Protect(n.TcKimlik);
+        c.TcKimlikHash = _pii.Hash(TenantId, n.TcKimlik);
         c.Unvan = n.Unvan;
         c.VergiDairesi = n.VergiDairesi;
         c.VergiNo = n.VergiNo;
@@ -182,7 +209,8 @@ public sealed class CustomerService(ICustomerRepository repository)
         c.IysIzinli = n.IysIzinli;
         c.Uyari = n.Uyari;
         c.UyariNedeni = n.UyariNedeni;
-        c.EhliyetNo = n.EhliyetNo;
+        c.EhliyetNo = null;
+        c.EhliyetNoEnc = _secrets.Protect(n.EhliyetNo);
         c.EhliyetSinifi = n.EhliyetSinifi;
         c.EhliyetTarihi = n.EhliyetTarihi;
         c.EhliyetYeri = n.EhliyetYeri;
@@ -201,7 +229,8 @@ public sealed class CustomerService(ICustomerRepository repository)
         c.DogumTarihi = n.DogumTarihi;
         c.BabaAdi = n.BabaAdi;
         c.AnaAdi = n.AnaAdi;
-        c.PasaportNo = n.PasaportNo;
+        c.PasaportNo = null;
+        c.PasaportNoEnc = _secrets.Protect(n.PasaportNo);
         c.FaturaDonemi = n.FaturaDonemi;
         c.TevkifatOrani = n.TevkifatOrani;
         c.Yetkili1Ad = n.Yetkili1Ad;

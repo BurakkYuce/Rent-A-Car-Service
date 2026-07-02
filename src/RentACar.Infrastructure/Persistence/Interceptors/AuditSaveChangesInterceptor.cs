@@ -21,6 +21,17 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
+    // KVKK/F2 (adversarial HIGH-1): PII alan DEĞERLERİ denetim izine yazılmaz — değişiklik
+    // "***" ile işaretlenir. Düz-metin legacy alanlar + cipher/hash türevleri (korelasyonu da kes).
+    private static readonly HashSet<string> PiiMaskedProps = new(StringComparer.Ordinal)
+    {
+        "TcKimlik", "EhliyetNo", "PasaportNo",
+        "TcKimlikEnc", "EhliyetNoEnc", "PasaportNoEnc", "TcKimlikHash", "MaasEnc"
+    };
+
+    private static object? Mask(string propertyName, object? value)
+        => value is string { Length: > 0 } && PiiMaskedProps.Contains(propertyName) ? "***" : value;
+
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -92,8 +103,8 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 foreach (var p in entry.Properties)
                 {
                     if (!p.IsModified) continue;
-                    oldValues[p.Metadata.Name] = p.OriginalValue;
-                    newValues[p.Metadata.Name] = p.CurrentValue;
+                    oldValues[p.Metadata.Name] = Mask(p.Metadata.Name, p.OriginalValue);
+                    newValues[p.Metadata.Name] = Mask(p.Metadata.Name, p.CurrentValue);
                 }
                 break;
         }
@@ -116,7 +127,7 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
     {
         var dict = new Dictionary<string, object?>();
         foreach (var p in entry.Properties)
-            dict[p.Metadata.Name] = original ? p.OriginalValue : p.CurrentValue;
+            dict[p.Metadata.Name] = Mask(p.Metadata.Name, original ? p.OriginalValue : p.CurrentValue);
         return dict;
     }
 
