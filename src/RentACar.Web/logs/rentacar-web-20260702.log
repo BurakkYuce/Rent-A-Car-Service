@@ -1,0 +1,12 @@
+2026-07-02 14:16:18.822 +03:00 [INF] Now listening on: http://localhost:5222
+2026-07-02 14:16:18.839 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-02 14:16:18.839 +03:00 [INF] Hosting environment: Production
+2026-07-02 14:16:18.839 +03:00 [INF] Content root path: /Users/burak/Desktop/demo-apps/demo/src/RentACar.Web
+2026-07-02 14:16:19.248 +03:00 [INF] HTTP GET /health responded 200 in 46.3330 ms
+2026-07-02 14:16:19.305 +03:00 [INF] HTTP GET /login responded 200 in 27.6608 ms
+2026-07-02 14:16:40.796 +03:00 [INF] Now listening on: http://localhost:5223
+2026-07-02 14:16:40.812 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-02 14:16:40.812 +03:00 [INF] Hosting environment: Development
+2026-07-02 14:16:40.812 +03:00 [INF] Content root path: /Users/burak/Desktop/demo-apps/demo/src/RentACar.Web
+2026-07-02 14:16:41.768 +03:00 [INF] HTTP GET /health responded 200 in 43.7589 ms
+2026-07-02 14:16:41.819 +03:00 [INF] HTTP GET /login responded 200 in 24.4329 ms
