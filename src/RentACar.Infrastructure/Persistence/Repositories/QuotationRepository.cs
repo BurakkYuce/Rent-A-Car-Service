@@ -31,13 +31,16 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
 
     public async Task CreateAsync(Quotation quotation, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "QuotationNo", ct);
-        quotation.No = $"TK-{n:D6}";
-        db.Quotations.Add(quotation);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "QuotationNo", ct);
+            quotation.No = $"TK-{n:D6}";
+            db.Quotations.Add(quotation);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> UpdateAsync(Guid id, Action<Quotation> apply, CancellationToken ct = default)
@@ -53,25 +56,28 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
     public async Task<Guid> ConvertToReservationAsync(
         Guid quotationId, Func<Quotation, Reservation> buildReservation, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        var quotation = await db.Quotations.FirstOrDefaultAsync(x => x.Id == quotationId, ct)
-            ?? throw new ValidationException("Teklif bulunamadı.");
-        if (quotation.ReservationId is not null)
-            throw new ValidationException("Teklif zaten rezervasyona çevrilmiş.");
+            var quotation = await db.Quotations.FirstOrDefaultAsync(x => x.Id == quotationId, ct)
+                ?? throw new ValidationException("Teklif bulunamadı.");
+            if (quotation.ReservationId is not null)
+                throw new ValidationException("Teklif zaten rezervasyona çevrilmiş.");
 
-        var reservation = buildReservation(quotation);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
-        reservation.ReservationNo = $"RZ-{n:D6}";
-        db.Reservations.Add(reservation);
+            var reservation = buildReservation(quotation);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
+            reservation.ReservationNo = $"RZ-{n:D6}";
+            db.Reservations.Add(reservation);
 
-        quotation.Durum = QuotationStatus.Kabul;
-        quotation.ReservationId = reservation.Id;
-        quotation.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            quotation.Durum = QuotationStatus.Kabul;
+            quotation.ReservationId = reservation.Id;
+            quotation.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        await db.SaveChangesAsync(ct); // reservation insert + quotation update + audit, atomik
-        await tx.CommitAsync(ct);
-        return reservation.Id;
+            await db.SaveChangesAsync(ct); // reservation insert + quotation update + audit, atomik
+            await tx.CommitAsync(ct);
+            return reservation.Id;
+        }, ct);
     }
 }

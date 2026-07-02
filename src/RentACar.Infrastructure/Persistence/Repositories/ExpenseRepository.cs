@@ -34,17 +34,20 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
         if (debit != credit)
             throw new ValidationException($"Gider defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
-        expense.No = $"GD-{n:D6}";
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
+            expense.No = $"GD-{n:D6}";
 
-        db.Expenses.Add(expense);
-        db.AccountLedgerEntries.AddRange(entries);
+            db.Expenses.Add(expense);
+            db.AccountLedgerEntries.AddRange(entries);
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task PostBatchAsync(IReadOnlyList<ExpensePosting> items, CancellationToken ct = default)
@@ -58,27 +61,30 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             if (d != c) throw new ValidationException($"Gider defteri dengesiz: borç {d} ≠ alacak {c}.");
         }
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // ATOMİK: tüm kalemler TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
-        foreach (var it in items)
-        {
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
-            it.Expense.No = $"GD-{n:D6}";
-            db.Expenses.Add(it.Expense);
-            db.AccountLedgerEntries.AddRange(it.Entries);
-        }
+            // ATOMİK: tüm kalemler TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
+            foreach (var it in items)
+            {
+                var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
+                it.Expense.No = $"GD-{n:D6}";
+                db.Expenses.Add(it.Expense);
+                db.AccountLedgerEntries.AddRange(it.Entries);
+            }
 
-        try
-        {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Bu toplu gider zaten kaydedilmiş.");
-        }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Bu toplu gider zaten kaydedilmiş.");
+            }
+        }, ct);
     }
 }
