@@ -26,6 +26,8 @@
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <!-- Transitive pin: 2.0.0'da bilinen HIGH zafiyet (GHSA-v5pm-xwqc-g5wc, NU1903) → yamalı 2.x. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
   </ItemGroup>
 
   <!-- Rapor export (roadmap B1): Excel (.xlsx) üretimi — MIT, kimliksiz, saf .NET. -->
@@ -41,6 +43,11 @@
   <!-- PDF export (roadmap F4): sözleşme/fatura PDF — QuestPDF Community (kimliksiz, runtime key gerekmez). -->
   <ItemGroup>
     <PackageVersion Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
+  <!-- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (Web+Api). -->
+  <ItemGroup>
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
 
   <!-- Test paketleri -->
