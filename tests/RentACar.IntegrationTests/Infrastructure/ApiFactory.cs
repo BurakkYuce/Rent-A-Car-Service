@@ -16,7 +16,8 @@ namespace RentACar.IntegrationTests.Infrastructure;
 /// ayarları test DB'sine yönlendirilir. API JWT'den tenant context çözer → RLS test DB'de
 /// gerçekten uygulanır (izolasyon ispatlanabilir).
 /// </summary>
-public sealed class ApiFactory(string appConnectionString) : WebApplicationFactory<RentACar.Api.ApiAssemblyMarker>
+public sealed class ApiFactory(string appConnectionString, IDictionary<string, string?>? extraSettings = null)
+    : WebApplicationFactory<RentACar.Api.ApiAssemblyMarker>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -25,6 +26,9 @@ public sealed class ApiFactory(string appConnectionString) : WebApplicationFacto
         builder.UseSetting("Jwt:Issuer", "RentACarApi");
         builder.UseSetting("Jwt:Audience", "RentACarClients");
         builder.UseSetting("Jwt:ExpiresMinutes", "60");
+        if (extraSettings is not null)
+            foreach (var (key, value) in extraSettings)
+                builder.UseSetting(key, value);
     }
 }
 
