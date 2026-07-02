@@ -14,8 +14,22 @@ using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure;
 using RentACar.Infrastructure.Persistence;
+using Serilog;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (14 gün saklama) ----
+builder.Services.AddSerilog(lc => lc
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-api-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14));
 
 var appConn = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default eksik.");
@@ -92,6 +106,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
+app.UseSerilogRequestLogging(); // istek başına tek satır: metot, yol, durum, süre
 app.UseRateLimiter();
 
 // Tutarlı JSON hata zarfı (en dış katman).
