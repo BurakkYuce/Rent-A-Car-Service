@@ -47,6 +47,12 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 - Servis guard: `PermissionGuard.Require(user, Permission.X)` → `ValidationException`. Web ayrıca `RequirePermission`/`[Authorize(Roles=…)]` (çift savunma).
 - **Şube kapsamı**: `BranchScope.Effective(user)` → Operatör yalnız `AssignedBranch`'ini görür; diğerleri tümünü.
 
+### PII / KVKK (F2 — blind-index)
+- Customer `TcKimlik/EhliyetNo/PasaportNo` at-rest **şifreli** (`*Enc`, `ISecretProtector`); düz-metin kolonlar legacy (uygulama YAZMAZ, açılışta `PiiBackfill` şifreleyip null'lar; ileride düşecek). Personel `TcKimlikEnc/MaasEnc` aynı desen.
+- TC benzersizliği+tam-eşleşme araması **blind-index**: `TcKimlikHash` (HMAC-SHA256, `IPiiHasher`), kısmi unique index `(TenantId, TcKimlikHash)`. Kısmi TC araması bilinçli YOK.
+- Anahtar `Pii:HmacKey` — **üretimde zorunlu** (Web/Api açılışta reddeder); dev/test sabit anahtar. Anahtar + DataProtection key-ring'i yedek kapsamında (bkz. `docs/ops/yedekleme.md`).
+- Okumalar `CustomerRepository.Decrypt` ile bellekte çözülür — tüketiciler düz değeri görür; DB'de yalnız cipher+hash.
+
 ## 5. Yeni tenant-owned tablo ekleme reçetesi
 1. `Domain/Entities/X.cs` : `ITenantOwned, IAuditable`, `Id` Guid (ValueGeneratedNever), audit timestamp'leri.
 2. `AppDbContext`: `DbSet<X>` + `OnModelCreating`'de config (kolon tipleri `numeric(19,4)`, `HasIndex (TenantId, doğal-anahtar) IsUnique`, `HasQueryFilter(x => x.TenantId == TenantId)`).

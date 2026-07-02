@@ -91,15 +91,16 @@ public sealed class ListSearchTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+        // KVKK/F2: TC'li kayıt SERVİS üzerinden açılır (düz metin DB'ye yazılmaz; arama blind-index ile).
+        await svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ahmet", Soyad = "Yılmaz", TcKimlik = "10000000146" });
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Ahmet", Soyad = "Yılmaz", TcKimlik = "10000000146" });
             db.Customers.Add(new Customer { Tip = CariType.Kurumsal, Unvan = "Yılmaz Ltd", VergiNo = "1234567890" });
             db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Mehmet", Soyad = "Demir" });
             await db.SaveChangesAsync();
         }
-        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
         Assert.Equal(2, (await svc.SearchAsync(new CustomerFilter { Query = "yılmaz" })).Total); // ad + ünvan
         Assert.Equal(1, (await svc.SearchAsync(new CustomerFilter { Query = "10000000146" })).Total); // TC

@@ -136,8 +136,13 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpConte
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContextIdentity>());
 
 // ---- Uygulama + altyapı ----
+// PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
+// adversarial M1: gerçek PII'lı ortam bilinen dev anahtarına sessizce düşmemeli).
+var piiKey = builder.Configuration["Pii:HmacKey"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
+    throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(appConn);
+builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 

@@ -21,7 +21,16 @@ public class Customer : ITenantOwned, IAuditable
     // Bireysel
     public string? Ad { get; set; }
     public string? Soyad { get; set; }
+
+    /// <summary>ESKİ düz-metin TC kolonu — KVKK/F2 sonrası uygulama YAZMAZ; başlangıç
+    /// backfill'i şifreleyip null'lar. Bir sonraki sürümde kolon düşürülecek.</summary>
     public string? TcKimlik { get; set; }
+
+    // ---- KVKK/F2: PII at-rest şifreli + blind-index (Personel D1 deseni + hash) ----
+    /// <summary>TC Kimlik — ISecretProtector cipher'ı (görüntülemede çözülür).</summary>
+    public string? TcKimlikEnc { get; set; }
+    /// <summary>TC Kimlik HMAC blind-index — tenant-içi benzersizlik + tam-eşleşme arama.</summary>
+    public string? TcKimlikHash { get; set; }
 
     // Kurumsal / Servis
     public string? Unvan { get; set; }
@@ -58,7 +67,10 @@ public class Customer : ITenantOwned, IAuditable
     public DateTimeOffset? DogumTarihi { get; set; }
     public string? BabaAdi { get; set; }
     public string? AnaAdi { get; set; }
+    /// <summary>ESKİ düz-metin pasaport kolonu — uygulama yazmaz; backfill şifreleyip null'lar.</summary>
     public string? PasaportNo { get; set; }
+    /// <summary>Pasaport No — şifreli (KVKK/F2).</summary>
+    public string? PasaportNoEnc { get; set; }
     /// <summary>Fatura dönemi (ör. Aylık, 15 günlük, Peşin).</summary>
     public string? FaturaDonemi { get; set; }
     /// <summary>Tevkifat oranı (% — kurumsal stopaj).</summary>
@@ -76,7 +88,10 @@ public class Customer : ITenantOwned, IAuditable
     public string? Yetkili3Mail { get; set; }
 
     // Ehliyet
+    /// <summary>ESKİ düz-metin ehliyet kolonu — uygulama yazmaz; backfill şifreleyip null'lar.</summary>
     public string? EhliyetNo { get; set; }
+    /// <summary>Ehliyet No — şifreli (KVKK/F2).</summary>
+    public string? EhliyetNoEnc { get; set; }
     public string? EhliyetSinifi { get; set; }
     public DateTimeOffset? EhliyetTarihi { get; set; }
     public string? EhliyetYeri { get; set; }
