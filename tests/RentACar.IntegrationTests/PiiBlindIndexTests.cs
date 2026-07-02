@@ -304,4 +304,80 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         Assert.NotNull(ex);
         Assert.Contains("Pii:HmacKey", ex!.ToString());
     }
+
+    /// <summary>
+    /// Boot-idempotenslik (review bulgusu): tarihsel audit'te maskesiz PII varsa cari düz-metni
+    /// OLMASA BİLE maskelenir (gate 'legacy cari var mı'ya değil 'maskesiz audit var mı'ya bağlı —
+    /// geçiş penceresi kaçmaz); ve göç tamamlandıktan sonraki koşu audit satırını FİZİKSEL yeniden
+    /// yazmaz → immutability trigger'ı her boot'ta gereksiz açılıp kapanmaz. Kanıt: xmin (satır
+    /// sürümü) 2. koşuda DEĞİŞMEZ.
+    /// </summary>
+    [Fact]
+    public async Task Backfill_audit_only_pii_maskeler_ve_temiz_kosu_satiri_yeniden_yazmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenant);
+        var sp = scope.ServiceProvider;
+        var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
+
+        // Tenant kaydı (backfill tenant-loop'u Tenants'tan besleniyor).
+        var ownerOptions = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(fx.OwnerConnectionString).Options;
+        await using (var seedDb = new AppDbContext(ownerOptions, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            seedDb.Tenants.Add(new Tenant { Id = tenant, Code = $"pib-{tenant:N}"[..12], Name = "PII Boot Test" });
+            await seedDb.SaveChangesAsync();
+        }
+
+        // SADECE tarihsel maskesiz audit izi — hiç legacy CARİ yok (geçiş penceresi senaryosu).
+        var auditId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.AuditLogs.Add(new AuditLog
+            {
+                Id = auditId, EntityName = "Customers", EntityId = Guid.NewGuid().ToString(),
+                Action = AuditAction.Create,
+                NewValues = $$$"""{"Ad": "Onur", "TcKimlik": "{{{Tc1}}}"}"""
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // 1. koşu: cari şifrelemesi 0 ama audit izi maskelenmeli.
+        await using (var ownerDb = new AppDbContext(ownerOptions, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            var n = await PiiBackfill.RunAsync(ownerDb,
+                sp.GetRequiredService<ISecretProtector>(), sp.GetRequiredService<IPiiHasher>());
+            Assert.Equal(0, n); // hiç cari yok → 0; ama audit scrub çalışmış olmalı
+        }
+
+        string xminSonrasi1;
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var audit = await db.AuditLogs.AsNoTracking().SingleAsync(a => a.Id == auditId);
+            Assert.DoesNotContain(Tc1, audit.NewValues!);   // düz TC maskelendi
+            Assert.Contains("***", audit.NewValues!);
+            Assert.Contains("Onur", audit.NewValues!);      // PII-dışı alan duruyor
+            // Satır fiziksel sürümü (xmin) — 1. koşu maskelediği için bir kez değişti.
+            xminSonrasi1 = await db.Database
+                .SqlQuery<string>($"""SELECT xmin::text AS "Value" FROM "AuditLogs" WHERE "Id" = {auditId}""")
+                .SingleAsync();
+        }
+
+        // 2. koşu (steady-state): maskesiz PII yok → scrub HİÇ çalışmamalı, satır yeniden yazılmamalı.
+        await using (var ownerDb = new AppDbContext(ownerOptions, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            var again = await PiiBackfill.RunAsync(ownerDb,
+                sp.GetRequiredService<ISecretProtector>(), sp.GetRequiredService<IPiiHasher>());
+            Assert.Equal(0, again);
+        }
+
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var xminSonrasi2 = await db.Database
+                .SqlQuery<string>($"""SELECT xmin::text AS "Value" FROM "AuditLogs" WHERE "Id" = {auditId}""")
+                .SingleAsync();
+            Assert.Equal(xminSonrasi1, xminSonrasi2); // satır DOKUNULMADI → boş boot yazma yapmıyor
+        }
+    }
 }
