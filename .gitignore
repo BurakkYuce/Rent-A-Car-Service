@@ -29,3 +29,6 @@ Thumbs.db
 # Yerel araç/geçici çıktılar
 .playwright-mcp/
 *.bundle
+
+# Serilog dosya logları (P0-2) — asla commit edilmez
+logs/
