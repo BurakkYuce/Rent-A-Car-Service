@@ -63,27 +63,30 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
         if (debit != credit) throw new ValidationException($"MTV ödeme defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var rec = await db.MtvRecords.FirstOrDefaultAsync(x => x.Id == mtvId, ct)
-            ?? throw new ValidationException("MTV kaydı bulunamadı.");
-        if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
-        rec.Odendi = true;
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.AccountLedgerEntries.AddRange(entries);
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // Eşzamanlı çift-ödeme: deterministik SourceId=mtvId idem index'ine takıldı → ilk ödeme kazandı.
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("MTV zaten ödendi.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var rec = await db.MtvRecords.FirstOrDefaultAsync(x => x.Id == mtvId, ct)
+                ?? throw new ValidationException("MTV kaydı bulunamadı.");
+            if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
+            rec.Odendi = true;
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AccountLedgerEntries.AddRange(entries);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Eşzamanlı çift-ödeme: deterministik SourceId=mtvId idem index'ine takıldı → ilk ödeme kazandı.
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("MTV zaten ödendi.");
+            }
+        }, ct);
     }
 
     public async Task<InspectionRecord?> FindInspectionAsync(Guid id, CancellationToken ct = default)
@@ -98,27 +101,30 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
         if (debit != credit) throw new ValidationException($"Muayene ödeme defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var rec = await db.InspectionRecords.FirstOrDefaultAsync(x => x.Id == inspectionId, ct)
-            ?? throw new ValidationException("Muayene kaydı bulunamadı.");
-        if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
-        rec.Odendi = true;
-        rec.Ceza = ceza;
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.AccountLedgerEntries.AddRange(entries);
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Muayene zaten ödendi.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var rec = await db.InspectionRecords.FirstOrDefaultAsync(x => x.Id == inspectionId, ct)
+                ?? throw new ValidationException("Muayene kaydı bulunamadı.");
+            if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
+            rec.Odendi = true;
+            rec.Ceza = ceza;
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AccountLedgerEntries.AddRange(entries);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Muayene zaten ödendi.");
+            }
+        }, ct);
     }
 
     public async Task<InsurancePolicy?> FindInsuranceAsync(Guid id, CancellationToken ct = default)
@@ -133,27 +139,30 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
         if (debit != credit) throw new ValidationException($"Sigorta ödeme defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var rec = await db.InsurancePolicies.FirstOrDefaultAsync(x => x.Id == policyId, ct)
-            ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
-        if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
-        rec.Odendi = true;
-        rec.ZeyilPrim = zeyilPrim;
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.AccountLedgerEntries.AddRange(entries);
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Sigorta zaten ödendi.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var rec = await db.InsurancePolicies.FirstOrDefaultAsync(x => x.Id == policyId, ct)
+                ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
+            if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
+            rec.Odendi = true;
+            rec.ZeyilPrim = zeyilPrim;
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AccountLedgerEntries.AddRange(entries);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Sigorta zaten ödendi.");
+            }
+        }, ct);
     }
 
     public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)

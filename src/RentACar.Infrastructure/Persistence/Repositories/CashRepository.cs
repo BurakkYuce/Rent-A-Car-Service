@@ -44,36 +44,39 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         if (debit != credit)
             throw new ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var dbTx = await db.Database.BeginTransactionAsync(ct);
-
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-        tx.No = $"{(tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
-        db.CashTransactions.Add(tx);
-        db.AccountLedgerEntries.AddRange(entries);
-
-        if (tx.RentalId is Guid rentalId)
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
-            if (rental is not null)
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var dbTx = await db.Database.BeginTransactionAsync(ct);
+
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
+            tx.No = $"{(tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
+            db.CashTransactions.Add(tx);
+            db.AccountLedgerEntries.AddRange(entries);
+
+            if (tx.RentalId is Guid rentalId)
             {
-                rental.Tahsilat += rentalTahsilatDelta;
-                rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
-                rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
+                if (rental is not null)
+                {
+                    rental.Tahsilat += rentalTahsilatDelta;
+                    rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
+                    rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                }
             }
-        }
 
-        try
-        {
-            await db.SaveChangesAsync(ct);
-            await dbTx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // Yarış: aynı işlem için ikinci ters kayıt (kısmi unique index) → idempotent hata.
-            await dbTx.RollbackAsync(ct);
-            throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
-        }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await dbTx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Yarış: aynı işlem için ikinci ters kayıt (kısmi unique index) → idempotent hata.
+                await dbTx.RollbackAsync(ct);
+                throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
+            }
+        }, ct);
     }
 
     public async Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default)
@@ -88,40 +91,43 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             if (d != c) throw new ValidationException($"Defter dengesiz: borç {d} ≠ alacak {c}.");
         }
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var dbTx = await db.Database.BeginTransactionAsync(ct);
-
-        // ATOMİK: tüm satırlar TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
-        foreach (var it in items)
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-            it.Tx.No = $"{(it.Tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
-            db.CashTransactions.Add(it.Tx);
-            db.AccountLedgerEntries.AddRange(it.Entries);
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var dbTx = await db.Database.BeginTransactionAsync(ct);
 
-            if (it.Tx.RentalId is Guid rentalId)
+            // ATOMİK: tüm satırlar TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
+            foreach (var it in items)
             {
-                var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
-                if (rental is not null)
+                var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
+                it.Tx.No = $"{(it.Tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
+                db.CashTransactions.Add(it.Tx);
+                db.AccountLedgerEntries.AddRange(it.Entries);
+
+                if (it.Tx.RentalId is Guid rentalId)
                 {
-                    rental.Tahsilat += it.RentalTahsilatDelta;
-                    rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
-                    rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                    var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
+                    if (rental is not null)
+                    {
+                        rental.Tahsilat += it.RentalTahsilatDelta;
+                        rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
+                        rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                    }
                 }
             }
-        }
 
-        try
-        {
-            await db.SaveChangesAsync(ct);
-            await dbTx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // İşlem anahtarı çakışması (aynı toplu işlem yeniden gönderildi) → TÜM batch geri alınır (idempotent).
-            await dbTx.RollbackAsync(ct);
-            throw new ValidationException("Bu toplu işlem zaten kaydedilmiş.");
-        }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await dbTx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // İşlem anahtarı çakışması (aynı toplu işlem yeniden gönderildi) → TÜM batch geri alınır (idempotent).
+                await dbTx.RollbackAsync(ct);
+                throw new ValidationException("Bu toplu işlem zaten kaydedilmiş.");
+            }
+        }, ct);
     }
 
     public async Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default)

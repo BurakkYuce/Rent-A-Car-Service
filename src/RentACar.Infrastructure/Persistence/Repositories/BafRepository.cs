@@ -24,13 +24,16 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
 
     public async Task CreateAsync(Baf row, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "BafNo", ct);
-        row.No = $"BAF-{n:D6}";
-        db.Baflar.Add(row);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "BafNo", ct);
+            row.No = $"BAF-{n:D6}";
+            db.Baflar.Add(row);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset donusTarihi, CancellationToken ct = default)

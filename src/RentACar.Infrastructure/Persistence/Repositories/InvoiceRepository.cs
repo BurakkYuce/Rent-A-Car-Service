@@ -34,28 +34,31 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         if (debit != credit)
             throw new ValidationException($"Fatura defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "InvoiceNo", ct);
-        invoice.No = $"FT-{n:D6}";
-        // No defter açıklamasında kullanıldığından satırların ait olduğu fatura no'yu yansıt.
-        foreach (var entry in entries)
-            entry.Description = $"Fatura {invoice.No}";
-
-        db.Invoices.Add(invoice);          // satırlar cascade
-        db.AccountLedgerEntries.AddRange(entries);
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // Kira-fatura kısmi unique index (eşzamanlı çift fatura) → idempotent reddet.
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Kira zaten faturalanmış.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "InvoiceNo", ct);
+            invoice.No = $"FT-{n:D6}";
+            // No defter açıklamasında kullanıldığından satırların ait olduğu fatura no'yu yansıt.
+            foreach (var entry in entries)
+                entry.Description = $"Fatura {invoice.No}";
+
+            db.Invoices.Add(invoice);          // satırlar cascade
+            db.AccountLedgerEntries.AddRange(entries);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Kira-fatura kısmi unique index (eşzamanlı çift fatura) → idempotent reddet.
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Kira zaten faturalanmış.");
+            }
+        }, ct);
     }
 }

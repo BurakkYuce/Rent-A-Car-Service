@@ -25,13 +25,16 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task CreateAsync(Penalty penalty, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "PenaltyNo", ct);
-        penalty.No = $"CZ-{n:D6}";
-        db.Penalties.Add(penalty);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "PenaltyNo", ct);
+            penalty.No = $"CZ-{n:D6}";
+            db.Penalties.Add(penalty);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> UpdateAsync(Guid id, Action<Penalty> apply, CancellationToken ct = default)
@@ -47,28 +50,31 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
     public async Task<bool> ReflectAsync(
         Guid id, Func<Penalty, IReadOnlyList<AccountLedgerEntry>> buildEntries, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Satır kilidi: eşzamanlı yansıtmalar serileşir → çift yansıtma olmaz (idempotent).
-        var penalty = await db.Penalties
-            .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", id)
-            .FirstOrDefaultAsync(ct);
-        if (penalty is null) return false;
-        if (penalty.Durum != CezaDurum.Yeni) return false; // zaten yansıtılmış/işlenmiş
+            // Satır kilidi: eşzamanlı yansıtmalar serileşir → çift yansıtma olmaz (idempotent).
+            var penalty = await db.Penalties
+                .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", id)
+                .FirstOrDefaultAsync(ct);
+            if (penalty is null) return false;
+            if (penalty.Durum != CezaDurum.Yeni) return false; // zaten yansıtılmış/işlenmiş
 
-        var entries = buildEntries(penalty);
-        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-        if (debit != credit)
-            throw new ValidationException($"Ceza yansıtma defteri dengesiz: borç {debit} ≠ alacak {credit}.");
+            var entries = buildEntries(penalty);
+            var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+            var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+            if (debit != credit)
+                throw new ValidationException($"Ceza yansıtma defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        penalty.Durum = CezaDurum.Yansitildi;
-        penalty.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.AccountLedgerEntries.AddRange(entries);
+            penalty.Durum = CezaDurum.Yansitildi;
+            penalty.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AccountLedgerEntries.AddRange(entries);
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return true;
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
     }
 }

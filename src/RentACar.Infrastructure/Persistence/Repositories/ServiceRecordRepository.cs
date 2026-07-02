@@ -31,42 +31,48 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
 
     public async Task CreateAsync(ServiceRecord record, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ServiceNo", ct);
-        record.No = $"SRV-{n:D6}";
-        foreach (var l in record.Lines) l.ServiceRecordId = record.Id;
-        record.ToplamIscilik = record.Lines.Sum(l => l.Tutar);
-        db.ServiceRecords.Add(record);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ServiceNo", ct);
+            record.No = $"SRV-{n:D6}";
+            foreach (var l in record.Lines) l.ServiceRecordId = record.Id;
+            record.ToplamIscilik = record.Lines.Sum(l => l.Tutar);
+            db.ServiceRecords.Add(record);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> TransitionAsync(
         Guid id, Action<ServiceRecord> apply,
         VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var rec = await db.ServiceRecords.FirstOrDefaultAsync(r => r.Id == id, ct);
-        if (rec is null) return false;
-        apply(rec);
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        if (setVehicleTo is VehicleStatus vs)
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == rec.VehicleId, ct);
-            if (vehicle is not null && (onlyWhenVehicleIs is null || vehicle.Durum == onlyWhenVehicleIs))
-            {
-                vehicle.Durum = vs;
-                vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
-            }
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return true;
+            var rec = await db.ServiceRecords.FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (rec is null) return false;
+            apply(rec);
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            if (setVehicleTo is VehicleStatus vs)
+            {
+                var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == rec.VehicleId, ct);
+                if (vehicle is not null && (onlyWhenVehicleIs is null || vehicle.Durum == onlyWhenVehicleIs))
+                {
+                    vehicle.Durum = vs;
+                    vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
     }
 
     public async Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
@@ -91,27 +97,30 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
         if (debit != credit) throw new ValidationException($"Servis yansıtma defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var rec = await db.ServiceRecords.FirstOrDefaultAsync(r => r.Id == serviceId, ct)
-            ?? throw new ValidationException("Servis kaydı bulunamadı.");
-        if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
-        rec.Yansitildi = true;
-        rec.YansitilanTutar = yansitilanTutar;
-        rec.YansitilanCariId = cariId;
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.AccountLedgerEntries.AddRange(entries);
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var rec = await db.ServiceRecords.FirstOrDefaultAsync(r => r.Id == serviceId, ct)
+                ?? throw new ValidationException("Servis kaydı bulunamadı.");
+            if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
+            rec.Yansitildi = true;
+            rec.YansitilanTutar = yansitilanTutar;
+            rec.YansitilanCariId = cariId;
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AccountLedgerEntries.AddRange(entries);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
+            }
+        }, ct);
     }
 }

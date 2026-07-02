@@ -24,13 +24,16 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
 
     public async Task CreateAsync(AracKredi row, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracKrediNo", ct);
-        row.No = $"KR-{n:D6}";
-        db.AracKredileri.Add(row);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracKrediNo", ct);
+            row.No = $"KR-{n:D6}";
+            db.AracKredileri.Add(row);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> TaksitOdeAsync(Guid id, CancellationToken ct = default)

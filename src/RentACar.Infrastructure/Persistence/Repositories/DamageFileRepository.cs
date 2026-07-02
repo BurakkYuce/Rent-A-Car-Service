@@ -23,13 +23,16 @@ public sealed class DamageFileRepository(IDbContextFactory<AppDbContext> factory
 
     public async Task CreateAsync(DamageFile file, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "DamageFileNo", ct);
-        file.No = $"BAF-{n:D6}";
-        db.DamageFiles.Add(file);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "DamageFileNo", ct);
+            file.No = $"BAF-{n:D6}";
+            db.DamageFiles.Add(file);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> UpdateAsync(Guid id, Action<DamageFile> apply, CancellationToken ct = default)
