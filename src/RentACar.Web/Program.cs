@@ -1,5 +1,9 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
+using RentACar.Infrastructure.Persistence;
+using Serilog;
+using Serilog.Events;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -68,6 +72,18 @@ using RentACar.Web.DropTanimlari;
 using RentACar.Web.Vehicles;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (14 gün saklama) ----
+builder.Services.AddSerilog(lc => lc
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-web-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14));
 
 // ---- Bağlantılar: Default = racar_app (RLS uygulanan runtime), Migrator = racar_owner (DDL/seed) ----
 var appConn = builder.Configuration.GetConnectionString("Default")
@@ -147,6 +163,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
+app.UseSerilogRequestLogging(); // istek başına tek satır: metot, yol, durum, süre
 app.UseRateLimiter();
 
 app.UseAuthentication();
@@ -156,6 +173,22 @@ app.UseAntiforgery();
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
 // (AntiforgeryByEnv build-time okur). Formlar <AntiforgeryToken/> taşır → prod'da CSRF korumalı.
 RentACar.Web.Identity.FormSecurity.EnforceAntiforgery = app.Environment.IsProduction();
+
+// Sağlık (readiness, P0-2): DB'ye app rolüyle bağlanılabiliyor mu? Anonim (uptime monitörü/proxy ping'i).
+app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
+{
+    try
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Database.CanConnectAsync(ct)
+            ? Results.Ok(new { status = "healthy" })
+            : Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch
+    {
+        return Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
 
 app.MapStaticAssets();
 app.MapAuthEndpoints();
