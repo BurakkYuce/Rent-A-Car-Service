@@ -49,7 +49,10 @@ public static class DependencyInjection
     /// ÇAĞIRAN (Web/Tests) tarafından scoped kaydedilmelidir.
     /// </summary>
     /// <param name="appConnectionString">Runtime (racar_app — kısıtlı, RLS uygulanan) bağlantısı.</param>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string appConnectionString)
+    /// <param name="piiHmacKey">PII blind-index HMAC anahtarı (Pii:HmacKey). null → dev anahtarı
+    /// (üretim guard'ı Web/Api Program.cs'te).</param>
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services, string appConnectionString, string? piiHmacKey = null)
     {
         // Interceptor'lar: bağlantı-tenant (scoped, ITenantContext okur) + audit (singleton).
         services.AddScoped<TenantConnectionInterceptor>();
@@ -65,6 +68,11 @@ public static class DependencyInjection
             .SetApplicationName("RentACar");
         services.AddSingleton<RentACar.Application.Common.ISecretProtector,
             RentACar.Infrastructure.Security.DataProtectionSecretProtector>();
+
+        // PII blind-index (KVKK/F2): şifreli PII üzerinde benzersizlik/tam-eşleşme araması için
+        // deterministik HMAC anahtarı.
+        services.AddSingleton<RentACar.Application.Common.IPiiHasher>(
+            new RentACar.Infrastructure.Security.HmacPiiHasher(piiHmacKey));
 
         // DbContextOptions scope başına kurulur; interceptor'lar oradan eklenir.
         services.AddScoped(sp =>

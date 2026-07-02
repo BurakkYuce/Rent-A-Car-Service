@@ -63,12 +63,28 @@ systemctl start racar-web racar-api                   # 4) başlat, /health = he
 Sonra: son yedek ile felaket ANI arasındaki kayıp pencereyi tenant'lara bildir (günlük yedekte
 en kötü 24 saat). Daha dar RPO gerekirse WAL arşivleme (`archive_mode=on` + `wal-g`/`pgbackrest`) kur.
 
-## 5. Neler yedeklenir / yedeklenMEZ
+## 5. Web + Api ortak anahtar ZORUNLULUĞU (kurulum)
+
+İki uygulama da PII/sır cipher'larını aynı anahtarlarla çözebilmelidir — yoksa biri diğerinin
+yazdığı TC'yi **sessizce null** okur (loglarda "Cipher çözülemedi" WARNING'i görürsünüz):
+
+```ini
+# HER İKİ systemd unit'inde de (racar-web VE racar-api) AYNI değerler:
+Environment=RACAR_DP_KEYS=/var/lib/racar/dp-keys      # ortak DataProtection key-ring dizini
+Environment=Pii__HmacKey=<64+ karakter rastgele sır>  # TC blind-index anahtarı (tek kaynak)
+```
+- `RACAR_DP_KEYS` verilmezse her binary kendi `dp-keys/` dizinini kullanır → Web'in şifrelediğini
+  Api çözemez. Tek makinede bile ORTAK dizin şart.
+- `Pii:HmacKey` Development dışında zorunludur (uygulama yoksa açılmaz); iki uygulamada
+  FARKLI olursa TC benzersizliği/araması bölünür.
+
+## 6. Neler yedeklenir / yedeklenMEZ
 
 | Ne | Nasıl |
 |---|---|
 | PostgreSQL `racar` (tüm tenant verisi, RLS policy'ler, trigger'lar dahil) | `db-backup.sh` (pg_dump -Fc) |
-| DataProtection anahtarları (`~/.aspnet/DataProtection-Keys` — TenantSettings *Enc sırlarının kilidi) | dosya kopyası — off-site'a DAHİL ET; kaybı = şifreli sırlar çözülemez |
+| DataProtection anahtarları (`dp-keys/` — TenantSettings *Enc + PII cipher'larının kilidi) | dosya kopyası — off-site'a DAHİL ET; kaybı = şifreli sırlar/PII çözülemez |
+| `Pii:HmacKey` (appsettings/env — TC blind-index anahtarı, KVKK/F2) | konfigürasyon yedeği/parola kasası; kaybı = TC arama+benzersizlik indeksi yeniden kurulamaz (veri `*Enc`'ten kurtarılır) |
 | appsettings.json / systemd unit'leri | git + sunucu kurulum reçetesi |
 | `logs/` | yedeklenmez (14 gün rotasyonlu, kayıp kabul edilebilir) |
 
