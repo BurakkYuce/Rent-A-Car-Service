@@ -22,6 +22,15 @@ public static class DbInitializer
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
         await db.Database.MigrateAsync();
 
+        // KVKK/F2: eski düz-metin PII'yı şifrele + blind-index doldur + tarihsel audit izlerini
+        // maskele (idempotent; tenant-loop — BYPASSRLS varsayımı yok).
+        var log = sp.GetRequiredService<ILogger<AppDbContext>>();
+        var backfilled = await PiiBackfill.RunAsync(db,
+            sp.GetRequiredService<RentACar.Application.Common.ISecretProtector>(),
+            sp.GetRequiredService<RentACar.Application.Common.IPiiHasher>(), log);
+        if (backfilled > 0)
+            log.LogInformation("PII backfill: {Count} cari şifrelendi (KVKK/F2).", backfilled);
+
         if (await db.Tenants.AnyAsync()) return; // zaten seed edilmiş
 
         var hasher = new PasswordHasher<User>();

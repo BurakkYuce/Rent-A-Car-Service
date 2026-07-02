@@ -39,8 +39,13 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Uygulama + altyapı (LoginService + IPasswordHasher<User> AddInfrastructure'da kayıtlı).
+// PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
+// adversarial M1: gerçek PII'lı ortam bilinen dev anahtarına sessizce düşmemeli).
+var piiKey = builder.Configuration["Pii:HmacKey"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
+    throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(appConn);
+builder.Services.AddInfrastructure(appConn, piiKey);
 
 // Kimlik: ITenantContext + ICurrentUser → JWT bearer claim'lerinden (tek örnek iki arayüze).
 builder.Services.AddHttpContextAccessor();

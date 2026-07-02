@@ -749,7 +749,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Tip).HasConversion<int>();
             e.Property(x => x.Ad).HasMaxLength(128);
             e.Property(x => x.Soyad).HasMaxLength(128);
-            e.Property(x => x.TcKimlik).HasMaxLength(11);
+            e.Property(x => x.TcKimlik).HasMaxLength(11);        // ESKİ düz metin — backfill null'lar
+            // KVKK/F2: PII cipher + blind-index kolonları
+            e.Property(x => x.TcKimlikEnc).HasMaxLength(1024);
+            e.Property(x => x.TcKimlikHash).HasMaxLength(64);    // HMAC-SHA256 hex
+            e.Property(x => x.EhliyetNoEnc).HasMaxLength(1024);
+            e.Property(x => x.PasaportNoEnc).HasMaxLength(1024);
             e.Property(x => x.Unvan).HasMaxLength(256);
             e.Property(x => x.VergiDairesi).HasMaxLength(128);
             e.Property(x => x.VergiNo).HasMaxLength(16);
@@ -793,9 +798,11 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.FaturaUnvan).HasMaxLength(256);
             e.Ignore(x => x.DisplayName);
             // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
-            e.HasIndex(x => new { x.TenantId, x.TcKimlik })
+            // KVKK/F2: TC benzersizliği düz metin yerine blind-index üzerinde (şifreli PII'da
+            // deterministik eşleşme anahtarı). Eski (TenantId, TcKimlik) indexi migration'da düşürüldü.
+            e.HasIndex(x => new { x.TenantId, x.TcKimlikHash })
                 .IsUnique()
-                .HasFilter("\"TcKimlik\" IS NOT NULL");
+                .HasFilter("\"TcKimlikHash\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.VergiNo })
                 .IsUnique()
                 .HasFilter("\"VergiNo\" IS NOT NULL");
