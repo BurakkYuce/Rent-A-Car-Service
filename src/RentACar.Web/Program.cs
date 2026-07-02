@@ -1,6 +1,9 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -86,6 +89,28 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
     });
 builder.Services.AddAuthorization();
+
+// ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız /auth/login) ----
+var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
+var loginWindowSec = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
+builder.Services.AddRateLimiter(o =>
+{
+    o.AddPolicy("login", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = loginPermit,
+            Window = TimeSpan.FromSeconds(loginWindowSec),
+            QueueLimit = 0,
+        }));
+    // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
+    o.OnRejected = (ctx, _) =>
+    {
+        ctx.HttpContext.Response.Redirect("/login?hata=limit");
+        return ValueTask.CompletedTask;
+    };
+});
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, SsrAuthenticationStateProvider>();
 
@@ -115,6 +140,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+// Reverse-proxy (Caddy/nginx aynı makinede) arkasında gerçek istemci IP'si — rate limit doğru IP'yi görsün.
+// Varsayılan KnownProxies=loopback: uzak istemciden gelen sahte X-Forwarded-For'a güvenilmez.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+});
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

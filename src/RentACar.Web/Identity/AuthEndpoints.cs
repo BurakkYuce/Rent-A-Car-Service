@@ -39,7 +39,7 @@ public static class AuthEndpoints
                 new ClaimsPrincipal(identity));
 
             return Results.Redirect("/vehicles");
-        }).AntiforgeryByEnv();
+        }).AntiforgeryByEnv().RequireRateLimiting("login"); // P0: brute-force koruması
 
         app.MapPost("/auth/logout", async (HttpContext http) =>
         {
