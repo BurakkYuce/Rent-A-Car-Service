@@ -22,7 +22,7 @@ public static class AuthApi
             var (token, expiresAt) = jwt.Issue(result);
             return Results.Ok(new LoginResponse(
                 token, expiresAt, result.Tenant.Code, result.User.UserName, result.User.Rol.ToString()));
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting("login"); // P0: brute-force koruması
 
         return app;
     }

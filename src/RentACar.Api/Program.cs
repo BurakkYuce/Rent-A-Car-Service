@@ -1,7 +1,10 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RentACar.Api.Common;
@@ -57,9 +60,39 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız "login" policy'li uçlar) ----
+var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
+var loginWindowSec = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
+builder.Services.AddRateLimiter(o =>
+{
+    o.AddPolicy("login", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = loginPermit,
+            Window = TimeSpan.FromSeconds(loginWindowSec),
+            QueueLimit = 0,
+        }));
+    o.OnRejected = async (ctx, ct) =>
+    {
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        ctx.HttpContext.Response.Headers.RetryAfter = loginWindowSec.ToString();
+        await ctx.HttpContext.Response.WriteAsJsonAsync(
+            new ApiError("too_many_requests", "Çok fazla giriş denemesi. Lütfen bekleyip yeniden deneyin."), ct);
+    };
+});
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Reverse-proxy (Caddy/nginx aynı makinede) arkasında gerçek istemci IP'si — rate limit doğru IP'yi görsün.
+// Varsayılan KnownProxies=loopback: uzak istemciden gelen sahte X-Forwarded-For'a güvenilmez.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+});
+app.UseRateLimiter();
 
 // Tutarlı JSON hata zarfı (en dış katman).
 app.UseMiddleware<ExceptionHandlingMiddleware>();
