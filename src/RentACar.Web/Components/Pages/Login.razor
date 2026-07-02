@@ -11,6 +11,10 @@
     {
         <p class="error">Firma, kullanıcı veya şifre hatalı.</p>
     }
+    @if (RateLimited)
+    {
+        <p class="error">Çok fazla giriş denemesi yapıldı. Lütfen bir dakika bekleyip yeniden deneyin.</p>
+    }
 
     <form method="post" action="/auth/login"><AntiforgeryToken />
         <label>Firma
@@ -32,4 +36,5 @@
     public string? Hata { get; set; }
 
     private bool HasError => Hata == "1";
+    private bool RateLimited => Hata == "limit";
 }
