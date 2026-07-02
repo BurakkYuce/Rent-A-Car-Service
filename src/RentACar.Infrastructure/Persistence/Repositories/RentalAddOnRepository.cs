@@ -32,50 +32,56 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
 
     public async Task AddAsync(RentalAddOn addOn, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Lost-update koruması (CRITICAL): RecomputeAsync mutlak SUM okuyup GenelToplam'ı yazar.
-        // SUM'dan ÖNCE parent kira satırını kilitle → eşzamanlı ek hizmet ekleme/silme serileşir,
-        // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
+            // Lost-update koruması (CRITICAL): RecomputeAsync mutlak SUM okuyup GenelToplam'ı yazar.
+            // SUM'dan ÖNCE parent kira satırını kilitle → eşzamanlı ek hizmet ekleme/silme serileşir,
+            // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
 
-        var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
-            ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
-        if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId, ct))
-            throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
+            var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
+                ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
+            if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId, ct))
+                throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
 
-        db.RentalAddOns.Add(addOn);
-        await db.SaveChangesAsync(ct);
+            db.RentalAddOns.Add(addOn);
+            await db.SaveChangesAsync(ct);
 
-        await RecomputeAsync(db, rental, ct);
-        await tx.CommitAsync(ct);
+            await RecomputeAsync(db, rental, ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> RemoveAsync(Guid addOnId, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        var addOn = await db.RentalAddOns.FirstOrDefaultAsync(a => a.Id == addOnId, ct);
-        if (addOn is null) return false;
+            var addOn = await db.RentalAddOns.FirstOrDefaultAsync(a => a.Id == addOnId, ct);
+            if (addOn is null) return false;
 
-        // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
+            // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
 
-        var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct);
-        if (rental is not null && await db.Invoices.AnyAsync(i => i.RentalId == rental.Id, ct))
-            throw new ValidationException("Faturalanmış kiranın ek hizmeti silinemez.");
+            var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct);
+            if (rental is not null && await db.Invoices.AnyAsync(i => i.RentalId == rental.Id, ct))
+                throw new ValidationException("Faturalanmış kiranın ek hizmeti silinemez.");
 
-        db.RentalAddOns.Remove(addOn);
-        await db.SaveChangesAsync(ct);
+            db.RentalAddOns.Remove(addOn);
+            await db.SaveChangesAsync(ct);
 
-        if (rental is not null)
-            await RecomputeAsync(db, rental, ct);
-        await tx.CommitAsync(ct);
-        return true;
+            if (rental is not null)
+                await RecomputeAsync(db, rental, ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
     }
 
     private static async Task RecomputeAsync(AppDbContext db, RentalContract rental, CancellationToken ct)

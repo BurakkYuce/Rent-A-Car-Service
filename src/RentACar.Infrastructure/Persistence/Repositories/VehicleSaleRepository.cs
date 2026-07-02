@@ -35,35 +35,38 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
         if (debit != credit)
             throw new ValidationException($"Satış defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "VehicleSaleNo", ct);
-        sale.No = $"ST-{n:D6}";
-        foreach (var entry in entries)
-            entry.Description = $"Araç satış {sale.No}";
-
-        db.VehicleSales.Add(sale);
-        db.AccountLedgerEntries.AddRange(entries);
-
-        // Aracı filodan çıkar (Satildi). Araç başka tenant'taysa RLS zaten bulduramaz.
-        var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == sale.VehicleId, ct)
-            ?? throw new ValidationException("Araç bulunamadı.");
-        if (vehicle.Durum == VehicleStatus.Satildi)
-            throw new ValidationException("Araç zaten satılmış.");
-        vehicle.Durum = VehicleStatus.Satildi;
-        vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // Yarış: aynı araç için ikinci tamamlanmış satış (kısmi unique index) → idempotent hata.
-            await tx.RollbackAsync(ct);
-            throw new ValidationException("Araç zaten satılmış.");
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "VehicleSaleNo", ct);
+            sale.No = $"ST-{n:D6}";
+            foreach (var entry in entries)
+                entry.Description = $"Araç satış {sale.No}";
+
+            db.VehicleSales.Add(sale);
+            db.AccountLedgerEntries.AddRange(entries);
+
+            // Aracı filodan çıkar (Satildi). Araç başka tenant'taysa RLS zaten bulduramaz.
+            var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == sale.VehicleId, ct)
+                ?? throw new ValidationException("Araç bulunamadı.");
+            if (vehicle.Durum == VehicleStatus.Satildi)
+                throw new ValidationException("Araç zaten satılmış.");
+            vehicle.Durum = VehicleStatus.Satildi;
+            vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Yarış: aynı araç için ikinci tamamlanmış satış (kısmi unique index) → idempotent hata.
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Araç zaten satılmış.");
+            }
+        }, ct);
     }
 }

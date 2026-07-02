@@ -24,13 +24,16 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
 
     public async Task CreateAsync(AracSiparis row, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracSiparisNo", ct);
-        row.No = $"SP-{n:D6}";
-        db.AracSiparisleri.Add(row);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracSiparisNo", ct);
+            row.No = $"SP-{n:D6}";
+            db.AracSiparisleri.Add(row);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> SetDurumAsync(Guid id, SiparisDurum durum, CancellationToken ct = default)
