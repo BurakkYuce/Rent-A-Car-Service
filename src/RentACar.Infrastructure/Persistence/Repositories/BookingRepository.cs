@@ -33,13 +33,16 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
-        reservation.ReservationNo = $"RZ-{n:D6}";
-        db.Reservations.Add(reservation);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
+            reservation.ReservationNo = $"RZ-{n:D6}";
+            db.Reservations.Add(reservation);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default)
@@ -124,21 +127,24 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
-        contract.SozlesmeNo = $"KS-{n:D6}";
-        db.Rentals.Add(contract);
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsExclusionViolation(ex))
-        {
-            await tx.RollbackAsync(ct);
-            throw new AvailabilityConflictException();
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
+            contract.SozlesmeNo = $"KS-{n:D6}";
+            db.Rentals.Add(contract);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsExclusionViolation(ex))
+            {
+                await tx.RollbackAsync(ct);
+                throw new AvailabilityConflictException();
+            }
+        }, ct);
     }
 
     public async Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default)
@@ -176,33 +182,36 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     public async Task<Guid> ConvertToRentalAsync(
         Guid reservationId, Func<Reservation, RentalContract> buildRental, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId, ct)
-            ?? throw new ValidationException("Rezervasyon bulunamadı.");
-
-        var rental = buildRental(reservation);
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
-        rental.SozlesmeNo = $"KS-{n:D6}";
-        db.Rentals.Add(rental);
-
-        reservation.Durum = ReservationStatus.KirayaCevrildi;
-        reservation.RentalContractId = rental.Id;
-        reservation.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        try
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct); // rental insert + reservation update + audit, atomik
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsExclusionViolation(ex))
-        {
-            await tx.RollbackAsync(ct);
-            throw new AvailabilityConflictException();
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        return rental.Id;
+            var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId, ct)
+                ?? throw new ValidationException("Rezervasyon bulunamadı.");
+
+            var rental = buildRental(reservation);
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
+            rental.SozlesmeNo = $"KS-{n:D6}";
+            db.Rentals.Add(rental);
+
+            reservation.Durum = ReservationStatus.KirayaCevrildi;
+            reservation.RentalContractId = rental.Id;
+            reservation.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            try
+            {
+                await db.SaveChangesAsync(ct); // rental insert + reservation update + audit, atomik
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsExclusionViolation(ex))
+            {
+                await tx.RollbackAsync(ct);
+                throw new AvailabilityConflictException();
+            }
+
+            return rental.Id;
+        }, ct);
     }
 
     private static bool IsExclusionViolation(DbUpdateException ex)

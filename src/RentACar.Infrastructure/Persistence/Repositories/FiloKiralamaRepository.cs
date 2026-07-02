@@ -24,13 +24,16 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
 
     public async Task CreateAsync(FiloKiralama row, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-        var n = await SequenceAllocator.NextAsync(db, db.TenantId, "FiloKiralamaNo", ct);
-        row.No = $"FK-{n:D6}";
-        db.FiloKiralamalar.Add(row);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "FiloKiralamaNo", ct);
+            row.No = $"FK-{n:D6}";
+            db.FiloKiralamalar.Add(row);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }, ct);
     }
 
     public async Task<bool> SetDurumAsync(Guid id, FiloKiraDurum durum, CancellationToken ct = default)

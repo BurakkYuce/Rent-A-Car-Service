@@ -24,19 +24,22 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
         if (debit != credit)
             throw new ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        db.AccountLedgerEntries.AddRange(entries);
-        try
+        await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // İDEMPOTENT: Bu kayıt kümesi (deterministik SourceId) zaten yazılmış (kısmi
-            // unique index). Çift borçlanmayı DB engelledi → sessiz no-op (retry güvenli).
-            await tx.RollbackAsync(ct);
-        }
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            db.AccountLedgerEntries.AddRange(entries);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // İDEMPOTENT: Bu kayıt kümesi (deterministik SourceId) zaten yazılmış (kısmi
+                // unique index). Çift borçlanmayı DB engelledi → sessiz no-op (retry güvenli).
+                await tx.RollbackAsync(ct);
+            }
+        }, ct);
     }
 }
