@@ -7,13 +7,15 @@
 
 <h1>Faturalar</h1>
 <p class="muted small">İndir: <a href="/listeler/export/faturalar">Excel</a> · <a href="/listeler/export/faturalar?format=csv">CSV</a></p>
+@if (Ok == "1") { <p class="ok">İşlem tamam.</p> }
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <table class="grid">
-    <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Tür</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Fatura yok.</td></tr>
+            <tr><td colspan="9" class="muted">Fatura yok.</td></tr>
         }
         @foreach (var i in _list)
         {
@@ -24,8 +26,20 @@
                 <td>@i.NetTutar.ToString("N2")</td>
                 <td>@i.KdvTutar.ToString("N2")</td>
                 <td>@i.GenelToplam.ToString("N2")</td>
+                <td>@(i.IadeMi ? "İade" : (_iadeEdilmis.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
                 <td>@i.Durum</td>
-                <td><a href="/faturalar/@i.Id/yazdir" class="link">Yazdır</a></td>
+                <td>
+                    <a href="/faturalar/@i.Id/yazdir" class="link">Yazdır</a>
+                    @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
+                    {
+                        <form method="post" action="/finans/fatura-iade" style="display:inline"
+                              onsubmit="return confirm('@i.No faturası iade edilsin mi? (ters kayıt: gelir/KDV/cari geri alınır)');">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="kaynakFaturaId" value="@i.Id" />
+                            <button type="submit" class="btn-danger">İade</button>
+                        </form>
+                    }
+                </td>
             </tr>
         }
     </tbody>
@@ -54,14 +68,20 @@
 </form>
 
 @code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
     private IReadOnlyList<Invoice> _list = [];
     private Dictionary<Guid, string> _custMap = new();
+    private HashSet<Guid> _iadeEdilmis = new(); // kaynak faturaId'leri: zaten iade edilmiş → buton gizli
     private readonly Guid _token = Guid.NewGuid(); // manuel fatura çift-submit idempotency token
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Invoices.ListAsync();
         _custMap = (await Customers.ListAsync()).ToDictionary(c => c.Id, c => c.DisplayName);
+        _iadeEdilmis = _list.Where(x => x.KaynakFaturaId is not null)
+            .Select(x => x.KaynakFaturaId!.Value).ToHashSet();
     }
 
     private string CustName(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";

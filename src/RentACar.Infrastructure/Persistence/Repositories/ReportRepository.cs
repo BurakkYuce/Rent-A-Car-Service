@@ -96,9 +96,10 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var fq = db.Invoices.AsNoTracking().Where(i => i.Durum != InvoiceStatus.Iptal);
         if (from is { } ff) fq = fq.Where(i => i.Tarih >= ff);
         if (to is { } ft) fq = fq.Where(i => i.Tarih <= ft);
-        var faturalar = await fq.Select(i => new { i.GenelToplam, i.Kur }).ToListAsync(ct);
+        var faturalar = await fq.Select(i => new { i.GenelToplam, i.Kur, i.IadeMi }).ToListAsync(ct);
         int faturaAdet = faturalar.Count;
-        decimal faturaToplam = faturalar.Sum(f => f.GenelToplam * f.Kur);
+        // İade faturası net toplamı DÜŞÜRÜR (mutabakat: fatura vs tahsilat doğru netleşsin).
+        decimal faturaToplam = faturalar.Sum(f => f.GenelToplam * f.Kur * (f.IadeMi ? -1m : 1m));
 
         // Tahsilat: Tip=Tahsilat, ters kayıt hariç; base = Amount × Rate.
         var tq = db.CashTransactions.AsNoTracking()
@@ -326,9 +327,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // para birimindedir → günlük faaliyet sayacında brüt toplam olarak gösterilir).
         var faturalar = await db.Invoices.AsNoTracking()
             .Where(i => i.Durum != InvoiceStatus.Iptal && i.Tarih >= from && i.Tarih <= to)
-            .Select(i => new { i.GenelToplam, i.Kur })
+            .Select(i => new { i.GenelToplam, i.Kur, i.IadeMi })
             .ToListAsync(ct);
-        var faturaTutar = faturalar.Sum(f => f.GenelToplam * f.Kur);
+        var faturaTutar = faturalar.Sum(f => f.GenelToplam * f.Kur * (f.IadeMi ? -1m : 1m)); // iade net'i düşürür
 
         return new GunlukFaaliyetDto(
             yeniRez, yeniKira, cikis, donus,
@@ -345,14 +346,18 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (to is { } t) inv = inv.Where(i => i.Tarih <= t);
 
         // Satır tutarları fatura para birimindedir → base para için Kur ile çarp (bellek-içi).
+        // İade faturası satırları NEGATİF sayılır (IadeMi) → KDV oran-bazında netleşir.
         var raw = await (from l in db.InvoiceLines.AsNoTracking()
                          join i in inv on l.InvoiceId equals i.Id
-                         select new { l.KdvOrani, l.SatirNet, l.SatirKdv, l.SatirToplam, i.Kur, InvoiceId = i.Id })
+                         select new { l.KdvOrani, l.SatirNet, l.SatirKdv, l.SatirToplam, i.Kur, i.IadeMi, InvoiceId = i.Id })
             .ToListAsync(ct);
 
         return raw
-            .Select(r => new KdvLineRowDto(
-                r.KdvOrani, r.SatirNet * r.Kur, r.SatirKdv * r.Kur, r.SatirToplam * r.Kur, r.InvoiceId))
+            .Select(r =>
+            {
+                var s = (r.IadeMi ? -1m : 1m) * r.Kur;
+                return new KdvLineRowDto(r.KdvOrani, r.SatirNet * s, r.SatirKdv * s, r.SatirToplam * s, r.InvoiceId);
+            })
             .ToList();
     }
 
@@ -387,17 +392,26 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var giderByVeh = giderRaw.GroupBy(x => x.AccountRef ?? Guid.Empty)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.A * x.R));
 
-        // Gelir (Credit) — SourceId(Fatura) → Kira → Araç ile atfedilir; atfedilemeyen → Guid.Empty.
+        // Gelir — HER İKİ yön (iade faturası Borç Gelir yazar → SignedBase ile netleşir).
+        // SourceId(Fatura/FaturaIade) → Kira → Araç ile atfedilir; atfedilemeyen → Guid.Empty.
         var lq = db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gelir && e.Direction == LedgerDirection.Credit);
+            .Where(e => e.AccountType == LedgerAccountType.Gelir);
         if (from is { } ef) lq = lq.Where(e => e.EntryDateUtc >= ef);
         if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
-        var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
+        var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
 
-        // Atfetme haritaları: kaynak türüne göre araç çözümü.
-        var invMap = (await db.Invoices.AsNoTracking().Where(i => i.RentalId != null)
-            .Select(i => new { i.Id, RentalId = i.RentalId!.Value }).ToListAsync(ct))
-            .ToDictionary(x => x.Id, x => x.RentalId);
+        // Atfetme haritaları: kaynak türüne göre araç çözümü. İade faturası RentalId=null taşır →
+        // kira bağı KaynakFaturaId üzerinden (iki-hop): iade → kaynak fatura → RentalId.
+        var invAll = await db.Invoices.AsNoTracking()
+            .Select(i => new { i.Id, i.RentalId, i.KaynakFaturaId }).ToListAsync(ct);
+        var invById = invAll.ToDictionary(x => x.Id);
+        Guid? RentalOf(Guid invId)
+        {
+            if (!invById.TryGetValue(invId, out var i)) return null;
+            if (i.RentalId is Guid r) return r;
+            if (i.KaynakFaturaId is Guid k && invById.TryGetValue(k, out var s)) return s.RentalId;
+            return null;
+        }
         var rentalToVeh = (await db.Rentals.AsNoTracking().Select(r => new { r.Id, r.VehicleId }).ToListAsync(ct))
             .ToDictionary(x => x.Id, x => x.VehicleId);
         var saleToVeh = (await db.VehicleSales.AsNoTracking().Select(s => new { s.Id, s.VehicleId }).ToListAsync(ct))
@@ -409,19 +423,21 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var gelirByVeh = new Dictionary<Guid, decimal>();
         foreach (var e in gelirRaw)
         {
-            // Fatura→kira→araç, AracSatis→satış→araç, Ceza→ceza→araç. HGS (plaka-bazlı, araç-Id yok) ve
-            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial: satış/ceza geliri artık atfedilir.)
+            // Fatura/FaturaIade→kira→araç, AracSatis→satış→araç, Ceza→ceza→araç. HGS (plaka-bazlı) ve
+            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial: satış/ceza geliri atfedilir.)
             var veh = Guid.Empty;
             switch (e.SourceType)
             {
-                case "Fatura" when invMap.TryGetValue(e.SourceId, out var rid) && rentalToVeh.TryGetValue(rid, out var vid):
+                case "Fatura" or "FaturaIade" when RentalOf(e.SourceId) is Guid rid && rentalToVeh.TryGetValue(rid, out var vid):
                     veh = vid; break;
                 case "AracSatis" when saleToVeh.TryGetValue(e.SourceId, out var sv):
                     veh = sv; break;
                 case "Ceza" when cezaToVeh.TryGetValue(e.SourceId, out var cv):
                     veh = cv; break;
             }
-            gelirByVeh[veh] = gelirByVeh.GetValueOrDefault(veh) + e.A * e.R;
+            // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
+            var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
+            gelirByVeh[veh] = gelirByVeh.GetValueOrDefault(veh) + signed;
         }
 
         var vehIds = giderByVeh.Keys.Concat(gelirByVeh.Keys).Where(k => k != Guid.Empty).Distinct().ToList();
