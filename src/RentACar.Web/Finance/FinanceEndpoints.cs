@@ -106,6 +106,14 @@ public static class FinanceEndpoints
         grp.MapPost("/fatura-manuel", async (InvoiceService svc, HttpRequest req) =>
             await ManuelFaturaAsync(svc, req));
 
+        // İade faturası (tam-fatura): kaynağa karşı ters kayıt. Kaynak başına tek iade.
+        grp.MapPost("/fatura-iade", async (InvoiceService svc, HttpRequest req) =>
+        {
+            var kaynak = FormParse.Id(req.Form["kaynakFaturaId"].ToString()) ?? Guid.Empty;
+            try { await svc.CreateIadeAsync(kaynak); return Results.Redirect("/faturalar?ok=1"); }
+            catch (ValidationException ex) { return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         grp.MapPost("/cari-virman", async (CashService svc, HttpRequest req) =>
         {
             var f = req.Form;
