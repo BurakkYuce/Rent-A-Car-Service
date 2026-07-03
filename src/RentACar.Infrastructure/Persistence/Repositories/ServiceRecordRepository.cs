@@ -77,17 +77,33 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
 
     public async Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var rec = await db.ServiceRecords.Include(r => r.Lines).FirstOrDefaultAsync(r => r.Id == id, ct);
-        if (rec is null) return false;
-        if (rec.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
-            throw new ValidationException("Kapanmış servise kalem eklenemez.");
+        return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + kayıp-güncelleme koruması
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        rec.Lines.Add(new ServiceLine { ServiceRecordId = rec.Id, Aciklama = aciklama, Tutar = tutar });
-        rec.ToplamIscilik = rec.Lines.Sum(l => l.Tutar);
-        rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return true;
+            // Satır kilidi: eşzamanlı kalem eklemeleri serileşir → ToplamIscilik kayıp-güncellemesi
+            // OLMAZ. (Kilitsiz eski hâlde her çağrı kendi tracked koleksiyonundan toplardı → biri
+            // kaybolurdu; bu toplam rücu/yansıtma (KusurOrani × ToplamIscilik) ile deftere gidiyor
+            // → PARA etkisi.)
+            var rec = await db.ServiceRecords
+                .FromSqlRaw("SELECT * FROM \"ServiceRecords\" WHERE \"Id\" = {0} FOR UPDATE", id)
+                .FirstOrDefaultAsync(ct);
+            if (rec is null) return false;
+            if (rec.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
+                throw new ValidationException("Kapanmış servise kalem eklenemez.");
+
+            db.Set<ServiceLine>().Add(new ServiceLine { ServiceRecordId = rec.Id, Aciklama = aciklama, Tutar = tutar });
+            // Toplamı DB'den (kilit altında) yeniden hesapla + bu çağrının yeni kalemi. Eşzamanlı
+            // çağrı bu commit'i beklediğinden onun kalemi mevcutToplam'a dahil olur.
+            var mevcutToplam = await db.Set<ServiceLine>().Where(l => l.ServiceRecordId == id).SumAsync(l => l.Tutar, ct);
+            rec.ToplamIscilik = mevcutToplam + tutar;
+            rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
     }
 
     public async Task PostYansitmaAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
