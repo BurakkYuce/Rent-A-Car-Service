@@ -9,7 +9,7 @@ namespace RentACar.Domain.Entities;
 /// kural-tanım — deftere kayıt POSTLAMAZ; fiyat motorunda (parite #7) indirim/min-gün girdisidir.
 /// <see cref="Kod"/> tenant içinde benzersiz.
 /// </summary>
-public class RentalRule : ITenantOwned, IAuditable
+public class RentalRule : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -24,6 +24,10 @@ public class RentalRule : ITenantOwned, IAuditable
     public string? Kanal { get; set; }
     public string? Sube { get; set; }
     public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
+
+    // Şube-FK marker: Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
     public string? AracGrupKod { get; set; }
 
     // Gün kısıtları

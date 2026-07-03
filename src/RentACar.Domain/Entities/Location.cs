@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// teklif/kira formlarındaki serbest-metin <c>CikisOfisi</c>/<c>DonusOfisi</c> alanlarını
 /// besleyen açılır liste kaynağıdır (FK değil; seçilen <see cref="Ad"/> metni yazılır).
 /// </summary>
-public class Location : ITenantOwned, IAuditable
+public class Location : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -31,6 +31,10 @@ public class Location : ITenantOwned, IAuditable
     public string? Sube { get; set; }
     /// <summary>Şube FK (Branch master, roadmap F1; metin korunur).</summary>
     public Guid? SubeId { get; set; }
+
+    // Şube-FK marker: Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
 
     /// <summary>Pasif ofisler açılır listelerde gizlenir ama kayıtlar korunur.</summary>
     public bool Aktif { get; set; } = true;

@@ -9,7 +9,7 @@ namespace RentACar.Domain.Entities;
 /// + auditable: EF global query filter + Postgres RLS ile izole, değişiklikleri
 /// AuditLog'a yazılır.
 /// </summary>
-public class Vehicle : ITenantOwned, IAuditable
+public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -47,6 +47,10 @@ public class Vehicle : ITenantOwned, IAuditable
     public string? Sube { get; set; }
     /// <summary>Şube FK (Branch master, roadmap F1). Tenant içi çözülür; eşleşmeyen eski kayıtta null.</summary>
     public Guid? SubeId { get; set; }
+
+    // Şube-FK marker (roadmap F1 tamamlama): Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
 
     /// <summary>Operasyonel durum (Boş/Kirada/Serviste…).</summary>
     public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;

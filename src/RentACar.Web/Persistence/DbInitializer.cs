@@ -31,6 +31,10 @@ public static class DbInitializer
         if (backfilled > 0)
             log.LogInformation("PII backfill: {Count} cari şifrelendi (KVKK/F2).", backfilled);
 
+        // Şube-FK (roadmap F1 tamamlama): mevcut satırların serbest-metin şubesini Branch FK'sine
+        // doldur (idempotent; interceptor yeni yazımları zaten çözer).
+        await BranchBackfill.RunAsync(db, log);
+
         if (await db.Tenants.AnyAsync()) return; // zaten seed edilmiş
 
         var hasher = new PasswordHasher<User>();
