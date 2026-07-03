@@ -184,6 +184,74 @@ public sealed class InvoiceService(
         return invoice.Id;
     }
 
+    /// <summary>
+    /// İade faturası (tam-fatura, roadmap küçük borç). Kaynak faturayı TERS kayıtla geri alır:
+    /// Alacak Cari (brüt) / Borç Gelir (net) / Borç KDV (kdv) — DENGELİ. Kaynak satırları
+    /// KDV-oranı başına aynalanır (KDV raporu oran-bazında netleşsin). FinanceWrite + dönem-kilidi +
+    /// kaynak başına TEK iade (app ön-kontrol + DB kısmi-unique index). iade.RentalId = null
+    /// (kira-fatura index'ine çarpmasın); kira bağı KaynakFaturaId üzerinden.
+    /// </summary>
+    public async Task<Guid> CreateIadeAsync(Guid kaynakFaturaId, DateTimeOffset? tarih = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+
+        var src = await repository.FindAsync(kaynakFaturaId, ct)
+            ?? throw new ValidationException("Kaynak fatura bulunamadı.");
+        if (src.IadeMi) throw new ValidationException("İade faturası tekrar iade edilemez.");
+        if (src.Durum == InvoiceStatus.Iptal) throw new ValidationException("İptal fatura iade edilemez.");
+        if (await repository.IadeExistsForAsync(kaynakFaturaId, ct))
+            throw new ValidationException("Bu fatura zaten iade edilmiş.");
+
+        var tarih2 = tarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(tarih2, ct); // dönem kilidi: kapalı döneme iade YOK
+
+        var iade = new Invoice
+        {
+            Id = Guid.NewGuid(),
+            Durum = InvoiceStatus.Kesildi,
+            CariId = src.CariId,
+            RentalId = null, // kira-fatura unique index'ine çarpmasın; kira bağı KaynakFaturaId
+            KaynakFaturaId = src.Id,
+            IadeMi = true,
+            ManuelMi = src.ManuelMi,
+            Tarih = tarih2,
+            NetTutar = src.NetTutar,
+            KdvTutar = src.KdvTutar,
+            GenelToplam = src.GenelToplam,
+            Currency = src.Currency,
+            Kur = src.Kur
+        };
+        // Kaynak satırlarını KDV-oranı koruyarak aynala (KDV raporu IadeMi ile bunları negatifler).
+        foreach (var l in src.Lines)
+            iade.Lines.Add(new InvoiceLine
+            {
+                InvoiceId = iade.Id, Aciklama = $"İade: {l.Aciklama}", Miktar = l.Miktar,
+                BirimNetFiyat = l.BirimNetFiyat, KdvOrani = l.KdvOrani,
+                SatirNet = l.SatirNet, SatirKdv = l.SatirKdv, SatirToplam = l.SatirToplam
+            });
+
+        await repository.PostAsync(iade, BuildIadeEntries(iade), ct);
+        return iade.Id;
+    }
+
+    /// <summary>Alacak Cari (brüt) / Borç Gelir (net) / Borç KDV (kdv) — Fatura'nın TERSİ. DENGELİ.</summary>
+    private static List<AccountLedgerEntry> BuildIadeEntries(Invoice inv)
+    {
+        AccountLedgerEntry Entry(LedgerAccountType type, Guid? reff, LedgerDirection dir, decimal amount) => new()
+        {
+            EntryDateUtc = inv.Tarih, AccountType = type, AccountRef = reff, Direction = dir,
+            Amount = new Money(amount, inv.Currency, inv.Kur),
+            SourceType = "FaturaIade", SourceId = inv.Id, Description = $"İade {inv.No}"
+        };
+
+        return
+        [
+            Entry(LedgerAccountType.Cari, inv.CariId, LedgerDirection.Credit, inv.GenelToplam),
+            Entry(LedgerAccountType.Gelir, null, LedgerDirection.Debit, inv.NetTutar),
+            Entry(LedgerAccountType.Kdv, null, LedgerDirection.Debit, inv.KdvTutar)
+        ];
+    }
+
     /// <summary>Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv). DENGELİ.</summary>
     private static List<AccountLedgerEntry> BuildEntries(Invoice inv)
     {

@@ -27,6 +27,12 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().Include(i => i.Lines).FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
+    public async Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == kaynakFaturaId, ct);
+    }
+
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -42,8 +48,11 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             var n = await SequenceAllocator.NextAsync(db, db.TenantId, "InvoiceNo", ct);
             invoice.No = $"FT-{n:D6}";
             // No defter açıklamasında kullanıldığından satırların ait olduğu fatura no'yu yansıt.
+            // İade satırları cari ekstrede "İade" etiketiyle görünsün (adversarial Low: eskiden
+            // hepsi "Fatura" yazılıyordu).
+            var etiket = invoice.IadeMi ? "İade" : "Fatura";
             foreach (var entry in entries)
-                entry.Description = $"Fatura {invoice.No}";
+                entry.Description = $"{etiket} {invoice.No}";
 
             db.Invoices.Add(invoice);          // satırlar cascade
             db.AccountLedgerEntries.AddRange(entries);
@@ -55,9 +64,10 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
-                // Kira-fatura kısmi unique index (eşzamanlı çift fatura) → idempotent reddet.
+                // Kısmi unique index (eşzamanlı çift fatura/iade) → idempotent reddet. İade yarışında
+                // (TenantId,KaynakFaturaId) index'i tetiklenir → doğru ifadeyle reddet.
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Kira zaten faturalanmış.");
+                throw new ValidationException(invoice.IadeMi ? "Bu fatura zaten iade edilmiş." : "Kira zaten faturalanmış.");
             }
         }, ct);
     }

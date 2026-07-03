@@ -1285,6 +1285,11 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.TenantId, x.RentalId })
                 .IsUnique()
                 .HasFilter("\"RentalId\" IS NOT NULL");
+            // İade idempotency: bir kaynak fatura EN ÇOK bir kez iade edilir (iade.RentalId=null,
+            // bu yüzden yukarıdaki kira-index'ine çarpmaz).
+            e.HasIndex(x => new { x.TenantId, x.KaynakFaturaId })
+                .IsUnique()
+                .HasFilter("\"KaynakFaturaId\" IS NOT NULL");
             e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
