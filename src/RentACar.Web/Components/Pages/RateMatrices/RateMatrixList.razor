@@ -14,6 +14,35 @@
     <p class="error">@Hata</p>
 }
 
+<details class="new-vehicle">
+    <summary>🔎 Fiyat Sorgula (çözümleme)</summary>
+    <p class="muted small">Verilen kanal/şube/araç grubu/tarih/gün sayısı için matristen en spesifik onaylı
+        tarifenin günlük+toplam fiyatını çözer (en dar geçerlilik penceresi → en yeni → kod ile deterministik).</p>
+    <form method="get" class="grid-form">
+        <label>Kanal<input name="qkanal" value="@QKanal" placeholder="WEB" /></label>
+        <label>Şube<input name="qsube" value="@QSube" /></label>
+        <label>Araç Grubu Kodu<input name="qgrup" value="@QGrup" placeholder="EKO" /></label>
+        <label>Para Birimi<input name="qpara" value="@QPara" placeholder="(varsayılan)" maxlength="8" /></label>
+        <label>Tarih<input name="qtarih" type="date" value="@QTarih" required /></label>
+        <label>Gün Sayısı<input name="qgun" type="number" min="1" value="@(QGun > 0 ? QGun : 1)" required /></label>
+        <button type="submit">Sorgula</button>
+    </form>
+    @if (_sorgulandi)
+    {
+        @if (_sonuc is null)
+        {
+            <p class="muted">Eşleşen onaylı tarife bulunamadı.</p>
+        }
+        else
+        {
+            <p class="ok">
+                <strong>@_sonuc.Kod</strong> (@_sonuc.Ad) → günlük <strong>@_sonuc.GunlukFiyat.ToString("N2") @_sonuc.ParaBirimi</strong>,
+                @QGun gün toplam <strong>@_sonuc.ToplamFiyat.ToString("N2") @_sonuc.ParaBirimi</strong>.
+            </p>
+        }
+    }
+</details>
+
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Tarife Satırı</summary>
     <form method="post" action="/tarife-matris/create" class="grid-form"><AntiforgeryToken />
@@ -118,9 +147,32 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "qkanal")] public string? QKanal { get; set; }
+    [SupplyParameterFromQuery(Name = "qsube")] public string? QSube { get; set; }
+    [SupplyParameterFromQuery(Name = "qgrup")] public string? QGrup { get; set; }
+    [SupplyParameterFromQuery(Name = "qpara")] public string? QPara { get; set; }
+    [SupplyParameterFromQuery(Name = "qtarih")] public string? QTarih { get; set; }
+    [SupplyParameterFromQuery(Name = "qgun")] public int QGun { get; set; }
 
     private IReadOnlyList<RateMatrix> _list = [];
+    private bool _sorgulandi;
+    private RateMatrisSonuc? _sonuc;
 
     protected override async Task OnInitializedAsync()
-        => _list = await TarifeMatris.ListAsync();
+    {
+        _list = await TarifeMatris.ListAsync();
+
+        // Fiyat sorgusu: tarih + gün verildiyse çöz.
+        if (!string.IsNullOrWhiteSpace(QTarih) && QGun >= 1
+            && DateTimeOffset.TryParse(QTarih, out var tarih))
+        {
+            _sorgulandi = true;
+            _sonuc = await TarifeMatris.CozumleAsync(new RateMatrisSorgu(
+                Kanal: string.IsNullOrWhiteSpace(QKanal) ? null : QKanal,
+                Sube: string.IsNullOrWhiteSpace(QSube) ? null : QSube,
+                AracGrupKod: string.IsNullOrWhiteSpace(QGrup) ? null : QGrup,
+                Tarih: tarih, GunSayisi: QGun,
+                ParaBirimi: string.IsNullOrWhiteSpace(QPara) ? null : QPara));
+        }
+    }
 }
