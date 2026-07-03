@@ -1,12 +1,53 @@
 @page "/bildirimler"
 @attribute [Authorize]
 @using RentACar.Application.Notifications
+@using RentACar.Domain.Entities
 @using RentACar.Domain.Enums
 @inject BildirimService Bildirimler
 
 <PageTitle>Bildirim Merkezi — TürevRent</PageTitle>
 
 <h1>Bildirim Merkezi</h1>
+@if (Ok == "1") { <p class="ok">İşaretlendi.</p> }
+
+<h2>Bildirimler @if (_okunmamisSayi > 0) {<span class="badge-unread">@_okunmamisSayi</span>}</h2>
+<p class="muted small">Yaklaşan/geçmiş vade uyarıları (scheduler otomatik üretir). Okundu işaretleyebilirsiniz.</p>
+@if (_bildirimler.Count == 0)
+{
+    <p class="muted">Bildirim yok.</p>
+}
+else
+{
+    @if (_okunmamisSayi > 0)
+    {
+        <form method="post" action="/bildirim/hepsini-oku" style="margin-bottom:.5rem"><AntiforgeryToken />
+            <button type="submit">Tümünü okundu işaretle</button>
+        </form>
+    }
+    <table class="grid">
+        <thead><tr><th>Tür</th><th>Mesaj</th><th>Oluşturma</th><th>Durum</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var b in _bildirimler)
+            {
+                <tr class="@(b.Okundu ? "" : "row-unread")">
+                    <td>@b.Tur</td>
+                    <td>@b.Mesaj</td>
+                    <td>@b.OlusturmaTarihi.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@(b.Okundu ? "Okundu" : "Yeni")</td>
+                    <td>
+                        @if (!b.Okundu)
+                        {
+                            <form method="post" action="/bildirim/oku" style="display:inline"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@b.Id" />
+                                <button type="submit">Okundu</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 <div class="cards">
     <div class="card">
@@ -70,8 +111,16 @@ else
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
     private BildirimDto _d = new(0, 0, [], 0, [], null);
+    private IReadOnlyList<Bildirim> _bildirimler = [];
+    private int _okunmamisSayi;
 
     protected override async Task OnInitializedAsync()
-        => _d = await Bildirimler.GetAsync();
+    {
+        _d = await Bildirimler.GetAsync();
+        _bildirimler = await Bildirimler.ListPersistedAsync();
+        _okunmamisSayi = _bildirimler.Count(b => !b.Okundu);
+    }
 }
