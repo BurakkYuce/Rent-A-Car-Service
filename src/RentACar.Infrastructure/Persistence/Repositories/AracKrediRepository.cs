@@ -38,15 +38,26 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
 
     public async Task<bool> TaksitOdeAsync(Guid id, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.AracKredileri.FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (row is null) return false;
-        if (row.OdenenTaksit >= row.TaksitSayisi) return false; // tüm taksitler ödendi
-        row.OdenenTaksit++;
-        if (row.OdenenTaksit >= row.TaksitSayisi) row.Durum = KrediDurum.Kapandi;
-        row.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return true;
+        return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + sayaç yarışı koruması
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            // Satır kilidi: eşzamanlı taksit ödemeleri serileşir → OdenenTaksit sayaç yarışı
+            // (kayıp artırım = kaybolan ödeme) OLMAZ.
+            var row = await db.AracKredileri
+                .FromSqlRaw("SELECT * FROM \"AracKredileri\" WHERE \"Id\" = {0} FOR UPDATE", id)
+                .FirstOrDefaultAsync(ct);
+            if (row is null) return false;
+            if (row.OdenenTaksit >= row.TaksitSayisi) return false; // tüm taksitler ödendi
+            row.OdenenTaksit++;
+            if (row.OdenenTaksit >= row.TaksitSayisi) row.Durum = KrediDurum.Kapandi;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
     }
 
     public async Task<bool> SetDurumAsync(Guid id, KrediDurum durum, CancellationToken ct = default)
