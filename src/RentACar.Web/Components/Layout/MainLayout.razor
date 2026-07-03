@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject RentACar.Application.Notifications.BildirimService Bildirimler
 
 <div class="page">
     <header class="topbar">
@@ -95,7 +96,7 @@
                         <a href="/raporlar/arac-durum-takip">Araç Durum Takip</a>
                     </AuthorizeView>
                     <a href="/vade">Vade</a>
-                    <a href="/bildirimler">Bildirimler</a>
+                    <a href="/bildirimler">Bildirimler@if (_okunmamis > 0) {<span class="badge-unread">@_okunmamis</span>}</a>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <a href="/subeler">Şubeler</a>
                         <a href="/kullanicilar">Kullanıcılar</a>
@@ -131,3 +132,13 @@
     <a href="." class="reload">Yenile</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private int _okunmamis; // okunmamış bildirim badge'i (her sayfa render'ında hafif COUNT)
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
+        catch { _okunmamis = 0; } // giriş yapılmamış/kapsamsız → badge yok
+    }
+}
