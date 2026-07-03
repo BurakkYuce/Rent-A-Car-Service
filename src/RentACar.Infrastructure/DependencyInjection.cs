@@ -54,8 +54,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, string appConnectionString, string? piiHmacKey = null)
     {
-        // Interceptor'lar: bağlantı-tenant (scoped, ITenantContext okur) + audit (singleton).
+        // Interceptor'lar: bağlantı-tenant (scoped, ITenantContext okur) + şube-FK çözücü + audit (singleton).
         services.AddScoped<TenantConnectionInterceptor>();
+        services.AddSingleton<BranchFkInterceptor>();
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
         // Şifreleme (roadmap D1): hassas tenant kimliklerini at-rest şifrele. Key-ring KALICI
@@ -81,6 +82,7 @@ public static class DependencyInjection
             builder.UseNpgsql(appConnectionString);
             builder.AddInterceptors(
                 sp.GetRequiredService<TenantConnectionInterceptor>(),
+                sp.GetRequiredService<BranchFkInterceptor>(), // audit'ten ÖNCE: çözülen SubeFk denetime yansısın
                 sp.GetRequiredService<AuditSaveChangesInterceptor>());
             return builder.Options;
         });
