@@ -48,6 +48,9 @@ public class Invoice : ITenantOwned, IAuditable
     public decimal? DamgaVergisi { get; set; }
     /// <summary>İade/return faturası mı.</summary>
     public bool IadeMi { get; set; }
+    /// <summary>İade faturasıysa kaynak (iptal edilen) faturanın Id'si. Kaynak başına TEK iade
+    /// (kısmi-unique index). Normal faturada null.</summary>
+    public Guid? KaynakFaturaId { get; set; }
     /// <summary>Kiradan bağımsız manuel fatura mı.</summary>
     public bool ManuelMi { get; set; }
 

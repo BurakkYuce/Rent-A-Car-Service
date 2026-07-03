@@ -7,6 +7,9 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default);
     Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Verilen kaynak fatura için zaten bir iade faturası kesilmiş mi? (idempotency ön-kontrol)</summary>
+    Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default);
+
     /// <summary>
     /// Fatura + satırlar + DENGELİ defter kümesini TEK transaction'da işler. No boşluksuz
     /// tahsis edilir. Fatura DB-seviyesinde değişmez (trigger).

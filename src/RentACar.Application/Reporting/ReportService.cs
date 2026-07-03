@@ -80,15 +80,25 @@ public sealed class ReportService(IReportRepository repository)
         var rows = await _repository.GetLedgerRowsAsync(
             [LedgerAccountType.Gelir, LedgerAccountType.Gider, LedgerAccountType.Kdv], from, to, ct);
 
-        var gelirRows = rows.Where(r => r.AccountType == LedgerAccountType.Gelir && r.Direction == LedgerDirection.Credit).ToList();
+        // İade faturası TERS kayıt yazar (Borç Gelir / Borç KDV) → gelir ve tahsil edilen KDV netleşir.
+        var gelirCredit = rows.Where(r => r.AccountType == LedgerAccountType.Gelir && r.Direction == LedgerDirection.Credit).ToList();
+        var gelirDebit = rows.Where(r => r.AccountType == LedgerAccountType.Gelir && r.Direction == LedgerDirection.Debit).ToList();
         var giderRows = rows.Where(r => r.AccountType == LedgerAccountType.Gider && r.Direction == LedgerDirection.Debit).ToList();
 
-        decimal gelir = gelirRows.Sum(r => r.Base);
+        decimal gelir = gelirCredit.Sum(r => r.Base) - gelirDebit.Sum(r => r.Base); // iade neti düşürür
         decimal gider = giderRows.Sum(r => r.Base);
-        decimal kdvTahsil = Sum(rows, LedgerAccountType.Kdv, LedgerDirection.Credit);
-        decimal kdvInd = Sum(rows, LedgerAccountType.Kdv, LedgerDirection.Debit);
+        // İade'nin Borç KDV'si tahsil edilen KDV'yi DÜŞÜRÜR (KDV indirimi/input VAT DEĞİL); gerçek
+        // indirim (varsa iade-dışı Borç KDV) kdvInd olarak ayrı kalır.
+        decimal kdvIadeRev = rows.Where(r => r.AccountType == LedgerAccountType.Kdv && r.Direction == LedgerDirection.Debit && r.SourceType == "FaturaIade").Sum(r => r.Base);
+        decimal kdvTahsil = Sum(rows, LedgerAccountType.Kdv, LedgerDirection.Credit) - kdvIadeRev;
+        decimal kdvInd = rows.Where(r => r.AccountType == LedgerAccountType.Kdv && r.Direction == LedgerDirection.Debit && r.SourceType != "FaturaIade").Sum(r => r.Base);
 
-        var gelirKirilim = Kirilim(gelirRows);
+        // Gelir kırılımı: iade (Borç Gelir) ilgili kaynağı negatif kalem olarak gösterir → toplamla tutarlı.
+        var gelirKirilim = gelirCredit.Select(r => (r.SourceType, Tutar: r.Base))
+            .Concat(gelirDebit.Select(r => (r.SourceType, Tutar: -r.Base)))
+            .GroupBy(x => x.SourceType)
+            .Select(g => new GelirGiderKalemDto(g.Key, g.Sum(x => x.Tutar)))
+            .OrderByDescending(k => k.Tutar).ToList();
         var giderKirilim = Kirilim(giderRows);
 
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
