@@ -17,9 +17,9 @@ public static class RegulationEndpoints
         grp.MapPost("/sigorta", async (RegulationService svc,
             [FromForm] Guid vehicleId, [FromForm] InsuranceType tip,
             [FromForm] DateTimeOffset baslangic, [FromForm] DateTimeOffset bitis, [FromForm] decimal prim,
-            [FromForm] string? policeNo, [FromForm] string? firma, [FromForm] string? acenta) =>
+            [FromForm] string? policeNo, [FromForm] string? firma, [FromForm] string? acenta, [FromForm] string? doviz) =>
         {
-            try { await svc.AddInsuranceAsync(vehicleId, tip, baslangic, bitis, prim, policeNo, firma, acenta); return Results.Redirect("/regulasyon"); }
+            try { await svc.AddInsuranceAsync(vehicleId, tip, baslangic, bitis, prim, policeNo, firma, acenta, doviz); return Results.Redirect("/regulasyon"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -54,11 +54,12 @@ public static class RegulationEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        ode.MapPost("/sigorta", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? zeyil) =>
+        ode.MapPost("/sigorta", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? zeyil, [FromForm] string? kur) =>
         {
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var z = FormParse.Dec(zeyil) ?? 0m;
-            try { await svc.SigortaOdeAsync(id, h, z); return Results.Redirect("/regulasyon?ok=1"); }
+            var k = FormParse.Dec(kur) ?? 1m; // döviz poliçe: baz tutara çevirim kuru (boş → 1, yerel TRY)
+            try { await svc.SigortaOdeAsync(id, h, z, kur: k); return Results.Redirect("/regulasyon?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
