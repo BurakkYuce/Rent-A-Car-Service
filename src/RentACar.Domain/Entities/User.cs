@@ -1,3 +1,4 @@
+using RentACar.Domain.Common;
 using RentACar.Domain.Enums;
 
 namespace RentACar.Domain.Entities;
@@ -9,7 +10,7 @@ namespace RentACar.Domain.Entities;
 /// seeder) RLS'i bypass eder (ENABLE, FORCE değil) → cross-tenant seed mümkün.
 /// İş verisi izolasyonu (Vehicle/AuditLog/Ledger) tam FORCE RLS ile korunur.
 /// </summary>
-public class User
+public class User : IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -34,4 +35,8 @@ public class User
     public string? AtanmisSube { get; set; }
     /// <summary>Atanmış şube FK (Branch master, roadmap F1; metin korunur).</summary>
     public Guid? AtanmisSubeId { get; set; }
+
+    // Şube-FK marker (roadmap F1 tamamlama): AtanmisSube metnini AtanmisSubeId'ye çözer (interceptor).
+    string? IBranchScoped.SubeAdi => AtanmisSube;
+    Guid? IBranchScoped.SubeFk { get => AtanmisSubeId; set => AtanmisSubeId = value; }
 }

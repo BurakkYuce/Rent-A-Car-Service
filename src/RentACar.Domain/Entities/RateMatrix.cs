@@ -10,7 +10,7 @@ namespace RentACar.Domain.Entities;
 /// Tenant-owned + auditable. Saf fiyat-tanım tablosu — deftere kayıt POSTLAMAZ; fiyat motorunun
 /// (parite #7) birincil girdisidir. <see cref="Kod"/> tenant içinde benzersiz (matris satırı kimliği).
 /// </summary>
-public class RateMatrix : ITenantOwned, IAuditable
+public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -26,6 +26,10 @@ public class RateMatrix : ITenantOwned, IAuditable
     public string? Kanal { get; set; }
     public string? Sube { get; set; }
     public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
+
+    // Şube-FK marker: Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
     public string? Lokasyon { get; set; }
     /// <summary>Araç grubu kodu (RateMatrix grup bazlıdır; VehicleGroup.Kod'a serbest metin referans).</summary>
     public string? AracGrupKod { get; set; }

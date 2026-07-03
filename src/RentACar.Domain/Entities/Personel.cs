@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// (servis ISecretProtector ile yazar/okur) — D1 deseni. TcKimlik benzersizliği YOK (cipher non-deterministik).
 /// Sube serbest metin (Branch master ile additive tutarlı).
 /// </summary>
-public class Personel : ITenantOwned, IAuditable
+public class Personel : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -23,6 +23,10 @@ public class Personel : ITenantOwned, IAuditable
     public string? MaasEnc { get; set; }       // PII — şifreli
     public string? Sube { get; set; }
     public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
+
+    // Şube-FK marker: Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// DB-DEĞİŞMEZ (mali kayıt). Çift-taraflı defter yazar: Borç Gider(net) + Borç KDV(indirilecek)
 /// / Alacak Kasa-Banka(gross) ya da Alacak tedarikçi Cari(gross, AçıkHesap'ta).
 /// </summary>
-public class Expense : ITenantOwned, IAuditable
+public class Expense : ITenantOwned, IAuditable, IBranchScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -26,6 +26,10 @@ public class Expense : ITenantOwned, IAuditable
 
     public string? Sube { get; set; }
     public Guid? SubeId { get; set; } // Branch FK (roadmap F1; metin korunur)
+
+    // Şube-FK marker: Sube metnini SubeId'ye çözer (BranchFkInterceptor).
+    string? IBranchScoped.SubeAdi => Sube;
+    Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
     public string? EvrakNo { get; set; }
 
     public decimal NetTutar { get; set; }
