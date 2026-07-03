@@ -59,6 +59,7 @@ using RentACar.Web.Legal;
 using RentACar.Web.Crm;
 using RentACar.Web.Periods;
 using RentACar.Web.Authorization;
+using RentACar.Web.Notifications;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
 using RentACar.Web.VehicleSales;
@@ -143,6 +144,7 @@ if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
     throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
+builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // scheduler: vade→bildirim (kimliksiz)
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 
@@ -253,6 +255,7 @@ app.MapHukukEndpoints();
 app.MapCrmEndpoints();
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
+app.MapBildirimEndpoints();
 app.MapRateMatrixEndpoints();
 app.MapCoverageProductEndpoints();
 app.MapRentalRuleEndpoints();

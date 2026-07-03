@@ -19,11 +19,13 @@ public sealed record BildirimDto(
 /// Bildirim merkezi (roadmap G6): MEVCUT servislerden salt-okur derleme — yeni tablo/entity YOK.
 /// Vade uyarıları (sigorta/muayene/MTV), açık şikayetler, dönem kapanış durumu tek yerde toplanır.
 /// </summary>
-public sealed class BildirimService(VadeService vade, SikayetService sikayet, DonemKilidiService donem)
+public sealed class BildirimService(
+    VadeService vade, SikayetService sikayet, DonemKilidiService donem, IBildirimRepository bildirimler)
 {
     private readonly VadeService _vade = vade;
     private readonly SikayetService _sikayet = sikayet;
     private readonly DonemKilidiService _donem = donem;
+    private readonly IBildirimRepository _bildirimler = bildirimler;
 
     public async Task<BildirimDto> GetAsync(DateTimeOffset? now = null, CancellationToken ct = default)
     {
@@ -36,4 +38,14 @@ public sealed class BildirimService(VadeService vade, SikayetService sikayet, Do
 
         return new BildirimDto(gecmis, yakin, warnings, acik.Count, acik, kapanis);
     }
+
+    // ---- Kalıcı uygulama-içi bildirimler (scheduler üretir; kullanıcı okur/işaretler) ----
+    public Task<IReadOnlyList<Bildirim>> ListPersistedAsync(bool? okundu = null, CancellationToken ct = default)
+        => _bildirimler.ListAsync(okundu, ct);
+    public Task<int> UnreadCountAsync(CancellationToken ct = default)
+        => _bildirimler.UnreadCountAsync(ct);
+    public Task<bool> MarkReadAsync(Guid id, CancellationToken ct = default)
+        => _bildirimler.MarkReadAsync(id, ct);
+    public Task<int> MarkAllReadAsync(CancellationToken ct = default)
+        => _bildirimler.MarkAllReadAsync(ct);
 }

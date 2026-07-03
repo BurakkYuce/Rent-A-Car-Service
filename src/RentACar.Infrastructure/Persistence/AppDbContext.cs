@@ -37,6 +37,7 @@ public sealed class AppDbContext : DbContext
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Bildirim> Bildirimler => Set<Bildirim>();
     public DbSet<RateCard> RateCards => Set<RateCard>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<EkHizmetTanim> EkHizmetTanimlari => Set<EkHizmetTanim>();
@@ -361,6 +362,20 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.EkranKodu).IsRequired().HasMaxLength(64);
             e.Property(x => x.AllowedRolesCsv).HasMaxLength(256);
             e.HasIndex(x => new { x.TenantId, x.EkranKodu }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- Bildirim / uygulama-içi vade uyarısı (tenant-owned; scheduler yazar) ----
+        b.Entity<Bildirim>(e =>
+        {
+            e.ToTable("Bildirimler");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Tur).IsRequired().HasMaxLength(16);
+            e.Property(x => x.Mesaj).IsRequired().HasMaxLength(256);
+            // İdempotency: aynı kaynak (Tur+araç+vade) için tek bildirim.
+            e.HasIndex(x => new { x.TenantId, x.Tur, x.VehicleId, x.VadeTarihi }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Okundu });
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
