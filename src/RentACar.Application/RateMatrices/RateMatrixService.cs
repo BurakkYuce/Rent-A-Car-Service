@@ -26,6 +26,12 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
     public Task<RateMatrix?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
+    /// <summary>Fiyat ÇÖZÜMLEME: kanal/şube/grup/tarih/gün-sayısı için matristen günlük+toplam fiyat.
+    /// Yetki gerektirmez (salt fiyat okuma; ListActive gibi). Eşleşme yoksa null. Deftere dokunmaz;
+    /// RentalQuoteEngine'e BAĞLANMADI (kalibrasyon ertelendi — flagged).</summary>
+    public async Task<RateMatrisSonuc?> CozumleAsync(RateMatrisSorgu sorgu, CancellationToken ct = default)
+        => RateMatrisCozumleme.Coz(await _repository.ListActiveAsync(ct), sorgu);
+
     public async Task<Guid> CreateAsync(RateMatrixInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
