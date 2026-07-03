@@ -149,21 +149,24 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (r is null) return false;
-        apply(r);
-        try
+        return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
-            await db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsExclusionViolation(ex))
-        {
-            // Kira uzatma (ExtendAsync) tarih aralığını değiştirdiğinde GiST exclusion'a takılabilir →
-            // CreateRentalAsync ile aynı zarif hata (adversarial I1 MEDIUM-1).
-            throw new AvailabilityConflictException();
-        }
-        return true;
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (r is null) return false;
+            apply(r);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsExclusionViolation(ex))
+            {
+                // Kira uzatma (ExtendAsync) tarih aralığını değiştirdiğinde GiST exclusion'a takılabilir →
+                // CreateRentalAsync ile aynı zarif hata (adversarial I1 MEDIUM-1).
+                throw new AvailabilityConflictException();
+            }
+            return true;
+        }, ct);
     }
 
     public async Task<bool> HasOverlappingActiveRentalAsync(
