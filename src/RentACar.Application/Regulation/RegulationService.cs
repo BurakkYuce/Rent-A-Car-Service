@@ -14,6 +14,9 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
 
+    /// <summary>Sigorta poliçesi para birimi beyaz-listesi (Currency kolonu HasMaxLength(3)).</summary>
+    private static readonly HashSet<string> AllowedCurrencies = new(StringComparer.Ordinal) { "TRY", "EUR", "USD", "GBP" };
+
     public Task<IReadOnlyList<InsurancePolicy>> ListInsuranceAsync(CancellationToken ct = default)
         => _repository.ListInsuranceAsync(ct);
     public Task<IReadOnlyList<MtvRecord>> ListMtvAsync(CancellationToken ct = default)
@@ -23,15 +26,22 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
 
     public async Task<Guid> AddInsuranceAsync(
         Guid vehicleId, InsuranceType tip, DateTimeOffset baslangic, DateTimeOffset bitis,
-        decimal prim, string? policeNo, string? firma, string? acenta, CancellationToken ct = default)
+        decimal prim, string? policeNo, string? firma, string? acenta,
+        string? doviz = "TRY", CancellationToken ct = default)
     {
         RequireVehicle(vehicleId);
         if (bitis <= baslangic) throw new ValidationException("Bitiş başlangıçtan sonra olmalıdır.");
         if (prim < 0) throw new ValidationException("Prim negatif olamaz.");
+        // Çok-döviz: ithal araç poliçesi EUR/USD olabilir → Currency create'te set edilir; ödemede
+        // (SigortaOdeAsync) kur ile baz tutara çevrilir. Boş → TRY (yerel poliçe). Beyaz-liste dışı
+        // reddedilir (adversarial Low: crafted POST'la çöp/uzun döviz → 3-hane kolon DbUpdateException).
+        var currency = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz.Trim().ToUpperInvariant();
+        if (!AllowedCurrencies.Contains(currency))
+            throw new ValidationException($"Geçersiz para birimi: {currency}. İzinli: {string.Join(", ", AllowedCurrencies)}.");
         var p = new InsurancePolicy
         {
             VehicleId = vehicleId, Tip = tip, Baslangic = baslangic, Bitis = bitis,
-            Prim = prim, PoliceNo = Trim(policeNo), Firma = Trim(firma), Acenta = Trim(acenta)
+            Prim = prim, Currency = currency, PoliceNo = Trim(policeNo), Firma = Trim(firma), Acenta = Trim(acenta)
         };
         await _repository.AddInsuranceAsync(p, ct);
         return p.Id;
