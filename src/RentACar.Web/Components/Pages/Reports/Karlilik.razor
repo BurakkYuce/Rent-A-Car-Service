@@ -4,15 +4,18 @@
 
 <PageTitle>Kârlılık Raporu — RentPro</PageTitle>
 
-<h1>Kârlılık Raporu (Araç-bazlı P&L)</h1>
+<div class="page-head">
+    <h1>💰 Kârlılık Raporu (Araç-bazlı P&L)</h1>
+    <div class="actions">
+        <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
+        <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a>
+    </div>
+</div>
 <p class="muted small">Defterden türetilen araç-bazlı kâr/zarar (Gelir − Gider). Gelir <strong>fatura→kira</strong>,
     <strong>araç satışı</strong> ve <strong>ceza</strong> ile araca; gider doğrudan araç-gideri (defter AccountRef)
     ile atfedilir. Atfedilemeyenler "(Atanmamış)" satırına toplanır: <em>HGS yansıtması (plaka-bazlı), manuel/
     kiradan bağımsız fatura</em>. NOT: servis işçiliği ayrı gider girilmedikçe maliyete yansımaz; iade faturası
     (v1) gelir-azaltıcı değildir. Filtresiz toplamlar gelir-gider defter toplamıyla mutabıktır.</p>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
-    <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a></p>
 
 <form method="get" class="grid-form">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
@@ -23,7 +26,7 @@
     <button type="submit">Göster</button>
 </form>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
     <tbody>
         @if (_d.Satirlar.Count == 0)

@@ -4,13 +4,17 @@
 
 <PageTitle>KDV Listesi — RentPro</PageTitle>
 
-<h1>KDV Listesi Raporu</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/kdv-listesi?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/kdv-listesi?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>📊 KDV Listesi Raporu</h1>
+    <div class="actions">
+        <a href="/raporlar/export/kdv-listesi?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/kdv-listesi?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 <p class="muted small">Seçilen dönemdeki (fatura tarihi) İptal olmayan faturaların KDV oranı bazında
     kırılımı. Tutarlar baz para (kur uygulanmış). Beyanname/muhasebe için.</p>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
@@ -20,6 +24,7 @@
         <a href="/raporlar/kdv-listesi" class="link">Temizle</a>
     }
 </form>
+</div>
 
 <div class="cards">
     <div class="card">
@@ -40,7 +45,7 @@
     </div>
 </div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>KDV Oranı</th><th>Fatura Adedi</th><th>Net</th><th>KDV</th><th>Brüt</th></tr>
     </thead>

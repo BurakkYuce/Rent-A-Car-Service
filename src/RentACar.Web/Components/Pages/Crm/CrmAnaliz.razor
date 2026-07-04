@@ -4,11 +4,11 @@
 
 <PageTitle>CRM Analiz — RentPro</PageTitle>
 
-<h1>CRM — Müşteri Segment & Personel Çalışma</h1>
+<div class="page-head"><h1>👥 CRM — Müşteri Segment &amp; Personel Çalışma</h1><div class="actions"></div></div>
 <p class="muted small">Salt-okur agrega: müşteri kira/ciro segmenti + personel BAF (araç tahsis) çalışma sayısı.</p>
 
 <h2>Müşteri Segment</h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Müşteri</th><th class="num">Kira Sayısı</th><th class="num">Toplam Ciro</th><th>Son İşlem</th><th>Segment</th></tr></thead>
     <tbody>
         @if (_segment.Count == 0) { <tr><td colspan="5" class="muted">Veri yok.</td></tr> }
@@ -26,7 +26,7 @@
 </table>
 
 <h2>Personel Çalışma (BAF)</h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Personel</th><th class="num">Tahsis Sayısı</th></tr></thead>
     <tbody>
         @if (_personel.Count == 0) { <tr><td colspan="2" class="muted">Veri yok.</td></tr> }

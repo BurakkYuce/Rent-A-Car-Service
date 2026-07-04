@@ -4,14 +4,14 @@
 
 <PageTitle>Toplu Gider — RentPro</PageTitle>
 
-<h1>Toplu Gider</h1>
+<div class="page-head"><h1>💰 Toplu Gider</h1><div class="actions"></div></div>
 <p class="muted small">Tek seferde çok gider kalemi. ATOMİK (hep-ya-hiç) + dengeli defter. Her satır:
     <code>netTutar;açıklama</code> (açıklama opsiyonel). Tip/ödeme/KDV tüm kalemler için ortak.</p>
 
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 @if (Ok is not null) { <p class="muted">@Ok kalem işlendi.</p> }
 
-<form method="post" action="/finans/toplu-gider" class="grid-form"><AntiforgeryToken />
+<div class="filter-panel"><form method="post" action="/finans/toplu-gider" class="grid-form"><AntiforgeryToken />
     <input type="hidden" name="islemAnahtari" value="@_token" />
     <label>Gider Tipi
         <select name="tip">
@@ -28,7 +28,7 @@
         <textarea name="satirlar" rows="8" placeholder="1000;Yakıt&#10;500;Bakım" required></textarea>
     </label>
     <button type="submit">Toplu Kaydet</button>
-</form>
+</form></div>
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }

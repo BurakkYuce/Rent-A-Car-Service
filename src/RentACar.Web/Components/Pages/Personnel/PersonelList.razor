@@ -5,7 +5,7 @@
 
 <PageTitle>Personel — RentPro</PageTitle>
 
-<h1>Personel</h1>
+<div class="page-head"><h1>👥 Personel</h1><div class="actions"></div></div>
 <p class="muted small">🔒 TC Kimlik ve Maaş <strong>şifreli</strong> saklanır (yalnız Admin görür). Düzenlemede
     bu alanları boş bırakırsanız mevcut değer korunur.</p>
 @if (!string.IsNullOrEmpty(Hata))
@@ -13,7 +13,7 @@
     <p class="error">@Hata</p>
 }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Şube</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

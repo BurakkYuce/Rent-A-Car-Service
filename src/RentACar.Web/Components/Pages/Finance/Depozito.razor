@@ -5,14 +5,14 @@
 
 <PageTitle>Depozito — RentPro</PageTitle>
 
-<h1>Depozito (Emanet) İşlemleri</h1>
+<div class="page-head"><h1>💰 Depozito (Emanet) İşlemleri</h1><div class="actions"></div></div>
 <p class="muted small">Nakit depozito al / iade / cari borca mahsup. Dengeli defter: Al → Borç Kasa-Banka / Alacak
     Depozito; İade → ters; Mahsup → Borç Depozito / Alacak Cari. İade/mahsup tutulanı aşamaz.</p>
 
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 @if (Ok is not null) { <p class="muted">İşlem tamam.</p> }
 
-<form method="post" class="grid-form"><AntiforgeryToken />
+<div class="filter-panel"><form method="post" class="grid-form"><AntiforgeryToken />
     <input type="hidden" name="islemAnahtari" value="@_token" />
     <label>Cari
         <select name="cariId" required>
@@ -27,10 +27,10 @@
     <button type="submit" formaction="/depozito/al">Al</button>
     <button type="submit" formaction="/depozito/iade" class="btn-secondary">İade</button>
     <button type="submit" formaction="/depozito/mahsup" class="btn-secondary">Mahsup</button>
-</form>
+</form></div>
 
 <h2>Tutulan Depozitolar</h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Cari</th><th class="num">Depozito Bakiye</th></tr></thead>
     <tbody>
         @if (_bakiyeler.Count == 0) { <tr><td colspan="2" class="muted">Tutulan depozito yok.</td></tr> }

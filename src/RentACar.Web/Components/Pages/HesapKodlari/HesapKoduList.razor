@@ -5,17 +5,17 @@
 
 <PageTitle>Hesap Kodları — RentPro</PageTitle>
 
-<h1>Muhasebe Hesap Kodları</h1>
+<div class="page-head"><h1>📋 Muhasebe Hesap Kodları</h1><div class="actions"></div></div>
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
-<form method="post" action="/hesap-kodlari/create" class="grid-form"><AntiforgeryToken />
+<div class="filter-panel"><form method="post" action="/hesap-kodlari/create" class="grid-form"><AntiforgeryToken />
     <label>Kod<input name="kod" required placeholder="600" /></label>
     <label>Ad<input name="ad" required placeholder="Yurtiçi Satışlar" /></label>
     <label>Açıklama<input name="aciklama" /></label>
     <button type="submit">Ekle</button>
-</form>
+</form></div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>Aktif</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }

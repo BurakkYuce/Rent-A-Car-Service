@@ -11,7 +11,7 @@
 }
 else
 {
-    <h1>@_d.Vehicle.Plaka <span class="muted">@_d.Vehicle.Marka</span></h1>
+    <div class="page-head"><h1>🚗 @_d.Vehicle.Plaka <span class="muted">@_d.Vehicle.Marka</span></h1><div class="actions"></div></div>
     <div class="kv-inline">
         <span>Grup: <strong>@_d.Vehicle.Grup</strong></span>
         <span>Şube: <strong>@_d.Vehicle.Sube</strong></span>
@@ -20,7 +20,7 @@ else
     </div>
 
     <h2>Kira Geçmişi (@_d.Rentals.Count)</h2>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Sözleşme</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>Genel Toplam</th></tr></thead>
         <tbody>
             @if (_d.Rentals.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
@@ -34,7 +34,7 @@ else
     </table>
 
     <h2>Servis / Bakım (@_d.Services.Count)</h2>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>No</th><th>Tür</th><th>Giriş</th><th>Durum</th><th>İşçilik</th></tr></thead>
         <tbody>
             @if (_d.Services.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
@@ -47,7 +47,7 @@ else
     </table>
 
     <h2>Cezalar (@_d.Penalties.Count)</h2>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>No</th><th>Tür</th><th>Tebliğ</th><th>Tutar</th><th>Durum</th></tr></thead>
         <tbody>
             @if (_d.Penalties.Count == 0) { <tr><td colspan="5" class="muted">Kayıt yok.</td></tr> }
@@ -60,7 +60,7 @@ else
     </table>
 
     <h2>Hasar Dosyaları (@_d.Damages.Count)</h2>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>No</th><th>Açılış</th><th>Tahmini</th><th>Durum</th></tr></thead>
         <tbody>
             @if (_d.Damages.Count == 0) { <tr><td colspan="4" class="muted">Kayıt yok.</td></tr> }

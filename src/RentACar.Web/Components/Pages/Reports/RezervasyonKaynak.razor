@@ -4,10 +4,13 @@
 
 <PageTitle>Rezervasyon Kaynak Raporu — RentPro</PageTitle>
 
-<h1>Rezervasyon Kaynak Raporu</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/rezervasyon-kaynak?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/rezervasyon-kaynak?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>📅 Rezervasyon Kaynak Raporu</h1>
+    <div class="actions">
+        <a href="/raporlar/export/rezervasyon-kaynak?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/rezervasyon-kaynak?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 <p class="muted">Kaynak/kanal başına rezervasyon adedi, toplam gün ve ciro (başlangıç tarihine göre).</p>
 
 <form method="get" class="grid-form">
@@ -16,7 +19,7 @@
     <button type="submit">Göster</button>
 </form>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kaynak</th><th class="num">Adet</th><th class="num">Toplam Gün</th><th class="num">Toplam Ciro</th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)
