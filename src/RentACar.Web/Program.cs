@@ -76,6 +76,14 @@ using RentACar.Web.ServisTanimlari;
 using RentACar.Web.DropTanimlari;
 using RentACar.Web.Vehicles;
 
+// Bootstrap yardımcısı: `dotnet run --project src/RentACar.Web -- --platform-hash '<parola>'` →
+// Platform:AdminPasswordHash değerini (üretimde zorunlu) üretir ve çıkar (bkz. docs/ops/yedekleme.md §5.1).
+if (args is ["--platform-hash", var bootstrapPw, ..])
+{
+    Console.WriteLine(PlatformCredentials.HashPassword(bootstrapPw));
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ---- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (14 gün saklama) ----
