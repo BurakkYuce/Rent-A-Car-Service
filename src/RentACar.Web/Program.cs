@@ -17,6 +17,7 @@ using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Identity;
+using RentACar.Web.Platform;
 using RentACar.Web.Bookings;
 using RentACar.Web.Branches;
 using RentACar.Web.FuelKinds;
@@ -120,8 +121,21 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // TEK şema; /platform alanı için login/access-denied AYRI sayfaya yönlendirilir (alan-bazlı).
+        options.Events.OnRedirectToLogin = ctx =>
+        {
+            ctx.Response.Redirect(ctx.Request.Path.StartsWithSegments("/platform") ? "/platform/login" : "/login");
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = ctx =>
+        {
+            ctx.Response.Redirect(ctx.Request.Path.StartsWithSegments("/platform") ? "/platform/login" : "/login");
+            return Task.CompletedTask;
+        };
     });
-builder.Services.AddAuthorization();
+// PlatformAdmin policy: platform operatörü claim'i (tenant login'i ASLA yazmaz).
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy(PlatformClaims.Policy, p => p.RequireClaim(PlatformClaims.PlatformAdmin, "true")));
 
 // ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız /auth/login) ----
 var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
@@ -137,9 +151,12 @@ builder.Services.AddRateLimiter(o =>
             QueueLimit = 0,
         }));
     // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
+    // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
     o.OnRejected = (ctx, _) =>
     {
-        ctx.HttpContext.Response.Redirect("/login?hata=limit");
+        var target = ctx.HttpContext.Request.Path.StartsWithSegments("/platform")
+            ? "/platform/login?hata=limit" : "/login?hata=limit";
+        ctx.HttpContext.Response.Redirect(target);
         return ValueTask.CompletedTask;
     };
 });
@@ -158,6 +175,24 @@ builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HybridIdent
 
 // Kabuk durumu (sidebar collapse / aktif menü) — layout seviyesi seam.
 builder.Services.AddScoped<RentACar.Web.Components.Layout.ShellState>();
+
+// ---- Platform süper-admin (tenant'tan bağımsız operatör konsolu) ----
+// Kimlik config'ten; ÜRETİMDE ZORUNLU (Pii:HmacKey deseni — yoksa açılış reddeder, arka kapı yok).
+var platformUser = builder.Configuration["Platform:AdminUser"];
+var platformHash = builder.Configuration["Platform:AdminPasswordHash"];
+if (builder.Environment.IsDevelopment())
+{
+    platformUser ??= "admin";
+    platformHash ??= PlatformCredentials.HashPassword("***REMOVED***"); // dev varsayılan (config'te yoksa)
+}
+else if (string.IsNullOrWhiteSpace(platformUser) || string.IsNullOrWhiteSpace(platformHash))
+    throw new InvalidOperationException(
+        "Platform:AdminUser + Platform:AdminPasswordHash bu ortamda zorunludur (platform süper-admin kimliği).");
+builder.Services.AddSingleton(new PlatformCredentials(platformUser!, platformHash!));
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<PlatformAdminService>();
+builder.Services.AddScoped<TenantStatusCache>();
+builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
 
 // ---- Uygulama + altyapı ----
 // PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
@@ -200,6 +235,8 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+// Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
+app.UseMiddleware<TenantActiveMiddleware>();
 app.UseAntiforgery();
 
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
@@ -224,6 +261,8 @@ app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, Cancellati
 
 app.MapStaticAssets();
 app.MapAuthEndpoints();
+app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
+app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
 app.MapVehicleEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
