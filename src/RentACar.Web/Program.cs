@@ -16,6 +16,7 @@ using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
+using RentACar.Web.Calendar;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
 using RentACar.Web.Bookings;
@@ -202,6 +203,10 @@ builder.Services.AddScoped<PlatformAdminService>();
 builder.Services.AddScoped<TenantStatusCache>();
 builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
 
+// iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
+builder.Services.AddScoped<CalendarFeedService>();
+builder.Services.AddScoped<CalendarTokenService>();
+
 // ---- Uygulama + altyapı ----
 // PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
 // adversarial M1: gerçek PII'lı ortam bilinen dev anahtarına sessizce düşmemeli).
@@ -238,7 +243,15 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
-app.UseSerilogRequestLogging(); // istek başına tek satır: metot, yol, durum, süre
+app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol, durum, süre
+{
+    // Takvim feed URL'i TOKEN içerir → request log'a DÜŞMESİN (log erişimi olan feed'e erişmesin, adversarial).
+    // Verbose, Information min-level'ın altında → düşürülür; hata yine Error'da loglanır.
+    options.GetLevel = (http, _, ex) =>
+        ex is not null ? LogEventLevel.Error
+        : http.Request.Path.StartsWithSegments("/feed/calendar") ? LogEventLevel.Verbose
+        : LogEventLevel.Information;
+});
 app.UseRateLimiter();
 
 app.UseAuthentication();
@@ -271,6 +284,7 @@ app.MapStaticAssets();
 app.MapAuthEndpoints();
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
+app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
 app.MapVehicleEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();

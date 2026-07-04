@@ -269,6 +269,11 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
 .dc-table .mono { font-family: ui-monospace, monospace; }
 .dash-h2 { margin: 1.2rem 0 .6rem; font-size: 1.05rem; }
 
+/* Takvim aboneliği feed URL kutusu */
+.feed-url { margin: .6rem 0; }
+.feed-url input { width: 100%; max-width: 640px; padding: .55rem .7rem; font-family: ui-monospace, monospace;
+  font-size: .82rem; border: 1px solid var(--tr-border, #cbd5e1); border-radius: .45rem; background: var(--tr-bg, #f8fafc); }
+
 @media (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .donus-cikis { grid-template-columns: 1fr; }
