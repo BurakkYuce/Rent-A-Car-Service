@@ -37,3 +37,4 @@ logs/
 .playwright-mcp/
 turev-*.png
 proof-*.png
+.firecrawl/
