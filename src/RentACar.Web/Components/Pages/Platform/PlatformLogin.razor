@@ -2,6 +2,7 @@
 @attribute [AllowAnonymous]
 @layout PlatformLayout
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@inject NavigationManager Nav
 
 <PageTitle>Platform Girişi — RentPro</PageTitle>
 
@@ -29,4 +30,12 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Zaten girişli platform operatörü login'i görmesin → konsola dön.
+        if (AuthState is not null && (await AuthState).User.HasClaim("platform_admin", "true"))
+            Nav.NavigateTo("/platform/tenants");
+    }
 }
