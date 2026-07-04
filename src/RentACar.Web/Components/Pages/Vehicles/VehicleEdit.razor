@@ -4,6 +4,9 @@
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
 @inject BranchService Subeler
+@inject VehicleColorService Renkler
+@inject VehicleSegmentService Segmentler
+@inject VehicleTypeService AracTipleri
 @inject NavigationManager Nav
 
 <PageTitle>Araç Düzenle — RentPro</PageTitle>
@@ -37,7 +40,7 @@ else
         <ComboBox Name="segment" Label="Segment" Value="@_vehicle.Segment" Options="_segmentOpts" />
         <label>SIPP<input name="sipp" value="@_vehicle.Sipp" maxlength="4" placeholder="CDMD" /></label>
         <ComboBox Name="renk" Label="Renk" Value="@_vehicle.Renk" Options="_renkOpts" />
-        <label>Model Yılı<input name="modelYili" type="number" value="@_vehicle.ModelYili" /></label>
+        <ComboBox Name="modelYili" Label="Model Yılı" Value="@(_vehicle.ModelYili?.ToString())" Options="_yilOpts" />
         <label>Vites
             <select name="vites">
                 <option value="">—</option>
@@ -129,7 +132,7 @@ else
     public string? Hata { get; set; }
 
     private Vehicle? _vehicle;
-    private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [];
+    private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [], _yilOpts = [];
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i (VehicleList ile aynı desen).
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -142,13 +145,19 @@ else
         var markalar = await Markalar.ListActiveAsync();
         var gruplar = await AracGruplari.ListActiveAsync();
         var subeler = await Subeler.ListActiveAsync();
+        var renkler = await Renkler.ListActiveAsync();
+        var segmentler = await Segmentler.ListActiveAsync();
+        var tipler = await AracTipleri.ListActiveAsync();
         var all = await Vehicles.ListAsync();
 
         _markaOpts = Opts(markalar.Select(m => m.Ad), all.Select(v => v.Marka));
         _grupOpts = Opts(gruplar.Select(g => g.Ad), all.Select(v => v.Grup));
-        _tipOpts = Opts(all.Select(v => v.Tip));
-        _segmentOpts = Opts(all.Select(v => v.Segment));
-        _renkOpts = Opts(all.Select(v => v.Renk));
+        _tipOpts = Opts(tipler.Select(t => t.Ad), all.Select(v => v.Tip));
+        _segmentOpts = Opts(segmentler.Select(s => s.Ad), all.Select(v => v.Segment));
+        _renkOpts = Opts(renkler.Select(r => r.Ad), all.Select(v => v.Renk));
         _subeOpts = Opts(subeler.Select(s => s.Ad), all.Select(v => v.Sube));
+
+        var maxYil = DateTimeOffset.UtcNow.Year + 1;
+        _yilOpts = Enumerable.Range(maxYil - 30, 31).Select(y => y.ToString()).Reverse().ToList();
     }
 }
