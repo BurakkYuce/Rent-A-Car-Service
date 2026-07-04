@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Platform;
