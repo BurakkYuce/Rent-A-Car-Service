@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject VehicleGroupService AracGruplari
 
-<PageTitle>Araç Grupları — TürevRent</PageTitle>
+<PageTitle>Araç Grupları — RentPro</PageTitle>
 
-<h1>Araç Grubu Tanımları</h1>
+<div class="page-head"><h1>📋 Araç Grubu Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Araçların gruplandığı liste (ör. "EKO" = Ekonomik, "SUV") VE gruba bağlı kira
     kuralları (SIPP/segment/kasa türü, koltuk/kapı/bagaj, sürücü yaşı/ehliyet yılı, provizyon/muafiyet,
     günlük KM limiti + aşım ücreti). Araç formundaki Grup açılır listesi buradan beslenir. Kural
@@ -53,7 +53,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>SIPP</th><th>Segment</th><th>Günlük KM</th><th>Provizyon</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

@@ -2,12 +2,15 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Fatura Dönem Raporu — TürevRent</PageTitle>
+<PageTitle>Fatura Dönem Raporu — RentPro</PageTitle>
 
-<h1>Fatura Dönem Raporu</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/fatura-donem?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/fatura-donem?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>📊 Fatura Dönem Raporu</h1>
+    <div class="actions">
+        <a href="/raporlar/export/fatura-donem?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/fatura-donem?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 <p class="muted">Dönem faturaları: tarih/vade/cari/tutar/durum (fatura tarihine göre).</p>
 
 <form method="get" class="grid-form">
@@ -16,7 +19,7 @@
     <button type="submit">Göster</button>
 </form>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>No</th><th>Tarih</th><th>Vade</th><th>Cari</th><th class="num">Toplam</th><th>Durum</th><th>İade</th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)

@@ -4,7 +4,7 @@
 @inject RentACar.Application.RentalAddOns.RentalAddOnService EkHizmetler
 @inject EkHizmetTanimService EkHizmetTanimlari
 
-<PageTitle>Kira Detayı — TürevRent</PageTitle>
+<PageTitle>Kira Detayı — RentPro</PageTitle>
 
 @if (_c is null)
 {
@@ -13,7 +13,7 @@
 }
 else
 {
-    <h1>Kira @_c.SozlesmeNo <span class="badge">@_c.Durum</span></h1>
+    <div class="page-head"><h1>🔑 Kira @_c.SozlesmeNo <span class="badge">@_c.Durum</span></h1><div class="actions"></div></div>
 
     @if (!string.IsNullOrEmpty(Hata))
     {
@@ -66,7 +66,7 @@ else
     }
 
     <h2>Ek Hizmetler</h2>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Hizmet</th><th>Miktar</th><th>Birim NET</th><th>KDV</th><th>Net</th><th>KDV Tutar</th><th>Toplam</th><th></th></tr></thead>
         <tbody>
             @if (_addons.Count == 0)

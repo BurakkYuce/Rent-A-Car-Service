@@ -5,9 +5,9 @@
 @inject VehicleService Vehicles
 @inject LocationService Locations
 
-<PageTitle>Kira Sözleşmeleri — TürevRent</PageTitle>
+<PageTitle>Kira Sözleşmeleri — RentPro</PageTitle>
 
-<h1>Kira Sözleşmeleri</h1>
+<div class="page-head"><h1>🔑 Kira Sözleşmeleri</h1><div class="actions"></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -59,6 +59,7 @@
     </form>
 </details>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <input name="q" value="@Q" placeholder="Sözleşme / müşteri / plaka ara" />
     <select name="durum">
@@ -85,10 +86,11 @@
         <a href="/kiralar" class="link">Temizle</a>
     }
 </form>
+</div>
 
 <p class="muted small">@_rows.Count sözleşme • @_rows.Count(r => r.Durum == RentalStatus.Kirada) kirada • @_rows.Count(r => !r.Faturali) faturasız</p>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th>Fatura</th><th></th></tr>
     </thead>

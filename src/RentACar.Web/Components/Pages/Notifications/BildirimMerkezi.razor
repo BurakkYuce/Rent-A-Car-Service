@@ -5,9 +5,9 @@
 @using RentACar.Domain.Enums
 @inject BildirimService Bildirimler
 
-<PageTitle>Bildirim Merkezi — TürevRent</PageTitle>
+<PageTitle>Bildirim Merkezi — RentPro</PageTitle>
 
-<h1>Bildirim Merkezi</h1>
+<div class="page-head"><h1>⚙️ Bildirim Merkezi</h1><div class="actions"></div></div>
 @if (Ok == "1") { <p class="ok">İşaretlendi.</p> }
 
 <h2>Bildirimler @if (_okunmamisSayi > 0) {<span class="badge-unread">@_okunmamisSayi</span>}</h2>
@@ -24,7 +24,7 @@ else
             <button type="submit">Tümünü okundu işaretle</button>
         </form>
     }
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Mesaj</th><th>Oluşturma</th><th>Durum</th><th></th></tr></thead>
         <tbody>
             @foreach (var b in _bildirimler)
@@ -75,7 +75,7 @@ else
 }
 else
 {
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Bitiş</th><th class="num">Kalan Gün</th><th>Durum</th></tr></thead>
         <tbody>
             @foreach (var v in _d.Vadeler)
@@ -98,7 +98,7 @@ else
 }
 else
 {
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Konu</th><th>Tarih</th></tr></thead>
         <tbody>
             @foreach (var s in _d.Sikayetler)

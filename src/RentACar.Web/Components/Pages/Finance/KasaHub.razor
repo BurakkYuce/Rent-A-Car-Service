@@ -4,9 +4,9 @@
 @inject CashService Cash
 @inject CustomerService Customers
 
-<PageTitle>Kasa / Banka — TürevRent</PageTitle>
+<PageTitle>Kasa / Banka — RentPro</PageTitle>
 
-<h1>Kasa / Banka</h1>
+<div class="page-head"><h1>💰 Kasa / Banka</h1><div class="actions"></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -48,7 +48,7 @@
 </details>
 
 <h2>Son İşlemler</h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Cari</th><th>Tutar</th><th>Açıklama</th></tr>
     </thead>

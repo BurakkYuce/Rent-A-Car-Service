@@ -6,9 +6,9 @@
 @inject LocationService Locations
 @inject ReservationSourceService Kaynaklar
 
-<PageTitle>Rezervasyonlar — TürevRent</PageTitle>
+<PageTitle>Rezervasyonlar — RentPro</PageTitle>
 
-<h1>Rezervasyonlar</h1>
+<div class="page-head"><h1>📅 Rezervasyonlar</h1><div class="actions"></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -72,7 +72,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Durum</th><th></th></tr>
     </thead>

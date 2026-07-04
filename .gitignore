@@ -32,3 +32,8 @@ Thumbs.db
 
 # Serilog dosya logları (P0-2) — asla commit edilmez
 logs/
+
+# TürevRent tasarım referans ekran görüntüleri (gerçek müşteri verisi — COMMIT ETME)
+.playwright-mcp/
+turev-*.png
+proof-*.png

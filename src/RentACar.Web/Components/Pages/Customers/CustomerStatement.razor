@@ -3,7 +3,7 @@
 @inject CustomerService Customers
 @inject CashService Cash
 
-<PageTitle>Cari Ekstre — TürevRent</PageTitle>
+<PageTitle>Cari Ekstre — RentPro</PageTitle>
 
 @if (_customer is null)
 {
@@ -12,7 +12,7 @@
 }
 else
 {
-    <h1>Ekstre — @_customer.DisplayName</h1>
+    <div class="page-head"><h1>👥 Ekstre — @_customer.DisplayName</h1><div class="actions"></div></div>
     <p>Bakiye: <strong class="@(_balance > 0 ? "neg" : "pos")">@_balance.ToString("N2") ₺</strong>
         <span class="muted">(pozitif = müşteri borçlu)</span></p>
 
@@ -55,7 +55,7 @@ else
         </form>
     </details>
 
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead>
             <tr><th>Tarih</th><th>Açıklama</th><th>Kaynak</th><th>Borç</th><th>Alacak</th><th>Bakiye</th><th></th></tr>
         </thead>

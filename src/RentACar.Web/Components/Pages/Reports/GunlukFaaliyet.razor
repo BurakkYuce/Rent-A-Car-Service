@@ -2,19 +2,24 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Günlük Faaliyet — TürevRent</PageTitle>
+<PageTitle>Günlük Faaliyet — RentPro</PageTitle>
 
-<h1>Günlük Faaliyet Raporu</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/gunluk?format=excel&amp;gun=@GunStr">Excel</a> ·
-    <a href="/raporlar/export/gunluk?format=csv&amp;gun=@GunStr">CSV</a></p>
+<div class="page-head">
+    <h1>📊 Günlük Faaliyet Raporu</h1>
+    <div class="actions">
+        <a href="/raporlar/export/gunluk?format=excel&amp;gun=@GunStr">Excel</a> ·
+        <a href="/raporlar/export/gunluk?format=csv&amp;gun=@GunStr">CSV</a>
+    </div>
+</div>
 <p class="muted small">Seçilen günün operasyonel özeti: yeni rezervasyon/kira, çıkış (kira başlangıcı),
     dönüş (gerçek dönüş), tahsilat ve fatura. Tutarlar baz para (₺). Salt-okunur.</p>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <label>Gün<input name="gun" type="date" value="@GunStr" /></label>
     <button type="submit">Göster</button>
 </form>
+</div>
 
 <p class="muted small">@_gun.ToString("dd.MM.yyyy") günü</p>
 

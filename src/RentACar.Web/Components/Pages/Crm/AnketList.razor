@@ -2,15 +2,15 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject AnketService Anketler
 
-<PageTitle>Anketler — TürevRent</PageTitle>
+<PageTitle>Anketler — RentPro</PageTitle>
 
-<h1>Müşteri Anketleri</h1>
+<div class="page-head"><h1>👥 Müşteri Anketleri</h1><div class="actions"></div></div>
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Tarih</th><th class="num">Puan</th><th>Yorum</th><th>Kaynak</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

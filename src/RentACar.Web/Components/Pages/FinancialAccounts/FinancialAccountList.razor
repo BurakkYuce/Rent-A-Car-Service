@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject FinancialAccountService Hesaplar
 
-<PageTitle>Hesaplar — TürevRent</PageTitle>
+<PageTitle>Hesaplar — RentPro</PageTitle>
 
-<h1>Kasa/Banka Hesap Tanımları</h1>
+<div class="page-head"><h1>💰 Kasa/Banka Hesap Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Nakit kasaları ve banka hesapları (ör. "Merkez Kasa", "Ziraat TL").
     Tahsilat/ödeme/virman formlarındaki Hesap açılır listesini besler. Tür (Kasa/Banka) ve Döviz opsiyonel.</p>
 
@@ -28,7 +28,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>IBAN</th><th>Banka</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

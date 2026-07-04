@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RateCardService Rates
 
-<PageTitle>Tarifeler — TürevRent</PageTitle>
+<PageTitle>Tarifeler — RentPro</PageTitle>
 
-<h1>Tarife Yönetimi</h1>
+<div class="page-head"><h1>🏷️ Tarife Yönetimi</h1><div class="actions"></div></div>
 <p class="muted small">Araç grubu + gün kademesi + dönem için günlük birim fiyat. Rezervasyon/teklif
     fiyatlaması bu tabloyu okuyabilir (lookup: en dar kademe + en güncel dönem seçilir).</p>
 
@@ -31,7 +31,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>Kod</th><th>Ad</th><th>Grup</th><th>Gün</th><th>Günlük Ücret</th><th>Dönem</th><th>Durum</th><th>İşlem</th></tr>
     </thead>

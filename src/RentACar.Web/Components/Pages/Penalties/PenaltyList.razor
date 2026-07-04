@@ -6,9 +6,9 @@
 @inject VehicleService Vehicles
 @inject CustomerService Customers
 
-<PageTitle>Cezalar — TürevRent</PageTitle>
+<PageTitle>Cezalar — RentPro</PageTitle>
 
-<h1>Trafik Cezaları</h1>
+<div class="page-head"><h1>🚨 Trafik Cezaları</h1><div class="actions"></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -51,7 +51,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>No</th><th>Tür</th><th>Tebliğ</th><th>Vade</th><th>Araç</th><th>Müşteri</th><th>Tutar</th><th>Durum</th><th></th></tr>
     </thead>

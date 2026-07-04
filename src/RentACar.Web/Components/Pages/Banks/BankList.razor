@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject BankService Bankalar
 
-<PageTitle>Bankalar — TürevRent</PageTitle>
+<PageTitle>Bankalar — RentPro</PageTitle>
 
-<h1>Banka Tanımları</h1>
+<div class="page-head"><h1>💰 Banka Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Bankaların sözlüğü (ör. "Ziraat", "İş Bankası", "Garanti"). Banka hesabı /
     çek-senet formlarındaki Banka açılır listesini besler.</p>
 
@@ -22,7 +22,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

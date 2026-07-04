@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RentalRuleService KiralamaKurallari
 
-<PageTitle>Kiralama Kuralları — TürevRent</PageTitle>
+<PageTitle>Kiralama Kuralları — RentPro</PageTitle>
 
-<h1>Kiralama Kuralları (Promosyon / Şart)</h1>
+<div class="page-head"><h1>🏷️ Kiralama Kuralları (Promosyon / Şart)</h1><div class="actions"></div></div>
 <p class="muted small">Tarih/gün/min-max gün bazlı promosyon-kampanya-indirim kuralı + kira/rezervasyon
     şart metni. Şube + kanal (rez kaynağı) + araç grubu kapsamına uygulanır. Saf kural-tanım — deftere
     kayıt postlamaz; fiyat motorunda indirim/min-gün girdisidir.</p>
@@ -40,7 +40,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

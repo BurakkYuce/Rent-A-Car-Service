@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject DonemKilidiService Donem
 
-<PageTitle>Dönem Kapanışı — TürevRent</PageTitle>
+<PageTitle>Dönem Kapanışı — RentPro</PageTitle>
 
-<h1>Dönem Kapanışı</h1>
+<div class="page-head"><h1>⚙️ Dönem Kapanışı</h1><div class="actions"></div></div>
 @if (Ok == "1")
 {
     <p class="ok">Dönem kilidi güncellendi.</p>

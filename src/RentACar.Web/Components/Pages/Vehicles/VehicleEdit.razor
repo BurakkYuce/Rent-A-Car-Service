@@ -5,23 +5,29 @@
 @inject VehicleGroupService AracGruplari
 @inject NavigationManager Nav
 
-<PageTitle>Araç Düzenle — TürevRent</PageTitle>
-
-<h1>Araç Düzenle</h1>
+<PageTitle>Araç Düzenle — RentPro</PageTitle>
 
 @if (_vehicle is null)
 {
+    <div class="page-head"><h1>🚗 Araç Düzenle</h1></div>
     <p class="error">Araç bulunamadı.</p>
     <a href="/vehicles">← Listeye dön</a>
 }
 else
 {
+    <div class="page-head">
+        <h1>🚗 @_vehicle.Plaka — Araç Düzenle</h1>
+        <div class="actions">
+            <button type="submit" form="veh-form">Kaydet</button>
+            <a href="/vehicles">Araç Listesi</a>
+        </div>
+    </div>
     @if (!string.IsNullOrEmpty(Hata))
     {
         <p class="error">@Hata</p>
     }
 
-    <form method="post" action="/vehicles/update" class="grid-form"><AntiforgeryToken />
+    <form id="veh-form" method="post" action="/vehicles/update" class="grid-form"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_vehicle.Id" />
         <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
         <label>Marka<input name="marka" value="@_vehicle.Marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>

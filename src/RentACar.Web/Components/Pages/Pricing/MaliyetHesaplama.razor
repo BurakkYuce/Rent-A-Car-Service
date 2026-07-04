@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @using RentACar.Application.Pricing
 
-<PageTitle>Filo Maliyet Hesaplayıcı — TürevRent</PageTitle>
+<PageTitle>Filo Maliyet Hesaplayıcı — RentPro</PageTitle>
 
-<h1>Filo / Uzun Dönem Maliyet Hesaplayıcı</h1>
+<div class="page-head"><h1>🏷️ Filo / Uzun Dönem Maliyet Hesaplayıcı</h1><div class="actions"></div></div>
 <p class="muted small">Araç satın alıp uzun-dönem kiralamanın maliyet/başabaş/kâr/teklif modeli (kira teklifi
     <a href="/fiyat-hesapla">/fiyat-hesapla</a>'dan farklı). Salt-hesap — deftere/bakiyeye yazmaz.
     <em>Makul varsayım; canlı kuruş paritesi değil.</em></p>
@@ -36,7 +36,7 @@
         <div class="card"><div class="card-num">@s.TeklifAylikNet.ToString("N2")</div><div class="card-label">Teklif (aylık net)</div></div>
         <div class="card"><div class="card-num">@s.TeklifKdvli.ToString("N2")</div><div class="card-label">Teklif (KDV dahil toplam)</div></div>
     </div>
-    <table class="grid">
+    <table class="grid tr-grid">
         <tbody>
             <tr><td>Kalıntı Değer</td><td class="num">@s.ResidualDeger.ToString("N2")</td></tr>
             <tr><td>Net Amortisman</td><td class="num">@s.NetAmortisman.ToString("N2")</td></tr>

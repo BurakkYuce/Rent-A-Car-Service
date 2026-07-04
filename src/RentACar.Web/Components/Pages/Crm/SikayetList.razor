@@ -3,15 +3,15 @@
 @inject SikayetService Sikayetler
 @using RentACar.Domain.Enums
 
-<PageTitle>Şikayetler — TürevRent</PageTitle>
+<PageTitle>Şikayetler — RentPro</PageTitle>
 
-<h1>Müşteri Şikayetleri</h1>
+<div class="page-head"><h1>👥 Müşteri Şikayetleri</h1><div class="actions"></div></div>
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Tarih</th><th>Konu</th><th>Durum</th><th>Çözüm</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
