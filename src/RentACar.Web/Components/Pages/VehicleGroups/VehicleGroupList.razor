@@ -1,6 +1,7 @@
 @page "/arac-gruplari"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject VehicleGroupService AracGruplari
+@inject BrandService Markalar
 
 <PageTitle>Araç Grupları — RentPro</PageTitle>
 
@@ -22,7 +23,7 @@
         <label>Ad<input name="ad" required placeholder="Ekonomik" /></label>
         <label>Açıklama<input name="aciklama" placeholder="(opsiyonel)" /></label>
         <label>SIPP<input name="sipp" maxlength="4" placeholder="CDMD" /></label>
-        <label>Segment<input name="segment" /></label>
+        <ComboBox Name="segment" Label="Segment" Options="_segmentOpts" />
         <label>Kasa Türü<input name="kasaTuru" placeholder="Sedan/SUV…" /></label>
         <label>Koltuk<input name="koltukSayisi" type="number" min="0" /></label>
         <label>Kapı<input name="kapiSayisi" type="number" min="0" /></label>
@@ -34,7 +35,7 @@
         <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" /></label>
         <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" /></label>
         <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" /></label>
-        <label>Marka<input name="marka" /></label>
+        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
         <label>Tip<input name="tipi" /></label>
         <label>Küçük Bagaj<input name="kucukBagaj" type="number" min="0" /></label>
         <label>Büyük Bagaj<input name="buyukBagaj" type="number" min="0" /></label>
@@ -79,7 +80,7 @@
                             <label>Ad<input name="ad" value="@g.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@g.Aciklama" /></label>
                             <label>SIPP<input name="sipp" value="@g.Sipp" maxlength="4" /></label>
-                            <label>Segment<input name="segment" value="@g.Segment" /></label>
+                            <ComboBox Name="segment" Label="Segment" Value="@g.Segment" Options="_segmentOpts" ListId="dl-segment-edit" />
                             <label>Kasa Türü<input name="kasaTuru" value="@g.KasaTuru" /></label>
                             <label>Koltuk<input name="koltukSayisi" type="number" min="0" value="@g.KoltukSayisi" /></label>
                             <label>Kapı<input name="kapiSayisi" type="number" min="0" value="@g.KapiSayisi" /></label>
@@ -91,7 +92,7 @@
                             <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" value="@g.MuafiyetTutari" /></label>
                             <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" value="@g.GunlukKmLimiti" /></label>
                             <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" value="@g.AsimKmUcreti" /></label>
-                            <label>Marka<input name="marka" value="@g.Marka" /></label>
+                            <ComboBox Name="marka" Label="Marka" Value="@g.Marka" Options="_markaOpts" ListId="dl-marka-edit" />
                             <label>Tip<input name="tipi" value="@g.Tipi" /></label>
                             <label>Küçük Bagaj<input name="kucukBagaj" type="number" min="0" value="@g.KucukBagaj" /></label>
                             <label>Büyük Bagaj<input name="buyukBagaj" type="number" min="0" value="@g.BuyukBagaj" /></label>
@@ -133,7 +134,18 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<VehicleGroup> _list = [];
+    private List<string> _markaOpts = [], _segmentOpts = [];
+
+    // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
+    private static List<string> Opts(params IEnumerable<string?>[] sources) =>
+        sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
     protected override async Task OnInitializedAsync()
-        => _list = await AracGruplari.ListAsync();
+    {
+        _list = await AracGruplari.ListAsync();
+        var markalar = await Markalar.ListActiveAsync();
+        _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
+        _segmentOpts = Opts(_list.Select(g => g.Segment));
+    }
 }

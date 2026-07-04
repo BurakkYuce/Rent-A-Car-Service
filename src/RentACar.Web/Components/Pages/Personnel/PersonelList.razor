@@ -1,6 +1,7 @@
 @page "/personel"
 @attribute [Authorize(Roles = "Admin")]
 @inject PersonelService Personel
+@inject BranchService Subeler
 @inject NavigationManager Nav
 
 <PageTitle>Personel — RentPro</PageTitle>
@@ -48,7 +49,7 @@
     <label>Maaş<input name="maas" type="number" step="0.01" min="0" value="@_edit?.Maas" /></label>
     <label>İşe Giriş<input name="iseGiris" type="date" value="@(_edit?.IseGiris?.ToString("yyyy-MM-dd"))" /></label>
     <label>İşten Çıkış<input name="iseCikis" type="date" value="@(_edit?.IseCikis?.ToString("yyyy-MM-dd"))" /></label>
-    <label>Şube<input name="sube" value="@_edit?.Sube" /></label>
+    <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Value="@_edit?.Sube" />
     <label>Aktif<input name="aktif" type="checkbox" value="true" checked="@(_edit?.Aktif ?? true)" /></label>
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
     @if (_edit is not null)
@@ -71,10 +72,12 @@
 
     private IReadOnlyList<RentACar.Domain.Entities.Personel> _list = [];
     private PersonelDetail? _edit;
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Personel.ListAsync();
         if (Duzenle is { } id) _edit = await Personel.GetDetailAsync(id);
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }

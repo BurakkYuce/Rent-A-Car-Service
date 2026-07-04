@@ -18,13 +18,7 @@
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Ceza</summary>
     <form method="post" action="/cezalar/create" class="grid-form"><AntiforgeryToken />
-        <label>Ceza Türü<input name="cezaTuru" required list="ceza-turu-list" placeholder="Tanımlı türden seç veya yaz" /></label>
-        <datalist id="ceza-turu-list">
-            @foreach (var t in _cezaTurleri)
-            {
-                <option value="@t.Ad">@t.Kod</option>
-            }
-        </datalist>
+        <ComboBox Name="cezaTuru" Label="Ceza Türü" Options="_cezaTuruOpts" required="true" />
         <label>Tebliğ Tarihi<input name="tebligTarihi" type="date" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="15" /></label>
         <label>Araç
@@ -106,6 +100,7 @@
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
     private IReadOnlyList<PenaltyType> _cezaTurleri = [];
+    private List<string> _cezaTuruOpts = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
 
@@ -117,6 +112,15 @@
         _customers = await Customers.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
+
+        // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
+        _cezaTuruOpts = _cezaTurleri.Select(t => t.Ad)
+            .Concat(_list.Select(p => p.CezaTuru))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture)
+            .ToList();
     }
 
     private string VehLabel(Guid? id)

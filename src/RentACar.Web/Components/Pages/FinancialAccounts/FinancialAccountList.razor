@@ -1,6 +1,7 @@
 @page "/hesaplar"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject FinancialAccountService Hesaplar
+@inject BranchService Subeler
 
 <PageTitle>Hesaplar — RentPro</PageTitle>
 
@@ -23,7 +24,7 @@
         <label>IBAN<input name="iban" maxlength="34" placeholder="TR.. (banka için)" /></label>
         <label>Hesap No<input name="hesapNo" placeholder="(opsiyonel)" /></label>
         <label>Banka<input name="banka" placeholder="(opsiyonel)" /></label>
-        <label>Şube<input name="sube" placeholder="(opsiyonel)" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -58,7 +59,7 @@
                             <label>IBAN<input name="iban" value="@a.Iban" maxlength="34" /></label>
                             <label>Hesap No<input name="hesapNo" value="@a.HesapNo" /></label>
                             <label>Banka<input name="banka" value="@a.Banka" /></label>
-                            <label>Şube<input name="sube" value="@a.Sube" /></label>
+                            <ComboBox Name="sube" Label="Şube" Value="@a.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@a.Aktif">Aktif</option>
@@ -82,7 +83,11 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<FinancialAccount> _list = [];
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await Hesaplar.ListAsync();
+    {
+        _list = await Hesaplar.ListAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+    }
 }
