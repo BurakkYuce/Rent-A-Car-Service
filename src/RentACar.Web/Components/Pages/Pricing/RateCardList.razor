@@ -1,6 +1,7 @@
 @page "/tarifeler"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RateCardService Rates
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Tarifeler — RentPro</PageTitle>
 
@@ -18,7 +19,7 @@
     <form method="post" action="/tarifeler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="B-STD" /></label>
         <label>Ad<input name="ad" required placeholder="B Grubu Standart" /></label>
-        <label>Araç Grubu<input name="grup" required placeholder="B" /></label>
+        <ComboBox Name="grup" Label="Araç Grubu" Options="_grupOpts" Placeholder="B" required />
         <label>Min Gün<input name="minGun" type="number" min="1" value="1" /></label>
         <label>Max Gün<input name="maxGun" type="number" min="1" value="9999" /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" required /></label>
@@ -57,7 +58,7 @@
                             <input type="hidden" name="id" value="@r.Id" />
                             <label>Kod<input name="kod" value="@r.Kod" required /></label>
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
-                            <label>Araç Grubu<input name="grup" value="@r.Grup" required /></label>
+                            <ComboBox Name="grup" Label="Araç Grubu" Value="@r.Grup" Options="_grupOpts" ListId="dl-grup-edit" required />
                             <label>Min Gün<input name="minGun" type="number" min="1" value="@r.MinGun" /></label>
                             <label>Max Gün<input name="maxGun" type="number" min="1" value="@r.MaxGun" /></label>
                             <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" value="@r.GunlukUcret" required /></label>
@@ -93,9 +94,13 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<RateCard> _list = [];
+    private List<string> _grupOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await Rates.ListAsync();
+    {
+        _list = await Rates.ListAsync();
+        _grupOpts = (await AracGruplari.ListActiveAsync()).Select(g => g.Ad).ToList();
+    }
 
     private static string Donem(RateCard r)
     {

@@ -1,6 +1,7 @@
 @page "/kira-kurallari"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RentalRuleService KiralamaKurallari
+@inject BranchService Subeler
 
 <PageTitle>Kiralama Kuralları — RentPro</PageTitle>
 
@@ -21,7 +22,7 @@
         <label>Ad<input name="ad" required placeholder="Yaz Kampanyası" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kanal<input name="kanal" placeholder="WEB/ACENTA" /></label>
-        <label>Şube<input name="sube" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
         <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="EKO" /></label>
         <label>Min Gün<input name="minGun" type="number" min="0" /></label>
         <label>Max Gün<input name="maxGun" type="number" min="0" /></label>
@@ -66,7 +67,7 @@
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
-                            <label>Şube<input name="sube" value="@r.Sube" /></label>
+                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
                             <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
                             <label>Min Gün<input name="minGun" type="number" min="0" value="@r.MinGun" /></label>
                             <label>Max Gün<input name="maxGun" type="number" min="0" value="@r.MaxGun" /></label>
@@ -107,7 +108,11 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<RentalRule> _list = [];
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await KiralamaKurallari.ListAsync();
+    {
+        _list = await KiralamaKurallari.ListAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+    }
 }

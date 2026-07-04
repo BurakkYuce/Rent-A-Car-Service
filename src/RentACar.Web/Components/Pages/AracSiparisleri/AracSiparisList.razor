@@ -3,6 +3,9 @@
 @using RentACar.Application.AracSiparisleri
 @using RentACar.Domain.Enums
 @inject AracSiparisService Siparisler
+@inject BrandService Markalar
+@inject VehicleTypeService AracTipleri
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Araç Sipariş / Tedarik — RentPro</PageTitle>
 
@@ -18,12 +21,12 @@
 <details>
     <summary>Yeni Sipariş</summary>
     <form method="post" action="/arac-siparis/create" class="grid-form"><AntiforgeryToken />
-        <label>Tedarikçi<input name="tedarikci" required /></label>
+        <ComboBox Name="tedarikci" Label="Tedarikçi" Options="_tedarikciOpts" required />
         <label>Sipariş Tarihi<input name="siparisTarihi" type="date" /></label>
         <label>Beklenen Teslim<input name="beklenenTeslim" type="date" /></label>
-        <label>Marka<input name="marka" /></label>
-        <label>Tip<input name="tip" /></label>
-        <label>Grup<input name="grup" /></label>
+        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
+        <ComboBox Name="tip" Label="Tip" Options="_tipOpts" />
+        <ComboBox Name="grup" Label="Grup" Options="_grupOpts" />
         <label>Adet<input name="adet" type="number" min="1" value="1" required /></label>
         <label>Birim Fiyat<input name="birimFiyat" type="number" step="0.01" min="0" /></label>
         <label>Açıklama<input name="aciklama" /></label>
@@ -71,7 +74,23 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<AracSiparis> _list = [];
+    private List<string> _markaOpts = [], _tipOpts = [], _grupOpts = [], _tedarikciOpts = [];
+
+    // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i. Tedarikçi için master
+    // tanım YOK → yalnız mevcut siparişlerden distinct (veri girildikçe kendini besler).
+    private static List<string> Opts(params IEnumerable<string?>[] sources) =>
+        sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
     protected override async Task OnInitializedAsync()
-        => _list = await Siparisler.ListAsync();
+    {
+        _list = await Siparisler.ListAsync();
+        var markalar = await Markalar.ListActiveAsync();
+        var tipler = await AracTipleri.ListActiveAsync();
+        var gruplar = await AracGruplari.ListActiveAsync();
+        _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(s => s.Marka));
+        _tipOpts = Opts(tipler.Select(t => t.Ad), _list.Select(s => s.Tip));
+        _grupOpts = Opts(gruplar.Select(g => g.Ad), _list.Select(s => s.Grup));
+        _tedarikciOpts = Opts(_list.Select(s => s.Tedarikci));
+    }
 }

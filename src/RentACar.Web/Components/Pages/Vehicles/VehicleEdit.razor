@@ -3,6 +3,7 @@
 @inject VehicleService Vehicles
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
+@inject BranchService Subeler
 @inject NavigationManager Nav
 
 <PageTitle>Araç Düzenle — RentPro</PageTitle>
@@ -30,27 +31,12 @@ else
     <form id="veh-form" method="post" action="/vehicles/update" class="grid-form"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_vehicle.Id" />
         <label>Plaka<input name="plaka" value="@_vehicle.Plaka" required /></label>
-        <label>Marka<input name="marka" value="@_vehicle.Marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>
-        <datalist id="marka-list">
-            @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
-        </datalist>
-        <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
-        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
-        <label>Grup
-            <input name="grup" value="@_vehicle.Grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" />
-        </label>
-        <datalist id="arac-grup-list">
-            @foreach (var g in _gruplar)
-            {
-                <option value="@g.Ad">@g.Kod</option>
-            }
-        </datalist>
-        <label>Marka<input name="marka" value="@_vehicle.Marka" /></label>
-        <label>Tip<input name="tip" value="@_vehicle.Tip" /></label>
-        <label>Grup<input name="grup" value="@_vehicle.Grup" /></label>
-        <label>Segment<input name="segment" value="@_vehicle.Segment" /></label>
+        <ComboBox Name="marka" Label="Marka" Value="@_vehicle.Marka" Options="_markaOpts" />
+        <ComboBox Name="grup" Label="Grup" Value="@_vehicle.Grup" Options="_grupOpts" />
+        <ComboBox Name="tip" Label="Tip" Value="@_vehicle.Tip" Options="_tipOpts" />
+        <ComboBox Name="segment" Label="Segment" Value="@_vehicle.Segment" Options="_segmentOpts" />
         <label>SIPP<input name="sipp" value="@_vehicle.Sipp" maxlength="4" placeholder="CDMD" /></label>
-        <label>Renk<input name="renk" value="@_vehicle.Renk" /></label>
+        <ComboBox Name="renk" Label="Renk" Value="@_vehicle.Renk" Options="_renkOpts" />
         <label>Model Yılı<input name="modelYili" type="number" value="@_vehicle.ModelYili" /></label>
         <label>Vites
             <select name="vites">
@@ -63,7 +49,7 @@ else
         </label>
         <label>Şasi No<input name="sasiNo" value="@_vehicle.SasiNo" /></label>
         <label>Motor No<input name="motorNo" value="@_vehicle.MotorNo" /></label>
-        <label>Şube<input name="sube" value="@_vehicle.Sube" /></label>
+        <ComboBox Name="sube" Label="Şube" Value="@_vehicle.Sube" Options="_subeOpts" />
         <label>Durum
             <select name="durum">
                 @foreach (var s in Enum.GetValues<VehicleStatus>())
@@ -143,13 +129,26 @@ else
     public string? Hata { get; set; }
 
     private Vehicle? _vehicle;
-    private IReadOnlyList<Brand> _markalar = [];
-    private IReadOnlyList<VehicleGroup> _gruplar = [];
+    private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [];
+
+    // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i (VehicleList ile aynı desen).
+    private static List<string> Opts(params IEnumerable<string?>[] sources) =>
+        sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
     protected override async Task OnInitializedAsync()
     {
         _vehicle = await Vehicles.GetAsync(Id);
-        _markalar = await Markalar.ListActiveAsync();
-        _gruplar = await AracGruplari.ListActiveAsync();
+        var markalar = await Markalar.ListActiveAsync();
+        var gruplar = await AracGruplari.ListActiveAsync();
+        var subeler = await Subeler.ListActiveAsync();
+        var all = await Vehicles.ListAsync();
+
+        _markaOpts = Opts(markalar.Select(m => m.Ad), all.Select(v => v.Marka));
+        _grupOpts = Opts(gruplar.Select(g => g.Ad), all.Select(v => v.Grup));
+        _tipOpts = Opts(all.Select(v => v.Tip));
+        _segmentOpts = Opts(all.Select(v => v.Segment));
+        _renkOpts = Opts(all.Select(v => v.Renk));
+        _subeOpts = Opts(subeler.Select(s => s.Ad), all.Select(v => v.Sube));
     }
 }

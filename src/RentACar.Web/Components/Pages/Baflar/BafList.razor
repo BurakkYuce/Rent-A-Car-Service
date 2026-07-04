@@ -6,6 +6,7 @@
 @inject BafService Baflar
 @inject PersonelService Personeller
 @inject VehicleService Vehicles
+@inject BranchService Subeler
 
 <PageTitle>BAF — Personel Araç Tahsis — RentPro</PageTitle>
 
@@ -35,7 +36,7 @@
         <label>Çıkış Tarihi<input name="cikisTarihi" type="date" /></label>
         <label>Çıkış KM<input name="cikisKm" type="number" min="0" value="0" /></label>
         <label>Çıkış Yakıt<input name="cikisYakit" type="number" min="0" /></label>
-        <label>Şube<input name="sube" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
         <label>Açıklama<input name="aciklama" /></label>
         <button type="submit">Tahsis Et</button>
     </form>
@@ -79,12 +80,14 @@
     private IReadOnlyList<Baf> _list = [];
     private Dictionary<Guid, string> _persMap = new();
     private Dictionary<Guid, string> _vehMap = new();
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Baflar.ListAsync();
         _persMap = (await Personeller.ListAsync()).ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
         _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 
     private string PersName(Guid id) => _persMap.TryGetValue(id, out var n) ? n : "—";
