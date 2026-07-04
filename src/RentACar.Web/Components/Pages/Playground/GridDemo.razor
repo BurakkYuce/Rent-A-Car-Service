@@ -1,6 +1,7 @@
 @page "/playground/grid-demo"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
-@attribute [Authorize]
+@* kanıt/smoke sayfası — Admin-only; nav linki yalnız Development *@
+@attribute [Authorize(Roles = "Admin")]
 @using RentACar.Web.Components.Shared
 @using RentACar.Web.Identity
 @inject VehicleService Vehicles

@@ -78,6 +78,22 @@ Environment=Pii__HmacKey=<64+ karakter rastgele sır>  # TC blind-index anahtar�
 - `Pii:HmacKey` Development dışında zorunludur (uygulama yoksa açılmaz); iki uygulamada
   FARKLI olursa TC benzersizliği/araması bölünür.
 
+### 5.1 Platform süper-admin kimliği (SaaS operatörü konsolu `/platform`)
+
+Platform konsolu operatörü tenant'lardan bağımsızdır; kimliği config'ten gelir ve **Development
+dışında ZORUNLUDUR** (yoksa açılış reddeder — arka kapı yok). YALNIZ `racar-web` unit'inde:
+
+```ini
+Environment=Platform__AdminUser=<operatör-kullanıcı-adı>
+Environment=Platform__AdminPasswordHash=<aşağıdaki komutun çıktısı>
+```
+Parola hash'ini üret (tek seferlik, SDK ile — çıktıyı `Platform__AdminPasswordHash`'e koy):
+```bash
+dotnet run --project src/RentACar.Web -- --platform-hash '<güçlü-parola>'
+```
+- Development'ta config verilmezse otomatik `admin` / `platform1376` kullanılır (prod'a sızmaz).
+- Kimlik DB'de User değildir → parola değişimi = yeni hash üretip env'i güncellemek + web'i yeniden başlatmak.
+
 ## 6. Neler yedeklenir / yedeklenMEZ
 
 | Ne | Nasıl |
