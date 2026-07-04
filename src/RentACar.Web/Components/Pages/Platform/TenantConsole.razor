@@ -1,0 +1,64 @@
+@page "/platform/tenants"
+@attribute [Authorize(Policy = "PlatformAdmin")]
+@layout PlatformLayout
+@inject PlatformAdminService Platform
+
+<PageTitle>Tenant Konsolu — Platform</PageTitle>
+
+<div class="page-head"><h1>🏢 Tenant Konsolu</h1></div>
+
+@if (Ok == "1") { <p class="ok">İşlem tamamlandı.</p> }
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<details class="new-vehicle" open="@(_rows.Count == 0)">
+    <summary>+ Yeni Tenant (firma) oluştur</summary>
+    <form method="post" action="/platform/tenants/create" class="grid-form"><AntiforgeryToken />
+        <label>Firma Kodu (login)<input name="code" required placeholder="firmakodu" maxlength="64" /></label>
+        <label>Firma Adı<input name="name" required placeholder="Örnek Rent A Car" /></label>
+        <label>Admin Kullanıcı<input name="adminUser" required placeholder="admin" /></label>
+        <label>Admin Parola<input name="adminPassword" type="password" required placeholder="en az 6 hane" /></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Kod</th><th>Ad</th><th>Durum</th><th class="num">Kullanıcı</th><th>Oluşturma</th><th>İşlem</th></tr>
+    </thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Tenant yok.</td></tr>
+        }
+        @foreach (var t in _rows)
+        {
+            <tr>
+                <td class="mono">@t.Code</td>
+                <td>@t.Name</td>
+                <td>
+                    @if (t.IsActive) { <span class="badge">Açık</span> }
+                    else { <span class="badge danger">Kapalı</span> }
+                </td>
+                <td class="num">@t.UserCount</td>
+                <td>@t.CreatedAtUtc.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>
+                    <form method="post" action="/platform/tenants/toggle" style="margin:0"
+                          onsubmit="return confirm('@(t.Code) @(t.IsActive ? "kapatılsın" : "açılsın") mı?')"><AntiforgeryToken />
+                        <input type="hidden" name="id" value="@t.Id" />
+                        <input type="hidden" name="active" value="@((!t.IsActive).ToString().ToLowerInvariant())" />
+                        <button type="submit" class="link @(t.IsActive ? "danger" : "")">@(t.IsActive ? "Kapat" : "Aç")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<PlatformTenantRow> _rows = [];
+
+    protected override async Task OnInitializedAsync() => _rows = await Platform.ListTenantsAsync();
+}
