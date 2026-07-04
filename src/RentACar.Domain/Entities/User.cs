@@ -36,6 +36,9 @@ public class User : IBranchScoped
     /// <summary>Atanmış şube FK (Branch master, roadmap F1; metin korunur).</summary>
     public Guid? AtanmisSubeId { get; set; }
 
+    /// <summary>iCal takvim abonelik token'ı (kimliksiz feed erişimi; CSPRNG, tenant içi benzersiz değil global unique).</summary>
+    public string? CalendarToken { get; set; }
+
     // Şube-FK marker (roadmap F1 tamamlama): AtanmisSube metnini AtanmisSubeId'ye çözer (interceptor).
     string? IBranchScoped.SubeAdi => AtanmisSube;
     Guid? IBranchScoped.SubeFk { get => AtanmisSubeId; set => AtanmisSubeId = value; }

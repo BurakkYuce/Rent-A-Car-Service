@@ -1,0 +1,49 @@
+@page "/takvim-abonelik"
+@attribute [Authorize]
+@inject RentACar.Web.Calendar.CalendarTokenService Tokens
+@inject NavigationManager Nav
+
+<PageTitle>Takvim Aboneliği — RentPro</PageTitle>
+
+<div class="page-head"><h1>📅 Takvim Aboneliği</h1></div>
+
+@if (_url is null)
+{
+    <p class="error">Takvim bağlantısı üretilemedi (kullanıcı kimliği bulunamadı).</p>
+}
+else
+{
+    <p class="muted">
+        Aşağıdaki adresi <b>Google Calendar → Diğer takvimler (+) → URL'den ekle</b>'ye yapıştır. Rezervasyon
+        çıkış/dönüşleri, sigorta/kasko/muayene/MTV vadeleri ve ceza/fatura ödeme vadeleri takvimine otomatik düşer
+        (uygulama→takvim, tek yön). Apple/Outlook takviminde de çalışır. Google birkaç saatte bir günceller.
+    </p>
+    <div class="feed-url">
+        <input readonly value="@_url" onclick="this.select()" aria-label="Takvim bağlantısı" />
+    </div>
+    <p class="muted small">
+        ⚠️ Bu bağlantı <b>kişiye özeldir ve müşteri adı / plaka bilgisi içerir</b> — kimseyle paylaşma. Yanlışlıkla
+        sızarsa aşağıdan <b>Yenile</b> ile eski bağlantıyı iptal et.
+    </p>
+    @if (Yeni == "1") { <p class="ok">Yeni bağlantı üretildi — eski bağlantı artık çalışmaz.</p> }
+    <form method="post" action="/takvim/yenile" onsubmit="return confirm('Eski bağlantı iptal olacak. Devam?')">
+        <AntiforgeryToken />
+        <button type="submit" class="link danger">Bağlantıyı Yenile (eskisini iptal et)</button>
+    </form>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [SupplyParameterFromQuery(Name = "yeni")] public string? Yeni { get; set; }
+
+    private string? _url;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+        var uid = (await AuthState).User.FindFirst(RentACar.Web.Identity.IdentityClaims.UserId)?.Value;
+        if (!Guid.TryParse(uid, out var userId)) return;
+        var token = await Tokens.EnsureAsync(userId);
+        _url = $"{Nav.BaseUri.TrimEnd('/')}/feed/calendar/{token}.ics";
+    }
+}
