@@ -132,6 +132,8 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Rol).HasConversion<int>();
             e.Property(x => x.AtanmisSube).HasMaxLength(64);
             e.HasIndex(x => new { x.TenantId, x.UserName }).IsUnique();
+            e.Property(x => x.CalendarToken).HasMaxLength(64);
+            e.HasIndex(x => x.CalendarToken).IsUnique(); // token→user çözümü (null'lar Postgres'te çakışmaz)
         });
 
         // ---- Branch / Şube (tenant-owned; master sözlük) ----
