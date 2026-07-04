@@ -89,6 +89,10 @@ public sealed class PlatformAdminService(
         db.Tenants.Add(tenant);
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
+
+        // Tanım varsayılanları (marka/renk/segment/ceza türü…) — yeni tenant restart beklemeden dolu başlasın.
+        await MasterDataSeeder.SeedTenantAsync(db, tenant.Id, ct);
+
         log.LogWarning("PLATFORM: yeni tenant {Code} + admin {Admin} oluşturuldu — operatör {Operator}.",
             code, adminUser, operatorName);
     }
