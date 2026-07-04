@@ -115,8 +115,9 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             throw new ValidationException("Plaka zorunludur.");
         if (input.Km < 0)
             throw new ValidationException("KM negatif olamaz.");
-        if (input.ModelYili is < 1950 or > 2100)
-            throw new ValidationException("Model yılı 1950 ile 2100 arasında olmalıdır.");
+        var maxModelYili = DateTimeOffset.UtcNow.Year + 1; // yeni model araç en fazla gelecek yıl olabilir
+        if (input.ModelYili is < 1950 || input.ModelYili > maxModelYili)
+            throw new ValidationException($"Model yılı 1950 ile {maxModelYili} arasında olmalıdır.");
         var sipp = input.Sipp?.Trim();
         if (!string.IsNullOrEmpty(sipp) && sipp.Length != 4)
             throw new ValidationException("SIPP kodu 4 harf olmalıdır (ör. CDMD).");
