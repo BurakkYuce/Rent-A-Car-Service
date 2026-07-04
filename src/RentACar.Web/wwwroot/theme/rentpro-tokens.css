@@ -1,0 +1,36 @@
+/* ============================================================================
+   RentPro back-office teması — Slate/Amber (kiremit). TEK MERKEZİ override dosyası.
+   Radzen material-base.css'ten SONRA yüklenir; yalnız --rz-* değişkenlerini ezer.
+   Jenerik indigo/mor'dan bilinçli uzak: nötr slate taban + tek sıcak amber accent.
+   ============================================================================ */
+:root {
+    /* Birincil = amber/kiremit accent (aksiyon, aktif, vurgu) */
+    --rz-primary: #d97706;          /* amber-600 */
+    --rz-primary-light: #f59e0b;    /* amber-500 */
+    --rz-primary-dark: #c2410c;     /* kiremit (orange-700) */
+    --rz-primary-lighter: #fef3e2;
+    --rz-on-primary: #ffffff;
+    --rz-secondary: #475569;        /* slate-600 */
+    --rz-on-secondary: #ffffff;
+
+    /* Durum renkleri (StatusBadge + bildirim) */
+    --rz-success: #15803d;          /* green-700 */
+    --rz-danger: #b91c1c;           /* red-700 */
+    --rz-warning: #d97706;          /* amber-600 */
+    --rz-info: #475569;             /* slate-600 */
+
+    /* Yapı */
+    --rz-border-radius: 8px;
+    --rz-text-color: #1e293b;       /* slate-800 */
+    --rz-body-background-color: #f8fafc;
+
+    /* Uygulama kabuğu (Radzen dışı; app.css bunları kullanır) */
+    --app-shell: #334155;           /* slate-700 sidebar */
+    --app-shell-2: #1e293b;         /* slate-800 (marka/başlık) */
+    --app-shell-tx: #cbd5e1;        /* slate-300 sidebar metin */
+    --app-shell-tx-dim: #94a3b8;    /* slate-400 */
+    --app-bg: #f8fafc;              /* gövde arka plan */
+    --app-line: #e2e8f0;            /* slate-200 çizgi */
+    --app-ink: #1e293b;             /* ana metin */
+    --app-accent: #d97706;          /* amber accent (app.css için) */
+}

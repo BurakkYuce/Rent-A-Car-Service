@@ -17,6 +17,8 @@
     <PackageReference Include="Serilog.AspNetCore" />
     <!-- PDF export (roadmap F4): sözleşme/fatura -->
     <PackageReference Include="QuestPDF" />
+    <!-- Back-office interaktif grid (Radzen DataGrid) — ağır liste ekranları için. -->
+    <PackageReference Include="Radzen.Blazor" />
   </ItemGroup>
 
 </Project>
