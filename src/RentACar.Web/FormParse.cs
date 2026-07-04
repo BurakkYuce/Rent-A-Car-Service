@@ -16,8 +16,11 @@ public static class FormParse
     public static int? Int(string? s)
         => int.TryParse((s ?? "").Trim(), out var i) ? i : null;
 
+    // Form tarihi tz'siz gelir → TryParse yerel offset'li (+03:00) DateTimeOffset üretir; Npgsql
+    // timestamptz YALNIZ UTC (offset 0) kabul eder → ToUniversalTime ile normalize (yoksa yazımda 500).
     public static DateTimeOffset? Date(string? s)
-        => DateTimeOffset.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+        => DateTimeOffset.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? d.ToUniversalTime() : null;
 
     public static Guid? Id(string? s)
         => Guid.TryParse((s ?? "").Trim(), out var g) ? g : null;
