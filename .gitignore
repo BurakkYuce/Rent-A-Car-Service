@@ -37,3 +37,4 @@ logs/
 .playwright-mcp/
 referans-*.png
 proof-*.png
+.firecrawl/
