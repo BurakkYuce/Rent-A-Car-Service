@@ -50,6 +50,11 @@
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
 
+  <!-- Back-office interaktif grid temeli (MIT): ağır liste ekranları için Radzen DataGrid (server-side). -->
+  <ItemGroup>
+    <PackageVersion Include="Radzen.Blazor" Version="11.1.0" />
+  </ItemGroup>
+
   <!-- Test paketleri -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

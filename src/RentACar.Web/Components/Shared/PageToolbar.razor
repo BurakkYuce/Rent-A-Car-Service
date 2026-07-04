@@ -1,0 +1,17 @@
+@* Sayfa-başlık araç çubuğu (page-level; SHELL'e KOYULMAZ). Başlık + sağ aksiyon slotu. *@
+<div class="page-toolbar">
+    <div class="pt-left">
+        @if (!string.IsNullOrWhiteSpace(Icon)) { <span class="pt-icon">@Icon</span> }
+        <h1 class="pt-title">@Title</h1>
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="pt-actions">@Actions</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}
