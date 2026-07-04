@@ -4,10 +4,15 @@
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
 
-<PageTitle>Araçlar — referans sistem</PageTitle>
+<PageTitle>Araçlar — RentPro</PageTitle>
 
-<h1>Araçlar</h1>
-<p class="muted small">İndir: <a href="/listeler/export/araclar">Excel</a> · <a href="/listeler/export/araclar?format=csv">CSV</a></p>
+<div class="page-head">
+    <h1>🚗 Araç Listesi</h1>
+    <div class="actions">
+        <a href="/listeler/export/araclar">Excel'e Aktar</a>
+        <a href="/listeler/export/araclar?format=csv">CSV</a>
+    </div>
+</div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -81,24 +86,34 @@
     }
 </datalist>
 
-<form method="get" class="filter-bar">
-    <input name="q" value="@Q" placeholder="Plaka / marka ara" />
-    <input name="grup" value="@Grup" list="arac-grup-list" placeholder="Grup" />
-    <select name="durum">
-        <option value="">Durum (tümü)</option>
-        @foreach (var s in Enum.GetValues<VehicleStatus>())
+<div class="filter-panel">
+    <form method="get" class="filter-bar">
+        <input name="q" value="@Q" placeholder="Plaka / marka ara" />
+        <input name="grup" value="@Grup" list="arac-grup-list" placeholder="Grup" />
+        <select name="durum">
+            <option value="">Durum (tümü)</option>
+            @foreach (var s in Enum.GetValues<VehicleStatus>())
+            {
+                <option value="@s" selected="@(Durum == s.ToString())">@s</option>
+            }
+        </select>
+        <button type="submit">Filtrele</button>
+        <span class="count-badge">Kayıt: @_page.Total</span>
+        @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Durum))
         {
-            <option value="@s" selected="@(Durum == s.ToString())">@s</option>
+            <a href="/vehicles" class="link">Temizle</a>
         }
-    </select>
-    <button type="submit">Filtrele</button>
-    @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Durum))
-    {
-        <a href="/vehicles" class="link">Temizle</a>
-    }
-</form>
+    </form>
+</div>
 
-<table class="grid">
+<div class="summary-strip">
+    <div class="cell"><div class="s-k">Toplam</div><div class="s-v">@_toplam</div></div>
+    <div class="cell"><div class="s-k">Müsait</div><div class="s-v">@_musait</div></div>
+    <div class="cell"><div class="s-k">Serviste</div><div class="s-v">@_serviste</div></div>
+    <div class="cell"><div class="s-k">Doluluk</div><div class="s-v">%@_doluluk</div></div>
+</div>
+
+<table class="grid tr-grid">
     <thead>
         <tr>
             <th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th>
@@ -151,6 +166,7 @@
     private PagedResult<Vehicle> _page = new([], 0, 1, 20);
     private IReadOnlyList<Brand> _markalar = [];
     private IReadOnlyList<VehicleGroup> _gruplar = [];
+    private int _toplam, _musait, _serviste, _doluluk;
 
     protected override async Task OnInitializedAsync()
     {
@@ -162,6 +178,13 @@
         _page = await Vehicles.SearchAsync(filter);
         _markalar = await Markalar.ListActiveAsync();
         _gruplar = await AracGruplari.ListActiveAsync();
+
+        // Özet şerit (tüm filo — canlıdaki Boş/Kira/Bakım/Toplam/Doluluk şeridi).
+        var all = await Vehicles.ListAsync();
+        _toplam = all.Count;
+        _musait = all.Count(v => v.Durum == VehicleStatus.Musait);
+        _serviste = all.Count(v => v.Durum == VehicleStatus.Serviste);
+        _doluluk = _toplam == 0 ? 0 : (int)Math.Round(100.0 * (_toplam - _musait) / _toplam);
     }
 
     private string PageUrl(int p)

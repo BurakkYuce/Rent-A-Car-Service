@@ -3,15 +3,15 @@
 @inject HukukDosyaService Hukuk
 @using RentACar.Domain.Enums
 
-<PageTitle>Hukuk — referans sistem</PageTitle>
+<PageTitle>Hukuk — RentPro</PageTitle>
 
-<h1>Hukuk Dosyaları</h1>
+<div class="page-head"><h1>⚖️ Hukuk Dosyaları</h1><div class="actions"></div></div>
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Dosya No</th><th>Tür</th><th>Avukat</th><th class="num">Tutar</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

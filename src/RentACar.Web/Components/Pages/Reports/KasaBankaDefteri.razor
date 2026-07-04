@@ -4,12 +4,15 @@
 @using RentACar.Domain.Enums
 @inject ReportService Reports
 
-<PageTitle>Kasa / Banka Defteri — referans sistem</PageTitle>
+<PageTitle>Kasa / Banka Defteri — RentPro</PageTitle>
 
-<h1>Kasa / Banka Defteri</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/kasa-banka?format=excel&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/kasa-banka?format=csv&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>💰 Kasa / Banka Defteri</h1>
+    <div class="actions">
+        <a href="/raporlar/export/kasa-banka?format=excel&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/kasa-banka?format=csv&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 
 <form method="get" class="grid-form">
     <label>Hesap
@@ -42,7 +45,7 @@
     </div>
 </div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>Tarih</th><th>Kaynak</th><th>Açıklama</th><th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
     </thead>

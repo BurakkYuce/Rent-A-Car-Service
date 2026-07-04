@@ -32,3 +32,8 @@ Thumbs.db
 
 # Serilog dosya logları (P0-2) — asla commit edilmez
 logs/
+
+# referans sistem tasarım referans ekran görüntüleri (gerçek müşteri verisi — COMMIT ETME)
+.playwright-mcp/
+referans-*.png
+proof-*.png

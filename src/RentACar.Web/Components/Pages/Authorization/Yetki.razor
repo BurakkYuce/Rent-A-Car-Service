@@ -3,9 +3,9 @@
 @inject ScreenPermissionService Yetkiler
 @using RentACar.Domain.Enums
 
-<PageTitle>Ekran Yetkileri — referans sistem</PageTitle>
+<PageTitle>Ekran Yetkileri — RentPro</PageTitle>
 
-<h1>Ekran Yetkileri (override)</h1>
+<div class="page-head"><h1>⚙️ Ekran Yetkileri (override)</h1><div class="actions"></div></div>
 <p class="muted small">Rol-izin matrisi (floor) ÜSTÜNE ekran-bazlı sıkılaştırma. Bir ekran için override
     tanımlarsanız <strong>yalnız seçili roller</strong> erişir (deny-by-default), ama matris izni yine şarttır
     (override yetkiyi GENİŞLETMEZ). Override yoksa matris aynen geçerlidir.</p>
@@ -18,7 +18,7 @@
     <p class="error">@Hata</p>
 }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Ekran Kodu</th><th>İzinli Roller</th><th>Aktif</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

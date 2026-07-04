@@ -2,12 +2,15 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Gelir-Gider Özeti — referans sistem</PageTitle>
+<PageTitle>Gelir-Gider Özeti — RentPro</PageTitle>
 
-<h1>Gelir-Gider Özeti</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/gelir-gider?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/gelir-gider?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>💰 Gelir-Gider Özeti</h1>
+    <div class="actions">
+        <a href="/raporlar/export/gelir-gider?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/gelir-gider?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 
 <form method="get" class="grid-form">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
@@ -37,7 +40,7 @@
 <div class="report-cols">
     <div>
         <h2>Gelir Kırılımı</h2>
-        <table class="grid">
+        <table class="grid tr-grid">
             <thead><tr><th>Kaynak</th><th>Tutar</th></tr></thead>
             <tbody>
                 @if (_data.GelirKirilim.Count == 0)
@@ -53,7 +56,7 @@
     </div>
     <div>
         <h2>Gider Kırılımı</h2>
-        <table class="grid">
+        <table class="grid tr-grid">
             <thead><tr><th>Kaynak</th><th>Tutar</th></tr></thead>
             <tbody>
                 @if (_data.GiderKirilim.Count == 0)

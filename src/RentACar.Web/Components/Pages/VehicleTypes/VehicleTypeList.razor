@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject VehicleTypeService AracTipleri
 
-<PageTitle>Araç Tipleri — referans sistem</PageTitle>
+<PageTitle>Araç Tipleri — RentPro</PageTitle>
 
-<h1>Araç Tip Tanımları</h1>
+<div class="page-head"><h1>📋 Araç Tip Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Araç modellerinin sözlüğü (ör. "Egea", "Clio"). Araç formundaki Tip açılır
     listesini besler. Marka opsiyonel (serbest metin).</p>
 
@@ -26,7 +26,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Marka</th><th>Vites</th><th>Yakıt</th><th>Grup</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject CustomerService Cariler
 
-<PageTitle>Toplu Tahsilat — referans sistem</PageTitle>
+<PageTitle>Toplu Tahsilat — RentPro</PageTitle>
 
-<h1>Toplu Tahsilat</h1>
+<div class="page-head"><h1>💰 Toplu Tahsilat</h1><div class="actions"></div></div>
 <p class="muted small">Çok cariye tek seferde tahsilat. <strong>ATOMİK</strong>: bir satır geçersizse hiçbiri
     kaydedilmez. Her satır ayrı dengeli kayıt + ayrı No alır. Aynı form çift-submit edilirse (çift tıklama)
     tek kez işlenir (idempotency). Satır biçimi: <code>cariId;tutar;açıklama(ops)</code> — her satır bir cari.</p>
@@ -18,7 +18,7 @@
     <p class="error">@Hata</p>
 }
 
-<form method="post" action="/finans/toplu-tahsilat" class="grid-form"><AntiforgeryToken />
+<div class="filter-panel"><form method="post" action="/finans/toplu-tahsilat" class="grid-form"><AntiforgeryToken />
     <input type="hidden" name="islemAnahtari" value="@_token" />
     <label>Hesap
         <select name="hesap"><option value="Kasa">Kasa</option><option value="Banka">Banka</option></select>
@@ -28,11 +28,11 @@
                   placeholder="11111111-1111-1111-1111-111111111111;1500;Mart tahsilatı&#10;22222222-...;2000"></textarea>
     </label>
     <button type="submit">Toplu Tahsilat Yap</button>
-</form>
+</form></div>
 
 <details style="margin-top:1rem">
     <summary class="link">Cari kimlikleri (kopyala)</summary>
-    <table class="grid">
+    <table class="grid tr-grid">
         <thead><tr><th>Cari</th><th>Id</th></tr></thead>
         <tbody>
             @foreach (var c in _cariler)

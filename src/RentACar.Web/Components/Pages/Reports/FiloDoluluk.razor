@@ -2,12 +2,15 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Filo Doluluk — referans sistem</PageTitle>
+<PageTitle>Filo Doluluk — RentPro</PageTitle>
 
-<h1>Filo Doluluk</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/filo?format=excel">Excel</a> ·
-    <a href="/raporlar/export/filo?format=csv">CSV</a></p>
+<div class="page-head">
+    <h1>🚗 Filo Doluluk</h1>
+    <div class="actions">
+        <a href="/raporlar/export/filo?format=excel">Excel</a> ·
+        <a href="/raporlar/export/filo?format=csv">CSV</a>
+    </div>
+</div>
 
 <div class="cards">
     <div class="card">
@@ -28,7 +31,7 @@
     </div>
 </div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Durum</th><th>Adet</th></tr></thead>
     <tbody>
         <tr><td>Stokta</td><td>@_f.Stokta</td></tr>

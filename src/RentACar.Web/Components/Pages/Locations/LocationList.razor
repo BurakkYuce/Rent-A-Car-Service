@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject LocationService Locations
 
-<PageTitle>Lokasyonlar — referans sistem</PageTitle>
+<PageTitle>Lokasyonlar — RentPro</PageTitle>
 
-<h1>Ofis / Lokasyon Yönetimi</h1>
+<div class="page-head"><h1>📋 Ofis / Lokasyon Yönetimi</h1><div class="actions"></div></div>
 <p class="muted small">Alış/dönüş ofisleri. Rezervasyon, teklif ve kira formlarındaki Çıkış/Dönüş
     Ofisi açılır listeleri bu tablodan beslenir. (Şubeden ayrıdır; bir şubede birden çok ofis olabilir.)</p>
 
@@ -28,7 +28,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Telefon</th><th>Çalışma</th><th>Teslim Ücreti</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

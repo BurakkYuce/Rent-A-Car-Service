@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject BranchService Branches
 
-<PageTitle>Şubeler — referans sistem</PageTitle>
+<PageTitle>Şubeler — RentPro</PageTitle>
 
-<h1>Şube Yönetimi</h1>
+<div class="page-head"><h1>🏢 Şube Yönetimi</h1><div class="actions"></div></div>
 <p class="muted small">Yönetilen şube sözlüğü. Şube adları araç/gider/kullanıcı formlarında
     açılır liste kaynağı olarak kullanılır. (Mevcut serbest-metin şube alanları korunur.)</p>
 
@@ -31,7 +31,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>İl/İlçe</th><th>Yetkili</th><th>Telefon</th><th>Komisyon</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

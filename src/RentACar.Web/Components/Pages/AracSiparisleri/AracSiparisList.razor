@@ -4,9 +4,9 @@
 @using RentACar.Domain.Enums
 @inject AracSiparisService Siparisler
 
-<PageTitle>Araç Sipariş / Tedarik — referans sistem</PageTitle>
+<PageTitle>Araç Sipariş / Tedarik — RentPro</PageTitle>
 
-<h1>Araç Sipariş / Tedarik</h1>
+<div class="page-head"><h1>🚗 Araç Sipariş / Tedarik</h1><div class="actions"></div></div>
 <p class="muted small">Tedarikçiden araç siparişi takibi (FiloStatus: Sipariş). Defter postlamaz; teslim/satınalma
     faturalama ayrı.</p>
 
@@ -31,7 +31,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>No</th><th>Tedarikçi</th><th>Araç</th><th class="num">Adet</th><th class="num">Birim</th><th class="num">Toplam</th><th>Sipariş</th><th>Beklenen</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

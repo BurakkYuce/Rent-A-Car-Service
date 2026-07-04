@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject CoverageProductService SigortaUrunleri
 
-<PageTitle>Sigorta Ürünleri — referans sistem</PageTitle>
+<PageTitle>Sigorta Ürünleri — RentPro</PageTitle>
 
-<h1>Sigorta & Ek Hizmet Ürün Kataloğu</h1>
+<div class="page-head"><h1>🛡️ Sigorta & Ek Hizmet Ürün Kataloğu</h1><div class="actions"></div></div>
 <p class="muted small">Online/rezervasyonda satılan teminat (SCDW/CDW/IMM/LCF/PAI/Mini Hasar/Max Güvence…)
     ve paket/km hizmetlerinin fiyat & kural master'ı: günlük birim ücret + KDV + faturalama gün tavanı
     (Max Gün) + döviz + zorunluluk + TR/EN açıklama. Kira ek hizmet kalemlerinin master kaynağı; fiyat
@@ -41,7 +41,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Günlük</th><th>Max Gün</th><th>Zorunlu</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject EkHizmetTanimService EkHizmetler
 
-<PageTitle>Ek Hizmetler — referans sistem</PageTitle>
+<PageTitle>Ek Hizmetler — RentPro</PageTitle>
 
-<h1>Ek Hizmet Tanımları</h1>
+<div class="page-head"><h1>📋 Ek Hizmet Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Kiraya eklenebilen fiyatlı opsiyonlar (bebek koltuğu, GPS, ek sürücü, kasko
     muafiyeti…). Kira ek hizmet kalemleri varsayılan birim ücret + KDV oranını buradan alır; kira
     formunda serbest fiyat da girilebilir. KDV oranı 0..1 (ör. 0.20 = %20).</p>
@@ -25,7 +25,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Birim Ücret</th><th>KDV</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

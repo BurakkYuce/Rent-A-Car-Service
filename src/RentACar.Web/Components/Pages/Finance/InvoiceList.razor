@@ -3,14 +3,13 @@
 @inject InvoiceService Invoices
 @inject CustomerService Customers
 
-<PageTitle>Faturalar — referans sistem</PageTitle>
+<PageTitle>Faturalar — RentPro</PageTitle>
 
-<h1>Faturalar</h1>
-<p class="muted small">İndir: <a href="/listeler/export/faturalar">Excel</a> · <a href="/listeler/export/faturalar?format=csv">CSV</a></p>
+<div class="page-head"><h1>💰 Faturalar</h1><div class="actions"><a href="/listeler/export/faturalar">Excel</a> · <a href="/listeler/export/faturalar?format=csv">CSV</a></div></div>
 @if (Ok == "1") { <p class="ok">İşlem tamam.</p> }
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Tür</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

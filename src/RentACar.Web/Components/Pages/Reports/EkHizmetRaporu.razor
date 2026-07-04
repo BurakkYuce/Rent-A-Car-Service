@@ -2,15 +2,19 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Ek Hizmet Raporu — referans sistem</PageTitle>
+<PageTitle>Ek Hizmet Raporu — RentPro</PageTitle>
 
-<h1>Ek Hizmet Satış Raporu</h1>
-<p class="muted small">📥 İndir:
-    <a href="/raporlar/export/ek-hizmet?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-    <a href="/raporlar/export/ek-hizmet?format=csv&amp;from=@From&amp;to=@To">CSV</a></p>
+<div class="page-head">
+    <h1>🏷️ Ek Hizmet Satış Raporu</h1>
+    <div class="actions">
+        <a href="/raporlar/export/ek-hizmet?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/ek-hizmet?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+    </div>
+</div>
 <p class="muted small">Seçilen dönemde (kalem eklenme tarihi) İptal olmayan kiralara satılan ek
     hizmetlerin adına göre özeti. Tutarlar baz para (₺). Salt-okunur.</p>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
@@ -20,6 +24,7 @@
         <a href="/raporlar/ek-hizmet" class="link">Temizle</a>
     }
 </form>
+</div>
 
 <div class="cards">
     <div class="card">
@@ -40,7 +45,7 @@
     </div>
 </div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr><th>Ek Hizmet</th><th>Toplam Miktar</th><th>Kira Adedi</th><th>Net</th><th>KDV</th><th>Brüt</th></tr>
     </thead>

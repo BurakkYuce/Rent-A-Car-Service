@@ -2,14 +2,18 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
 
-<PageTitle>Cari Bakiye / Yaşlandırma — referans sistem</PageTitle>
+<PageTitle>Cari Bakiye / Yaşlandırma — RentPro</PageTitle>
 
-<h1>Cari Bakiye & Yaşlandırma</h1>
-<p class="muted small">📥 İndir — Bakiye:
-    <a href="/raporlar/export/cari-bakiye?format=excel">Excel</a> ·
-    <a href="/raporlar/export/cari-bakiye?format=csv">CSV</a> &nbsp;|&nbsp; Yaşlandırma:
-    <a href="/raporlar/export/yaslandirma?format=excel">Excel</a> ·
-    <a href="/raporlar/export/yaslandirma?format=csv">CSV</a></p>
+<div class="page-head">
+    <h1>👥 Cari Bakiye & Yaşlandırma</h1>
+    <div class="actions">
+        Bakiye:
+        <a href="/raporlar/export/cari-bakiye?format=excel">Excel</a> ·
+        <a href="/raporlar/export/cari-bakiye?format=csv">CSV</a> &nbsp;|&nbsp; Yaşlandırma:
+        <a href="/raporlar/export/yaslandirma?format=excel">Excel</a> ·
+        <a href="/raporlar/export/yaslandirma?format=csv">CSV</a>
+    </div>
+</div>
 
 <div class="cards">
     <div class="card">
@@ -27,7 +31,7 @@
 </div>
 
 <h2>Cari Bakiyeleri</h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Cari</th><th>Bakiye</th><th></th></tr></thead>
     <tbody>
         @if (_balances.Count == 0)
@@ -46,7 +50,7 @@
 </table>
 
 <h2>Borç Yaşlandırma <span class="muted">(brüt — tahsilat mahsubu yok)</span></h2>
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Cari</th><th>0-30 gün</th><th>31-60</th><th>61-90</th><th>90+</th><th>Toplam</th></tr></thead>
     <tbody>
         @if (_aging.Count == 0)
