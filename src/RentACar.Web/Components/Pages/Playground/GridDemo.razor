@@ -1,0 +1,70 @@
+@page "/playground/grid-demo"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [Authorize]
+@using RentACar.Web.Components.Shared
+@using RentACar.Web.Identity
+@inject VehicleService Vehicles
+@inject CircuitTenantContext CircuitTenant
+
+<PageTitle>Grid Demo — RentPro</PageTitle>
+
+<PageToolbar Title="Grid Demo — Radzen + RLS-in-circuit kanıtı" Icon="🧪" />
+
+@* KALICI SMOKE: grid GERÇEK DbContext'ten RLS arkasından okur. Tenant circuit'e akmadıysa RLS
+   default-deny → 0 satır (sahte-yeşil'e karşı görünür kanıt). Yeşil = tenant aktı + veri geldi. *@
+<div class="rls-diag @(_count > 0 ? "ok" : "bad")">
+    <strong>RLS-in-circuit:</strong>
+    tenant = <b>@(CircuitTenant.TenantId?.ToString()[..8] ?? "YOK")</b> ·
+    kullanıcı = <b>@(CircuitTenant.UserName ?? "?")</b> ·
+    circuit'te RLS arkasından yüklenen araç = <b>@_count</b>
+    @if (_count == 0)
+    {
+        <span> — ⚠️ 0 satır: bu tenant'ın aracı yoksa normal; VARSA tenant circuit'e akmamış (RLS deny) demektir.</span>
+    }
+</div>
+
+<FilterPanel>
+    <RadzenDataGridWrapper TItem="Vehicle" Data="@_data" Count="@_count" LoadData="@LoadData" IsLoading="@_loading"
+                           EmptyText="Araç yok.">
+        <Columns>
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Plaka)" Title="Plaka" Width="140px" Frozen="true" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Marka)" Title="Marka" Width="160px" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Grup)" Title="Grup" Width="140px" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Sube)" Title="Şube" Width="140px" />
+            <RadzenDataGridColumn TItem="Vehicle" Title="Durum" Width="130px" Sortable="false" Filterable="false">
+                <Template Context="v"><StatusBadge Durum="@v.Durum" /></Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Km)" Title="KM" Width="110px" TextAlign="TextAlign.Right" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="@nameof(Vehicle.Yakit)" Title="Yakıt" Width="120px" />
+        </Columns>
+    </RadzenDataGridWrapper>
+</FilterPanel>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    // NULL başlat: grid boş-liste'yi "yüklendi" sayıp LoadData'yı ATLAR → null olmalı ki ilk yüklemeyi tetiklesin.
+    private IEnumerable<Vehicle>? _data;
+    private int _count;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Circuit'te tenant'ı authenticated user'dan (cascading auth-state) DOLDUR — interceptor/RLS bunu okur.
+        // LoadData'dan (grid ilk render sonrası tetikler) ÖNCE çalışır → sorgu doğru tenant'ı görür.
+        if (AuthState is not null)
+            CircuitTenant.SetFrom((await AuthState).User);
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        _loading = true;
+        var top = args.Top ?? 25;
+        var page = ((args.Skip ?? 0) / Math.Max(top, 1)) + 1;
+        // GERÇEK server-side sorgu (DB skip/take) — RLS arkasından tenant-owned Araç READ (CRUD YOK).
+        var result = await Vehicles.SearchAsync(new VehicleFilter { Page = page, PageSize = top });
+        _data = result.Items;
+        _count = result.Total;
+        _loading = false;
+    }
+}

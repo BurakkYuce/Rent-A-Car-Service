@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using RentACar.Infrastructure.Persistence;
 using Serilog;
 using Serilog.Events;
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
+using Radzen;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -92,9 +95,22 @@ var appConn = builder.Configuration.GetConnectionString("Default")
 var migratorConn = builder.Configuration.GetConnectionString("Migrator")
     ?? throw new InvalidOperationException("ConnectionStrings:Migrator eksik.");
 
-// ---- Blazor (static SSR + interaktif sunucu bileşenleri kayıtlı; araç ekranları SSR) ----
+// ---- Blazor (HİBRİT: static SSR taban + ağır grid ekranları @rendermode InteractiveServer) ----
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// ---- Radzen (back-office interaktif grid + servisler: Notification/Dialog/Tooltip/Context) ----
+builder.Services.AddRadzenComponents();
+
+// ---- Kültür: tr-TR (tarih dd.MM.yyyy, ondalık virgül, TRY) — RadzenDatePicker/Numeric bunu kullanır.
+// Mevcut static form-POST yolu FormParse'ta explicit InvariantCulture kullanır → ETKİLENMEZ (bağımsız).
+var trCulture = new CultureInfo("tr-TR");
+builder.Services.Configure<RequestLocalizationOptions>(o =>
+{
+    o.DefaultRequestCulture = new RequestCulture(trCulture);
+    o.SupportedCultures = new[] { trCulture };
+    o.SupportedUICultures = new[] { trCulture };
+});
 
 // ---- Kimlik / yetki (cookie, 2 aşamalı login) ----
 builder.Services.AddHttpContextAccessor();
@@ -131,10 +147,17 @@ builder.Services.AddRateLimiter(o =>
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, SsrAuthenticationStateProvider>();
 
-// ITenantContext / ICurrentUser → HttpContext claim'lerinden (tek örnek iki arayüze).
-builder.Services.AddScoped<HttpContextIdentity>();
-builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpContextIdentity>());
-builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContextIdentity>());
+// ITenantContext / ICurrentUser → RENDER MODUNA göre çözülür:
+//  • static SSR (HttpContext VAR)      → HttpContextIdentity (claim'i her erişimde taze okur)
+//  • interaktif circuit (HttpContext null) → CircuitTenantContext (circuit init'te bir kez doldurulur)
+// Alt katman (interceptor/RLS/factory) değişmez — yalnız kimlik kaynağı mod-uyumlu olur.
+builder.Services.AddScoped<CircuitTenantContext>();
+builder.Services.AddScoped<HybridIdentity>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HybridIdentity>());
+builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HybridIdentity>());
+
+// Kabuk durumu (sidebar collapse / aktif menü) — layout seviyesi seam.
+builder.Services.AddScoped<RentACar.Web.Components.Layout.ShellState>();
 
 // ---- Uygulama + altyapı ----
 // PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
@@ -163,6 +186,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — Radzen tarih/sayı formatı tutarlı
 
 // Reverse-proxy (Caddy/nginx aynı makinede) arkasında gerçek istemci IP'si — rate limit doğru IP'yi görsün.
 // Varsayılan KnownProxies=loopback: uzak istemciden gelen sahte X-Forwarded-For'a güvenilmez.
