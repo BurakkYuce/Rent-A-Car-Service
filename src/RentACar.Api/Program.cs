@@ -53,6 +53,10 @@ builder.Services.AddScoped<ApiIdentity>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<ApiIdentity>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<ApiIdentity>());
 
+// Anlık kesme (erişim aç/kapa): tenant durumunu kısa-ömürlü cache'le (Web ile ORTAK TenantStatusCache).
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<TenantStatusCache>();
+
 // JWT üretimi + doğrulama.
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<JwtTokenService>();
@@ -75,6 +79,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = ClaimTypes.Name,
             RoleClaimType = ClaimTypes.Role,
             ClockSkew = TimeSpan.FromSeconds(30),
+        };
+        options.Events = new JwtBearerEvents
+        {
+            // Anlık kesme: token GEÇERLİ olsa da tenant KAPALIYSA isteği reddet (401). Platform konsolu
+            // Web'de toggle'lar; API ayrı process olduğundan cache ~60sn TTL ile bayat olabilir (kabul —
+            // launch-time IsActive + ≤60sn API-kesme). Tenants platform tablosu → cache app-conn ile okur.
+            OnTokenValidated = async ctx =>
+            {
+                var tid = ctx.Principal?.FindFirst(ApiClaims.TenantId)?.Value;
+                if (Guid.TryParse(tid, out var tenantId))
+                {
+                    var cache = ctx.HttpContext.RequestServices.GetRequiredService<TenantStatusCache>();
+                    if (!await cache.IsActiveAsync(tenantId, ctx.HttpContext.RequestAborted))
+                        ctx.Fail("Tenant erişimi kapatıldı.");
+                }
+            },
         };
     });
 builder.Services.AddAuthorization();

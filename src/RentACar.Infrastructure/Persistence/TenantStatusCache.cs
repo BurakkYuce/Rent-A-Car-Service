@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using RentACar.Infrastructure.Persistence;
 
-namespace RentACar.Web.Platform;
+namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
-/// Tenant.IsActive'in kısa-ömürlü cache'i (anlık kesme için). `Tenants` platform tablosu (RLS yok,
-/// racar_app SELECT açık) → app-conn factory ile okunur (query filter yok, GUC önemsiz). Toggle'da
-/// <see cref="Invalidate"/> ile aynı-instance ANINDA; aksi halde ~60sn TTL ile en fazla o kadar bayat.
+/// Tenant.IsActive'in kısa-ömürlü cache'i (erişim aç/kapa anlık-kesmesi için — Web middleware + API JWT
+/// OnTokenValidated ORTAK kullanır). `Tenants` platform tablosu (RLS yok, racar_app SELECT açık) → app-conn
+/// factory ile okunur (query filter yok, GUC önemsiz). Aynı process'te toggle <see cref="Invalidate"/> ile
+/// ANINDA; farklı process'te (Web↔Api) ~60sn TTL ile en fazla o kadar bayat.
 /// </summary>
 public sealed class TenantStatusCache(IMemoryCache cache, IDbContextFactory<AppDbContext> factory)
 {
