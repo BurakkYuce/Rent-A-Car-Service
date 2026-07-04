@@ -1,0 +1,15 @@
+@* KPI kartı altı vade kademesi: 1 Hafta / 30 Gün / Tarihi Geçen (TürevRent parite). *@
+<div class="vade-tier">
+    <div class="vt-boxes">
+        <a class="vt-box" href="@Href"><span class="vt-n">@Tier.Yedi</span>1 Hafta Kalan</a>
+        <a class="vt-box @(Tier.Otuz > 0 ? "warn" : "")" href="@Href"><span class="vt-n">@Tier.Otuz</span>30 Gün Kalan</a>
+        <a class="vt-box @(Tier.Gec > 0 ? "danger" : "")" href="@Href"><span class="vt-n">@Tier.Gec</span>Tarihi Geçen</a>
+    </div>
+    <div class="vt-label">@Label</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public (int Yedi, int Otuz, int Gec) Tier { get; set; }
+    [Parameter] public string Href { get; set; } = "#";
+}

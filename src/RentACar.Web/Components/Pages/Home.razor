@@ -6,6 +6,7 @@
 @inject ReservationService Reservations
 @inject VadeService Vade
 @inject DashboardService Dashboard
+@inject RentACar.Application.Reporting.ReportService Reports
 @inject RentACar.Application.Crm.SikayetService Sikayet
 
 <PageTitle>Panel — RentPro</PageTitle>
@@ -13,40 +14,83 @@
 <div class="page-head">
     <h1>🏠 Panel</h1>
     <div class="actions">
-        <a href="/vehicles">Araçlar</a>
-        <a href="/rezervasyonlar">Rezervasyonlar</a>
-        <a href="/kiralar">Kiralar</a>
+        <a href="/rezervasyonlar">+ Rezervasyon</a>
+        <a href="/kiralar">+ Kira</a>
+        <a href="/musaitlik">Müsaitlik</a>
     </div>
 </div>
 
-<div class="kpi-row">
-    <div class="kpi k-purple">
-        <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic">🤝</span></div>
-        <div class="k-num">@_aktifKira</div>
-        <div class="k-foot">Toplam @_counts.Total araçtan</div>
+@* 4 KPI kartı + her birinin altında vade kademesi (TürevRent parite) *@
+<div class="kpi-grid">
+    <div class="kpi-cell">
+        <div class="kpi k-purple">
+            <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic">🤝</span></div>
+            <div class="k-num">@_fleet.Kirada</div>
+            <div class="k-bar"><span style="width:@Yuzde(_fleet.Kirada)%"></span></div>
+            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Kirada)</div>
+        </div>
+        <VadeTier Label="Trafik Sigortaları" Tier="_trafik" Href="/vade" />
     </div>
-    <div class="kpi k-green">
-        <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic">🚙</span></div>
-        <div class="k-num">@_counts.Musait</div>
-        <div class="k-foot">Kiraya hazır</div>
+    <div class="kpi-cell">
+        <div class="kpi k-green">
+            <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic">🚙</span></div>
+            <div class="k-num">@_fleet.Musait</div>
+            <div class="k-bar"><span style="width:@Yuzde(_fleet.Musait)%"></span></div>
+            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Musait)</div>
+        </div>
+        <VadeTier Label="Kaskolar" Tier="_kasko" Href="/vade" />
     </div>
-    <div class="kpi k-red">
-        <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic">🔧</span></div>
-        <div class="k-num">@_counts.Serviste</div>
-        <div class="k-foot">Bakım / onarım</div>
+    <div class="kpi-cell">
+        <div class="kpi k-red">
+            <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic">🔧</span></div>
+            <div class="k-num">@_fleet.Serviste</div>
+            <div class="k-bar"><span style="width:@Yuzde(_fleet.Serviste)%"></span></div>
+            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Serviste)</div>
+        </div>
+        <VadeTier Label="Muayeneler" Tier="_muayene" Href="/vade" />
     </div>
-    <div class="kpi k-orange">
-        <div class="k-top"><span class="k-label">Bugün Çıkış</span><span class="k-ic">⏱️</span></div>
-        <div class="k-num">@_bugunCikis</div>
-        <div class="k-foot">Planlı teslim</div>
+    <div class="kpi-cell">
+        <div class="kpi k-orange">
+            <div class="k-top"><span class="k-label">Açık Rezervasyonlar</span><span class="k-ic">⏱️</span></div>
+            <div class="k-num">@_acikRezSayi</div>
+            <div class="k-bar"><span style="width:@Yuzde(_acikRezSayi)%"></span></div>
+            <div class="k-foot">Bekleyen rezervasyon</div>
+        </div>
+        <div class="vade-tier">
+            <div class="vt-boxes">
+                <a class="vt-box @(_kmGecenBakim > 0 ? "danger" : "")" href="/raporlar/periyodik-servis">
+                    <span class="vt-n">@_kmGecenBakim</span>KM Geçen Bakım</a>
+                <a class="vt-box @(_gorulmeyenRez > 0 ? "warn" : "")" href="/rezervasyonlar">
+                    <span class="vt-n">@_gorulmeyenRez</span>Görülmeyen Rez.</a>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="stat-row">
-    <div class="stat"><span class="s-ic">🚗</span><div><div class="s-num">@_counts.Total</div><div class="s-label">Toplam Araç</div></div></div>
-    <div class="stat"><span class="s-ic">👥</span><div><div class="s-num">@_cariCount</div><div class="s-label"><a href="/cariler">Cari</a></div></div></div>
-    <div class="stat"><span class="s-ic">↩️</span><div><div class="s-num">@_bugunDonus</div><div class="s-label">Bugün Dönüş</div></div></div>
-    <div class="stat"><span class="s-ic">📣</span><div><div class="s-num">@_acikSikayet</div><div class="s-label"><a href="/sikayetler">Açık Şikayet</a></div></div></div>
+@* Dönüşler / Çıkışlar — gün-filtreli (TürevRent parite) *@
+<div class="donus-cikis">
+    <div class="dc-panel">
+        <div class="dc-head">
+            <span class="dc-title">↩️ Dönüşler</span>
+            <span class="dc-tabs">
+                <a class="@(Df == "gec" ? "on" : "")" href="/?df=gec&cf=@Cf">Gecikmiş <b>@_donusGec.Count</b></a>
+                <a class="@(Df is null or "bugun" ? "on" : "")" href="/?df=bugun&cf=@Cf">Bugün <b>@_donusBugun.Count</b></a>
+                <a class="@(Df == "yarin" ? "on" : "")" href="/?df=yarin&cf=@Cf">Yarın <b>@_donusYarin.Count</b></a>
+            </span>
+        </div>
+        <DcTable Rows="DonusList" Empty="Kayıt yok." />
+    </div>
+    <div class="dc-panel">
+        <div class="dc-head">
+            <span class="dc-title">➡️ Çıkışlar</span>
+            <span class="dc-tabs">
+                <a class="@(Cf == "gec" ? "on" : "")" href="/?cf=gec&df=@Df">Gecikmiş <b>@_cikisGec.Count</b></a>
+                <a class="@(Cf is null or "bugun" ? "on" : "")" href="/?cf=bugun&df=@Df">Bugün <b>@_cikisBugun.Count</b></a>
+                <a class="@(Cf == "yarin" ? "on" : "")" href="/?cf=yarin&df=@Df">Yarın <b>@_cikisYarin.Count</b></a>
+            </span>
+        </div>
+        <DcTable Rows="CikisList" Empty="Kayıt yok." />
+    </div>
 </div>
 
 @if (_gecmis + _yakin > 0)
@@ -55,13 +99,14 @@
         ⚠️ <strong>Vade uyarısı:</strong>
         @if (_gecmis > 0) { <span class="badge danger">@_gecmis geçmiş</span> }
         @if (_yakin > 0) { <span class="badge warn">@_yakin yaklaşan (≤30 gün)</span> }
+        @if (_acikSikayet > 0) { <span class="badge warn">@_acikSikayet açık şikayet</span> }
         <a href="/vade">Vade panosu →</a>
     </div>
 }
 
-@* Finans özeti (roadmap D3) — yalnız mali yetkili roller (kasa/banka/açık bakiye hassas). *@
+@* Finans özeti — yalnız mali yetkili roller. *@
 <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-    <h2>Finans Özeti</h2>
+    <h2 class="dash-h2">Finans Özeti</h2>
     <div class="stat-row">
         <div class="stat"><span class="s-ic">💵</span><div><div class="s-num">@_dash.KasaBakiye.ToString("N0")</div><div class="s-label">Kasa Bakiye</div></div></div>
         <div class="stat"><span class="s-ic">🏦</span><div><div class="s-num">@_dash.BankaBakiye.ToString("N0")</div><div class="s-label">Banka Bakiye</div></div></div>
@@ -71,42 +116,78 @@
 </AuthorizeView>
 
 @code {
-    private (int Total, int Musait, int Serviste) _counts;
-    private int _cariCount;
-    private int _aktifKira;
-    private int _bugunCikis;
-    private int _bugunDonus;
-    private int _gecmis;
-    private int _yakin;
-    private int _acikSikayet;
+    [SupplyParameterFromQuery(Name = "df")] public string? Df { get; set; } // dönüşler filtresi
+    [SupplyParameterFromQuery(Name = "cf")] public string? Cf { get; set; } // çıkışlar filtresi
+
+    private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0, 0);
+    private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
+    private int _acikRezSayi, _kmGecenBakim, _gorulmeyenRez, _gecmis, _yakin, _acikSikayet;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
+
+    private List<DcRow> _donusGec = [], _donusBugun = [], _donusYarin = [];
+    private List<DcRow> _cikisGec = [], _cikisBugun = [], _cikisYarin = [];
+
+    private List<DcRow> DonusList => Df switch { "gec" => _donusGec, "yarin" => _donusYarin, _ => _donusBugun };
+    private List<DcRow> CikisList => Cf switch { "gec" => _cikisGec, "yarin" => _cikisYarin, _ => _cikisBugun };
+
+    private int Yuzde(int n) => _fleet.Toplam == 0 ? 0 : (int)Math.Round(100.0 * n / _fleet.Toplam);
 
     protected override async Task OnInitializedAsync()
     {
         _dash = await Dashboard.GetAsync(DateTimeOffset.UtcNow);
-        var list = await Vehicles.ListAsync();
-        _counts = (
-            list.Count,
-            list.Count(v => v.Durum == VehicleStatus.Musait),
-            list.Count(v => v.Durum == VehicleStatus.Serviste));
-        _cariCount = (await Customers.ListAsync()).Count;
+        _fleet = await Reports.GetFleetUtilizationAsync();
 
+        var customers = await Customers.ListAsync();
+        var vehicles = await Vehicles.ListAsync();
         var rentals = await Rentals.ListAsync();
-        _aktifKira = rentals.Count(r => r.Durum == RentalStatus.Kirada);
+        var rezervler = await Reservations.ListAsync();
+        var ad = customers.ToDictionary(c => c.Id, c => c.DisplayName ?? "");
+        var plaka = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+        string Ad(Guid id) => ad.GetValueOrDefault(id, "—");
+        string Plaka(Guid id) => plaka.GetValueOrDefault(id, "—");
 
         var bugun = DateTimeOffset.Now.Date;
-        // Bugün dönüşü planlanan aktif kiralar (bitiş tarihi bugün).
-        _bugunDonus = rentals.Count(r => r.Durum == RentalStatus.Kirada && r.BitTar.LocalDateTime.Date == bugun);
-        // Bugün çıkışı planlanan rezervasyonlar (henüz iptal/kiraya çevrilmemiş, başlangıç bugün).
-        var rezervler = await Reservations.ListAsync();
-        _bugunCikis = rezervler.Count(r =>
-            (r.Durum == ReservationStatus.Rezerv || r.Durum == ReservationStatus.Onayli)
-            && r.BasTar.LocalDateTime.Date == bugun);
+
+        // Dönüşler: aktif kiralar (dönmemiş), planlanan dönüş tarihine göre.
+        var acikKira = rentals.Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar is null).ToList();
+        List<DcRow> DonusRows(Func<DateTime, bool> pred) => acikKira
+            .Where(r => pred(r.BitTar.LocalDateTime.Date))
+            .OrderBy(r => r.BitTar)
+            .Select(r => new DcRow(r.BitTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.DonusOfisi ?? ""))
+            .ToList();
+        _donusGec = DonusRows(d => d < bugun);
+        _donusBugun = DonusRows(d => d == bugun);
+        _donusYarin = DonusRows(d => d == bugun.AddDays(1));
+
+        // Çıkışlar: açık rezervasyonlar (Rezerv/Onayli), planlanan başlangıç (çıkış) tarihine göre.
+        var acikRez = rezervler.Where(r => r.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli).ToList();
+        _acikRezSayi = acikRez.Count;
+        List<DcRow> CikisRows(Func<DateTime, bool> pred) => acikRez
+            .Where(r => pred(r.BasTar.LocalDateTime.Date))
+            .OrderBy(r => r.BasTar)
+            .Select(r => new DcRow(r.BasTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.CikisOfisi ?? ""))
+            .ToList();
+        _cikisGec = CikisRows(d => d < bugun);
+        _cikisBugun = CikisRows(d => d == bugun);
+        _cikisYarin = CikisRows(d => d == bugun.AddDays(1));
+        _gorulmeyenRez = _cikisGec.Count; // çıkışı gecikmiş açık rezervasyon = görülmeyen
+
+        // Vade kademeleri (tür × bucket).
+        var vade = await Vade.GetAllAsync();
+        (int, int, int) Tier(string tur) => (
+            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.YediGun),
+            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.OtuzGun),
+            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.Gecmis));
+        _trafik = Tier("Trafik");
+        _kasko = Tier("Kasko");
+        _muayene = Tier("Muayene");
+
+        var servis = await Reports.GetPeriyodikServisAsync();
+        _kmGecenBakim = servis.Count(s => s.KalanKm < 0);
 
         var warnings = await Vade.GetWarningsAsync();
         _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
         _yakin = warnings.Count(w => w.Bucket != VadeBucket.Gecmis);
-
         _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.SikayetDurum.Acik);
     }
 }
