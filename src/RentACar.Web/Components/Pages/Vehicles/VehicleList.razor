@@ -3,6 +3,7 @@
 @inject VehicleService Vehicles
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
+@inject BranchService Subeler
 
 <PageTitle>Araçlar — RentPro</PageTitle>
 
@@ -23,19 +24,12 @@
     <summary>+ Yeni Araç</summary>
     <form method="post" action="/vehicles/create" class="grid-form"><AntiforgeryToken />
         <label>Plaka<input name="plaka" required /></label>
-        <label>Marka<input name="marka" list="marka-list" placeholder="Tanımlı markadan seç veya yaz" /></label>
-        <datalist id="marka-list">
-            @foreach (var m in _markalar) { <option value="@m.Ad">@m.Kod</option> }
-        </datalist>
-        <label>Grup<input name="grup" /></label>
-        <label>Marka<input name="marka" /></label>
-        <label>Grup<input name="grup" list="arac-grup-list" placeholder="Tanımlı gruptan seç veya yaz" /></label>
-        <label>Marka<input name="marka" /></label>
-        <label>Tip<input name="tip" /></label>
-        <label>Grup<input name="grup" /></label>
-        <label>Segment<input name="segment" /></label>
+        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
+        <ComboBox Name="grup" Label="Grup" Options="_grupOpts" />
+        <ComboBox Name="tip" Label="Tip" Options="_tipOpts" />
+        <ComboBox Name="segment" Label="Segment" Options="_segmentOpts" />
         <label>SIPP<input name="sipp" maxlength="4" placeholder="CDMD" /></label>
-        <label>Renk<input name="renk" /></label>
+        <ComboBox Name="renk" Label="Renk" Options="_renkOpts" />
         <label>Model Yılı<input name="modelYili" type="number" /></label>
         <label>Vites
             <select name="vites">
@@ -48,7 +42,7 @@
         </label>
         <label>Şasi No<input name="sasiNo" /></label>
         <label>Motor No<input name="motorNo" /></label>
-        <label>Şube<input name="sube" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
         <label>Durum
             <select name="durum">
                 @foreach (var s in Enum.GetValues<VehicleStatus>())
@@ -166,7 +160,14 @@
     private PagedResult<Vehicle> _page = new([], 0, 1, 20);
     private IReadOnlyList<Brand> _markalar = [];
     private IReadOnlyList<VehicleGroup> _gruplar = [];
+    private IReadOnlyList<Branch> _subeler = [];
+    private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [];
     private int _toplam, _musait, _serviste, _doluluk;
+
+    // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i (veri girildikçe kendini besler).
+    private static List<string> Opts(params IEnumerable<string?>[] sources) =>
+        sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -178,10 +179,19 @@
         _page = await Vehicles.SearchAsync(filter);
         _markalar = await Markalar.ListActiveAsync();
         _gruplar = await AracGruplari.ListActiveAsync();
+        _subeler = await Subeler.ListActiveAsync();
 
         // Özet şerit (tüm filo — canlıdaki Boş/Kira/Bakım/Toplam/Doluluk şeridi).
         var all = await Vehicles.ListAsync();
         _toplam = all.Count;
+
+        // Seç-veya-yaz önerileri (master tanımlar ∪ mevcut kayıt değerleri).
+        _markaOpts = Opts(_markalar.Select(m => m.Ad), all.Select(v => v.Marka));
+        _grupOpts = Opts(_gruplar.Select(g => g.Ad), all.Select(v => v.Grup));
+        _tipOpts = Opts(all.Select(v => v.Tip));
+        _segmentOpts = Opts(all.Select(v => v.Segment));
+        _renkOpts = Opts(all.Select(v => v.Renk));
+        _subeOpts = Opts(_subeler.Select(s => s.Ad), all.Select(v => v.Sube));
         _musait = all.Count(v => v.Durum == VehicleStatus.Musait);
         _serviste = all.Count(v => v.Durum == VehicleStatus.Serviste);
         _doluluk = _toplam == 0 ? 0 : (int)Math.Round(100.0 * (_toplam - _musait) / _toplam);
