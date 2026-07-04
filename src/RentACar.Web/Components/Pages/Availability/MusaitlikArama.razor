@@ -4,6 +4,8 @@
 @using RentACar.Application.Pricing
 @inject AvailabilityService Availability
 @inject RentalQuoteEngine Quotes
+@inject BranchService Subeler
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Müsait Araç Ara — RentPro</PageTitle>
 
@@ -17,8 +19,8 @@
 <form method="get" class="grid-form">
     <label>Başlangıç<input name="from" type="date" value="@From" required /></label>
     <label>Bitiş<input name="to" type="date" value="@To" required /></label>
-    <label>Grup<input name="grup" value="@Grup" placeholder="(tümü)" /></label>
-    <label>Şube<input name="sube" value="@Sube" placeholder="(tümü)" /></label>
+    <ComboBox Name="grup" Label="Grup" Value="@Grup" Options="_grupOpts" Placeholder="(tümü)" />
+    <ComboBox Name="sube" Label="Şube" Value="@Sube" Options="_subeOpts" Placeholder="(tümü)" />
     <button type="submit">Ara</button>
 </form>
 
@@ -60,12 +62,17 @@
     private readonly Dictionary<string, (decimal Gunluk, decimal Toplam, string Para)> _fiyat = new(StringComparer.OrdinalIgnoreCase);
     private bool _searched;
     private string? Hata;
+    private List<string> _subeOpts = [];
+    private List<string> _grupOpts = [];
 
     private (decimal Gunluk, decimal Toplam, string Para)? Fiyat(string? grup)
         => grup is not null && _fiyat.TryGetValue(grup, out var f) ? f : null;
 
     protected override async Task OnInitializedAsync()
     {
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _grupOpts = (await AracGruplari.ListActiveAsync()).Select(g => g.Ad).ToList();
+
         var from = ParseDate(From);
         var to = ParseDate(To);
         if (from is null || to is null) return; // ilk açılış: arama yok

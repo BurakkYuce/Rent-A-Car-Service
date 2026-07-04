@@ -1,6 +1,7 @@
 @page "/anketler"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject AnketService Anketler
+@inject ReservationSourceService Kaynaklar
 
 <PageTitle>Anketler — RentPro</PageTitle>
 
@@ -38,7 +39,7 @@
 <form method="post" action="/anketler/create" class="grid-form"><AntiforgeryToken />
     <label>Puan (0-10)<input name="puan" type="number" min="0" max="10" required /></label>
     <label>Yorum<input name="yorum" /></label>
-    <label>Kaynak<input name="kaynak" placeholder="Telefon/Web/..." /></label>
+    <ComboBox Name="kaynak" Label="Kaynak" Options="_kaynakOpts" Placeholder="Telefon/Web/..." />
     <label>Cari ID (ops.)<input name="cariId" /></label>
     <label>Tarih<input name="tarih" type="date" /></label>
     <button type="submit">Ekle</button>
@@ -47,5 +48,20 @@
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private IReadOnlyList<RentACar.Domain.Entities.Anket> _list = [];
-    protected override async Task OnInitializedAsync() => _list = await Anketler.ListAsync();
+    private List<string> _kaynakOpts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Anketler.ListAsync();
+        var kaynaklar = await Kaynaklar.ListActiveAsync();
+
+        // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
+        _kaynakOpts = kaynaklar.Select(k => k.Ad)
+            .Concat(_list.Select(a => a.Kaynak))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture)
+            .ToList();
+    }
 }

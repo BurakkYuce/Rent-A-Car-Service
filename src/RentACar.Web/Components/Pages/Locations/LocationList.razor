@@ -1,6 +1,7 @@
 @page "/lokasyonlar"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject LocationService Locations
+@inject BranchService Subeler
 
 <PageTitle>Lokasyonlar — RentPro</PageTitle>
 
@@ -23,7 +24,7 @@
         <label>E-posta<input name="eposta" type="email" /></label>
         <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="07:00-23:00" /></label>
         <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" /></label>
-        <label>Şube<input name="sube" placeholder="(opsiyonel)" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -57,7 +58,7 @@
                             <label>E-posta<input name="eposta" type="email" value="@l.Eposta" /></label>
                             <label>Çalışma Saatleri<input name="calismaSaatleri" value="@l.CalismaSaatleri" /></label>
                             <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" value="@l.TeslimUcreti" /></label>
-                            <label>Şube<input name="sube" value="@l.Sube" /></label>
+                            <ComboBox Name="sube" Label="Şube" Value="@l.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@l.Aktif">Aktif</option>
@@ -81,7 +82,11 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<Location> _list = [];
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await Locations.ListAsync();
+    {
+        _list = await Locations.ListAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+    }
 }

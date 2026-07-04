@@ -1,6 +1,8 @@
 @page "/arac-tipleri"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject VehicleTypeService AracTipleri
+@inject BrandService Markalar
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Araç Tipleri — RentPro</PageTitle>
 
@@ -18,10 +20,10 @@
     <form method="post" action="/arac-tipleri/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="EGEA" /></label>
         <label>Ad<input name="ad" required placeholder="Fiat Egea" /></label>
-        <label>Marka<input name="marka" placeholder="(opsiyonel)" /></label>
+        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" Placeholder="(opsiyonel)" />
         <label>Vites<input name="vites" placeholder="Manuel/Otomatik" /></label>
         <label>Yakıt<input name="yakit" placeholder="Benzin/Dizel/Elektrik" /></label>
-        <label>Grup<input name="grup" placeholder="(opsiyonel)" /></label>
+        <ComboBox Name="grup" Label="Grup" Options="_grupOpts" Placeholder="(opsiyonel)" />
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -50,10 +52,10 @@
                             <input type="hidden" name="id" value="@t.Id" />
                             <label>Kod<input name="kod" value="@t.Kod" required /></label>
                             <label>Ad<input name="ad" value="@t.Ad" required /></label>
-                            <label>Marka<input name="marka" value="@t.Marka" /></label>
+                            <ComboBox Name="marka" Label="Marka" Value="@t.Marka" Options="_markaOpts" ListId="dl-marka-edit" />
                             <label>Vites<input name="vites" value="@t.Vites" /></label>
                             <label>Yakıt<input name="yakit" value="@t.Yakit" /></label>
-                            <label>Grup<input name="grup" value="@t.Grup" /></label>
+                            <ComboBox Name="grup" Label="Grup" Value="@t.Grup" Options="_grupOpts" ListId="dl-grup-edit" />
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@t.Aktif">Aktif</option>
@@ -77,7 +79,19 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<VehicleType> _list = [];
+    private List<string> _markaOpts = [], _grupOpts = [];
+
+    // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
+    private static List<string> Opts(params IEnumerable<string?>[] sources) =>
+        sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
     protected override async Task OnInitializedAsync()
-        => _list = await AracTipleri.ListAsync();
+    {
+        _list = await AracTipleri.ListAsync();
+        var markalar = await Markalar.ListActiveAsync();
+        var gruplar = await AracGruplari.ListActiveAsync();
+        _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(t => t.Marka));
+        _grupOpts = Opts(gruplar.Select(g => g.Ad), _list.Select(t => t.Grup));
+    }
 }
