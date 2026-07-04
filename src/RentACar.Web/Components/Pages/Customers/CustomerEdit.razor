@@ -1,6 +1,7 @@
 @page "/cariler/{Id:guid}"
 @attribute [Authorize]
 @inject CustomerService Customers
+@inject ReservationSourceService Kaynaklar
 
 <PageTitle>Cari Düzenle — RentPro</PageTitle>
 
@@ -37,9 +38,9 @@ else
         <label>Cep Tel<input name="cepTel" value="@_c.CepTel" /></label>
         <label>GSM 2<input name="gsm2" value="@_c.Gsm2" /></label>
         <label>E-posta<input name="email" type="email" value="@_c.Email" /></label>
-        <label>İl<input name="il" value="@_c.Il" /></label>
-        <label>İlçe<input name="ilce" value="@_c.Ilce" /></label>
-        <label>Kaynak<input name="kaynak" value="@_c.Kaynak" placeholder="Web/Telefon/Bayi…" /></label>
+        <ComboBox Name="il" Label="İl" Options="_ilOpts" Value="@_c.Il" />
+        <ComboBox Name="ilce" Label="İlçe" Options="_ilceOpts" Value="@_c.Ilce" />
+        <ComboBox Name="kaynak" Label="Kaynak" Options="_kaynakOpts" Value="@_c.Kaynak" Placeholder="Web/Telefon/Bayi…" />
         <label>Müşteri Temsilcisi<input name="musteriTemsilcisi" value="@_c.MusteriTemsilcisi" /></label>
         <label>İYS İzinli
             <select name="iysIzinli">
@@ -138,7 +139,18 @@ else
     public string? Hata { get; set; }
 
     private Customer? _c;
+    private List<string> _ilOpts = [], _ilceOpts = [], _kaynakOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _c = await Customers.GetAsync(Id);
+    {
+        _c = await Customers.GetAsync(Id);
+
+        // Seç-veya-yaz önerileri: İl/İlçe mevcut kayıtlardan distinct; Kaynak master tanımdan.
+        var all = await Customers.ListAsync();
+        _ilOpts = all.Select(c => c.Il).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
+        _ilceOpts = all.Select(c => c.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
+        _kaynakOpts = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
+    }
 }

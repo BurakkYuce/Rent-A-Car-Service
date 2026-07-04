@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @inject VehicleGroupService AracGruplari
 @inject CoverageProductService SigortaUrunleri
+@inject BranchService Subeler
 
 <PageTitle>Fiyat Hesapla — RentPro</PageTitle>
 
@@ -24,7 +25,7 @@
         @foreach (var g in _gruplar) { <option value="@g.Kod">@g.Ad</option> }
     </datalist>
     <label>Kanal<input name="kanal" placeholder="WEB/ACENTA" /></label>
-    <label>Şube<input name="sube" /></label>
+    <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
     <label>Başlangıç<input name="basTar" type="datetime-local" required /></label>
     <label>Bitiş<input name="bitTar" type="datetime-local" required /></label>
     <label>Sürücü Yaşı<input name="surucuYas" type="number" min="0" /></label>
@@ -83,10 +84,12 @@
 
     private IReadOnlyList<VehicleGroup> _gruplar = [];
     private IReadOnlyList<CoverageProduct> _urunler = [];
+    private List<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _gruplar = await AracGruplari.ListActiveAsync();
         _urunler = await SigortaUrunleri.ListActiveAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }

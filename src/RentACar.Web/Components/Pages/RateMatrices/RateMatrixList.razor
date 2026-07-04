@@ -1,6 +1,8 @@
 @page "/tarife-matris"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RateMatrixService TarifeMatris
+@inject BranchService Subeler
+@inject LocationService Locations
 
 <PageTitle>Tarife Matrisi — RentPro</PageTitle>
 
@@ -20,7 +22,7 @@
         tarifenin günlük+toplam fiyatını çözer (en dar geçerlilik penceresi → en yeni → kod ile deterministik).</p>
     <form method="get" class="grid-form">
         <label>Kanal<input name="qkanal" value="@QKanal" placeholder="WEB" /></label>
-        <label>Şube<input name="qsube" value="@QSube" /></label>
+        <ComboBox Name="qsube" Label="Şube" Value="@QSube" Options="_subeOpts" />
         <label>Araç Grubu Kodu<input name="qgrup" value="@QGrup" placeholder="EKO" /></label>
         <label>Para Birimi<input name="qpara" value="@QPara" placeholder="(varsayılan)" maxlength="8" /></label>
         <label>Tarih<input name="qtarih" type="date" value="@QTarih" required /></label>
@@ -50,8 +52,8 @@
         <label>Ad<input name="ad" required placeholder="Web Ekonomik 2026" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kanal<input name="kanal" placeholder="WEB/ACENTA/ÇAĞRI" /></label>
-        <label>Şube<input name="sube" /></label>
-        <label>Lokasyon<input name="lokasyon" /></label>
+        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
+        <ComboBox Name="lokasyon" Label="Lokasyon" Options="_lokasyonOpts" />
         <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="EKO" /></label>
         <label>Para Birimi<input name="paraBirimi" placeholder="TRY" maxlength="8" /></label>
         <label>Başlangıç<input name="basTar" type="date" /></label>
@@ -102,8 +104,8 @@
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
-                            <label>Şube<input name="sube" value="@r.Sube" /></label>
-                            <label>Lokasyon<input name="lokasyon" value="@r.Lokasyon" /></label>
+                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+                            <ComboBox Name="lokasyon" Label="Lokasyon" Value="@r.Lokasyon" Options="_lokasyonOpts" ListId="dl-lokasyon-edit" />
                             <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
                             <label>Para Birimi<input name="paraBirimi" value="@r.ParaBirimi" maxlength="8" /></label>
                             <label>Başlangıç<input name="basTar" type="date" value="@r.BasTar?.ToString("yyyy-MM-dd")" /></label>
@@ -157,10 +159,14 @@
     private IReadOnlyList<RateMatrix> _list = [];
     private bool _sorgulandi;
     private RateMatrisSonuc? _sonuc;
+    private List<string> _subeOpts = [];
+    private List<string> _lokasyonOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await TarifeMatris.ListAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _lokasyonOpts = (await Locations.ListActiveAsync()).Select(l => l.Ad).ToList();
 
         // Fiyat sorgusu: tarih + gün verildiyse çöz.
         if (!string.IsNullOrWhiteSpace(QTarih) && QGun >= 1

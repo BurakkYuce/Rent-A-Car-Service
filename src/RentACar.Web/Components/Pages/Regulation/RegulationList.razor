@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject RegulationService Reg
 @inject VehicleService Vehicles
+@inject InsuranceCompanyService SigortaSirketleri
 
 <PageTitle>Sigorta / MTV / Muayene — RentPro</PageTitle>
 
@@ -20,7 +21,7 @@
     <label>Prim<input name="prim" type="number" step="0.01" value="0" /></label>
     <label>Döviz<select name="doviz">@foreach (var d in Dovizler){<option value="@d">@d</option>}</select></label>
     <label>Poliçe No<input name="policeNo" /></label>
-    <label>Firma<input name="firma" /></label>
+    <ComboBox Name="firma" Label="Firma" Options="_firmaOpts" />
     <button type="submit">Ekle</button>
 </form>
 <table class="grid tr-grid"><thead><tr><th>Araç</th><th>Tip</th><th>Bitiş</th><th>Prim</th><th>Döviz</th><th>Firma</th><th>Ödendi</th><th></th></tr></thead><tbody>
@@ -113,6 +114,7 @@
     private IReadOnlyList<InspectionRecord> _insp = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private Dictionary<Guid, string> _vehMap = new();
+    private List<string> _firmaOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,6 +123,16 @@
         _insp = await Reg.ListInspectionAsync();
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+
+        // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
+        var sirketler = await SigortaSirketleri.ListActiveAsync();
+        _firmaOpts = sirketler.Select(s => s.Ad)
+            .Concat(_ins.Select(i => i.Firma))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture)
+            .ToList();
     }
 
     private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
