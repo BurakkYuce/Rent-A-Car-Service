@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject RentACar.Application.Notifications.BildirimService Bildirimler
 @inject NavigationManager Nav
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
 <AuthorizeView>
     <Authorized>
@@ -29,9 +30,13 @@
                     <a class="nav-solo" href="/" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
                         <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🏠</span> Panel
                     </a>
-                    <a class="nav-solo" href="/playground/grid-demo" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🧪</span> Grid Demo (Radzen)
-                    </a>
+                    @* Radzen interaktif grid kanıt/smoke sayfası — YALNIZ Development (prod nav'ında görünmez). *@
+                    @if (Env.IsDevelopment())
+                    {
+                        <a class="nav-solo" href="/playground/grid-demo" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                            <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🧪</span> Grid Demo (Radzen)
+                        </a>
+                    }
 
                     @* ---- Operasyon modülleri ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
