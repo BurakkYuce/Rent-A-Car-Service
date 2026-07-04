@@ -182,6 +182,9 @@
                         <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🔔</span> Bildirimler
                         @if (_okunmamis > 0) { <span class="badge-unread">@_okunmamis</span> }
                     </a>
+                    <a class="nav-solo" href="/takvim-abonelik" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">📅</span> Takvim Aboneliği
+                    </a>
 
                     @* ---- Sistem (yalnız Admin) ---- *@
                     <AuthorizeView Roles="Admin" Context="adminCtx">
