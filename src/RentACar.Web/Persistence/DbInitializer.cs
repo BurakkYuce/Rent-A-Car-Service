@@ -35,20 +35,25 @@ public static class DbInitializer
         // doldur (idempotent; interceptor yeni yazımları zaten çözer).
         await BranchBackfill.RunAsync(db, log);
 
-        if (await db.Tenants.AnyAsync()) return; // zaten seed edilmiş
+        if (!await db.Tenants.AnyAsync()) // ilk kurulum: iki tenant + kullanıcıları
+        {
+            var hasher = new PasswordHasher<User>();
 
-        var hasher = new PasswordHasher<User>();
+            var t1 = new Tenant { Code = "yucerent", Name = "Yüce Rent A Car" };
+            var t2 = new Tenant { Code = "demo", Name = "Demo Filo" };
+            db.Tenants.AddRange(t1, t2);
 
-        var t1 = new Tenant { Code = "yucerent", Name = "Yüce Rent A Car" };
-        var t2 = new Tenant { Code = "demo", Name = "Demo Filo" };
-        db.Tenants.AddRange(t1, t2);
+            db.Users.AddRange(
+                NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher),
+                NewUser(t1.Id, "operator", "Operatör (Merkez şube)", UserRole.Operator, hasher, sube: "Merkez"),
+                NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher));
 
-        db.Users.AddRange(
-            NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher),
-            NewUser(t1.Id, "operator", "Operatör (Merkez şube)", UserRole.Operator, hasher, sube: "Merkez"),
-            NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher));
+            await db.SaveChangesAsync();
+        }
 
-        await db.SaveChangesAsync();
+        // Tanım (master) varsayılanları — HER açılış, TÜM tenant'lar, idempotent (yalnız boş kategori dolar).
+        // Guard'dan SONRA + koşulsuz: ilk-init'te YENİ oluşturulan tenant'lar da, mevcut/platform tenant'ları da kapsanır.
+        await MasterDataSeeder.RunAsync(db, log);
     }
 
     private static User NewUser(

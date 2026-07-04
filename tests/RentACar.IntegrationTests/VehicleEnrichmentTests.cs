@@ -157,4 +157,22 @@ public sealed class VehicleEnrichmentTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new VehicleInput { Plaka = "34 YIL 01", ModelYili = 1900 }));
     }
+
+    [Fact]
+    public async Task Model_yili_ust_sinir_gelecek_yil()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
+
+        var gelecekYil = DateTimeOffset.UtcNow.Year + 1; // oracle: yeni model araç en fazla gelecek yıl olabilir
+
+        var id = await svc.CreateAsync(new VehicleInput { Plaka = "34 YIL 02", ModelYili = gelecekYil });
+        Assert.Equal(gelecekYil, (await svc.GetAsync(id))!.ModelYili); // gelecek yıl → geçerli
+
+        await Assert.ThrowsAsync<ValidationException>( // gelecek yıl + 1 → reddedilir
+            () => svc.CreateAsync(new VehicleInput { Plaka = "34 YIL 03", ModelYili = gelecekYil + 1 }));
+        await Assert.ThrowsAsync<ValidationException>( // 2100 → reddedilir
+            () => svc.CreateAsync(new VehicleInput { Plaka = "34 YIL 04", ModelYili = 2100 }));
+    }
 }
