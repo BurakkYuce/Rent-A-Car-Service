@@ -294,6 +294,16 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
     text-decoration: none; font-size: .85rem; font-weight: 600; }
 .rz-grid-empty { color: var(--tr-muted); padding: 1rem; text-align: center; }
 
+/* Platform operatörü kabuğu (tenant'tan tamamen ayrı, minimal) */
+.platform-shell { min-height: 100vh; background: var(--tr-bg); }
+.platform-top { display: flex; align-items: center; gap: 1rem; padding: .7rem 1.4rem; background: var(--tr-sidebar-2); color: #fff; }
+.platform-brand { font-size: 1.1rem; letter-spacing: .02em; }
+.platform-top .spacer { flex: 1; }
+.platform-top .platform-user { color: #cbd5e1; font-size: .9rem; }
+.platform-top .link { color: #cbd5e1; }
+.platform-body { max-width: 1000px; margin: 1.5rem auto; padding: 0 1.4rem; }
+.ok { color: #14532d; background: #dcfce7; border: 1px solid #86efac; padding: .5rem .75rem; border-radius: .4rem; }
+
 /* RLS-in-circuit teşhis şeridi (kanıt sayfası — sahte-yeşil'e karşı görünür kanıt) */
 .rls-diag { border-radius: .5rem; padding: .6rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
 .rls-diag.ok { background: #dcfce7; border: 1px solid #86efac; color: #14532d; }
