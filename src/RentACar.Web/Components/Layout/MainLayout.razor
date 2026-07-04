@@ -1,131 +1,227 @@
 @inherits LayoutComponentBase
 @inject RentACar.Application.Notifications.BildirimService Bildirimler
+@inject NavigationManager Nav
 
-<div class="page">
-    <header class="topbar">
-        <a class="brand" href="/">referans sistem</a>
-        <AuthorizeView>
-            <Authorized>
-                <nav class="nav">
-                    <a href="/">Panel</a>
-                    <a href="/ara">🔍 Ara</a>
-                    @* Operasyon (OperationsWrite: Admin/Yönetici/Operatör) *@
+<AuthorizeView>
+    <Authorized>
+        <div class="app">
+            <aside class="sidebar">
+                <div class="sb-brand">
+                    <span class="logo">TR</span>
+                    <a class="name" href="/">referans sistem</a>
+                    <span class="badge-user">@context.User.Identity?.Name?.ToUpperInvariant()</span>
+                </div>
+
+                <form method="get" action="/ara" class="sb-search">
+                    <input name="q" placeholder="Evrak No / Plaka ara…" />
+                </form>
+
+                @* Kısa yollar (operasyon) *@
+                <AuthorizeView Roles="Admin,Yonetici,Operator" Context="qCtx">
+                    <div class="sb-quick">
+                        <a href="/rezervasyonlar"><span class="ic">＋</span> Yeni Rezervasyon</a>
+                        <a href="/kiralar"><span class="ic">＋</span> Yeni Kira</a>
+                        <a href="/musaitlik"><span class="ic">●</span> Müsaitlik-Rez Açma</a>
+                    </div>
+                </AuthorizeView>
+
+                <nav class="sb-nav">
+                    <a class="nav-solo" href="/" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🏠</span> Panel
+                    </a>
+
+                    @* ---- Operasyon modülleri ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
-                        <a href="/vehicles">Araçlar</a>
-                        <a href="/arac-durum">Araç Durum</a>
-                        <a href="/cariler">Cariler</a>
-                        <a href="/musaitlik">Müsaitlik</a>
-                        <a href="/teklifler">Teklifler</a>
-                        <a href="/rezervasyonlar">Rezervasyonlar</a>
-                        <a href="/takvim">Takvim</a>
-                        <a href="/kiralar">Kiralar</a>
-                        <a href="/filo-kiralama">Filo Kiralama</a>
-                        <a href="/arac-siparis">Araç Sipariş</a>
-                        <a href="/arac-kredi">Araç Kredisi</a>
-                        <a href="/baf">BAF (Tahsis)</a>
-                        <a href="/hesap-kodlari">Hesap Kodları</a>
-                        <a href="/servis-tanimlari">Servis Tanımları</a>
-                        <a href="/drop-tanimlari">Drop Matris</a>
-                        <a href="/hasar">Hasar</a>
-                        <a href="/servisler">Servis</a>
-                        <a href="/hukuk">Hukuk</a>
-                        <a href="/anketler">Anketler</a>
-                        <a href="/crm">CRM Analiz</a>
-                        <a href="/sikayetler">Şikayetler</a>
-                        <a href="/regulasyon">Sigorta/MTV</a>
-                        <a href="/tarifeler">Tarifeler</a>
-                        <a href="/markalar">Markalar</a>
-                        <a href="/ceza-turleri">Ceza Türleri</a>
-                        <a href="/kdv-oranlari">KDV Oranları</a>
-                        <a href="/arac-gruplari">Araç Grupları</a>
-                        <a href="/tarife-matris">Tarife Matrisi</a>
-                        <a href="/sigorta-urunleri">Sigorta Ürünleri</a>
-                        <a href="/kira-kurallari">Kiralama Kuralları</a>
-                        <a href="/fiyat-hesapla">Fiyat Hesapla</a>
-                        <a href="/maliyet-hesapla">Maliyet Hesapla</a>
-                        <a href="/ek-hizmetler">Ek Hizmetler</a>
-                        <a href="/lokasyonlar">Lokasyonlar</a>
-                        <a href="/yakit-turleri">Yakıt Türleri</a>
-                        <a href="/vites-turleri">Vites Türleri</a>
-                        <a href="/renkler">Renkler</a>
-                        <a href="/musteri-gruplari">Müşteri Grupları</a>
-                        <a href="/sigorta-sirketleri">Sigorta Şirketleri</a>
-                        <a href="/bankalar">Bankalar</a>
-                        <a href="/departmanlar">Departmanlar</a>
-                        <a href="/odeme-tipleri">Ödeme Tipleri</a>
-                        <a href="/ulkeler">Ülkeler</a>
-                        <a href="/aksesuarlar">Aksesuarlar</a>
-                        <a href="/iptal-sebepleri">İptal Sebepleri</a>
-                        <a href="/rezervasyon-kaynaklari">Rez. Kaynakları</a>
-                        <a href="/segmentler">Segmentler</a>
-                        <a href="/arac-tipleri">Araç Tipleri</a>
-                        <a href="/arac-sahipleri">Araç Sahipleri</a>
-                        <a href="/gider-turleri">Gider Türleri</a>
-                        <a href="/hesaplar">Hesaplar</a>
-                        <a href="/ozel-kodlar">Özel Kodlar</a>
-                        <a href="/dovizler">Dövizler</a>
+                        <details class="nav-group" open="@Acik("/vehicles","/arac-durum","/arac-siparis","/arac-kredi","/baf","/hasar","/arac-tipleri","/arac-sahipleri","/segmentler")">
+                            <summary><span class="ic">🚗</span> Araçlar <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/vehicles">Araç Listesi</a>
+                                <a href="/arac-durum">Araç Durum</a>
+                                <a href="/arac-siparis">Araç Sipariş</a>
+                                <a href="/arac-kredi">Araç Kredisi</a>
+                                <a href="/baf">BAF (Tahsis)</a>
+                                <a href="/hasar">Hasar</a>
+                                <a href="/arac-tipleri">Araç Tipleri</a>
+                                <a href="/arac-sahipleri">Araç Sahipleri</a>
+                                <a href="/segmentler">Segmentler</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/kiralar","/teklifler","/filo-kiralama")">
+                            <summary><span class="ic">🔑</span> Kira <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/kiralar">Kiralar</a>
+                                <a href="/teklifler">Teklifler</a>
+                                <a href="/filo-kiralama">Filo Kiralama</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/rezervasyonlar","/takvim","/musaitlik")">
+                            <summary><span class="ic">📅</span> Rezervasyon <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/rezervasyonlar">Rezervasyonlar</a>
+                                <a href="/takvim">Takvim</a>
+                                <a href="/musaitlik">Müsaitlik</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/cariler","/crm","/sikayetler","/hukuk","/anketler")">
+                            <summary><span class="ic">👥</span> Cariler & CRM <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/cariler">Cariler</a>
+                                <a href="/crm">CRM Analiz</a>
+                                <a href="/sikayetler">Şikayetler</a>
+                                <a href="/hukuk">Hukuk</a>
+                                <a href="/anketler">Anketler</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/servisler","/servis-tanimlari","/regulasyon")">
+                            <summary><span class="ic">🔧</span> Servis & Sigorta <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/servisler">Servis</a>
+                                <a href="/servis-tanimlari">Servis Tanımları</a>
+                                <a href="/regulasyon">Sigorta / MTV / Muayene</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/tarifeler","/tarife-matris","/sigorta-urunleri","/kira-kurallari","/fiyat-hesapla","/maliyet-hesapla","/ek-hizmetler")">
+                            <summary><span class="ic">🏷️</span> Fiyat & Tarife <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/tarifeler">Tarifeler</a>
+                                <a href="/tarife-matris">Tarife Matrisi</a>
+                                <a href="/sigorta-urunleri">Sigorta Ürünleri</a>
+                                <a href="/kira-kurallari">Kiralama Kuralları</a>
+                                <a href="/fiyat-hesapla">Fiyat Hesapla</a>
+                                <a href="/maliyet-hesapla">Maliyet Hesapla</a>
+                                <a href="/ek-hizmetler">Ek Hizmetler</a>
+                            </div>
+                        </details>
+                        <details class="nav-group" open="@Acik("/markalar","/arac-gruplari","/ceza-turleri","/kdv-oranlari","/lokasyonlar","/yakit-turleri","/vites-turleri","/renkler","/musteri-gruplari","/sigorta-sirketleri","/bankalar","/departmanlar","/odeme-tipleri","/ulkeler","/aksesuarlar","/iptal-sebepleri","/rezervasyon-kaynaklari","/gider-turleri","/hesaplar","/ozel-kodlar","/dovizler","/hesap-kodlari","/drop-tanimlari")">
+                            <summary><span class="ic">📋</span> Tanımlar <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/markalar">Markalar</a>
+                                <a href="/arac-gruplari">Araç Grupları</a>
+                                <a href="/arac-tipleri">Araç Tipleri</a>
+                                <a href="/lokasyonlar">Lokasyonlar</a>
+                                <a href="/yakit-turleri">Yakıt Türleri</a>
+                                <a href="/vites-turleri">Vites Türleri</a>
+                                <a href="/renkler">Renkler</a>
+                                <a href="/segmentler">Segmentler</a>
+                                <a href="/musteri-gruplari">Müşteri Grupları</a>
+                                <a href="/sigorta-sirketleri">Sigorta Şirketleri</a>
+                                <a href="/bankalar">Bankalar</a>
+                                <a href="/departmanlar">Departmanlar</a>
+                                <a href="/odeme-tipleri">Ödeme Tipleri</a>
+                                <a href="/ulkeler">Ülkeler</a>
+                                <a href="/aksesuarlar">Aksesuarlar</a>
+                                <a href="/iptal-sebepleri">İptal Sebepleri</a>
+                                <a href="/rezervasyon-kaynaklari">Rez. Kaynakları</a>
+                                <a href="/ceza-turleri">Ceza Türleri</a>
+                                <a href="/kdv-oranlari">KDV Oranları</a>
+                                <a href="/gider-turleri">Gider Türleri</a>
+                                <a href="/hesaplar">Hesaplar</a>
+                                <a href="/hesap-kodlari">Hesap Kodları</a>
+                                <a href="/ozel-kodlar">Özel Kodlar</a>
+                                <a href="/dovizler">Dövizler</a>
+                                <a href="/drop-tanimlari">Drop Matris</a>
+                            </div>
+                        </details>
                     </AuthorizeView>
-                    @* Finans (FinanceWrite: Admin/Yönetici/Muhasebe) *@
+
+                    @* ---- Finans ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-                        <a href="/kasa">Kasa</a>
-                        <a href="/cari-virman">Cari Virman</a>
-                        <a href="/depozito">Depozito</a>
-                        <a href="/toplu-tahsilat">Toplu Tahsilat</a>
-                        <a href="/toplu-gider">Toplu Gider</a>
-                        <a href="/giderler">Giderler</a>
-                        <a href="/satislar">Satışlar</a>
-                        <a href="/faturalar">Faturalar</a>
-                        <a href="/donem-kapanis">Dönem Kapanışı</a>
+                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/donem-kapanis","/cezalar")">
+                            <summary><span class="ic">💰</span> Finans <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/kasa">Kasa / Banka</a>
+                                <a href="/faturalar">Faturalar</a>
+                                <a href="/giderler">Giderler</a>
+                                <a href="/satislar">Satışlar</a>
+                                <a href="/cari-virman">Cari Virman</a>
+                                <a href="/depozito">Depozito</a>
+                                <a href="/toplu-tahsilat">Toplu Tahsilat</a>
+                                <a href="/toplu-gider">Toplu Gider</a>
+                                <a href="/cezalar">Cezalar</a>
+                                <a href="/donem-kapanis">Dönem Kapanışı</a>
+                            </div>
+                        </details>
                     </AuthorizeView>
-                    <a href="/cezalar">Cezalar</a>
-                    @* Raporlar (ViewReports: Admin/Yönetici/Muhasebe) *@
+
+                    @* ---- Raporlar ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="repCtx">
-                        <a href="/raporlar/gelir-gider">Raporlar</a>
-                        <a href="/raporlar/karlilik">Kârlılık</a>
-                        <a href="/raporlar/gunluk">Günlük</a>
-                        <a href="/raporlar/cari-bakiye">Cari Bakiye</a>
-                        <a href="/raporlar/filo">Filo</a>
-                        <a href="/raporlar/doluluk">Doluluk</a>
-                        <a href="/raporlar/tahsilat-fatura">Tahsilat-Fatura</a>
-                        <a href="/raporlar/kdv-listesi">KDV Listesi</a>
-                        <a href="/raporlar/ek-hizmet">Ek Hizmet</a>
-                        <a href="/raporlar/periyodik-servis">Periyodik Servis</a>
-                        <a href="/raporlar/km-detay">KM Detay</a>
-                        <a href="/raporlar/rezervasyon-kaynak">Rezervasyon Kaynak</a>
-                        <a href="/raporlar/fatura-donem">Fatura Dönem</a>
-                        <a href="/raporlar/arac-durum-takip">Araç Durum Takip</a>
+                        <details class="nav-group" open="@Acik("/raporlar")">
+                            <summary><span class="ic">📊</span> Raporlar <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/raporlar/gelir-gider">Gelir-Gider</a>
+                                <a href="/raporlar/karlilik">Kârlılık</a>
+                                <a href="/raporlar/gunluk">Günlük</a>
+                                <a href="/raporlar/cari-bakiye">Cari Bakiye</a>
+                                <a href="/raporlar/filo">Filo</a>
+                                <a href="/raporlar/doluluk">Doluluk</a>
+                                <a href="/raporlar/tahsilat-fatura">Tahsilat-Fatura</a>
+                                <a href="/raporlar/kdv-listesi">KDV Listesi</a>
+                                <a href="/raporlar/ek-hizmet">Ek Hizmet</a>
+                                <a href="/raporlar/periyodik-servis">Periyodik Servis</a>
+                                <a href="/raporlar/km-detay">KM Detay</a>
+                                <a href="/raporlar/rezervasyon-kaynak">Rezervasyon Kaynak</a>
+                                <a href="/raporlar/fatura-donem">Fatura Dönem</a>
+                                <a href="/raporlar/arac-durum-takip">Araç Durum Takip</a>
+                            </div>
+                        </details>
                     </AuthorizeView>
-                    <a href="/vade">Vade</a>
-                    <a href="/bildirimler">Bildirimler@if (_okunmamis > 0) {<span class="badge-unread">@_okunmamis</span>}</a>
+
+                    @* ---- Vade + Bildirim (tüm roller) ---- *@
+                    <a class="nav-solo" href="/vade" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">⏰</span> Vade Panosu
+                    </a>
+                    <a class="nav-solo" href="/bildirimler" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🔔</span> Bildirimler
+                        @if (_okunmamis > 0) { <span class="badge-unread">@_okunmamis</span> }
+                    </a>
+
+                    @* ---- Sistem (yalnız Admin) ---- *@
                     <AuthorizeView Roles="Admin" Context="adminCtx">
-                        <a href="/subeler">Şubeler</a>
-                        <a href="/kullanicilar">Kullanıcılar</a>
-                        <a href="/personel">Personel</a>
-                        <a href="/ayarlar">Ayarlar</a>
-                        <a href="/yetki">Ekran Yetkileri</a>
-                        <a href="/denetim">Denetim</a>
+                        <details class="nav-group" open="@Acik("/subeler","/kullanicilar","/personel","/ayarlar","/yetki","/denetim")">
+                            <summary><span class="ic">⚙️</span> Sistem <span class="chev">▶</span></summary>
+                            <div class="sub">
+                                <a href="/subeler">Şubeler</a>
+                                <a href="/kullanicilar">Kullanıcılar</a>
+                                <a href="/personel">Personel</a>
+                                <a href="/ayarlar">Ayarlar</a>
+                                <a href="/yetki">Ekran Yetkileri</a>
+                                <a href="/denetim">Denetim</a>
+                            </div>
+                        </details>
                     </AuthorizeView>
                 </nav>
-                <span class="spacer"></span>
-                <span class="user">
-                    @context.User.Identity?.Name
-                    <span class="muted">@context.User.FindFirst("tenant_code")?.Value</span>
-                </span>
-                <form method="post" action="/auth/logout" class="logout-form"><AntiforgeryToken />
-                    <button type="submit" class="link">Çıkış</button>
-                </form>
-            </Authorized>
-            <NotAuthorized>
-                <span class="spacer"></span>
-                <a href="/login">Giriş</a>
-            </NotAuthorized>
-        </AuthorizeView>
-    </header>
+            </aside>
 
-    <main class="content">
-        @Body
-    </main>
-</div>
+            <div class="main">
+                <header class="topbar">
+                    <form method="get" action="/ara" class="tb-search">
+                        <span>🔍</span>
+                        <input name="q" placeholder="Hızlı Arama — Müşteri, Plaka, RA No, TC…" />
+                        <span class="kbd">Ctrl + K</span>
+                        <button type="submit" aria-label="Ara">→</button>
+                    </form>
+                    <span class="spacer"></span>
+                    <span class="user">
+                        @context.User.Identity?.Name
+                        <span class="muted">@context.User.FindFirst("tenant_code")?.Value</span>
+                    </span>
+                    <form method="post" action="/auth/logout" class="logout-form"><AntiforgeryToken />
+                        <button type="submit" class="link">Çıkış</button>
+                    </form>
+                </header>
+
+                <main class="content">
+                    @Body
+                </main>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <main class="content">
+            @Body
+        </main>
+    </NotAuthorized>
+</AuthorizeView>
 
 <div id="blazor-error-ui" data-nosnippet>
     Beklenmeyen bir hata oluştu.
@@ -134,11 +230,17 @@
 </div>
 
 @code {
-    private int _okunmamis; // okunmamış bildirim badge'i (her sayfa render'ında hafif COUNT)
+    private int _okunmamis;
+    private string _path = "";
 
     protected override async Task OnInitializedAsync()
     {
+        _path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
         try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
-        catch { _okunmamis = 0; } // giriş yapılmamış/kapsamsız → badge yok
+        catch { _okunmamis = 0; }
     }
+
+    // Mevcut sayfa bu modülün altındaysa grubu AÇIK render et (JS'siz oryantasyon).
+    private bool Acik(params string[] prefixler)
+        => prefixler.Any(p => _path == p || _path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
 }

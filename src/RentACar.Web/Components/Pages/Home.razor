@@ -10,60 +10,44 @@
 
 <PageTitle>Panel — referans sistem</PageTitle>
 
-<h1>Panel</h1>
-
-<div class="cards">
-    <div class="card">
-        <div class="card-num">@_counts.Total</div>
-        <div class="card-label">Toplam Araç</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_counts.Musait</div>
-        <div class="card-label">Müsait</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_aktifKira</div>
-        <div class="card-label">Aktif Kira</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_bugunCikis</div>
-        <div class="card-label">Bugün Çıkış</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_bugunDonus</div>
-        <div class="card-label">Bugün Dönüş</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_cariCount</div>
-        <div class="card-label">Cari</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_acikSikayet</div>
-        <div class="card-label"><a href="/bildirimler">Açık Şikayet</a></div>
+<div class="page-head">
+    <h1>🏠 Panel</h1>
+    <div class="actions">
+        <a href="/vehicles">Araçlar</a>
+        <a href="/rezervasyonlar">Rezervasyonlar</a>
+        <a href="/kiralar">Kiralar</a>
     </div>
 </div>
 
-@* Finans özeti (roadmap D3) — yalnız mali yetkili roller (kasa/banka/açık bakiye hassas). *@
-<AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-    <div class="cards">
-        <div class="card">
-            <div class="card-num">@_dash.KasaBakiye.ToString("N2")</div>
-            <div class="card-label">Kasa Bakiye</div>
-        </div>
-        <div class="card">
-            <div class="card-num">@_dash.BankaBakiye.ToString("N2")</div>
-            <div class="card-label">Banka Bakiye</div>
-        </div>
-        <div class="card">
-            <div class="card-num">@_dash.AcikBakiye.ToString("N2")</div>
-            <div class="card-label">Açık Bakiye (fatura−tahsilat)</div>
-        </div>
-        <div class="card">
-            <div class="card-num">@_dash.BugunTahsilatTutar.ToString("N2")</div>
-            <div class="card-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet adet)</div>
-        </div>
+<div class="kpi-row">
+    <div class="kpi k-purple">
+        <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic">🤝</span></div>
+        <div class="k-num">@_aktifKira</div>
+        <div class="k-foot">Toplam @_counts.Total araçtan</div>
     </div>
-</AuthorizeView>
+    <div class="kpi k-green">
+        <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic">🚙</span></div>
+        <div class="k-num">@_counts.Musait</div>
+        <div class="k-foot">Kiraya hazır</div>
+    </div>
+    <div class="kpi k-red">
+        <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic">🔧</span></div>
+        <div class="k-num">@_counts.Serviste</div>
+        <div class="k-foot">Bakım / onarım</div>
+    </div>
+    <div class="kpi k-orange">
+        <div class="k-top"><span class="k-label">Bugün Çıkış</span><span class="k-ic">⏱️</span></div>
+        <div class="k-num">@_bugunCikis</div>
+        <div class="k-foot">Planlı teslim</div>
+    </div>
+</div>
+
+<div class="stat-row">
+    <div class="stat"><span class="s-ic">🚗</span><div><div class="s-num">@_counts.Total</div><div class="s-label">Toplam Araç</div></div></div>
+    <div class="stat"><span class="s-ic">👥</span><div><div class="s-num">@_cariCount</div><div class="s-label"><a href="/cariler">Cari</a></div></div></div>
+    <div class="stat"><span class="s-ic">↩️</span><div><div class="s-num">@_bugunDonus</div><div class="s-label">Bugün Dönüş</div></div></div>
+    <div class="stat"><span class="s-ic">📣</span><div><div class="s-num">@_acikSikayet</div><div class="s-label"><a href="/sikayetler">Açık Şikayet</a></div></div></div>
+</div>
 
 @if (_gecmis + _yakin > 0)
 {
@@ -75,13 +59,16 @@
     </div>
 }
 
-<p>
-    <a href="/vehicles">Araçlar →</a> &nbsp;
-    <a href="/cariler">Cariler →</a> &nbsp;
-    <a href="/rezervasyonlar">Rezervasyonlar →</a> &nbsp;
-    <a href="/kiralar">Kiralar →</a> &nbsp;
-    <a href="/giderler">Giderler →</a>
-</p>
+@* Finans özeti (roadmap D3) — yalnız mali yetkili roller (kasa/banka/açık bakiye hassas). *@
+<AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
+    <h2>Finans Özeti</h2>
+    <div class="stat-row">
+        <div class="stat"><span class="s-ic">💵</span><div><div class="s-num">@_dash.KasaBakiye.ToString("N0")</div><div class="s-label">Kasa Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic">🏦</span><div><div class="s-num">@_dash.BankaBakiye.ToString("N0")</div><div class="s-label">Banka Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic">📄</span><div><div class="s-num">@_dash.AcikBakiye.ToString("N0")</div><div class="s-label">Açık Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic">💰</span><div><div class="s-num">@_dash.BugunTahsilatTutar.ToString("N0")</div><div class="s-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet)</div></div></div>
+    </div>
+</AuthorizeView>
 
 @code {
     private (int Total, int Musait, int Serviste) _counts;

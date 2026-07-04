@@ -131,3 +131,144 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .cal-legend { display: flex; gap: 1rem; align-items: center; margin: .5rem 0; font-size: .85rem; }
 .cal-legend span { display: inline-flex; align-items: center; gap: .35rem; }
 .cal-legend i { width: 1rem; height: 1rem; border-radius: .2rem; display: inline-block; }
+
+/* ===================================================================== */
+/* referans sistem teması — canlıdan birebir token'lar (AdminLTE tabanı + mor)  */
+/* ===================================================================== */
+:root {
+    --tr-font: "Source Sans Pro", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --tr-primary: #6a5cf0;
+    --tr-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --tr-grad-navy: linear-gradient(135deg, #1e2a4a, #2d4373);
+    --tr-grad-green: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --tr-grad-red: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    --tr-grad-orange: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    --tr-sidebar: #343a40; --tr-sidebar-2: #2b3035; --tr-sidebar-tx: #c2c7d0; --tr-sidebar-hd: #8a919a;
+    --tr-bg: #f4f6f9; --tr-line: #e3e7ee; --tr-ink: #212529; --tr-muted: #6c757d;
+}
+body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-ink); }
+
+/* ---- Uygulama iskeleti: sabit sol sidebar + ana kolon ---- */
+.app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+.sidebar { background: var(--tr-sidebar); color: var(--tr-sidebar-tx); display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar::-webkit-scrollbar { width: 8px; } .sidebar::-webkit-scrollbar-thumb { background: #4b535b; border-radius: 4px; }
+
+.sb-brand { display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem; background: var(--tr-sidebar-2);
+    border-bottom: 1px solid rgba(255,255,255,.06); position: sticky; top: 0; z-index: 2; }
+.sb-brand .logo { width: 34px; height: 34px; border-radius: 50%;
+    background: var(--tr-grad); display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: .95rem; flex: 0 0 auto; }
+.sb-brand .name { color: #fff; font-weight: 700; font-size: 1.05rem; text-decoration: none; }
+.sb-brand .badge-user { margin-left: auto; font-size: .6rem; font-weight: 700; color: #ff6b6b;
+    border: 1px solid #ff6b6b; border-radius: .3rem; padding: .05rem .3rem; letter-spacing: .03em; }
+
+.sb-search { padding: .7rem .8rem; }
+.sb-search input { width: 100%; padding: .45rem .6rem; border: none; border-radius: .35rem;
+    background: #2b3035; color: #e6e9ee; font: inherit; font-size: .85rem; }
+.sb-search input::placeholder { color: #7c848d; }
+
+.sb-quick { padding: .1rem .5rem .5rem; border-bottom: 1px solid rgba(255,255,255,.06); }
+.sb-quick a { display: flex; align-items: center; gap: .55rem; padding: .5rem .6rem; color: var(--tr-sidebar-tx);
+    text-decoration: none; border-radius: .35rem; font-size: .92rem; }
+.sb-quick a:hover { background: rgba(255,255,255,.06); color: #fff; }
+.sb-quick a .ic { color: #4ade80; font-size: 1rem; width: 1.1rem; text-align: center; }
+
+.sb-nav { padding: .4rem 0 2rem; }
+.nav-group { border: none; }
+.nav-group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .6rem;
+    padding: .6rem 1rem; color: var(--tr-sidebar-tx); font-size: .95rem; user-select: none; }
+.nav-group > summary::-webkit-details-marker { display: none; }
+.nav-group > summary:hover { background: rgba(255,255,255,.05); color: #fff; }
+.nav-group > summary .ic { width: 1.2rem; text-align: center; opacity: .85; }
+.nav-group > summary .chev { margin-left: auto; transition: transform .15s; opacity: .5; font-size: .7rem; }
+.nav-group[open] > summary { color: #fff; background: rgba(255,255,255,.03); }
+.nav-group[open] > summary .chev { transform: rotate(90deg); }
+.nav-group .sub { padding: .1rem 0 .4rem; background: rgba(0,0,0,.15); }
+.nav-group .sub a { display: block; padding: .38rem 1rem .38rem 2.6rem; color: #a9b0b9; text-decoration: none;
+    font-size: .86rem; }
+.nav-group .sub a:hover { color: #fff; background: rgba(255,255,255,.05); }
+.nav-group .sub a.badge-line { display: flex; align-items: center; gap: .4rem; }
+
+/* ---- Ana kolon + üst bar ---- */
+.main { display: flex; flex-direction: column; min-width: 0; }
+.topbar { display: flex; align-items: center; gap: .9rem; padding: .55rem 1.2rem; background: #fff;
+    border-bottom: 1px solid var(--tr-line); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: sticky; top: 0; z-index: 10; }
+.topbar .brand { display: none; }
+.tb-search { flex: 1; max-width: 560px; display: flex; align-items: center; gap: .5rem;
+    background: #f0f2f7; border: 1px solid #e6e9f0; border-radius: 2rem; padding: .35rem .9rem; }
+.tb-search input { flex: 1; border: none; background: transparent; font: inherit; font-size: .9rem; outline: none; }
+.tb-search .kbd { font-size: .68rem; color: #9aa0aa; border: 1px solid #d7dbe2; border-radius: .3rem; padding: .05rem .3rem; }
+.tb-search button { border: none; background: var(--tr-grad); color: #fff; width: 30px; height: 30px;
+    border-radius: 50%; cursor: pointer; }
+.topbar .spacer { flex: 1; }
+.topbar .user { color: var(--tr-muted); font-size: .88rem; display: flex; align-items: center; gap: .4rem; }
+.topbar .user .muted { padding: .1rem .4rem; background: #efe9ff; border-radius: .4rem; color: var(--tr-primary); font-weight: 600; }
+
+.content { max-width: none; margin: 0; padding: 1.25rem 1.4rem; }
+
+/* ---- Sayfa başlığı (mor gradient şerit + sağ aksiyonlar) ---- */
+.page-head { display: flex; align-items: center; gap: 1rem; background: var(--tr-grad); color: #fff;
+    border-radius: .7rem; padding: .7rem 1.1rem; margin-bottom: 1rem; box-shadow: 0 4px 14px rgba(102,126,234,.25); }
+.page-head h1 { margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+.page-head .actions { margin-left: auto; display: flex; gap: .5rem; flex-wrap: wrap; }
+.page-head .actions a, .page-head .actions button { background: rgba(255,255,255,.16); color: #fff;
+    border: 1px solid rgba(255,255,255,.28); border-radius: .4rem; padding: .35rem .7rem; font-size: .82rem;
+    text-decoration: none; cursor: pointer; }
+.page-head .actions a:hover, .page-head .actions button:hover { background: rgba(255,255,255,.28); }
+
+/* ---- KPI kartları (gradyan) ---- */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 0 0 1rem; }
+.kpi { border-radius: .8rem; padding: 1.1rem 1.2rem; color: #fff; position: relative; overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,.10); min-height: 104px; display: flex; flex-direction: column; justify-content: space-between; }
+.kpi .k-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.kpi .k-label { font-size: .82rem; opacity: .92; font-weight: 600; }
+.kpi .k-ic { font-size: 1.7rem; opacity: .55; }
+.kpi .k-num { font-size: 2.1rem; font-weight: 800; line-height: 1; }
+.kpi .k-foot { font-size: .72rem; opacity: .85; }
+.kpi.k-purple { background: var(--tr-grad); }
+.kpi.k-green { background: var(--tr-grad-green); }
+.kpi.k-red { background: var(--tr-grad-red); }
+.kpi.k-orange { background: var(--tr-grad-orange); color: #4a3b00; }
+.kpi a { color: inherit; text-decoration: underline; }
+
+/* ---- Küçük istatistik kartları (beyaz) ---- */
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 0 0 1rem; }
+.stat { background: #fff; border: 1px solid var(--tr-line); border-radius: .7rem; padding: .9rem 1rem;
+    display: flex; align-items: center; gap: .8rem; }
+.stat .s-ic { width: 42px; height: 42px; border-radius: .6rem; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 1.2rem; background: #eef0ff; color: var(--tr-primary); flex: 0 0 auto; }
+.stat .s-num { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.stat .s-label { color: var(--tr-muted); font-size: .8rem; }
+
+/* ---- Liste: filtre paneli + navy özet şerit ---- */
+.filter-panel { background: #fff; border: 1px solid var(--tr-line); border-radius: .7rem; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.summary-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--tr-grad-navy);
+    color: #fff; border-radius: .6rem; overflow: hidden; margin-bottom: 1rem; }
+.summary-strip .cell { padding: .6rem 1rem; border-right: 1px solid rgba(255,255,255,.12); }
+.summary-strip .cell:last-child { border-right: none; }
+.summary-strip .s-k { font-size: .72rem; opacity: .8; text-transform: uppercase; letter-spacing: .03em; }
+.summary-strip .s-v { font-size: 1.3rem; font-weight: 800; }
+.count-badge { display: inline-block; background: #eef0ff; color: var(--tr-primary); border-radius: 2rem;
+    padding: .25rem .8rem; font-size: .82rem; font-weight: 700; }
+
+/* ---- Grid başlığını navy yap (referans sistem grid görünümü) ---- */
+.grid.tr-grid th { background: var(--tr-grad-navy); color: #fff; font-weight: 600; border-bottom: none; }
+.grid.tr-grid tbody tr:nth-child(even) { background: #f7f9fc; }
+.grid.tr-grid tbody tr:hover { background: #eef2ff; }
+.grid-note { background: #f1f3f7; color: var(--tr-muted); font-size: .8rem; padding: .5rem .8rem;
+    border: 1px dashed #cfd5df; border-radius: .4rem .4rem 0 0; }
+
+/* ---- Butonlar (mor birincil) ---- */
+.btn-primary, .filter-panel button[type=submit], .grid-form button {
+    background: var(--tr-grad); color: #fff; border: none; border-radius: .4rem; padding: .5rem 1rem;
+    cursor: pointer; font: inherit; font-weight: 600; }
+.btn-primary:hover { filter: brightness(1.05); }
+.badge-unread { background: #ff5b5b; color: #fff; font-size: .68rem; font-weight: 700; border-radius: 1rem;
+    padding: .05rem .4rem; min-width: 1.1rem; text-align: center; margin-left: auto; }
+
+@media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .kpi-row, .stat-row { grid-template-columns: repeat(2, 1fr); }
+}
