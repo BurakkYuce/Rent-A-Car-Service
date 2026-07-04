@@ -1,0 +1,67 @@
+@typeparam TItem
+
+@*
+    Tüm ağır liste ekranlarının ortak grid'i. Server-side (LoadData) — in-memory binding DEĞİL:
+    RLS + büyük veri için sayfa/sıra/filtre DB'de yapılır (çağıran LoadData'yı SearchAsync gibi
+    server-side sorguya bağlar). Varsayılanlar açık: Compact yoğunluk, sayfalama, sıralama, filtre,
+    kolon-seçici, gruplama, kolon-resize, yatay scroll.
+    Kolon-genişliği/pin/görünürlük: kolonlar dışarıdan RadzenDataGridColumn olarak verilir; her kolon
+    kendi Width/Frozen/Visible'ını set eder (native seam — plaka gibi anahtar kolon Frozen="true" ile
+    sola pinlenir). Excel export: mevcut ClosedXML endpoint'ine link (ExportUrl seam).
+    Kolon-persist ("Tablo Ayarlarını Kaydet"): SettingsKey seam bırakıldı — ŞİMDİ implement EDİLMEDİ.
+*@
+<div class="rz-grid-wrap">
+    @if (!string.IsNullOrWhiteSpace(ExportUrl) || Toolbar is not null)
+    {
+        <div class="rz-grid-toolbar">
+            @Toolbar
+            @if (!string.IsNullOrWhiteSpace(ExportUrl))
+            {
+                <a class="rz-grid-export" href="@ExportUrl" target="_blank" rel="noopener">⬇ Excel'e Aktar</a>
+            }
+        </div>
+    }
+    <RadzenDataGrid @ref="Grid" TItem="TItem"
+                    Data="@Data" Count="@Count" LoadData="@LoadData" IsLoading="@IsLoading"
+                    Density="Density.Compact"
+                    AllowPaging="true" PageSize="@PageSize" PageSizeOptions="@_pageSizes" ShowPagingSummary="true"
+                    AllowSorting="true" AllowFiltering="true"
+                    FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    AllowColumnPicking="true" AllowColumnResize="true" AllowGrouping="true"
+                    ColumnWidth="150px">
+        <Columns>
+            @Columns
+        </Columns>
+        <EmptyTemplate>
+            <p class="rz-grid-empty">@EmptyText</p>
+        </EmptyTemplate>
+    </RadzenDataGrid>
+</div>
+
+@code {
+    /// <summary>Geçerli sayfanın öğeleri (LoadData doldurur).</summary>
+    [Parameter] public IEnumerable<TItem>? Data { get; set; }
+    /// <summary>Toplam kayıt (server-side; sayfalama için).</summary>
+    [Parameter] public int Count { get; set; }
+    /// <summary>Server-side yükleme: skip/top/orderby/filter → DB sorgusu. (SearchAsync gibi.)</summary>
+    [Parameter] public EventCallback<LoadDataArgs> LoadData { get; set; }
+    /// <summary>Kolon tanımları (RadzenDataGridColumn'lar). Her kolon Width/Frozen/Visible'ını kendi set eder.</summary>
+    [Parameter] public RenderFragment? Columns { get; set; }
+    /// <summary>Grid üstü araç çubuğu (opsiyonel ek butonlar).</summary>
+    [Parameter] public RenderFragment? Toolbar { get; set; }
+    [Parameter] public int PageSize { get; set; } = 25;
+    [Parameter] public bool IsLoading { get; set; }
+    /// <summary>Mevcut ClosedXML export endpoint'ine link (seam) — Radzen'in native Excel'i yok.</summary>
+    [Parameter] public string? ExportUrl { get; set; }
+    [Parameter] public string EmptyText { get; set; } = "Kayıt bulunamadı.";
+    /// <summary>Kolon-persist seam (kullanıcı-başına "Tablo Ayarlarını Kaydet") — ŞİMDİ implement EDİLMEDİ.</summary>
+    [Parameter] public string? SettingsKey { get; set; }
+
+    /// <summary>Alt grid referansı (çağıran Reload() vb. için).</summary>
+    public RadzenDataGrid<TItem>? Grid { get; private set; }
+
+    private readonly int[] _pageSizes = { 10, 25, 50, 100 };
+
+    /// <summary>Veriyi yeniden yükle (filtre değişince çağrılır).</summary>
+    public Task ReloadAsync() => Grid?.Reload() ?? Task.CompletedTask;
+}

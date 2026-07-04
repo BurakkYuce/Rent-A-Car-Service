@@ -1,0 +1,21 @@
+@using RentACar.Domain.Enums
+
+@* Araç durumu rozeti — TEK merkezî durum→renk eşlemesi (her ekranda aynı). *@
+<RadzenBadge BadgeStyle="@Map(Durum)" Text="@Metin(Durum)" Variant="Variant.Filled" Shade="Shade.Default" />
+
+@code {
+    [Parameter, EditorRequired] public VehicleStatus Durum { get; set; }
+
+    /// <summary>Durum → Radzen BadgeStyle (kirada/boş/servis/rezervasyon her yerde aynı renk).</summary>
+    public static BadgeStyle Map(VehicleStatus s) => s switch
+    {
+        VehicleStatus.Musait => BadgeStyle.Success,    // boşta / kiraya hazır
+        VehicleStatus.Kirada => BadgeStyle.Info,       // kirada
+        VehicleStatus.Serviste => BadgeStyle.Warning,  // serviste
+        VehicleStatus.Stokta => BadgeStyle.Secondary,  // 0KM stok
+        VehicleStatus.Satildi => BadgeStyle.Dark,      // satıldı
+        _ => BadgeStyle.Light                           // pasif vd.
+    };
+
+    private static string Metin(VehicleStatus s) => s.ToString();
+}
