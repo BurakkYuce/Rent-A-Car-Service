@@ -29,7 +29,7 @@ public sealed class PdfExportService
                     col.Item().Text($"Tutar: {c.Tutar:N2}    Genel Toplam: {c.GenelToplam:N2}");
                     col.Item().Text($"Bakiye: {c.Bakiye:N2}").SemiBold();
                 });
-                p.Footer().AlignCenter().Text($"TürevRent — {c.SozlesmeNo}").FontSize(9);
+                p.Footer().AlignCenter().Text($"RentPro — {c.SozlesmeNo}").FontSize(9);
             });
         }).GeneratePdf();
 
@@ -52,7 +52,7 @@ public sealed class PdfExportService
                     col.Item().PaddingTop(6).Text($"Net: {inv.NetTutar:N2}    KDV: {inv.KdvTutar:N2}");
                     col.Item().Text($"Genel Toplam: {inv.GenelToplam:N2} {inv.Currency}").SemiBold();
                 });
-                p.Footer().AlignCenter().Text($"TürevRent — {inv.No}").FontSize(9);
+                p.Footer().AlignCenter().Text($"RentPro — {inv.No}").FontSize(9);
             });
         }).GeneratePdf();
 }
