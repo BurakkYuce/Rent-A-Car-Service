@@ -4,8 +4,7 @@
 
 <PageTitle>Cariler — RentPro</PageTitle>
 
-<h1>Cariler</h1>
-<p class="muted small">İndir: <a href="/listeler/export/cariler">Excel</a> · <a href="/listeler/export/cariler?format=csv">CSV</a></p>
+<div class="page-head"><h1>👥 Cariler</h1><div class="actions"><a href="/listeler/export/cariler">Excel</a> · <a href="/listeler/export/cariler?format=csv">CSV</a></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -46,6 +45,7 @@
     </form>
 </details>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <input name="q" value="@Q" placeholder="Ad / ünvan / TC / vergi no ara" />
     <select name="tip">
@@ -74,8 +74,9 @@
         <a href="/cariler" class="link">Temizle</a>
     }
 </form>
+</div>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr>
             <th>Tür</th><th>Ad / Ünvan</th><th>TC / Vergi No</th><th>Telefon</th>

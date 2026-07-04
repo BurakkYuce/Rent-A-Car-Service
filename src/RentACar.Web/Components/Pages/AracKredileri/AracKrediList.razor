@@ -6,7 +6,7 @@
 
 <PageTitle>Araç Kredisi — RentPro</PageTitle>
 
-<h1>Araç Kredisi Takip</h1>
+<div class="page-head"><h1>💰 Araç Kredisi Takip</h1><div class="actions"></div></div>
 <p class="muted small">Banka kredisi + taksit planı + kalan bakiye. Banka entegrasyonu yok; defter postlamaz (salt takip).</p>
 
 @if (!string.IsNullOrEmpty(Hata))
@@ -27,7 +27,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>No</th><th>Banka</th><th class="num">Kredi</th><th class="num">Aylık Taksit</th><th class="num">Ödenen/Toplam</th><th class="num">Kalan Bakiye</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

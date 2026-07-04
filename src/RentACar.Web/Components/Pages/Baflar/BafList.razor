@@ -9,7 +9,7 @@
 
 <PageTitle>BAF — Personel Araç Tahsis — RentPro</PageTitle>
 
-<h1>BAF — Personel Araç Tahsis</h1>
+<div class="page-head"><h1>🚗 BAF — Personel Araç Tahsis</h1><div class="actions"></div></div>
 <p class="muted small">Personele araç zimmetleme: çıkış (km/yakıt/şube) → teslim al (dönüş km/yakıt). Defter postlamaz.</p>
 
 @if (!string.IsNullOrEmpty(Hata))
@@ -41,7 +41,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>No</th><th>Personel</th><th>Araç</th><th class="num">Çıkış KM</th><th class="num">Dönüş KM</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)

@@ -4,10 +4,11 @@
 
 <PageTitle>Araç Güncel Durum — RentPro</PageTitle>
 
-<h1>Araç Güncel Durum</h1>
+<div class="page-head"><h1>🚗 Araç Güncel Durum</h1><div class="actions"></div></div>
 <p class="muted small">Filonun anlık görünümü: her aracın operasyonel durumu, filo statüsü ve (kiradaysa)
     aktif kira özeti tek tabloda. Operatör yalnız kendi şubesini görür.</p>
 
+<div class="filter-panel">
 <form method="get" class="filter-bar">
     <input name="q" value="@Q" placeholder="Plaka / marka ara" />
     <select name="durum">
@@ -48,10 +49,11 @@
     <button type="submit">Filtrele</button>
     <a href="/arac-durum" class="link">Temizle</a>
 </form>
+</div>
 
 <p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada</p>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead>
         <tr>
             <th>Plaka</th><th>Marka/Tip</th><th>Grup</th><th>Filo</th><th>Durum</th>

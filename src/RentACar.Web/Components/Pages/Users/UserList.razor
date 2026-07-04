@@ -5,7 +5,7 @@
 
 <PageTitle>Kullanıcılar — RentPro</PageTitle>
 
-<h1>Kullanıcı Yönetimi</h1>
+<div class="page-head"><h1>👤 Kullanıcı Yönetimi</h1><div class="actions"></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -31,7 +31,7 @@
     </form>
 </details>
 
-<table class="grid">
+<table class="grid tr-grid">
     <thead><tr><th>Kullanıcı</th><th>Görünen Ad</th><th>Rol</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @foreach (var u in _list)
