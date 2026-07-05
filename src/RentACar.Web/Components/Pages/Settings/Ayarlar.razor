@@ -53,6 +53,31 @@
         <label class="check"><input type="checkbox" name="smtpSsl" value="true" checked="@(_m.SmtpSsl == true)" /> SSL/TLS</label>
     </fieldset>
 
+    <fieldset>
+        <legend>WhatsApp Günlük Özet</legend>
+        <p class="muted small">Firma sahibine her sabah (yerel 08:00 sonrası) günlük operasyon özeti gönderilir: beklenen çıkış/dönüş, açık rezervasyon, tahsilat, filo. Twilio yapılandırması yoksa gönderim yapılmaz (test modu).</p>
+        <label>WhatsApp No (E.164)<input name="whatsAppNumarasi" value="@_m.WhatsAppNumarasi" placeholder="+90 5xx xxx xx xx" /></label>
+        <label class="check"><input type="checkbox" name="whatsAppGunlukOzet" value="true" checked="@(_m.WhatsAppGunlukOzet == true)" /> Günlük özet gönderilsin</label>
+
+        @if (_gonderimler.Count > 0)
+        {
+            <p class="muted small">Son gönderimler:</p>
+            <table class="grid tr-grid">
+                <thead><tr><th>Gün</th><th>Durum</th><th>Not</th></tr></thead>
+                <tbody>
+                    @foreach (var g in _gonderimler)
+                    {
+                        <tr>
+                            <td>@g.Gun.ToString("dd.MM.yyyy")</td>
+                            <td>@(g.Basarili ? "Gönderildi" : "Başarısız")</td>
+                            <td class="muted small">@(g.Basarili ? "" : g.HataMesaji)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </fieldset>
+
     <button type="submit">Kaydet</button>
 </form>
 
@@ -60,8 +85,13 @@
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
     private TenantSettingsModel _m = new();
+    private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];
 
     private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
 
-    protected override async Task OnInitializedAsync() => _m = await Settings.GetAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _m = await Settings.GetAsync();
+        _gonderimler = await Settings.ListWhatsAppGonderimAsync();
+    }
 }

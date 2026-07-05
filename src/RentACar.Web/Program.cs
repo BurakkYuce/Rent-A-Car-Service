@@ -220,6 +220,9 @@ builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // sched
 builder.Services.AddHttpClient(); // TCMB kur çekimi
 builder.Services.AddSingleton<RentACar.Web.Kur.TcmbKurService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
 builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbKurJob>(); // scheduler: TCMB günlük kur (kimliksiz)
+// WhatsApp: Twilio config VARSA gerçek gönderici stub'ı override eder (son kayıt kazanır); yoksa stub no-op kalır.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"]))
+    builder.Services.AddSingleton<RentACar.Application.Integrations.IWhatsAppService, RentACar.Web.Integrations.TwilioWhatsAppService>();
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 
