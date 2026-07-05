@@ -10,16 +10,18 @@ namespace RentACar.Application.Currencies;
 /// yapılandırmadır → <see cref="Permission.OperationsWrite"/>. <see cref="ListActiveAsync"/>
 /// (form açılır liste kaynağı) yetkisizdir. Tenant izolasyonu/audit alt katmanda otomatik.
 /// </summary>
-public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser currentUser)
+public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly ICurrencyRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
+    private const string CK = "currencies";
 
     public Task<IReadOnlyList<Currency>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _cache.GetOrCreateAsync(CK, () => _repository.ListAsync(ct), ct);
 
-    public Task<IReadOnlyList<Currency>> ListActiveAsync(CancellationToken ct = default)
-        => _repository.ListActiveAsync(ct);
+    public async Task<IReadOnlyList<Currency>> ListActiveAsync(CancellationToken ct = default)
+        => (await ListAsync(ct)).Where(x => x.Aktif).ToList();
 
     public Task<Currency?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -35,6 +37,7 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         var cur = new Currency();
         Apply(cur, n);
         await _repository.CreateAsync(cur, ct);
+        _cache.Invalidate(CK);
         return cur.Id;
     }
 
@@ -46,17 +49,21 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu döviz zaten var.");
 
-        return await _repository.UpdateAsync(id, cur =>
+        var ok = await _repository.UpdateAsync(id, cur =>
         {
             Apply(cur, n);
             cur.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        var ok = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
     private static void Validate(CurrencyInput n)

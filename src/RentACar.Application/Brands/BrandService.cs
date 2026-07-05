@@ -10,16 +10,18 @@ namespace RentACar.Application.Brands;
 /// yapılandırmadır → <see cref="Permission.OperationsWrite"/>. <see cref="ListActiveAsync"/>
 /// (araç formu açılır liste kaynağı) yetkisizdir. Tenant izolasyonu/audit alt katmanda otomatik.
 /// </summary>
-public sealed class BrandService(IBrandRepository repository, ICurrentUser currentUser)
+public sealed class BrandService(IBrandRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly IBrandRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
+    private const string CK = "brands";
 
     public Task<IReadOnlyList<Brand>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _cache.GetOrCreateAsync(CK, () => _repository.ListAsync(ct), ct);
 
-    public Task<IReadOnlyList<Brand>> ListActiveAsync(CancellationToken ct = default)
-        => _repository.ListActiveAsync(ct);
+    public async Task<IReadOnlyList<Brand>> ListActiveAsync(CancellationToken ct = default)
+        => (await ListAsync(ct)).Where(x => x.Aktif).ToList();
 
     public Task<Brand?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -35,6 +37,7 @@ public sealed class BrandService(IBrandRepository repository, ICurrentUser curre
         var brand = new Brand();
         Apply(brand, n);
         await _repository.CreateAsync(brand, ct);
+        _cache.Invalidate(CK);
         return brand.Id;
     }
 
@@ -46,17 +49,21 @@ public sealed class BrandService(IBrandRepository repository, ICurrentUser curre
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu marka zaten var.");
 
-        return await _repository.UpdateAsync(id, brand =>
+        var ok = await _repository.UpdateAsync(id, brand =>
         {
             Apply(brand, n);
             brand.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        var ok = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
     private static void Validate(BrandInput n)
