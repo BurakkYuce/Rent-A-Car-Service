@@ -46,6 +46,12 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? SmtpSifreEnc { get; set; }
     public bool? SmtpSsl { get; set; }
 
+    // ---- WhatsApp günlük operasyon özeti (additive) ----
+    /// <summary>Günlük özetin gideceği WhatsApp no (E.164; boşsa gönderilmez).</summary>
+    public string? WhatsAppNumarasi { get; set; }
+    /// <summary>Günlük operasyon özeti WhatsApp'tan gönderilsin mi.</summary>
+    public bool WhatsAppGunlukOzet { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

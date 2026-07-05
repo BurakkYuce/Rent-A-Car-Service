@@ -98,6 +98,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
+    public DbSet<WhatsAppGonderim> WhatsAppGonderimler => Set<WhatsAppGonderim>();
     public DbSet<Personel> Personeller => Set<Personel>();
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
     public DbSet<Anket> Anketler => Set<Anket>();
@@ -283,6 +284,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.SmtpHost).HasMaxLength(256);
             e.Property(x => x.SmtpKullanici).HasMaxLength(256);
             e.Property(x => x.SmtpSifreEnc).HasMaxLength(1024);
+            e.Property(x => x.WhatsAppNumarasi).HasMaxLength(32);
             e.HasIndex(x => x.TenantId).IsUnique(); // tenant başına tek satır
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
@@ -380,6 +382,20 @@ public sealed class AppDbContext : DbContext
             // İdempotency: aynı kaynak (Tur+araç+vade) için tek bildirim.
             e.HasIndex(x => new { x.TenantId, x.Tur, x.VehicleId, x.VadeTarihi }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.Okundu });
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- WhatsAppGonderim (tenant-owned; günlük özet log/idempotency) ----
+        b.Entity<WhatsAppGonderim>(e =>
+        {
+            e.ToTable("WhatsAppGonderimler");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Tur).IsRequired().HasMaxLength(16);
+            e.Property(x => x.Alici).IsRequired().HasMaxLength(32);
+            e.Property(x => x.Ozet).HasMaxLength(1024);
+            e.Property(x => x.HataMesaji).HasMaxLength(1024);
+            e.HasIndex(x => new { x.TenantId, x.Gun, x.Tur }).IsUnique(); // günde tek gönderim
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });
 
