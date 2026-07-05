@@ -1,16 +1,26 @@
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Integrations;
 using RentACar.Infrastructure.Persistence;
 
 namespace RentACar.Web.Jobs;
 
 /// <summary>
 /// Scheduler: periyodik olarak (12 saatte bir + açılıştan ~30sn sonra) her tenant'ın yaklaşan/geçmiş
-/// sigorta/MTV/muayene vadelerini tarayıp kalıcı uygulama-içi bildirim üretir (idempotent). Dış
-/// entegrasyon/e-posta YOK. racar_app bağlantısı + tenant-loop + GUC (backfill deseni; owner DEĞİL).
+/// sigorta/MTV/muayene vadelerini tarayıp kalıcı uygulama-içi bildirim üretir (idempotent) + firma sahibine
+/// günlük operasyon özeti WhatsApp gönderir (saat kapılı, idempotent). Dış e-posta YOK; WhatsApp config-gated
+/// (yoksa stub no-op). racar_app bağlantısı + tenant-loop + GUC (backfill deseni; owner DEĞİL).
 /// </summary>
-public sealed class VadeBildirimJob(IConfiguration config, ILogger<VadeBildirimJob> log) : BackgroundService
+public sealed class VadeBildirimJob(IConfiguration config, IWhatsAppService whatsapp, ILogger<VadeBildirimJob> log) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
+    private static readonly TimeZoneInfo Tz = ResolveTz();
+
+    private static TimeZoneInfo ResolveTz()
+    {
+        foreach (var id in new[] { "Europe/Istanbul", "Turkey Standard Time" })
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { /* diğerini dene */ }
+        return TimeZoneInfo.Utc;
+    }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -47,11 +57,16 @@ public sealed class VadeBildirimJob(IConfiguration config, ILogger<VadeBildirimJ
             try
             {
                 var sys = new SystemTenantContext { TenantId = tenantId };
-                await using var db = new AppDbContext(options, sys, sys);
-                await db.Database.OpenConnectionAsync(ct); // GUC bağlantı ömrünce açık kalmalı
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
-                toplam += await VadeBildirimUretici.RunAsync(db, tenantId, now, ct);
+                await using (var db = new AppDbContext(options, sys, sys))
+                {
+                    await db.Database.OpenConnectionAsync(ct); // GUC bağlantı ömrünce açık kalmalı
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
+                    toplam += await VadeBildirimUretici.RunAsync(db, tenantId, now, ct);
+                } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
+
+                // Günlük operasyon özeti WhatsApp (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).
+                await WhatsAppOzetGonderici.SendDailyAsync(options, tenantId, whatsapp, now, Tz, log, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // shutdown → yukarı
             catch (Exception ex)

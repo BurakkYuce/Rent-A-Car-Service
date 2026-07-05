@@ -9,4 +9,7 @@ public interface ITenantSettingsRepository
 
     /// <summary>Tek satırı upsert eder: yoksa oluşturur, varsa günceller; apply mevcut/yeni varlığa uygulanır.</summary>
     Task UpsertAsync(Action<RentACar.Domain.Entities.TenantSettings> apply, CancellationToken ct = default);
+
+    /// <summary>Son WhatsApp gönderimleri (en yeni önce) — ayarlar görünürlüğü ("neden özet gelmiyor").</summary>
+    Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppGonderimAsync(int take = 7, CancellationToken ct = default);
 }
