@@ -94,6 +94,8 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<RentACar.Application.Notifications.IBildirimRepository, BildirimRepository>();
+        services.AddMemoryCache(); // master/referans cache (Web zaten çağırıyor; idempotent)
+        services.AddScoped<RentACar.Application.Common.ITenantCache, RentACar.Infrastructure.Caching.TenantCache>();
         services.AddScoped<ICurrencyRepository, CurrencyRepository>();
         services.AddScoped<RentACar.Application.Kur.IKurRepository, KurRepository>();
         services.AddScoped<RentACar.Application.Kur.ISabitKurRepository, SabitKurRepository>();
