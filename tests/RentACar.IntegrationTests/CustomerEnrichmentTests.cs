@@ -133,4 +133,28 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         Assert.Null(c.UyariNedeni);
         Assert.Equal("Bayi", c.Kaynak);
     }
+
+    [Fact]
+    public async Task Turev_parite_fields_roundtrip()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+
+        var id = await svc.CreateAsync(new CustomerInput
+        {
+            Tip = CariType.Bireysel, Ad = "Kaan", Soyad = "Demir",
+            OzelCariTip = "Grup İçi", MusteriTipi = "Türk-Yabancı Ehliyetli",
+            EhliyetUlke = "ALMANYA", Dil = "EN", Doviz = "EURO", TevkifatDurum = "Sadece Tevkifatlı",
+        });
+
+        var c = await svc.GetAsync(id);
+        Assert.NotNull(c);
+        Assert.Equal("Grup İçi", c!.OzelCariTip);              // Türkçe imlâ korunur
+        Assert.Equal("Türk-Yabancı Ehliyetli", c.MusteriTipi);
+        Assert.Equal("ALMANYA", c.EhliyetUlke);
+        Assert.Equal("EN", c.Dil);
+        Assert.Equal("EURO", c.Doviz);
+        Assert.Equal("Sadece Tevkifatlı", c.TevkifatDurum);
+    }
 }

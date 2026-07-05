@@ -71,4 +71,12 @@ public sealed class CustomerInput
     public string? BankaAdi { get; set; }
     public string? FaturaAdresi { get; set; }
     public string? FaturaUnvan { get; set; }
+
+    // referans sistem parite (additive)
+    public string? OzelCariTip { get; set; }
+    public string? MusteriTipi { get; set; }
+    public string? EhliyetUlke { get; set; }
+    public string? Dil { get; set; }
+    public string? Doviz { get; set; }
+    public string? TevkifatDurum { get; set; }
 }
