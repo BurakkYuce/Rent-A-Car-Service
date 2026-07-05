@@ -74,6 +74,12 @@ public static class CustomerEndpoints
         RiskMesaji = Str(f, "riskMesaji"),
         RiskTarihi = FormParse.Date(Str(f, "riskTarihi")),
         HgsYansitmaTuru = Str(f, "hgsYansitmaTuru"),
+        OzelCariTip = Str(f, "ozelCariTip"),
+        MusteriTipi = Str(f, "musteriTipi"),
+        EhliyetUlke = Str(f, "ehliyetUlke"),
+        Dil = Str(f, "dil"),
+        Doviz = Str(f, "doviz"),
+        TevkifatDurum = Str(f, "tevkifatDurum"),
         KaraListe = BoolReq(f, "karaListe"),
         Pasif = BoolReq(f, "pasif"),
         // CRM parite zenginleştirme
