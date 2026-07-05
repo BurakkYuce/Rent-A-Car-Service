@@ -89,7 +89,7 @@ public sealed class CalendarFeedService(IConfiguration config)
             AllDay($"ceza-{c.Id}", c.VadeTarihi, $"⚠️ Ceza vade: {P(c.VehicleId ?? Guid.Empty)}");
         // Fatura ödeme vadesi.
         foreach (var f in await db.Invoices.AsNoTracking().Where(x => x.VadeTarihi != null && x.VadeTarihi >= altSinir).ToListAsync(ct))
-            AllDay($"fat-{f.Id}", f.VadeTarihi!.Value, $"📄 Fatura ödeme: {f.GenelToplam.ToString("N0", CultureInfo.GetCultureInfo("tr-TR"))} TL");
+            AllDay($"fat-{f.Id}", f.VadeTarihi!.Value, $"📄 Fatura ödeme: {(f.GenelToplam * f.Kur).ToString("N0", CultureInfo.GetCultureInfo("tr-TR"))} TL"); // döviz faturada TL karşılığı (×Kur)
 
         sb.Append("END:VCALENDAR\r\n");
         return sb.ToString();
