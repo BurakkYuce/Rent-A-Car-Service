@@ -11,17 +11,19 @@ namespace RentACar.Application.Locations;
 /// (<see cref="ListActiveAsync"/>) yetkisizdir (rezervasyon/teklif/kira formu çağırır).
 /// Tenant izolasyonu/audit alt katmanda otomatik.
 /// </summary>
-public sealed class LocationService(ILocationRepository repository, ICurrentUser currentUser)
+public sealed class LocationService(ILocationRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly ILocationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
+    private const string CK = "locations";
 
     public Task<IReadOnlyList<Location>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _cache.GetOrCreateAsync(CK, () => _repository.ListAsync(ct), ct);
 
     /// <summary>Form açılır listesi kaynağı (yalnız aktif). Yetki gerektirmez.</summary>
-    public Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default)
-        => _repository.ListActiveAsync(ct);
+    public async Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default)
+        => (await ListAsync(ct)).Where(x => x.Aktif).ToList();
 
     public Task<Location?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -37,6 +39,7 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         var loc = new Location();
         Apply(loc, n);
         await _repository.CreateAsync(loc, ct);
+        _cache.Invalidate(CK);
         return loc.Id;
     }
 
@@ -48,17 +51,21 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
 
-        return await _repository.UpdateAsync(id, loc =>
+        var ok = await _repository.UpdateAsync(id, loc =>
         {
             Apply(loc, n);
             loc.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        var ok = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
     private static void Validate(LocationInput n)
