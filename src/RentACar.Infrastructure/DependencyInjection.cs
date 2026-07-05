@@ -95,6 +95,8 @@ public static class DependencyInjection
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<RentACar.Application.Notifications.IBildirimRepository, BildirimRepository>();
         services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+        services.AddScoped<RentACar.Application.Kur.IKurRepository, KurRepository>();
+        services.AddScoped<RentACar.Application.Kur.ISabitKurRepository, SabitKurRepository>();
         services.AddScoped<IRateCardRepository, RateCardRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();

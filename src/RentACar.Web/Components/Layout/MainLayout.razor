@@ -134,10 +134,11 @@
 
                     @* ---- Finans ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/donem-kapanis","/cezalar")">
+                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/donem-kapanis","/cezalar","/kurlar")">
                             <summary><span class="ic">💰</span> Finans <span class="chev">▶</span></summary>
                             <div class="sub">
                                 <a href="/kasa">Kasa / Banka</a>
+                                <a href="/kurlar">Döviz Kurları</a>
                                 <a href="/faturalar">Faturalar</a>
                                 <a href="/giderler">Giderler</a>
                                 <a href="/satislar">Satışlar</a>
