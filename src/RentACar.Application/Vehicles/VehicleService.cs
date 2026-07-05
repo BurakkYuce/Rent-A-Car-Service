@@ -11,18 +11,26 @@ namespace RentACar.Application.Vehicles;
 /// Tenant izolasyonu ve audit alt katmanda (DbContext filter + RLS + interceptor) otomatik.
 /// Liste, rol bazlı ŞUBE kapsamıyla filtrelenir (operatör yalnız kendi şubesi).
 /// </summary>
-public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches)
+public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches, ITenantCache cache)
 {
     private readonly IVehicleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IBranchRepository _branches = branches;
+    private readonly ITenantCache _cache = cache;
+    private const string CacheKey = "vehicles"; // dropdown kaynağı (tam tenant listesi)
 
     /// <summary>Serbest-metin şubeyi tenant içi Branch FK'sine çözer (roadmap F1); eşleşmezse null (metin korunur).</summary>
     private async Task<Guid?> ResolveSubeAsync(string? sube, CancellationToken ct)
         => string.IsNullOrWhiteSpace(sube) ? null : (await _branches.FindByAdAsync(sube.Trim(), ct))?.Id;
 
-    public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
+    /// <summary>Dropdown kaynağı: TAM tenant listesi cache'lenir, şube kapsamı bellek-içi filtrelenir
+    /// (operatör kendi şubesini görür). Yazımda invalidate. Durum diğer yollarca değişirse TTL (10dk) tazeler.</summary>
+    public async Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
+    {
+        var all = await _cache.GetOrCreateAsync(CacheKey, () => _repository.ListAsync(null, ct), ct);
+        var scope = BranchScope.Effective(_currentUser);
+        return scope is null ? all : all.Where(v => v.Sube == scope).ToList();
+    }
 
     /// <summary>Liste ekranı: arama/filtre + sayfalama. Rol bazlı şube kapsamı zorlanır.</summary>
     public Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default)
@@ -70,6 +78,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
 
         // Yarış koşulunda DB benzersiz index son güvencedir → repo 23505'i çevirir.
         await _repository.CreateAsync(vehicle, ct);
+        _cache.Invalidate(CacheKey);
         return vehicle.Id;
     }
 
@@ -82,7 +91,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             throw new DuplicatePlakaException(plaka);
 
         var subeId = await ResolveSubeAsync(input.Sube, ct);
-        return await _repository.UpdateAsync(id, v =>
+        var ok = await _repository.UpdateAsync(id, v =>
         {
             v.Plaka = plaka;
             v.Marka = Trim(input.Marka);
@@ -104,10 +113,16 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             ApplyExtended(v, input);
             v.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(CacheKey);
+        return ok;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
-        => _repository.DeleteAsync(id, ct);
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var ok = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(CacheKey);
+        return ok;
+    }
 
     private static void Validate(string plaka, VehicleInput input)
     {

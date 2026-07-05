@@ -10,16 +10,18 @@ namespace RentACar.Application.EkHizmetler;
 /// yapılandırmadır → <see cref="Permission.OperationsWrite"/>. ListActiveAsync (kira ek hizmet
 /// formu kaynağı) yetkisizdir. Tenant izolasyonu/audit alt katmanda otomatik.
 /// </summary>
-public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, ICurrentUser currentUser)
+public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly IEkHizmetTanimRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
+    private const string CK = "ekhizmet";
 
     public Task<IReadOnlyList<EkHizmetTanim>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _cache.GetOrCreateAsync(CK, () => _repository.ListAsync(ct), ct);
 
-    public Task<IReadOnlyList<EkHizmetTanim>> ListActiveAsync(CancellationToken ct = default)
-        => _repository.ListActiveAsync(ct);
+    public async Task<IReadOnlyList<EkHizmetTanim>> ListActiveAsync(CancellationToken ct = default)
+        => (await ListAsync(ct)).Where(x => x.Aktif).ToList();
 
     public Task<EkHizmetTanim?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -35,6 +37,7 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         var t = new EkHizmetTanim();
         Apply(t, n);
         await _repository.CreateAsync(t, ct);
+        _cache.Invalidate(CK);
         return t.Id;
     }
 
@@ -46,17 +49,21 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ek hizmet zaten var.");
 
-        return await _repository.UpdateAsync(id, t =>
+        var ok = await _repository.UpdateAsync(id, t =>
         {
             Apply(t, n);
             t.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        var ok = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(CK);
+        return ok;
     }
 
     private static void Validate(EkHizmetTanimInput n)
