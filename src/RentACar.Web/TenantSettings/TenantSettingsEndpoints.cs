@@ -40,7 +40,9 @@ public static class TenantSettingsEndpoints
                 SmtpPort = FormParse.Int(f["smtpPort"].ToString()),
                 SmtpKullanici = f["smtpKullanici"].ToString(),
                 SmtpSifre = f["smtpSifre"].ToString(),
-                SmtpSsl = f["smtpSsl"].ToString() is "true" or "on"
+                SmtpSsl = f["smtpSsl"].ToString() is "true" or "on",
+                WhatsAppNumarasi = f["whatsAppNumarasi"].ToString(),
+                WhatsAppGunlukOzet = f["whatsAppGunlukOzet"].ToString() is "true" or "on"
             };
             await svc.SaveAsync(m);
             return Results.Redirect("/ayarlar?ok=1");

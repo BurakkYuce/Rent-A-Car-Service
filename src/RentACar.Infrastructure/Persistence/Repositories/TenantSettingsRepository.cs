@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.TenantSettings;
+using RentACar.Domain.Entities;
 using Settings = RentACar.Domain.Entities.TenantSettings;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
@@ -38,5 +39,13 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
         {
             throw new ValidationException("Ayarlar zaten kayıtlı (eşzamanlı yazım).");
         }
+    }
+
+    public async Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppGonderimAsync(int take = 7, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.WhatsAppGonderimler.AsNoTracking()
+            .OrderByDescending(x => x.Gun).ThenByDescending(x => x.OlusturmaTarihi)
+            .Take(take).ToListAsync(ct);
     }
 }

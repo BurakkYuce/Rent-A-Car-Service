@@ -30,4 +30,8 @@ public sealed class TenantSettingsModel
     public string? SmtpKullanici { get; set; }
     public string? SmtpSifre { get; set; }
     public bool? SmtpSsl { get; set; }
+
+    // WhatsApp günlük operasyon özeti
+    public string? WhatsAppNumarasi { get; set; }
+    public bool? WhatsAppGunlukOzet { get; set; }
 }

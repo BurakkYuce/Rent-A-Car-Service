@@ -44,7 +44,9 @@ public sealed class TenantSettingsService(
             SmtpPort = s.SmtpPort,
             SmtpKullanici = s.SmtpKullanici,
             SmtpSifre = secrets.Unprotect(s.SmtpSifreEnc),
-            SmtpSsl = s.SmtpSsl
+            SmtpSsl = s.SmtpSsl,
+            WhatsAppNumarasi = s.WhatsAppNumarasi,
+            WhatsAppGunlukOzet = s.WhatsAppGunlukOzet
         };
     }
 
@@ -79,8 +81,13 @@ public sealed class TenantSettingsService(
             s.SmtpKullanici = Trim(m.SmtpKullanici);
             s.SmtpSifreEnc = Secret(m.SmtpSifre, s.SmtpSifreEnc);
             s.SmtpSsl = m.SmtpSsl;
+            s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
+            s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }, ct);
     }
+
+    public Task<IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim>> ListWhatsAppGonderimAsync(int n = 7, CancellationToken ct = default)
+        => repository.ListWhatsAppGonderimAsync(n, ct);
 
     private string? Secret(string? yeni, string? mevcutCipher)
         => string.IsNullOrWhiteSpace(yeni) ? mevcutCipher : secrets.Protect(yeni.Trim());
