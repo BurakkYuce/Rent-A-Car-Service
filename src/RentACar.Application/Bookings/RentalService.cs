@@ -70,7 +70,11 @@ public sealed class RentalService(
             KomisyonTutar = input.KomisyonTutar,
             DropUcreti = input.DropUcreti,
             SonraOdeOran = input.SonraOdeOran,
-            Aciklama = input.Aciklama
+            Aciklama = input.Aciklama,
+            KiralamaTuru = input.KiralamaTuru,
+            FaturalamaTipi = input.FaturalamaTipi,
+            FiyatTuru = input.FiyatTuru,
+            Doviz = input.Doviz
         };
         await _repository.CreateRentalAsync(contract, ct);
         return contract.Id;

@@ -89,4 +89,31 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
         Assert.Null(c.Depozito);
         Assert.Null(c.SonraOdeOran);
     }
+
+    [Fact]
+    public async Task Turev_metadata_roundtrip_and_not_in_balance()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var vehicleId = await scope.ServiceProvider.GetRequiredService<VehicleService>()
+            .CreateAsync(new VehicleInput { Plaka = "34 OD 04" });
+        var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
+
+        var id = await rentals.CreateDirectAsync(new BookingInput
+        {
+            MusteriId = Guid.NewGuid(), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m,
+            KiralamaTuru = "Uzun Kiralama", FaturalamaTipi = "Full Credit", FiyatTuru = "KDV Dahil Günlük", Doviz = "EURO",
+        });
+        var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
+
+        Assert.NotNull(c);
+        Assert.Equal("Uzun Kiralama", c!.KiralamaTuru);
+        Assert.Equal("Full Credit", c.FaturalamaTipi);
+        Assert.Equal("KDV Dahil Günlük", c.FiyatTuru);
+        Assert.Equal("EURO", c.Doviz);
+        // KRİTİK: metadata para hesabını ETKİLEMEZ — Döviz "EURO" olsa da hesap gün×ücret (4×100=400).
+        Assert.Equal(400m, c.Tutar);
+        Assert.Equal(400m, c.GenelToplam);
+        Assert.Equal(400m, c.Bakiye);
+    }
 }
