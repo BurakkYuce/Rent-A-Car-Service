@@ -105,6 +105,42 @@ else
         <label>Pasaport No<input name="pasaportNo" value="@_c.PasaportNo" /></label>
         <label>Fatura Dönemi<input name="faturaDonemi" value="@_c.FaturaDonemi" placeholder="Aylık/15 günlük/Peşin" /></label>
         <label>Tevkifat Oranı %<input name="tevkifatOrani" type="number" step="0.01" min="0" max="100" value="@_c.TevkifatOrani" /></label>
+        <label>Özel Cari Tip
+            <select name="ozelCariTip">
+                <option value="">—</option>
+                @foreach (var o in new[] { "Standart", "Yurtiçi", "Yurtdışı", "2.El", "Grup İçi" })
+                { <option value="@o" selected="@(_c.OzelCariTip == o)">@o</option> }
+            </select>
+        </label>
+        <label>Müşteri Tipi
+            <select name="musteriTipi">
+                <option value="">—</option>
+                @foreach (var o in new[] { "Türk Ehliyetli", "Yabancı Ehliyetli", "Türk-Yabancı Ehliyetli" })
+                { <option value="@o" selected="@(_c.MusteriTipi == o)">@o</option> }
+            </select>
+        </label>
+        <label>Ehliyet Ülke<input name="ehliyetUlke" value="@_c.EhliyetUlke" placeholder="TÜRKİYE" /></label>
+        <label>Dil
+            <select name="dil">
+                <option value="">—</option>
+                @foreach (var o in new[] { "TR", "EN", "Diğer" })
+                { <option value="@o" selected="@(_c.Dil == o)">@o</option> }
+            </select>
+        </label>
+        <label>Döviz
+            <select name="doviz">
+                <option value="">—</option>
+                @foreach (var o in new[] { "TL", "EURO", "USD" })
+                { <option value="@o" selected="@(_c.Doviz == o)">@o</option> }
+            </select>
+        </label>
+        <label>Tevkifat Durumu
+            <select name="tevkifatDurum">
+                <option value="">—</option>
+                @foreach (var o in new[] { "Serbest", "Sadece Tevkifatsız", "Sadece Tevkifatlı" })
+                { <option value="@o" selected="@(_c.TevkifatDurum == o)">@o</option> }
+            </select>
+        </label>
         <label>Yetkili 1 Ad<input name="yetkili1Ad" value="@_c.Yetkili1Ad" /></label>
         <label>Yetkili 1 Tel<input name="yetkili1Tel" value="@_c.Yetkili1Tel" /></label>
         <label>Yetkili 1 Mail<input name="yetkili1Mail" type="email" value="@_c.Yetkili1Mail" /></label>

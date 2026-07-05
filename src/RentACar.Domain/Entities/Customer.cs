@@ -104,6 +104,15 @@ public class Customer : ITenantOwned, IAuditable
     public DateTimeOffset? RiskTarihi { get; set; }
     /// <summary>HGS/geçiş yansıtma türü (ör. Faturalı, Faturasız, Yansıtılmaz).</summary>
     public string? HgsYansitmaTuru { get; set; }
+
+    // ---- TürevRent parite (additive, nullable) ----
+    public string? OzelCariTip { get; set; }   // Yurtiçi/Yurtdışı/2.El/Grup İçi/Standart
+    public string? MusteriTipi { get; set; }   // Türk Ehliyetli/Yabancı Ehliyetli/Türk-Yabancı Ehliyetli
+    public string? EhliyetUlke { get; set; }   // ehliyeti veren ülke
+    public string? Dil { get; set; }           // TR/EN/Diğer
+    public string? Doviz { get; set; }         // cari varsayılan döviz (TL/EURO/USD)
+    public string? TevkifatDurum { get; set; } // Serbest/Sadece Tevkifatsız/Sadece Tevkifatlı
+
     public bool KaraListe { get; set; }
     public bool Pasif { get; set; }
 
