@@ -61,6 +61,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<CustomCode> CustomCodes => Set<CustomCode>();
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Currency> Currencies => Set<Currency>();
+    public DbSet<KurKaydi> KurKayitlari => Set<KurKaydi>();   // TCMB günlük kur (paylaşımlı/platform)
+    public DbSet<SabitKur> SabitKurlar => Set<SabitKur>();    // tenant kur sabitleme (tenant-owned/RLS)
     public DbSet<PenaltyType> CezaTurleri => Set<PenaltyType>();
     public DbSet<KdvRate> KdvOranlari => Set<KdvRate>();
     public DbSet<VehicleGroup> VehicleGroups => Set<VehicleGroup>();
@@ -690,6 +692,34 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
             e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
             e.Property(x => x.Sembol).HasMaxLength(8);
+            e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+            e.HasQueryFilter(x => x.TenantId == TenantId);
+        });
+
+        // ---- KurKaydi (PLATFORM; TCMB günlük kur — paylaşımlı, RLS YOK, TenantId YOK; Tenants deseni) ----
+        b.Entity<KurKaydi>(e =>
+        {
+            e.ToTable("KurKayitlari");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
+            e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+            e.Property(x => x.ForexAlis).HasColumnType("numeric(19,6)");
+            e.Property(x => x.ForexSatis).HasColumnType("numeric(19,6)");
+            e.Property(x => x.EfektifAlis).HasColumnType("numeric(19,6)");
+            e.Property(x => x.EfektifSatis).HasColumnType("numeric(19,6)");
+            e.HasIndex(x => new { x.Tarih, x.Kod }).IsUnique();
+            // RLS YOK, HasQueryFilter YOK — ulusal/paylaşımlı veri.
+        });
+
+        // ---- SabitKur (tenant-owned; kur sabitleme — RLS) ----
+        b.Entity<SabitKur>(e =>
+        {
+            e.ToTable("SabitKurlar");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
+            e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
             e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
             e.HasQueryFilter(x => x.TenantId == TenantId);
         });

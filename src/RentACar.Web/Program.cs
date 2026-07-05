@@ -17,6 +17,7 @@ using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Calendar;
+using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
 using RentACar.Web.Bookings;
@@ -216,6 +217,9 @@ if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // scheduler: vade→bildirim (kimliksiz)
+builder.Services.AddHttpClient(); // TCMB kur çekimi
+builder.Services.AddSingleton<RentACar.Web.Kur.TcmbKurService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
+builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbKurJob>(); // scheduler: TCMB günlük kur (kimliksiz)
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 
@@ -285,6 +289,7 @@ app.MapAuthEndpoints();
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
 app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
+app.MapKurEndpoints();            // TCMB yenile + sabit kur CRUD
 app.MapVehicleEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
