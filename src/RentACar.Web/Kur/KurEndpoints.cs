@@ -16,8 +16,10 @@ public static class KurEndpoints
         grp.MapPost("/yenile", async (TcmbKurService svc) =>
         {
             var n = await svc.RefreshAsync();
-            return Results.Redirect(n > 0 ? "/kurlar?ok=1"
-                : $"/kurlar?hata={Uri.EscapeDataString("TCMB kuru çekilemedi (bağlantı?).")}");
+            // n>0 güncellendi, n==-1 zaten güncel (throttle) — ikisi de "güncel"; n==0 çekilemedi.
+            return Results.Redirect(n == 0
+                ? $"/kurlar?hata={Uri.EscapeDataString("TCMB kuru çekilemedi (bağlantı?).")}"
+                : "/kurlar?ok=1");
         });
 
         grp.MapPost("/sabit/kaydet", async (SabitKurService svc, HttpRequest req) =>

@@ -13,9 +13,31 @@ namespace RentACar.Web.Kur;
 public sealed class TcmbKurService(IHttpClientFactory httpFactory, IConfiguration config, ILogger<TcmbKurService> log)
 {
     private const string Url = "https://www.tcmb.gov.tr/kurlar/today.xml";
+    private static readonly TimeSpan MinAralik = TimeSpan.FromMinutes(30);
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private DateTimeOffset _sonCekim = DateTimeOffset.MinValue;
 
-    /// <summary>TCMB'yi çek + o günün kurlarını upsert. Yazılan döviz sayısı (0 = başarısız/boş).</summary>
-    public async Task<int> RefreshAsync(CancellationToken ct = default)
+    /// <summary>
+    /// TCMB'yi çek + upsert. Dönen: yazılan döviz sayısı; **-1 = THROTTLE** (son 30 dk içinde çekilmiş → TCMB'ye
+    /// GİDİLMEDİ; buton-spam koruması — kur günde 1 değişir + KurKayitlari paylaşımlı, tek çekim herkese yeter).
+    /// 0 = başarısız/boş. Singleton + SemaphoreSlim → tüm tenant'lar için GLOBAL kısıt. <paramref name="zorla"/>
+    /// throttle'ı atlar.
+    /// </summary>
+    public async Task<int> RefreshAsync(bool zorla = false, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (!zorla && DateTimeOffset.UtcNow - _sonCekim < MinAralik)
+                return -1; // cache güncel → TCMB'yi yorma
+            var n = await DoRefreshAsync(ct);
+            if (n > 0) _sonCekim = DateTimeOffset.UtcNow; // yalnız başarılı çekimde damgala
+            return n;
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<int> DoRefreshAsync(CancellationToken ct)
     {
         string xml;
         try
