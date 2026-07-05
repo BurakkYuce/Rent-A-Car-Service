@@ -149,5 +149,12 @@ public static class BookingEndpoints
         input.KomisyonTutar = FormParse.Dec(f["komisyonTutar"].ToString());
         input.DropUcreti = FormParse.Dec(f["dropUcreti"].ToString());
         input.SonraOdeOran = FormParse.Dec(f["sonraOdeOran"].ToString());
+        // referans sistem parite metadata (additive)
+        input.KiralamaTuru = Nz(f["kiralamaTuru"].ToString());
+        input.FaturalamaTipi = Nz(f["faturalamaTipi"].ToString());
+        input.FiyatTuru = Nz(f["fiyatTuru"].ToString());
+        input.Doviz = Nz(f["doviz"].ToString());
     }
+
+    private static string? Nz(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
