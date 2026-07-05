@@ -80,7 +80,7 @@ public sealed record RezervasyonKaynakRow(string Kaynak, int Adet, int ToplamGun
 /// <summary>Fatura dönem satırı — roadmap H2. Vade/cari/tutar/durum.</summary>
 public sealed record FaturaDonemRow(
     Guid InvoiceId, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi,
-    string Cari, decimal GenelToplam, string Durum, bool IadeMi);
+    string Cari, decimal GenelToplam, string Currency, decimal Kur, string Durum, bool IadeMi);
 
 /// <summary>Araç durum-takip (gün kırılımı) satırı — roadmap H3. Bos = Toplam − Dolu − Bakim (≥0).</summary>
 public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos);

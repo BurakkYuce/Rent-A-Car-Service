@@ -20,7 +20,7 @@
 </form>
 
 <table class="grid tr-grid">
-    <thead><tr><th>No</th><th>Tarih</th><th>Vade</th><th>Cari</th><th class="num">Toplam</th><th>Durum</th><th>İade</th></tr></thead>
+    <thead><tr><th>No</th><th>Tarih</th><th>Vade</th><th>Cari</th><th class="num">Toplam</th><th>Döviz</th><th>Durum</th><th>İade</th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)
         {
@@ -34,6 +34,7 @@
                 <td>@(r.VadeTarihi?.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td>@r.Cari</td>
                 <td class="num">@r.GenelToplam.ToString("N2")</td>
+                <td>@(r.Currency == "TRY" ? "TL" : $"{r.Currency} @ {r.Kur.ToString("N4")} → {(r.GenelToplam * r.Kur).ToString("N2")} TL")</td>
                 <td>@r.Durum</td>
                 <td>@(r.IadeMi ? "Evet" : "")</td>
             </tr>

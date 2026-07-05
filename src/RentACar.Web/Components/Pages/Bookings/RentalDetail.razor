@@ -3,6 +3,7 @@
 @inject RentalService Rentals
 @inject RentACar.Application.RentalAddOns.RentalAddOnService EkHizmetler
 @inject EkHizmetTanimService EkHizmetTanimlari
+@inject RentACar.Application.Kur.KurService Kur
 
 <PageTitle>Kira Detayı — RentPro</PageTitle>
 
@@ -28,7 +29,7 @@ else
         <tr><th>Fazla KM / Bedel</th><td>@_c.FazlaKm / @_c.FazlaKmBedeli.ToString("N2")</td></tr>
         <tr><th>Eksik Yakıt / Bedel</th><td>@_c.EksikYakit / @_c.YakitBedeli.ToString("N2")</td></tr>
         <tr><th>Uzatma Gün / Bedel</th><td>@_c.UzatmaGun / @_c.UzatmaBedeli.ToString("N2")</td></tr>
-        <tr><th>Baz Tutar / Genel Toplam / Bakiye</th><td>@_c.Tutar.ToString("N2") / <strong>@_c.GenelToplam.ToString("N2")</strong> / @_c.Bakiye.ToString("N2")</td></tr>
+        <tr><th>Baz Tutar / Genel Toplam / Bakiye</th><td>@_c.Tutar.ToString("N2") / <strong>@_c.GenelToplam.ToString("N2")</strong> / @_c.Bakiye.ToString("N2") @if (!string.IsNullOrEmpty(_dovizNot)) { <span class="muted">— @_dovizNot</span> }</td></tr>
     </table>
 
     @if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is null)
@@ -159,6 +160,7 @@ else
     private RentalContract? _c;
     private IReadOnlyList<RentACar.Domain.Entities.RentalAddOn> _addons = [];
     private IReadOnlyList<RentACar.Domain.Entities.EkHizmetTanim> _tanimlar = [];
+    private string? _dovizNot;
 
     protected override async Task OnInitializedAsync()
     {
@@ -167,6 +169,18 @@ else
         {
             _addons = await EkHizmetler.ListAsync(Id);
             _tanimlar = await EkHizmetTanimlari.ListActiveAsync();
+
+            // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kesince kur o an sabitlenir).
+            var doviz = RentACar.Application.Kur.KurService.NormalizeKod(_c.Doviz);
+            if (doviz != "TRY")
+            {
+                try
+                {
+                    var oran = await Kur.GetRateAsync(doviz);
+                    _dovizNot = $"{doviz} · güncel ≈ {(_c.GenelToplam * oran).ToString("N2")} TL (@{oran.ToString("N4")})";
+                }
+                catch { _dovizNot = $"{doviz} · güncel kur yok"; }
+            }
         }
     }
 }

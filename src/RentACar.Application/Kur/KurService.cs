@@ -14,14 +14,25 @@ public sealed class KurService(IKurRepository kurRepo, ISabitKurRepository sabit
     private readonly IKurRepository _kur = kurRepo;
     private readonly ISabitKurRepository _sabit = sabitRepo;
 
-    private static bool IsBase(string kod) => kod is "TRY" or "TL" or "TRL";
+    /// <summary>Serbest döviz etiketini ISO koda indirger (EURO→EUR, TL→TRY…). Boş → TRY (baz).</summary>
+    public static string NormalizeKod(string? kod)
+    {
+        var k = (kod ?? "").Trim().ToUpperInvariant();
+        return k switch
+        {
+            "" or "TL" or "TRY" or "TRL" or "TÜRK LİRASI" or "TURK LIRASI" or "₺" => "TRY",
+            "EUR" or "EURO" or "AVRO" or "€" => "EUR",
+            "USD" or "DOLAR" or "ABD DOLARI" or "$" => "USD",
+            "GBP" or "STERLIN" or "STERLİN" or "£" => "GBP",
+            _ => k
+        };
+    }
 
     /// <summary>1 birim <paramref name="kod"/> dövizinin TL karşılığı.</summary>
     public async Task<decimal> GetRateAsync(string kod, DateTimeOffset? tarih = null, KurTuru tur = KurTuru.Satis, CancellationToken ct = default)
     {
-        var k = (kod ?? "").Trim().ToUpperInvariant();
-        if (string.IsNullOrEmpty(k)) throw new ValidationException("Döviz kodu gerekli.");
-        if (IsBase(k)) return 1m;
+        var k = NormalizeKod(kod);
+        if (k == "TRY") return 1m; // baz para
         var t = tarih ?? DateTimeOffset.UtcNow;
 
         // (1) tenant sabit kur (aktif + pencere içinde)
@@ -51,8 +62,8 @@ public sealed class KurService(IKurRepository kurRepo, ISabitKurRepository sabit
     /// <summary><paramref name="tutar"/> tutarını <paramref name="from"/>→<paramref name="to"/> çevirir (TL bazı üzerinden).</summary>
     public async Task<decimal> CevirAsync(decimal tutar, string from, string to, DateTimeOffset? tarih = null, KurTuru tur = KurTuru.Satis, CancellationToken ct = default)
     {
-        var f = (from ?? "").Trim().ToUpperInvariant();
-        var t = (to ?? "").Trim().ToUpperInvariant();
+        var f = NormalizeKod(from);
+        var t = NormalizeKod(to);
         if (f == t) return tutar;
         var rFrom = await GetRateAsync(f, tarih, tur, ct); // TL / 1 from
         var rTo = await GetRateAsync(t, tarih, tur, ct);   // TL / 1 to  (>0 garantili)
