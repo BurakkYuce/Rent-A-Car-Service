@@ -72,6 +72,12 @@ public class RentalContract : ITenantOwned, IAuditable
 
     public string? Aciklama { get; set; }
 
+    // ---- TürevRent parite (additive metadata; mevcut para hesabını etkilemez) ----
+    public string? KiralamaTuru { get; set; }   // Kısa/Uzun/İkame/Aylık
+    public string? FaturalamaTipi { get; set; } // Müşteri Ödemeli/Full Credit/Extralar Müşteriye/Drop Dahil/Diğer
+    public string? FiyatTuru { get; set; }       // Otomatik/KDV Dahil Günlük/Günlük/KDV Dahil Toplam/Toplam
+    public string? Doviz { get; set; }           // TL/EURO/USD
+
     /// <summary>Kira ek hizmet kalemleri (bebek koltuğu, GPS…). GenelToplam'a brüt olarak girer.</summary>
     public List<RentalAddOn> EkHizmetler { get; set; } = [];
 
