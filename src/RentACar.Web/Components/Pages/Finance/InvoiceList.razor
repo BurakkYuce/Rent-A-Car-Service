@@ -10,7 +10,7 @@
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <table class="grid tr-grid">
-    <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Tür</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Döviz</th><th>Tür</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
@@ -25,6 +25,7 @@
                 <td>@i.NetTutar.ToString("N2")</td>
                 <td>@i.KdvTutar.ToString("N2")</td>
                 <td>@i.GenelToplam.ToString("N2")</td>
+                <td>@(i.Currency == "TRY" ? "TL" : $"{i.Currency} @ {i.Kur.ToString("N4")} → {(i.GenelToplam * i.Kur).ToString("N2")} TL")</td>
                 <td>@(i.IadeMi ? "İade" : (_iadeEdilmis.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
                 <td>@i.Durum</td>
                 <td>

@@ -220,7 +220,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (to is { } t) q = q.Where(i => i.Tarih <= t);
 
         var rows = await q
-            .Select(i => new { i.Id, i.No, i.Tarih, i.VadeTarihi, i.CariId, i.GenelToplam, i.Durum, i.IadeMi })
+            .Select(i => new { i.Id, i.No, i.Tarih, i.VadeTarihi, i.CariId, i.GenelToplam, i.Currency, i.Kur, i.Durum, i.IadeMi })
             .ToListAsync(ct);
 
         var cust = (await db.Customers.AsNoTracking().ToListAsync(ct)).ToDictionary(c => c.Id, c => c.DisplayName);
@@ -230,7 +230,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(i => new FaturaDonemRow(
                 i.Id, i.No, i.Tarih, i.VadeTarihi,
                 cust.TryGetValue(i.CariId, out var n) ? n : "(bilinmeyen cari)",
-                i.GenelToplam, i.Durum.ToString(), i.IadeMi))
+                i.GenelToplam, i.Currency, i.Kur, i.Durum.ToString(), i.IadeMi))
             .ToList();
     }
 

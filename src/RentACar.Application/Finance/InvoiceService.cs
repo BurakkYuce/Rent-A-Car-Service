@@ -2,6 +2,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Integrations;
+using RentACar.Application.Kur;
 using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -21,7 +22,8 @@ public sealed class InvoiceService(
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
     IEInvoiceService eInvoice,
     ICurrentUser currentUser,
-    IPeriodLockGuard periodLock)
+    IPeriodLockGuard periodLock,
+    KurService kur)
 {
     private const decimal DefaultKdvRate = 0.20m;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -64,17 +66,23 @@ public sealed class InvoiceService(
         var kdv = baseKdv + addOns.Sum(a => a.KdvTutar);
         var gross = net + kdv; // denge: NetTutar + KdvTutar = GenelToplam (her zaman)
 
+        // Kira dövizi → fatura o dövizde kesilir; kur FATURA ANINDA yakalanır (tenant sabit kuru varsa o,
+        // yoksa TCMB). Ledger Money(amount, doviz, oran).AmountInBase = amount×oran ile OTOMATİK TL yazar.
+        var invoiceTarih = DateTimeOffset.UtcNow;
+        var doviz = KurService.NormalizeKod(rental.Doviz);
+        var oran = doviz == "TRY" ? 1m : await kur.GetRateAsync(doviz, invoiceTarih, ct: ct);
+
         var invoice = new Invoice
         {
             Durum = InvoiceStatus.Kesildi,
             CariId = rental.MusteriId,
             RentalId = rental.Id,
-            Tarih = DateTimeOffset.UtcNow,
+            Tarih = invoiceTarih,
             NetTutar = net,
             KdvTutar = kdv,
             GenelToplam = gross,
-            Currency = "TRY",
-            Kur = 1m
+            Currency = doviz,
+            Kur = oran
         };
         await _lock.EnsureOpenAsync(invoice.Tarih, ct); // dönem kilidi: kapalı döneme fatura kesilemez
         invoice.Lines.Add(new InvoiceLine

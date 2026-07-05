@@ -22,9 +22,9 @@ public sealed class SabitKurService(ISabitKurRepository repository, ICurrentUser
     public async Task<Guid> UpsertAsync(SabitKurInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_user, Permission.FinanceWrite);
-        var kod = (input.Kod ?? "").Trim().ToUpperInvariant();
+        var kod = KurService.NormalizeKod(input.Kod);
         if (kod.Length is < 2 or > 3) throw new ValidationException("Döviz kodu 2-3 harf olmalı.");
-        if (kod is "TRY" or "TL" or "TRL") throw new ValidationException("Baz para (TL) için sabit kur tanımlanmaz.");
+        if (kod == "TRY") throw new ValidationException("Baz para (TL) için sabit kur tanımlanmaz.");
         if (input.Kur <= 0) throw new ValidationException("Sabit kur 0'dan büyük olmalı.");
         // Pencere GÜN granülünde (BasTar/BitTar birer DATE): BasTar → UTC gün BAŞI, BitTar → UTC gün SONU.
         // Böylece date-picker girdisi son gün öğleden sonra da geçerli kalır (gün-DAHİL; adversarial Medium fix).
