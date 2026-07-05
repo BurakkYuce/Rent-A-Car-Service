@@ -157,6 +157,12 @@ public sealed class CustomerService(
         HgsYansitmaTuru = Trim(input.HgsYansitmaTuru),
         KaraListe = input.KaraListe,
         Pasif = input.Pasif,
+        OzelCariTip = Trim(input.OzelCariTip),
+        MusteriTipi = Trim(input.MusteriTipi),
+        EhliyetUlke = Trim(input.EhliyetUlke),
+        Dil = Trim(input.Dil),
+        Doviz = Trim(input.Doviz),
+        TevkifatDurum = Trim(input.TevkifatDurum),
         Sinif = Trim(input.Sinif),
         MailIzin = input.MailIzin,
         SmsIzin = input.SmsIzin,
@@ -222,6 +228,12 @@ public sealed class CustomerService(
         c.HgsYansitmaTuru = n.HgsYansitmaTuru;
         c.KaraListe = n.KaraListe;
         c.Pasif = n.Pasif;
+        c.OzelCariTip = n.OzelCariTip;
+        c.MusteriTipi = n.MusteriTipi;
+        c.EhliyetUlke = n.EhliyetUlke;
+        c.Dil = n.Dil;
+        c.Doviz = n.Doviz;
+        c.TevkifatDurum = n.TevkifatDurum;
         c.Sinif = n.Sinif;
         c.MailIzin = n.MailIzin;
         c.SmsIzin = n.SmsIzin;
