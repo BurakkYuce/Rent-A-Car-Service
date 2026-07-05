@@ -1,0 +1,154 @@
+@page "/kurlar"
+@attribute [Authorize]
+@using System.Globalization
+@using RentACar.Application.Kur
+@using RentACar.Application.Currencies
+@inject KurService Kur
+@inject SabitKurService Sabit
+@inject CurrencyService Currencies
+
+<PageTitle>Döviz Kurları — RentPro</PageTitle>
+
+<div class="page-head"><h1>💱 Döviz Kurları (TCMB)</h1></div>
+
+@if (Ok == "1") { <p class="ok">İşlem tamam.</p> }
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<div class="filter-panel">
+    <form method="post" action="/kurlar/yenile" style="display:inline"><AntiforgeryToken />
+        <button type="submit">↻ TCMB'den Güncelle</button>
+    </form>
+    @if (_tarih is not null)
+    {
+        <span class="muted small">Geçerli kur tarihi: <b>@_tarih.Value.ToString("dd.MM.yyyy")</b></span>
+    }
+</div>
+
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Kod</th><th>Ad</th><th>Birim</th><th class="num">Alış</th><th class="num">Satış</th><th>Sabit (tenant)</th></tr>
+    </thead>
+    <tbody>
+        @if (_kurlar.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Kur kaydı yok — "TCMB'den Güncelle"e basın (internet gerekir).</td></tr>
+        }
+        @foreach (var k in _kurlar)
+        {
+            var sabit = _sabitMap.GetValueOrDefault(k.Kod);
+            <tr>
+                <td><b>@k.Kod</b></td>
+                <td>@k.Ad</td>
+                <td>@k.Birim</td>
+                <td class="num">@(k.ForexAlis?.ToString("N4") ?? "—")</td>
+                <td class="num">@(k.ForexSatis?.ToString("N4") ?? "—")</td>
+                <td>@(sabit is { Aktif: true } ? $"🔒 {sabit.Kur.ToString("N4")}" : "")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>🔄 Mini Çevirici</h2>
+<div class="filter-panel">
+    <form method="get" class="filter-bar">
+        <input name="tutar" type="number" step="0.01" value="@Tutar" placeholder="Tutar" required />
+        <select name="from">
+            @foreach (var c in _kodlar) { <option value="@c" selected="@(From == c)">@c</option> }
+        </select>
+        <span>→</span>
+        <select name="to">
+            @foreach (var c in _kodlar) { <option value="@c" selected="@(To == c)">@c</option> }
+        </select>
+        <button type="submit">Çevir</button>
+    </form>
+    @if (_cevrim is not null)
+    {
+        <p class="ok"><b>@Tutar @From = @_cevrim.Value.ToString("N2") @To</b></p>
+    }
+    else if (!string.IsNullOrEmpty(_cevrimHata))
+    {
+        <p class="error">@_cevrimHata</p>
+    }
+</div>
+
+<h2>🔒 Kur Sabitleme (bu firma)</h2>
+<p class="muted small">Sabit kur tanımlıysa çevirimde TCMB yerine bu kullanılır. Kod başına tek tanım (yeniden kaydet = güncelle).</p>
+<details class="new-vehicle" open="@(_sabitler.Count == 0)">
+    <summary>+ Sabit Kur Ekle / Güncelle</summary>
+    <form method="post" action="/kurlar/sabit/kaydet" class="grid-form"><AntiforgeryToken />
+        <label>Döviz
+            <select name="kod" required>
+                <option value="">—</option>
+                @foreach (var c in _dovizKodlari) { <option value="@c">@c</option> }
+            </select>
+        </label>
+        <label>Sabit Kur (TL / 1 birim)<input name="kur" type="number" step="0.0001" min="0.0001" required /></label>
+        <label>Başlangıç (ops.)<input name="basTar" type="date" /></label>
+        <label>Bitiş (ops.)<input name="bitTar" type="date" /></label>
+        <label class="chk"><input type="checkbox" name="aktif" value="true" checked /> Aktif</label>
+        <button type="submit">Kaydet</button>
+    </form>
+</details>
+
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Kod</th><th class="num">Sabit Kur</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th></th></tr>
+    </thead>
+    <tbody>
+        @if (_sabitler.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Sabit kur tanımı yok.</td></tr>
+        }
+        @foreach (var s in _sabitler)
+        {
+            <tr>
+                <td><b>@s.Kod</b></td>
+                <td class="num">@s.Kur.ToString("N4")</td>
+                <td>@(s.BasTar?.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td>@(s.BitTar?.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
+                <td class="row-actions">
+                    <form method="post" action="/kurlar/sabit/sil" onsubmit="return confirm('Silinsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button class="link danger">Sil</button></form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "tutar")] public string? Tutar { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private IReadOnlyList<RentACar.Domain.Entities.KurKaydi> _kurlar = [];
+    private IReadOnlyList<RentACar.Domain.Entities.SabitKur> _sabitler = [];
+    private Dictionary<string, RentACar.Domain.Entities.SabitKur> _sabitMap = new();
+    private DateTimeOffset? _tarih;
+    private List<string> _kodlar = new() { "TL" };
+    private List<string> _dovizKodlari = new();
+    private decimal? _cevrim;
+    private string? _cevrimHata;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _kurlar = await Kur.BugunKurlarAsync();
+        _sabitler = await Sabit.ListAsync();
+        _sabitMap = _sabitler.ToDictionary(s => s.Kod);
+        _tarih = _kurlar.Count > 0 ? _kurlar[0].Tarih : null;
+
+        // Çevirici + sabit-kur dropdown kodları: TCMB + tanımlı dövizler (birleşik, tekil).
+        var dovizler = (await Currencies.ListActiveAsync()).Select(d => d.Kod).ToList();
+        _dovizKodlari = _kurlar.Select(k => k.Kod).Union(dovizler).Where(k => k is not ("TRY" or "TL")).OrderBy(k => k).ToList();
+        _kodlar = new List<string> { "TL" }.Concat(_kurlar.Select(k => k.Kod)).Distinct().ToList();
+
+        // Mini çevirici (GET query varsa hesapla).
+        if (!string.IsNullOrWhiteSpace(Tutar) && !string.IsNullOrWhiteSpace(From) && !string.IsNullOrWhiteSpace(To)
+            && decimal.TryParse(Tutar, NumberStyles.Number, CultureInfo.InvariantCulture, out var tutar))
+        {
+            try { _cevrim = await Kur.CevirAsync(tutar, From!, To!); }
+            catch (RentACar.Application.Common.ValidationException ex) { _cevrimHata = ex.Message; }
+        }
+    }
+}
