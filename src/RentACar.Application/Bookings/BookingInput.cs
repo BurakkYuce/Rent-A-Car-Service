@@ -24,4 +24,10 @@ public sealed class BookingInput
 
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; } // roadmap H2
+
+    // TürevRent parite (additive metadata)
+    public string? KiralamaTuru { get; set; }
+    public string? FaturalamaTipi { get; set; }
+    public string? FiyatTuru { get; set; }
+    public string? Doviz { get; set; }
 }
