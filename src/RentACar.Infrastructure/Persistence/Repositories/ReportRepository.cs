@@ -148,24 +148,41 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        // Her araç için tanımlı en yüksek SonrakiBakimKm (en ileri bakım hedefi).
-        var bakim = await db.ServiceRecords.AsNoTracking()
+        // Kaynak 1: servis kaydındaki elle hedef — her araç için en yüksek SonrakiBakimKm.
+        var bakim = (await db.ServiceRecords.AsNoTracking()
             .Where(r => r.SonrakiBakimKm != null)
             .GroupBy(r => r.VehicleId)
             .Select(g => new { VehicleId = g.Key, Sonraki = g.Max(r => r.SonrakiBakimKm!.Value) })
-            .ToListAsync(ct);
+            .ToListAsync(ct)).ToDictionary(b => b.VehicleId, b => b.Sonraki);
 
-        var arac = (await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka, v.Km }).ToListAsync(ct))
-            .ToDictionary(v => v.Id, v => v);
+        // Kaynak 2 (otomatik): Vehicle.SonBakimKm + ServisTanim.BakimKm (AracTipi ↔ Vehicle.Tip,
+        // case-insensitive; birden çok tanım eşleşirse EN KÜÇÜK aralık = en erken uyarı).
+        var tanimlar = (await db.ServisTanimlari.AsNoTracking()
+                .Where(t => t.Aktif && t.BakimKm > 0).Select(t => new { t.AracTipi, t.BakimKm }).ToListAsync(ct))
+            .GroupBy(t => t.AracTipi.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Min(t => t.BakimKm), StringComparer.OrdinalIgnoreCase);
 
-        return bakim
-            .Where(b => arac.ContainsKey(b.VehicleId))
-            .Select(b =>
+        var araclar = await db.Vehicles.AsNoTracking()
+            .Select(v => new { v.Id, v.Plaka, v.Km, v.Tip, v.SonBakimKm }).ToListAsync(ct);
+
+        // Araç bazında birleştir: iki kaynaktan MIN(KalanKm) (çift satır YOK — adversarial inceleme 4);
+        // hiçbir kaynağı olmayan araç "tanım yok" satırı (SonrakiBakimKm=null) — sessiz gizleme yok.
+        return araclar.Select(v =>
             {
-                var v = arac[b.VehicleId];
-                return new PeriyodikServisRow(b.VehicleId, v.Plaka, v.Km, b.Sonraki, b.Sonraki - v.Km);
+                int? servisHedef = bakim.TryGetValue(v.Id, out var s) ? s : null;
+                int? otoHedef = v.SonBakimKm is int son && v.Tip is { } tip
+                    && tanimlar.TryGetValue(tip.Trim(), out var aralik) ? son + aralik : null;
+
+                var (hedef, kaynak) = (servisHedef, otoHedef) switch
+                {
+                    (int sv, int ot) => sv - v.Km <= ot - v.Km ? (sv, "Servis") : (ot, "Tanım"),
+                    (int sv, null) => (sv, "Servis"),
+                    (null, int ot) => (ot, "Tanım"),
+                    _ => ((int?)null, (string?)null)
+                };
+                return new PeriyodikServisRow(v.Id, v.Plaka, v.Km, hedef, hedef - v.Km, kaynak);
             })
-            .OrderBy(r => r.KalanKm)
+            .OrderBy(r => r.KalanKm ?? int.MaxValue)
             .ToList();
     }
 
