@@ -1,3 +1,14 @@
+/* Inter (self-hosted, variable — 100..900 tek dosya). Modern SaaS tipografisi; system-ui fallback. */
+@font-face {
+    font-family: "InterVar";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('fonts/inter-latin.woff2') format('woff2');
+}
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
 h1:focus {
     outline: none;
 }
@@ -136,7 +147,7 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 /* TürevRent teması — canlıdan birebir token'lar (AdminLTE tabanı + mor)  */
 /* ===================================================================== */
 :root {
-    --tr-font: "Source Sans Pro", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --tr-font: "InterVar", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     /* Slate/Amber (kiremit) — nötr slate taban + tek sıcak amber accent (bkz. theme/rentpro-tokens.css) */
     --tr-primary: #d97706;
     --tr-accent: linear-gradient(135deg, #d97706 0%, #c2410c 100%);            /* amber aksiyon */
@@ -148,7 +159,25 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
     --tr-sidebar: #334155; --tr-sidebar-2: #1e293b; --tr-sidebar-tx: #cbd5e1; --tr-sidebar-hd: #94a3b8;
     --tr-bg: #f8fafc; --tr-line: #e2e8f0; --tr-ink: #1e293b; --tr-muted: #64748b;
 }
-body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-ink); }
+body {
+    font-family: var(--tr-font);
+    font-size: 0.9375rem;          /* 15px taban — data-yoğun back-office için okunur, sıkışık değil */
+    line-height: 1.55;
+    letter-spacing: -0.006em;       /* Inter/SF'i UI boyutlarında "tasarlanmış" gösteren ince sıkılık */
+    background: var(--tr-bg);
+    color: var(--tr-ink);
+    -webkit-font-smoothing: antialiased;      /* Mac/Chrome'da kalın-bulanık yerine keskin (asıl fark) */
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+/* Rakamlar tabüler (finans tabloları/tutarlar dikey hizalı) */
+.grid, .kpi, .stat, .card-num, .k-num, .s-num, .mono, .cal, input, select, textarea {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+/* Başlık ölçeği — daha net hiyerarşi + hafif negatif spacing */
+.page-head h1 { letter-spacing: -0.015em; }
+h1, h2, h3 { letter-spacing: -0.012em; }
 
 /* ---- Uygulama iskeleti: sabit sol sidebar + ana kolon ---- */
 .app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
@@ -219,7 +248,7 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
 /* ---- Sayfa başlığı (mor gradient şerit + sağ aksiyonlar) ---- */
 .page-head { display: flex; align-items: center; gap: 1rem; background: var(--tr-grad); color: #fff;
     border-radius: .7rem; padding: .7rem 1.1rem; margin-bottom: 1rem; box-shadow: 0 4px 14px rgba(102,126,234,.25); }
-.page-head h1 { margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+.page-head h1 { margin: 0; font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
 .page-head .actions { margin-left: auto; display: flex; gap: .5rem; flex-wrap: wrap; }
 .page-head .actions a, .page-head .actions button { background: rgba(255,255,255,.16); color: #fff;
     border: 1px solid rgba(255,255,255,.28); border-radius: .4rem; padding: .35rem .7rem; font-size: .82rem;
@@ -292,6 +321,8 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
     display: flex; align-items: center; gap: .8rem; }
 .stat .s-ic { width: 42px; height: 42px; border-radius: .6rem; display: inline-flex; align-items: center;
     justify-content: center; font-size: 1.2rem; background: #eef0ff; color: var(--tr-primary); flex: 0 0 auto; }
+/* Emoji ikonları kaldırıldı → boş ikon kutularını gizle (kırık-ikon görünümü olmasın) */
+.stat .s-ic:empty, .kpi .k-ic:empty, .card .card-ic:empty { display: none; }
 .stat .s-num { font-size: 1.5rem; font-weight: 800; line-height: 1; }
 .stat .s-label { color: var(--tr-muted); font-size: .8rem; }
 
