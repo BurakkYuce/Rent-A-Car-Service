@@ -168,18 +168,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
     public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-
-        var insurance = await db.InsurancePolicies.AsNoTracking()
-            .Select(x => new VadeSource(x.VehicleId, x.Tip == Domain.Enums.InsuranceType.Kasko ? "Kasko" : "Trafik", x.Bitis))
-            .ToListAsync(ct);
-        var mtv = await db.MtvRecords.AsNoTracking()
-            .Where(x => !x.Odendi)
-            .Select(x => new VadeSource(x.VehicleId, "MTV", x.Vade))
-            .ToListAsync(ct);
-        var inspection = await db.InspectionRecords.AsNoTracking()
-            .Select(x => new VadeSource(x.VehicleId, "Muayene", x.Bitis))
-            .ToListAsync(ct);
-
-        return [.. insurance, .. mtv, .. inspection];
+        // Tek doğruluk kaynağı (denetim O12a): bildirim job'ı da AYNI birleşimi kullanır → sessizce ayrışamaz.
+        return await OrtakSorgular.VadeKaynaklariAsync(db, ct);
     }
 }

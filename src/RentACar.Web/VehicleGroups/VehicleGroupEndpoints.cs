@@ -31,46 +31,41 @@ public static class VehicleGroupEndpoints
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
-        Aciklama = Str(f, "aciklama"),
-        Sipp = Str(f, "sipp"),
-        Segment = Str(f, "segment"),
-        KasaTuru = Str(f, "kasaTuru"),
-        Marka = Str(f, "marka"),
-        Tipi = Str(f, "tipi"),
-        KoltukSayisi = FormParse.Int(Str(f, "koltukSayisi")),
-        KapiSayisi = FormParse.Int(Str(f, "kapiSayisi")),
-        BagajSayisi = FormParse.Int(Str(f, "bagajSayisi")),
-        KucukBagaj = FormParse.Int(Str(f, "kucukBagaj")),
-        BuyukBagaj = FormParse.Int(Str(f, "buyukBagaj")),
-        SurucuMinYas = FormParse.Int(Str(f, "surucuMinYas")),
-        GencSurucuYas = FormParse.Int(Str(f, "gencSurucuYas")),
-        EhliyetMinYil = FormParse.Int(Str(f, "ehliyetMinYil")),
-        GencEhliyetMinYil = FormParse.Int(Str(f, "gencEhliyetMinYil")),
-        Provizyon = FormParse.Dec(Str(f, "provizyon")),
-        Provizyon2 = FormParse.Dec(Str(f, "provizyon2")),
-        MuafiyetTutari = FormParse.Dec(Str(f, "muafiyetTutari")),
-        Muafiyet2 = FormParse.Dec(Str(f, "muafiyet2")),
-        GunlukKmLimiti = FormParse.Int(Str(f, "gunlukKmLimiti")),
-        AylikMaxKm = FormParse.Int(Str(f, "aylikMaxKm")),
-        AsimKmUcreti = FormParse.Dec(Str(f, "asimKmUcreti")),
-        YakitFiyati = FormParse.Dec(Str(f, "yakitFiyati")),
-        SonraOdeOran = FormParse.Dec(Str(f, "sonraOdeOran")),
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Sipp = FormParse.Str(f, "sipp"),
+        Segment = FormParse.Str(f, "segment"),
+        KasaTuru = FormParse.Str(f, "kasaTuru"),
+        Marka = FormParse.Str(f, "marka"),
+        Tipi = FormParse.Str(f, "tipi"),
+        KoltukSayisi = FormParse.Int(FormParse.Str(f, "koltukSayisi")),
+        KapiSayisi = FormParse.Int(FormParse.Str(f, "kapiSayisi")),
+        BagajSayisi = FormParse.Int(FormParse.Str(f, "bagajSayisi")),
+        KucukBagaj = FormParse.Int(FormParse.Str(f, "kucukBagaj")),
+        BuyukBagaj = FormParse.Int(FormParse.Str(f, "buyukBagaj")),
+        SurucuMinYas = FormParse.Int(FormParse.Str(f, "surucuMinYas")),
+        GencSurucuYas = FormParse.Int(FormParse.Str(f, "gencSurucuYas")),
+        EhliyetMinYil = FormParse.Int(FormParse.Str(f, "ehliyetMinYil")),
+        GencEhliyetMinYil = FormParse.Int(FormParse.Str(f, "gencEhliyetMinYil")),
+        Provizyon = FormParse.Dec(FormParse.Str(f, "provizyon")),
+        Provizyon2 = FormParse.Dec(FormParse.Str(f, "provizyon2")),
+        MuafiyetTutari = FormParse.Dec(FormParse.Str(f, "muafiyetTutari")),
+        Muafiyet2 = FormParse.Dec(FormParse.Str(f, "muafiyet2")),
+        GunlukKmLimiti = FormParse.Int(FormParse.Str(f, "gunlukKmLimiti")),
+        AylikMaxKm = FormParse.Int(FormParse.Str(f, "aylikMaxKm")),
+        AsimKmUcreti = FormParse.Dec(FormParse.Str(f, "asimKmUcreti")),
+        YakitFiyati = FormParse.Dec(FormParse.Str(f, "yakitFiyati")),
+        SonraOdeOran = FormParse.Dec(FormParse.Str(f, "sonraOdeOran")),
         KrediKartiSart = Bool(f, "krediKartiSart"),
-        WebSira = FormParse.Int(Str(f, "webSira")),
-        UpgradeSira = FormParse.Int(Str(f, "upgradeSira")),
+        WebSira = FormParse.Int(FormParse.Str(f, "webSira")),
+        UpgradeSira = FormParse.Int(FormParse.Str(f, "upgradeSira")),
         Aktif = aktif
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     /// <summary>Boş → null, "true"/"evet"/"on" → true, diğer dolu → false (3 durumlu nullable bool select).</summary>
     private static bool? Bool(IFormCollection f, string key)
     {
-        var v = Str(f, key);
+        var v = FormParse.Str(f, key);
         if (v is null) return null;
         return v is "true" or "True" or "evet" or "Evet" or "on";
     }

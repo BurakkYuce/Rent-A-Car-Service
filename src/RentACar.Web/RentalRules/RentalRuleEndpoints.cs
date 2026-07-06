@@ -30,29 +30,24 @@ public static class RentalRuleEndpoints
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
-        Aciklama = Str(f, "aciklama"),
-        Kanal = Str(f, "kanal"),
-        Sube = Str(f, "sube"),
-        AracGrupKod = Str(f, "aracGrupKod"),
-        MinGun = FormParse.Int(Str(f, "minGun")),
-        MaxGun = FormParse.Int(Str(f, "maxGun")),
-        Iskonto = FormParse.Dec(Str(f, "iskonto")),
-        HaftaSonuFarkOran = FormParse.Dec(Str(f, "haftaSonuFarkOran")),
-        SonraOdeOran = FormParse.Dec(Str(f, "sonraOdeOran")),
-        HediyeGun = FormParse.Int(Str(f, "hediyeGun")),
-        KampanyaMi = (Str(f, "kampanyaMi")) is "true" or "True" or "on",
-        KampanyaKodu = Str(f, "kampanyaKodu"),
-        GecerlilikBas = FormParse.Date(Str(f, "gecerlilikBas")),
-        GecerlilikBit = FormParse.Date(Str(f, "gecerlilikBit")),
-        SartMetni = Str(f, "sartMetni"),
-        Aktif = (Str(f, "aktif") ?? "true") is "true" or "True"
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Kanal = FormParse.Str(f, "kanal"),
+        Sube = FormParse.Str(f, "sube"),
+        AracGrupKod = FormParse.Str(f, "aracGrupKod"),
+        MinGun = FormParse.Int(FormParse.Str(f, "minGun")),
+        MaxGun = FormParse.Int(FormParse.Str(f, "maxGun")),
+        Iskonto = FormParse.Dec(FormParse.Str(f, "iskonto")),
+        HaftaSonuFarkOran = FormParse.Dec(FormParse.Str(f, "haftaSonuFarkOran")),
+        SonraOdeOran = FormParse.Dec(FormParse.Str(f, "sonraOdeOran")),
+        HediyeGun = FormParse.Int(FormParse.Str(f, "hediyeGun")),
+        KampanyaMi = (FormParse.Str(f, "kampanyaMi")) is "true" or "True" or "on",
+        KampanyaKodu = FormParse.Str(f, "kampanyaKodu"),
+        GecerlilikBas = FormParse.Date(FormParse.Str(f, "gecerlilikBas")),
+        GecerlilikBit = FormParse.Date(FormParse.Str(f, "gecerlilikBit")),
+        SartMetni = FormParse.Str(f, "sartMetni"),
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static async Task<IResult> Run(Func<Task> action)
     {

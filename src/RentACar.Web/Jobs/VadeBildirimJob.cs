@@ -59,9 +59,7 @@ public sealed class VadeBildirimJob(IConfiguration config, IWhatsAppService what
                 var sys = new SystemTenantContext { TenantId = tenantId };
                 await using (var db = new AppDbContext(options, sys, sys))
                 {
-                    await db.Database.OpenConnectionAsync(ct); // GUC bağlantı ömrünce açık kalmalı
-                    await db.Database.ExecuteSqlInterpolatedAsync(
-                        $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
+                    await TenantGuc.OpenAsync(db, tenantId, ct); // raw-context GUC açılışı (tek doğru yol)
                     toplam += await VadeBildirimUretici.RunAsync(db, tenantId, now, ct);
                 } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
 

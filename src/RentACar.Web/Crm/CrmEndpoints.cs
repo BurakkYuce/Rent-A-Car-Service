@@ -33,28 +33,23 @@ public static class CrmEndpoints
 
     private static AnketInput BuildAnket(IFormCollection f) => new()
     {
-        CariId = Guid.TryParse(Str(f, "cariId"), out var c) ? c : null,
-        Puan = FormParse.Int(Str(f, "puan")) ?? 0,
-        Yorum = Str(f, "yorum"),
-        Tarih = FormParse.Date(Str(f, "tarih")),
-        Kaynak = Str(f, "kaynak")
+        CariId = Guid.TryParse(FormParse.Str(f, "cariId"), out var c) ? c : null,
+        Puan = FormParse.Int(FormParse.Str(f, "puan")) ?? 0,
+        Yorum = FormParse.Str(f, "yorum"),
+        Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
+        Kaynak = FormParse.Str(f, "kaynak")
     };
 
     private static SikayetInput BuildSikayet(IFormCollection f) => new()
     {
-        CariId = Guid.TryParse(Str(f, "cariId"), out var c) ? c : null,
+        CariId = Guid.TryParse(FormParse.Str(f, "cariId"), out var c) ? c : null,
         Konu = f["konu"].ToString(),
-        Detay = Str(f, "detay"),
-        Durum = ParseEnum<SikayetDurum>(Str(f, "durum")) ?? SikayetDurum.Acik,
-        Tarih = FormParse.Date(Str(f, "tarih")),
-        Cozum = Str(f, "cozum")
+        Detay = FormParse.Str(f, "detay"),
+        Durum = ParseEnum<SikayetDurum>(FormParse.Str(f, "durum")) ?? SikayetDurum.Acik,
+        Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
+        Cozum = FormParse.Str(f, "cozum")
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;

@@ -119,9 +119,10 @@ public sealed class InvoiceService(
         // Vergi/belge metadata (bilgi amaçlı; defter postlamasına YANSIMAZ → denge bozulmaz).
         ApplyVergi(invoice, vergi);
 
-        // e-Fatura stub (Faz 2'de gerçek): ETTN al.
+        // e-Fatura stub (Faz 2'de gerçek): ETTN al. Para birimi faturanınki (denetim: hardcoded "TRY" idi —
+        // gerçek GİB entegrasyonu geldiğinde FX fatura yanlış birimle giderdi).
         var result = await eInvoice.SendAsync(
-            new EInvoiceRequest("", "", net, kdv, "TRY"), ct);
+            new EInvoiceRequest("", "", net, kdv, invoice.Currency), ct);
         if (result.Success)
         {
             invoice.EFaturaEttn = result.Ettn;
