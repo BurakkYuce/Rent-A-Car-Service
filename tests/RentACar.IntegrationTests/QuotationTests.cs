@@ -16,8 +16,9 @@ namespace RentACar.IntegrationTests;
 public sealed class QuotationTests(PostgresFixture fx)
 {
     // Sabit aralık: 3 tam gün (72 saat) → gün 3.
-    private static readonly DateTimeOffset Bas = new(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Bit = new(2026, 1, 4, 9, 0, 0, TimeSpan.Zero);
+    // now-göreli gelecek: teklif oluşturma artık rez tarih politikasını uygular (geçmiş red — TarihPolitikasi).
+    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3);
+    private static readonly DateTimeOffset Bit = Bas.AddDays(3);
 
     private static async Task<(Guid musteri, Guid arac)> SeedAsync(IServiceScope scope)
     {
