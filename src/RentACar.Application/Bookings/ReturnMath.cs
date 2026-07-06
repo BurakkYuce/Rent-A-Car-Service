@@ -26,20 +26,27 @@ public static class ReturnMath
         var kullanilan = c.CikisKm is int ck ? Math.Max(0, donusKm - ck) : 0;
         var fazlaKm = 0;
         if (c.KmLimit > 0 && c.CikisKm is not null)
-            fazlaKm = Math.Max(0, kullanilan - c.KmLimit - Math.Max(0, kmHediye));
-        var fazlaKmBedeli = fazlaKm * c.FazlaKmUcret;
+        {
+            // LONG aritmetik: int.MaxValue hediye ile (kullanilan − limit − hediye) int'te wrap edip
+            // milyarlık hayalet FazlaKm üretiyordu (adversarial BULGU 1 — deftere kadar gidiyordu).
+            var fazlaL = Math.Max(0L, (long)kullanilan - c.KmLimit - Math.Max(0, kmHediye));
+            fazlaKm = (int)Math.Min(fazlaL, int.MaxValue);
+        }
+        // Para satırları 2 haneye yuvarlanır (satır-bazlı yuvarlama; kesirli FazlaKmUcret'te sözleşme ↔
+        // fatura brütü 0,0001 ıraksıyordu — adversarial BULGU 3).
+        var fazlaKmBedeli = Math.Round(fazlaKm * c.FazlaKmUcret, 2, MidpointRounding.AwayFromZero);
 
-        // Eksik yakıt: çıkış seviyesinin altına döndüyse.
+        // Eksik yakıt: çıkış seviyesinin altına döndüyse. (Satır-bazlı 2 hane yuvarlama — BULGU 3.)
         var eksikYakit = 0;
         if (c.CikisYakit is int cikisYakit)
             eksikYakit = Math.Max(0, cikisYakit - donusYakit);
-        var yakitBedeli = eksikYakit * c.YakitBirimUcret;
+        var yakitBedeli = Math.Round(eksikYakit * c.YakitBirimUcret, 2, MidpointRounding.AwayFromZero);
 
         // Uzatma: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
         var uzatmaGun = 0;
         if (gercekDonus > c.BitTar)
             uzatmaGun = Math.Max(1, (int)Math.Ceiling((gercekDonus - c.BitTar).TotalHours / 24.0));
-        var uzatmaBedeli = uzatmaGun * c.GunlukUcret;
+        var uzatmaBedeli = Math.Round(uzatmaGun * c.GunlukUcret, 2, MidpointRounding.AwayFromZero);
 
         var genelToplam = c.Tutar + fazlaKmBedeli + yakitBedeli + uzatmaBedeli;
 

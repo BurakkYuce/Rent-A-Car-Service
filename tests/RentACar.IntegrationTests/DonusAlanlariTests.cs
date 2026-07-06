@@ -125,6 +125,58 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         Assert.Equal(pid, c.TeslimAlanPersonelId);
     }
 
+    // ---------- Adversarial regresyonları ----------
+    [Fact]
+    public async Task KmHediye_int_max_tasma_uretmez_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 08");
+        // BULGU 1 (Kritik): int.MaxValue hediye, limit-altı kirada int wrap ile 4,29 MİLYAR TL hayalet
+        // borç üretiyordu (deftere kadar). Artık üst sınır reddi + ReturnMath long aritmetik.
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), kmHediye: int.MaxValue));
+        Assert.Contains("gerçekçi değil", ex.Message);
+        Assert.Equal(RentalStatus.Kirada, (await rentals.GetAsync(rental))!.Durum); // yarım yazım yok
+    }
+
+    [Fact]
+    public async Task BitisSebebi_uzun_metin_temiz_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 09");
+        // BULGU 2 (Low): 65+ karakter varchar(64)'e çakılıp 500 veriyordu → temiz ValidationException.
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), bitisSebebi: new string('x', 65)));
+        Assert.Contains("64 karakter", ex.Message);
+    }
+
+    [Fact]
+    public async Task Kesirli_ucrette_bedel_iki_haneye_yuvarlanir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        // BULGU 3 (Low): 0.3333 × 3 km = 0.9999 sözleşmede kalıp fatura RoundGross(301.00) ile 0,0001
+        // ıraksıyordu → satır-bazlı 2 hane yuvarlama: bedel 1.00, GenelToplam 301.00 (elle oracle).
+        var cari = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kesir", Soyad = "Musteri" });
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DA 10" });
+        var rentals = sp.GetRequiredService<RentalService>();
+        var rental = await rentals.CreateDirectAsync(new BookingInput
+        {
+            MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3),
+            GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 0.3333m
+        });
+        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
+        await rentals.ReturnAsync(rental, donusKm: 10303, donusYakit: 8, Bas.AddDays(3)); // aşım 3 km
+
+        var c = await rentals.GetAsync(rental);
+        Assert.Equal(1.00m, c!.FazlaKmBedeli);   // Round(0.9999, 2) = 1.00
+        Assert.Equal(301.00m, c.GenelToplam);    // 300 + 1.00 — fatura brütüyle birebir
+    }
+
     [Fact]
     public async Task Olmayan_teslim_alan_personel_reddedilir()
     {

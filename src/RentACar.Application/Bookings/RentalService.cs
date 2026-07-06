@@ -119,6 +119,11 @@ public sealed class RentalService(
     {
         if (kmHediye < 0)
             throw new ValidationException("KM hediye negatif olamaz.");
+        // Üst sınır: int.MaxValue hediye taşma vektörüydü (adversarial BULGU 1); km-farkı guard'ıyla simetrik.
+        if (kmHediye > 100_000)
+            throw new ValidationException("KM hediye gerçekçi değil (100.000 üstü).");
+        if (bitisSebebi is { } bs && bs.Trim().Length > 64)
+            throw new ValidationException("Bitiş sebebi en fazla 64 karakter olabilir."); // varchar(64) — 500 yerine temiz red
         // Teslim alan personel: bu tenant'ta var olmalı (RLS zaten çapraz-tenant'ı keser; bu erken temiz hata).
         if (teslimAlanPersonelId is Guid pid &&
             await personelRepository.FindAsync(pid, ct) is null)
