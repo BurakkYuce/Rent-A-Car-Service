@@ -89,10 +89,11 @@ public sealed class RentalService(
         return contract.Id;
     }
 
-    /// <summary>Teslim: araç çıkışında KM/yakıt girişi.</summary>
+    /// <summary>Teslim: araç çıkışında KM/yakıt girişi. Araç odometresi (Vehicle.Km) AYNI transaction'da
+    /// güncellenir (monoton: yalnız İLERİ; küçük girilirse araç km'si değişmez, kira yine kaydolur).</summary>
     public async Task<bool> DeliverAsync(Guid id, int cikisKm, int cikisYakit, CancellationToken ct = default)
     {
-        return await _repository.UpdateRentalAsync(id, c =>
+        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede teslim yapılır.");
@@ -103,7 +104,7 @@ public sealed class RentalService(
             c.CikisKm = cikisKm;
             c.CikisYakit = cikisYakit;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }, v => v.Km = Math.Max(v.Km, cikisKm), ct);
     }
 
     /// <summary>
@@ -115,7 +116,8 @@ public sealed class RentalService(
     {
         // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer).
         var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
-        return await _repository.UpdateRentalAsync(id, c =>
+        // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
+        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede dönüş yapılır.");
@@ -123,6 +125,11 @@ public sealed class RentalService(
                 throw new ValidationException("Önce teslim (çıkış KM) girilmelidir.");
             if (donusKm < c.CikisKm)
                 throw new ValidationException("Dönüş KM, çıkış KM'den küçük olamaz.");
+            // Sağduyu üst-sınırı: dönüş Tamamlandı'ya geçince geri alınamaz; parmak hatası (500000) aracın
+            // odometresini kalıcı şişirir + bakım panosunu yanlış alarma sokar (adversarial inceleme 3c).
+            // Düzeltme yolu: araç kartındaki Km alanı (VehicleService.UpdateAsync).
+            if (donusKm - c.CikisKm.Value > 100_000)
+                throw new ValidationException("KM farkı gerçekçi değil (tek kirada 100.000 km üstü). Dönüş KM'yi kontrol edin.");
             if (gercekDonus < c.BasTar)
                 throw new ValidationException("Dönüş tarihi başlangıçtan önce olamaz.");
 
@@ -141,7 +148,7 @@ public sealed class RentalService(
             c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }, v => v.Km = Math.Max(v.Km, donusKm), ct); // odometre monoton ileri (küçükse araç değişmez)
     }
 
     /// <summary>

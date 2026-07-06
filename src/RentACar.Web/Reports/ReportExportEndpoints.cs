@@ -111,8 +111,8 @@ public static class ReportExportEndpoints
             rows.Select(s => new object?[] { s.Plaka, s.Tip.ToString(), s.Toplam, s.Adet }).ToList());
 
     private static Table PeriyodikServis(IReadOnlyList<PeriyodikServisRow> rows)
-        => new("Periyodik Servis", new[] { "Plaka", "Güncel KM", "Sonraki Bakım KM", "Kalan KM" },
-            rows.Select(r => new object?[] { r.Plaka, r.GuncelKm, r.SonrakiBakimKm, r.KalanKm }).ToList());
+        => new("Periyodik Servis", new[] { "Plaka", "Güncel KM", "Sonraki Bakım KM", "Kalan KM", "Kaynak" },
+            rows.Select(r => new object?[] { r.Plaka, r.GuncelKm, r.SonrakiBakimKm, r.KalanKm, r.Kaynak }).ToList());
 
     private static Table KmDetay(IReadOnlyList<KmDetayRow> rows)
         => new("KM Detay", new[] { "Sözleşme", "Plaka", "Çıkış KM", "Dönüş KM", "Katedilen", "Limit", "Fazla KM", "Fazla Bedel" },
