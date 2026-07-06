@@ -37,7 +37,7 @@ public sealed class ApiBookingsTests(PostgresFixture fx)
             new { plaka = "34BK01", grup = "B", durum = "Musait", km = 0, yakit = "Benzin" });
         var custId = await CreateAndIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Kir", soyad = "Acı" });
 
-        var bas = new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
+        var bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
         var bit = bas.AddDays(3);
 
         // Rezervasyon (manuel 100/gün → 3×100=300)
@@ -84,7 +84,7 @@ public sealed class ApiBookingsTests(PostgresFixture fx)
         var vId = await CreateAndIdAsync(ca, "/api/v1/vehicles", new { plaka = "34RA01", durum = "Musait", km = 0, yakit = "Benzin" });
         var mId = await CreateAndIdAsync(ca, "/api/v1/customers", new { tip = "Bireysel", ad = "X" });
         var resvId = await CreateAndIdAsync(ca, "/api/v1/reservations",
-            new { musteriId = mId, vehicleId = vId, basTar = new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero), bitTar = new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero), gunlukUcret = 50m });
+            new { musteriId = mId, vehicleId = vId, basTar = DateTimeOffset.UtcNow.AddDays(20), bitTar = DateTimeOffset.UtcNow.AddDays(22), gunlukUcret = 50m });
 
         // Tenant B, A'nın rezervasyonunu görmemeli (liste boş + tekil 404).
         var cb = await api.LoginClientAsync(codeB, "umit", "p");

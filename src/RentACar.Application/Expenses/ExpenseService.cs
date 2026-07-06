@@ -28,6 +28,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     public async Task<Guid> CreateAsync(ExpenseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        TarihPolitikasi.ParaTarihi(input.Tarih, "Gider"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         var posting = BuildPosting(input, islemAnahtari: null);
         await _lock.EnsureOpenAsync(posting.Expense.Tarih, ct); // dönem kilidi: kapalı tarihe gider YOK
         await _repository.PostAsync(posting.Expense, posting.Entries, ct);
@@ -43,6 +44,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (kalemler.Count == 0) throw new ValidationException("Toplu gider en az bir kalem içermelidir.");
         if (kalemler.Count > 500) throw new ValidationException("Toplu gider en çok 500 kalem olabilir.");
+        foreach (var k in kalemler) TarihPolitikasi.ParaTarihi(k.Tarih, "Gider"); // savunma: gelecek tarih reddi
 
         var closing = await _lock.GetClosingDateAsync(ct); // dönem kilidi: bir kez oku, kalem-bazlı karşılaştır
         var postings = new List<ExpensePosting>(kalemler.Count);

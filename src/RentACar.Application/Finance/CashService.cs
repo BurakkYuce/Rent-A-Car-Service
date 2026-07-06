@@ -50,6 +50,7 @@ public sealed class CashService(
         if (input.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (input.Tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
+        TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         EnsureKasaBanka(input.Hesap);
 
         var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);
@@ -89,6 +90,7 @@ public sealed class CashService(
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (satirlar.Count == 0) throw new ValidationException("Toplu işlem en az bir satır içermelidir.");
         if (satirlar.Count > 500) throw new ValidationException("Toplu işlem en çok 500 satır olabilir.");
+        foreach (var s in satirlar) TarihPolitikasi.ParaTarihi(s.Tarih, "İşlem"); // savunma (adversarial BULGU 3: tek yolla simetri)
 
         // Dönem kilidi: kapanış tarihini bir kez oku, her satırın tarihini yerelde karşılaştır.
         var closing = await _lock.GetClosingDateAsync(ct);
