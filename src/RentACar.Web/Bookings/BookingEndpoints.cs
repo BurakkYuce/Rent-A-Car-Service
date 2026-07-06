@@ -13,10 +13,12 @@ public static class BookingEndpoints
     {
         var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
+        // gunlukUcret string? + FormParse.Dec: "Otomatik" fiyat türünde alan boş bırakılır — boş string
+        // decimal parametrede 400 verirdi (CLAUDE.md §5 tuzağı). Boş → 0 → tarife çözümü.
         rez.MapPost("/create", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
-            [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
+            [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
             [FromForm] string? aciklama, [FromForm] string? kaynak) =>
         {
             try
@@ -24,7 +26,7 @@ public static class BookingEndpoints
                 var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
-                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
+                    GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
                     Kaynak = kaynak
                 };
                 ApplyOdemeDerinlik(input, req.Form);
@@ -40,7 +42,7 @@ public static class BookingEndpoints
         rez.MapPost("/update", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid id, [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
-            [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
+            [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
             [FromForm] string? aciklama, [FromForm] string? kaynak) =>
         {
             try
@@ -48,7 +50,7 @@ public static class BookingEndpoints
                 var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
-                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
+                    GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
                     Kaynak = kaynak
                 };
                 ApplyOdemeDerinlik(input, req.Form);
@@ -89,7 +91,7 @@ public static class BookingEndpoints
         kira.MapPost("/create", async (RentalService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
-            [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
+            [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
             [FromForm] string? aciklama) =>
         {
             try
@@ -97,7 +99,7 @@ public static class BookingEndpoints
                 var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
-                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
+                    GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
                 ApplyOdemeDerinlik(input, req.Form);
                 await svc.CreateDirectAsync(input);
