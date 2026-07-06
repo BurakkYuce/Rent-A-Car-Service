@@ -34,9 +34,40 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.TersAlinanId == originalId, ct);
     }
 
+    /// <summary>
+    /// Kira tahsilat deltası — KİRA DÖVİZİNDE (K2 fix). Yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−).
+    /// TRY kira → TL-baz (AmountInBase, mevcut davranış). FX kira → tahsilat AYNI dövizde zorunlu (ham Amount);
+    /// farklı döviz karışık-birim Bakiye üretirdi (1000 EUR kira + TL-baz delta → −34.000 "alacak") → red.
+    /// </summary>
+    private static decimal RentalDelta(CashTransaction tx, string? kiraDoviz)
+    {
+        var yon = (tx.Tip == CashTransactionType.Tahsilat ? 1m : -1m) * (tx.TersKayitMi ? -1m : 1m);
+        var kira = RentACar.Application.Kur.KurService.NormalizeKod(kiraDoviz);
+        if (kira == "TRY") return yon * tx.Amount.AmountInBase;
+        if (RentACar.Application.Kur.KurService.NormalizeKod(tx.Amount.Currency) != kira)
+            throw new ValidationException($"Kira dövizi {kira}; tahsilat/iade aynı dövizde girilmelidir.");
+        return yon * tx.Amount.Amount;
+    }
+
+    /// <summary>Kira Tahsilat/Bakiye'yi ATOMİK SQL ile günceller (O1 fix: eşzamanlı tahsilatta kayıp yok;
+    /// SET sağ tarafı ESKİ satır değerini okur → += yarışsız). Aynı transaction içinde çağrılır; RLS geçerli.</summary>
+    private static async Task ApplyRentalDeltaAsync(AppDbContext db, CashTransaction tx, CancellationToken ct)
+    {
+        if (tx.RentalId is not Guid rentalId) return;
+        var rental = await db.Rentals.AsNoTracking()
+            .Where(r => r.Id == rentalId).Select(r => new { r.Doviz }).FirstOrDefaultAsync(ct);
+        if (rental is null) return;
+        var delta = RentalDelta(tx, rental.Doviz);
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE ""Rentals"" SET
+                ""Tahsilat"" = ""Tahsilat"" + {delta},
+                ""Bakiye"" = ""GenelToplam"" - (""Tahsilat"" + {delta}),
+                ""UpdatedAtUtc"" = {DateTimeOffset.UtcNow}
+            WHERE ""Id"" = {rentalId}", ct);
+    }
+
     public async Task PostAsync(
-        CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
-        decimal rentalTahsilatDelta, CancellationToken ct = default)
+        CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         // Dengelilik guard: Σ Borç(base) == Σ Alacak(base).
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -53,17 +84,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             tx.No = $"{(tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
             db.CashTransactions.Add(tx);
             db.AccountLedgerEntries.AddRange(entries);
-
-            if (tx.RentalId is Guid rentalId)
-            {
-                var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
-                if (rental is not null)
-                {
-                    rental.Tahsilat += rentalTahsilatDelta;
-                    rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
-                    rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
-                }
-            }
+            await ApplyRentalDeltaAsync(db, tx, ct); // atomik SQL += (O1); kira dövizi doğrulanır (K2)
 
             try
             {
@@ -103,17 +124,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 it.Tx.No = $"{(it.Tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
                 db.CashTransactions.Add(it.Tx);
                 db.AccountLedgerEntries.AddRange(it.Entries);
-
-                if (it.Tx.RentalId is Guid rentalId)
-                {
-                    var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == rentalId, ct);
-                    if (rental is not null)
-                    {
-                        rental.Tahsilat += it.RentalTahsilatDelta;
-                        rental.Bakiye = rental.GenelToplam - rental.Tahsilat;
-                        rental.UpdatedAtUtc = DateTimeOffset.UtcNow;
-                    }
-                }
+                await ApplyRentalDeltaAsync(db, it.Tx, ct); // atomik += (O1) + kira dövizi doğrulama (K2)
             }
 
             try

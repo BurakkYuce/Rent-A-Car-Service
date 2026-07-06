@@ -14,6 +14,16 @@ public sealed class KurService(IKurRepository kurRepo, ISabitKurRepository sabit
     private readonly IKurRepository _kur = kurRepo;
     private readonly ISabitKurRepository _sabit = sabitRepo;
 
+    /// <summary>Kullanıcı girdisi dövizi SAKLANABİLİR ISO koda çevirir (kolonlar varchar(3)). Tanınmayan/uzun
+    /// etiket ("KRONER") → ValidationException — aksi hâlde 22001 truncation ile işlenmemiş 500 olurdu (denetim M1:
+    /// FX kirada zorunlu döviz-tahsilat yolu form etiketi "EURO"/"DOLAR" ile buraya düşer).</summary>
+    public static string NormalizeKodStrict(string? kod)
+    {
+        var k = NormalizeKod(kod);
+        if (k.Length != 3) throw new ValidationException($"Geçersiz döviz kodu: '{kod}'.");
+        return k;
+    }
+
     /// <summary>Serbest döviz etiketini ISO koda indirger (EURO→EUR, TL→TRY…). Boş → TRY (baz).</summary>
     public static string NormalizeKod(string? kod)
     {
