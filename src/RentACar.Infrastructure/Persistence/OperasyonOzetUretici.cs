@@ -32,14 +32,9 @@ public static class OperasyonOzetUretici
         var acikRez = await db.Reservations.AsNoTracking().CountAsync(
             r => r.Durum == ReservationStatus.Rezerv || r.Durum == ReservationStatus.Onayli, ct);
 
-        // Tahsilat TL-BAZ (çok-döviz): Σ Amount×Rate; ters-kayıt hariç (ReportRepository:321 birebir).
-        var tahsilatlar = await db.CashTransactions.AsNoTracking()
-            .Where(c => c.Tip == CashTransactionType.Tahsilat && !c.TersKayitMi && c.Tarih >= bas && c.Tarih < bit)
-            .Select(c => new { c.Amount.Amount, c.Amount.Rate }).ToListAsync(ct);
-        var tahsilat = tahsilatlar.Sum(t => t.Amount * t.Rate);
-
-        // Filo = Vehicle.Durum SAYIMI (GetFleetUtilization birebir)
-        var durumlar = await db.Vehicles.AsNoTracking().Select(v => v.Durum).ToListAsync(ct);
+        // Tahsilat + filo: TEK doğruluk kaynağı (denetim O12b) — dashboard/rapor ile AYNI tanım, ayrışamaz.
+        var (_, tahsilat) = await OrtakSorgular.TahsilatTlAsync(db, bas, bit, ct);
+        var durumlar = await OrtakSorgular.VehicleDurumlariAsync(db, ct);
         int Say(VehicleStatus s) => durumlar.Count(x => x == s);
 
         return new OperasyonOzet(cikis, donus, acikRez, tahsilat,

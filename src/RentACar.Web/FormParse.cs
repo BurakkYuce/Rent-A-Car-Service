@@ -24,4 +24,12 @@ public static class FormParse
 
     public static Guid? Id(string? s)
         => Guid.TryParse((s ?? "").Trim(), out var g) ? g : null;
+
+    /// <summary>Opsiyonel form metni: boş/whitespace → null. Denetim DRY: 10 endpoint dosyasında birebir
+    /// private kopyası vardı, buraya toplandı (11. kopya sapmayla doğmasın). Davranış AYNI — Trim YOK.</summary>
+    public static string? Str(IFormCollection f, string key)
+    {
+        var v = f[key].ToString();
+        return string.IsNullOrWhiteSpace(v) ? null : v;
+    }
 }

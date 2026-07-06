@@ -68,7 +68,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Vehicles.AsNoTracking().Select(v => v.Durum).ToListAsync(ct);
+        // Tek doğruluk kaynağı (denetim O12b): WhatsApp operasyon özeti de AYNI kaynağı kullanır.
+        return await OrtakSorgular.VehicleDurumlariAsync(db, ct);
     }
 
     public async Task<IReadOnlyList<DolulukKiraRowDto>> GetRentalIntervalsAsync(
@@ -316,12 +317,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var donus = await db.Rentals.AsNoTracking()
             .CountAsync(r => r.GercekDonusTar != null && r.GercekDonusTar >= from && r.GercekDonusTar <= to, ct);
 
-        // Tahsilat: ters kayıt hariç; base tutar (Amount×Rate) bellek-içi toplanır.
-        var tahsilatlar = await db.CashTransactions.AsNoTracking()
-            .Where(c => c.Tip == CashTransactionType.Tahsilat && !c.TersKayitMi && c.Tarih >= from && c.Tarih <= to)
-            .Select(c => new { c.Amount.Amount, c.Amount.Rate })
-            .ToListAsync(ct);
-        var tahsilatTutar = tahsilatlar.Sum(t => t.Amount * t.Rate);
+        // Tahsilat: TEK doğruluk kaynağı (denetim O12b — WhatsApp özeti aynı tanımı kullanır; TL-baz Σ Amount×Rate,
+        // ters kayıt hariç). Pencere [from, to] kapalı → helper'a to+1tick (davranış birebir korunur).
+        var (tahsilatAdet, tahsilatTutar) = await OrtakSorgular.TahsilatTlAsync(db, from, to.AddTicks(1), ct);
 
         // Fatura: İptal hariç; GenelToplam base zaten (Currency/Kur ayrı tutulur ama GenelToplam fatura
         // para birimindedir → günlük faaliyet sayacında brüt toplam olarak gösterilir).
@@ -333,7 +331,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
         return new GunlukFaaliyetDto(
             yeniRez, yeniKira, cikis, donus,
-            tahsilatlar.Count, tahsilatTutar, faturalar.Count, faturaTutar);
+            tahsilatAdet, tahsilatTutar, faturalar.Count, faturaTutar);
     }
 
     public async Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(

@@ -42,9 +42,7 @@ public sealed class CalendarFeedService(IConfiguration config)
         // 2) tenant verisi — SystemTenantContext (EF filter) + set_config GUC (RLS). Çift izolasyon.
         var sys = new SystemTenantContext { TenantId = tenantId };
         await using var db = new AppDbContext(options, sys, sys);
-        await db.Database.OpenConnectionAsync(ct);
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
+        await TenantGuc.OpenAsync(db, tenantId, ct); // raw-context GUC açılışı (tek doğru yol)
 
         var araclar = await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka, v.Sube }).ToListAsync(ct);
         var plaka = araclar.ToDictionary(v => v.Id, v => v.Plaka);

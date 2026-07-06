@@ -18,16 +18,11 @@ public static class VadeBildirimUretici
     /// <summary>Üretilen yeni bildirim sayısını döndürür. db, tenantId'ye kapsanmış olmalı (GUC + filter).</summary>
     public static async Task<int> RunAsync(AppDbContext db, Guid tenantId, DateTimeOffset now, CancellationToken ct = default)
     {
-        var insurance = await db.InsurancePolicies.AsNoTracking()
-            .Select(x => new { x.VehicleId, Tur = x.Tip == InsuranceType.Kasko ? "Kasko" : "Trafik", Bitis = x.Bitis })
-            .ToListAsync(ct);
-        var mtv = await db.MtvRecords.AsNoTracking().Where(x => !x.Odendi)
-            .Select(x => new { x.VehicleId, Tur = "MTV", Bitis = x.Vade }).ToListAsync(ct);
-        var inspection = await db.InspectionRecords.AsNoTracking()
-            .Select(x => new { x.VehicleId, Tur = "Muayene", Bitis = x.Bitis }).ToListAsync(ct);
+        // Vade kaynak birleşimi TEK doğruluk kaynağından (denetim O12a) — vade panosu ile birebir aynı liste.
+        var kaynaklar = await OrtakSorgular.VadeKaynaklariAsync(db, ct);
 
         // Yaklaşan/geçmiş (bucket != Ileri) → bildirim adayı.
-        var adaylar = insurance.Concat(mtv).Concat(inspection)
+        var adaylar = kaynaklar
             .Select(s => (s.VehicleId, s.Tur, s.Bitis, C: VadeHesap.Classify(now, s.Bitis)))
             .Where(x => x.C.Bucket != VadeBucket.Ileri)
             .ToList();

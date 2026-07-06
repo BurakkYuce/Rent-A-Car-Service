@@ -32,33 +32,28 @@ public static class RateMatrixEndpoints
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
-        Aciklama = Str(f, "aciklama"),
-        Kanal = Str(f, "kanal"),
-        Sube = Str(f, "sube"),
-        Lokasyon = Str(f, "lokasyon"),
-        AracGrupKod = Str(f, "aracGrupKod"),
-        ParaBirimi = Str(f, "paraBirimi"),
-        BasTar = FormParse.Date(Str(f, "basTar")),
-        BitTar = FormParse.Date(Str(f, "bitTar")),
-        Gun1 = FormParse.Dec(Str(f, "gun1")),
-        Gun2 = FormParse.Dec(Str(f, "gun2")),
-        Gun3 = FormParse.Dec(Str(f, "gun3")),
-        Gun4 = FormParse.Dec(Str(f, "gun4")),
-        Gun5 = FormParse.Dec(Str(f, "gun5")),
-        Gun6 = FormParse.Dec(Str(f, "gun6")),
-        Gun7 = FormParse.Dec(Str(f, "gun7")),
-        MaxEsneklik = FormParse.Dec(Str(f, "maxEsneklik")),
-        OnayDurumu = ParseEnum<TarifeOnayDurumu>(Str(f, "onayDurumu")) ?? TarifeOnayDurumu.Bekliyor,
-        Onaylayan = Str(f, "onaylayan"),
-        OnayZaman = FormParse.Date(Str(f, "onayZaman")),
-        Aktif = (Str(f, "aktif") ?? "true") is "true" or "True"
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Kanal = FormParse.Str(f, "kanal"),
+        Sube = FormParse.Str(f, "sube"),
+        Lokasyon = FormParse.Str(f, "lokasyon"),
+        AracGrupKod = FormParse.Str(f, "aracGrupKod"),
+        ParaBirimi = FormParse.Str(f, "paraBirimi"),
+        BasTar = FormParse.Date(FormParse.Str(f, "basTar")),
+        BitTar = FormParse.Date(FormParse.Str(f, "bitTar")),
+        Gun1 = FormParse.Dec(FormParse.Str(f, "gun1")),
+        Gun2 = FormParse.Dec(FormParse.Str(f, "gun2")),
+        Gun3 = FormParse.Dec(FormParse.Str(f, "gun3")),
+        Gun4 = FormParse.Dec(FormParse.Str(f, "gun4")),
+        Gun5 = FormParse.Dec(FormParse.Str(f, "gun5")),
+        Gun6 = FormParse.Dec(FormParse.Str(f, "gun6")),
+        Gun7 = FormParse.Dec(FormParse.Str(f, "gun7")),
+        MaxEsneklik = FormParse.Dec(FormParse.Str(f, "maxEsneklik")),
+        OnayDurumu = ParseEnum<TarifeOnayDurumu>(FormParse.Str(f, "onayDurumu")) ?? TarifeOnayDurumu.Bekliyor,
+        Onaylayan = FormParse.Str(f, "onaylayan"),
+        OnayZaman = FormParse.Date(FormParse.Str(f, "onayZaman")),
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;

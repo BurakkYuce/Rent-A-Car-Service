@@ -23,12 +23,12 @@ public static class QuoteEndpoints
             var input = new QuoteRequest
             {
                 AracGrupKod = f["aracGrupKod"].ToString(),
-                Kanal = Str(f, "kanal"),
-                Sube = Str(f, "sube"),
-                BasTar = FormParse.Date(Str(f, "basTar")) ?? default,
-                BitTar = FormParse.Date(Str(f, "bitTar")) ?? default,
-                SurucuYas = FormParse.Int(Str(f, "surucuYas")),
-                TahminiKm = FormParse.Int(Str(f, "tahminiKm")),
+                Kanal = FormParse.Str(f, "kanal"),
+                Sube = FormParse.Str(f, "sube"),
+                BasTar = FormParse.Date(FormParse.Str(f, "basTar")) ?? default,
+                BitTar = FormParse.Date(FormParse.Str(f, "bitTar")) ?? default,
+                SurucuYas = FormParse.Int(FormParse.Str(f, "surucuYas")),
+                TahminiKm = FormParse.Int(FormParse.Str(f, "tahminiKm")),
                 SigortaUrunKodlari = kodlar
             };
             try
@@ -51,11 +51,6 @@ public static class QuoteEndpoints
         return app;
     }
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static string Num(decimal d) => d.ToString(CultureInfo.InvariantCulture);
     private static string Esc(string s) => Uri.EscapeDataString(s);
