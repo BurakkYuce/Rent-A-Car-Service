@@ -53,6 +53,14 @@ public class RentalContract : ITenantOwned, IAuditable
     public int UzatmaGun { get; set; }
     public decimal UzatmaBedeli { get; set; }
 
+    // ---- Dönüş ek alanları (referans sistem parite; additive) ----
+    /// <summary>Aşımdan düşülen bedava km (KM Hediye) — dönüşte girilir; FazlaKm hesabında KmLimit'e eklenir.</summary>
+    public int? KmHediye { get; set; }
+    /// <summary>Dönüş/bitiş sebebi (Normal/Erken İade/Hasar/Arıza/Değişim/Diğer — serbest metin).</summary>
+    public string? BitisSebebi { get; set; }
+    /// <summary>Dönüşü teslim alan personel (gevşek referans — Personel.Id; FK yok).</summary>
+    public Guid? TeslimAlanPersonelId { get; set; }
+
     public int Gun { get; set; }
     public decimal GunlukUcret { get; set; }
     public decimal Tutar { get; set; }          // baz kira tutarı

@@ -4,6 +4,7 @@
 @inject RentACar.Application.RentalAddOns.RentalAddOnService EkHizmetler
 @inject EkHizmetTanimService EkHizmetTanimlari
 @inject RentACar.Application.Kur.KurService Kur
+@inject RentACar.Application.Personnel.PersonelService Personeller
 
 <PageTitle>Kira Detayı — RentPro</PageTitle>
 
@@ -26,7 +27,11 @@ else
         <tr><th>Günlük / KM Limit / Fazla KM Ücret / Yakıt Birim</th><td>@_c.GunlukUcret.ToString("N2") / @_c.KmLimit / @_c.FazlaKmUcret.ToString("N2") / @_c.YakitBirimUcret.ToString("N2")</td></tr>
         <tr><th>Çıkış (KM / Yakıt)</th><td>@(_c.CikisKm?.ToString() ?? "—") / @(_c.CikisYakit?.ToString() ?? "—")</td></tr>
         <tr><th>Dönüş (KM / Yakıt / Tarih)</th><td>@(_c.DonusKm?.ToString() ?? "—") / @(_c.DonusYakit?.ToString() ?? "—") / @(_c.GercekDonusTar?.LocalDateTime.ToString("dd.MM.yyyy HH:mm") ?? "—")</td></tr>
-        <tr><th>Fazla KM / Bedel</th><td>@_c.FazlaKm / @_c.FazlaKmBedeli.ToString("N2")</td></tr>
+        <tr><th>Fazla KM / Bedel</th><td>@_c.FazlaKm / @_c.FazlaKmBedeli.ToString("N2")@(_c.KmHediye is int kh ? $" (hediye {kh} km düşüldü)" : "")</td></tr>
+        @if (_c.BitisSebebi is not null || _c.TeslimAlanPersonelId is not null)
+        {
+            <tr><th>Bitiş Sebebi / Teslim Alan</th><td>@(_c.BitisSebebi ?? "—") / @(_teslimAlanAd ?? "—")</td></tr>
+        }
         <tr><th>Eksik Yakıt / Bedel</th><td>@_c.EksikYakit / @_c.YakitBedeli.ToString("N2")</td></tr>
         <tr><th>Uzatma Gün / Bedel</th><td>@_c.UzatmaGun / @_c.UzatmaBedeli.ToString("N2")</td></tr>
         <tr><th>Baz Tutar / Genel Toplam / Bakiye</th><td>@_c.Tutar.ToString("N2") / <strong>@_c.GenelToplam.ToString("N2")</strong> / @_c.Bakiye.ToString("N2") @if (!string.IsNullOrEmpty(_dovizNot)) { <span class="muted">— @_dovizNot</span> }</td></tr>
@@ -51,6 +56,25 @@ else
             <label>Dönüş KM<input name="donusKm" type="number" value="@_c.CikisKm" required /></label>
             <label>Dönüş Yakıt (0–12)<input name="donusYakit" type="number" value="@_c.CikisYakit" required /></label>
             <label>Gerçek Dönüş<input name="gercekDonus" type="datetime-local" value="@_c.BitTar.LocalDateTime.ToString("yyyy-MM-ddTHH:mm")" required /></label>
+            <label>KM Hediye<input name="kmHediye" type="number" min="0" placeholder="aşımdan düşülür" /></label>
+            <label>Bitiş Sebebi
+                <select name="bitisSebebi">
+                    <option value="">—</option>
+                    @foreach (var s in new[] { "Normal", "Erken İade", "Hasar", "Arıza", "Değişim", "Diğer" })
+                    {
+                        <option value="@s">@s</option>
+                    }
+                </select>
+            </label>
+            <label>Teslim Alan
+                <select name="teslimAlanPersonelId">
+                    <option value="">—</option>
+                    @foreach (var p in _personeller)
+                    {
+                        <option value="@p.Id">@p.Ad @p.Soyad</option>
+                    }
+                </select>
+            </label>
             <button type="submit">Dönüşü Tamamla</button>
         </form>
     }
@@ -160,6 +184,8 @@ else
     private RentalContract? _c;
     private IReadOnlyList<RentACar.Domain.Entities.RentalAddOn> _addons = [];
     private IReadOnlyList<RentACar.Domain.Entities.EkHizmetTanim> _tanimlar = [];
+    private IReadOnlyList<RentACar.Domain.Entities.Personel> _personeller = [];
+    private string? _teslimAlanAd;
     private string? _dovizNot;
 
     protected override async Task OnInitializedAsync()
@@ -169,6 +195,13 @@ else
         {
             _addons = await EkHizmetler.ListAsync(Id);
             _tanimlar = await EkHizmetTanimlari.ListActiveAsync();
+            if (_c.Durum == RentalStatus.Kirada && _c.CikisKm is not null) // dönüş formu görünürken
+                _personeller = (await Personeller.ListAsync()).Where(p => p.Aktif).ToList();
+            if (_c.TeslimAlanPersonelId is Guid tp)
+            {
+                var teslimAlan = await Personeller.GetDetailAsync(tp);
+                _teslimAlanAd = teslimAlan is null ? null : $"{teslimAlan.Ad} {teslimAlan.Soyad}";
+            }
 
             // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kesince kur o an sabitlenir).
             var doviz = RentACar.Application.Kur.KurService.NormalizeKod(_c.Doviz);
