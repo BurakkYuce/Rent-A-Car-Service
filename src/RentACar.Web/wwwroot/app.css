@@ -152,15 +152,19 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
 
 /* ---- Uygulama iskeleti: sabit sol sidebar + ana kolon ---- */
 .app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
-.sidebar { background: var(--tr-sidebar); color: var(--tr-sidebar-tx); display: flex; flex-direction: column;
+.sidebar { background: linear-gradient(180deg, #3b4a5f 0%, var(--tr-sidebar) 22%, var(--tr-sidebar-2) 100%);
+    color: var(--tr-sidebar-tx); display: flex; flex-direction: column;
     position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .sidebar::-webkit-scrollbar { width: 8px; } .sidebar::-webkit-scrollbar-thumb { background: #4b535b; border-radius: 4px; }
 
-.sb-brand { display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem; background: var(--tr-sidebar-2);
-    border-bottom: 1px solid rgba(255,255,255,.06); position: sticky; top: 0; z-index: 2; }
+.sb-brand { display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem;
+    background: linear-gradient(180deg, rgba(30,41,59,.55) 0%, rgba(30,41,59,0) 100%);
+    border-bottom: 1px solid rgba(217,119,6,.35); box-shadow: inset 0 2px 0 0 var(--tr-primary);
+    position: sticky; top: 0; z-index: 2; }
 .sb-brand .logo { width: 34px; height: 34px; border-radius: 50%;
-    background: var(--tr-grad); display: inline-flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 800; font-size: .95rem; flex: 0 0 auto; }
+    background: var(--tr-accent); display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: .95rem; flex: 0 0 auto;
+    box-shadow: 0 1px 6px rgba(217,119,6,.45); }
 .sb-brand .name { color: #fff; font-weight: 700; font-size: 1.05rem; text-decoration: none; }
 .sb-brand .badge-user { margin-left: auto; font-size: .6rem; font-weight: 700; color: #ff6b6b;
     border: 1px solid #ff6b6b; border-radius: .3rem; padding: .05rem .3rem; letter-spacing: .03em; }
