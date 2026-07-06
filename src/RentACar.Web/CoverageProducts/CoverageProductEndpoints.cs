@@ -31,22 +31,17 @@ public static class CoverageProductEndpoints
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
-        AdEn = Str(f, "adEn"),
-        Aciklama = Str(f, "aciklama"),
-        Tur = ParseEnum<CoverageProductType>(Str(f, "tur")) ?? CoverageProductType.Diger,
-        GunlukUcret = FormParse.Dec(Str(f, "gunlukUcret")),
-        KdvOrani = FormParse.Dec(Str(f, "kdvOrani")),
-        MaxGun = FormParse.Int(Str(f, "maxGun")),
-        Doviz = Str(f, "doviz"),
-        Zorunlu = (Str(f, "zorunlu")) is "true" or "True" or "on",
-        Aktif = (Str(f, "aktif") ?? "true") is "true" or "True"
+        AdEn = FormParse.Str(f, "adEn"),
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Tur = ParseEnum<CoverageProductType>(FormParse.Str(f, "tur")) ?? CoverageProductType.Diger,
+        GunlukUcret = FormParse.Dec(FormParse.Str(f, "gunlukUcret")),
+        KdvOrani = FormParse.Dec(FormParse.Str(f, "kdvOrani")),
+        MaxGun = FormParse.Int(FormParse.Str(f, "maxGun")),
+        Doviz = FormParse.Str(f, "doviz"),
+        Zorunlu = (FormParse.Str(f, "zorunlu")) is "true" or "True" or "on",
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;

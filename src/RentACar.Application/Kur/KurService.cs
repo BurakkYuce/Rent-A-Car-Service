@@ -69,7 +69,9 @@ public sealed class KurService(IKurRepository kurRepo, ISabitKurRepository sabit
         return deger.Value / birim;
     }
 
-    /// <summary><paramref name="tutar"/> tutarını <paramref name="from"/>→<paramref name="to"/> çevirir (TL bazı üzerinden).</summary>
+    /// <summary><paramref name="tutar"/> tutarını <paramref name="from"/>→<paramref name="to"/> çevirir (TL bazı
+    /// üzerinden). YUVARLAMAZ — kuruş-altı hane dönebilir; parasal kayda yazan TÜKETİCİ konvansiyona göre yuvarlar
+    /// (Math.Round(x, 2, AwayFromZero) — KdvMath ile aynı). Görüntüleme ToString("N2") ile zaten yuvarlar.</summary>
     public async Task<decimal> CevirAsync(decimal tutar, string from, string to, DateTimeOffset? tarih = null, KurTuru tur = KurTuru.Satis, CancellationToken ct = default)
     {
         var f = NormalizeKod(from);

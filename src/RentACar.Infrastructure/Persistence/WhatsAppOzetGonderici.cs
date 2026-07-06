@@ -30,7 +30,7 @@ public static class WhatsAppOzetGonderici
         string alici;
         await using (var db = new AppDbContext(options, sys, sys))
         {
-            await OpenWithGucAsync(db, tenantId, ct);
+            await TenantGuc.OpenAsync(db, tenantId, ct);
             var s = await db.TenantSettings.FirstOrDefaultAsync(ct);
             if (s is null || !s.WhatsAppGunlukOzet || string.IsNullOrWhiteSpace(s.WhatsAppNumarasi)) return;
             alici = Normalize(s.WhatsAppNumarasi);
@@ -69,7 +69,7 @@ public static class WhatsAppOzetGonderici
         // --- context2 (DB): sonucu yaz ---
         await using (var db2 = new AppDbContext(options, sys, sys))
         {
-            await OpenWithGucAsync(db2, tenantId, ct);
+            await TenantGuc.OpenAsync(db2, tenantId, ct);
             var row = await db2.WhatsAppGonderimler.FirstOrDefaultAsync(x => x.Gun == gun && x.Tur == Tur, ct);
             if (row is not null)
             {
@@ -79,13 +79,6 @@ public static class WhatsAppOzetGonderici
                 await db2.SaveChangesAsync(ct);
             }
         }
-    }
-
-    private static async Task OpenWithGucAsync(AppDbContext db, Guid tenantId, CancellationToken ct)
-    {
-        await db.Database.OpenConnectionAsync(ct); // GUC bağlantı ömrünce açık kalmalı
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
     }
 
     /// <summary>Telefonu E.164'e yaklaştır (boşluk/tire sil; 0 ile başlıyorsa +90).</summary>
