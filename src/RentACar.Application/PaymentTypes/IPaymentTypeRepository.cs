@@ -1,14 +1,7 @@
+using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Application.PaymentTypes;
 
-public interface IPaymentTypeRepository
-{
-    Task<IReadOnlyList<PaymentType>> ListAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<PaymentType>> ListActiveAsync(CancellationToken ct = default);
-    Task<PaymentType?> FindAsync(Guid id, CancellationToken ct = default);
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
-    Task CreateAsync(PaymentType type, CancellationToken ct = default);
-    Task<bool> UpdateAsync(Guid id, Action<PaymentType> apply, CancellationToken ct = default);
-    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
-}
+/// <summary>Ödeme tipi repo sözleşmesi — üye seti <see cref="IMasterTanimRepository{T}"/>'den gelir (boş gövde; DI/tüketici yüzeyi değişmedi).</summary>
+public interface IPaymentTypeRepository : IMasterTanimRepository<PaymentType>;

@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// "Muhasebe", "Filo", "Satış"). Tenant-owned + auditable. Gider/personel dağıtımı ve raporlama için
 /// sözlük (additive — ilgili serbest metin alanlar string kalır).
 /// </summary>
-public class Department : ITenantOwned, IAuditable
+public class Department : ITenantOwned, IAuditable, IMasterTanim
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

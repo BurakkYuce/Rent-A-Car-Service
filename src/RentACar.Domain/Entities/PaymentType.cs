@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// "Kredi Kartı", "Havale/EFT", "Çek"). Tenant-owned + auditable. Kasa/banka formlarındaki Ödeme Tipi
 /// açılır listesini besler (additive). NOT: CashTransactionType enum'undan (Tahsilat/Ödeme yönü) farklı.
 /// </summary>
-public class PaymentType : ITenantOwned, IAuditable
+public class PaymentType : ITenantOwned, IAuditable, IMasterTanim
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

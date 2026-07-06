@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// listesi (ör. "Web", "Telefon", "Bayi", "Tavsiye"). Tenant-owned + auditable. Rezervasyon ve
 /// cari formlarındaki Kaynak açılır listesini besler (additive).
 /// </summary>
-public class ReservationSource : ITenantOwned, IAuditable
+public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
