@@ -31,7 +31,7 @@ public static class RentalsApi
             .RequirePermission(Permission.OperationsWrite);
 
         grp.MapPost("/{id:guid}/return", async (Guid id, ReturnRequest req, RentalService svc, CancellationToken ct) =>
-            await svc.ReturnAsync(id, req.DonusKm, req.DonusYakit, req.GercekDonus, ct)
+            await svc.ReturnAsync(id, req.DonusKm, req.DonusYakit, req.GercekDonus, ct: ct)
                 ? Results.Ok(RentalResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 

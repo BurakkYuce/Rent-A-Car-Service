@@ -2,12 +2,12 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Bookings;
 
-/// <summary>Dönüşte hesaplanan ek bedeller (saf hesap → birim-testli).</summary>
+/// <summary>Dönüşte hesaplanan ek bedeller (saf hesap → birim-testli). KullanilanKm = dönüş − çıkış (gösterim).</summary>
 public readonly record struct ReturnCharges(
     int FazlaKm, decimal FazlaKmBedeli,
     int EksikYakit, decimal YakitBedeli,
     int UzatmaGun, decimal UzatmaBedeli,
-    decimal GenelToplam);
+    decimal GenelToplam, int KullanilanKm);
 
 /// <summary>
 /// Araç dönüşü ek-bedel hesabı: fazla km, eksik yakıt, uzatma (geç dönüş).
@@ -17,32 +17,40 @@ public readonly record struct ReturnCharges(
 /// </summary>
 public static class ReturnMath
 {
-    public static ReturnCharges Compute(RentalContract c, int donusKm, int donusYakit, DateTimeOffset gercekDonus)
+    public static ReturnCharges Compute(
+        RentalContract c, int donusKm, int donusYakit, DateTimeOffset gercekDonus, int kmHediye = 0)
     {
-        // Fazla km: yalnız KmLimit>0 ve çıkış km girilmişse.
+        // Fazla km: yalnız KmLimit>0 ve çıkış km girilmişse. kmHediye = aşımdan düşülen bedava km
+        // (KM Hediye — TürevRent parite). KM-aşım PARASININ TEK OTORİTESİ dönüş-zamanıdır (KURAL A);
+        // fiyat motorunun create-zamanı KmAsimTutar TAHMİNİ asla para olarak persist edilmez.
+        var kullanilan = c.CikisKm is int ck ? Math.Max(0, donusKm - ck) : 0;
         var fazlaKm = 0;
-        if (c.KmLimit > 0 && c.CikisKm is int cikisKm)
+        if (c.KmLimit > 0 && c.CikisKm is not null)
         {
-            var katEdilen = donusKm - cikisKm;
-            fazlaKm = Math.Max(0, katEdilen - c.KmLimit);
+            // LONG aritmetik: int.MaxValue hediye ile (kullanilan − limit − hediye) int'te wrap edip
+            // milyarlık hayalet FazlaKm üretiyordu (adversarial BULGU 1 — deftere kadar gidiyordu).
+            var fazlaL = Math.Max(0L, (long)kullanilan - c.KmLimit - Math.Max(0, kmHediye));
+            fazlaKm = (int)Math.Min(fazlaL, int.MaxValue);
         }
-        var fazlaKmBedeli = fazlaKm * c.FazlaKmUcret;
+        // Para satırları 2 haneye yuvarlanır (satır-bazlı yuvarlama; kesirli FazlaKmUcret'te sözleşme ↔
+        // fatura brütü 0,0001 ıraksıyordu — adversarial BULGU 3).
+        var fazlaKmBedeli = Math.Round(fazlaKm * c.FazlaKmUcret, 2, MidpointRounding.AwayFromZero);
 
-        // Eksik yakıt: çıkış seviyesinin altına döndüyse.
+        // Eksik yakıt: çıkış seviyesinin altına döndüyse. (Satır-bazlı 2 hane yuvarlama — BULGU 3.)
         var eksikYakit = 0;
         if (c.CikisYakit is int cikisYakit)
             eksikYakit = Math.Max(0, cikisYakit - donusYakit);
-        var yakitBedeli = eksikYakit * c.YakitBirimUcret;
+        var yakitBedeli = Math.Round(eksikYakit * c.YakitBirimUcret, 2, MidpointRounding.AwayFromZero);
 
         // Uzatma: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
         var uzatmaGun = 0;
         if (gercekDonus > c.BitTar)
             uzatmaGun = Math.Max(1, (int)Math.Ceiling((gercekDonus - c.BitTar).TotalHours / 24.0));
-        var uzatmaBedeli = uzatmaGun * c.GunlukUcret;
+        var uzatmaBedeli = Math.Round(uzatmaGun * c.GunlukUcret, 2, MidpointRounding.AwayFromZero);
 
         var genelToplam = c.Tutar + fazlaKmBedeli + yakitBedeli + uzatmaBedeli;
 
         return new ReturnCharges(
-            fazlaKm, fazlaKmBedeli, eksikYakit, yakitBedeli, uzatmaGun, uzatmaBedeli, genelToplam);
+            fazlaKm, fazlaKmBedeli, eksikYakit, yakitBedeli, uzatmaGun, uzatmaBedeli, genelToplam, kullanilan);
     }
 }

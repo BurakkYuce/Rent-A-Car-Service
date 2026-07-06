@@ -17,7 +17,8 @@ public sealed class RentalService(
     ICurrentUser currentUser,
     PricingService pricing,
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
-    RentACar.Application.Kur.KurService kurService)
+    RentACar.Application.Kur.KurService kurService,
+    RentACar.Application.Personnel.IPersonelRepository personelRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -112,8 +113,21 @@ public sealed class RentalService(
     /// GenelToplam + Bakiye güncellenir; durum Tamamlandı (araç tekrar müsait olur).
     /// </summary>
     public async Task<bool> ReturnAsync(
-        Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus, CancellationToken ct = default)
+        Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus,
+        int kmHediye = 0, string? bitisSebebi = null, Guid? teslimAlanPersonelId = null,
+        CancellationToken ct = default)
     {
+        if (kmHediye < 0)
+            throw new ValidationException("KM hediye negatif olamaz.");
+        // Üst sınır: int.MaxValue hediye taşma vektörüydü (adversarial BULGU 1); km-farkı guard'ıyla simetrik.
+        if (kmHediye > 100_000)
+            throw new ValidationException("KM hediye gerçekçi değil (100.000 üstü).");
+        if (bitisSebebi is { } bs && bs.Trim().Length > 64)
+            throw new ValidationException("Bitiş sebebi en fazla 64 karakter olabilir."); // varchar(64) — 500 yerine temiz red
+        // Teslim alan personel: bu tenant'ta var olmalı (RLS zaten çapraz-tenant'ı keser; bu erken temiz hata).
+        if (teslimAlanPersonelId is Guid pid &&
+            await personelRepository.FindAsync(pid, ct) is null)
+            throw new ValidationException("Teslim alan personel bulunamadı.");
         // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer).
         var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
@@ -133,10 +147,13 @@ public sealed class RentalService(
             if (gercekDonus < c.BasTar)
                 throw new ValidationException("Dönüş tarihi başlangıçtan önce olamaz.");
 
-            var r = ReturnMath.Compute(c, donusKm, donusYakit, gercekDonus);
+            var r = ReturnMath.Compute(c, donusKm, donusYakit, gercekDonus, kmHediye);
             c.DonusKm = donusKm;
             c.DonusYakit = donusYakit;
             c.GercekDonusTar = gercekDonus;
+            c.KmHediye = kmHediye > 0 ? kmHediye : null;
+            c.BitisSebebi = string.IsNullOrWhiteSpace(bitisSebebi) ? null : bitisSebebi.Trim();
+            c.TeslimAlanPersonelId = teslimAlanPersonelId;
             c.FazlaKm = r.FazlaKm;
             c.FazlaKmBedeli = r.FazlaKmBedeli;
             c.EksikYakit = r.EksikYakit;
