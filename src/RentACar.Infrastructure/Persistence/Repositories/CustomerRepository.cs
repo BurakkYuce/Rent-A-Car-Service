@@ -92,7 +92,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var aggList = await db.Rentals.AsNoTracking()
             .Where(r => ids.Contains(r.MusteriId) && r.Durum != RentalStatus.Iptal)
             .GroupBy(r => r.MusteriId)
-            .Select(g => new { MusteriId = g.Key, Adet = g.Count(), Ciro = g.Sum(r => r.GenelToplam), SonKira = g.Max(r => r.BasTar) })
+            .Select(g => new { MusteriId = g.Key, Adet = g.Count(), Ciro = g.Sum(r => r.GenelToplam * r.KurSnapshot), SonKira = g.Max(r => r.BasTar) }) // TL-baz (O5: FX+TL düz toplanmaz)
             .ToListAsync(ct);
         var agg = aggList.ToDictionary(a => a.MusteriId);
 

@@ -78,6 +78,11 @@ public class RentalContract : ITenantOwned, IAuditable
     public string? FiyatTuru { get; set; }       // Otomatik/KDV Dahil Günlük/Günlük/KDV Dahil Toplam/Toplam
     public string? Doviz { get; set; }           // TL/EURO/USD
 
+    /// <summary>Kira dövizinin OLUŞTURMA anındaki TL kuru (TRY=1) — YALNIZ RAPORLAMA (CRM ciro/segment TL-baz;
+    /// denetim O5: FX+TL ciroları düz toplanıyordu). Defter/fatura BUNU KULLANMAZ (fatura kuru fatura anında
+    /// yakalanır). Retroaktif değişmez (snapshot).</summary>
+    public decimal KurSnapshot { get; set; } = 1m;
+
     /// <summary>Kira ek hizmet kalemleri (bebek koltuğu, GPS…). GenelToplam'a brüt olarak girer.</summary>
     public List<RentalAddOn> EkHizmetler { get; set; } = [];
 
