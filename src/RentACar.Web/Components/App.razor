@@ -9,6 +9,7 @@
     <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     @* Radzen Material (base, değişken-sürümlü) ÖNCE; tema override'ları (Slate/Amber) tek merkezde SONRA *@
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/material-base.css" />
+    <link rel="stylesheet" href="lib/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="@Assets["theme/rentpro-tokens.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["RentACar.Web.styles.css"]" />
@@ -21,6 +22,9 @@
     <ReconnectModal />
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="lib/flatpickr/flatpickr.min.js"></script>
+    <script src="lib/flatpickr/tr.js"></script>
+    <script src="js/rc-datepicker.js"></script>
 </body>
 
 </html>

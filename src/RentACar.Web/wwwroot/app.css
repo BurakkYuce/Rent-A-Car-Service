@@ -425,3 +425,17 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .rls-diag.ok { background: #dcfce7; border: 1px solid #86efac; color: #14532d; }
 .rls-diag.bad { background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d; }
 .rls-diag-warn { margin-top: .35rem; font-weight: 700; }
+
+/* --- flatpickr themed (varsayılan mavi → tema amber/slate) --- */
+.flatpickr-calendar { box-shadow: 0 6px 24px rgba(15,23,42,.16); border-radius: .6rem; font-family: var(--tr-font); }
+.flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.startRange, .flatpickr-day.endRange {
+    background: var(--tr-primary); border-color: var(--tr-primary); color: #fff; }
+.flatpickr-day.today { border-color: var(--tr-primary); }
+.flatpickr-day.today:hover { background: var(--tr-primary); color: #fff; }
+.flatpickr-day:hover, .flatpickr-day:focus { background: #fef3e2; border-color: #fef3e2; }
+.flatpickr-day.selected.startRange + .endRange:not(:nth-child(7n+1)) { box-shadow: -10px 0 0 var(--tr-primary); }
+.flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-monthDropdown-months { color: var(--tr-ink); fill: var(--tr-ink); }
+.flatpickr-months .flatpickr-prev-month:hover svg, .flatpickr-months .flatpickr-next-month:hover svg { fill: var(--tr-primary); }
+.flatpickr-weekday { color: var(--tr-muted); }
+.flatpickr-time input:hover, .flatpickr-time .flatpickr-am-pm:hover { background: #fef3e2; }
+span.flatpickr-weekday { font-weight: 600; }
