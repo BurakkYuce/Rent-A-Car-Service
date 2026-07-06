@@ -27,8 +27,9 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         => _repository.FindAsync(id, ct);
 
     /// <summary>Fiyat ÇÖZÜMLEME: kanal/şube/grup/tarih/gün-sayısı için matristen günlük+toplam fiyat.
-    /// Yetki gerektirmez (salt fiyat okuma; ListActive gibi). Eşleşme yoksa null. Deftere dokunmaz;
-    /// RentalQuoteEngine'e BAĞLANMADI (kalibrasyon ertelendi — flagged).</summary>
+    /// Yetki gerektirmez (salt fiyat okuma; ListActive gibi). Eşleşme yoksa null. Deftere dokunmaz.
+    /// YALNIZ tarife-matris ekranının fiyat-sorgu paneli (RateMatrixList) + test-oracle kullanır;
+    /// booking/kira fiyat akışının üretim çözümleyicisi <c>RentalQuoteEngine.SelectMatrix</c>'tir.</summary>
     public async Task<RateMatrisSonuc?> CozumleAsync(RateMatrisSorgu sorgu, CancellationToken ct = default)
         => RateMatrisCozumleme.Coz(await _repository.ListActiveAsync(ct), sorgu);
 

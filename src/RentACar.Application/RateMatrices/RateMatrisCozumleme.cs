@@ -12,13 +12,17 @@ public sealed record RateMatrisSonuc(
     Guid Id, string Kod, string Ad, decimal GunlukFiyat, string? ParaBirimi, decimal ToplamFiyat);
 
 /// <summary>
+/// TEST-ORACLE — üretim (booking) çözümleyicisi <c>RentalQuoteEngine.SelectMatrix</c>; bu sınıf
+/// bağımsız-oracle doğrulaması için tutulur (RateMatrisCozumlemeTests). Ek olarak tarife-matris
+/// ekranının fiyat-sorgu paneli (RateMatrixList → RateMatrixService.CozumleAsync) bunu kullanır;
+/// booking/kira fiyat akışına BAĞLI DEĞİLDİR.
+///
 /// Tarife matrisi ÇÖZÜMLEME (fiyat bulma) — SAF + deterministik (bağımsız oracle ile birim-testlenir).
 /// Verilen kanal×şube×araç-grup×tarih×gün-sayısı için Onaylı+Aktif+kapsam-uyumlu+tarih-geçerli ve o
 /// gün-kademesini (1..7, 7+ → Gün7) FİYATLAYAN satırlar arasından deterministik seçer:
 /// (1) en spesifik (en az joker/null-kapsam), (2) en dar geçerlilik penceresi, (3) en yeni,
 /// (4) Kod. Joker: satırın kapsam alanı null ise her sorguya uyar; doluysa sorgu değeriyle
-/// (case-insensitive) eşleşmeli. Deftere DOKUNMAZ (saf fiyat okuma; kalibrasyon flagged/ertelendi —
-/// RentalQuoteEngine'e bağlanMADI). Fiyat motorunun (parite #7) ileride tüketeceği katman.
+/// (case-insensitive) eşleşmeli. Deftere DOKUNMAZ (saf fiyat okuma).
 /// </summary>
 public static class RateMatrisCozumleme
 {
