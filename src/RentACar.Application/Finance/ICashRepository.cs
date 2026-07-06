@@ -2,9 +2,10 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Finance;
 
-/// <summary>Toplu nakit işleminde tek satır: belge + dengeli defter kümesi + (kira bağlıysa) tahsilat deltası.</summary>
+/// <summary>Toplu nakit işleminde tek satır: belge + dengeli defter kümesi. Kira tahsilat deltası artık
+/// repo'da tx'ten türetilir (Tip × TersKayitMi yönü + kira dövizi birimi — denetim K2).</summary>
 public sealed record CashPosting(
-    CashTransaction Tx, IReadOnlyList<AccountLedgerEntry> Entries, decimal RentalTahsilatDelta);
+    CashTransaction Tx, IReadOnlyList<AccountLedgerEntry> Entries);
 
 public interface ICashRepository
 {
@@ -15,12 +16,14 @@ public interface ICashRepository
     Task<bool> HasReversalAsync(Guid originalId, CancellationToken ct = default);
 
     /// <summary>
-    /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da
-    /// işler. No boşluksuz tahsis edilir. Defter kayıtları immutable (DB trigger).
+    /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da işler. Kira
+    /// tahsilat deltası tx'ten türetilir: yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−); birim = kira dövizi
+    /// (TRY kira → TL-baz AmountInBase; FX kira → tahsilat AYNI dövizde zorunlu, ham Amount — K2). Güncelleme
+    /// ATOMİK SQL (Tahsilat = Tahsilat + delta — eşzamanlı tahsilatta kayıp yok, O1). No boşluksuz tahsis
+    /// edilir. Defter kayıtları immutable (DB trigger).
     /// </summary>
     Task PostAsync(
-        CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
-        decimal rentalTahsilatDelta, CancellationToken ct = default);
+        CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
     /// <summary>
     /// Toplu nakit işlemi: çok satır dengeli kayıt + No tahsisi TEK transaction'da (ATOMİK hep-ya-hiç).
