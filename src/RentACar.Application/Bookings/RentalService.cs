@@ -41,6 +41,7 @@ public sealed class RentalService(
     public async Task<Guid> CreateDirectAsync(BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
+        TarihPolitikasi.KiraBaslangic(input.BasTar); // geçmişe açık (retroaktif); gelecek anti-typo ≤ +1yıl
         var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.

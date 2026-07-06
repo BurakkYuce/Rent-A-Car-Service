@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiyatAkisTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
 
     private static async Task<Guid> SeedVehicleWithMatrixAsync(IServiceProvider sp, bool matrisOnayli = true, bool matris = true)
     {

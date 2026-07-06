@@ -13,7 +13,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OdemeDerinlikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 5, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
 
     private static BookingInput Booking(Guid vehicleId) => new()
     {

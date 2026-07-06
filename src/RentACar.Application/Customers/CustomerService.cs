@@ -106,6 +106,7 @@ public sealed class CustomerService(
 
         if (!string.IsNullOrEmpty(n.Email) && !IsValidEmail(n.Email))
             throw new ValidationException("E-posta adresi geçersiz.");
+        TarihPolitikasi.DogumTarihi(n.DogumTarihi); // gelecekte doğmuş olamaz (yaş kuralı AYRI: fiyat motoru)
         if (n.VadeGun < 0)
             throw new ValidationException("Vade günü negatif olamaz.");
         if (n.RiskLimiti < 0)

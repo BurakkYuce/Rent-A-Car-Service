@@ -50,6 +50,7 @@ public sealed class CashService(
         if (input.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (input.Tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
+        TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         EnsureKasaBanka(input.Hesap);
 
         var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);

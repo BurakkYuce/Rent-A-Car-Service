@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PricingTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
     private static DateTimeOffset Bit(int gun) => Bas.AddDays(gun);
 
     /// <summary>Araç (grup) + cari + iki kademe tarife (B: 1–3→100, 4+→80) tohumlar.</summary>

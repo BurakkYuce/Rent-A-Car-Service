@@ -15,8 +15,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CalendarTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset JanFrom = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset JanTo = new(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
+    // now-göreli pencere (rezervasyonlar gelecekte olmalı — TarihPolitikasi); ~31 günlük aralık korunur.
+    private static readonly DateTimeOffset JanFrom = DateTimeOffset.UtcNow.AddDays(1);
+    private static readonly DateTimeOffset JanTo = JanFrom.AddDays(31);
 
     private static async Task<Guid> Cari(IServiceScope s)
         => await s.ServiceProvider.GetRequiredService<CustomerService>()
@@ -68,7 +69,7 @@ public sealed class CalendarTests(PostgresFixture fx)
 
         // Mart rezervasyonu — Ocak penceresine düşmez.
         await rez.CreateAsync(new BookingInput
-        { MusteriId = cari, VehicleId = arac, BasTar = new DateTimeOffset(2026, 3, 5, 9, 0, 0, TimeSpan.Zero), BitTar = new DateTimeOffset(2026, 3, 8, 9, 0, 0, TimeSpan.Zero), GunlukUcret = 100m });
+        { MusteriId = cari, VehicleId = arac, BasTar = JanFrom.AddDays(63).AddHours(9), BitTar = JanFrom.AddDays(66).AddHours(9), GunlukUcret = 100m }); // pencere DIŞI (63 > 31 gün) + gelecek
 
         Assert.Empty(await cal.GetOccupancyAsync(JanFrom, JanTo));
     }
