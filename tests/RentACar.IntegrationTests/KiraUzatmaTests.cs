@@ -8,8 +8,9 @@ using RentACar.IntegrationTests.Infrastructure;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// roadmap I1 — kira uzatma (ExtendAsync). BAĞIMSIZ ORACLE: 3 gün×100=300; +2 gün → 500; tekrar +2 → 700;
-/// UzatmaGun kümülatif (2→4). Geçersiz (geriye) red; uzatılan aralıkta çakışma red. DEFTER POSTLAMAZ (kontrat bakiyesi).
+/// roadmap I1 — kira uzatma (ExtendAsync). BAĞIMSIZ ORACLE: 3 gün×100=300; +2 gün → 500; tekrar +2 → 700.
+/// K1 fix: planlı uzatma BAZ kiradır (Gun+Tutar); UzatmaGun/Bedeli YALNIZ geç dönüş → BaseGross çift saymaz
+/// (dönüş-öncesi fatura + ek-hizmet Recompute regresyon testleri aşağıda). Geriye/çakışan uzatma red.
 /// </summary>
 [Collection("postgres")]
 public sealed class KiraUzatmaTests(PostgresFixture fx)
@@ -37,15 +38,48 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         Assert.True(await svc.ExtendAsync(id, Bas.AddDays(5)));   // +2 gün
         var c1 = await svc.GetAsync(id);
         Assert.Equal(5, c1!.Gun);
-        Assert.Equal(2, c1.UzatmaGun);
-        Assert.Equal(200m, c1.UzatmaBedeli);       // 2 × 100
+        Assert.Equal(500m, c1.Tutar);              // baz kira: 5 × 100 (K1 — uzatma bazın parçası)
+        Assert.Equal(0, c1.UzatmaGun);             // planlı uzatma UzatmaGun'a YAZILMAZ (yalnız geç dönüş)
+        Assert.Equal(0m, c1.UzatmaBedeli);         // aksi hâlde BaseGross (Tutar+UzatmaBedeli) çift sayardı
         Assert.Equal(500m, c1.GenelToplam);        // 300 + 200
         Assert.Equal(500m, c1.Bakiye);
 
         Assert.True(await svc.ExtendAsync(id, Bas.AddDays(7)));   // tekrar +2
         var c2 = await svc.GetAsync(id);
-        Assert.Equal(4, c2!.UzatmaGun);            // kümülatif 2+2
+        Assert.Equal(700m, c2!.Tutar);             // kümülatif: 7 × 100
+        Assert.Equal(0m, c2.UzatmaBedeli);
         Assert.Equal(700m, c2.GenelToplam);
+    }
+
+    [Fact]
+    public async Task Uzatma_sonrasi_fatura_cift_saymaz() // denetim K1 regresyonu
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (sp, id) = await SeedRental(host, scope, "34 UZ 04");
+
+        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // 3→5 gün
+        var invoices = sp.GetRequiredService<RentACar.Application.Finance.InvoiceService>();
+        var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(id));
+
+        Assert.Equal(500m, inv!.GenelToplam); // BAĞIMSIZ ORACLE: 5×100 (eski bug 300+200+200=700 keserdi)
+    }
+
+    [Fact]
+    public async Task Uzatma_sonrasi_ek_hizmet_recompute_cift_saymaz() // denetim K1 regresyonu
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (sp, id) = await SeedRental(host, scope, "34 UZ 05");
+
+        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // toplam 500
+        // Ek hizmet: net 100, %20 KDV → brüt 120 → GenelToplam 500+120=620 (eski bug: 700+120).
+        var tanimId = await sp.GetRequiredService<RentACar.Application.EkHizmetler.EkHizmetTanimService>().CreateAsync(
+            new RentACar.Application.EkHizmetler.EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
+        await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>().AddAsync(id, tanimId, 1m);
+
+        var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
+        Assert.Equal(620m, c!.GenelToplam); // BAĞIMSIZ ORACLE: 500 baz + 120 ek hizmet brüt
     }
 
     [Fact]

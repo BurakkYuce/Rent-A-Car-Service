@@ -52,6 +52,11 @@ public sealed class InvoiceService(
 
         // Ek hizmet kalemleri: her biri KENDİ KDV oranını korur (farklı oranlar karışmaz).
         var addOns = await addOnRepository.ListForRentalAsync(rental.Id, ct);
+        // Denetim M3 (ikinci savunma): ek hizmet tutarları TL; FX kirada kira dövizine karışıp ×Kur ile
+        // deftere ŞİŞKİN gider (120 TL koltuk → "120 EUR" → 4.800 TL). Ekleme zaten guard'lı (O2); guard-öncesi
+        // legacy addon'lu FX kira da FATURALANAMAZ — ek hizmetler kaldırılınca serbest.
+        if (addOns.Count > 0 && KurService.NormalizeKod(rental.Doviz) != "TRY")
+            throw new ValidationException("Dövizli kirada ek hizmetli fatura desteklenmiyor (birimler karışır); önce ek hizmetleri kaldırın.");
         var addOnGross = addOns.Sum(a => a.Toplam);
 
         // Baz kira (ek hizmet hariç) brütü: GenelToplam'dan ÇIKARMA yerine doğrudan baz formülünden

@@ -136,9 +136,11 @@ public sealed class RentalService(
     }
 
     /// <summary>
-    /// Kira uzatma (roadmap I1): aktif (Kirada) sözleşmenin bitiş tarihini ileri iter; ek gün × günlük ücret
-    /// kadar UzatmaBedeli + GenelToplam + Bakiye artar (ReturnAsync ile aynı operasyonel model — DEFTER POSTLAMAZ,
-    /// kontrat bakiyesi güncellenir; tahsilat/fatura ayrı). Uzatılan aralıkta başka aktif kira çakışması red.
+    /// Kira uzatma (roadmap I1): aktif (Kirada) sözleşmenin bitiş tarihini ileri iter. PLANLI uzatma baz kiranın
+    /// parçasıdır → Gun + Tutar + GenelToplam + Bakiye artar; UzatmaGun/UzatmaBedeli'ne YAZILMAZ — o alanlar yalnız
+    /// GEÇ DÖNÜŞ bedelidir (ReturnMath hesaplar). İkisine birden yazmak BaseGross'ta (Tutar + UzatmaBedeli) ÇİFT
+    /// SAYIMDI (denetim K1: dönüş-öncesi fatura + ek-hizmet Recompute şişiyordu). DEFTER POSTLAMAZ; tahsilat/fatura
+    /// ayrı. Uzatılan aralıkta başka aktif kira çakışması red.
     /// </summary>
     public async Task<bool> ExtendAsync(Guid id, DateTimeOffset yeniBitTar, CancellationToken ct = default)
     {
@@ -168,9 +170,7 @@ public sealed class RentalService(
 
             x.BitTar = yeniBitTar;
             x.Gun = yeniGun;
-            x.UzatmaGun += ekGun;            // kümülatif (birden çok uzatma)
-            x.UzatmaBedeli += ekBedel;
-            x.Tutar += ekBedel;
+            x.Tutar += ekBedel;              // baz kira büyür (Tutar = Gun × GunlukUcret tutarlı; K1 fix)
             x.GenelToplam += ekBedel;
             x.Bakiye = x.GenelToplam - x.Tahsilat;
             x.UpdatedAtUtc = DateTimeOffset.UtcNow;

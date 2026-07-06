@@ -52,7 +52,7 @@ public sealed class CashService(
         if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
         EnsureKasaBanka(input.Hesap);
 
-        var money = new Money(input.Tutar, (input.Doviz ?? "TRY").Trim().ToUpperInvariant(), input.Kur);
+        var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);
         var tx = new CashTransaction
         {
             Tip = tip,
@@ -66,9 +66,8 @@ public sealed class CashService(
         await _lock.EnsureOpenAsync(tx.Tarih, ct); // dönem kilidi: kapalı tarihe tahsilat/ödeme YOK
 
         var entries = Natural(tx);
-        // Kira bağlıysa: tahsilat tahsilatı artırır, ödeme (iade) azaltır.
-        var delta = tip == CashTransactionType.Tahsilat ? money.AmountInBase : -money.AmountInBase;
-        await _repository.PostAsync(tx, entries, rentalTahsilatDelta: delta, ct);
+        // Kira bağlıysa Tahsilat/Bakiye repo'da tx'ten türetilir (yön + kira dövizi, atomik — K2/O1).
+        await _repository.PostAsync(tx, entries, ct);
         return tx.Id;
     }
 
@@ -104,7 +103,7 @@ public sealed class CashService(
             if (input.Kur <= 0) throw new ValidationException($"Satır {i + 1}: kur pozitif olmalıdır.");
             EnsureKasaBanka(input.Hesap);
 
-            var money = new Money(input.Tutar, (input.Doviz ?? "TRY").Trim().ToUpperInvariant(), input.Kur);
+            var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);
             var tx = new CashTransaction
             {
                 Tip = tip,
@@ -117,9 +116,7 @@ public sealed class CashService(
                 IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null
             };
             PeriodLock.ThrowIfClosed(tx.Tarih, closing, $"Satır {i + 1}"); // dönem kilidi (satır-bazlı)
-            var entries = Natural(tx);
-            var delta = tip == CashTransactionType.Tahsilat ? money.AmountInBase : -money.AmountInBase;
-            postings.Add(new CashPosting(tx, entries, delta));
+            postings.Add(new CashPosting(tx, Natural(tx)));
         }
 
         await _repository.PostBatchAsync(postings, ct);
@@ -149,7 +146,7 @@ public sealed class CashService(
         if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
-        var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
         var sourceId = Guid.NewGuid();
         var desc = aciklama ?? $"Virman {kaynak}→{hedef}";
         await _ledger.PostAsync(
@@ -187,7 +184,7 @@ public sealed class CashService(
         if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (cari virman bugün tarihli)
-        var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? "Cari virman";
         await _ledger.PostAsync(
@@ -226,11 +223,9 @@ public sealed class CashService(
         await _lock.EnsureOpenAsync(reversal.Tarih, ct); // dönem kilidi: ters kayıt bugün tarihli postlanır
 
         // Orijinalle aynı hesap/cari/tutar; doğal yönler çevrilir, ters kayıt tarihiyle.
+        // Kira deltası repo'da türetilir: TersKayitMi=true yönü çevirir (tahsilat tersi → Tahsilat azalır).
         var entries = Natural(reversal, flip: true);
-        // Ters delta: orijinal tahsilatsa kira tahsilatı azalır, ödemeyse artar.
-        var origDelta = original.Tip == CashTransactionType.Tahsilat
-            ? original.Amount.AmountInBase : -original.Amount.AmountInBase;
-        await _repository.PostAsync(reversal, entries, rentalTahsilatDelta: -origDelta, ct);
+        await _repository.PostAsync(reversal, entries, ct);
         return reversal.Id;
     }
 
