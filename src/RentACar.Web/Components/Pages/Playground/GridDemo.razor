@@ -9,7 +9,7 @@
 
 <PageTitle>Grid Demo — RentPro</PageTitle>
 
-<PageToolbar Title="Grid Demo — Radzen + RLS-in-circuit kanıtı" Icon="🧪" />
+<PageToolbar Title="Grid Demo — Radzen + RLS-in-circuit kanıtı" Icon="" />
 
 @* KALICI SMOKE: grid GERÇEK DbContext'ten RLS arkasından okur. Tenant circuit'e akmadıysa RLS
    default-deny → 0 satır (sahte-yeşil'e karşı görünür kanıt). Yeşil = tenant aktı + veri geldi. *@
@@ -20,7 +20,7 @@
     circuit'te RLS arkasından yüklenen araç = <b>@_count</b>
     @if (_count == 0)
     {
-        <span> — ⚠️ 0 satır: bu tenant'ın aracı yoksa normal; VARSA tenant circuit'e akmamış (RLS deny) demektir.</span>
+        <span> — 0 satır: bu tenant'ın aracı yoksa normal; VARSA tenant circuit'e akmamış (RLS deny) demektir.</span>
     }
 </div>
 

@@ -187,7 +187,10 @@ body { font-family: var(--tr-font); background: var(--tr-bg); color: var(--tr-in
 .nav-group > summary::-webkit-details-marker { display: none; }
 .nav-group > summary:hover { background: rgba(255,255,255,.05); color: #fff; }
 .nav-group > summary .ic { width: 1.2rem; text-align: center; opacity: .85; }
-.nav-group > summary .chev { margin-left: auto; transition: transform .15s; opacity: .5; font-size: .7rem; }
+.nav-group > summary .chev { margin-left: auto; transition: transform .15s; opacity: .5; display: inline-flex; }
+/* CSS-çizili chevron (emoji ▶ yerine): sağa bakar, grup açıkken 90° dönüp aşağı bakar */
+.nav-group > summary .chev::after { content: ""; width: .4rem; height: .4rem; border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor; transform: rotate(-45deg); margin-right: .15rem; }
 .nav-group[open] > summary { color: #fff; background: rgba(255,255,255,.03); }
 .nav-group[open] > summary .chev { transform: rotate(90deg); }
 .nav-group .sub { padding: .1rem 0 .4rem; background: rgba(0,0,0,.15); }
