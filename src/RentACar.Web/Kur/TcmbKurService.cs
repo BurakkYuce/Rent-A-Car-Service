@@ -72,7 +72,15 @@ public sealed class TcmbKurService(IHttpClientFactory httpFactory, IConfiguratio
             }
             else db.KurKayitlari.Add(k);
         }
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            // Çok-instance yarışı: başka bir instance aynı (Tarih,Kod) günü az önce yazdı → veri taze,
+            // idempotent no-op ("zaten güncel" = throttle semantiği). Denetim kozmetik bulgusu.
+            log.LogDebug("TCMB kur yazımında yarış (unique) — başka instance yazdı, atlandı.");
+            return -1;
+        }
         log.LogInformation("TCMB kur güncellendi: {Tarih:yyyy-MM-dd} — {Count} döviz.", tarih, kayitlar.Count);
         return kayitlar.Count;
     }

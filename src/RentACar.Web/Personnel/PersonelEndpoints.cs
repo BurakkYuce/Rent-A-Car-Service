@@ -31,20 +31,15 @@ public static class PersonelEndpoints
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
         Soyad = f["soyad"].ToString(),
-        TcKimlik = Str(f, "tcKimlik"),
-        IseGiris = FormParse.Date(Str(f, "iseGiris")),
-        IseCikis = FormParse.Date(Str(f, "iseCikis")),
-        SurucuBelgeNo = Str(f, "surucuBelgeNo"),
-        Maas = FormParse.Dec(Str(f, "maas")),
-        Sube = Str(f, "sube"),
-        Aktif = (Str(f, "aktif") ?? "true") is "true" or "True"
+        TcKimlik = FormParse.Str(f, "tcKimlik"),
+        IseGiris = FormParse.Date(FormParse.Str(f, "iseGiris")),
+        IseCikis = FormParse.Date(FormParse.Str(f, "iseCikis")),
+        SurucuBelgeNo = FormParse.Str(f, "surucuBelgeNo"),
+        Maas = FormParse.Dec(FormParse.Str(f, "maas")),
+        Sube = FormParse.Str(f, "sube"),
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     private static async Task<IResult> Run(Func<Task> action)
     {

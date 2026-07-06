@@ -46,89 +46,84 @@ public static class CustomerEndpoints
 
     private static CustomerInput Build(IFormCollection f) => new()
     {
-        Tip = ParseEnum<CariType>(Str(f, "tip")) ?? CariType.Bireysel,
-        Ad = Str(f, "ad"),
-        Soyad = Str(f, "soyad"),
-        TcKimlik = Str(f, "tcKimlik"),
-        Unvan = Str(f, "unvan"),
-        VergiDairesi = Str(f, "vergiDairesi"),
-        VergiNo = Str(f, "vergiNo"),
-        CepTel = Str(f, "cepTel"),
-        Gsm2 = Str(f, "gsm2"),
-        Email = Str(f, "email"),
-        Il = Str(f, "il"),
-        Ilce = Str(f, "ilce"),
-        Adres = Str(f, "adres"),
-        Kaynak = Str(f, "kaynak"),
-        MusteriTemsilcisi = Str(f, "musteriTemsilcisi"),
+        Tip = ParseEnum<CariType>(FormParse.Str(f, "tip")) ?? CariType.Bireysel,
+        Ad = FormParse.Str(f, "ad"),
+        Soyad = FormParse.Str(f, "soyad"),
+        TcKimlik = FormParse.Str(f, "tcKimlik"),
+        Unvan = FormParse.Str(f, "unvan"),
+        VergiDairesi = FormParse.Str(f, "vergiDairesi"),
+        VergiNo = FormParse.Str(f, "vergiNo"),
+        CepTel = FormParse.Str(f, "cepTel"),
+        Gsm2 = FormParse.Str(f, "gsm2"),
+        Email = FormParse.Str(f, "email"),
+        Il = FormParse.Str(f, "il"),
+        Ilce = FormParse.Str(f, "ilce"),
+        Adres = FormParse.Str(f, "adres"),
+        Kaynak = FormParse.Str(f, "kaynak"),
+        MusteriTemsilcisi = FormParse.Str(f, "musteriTemsilcisi"),
         IysIzinli = BoolReq(f, "iysIzinli"),
         Uyari = BoolReq(f, "uyari"),
-        UyariNedeni = Str(f, "uyariNedeni"),
-        EhliyetNo = Str(f, "ehliyetNo"),
-        EhliyetSinifi = Str(f, "ehliyetSinifi"),
-        EhliyetTarihi = FormParse.Date(Str(f, "ehliyetTarihi")),
-        EhliyetYeri = Str(f, "ehliyetYeri"),
-        Tarife = Str(f, "tarife"),
-        VadeGun = FormParse.Int(Str(f, "vadeGun")) ?? 0,
-        RiskLimiti = FormParse.Dec(Str(f, "riskLimiti")) ?? 0m,
-        RiskMesaji = Str(f, "riskMesaji"),
-        RiskTarihi = FormParse.Date(Str(f, "riskTarihi")),
-        HgsYansitmaTuru = Str(f, "hgsYansitmaTuru"),
-        OzelCariTip = Str(f, "ozelCariTip"),
-        MusteriTipi = Str(f, "musteriTipi"),
-        EhliyetUlke = Str(f, "ehliyetUlke"),
-        Dil = Str(f, "dil"),
-        Doviz = Str(f, "doviz"),
-        TevkifatDurum = Str(f, "tevkifatDurum"),
+        UyariNedeni = FormParse.Str(f, "uyariNedeni"),
+        EhliyetNo = FormParse.Str(f, "ehliyetNo"),
+        EhliyetSinifi = FormParse.Str(f, "ehliyetSinifi"),
+        EhliyetTarihi = FormParse.Date(FormParse.Str(f, "ehliyetTarihi")),
+        EhliyetYeri = FormParse.Str(f, "ehliyetYeri"),
+        Tarife = FormParse.Str(f, "tarife"),
+        VadeGun = FormParse.Int(FormParse.Str(f, "vadeGun")) ?? 0,
+        RiskLimiti = FormParse.Dec(FormParse.Str(f, "riskLimiti")) ?? 0m,
+        RiskMesaji = FormParse.Str(f, "riskMesaji"),
+        RiskTarihi = FormParse.Date(FormParse.Str(f, "riskTarihi")),
+        HgsYansitmaTuru = FormParse.Str(f, "hgsYansitmaTuru"),
+        OzelCariTip = FormParse.Str(f, "ozelCariTip"),
+        MusteriTipi = FormParse.Str(f, "musteriTipi"),
+        EhliyetUlke = FormParse.Str(f, "ehliyetUlke"),
+        Dil = FormParse.Str(f, "dil"),
+        Doviz = FormParse.Str(f, "doviz"),
+        TevkifatDurum = FormParse.Str(f, "tevkifatDurum"),
         KaraListe = BoolReq(f, "karaListe"),
         Pasif = BoolReq(f, "pasif"),
         // CRM parite zenginleştirme
-        Sinif = Str(f, "sinif"),
+        Sinif = FormParse.Str(f, "sinif"),
         MailIzin = BoolN(f, "mailIzin"),
         SmsIzin = BoolN(f, "smsIzin"),
         TelefonIzin = BoolN(f, "telefonIzin"),
-        DogumTarihi = FormParse.Date(Str(f, "dogumTarihi")),
-        BabaAdi = Str(f, "babaAdi"),
-        AnaAdi = Str(f, "anaAdi"),
-        PasaportNo = Str(f, "pasaportNo"),
-        FaturaDonemi = Str(f, "faturaDonemi"),
-        TevkifatOrani = FormParse.Dec(Str(f, "tevkifatOrani")),
-        Yetkili1Ad = Str(f, "yetkili1Ad"),
-        Yetkili1Tel = Str(f, "yetkili1Tel"),
-        Yetkili1Mail = Str(f, "yetkili1Mail"),
-        Yetkili2Ad = Str(f, "yetkili2Ad"),
-        Yetkili2Tel = Str(f, "yetkili2Tel"),
-        Yetkili2Mail = Str(f, "yetkili2Mail"),
-        Yetkili3Ad = Str(f, "yetkili3Ad"),
-        Yetkili3Tel = Str(f, "yetkili3Tel"),
-        Yetkili3Mail = Str(f, "yetkili3Mail"),
+        DogumTarihi = FormParse.Date(FormParse.Str(f, "dogumTarihi")),
+        BabaAdi = FormParse.Str(f, "babaAdi"),
+        AnaAdi = FormParse.Str(f, "anaAdi"),
+        PasaportNo = FormParse.Str(f, "pasaportNo"),
+        FaturaDonemi = FormParse.Str(f, "faturaDonemi"),
+        TevkifatOrani = FormParse.Dec(FormParse.Str(f, "tevkifatOrani")),
+        Yetkili1Ad = FormParse.Str(f, "yetkili1Ad"),
+        Yetkili1Tel = FormParse.Str(f, "yetkili1Tel"),
+        Yetkili1Mail = FormParse.Str(f, "yetkili1Mail"),
+        Yetkili2Ad = FormParse.Str(f, "yetkili2Ad"),
+        Yetkili2Tel = FormParse.Str(f, "yetkili2Tel"),
+        Yetkili2Mail = FormParse.Str(f, "yetkili2Mail"),
+        Yetkili3Ad = FormParse.Str(f, "yetkili3Ad"),
+        Yetkili3Tel = FormParse.Str(f, "yetkili3Tel"),
+        Yetkili3Mail = FormParse.Str(f, "yetkili3Mail"),
         // roadmap K4 — KVKK + ek adres/banka/fatura adresi
         KvkkOnay = BoolN(f, "kvkkOnay"),
-        KvkkOnayTarih = FormParse.Date(Str(f, "kvkkOnayTarih")),
-        EkAdres = Str(f, "ekAdres"),
-        BankaIban = Str(f, "bankaIban"),
-        BankaAdi = Str(f, "bankaAdi"),
-        FaturaAdresi = Str(f, "faturaAdresi"),
-        FaturaUnvan = Str(f, "faturaUnvan")
+        KvkkOnayTarih = FormParse.Date(FormParse.Str(f, "kvkkOnayTarih")),
+        EkAdres = FormParse.Str(f, "ekAdres"),
+        BankaIban = FormParse.Str(f, "bankaIban"),
+        BankaAdi = FormParse.Str(f, "bankaAdi"),
+        FaturaAdresi = FormParse.Str(f, "faturaAdresi"),
+        FaturaUnvan = FormParse.Str(f, "faturaUnvan")
     };
 
-    private static string? Str(IFormCollection f, string key)
-    {
-        var v = f[key].ToString();
-        return string.IsNullOrWhiteSpace(v) ? null : v;
-    }
 
     /// <summary>Checkbox: "true"/"on" işaretli → true; yoksa/boş → false.</summary>
     private static bool BoolReq(IFormCollection f, string key)
     {
-        var v = Str(f, key);
+        var v = FormParse.Str(f, key);
         return v is "true" or "True" or "on";
     }
 
     /// <summary>3 durumlu nullable bool select: boş → null, "true" → true, diğer dolu → false.</summary>
     private static bool? BoolN(IFormCollection f, string key)
     {
-        var v = Str(f, key);
+        var v = FormParse.Str(f, key);
         if (v is null) return null;
         return v is "true" or "True" or "on" or "evet" or "Evet";
     }
