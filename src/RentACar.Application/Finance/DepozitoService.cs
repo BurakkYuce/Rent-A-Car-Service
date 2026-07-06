@@ -54,7 +54,7 @@ public sealed class DepozitoService(
         if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.");
         if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
 
-        var money = new Money(tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
 
         if (kontrolEt)
         {

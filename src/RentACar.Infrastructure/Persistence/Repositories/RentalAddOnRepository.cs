@@ -47,6 +47,10 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
             if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId, ct))
                 throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
+            // K2/O2 (denetim): ek hizmet tutarları TL girilir; FX kirada kira dövizine karışıp faturada ×Kur
+            // çarpılırdı (500 TL koltuk → "500 EUR" satırı → 17.500 TL defter). v1 sınırı: FX kirada ek hizmet YOK.
+            if (RentACar.Application.Kur.KurService.NormalizeKod(rental.Doviz) != "TRY")
+                throw new ValidationException("Dövizli kirada ek hizmet v1'de desteklenmiyor (tutar birimleri karışır).");
 
             db.RentalAddOns.Add(addOn);
             await db.SaveChangesAsync(ct);
