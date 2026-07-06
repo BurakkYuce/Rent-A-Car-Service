@@ -20,28 +20,28 @@
                 @* Kısa yollar (operasyon) *@
                 <AuthorizeView Roles="Admin,Yonetici,Operator" Context="qCtx">
                     <div class="sb-quick">
-                        <a href="/rezervasyonlar"><span class="ic">＋</span> Yeni Rezervasyon</a>
-                        <a href="/kiralar"><span class="ic">＋</span> Yeni Kira</a>
-                        <a href="/musaitlik"><span class="ic">●</span> Müsaitlik-Rez Açma</a>
+                        <a href="/rezervasyonlar"><span class="ic"></span> Yeni Rezervasyon</a>
+                        <a href="/kiralar"><span class="ic"></span> Yeni Kira</a>
+                        <a href="/musaitlik"><span class="ic"></span> Müsaitlik-Rez Açma</a>
                     </div>
                 </AuthorizeView>
 
                 <nav class="sb-nav">
                     <a class="nav-solo" href="/" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🏠</span> Panel
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Panel
                     </a>
                     @* Radzen interaktif grid kanıt/smoke sayfası — YALNIZ Development (prod nav'ında görünmez). *@
                     @if (Env.IsDevelopment())
                     {
                         <a class="nav-solo" href="/playground/grid-demo" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                            <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🧪</span> Grid Demo (Radzen)
+                            <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Grid Demo (Radzen)
                         </a>
                     }
 
                     @* ---- Operasyon modülleri ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
                         <details class="nav-group" open="@Acik("/vehicles","/arac-durum","/arac-siparis","/arac-kredi","/baf","/hasar","/arac-tipleri","/arac-sahipleri","/segmentler")">
-                            <summary><span class="ic">🚗</span> Araçlar <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Araçlar <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/vehicles">Araç Listesi</a>
                                 <a href="/arac-durum">Araç Durum</a>
@@ -55,7 +55,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/kiralar","/teklifler","/filo-kiralama")">
-                            <summary><span class="ic">🔑</span> Kira <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Kira <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/kiralar">Kiralar</a>
                                 <a href="/teklifler">Teklifler</a>
@@ -63,7 +63,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/rezervasyonlar","/takvim","/musaitlik")">
-                            <summary><span class="ic">📅</span> Rezervasyon <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Rezervasyon <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/rezervasyonlar">Rezervasyonlar</a>
                                 <a href="/takvim">Takvim</a>
@@ -71,7 +71,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/cariler","/crm","/sikayetler","/hukuk","/anketler")">
-                            <summary><span class="ic">👥</span> Cariler & CRM <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Cariler & CRM <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/cariler">Cariler</a>
                                 <a href="/crm">CRM Analiz</a>
@@ -81,7 +81,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/servisler","/servis-tanimlari","/regulasyon")">
-                            <summary><span class="ic">🔧</span> Servis & Sigorta <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Servis & Sigorta <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/servisler">Servis</a>
                                 <a href="/servis-tanimlari">Servis Tanımları</a>
@@ -89,7 +89,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/tarifeler","/tarife-matris","/sigorta-urunleri","/kira-kurallari","/fiyat-hesapla","/maliyet-hesapla","/ek-hizmetler")">
-                            <summary><span class="ic">🏷️</span> Fiyat & Tarife <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Fiyat & Tarife <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/tarifeler">Tarifeler</a>
                                 <a href="/tarife-matris">Tarife Matrisi</a>
@@ -101,7 +101,7 @@
                             </div>
                         </details>
                         <details class="nav-group" open="@Acik("/markalar","/arac-gruplari","/ceza-turleri","/kdv-oranlari","/lokasyonlar","/yakit-turleri","/vites-turleri","/renkler","/musteri-gruplari","/sigorta-sirketleri","/bankalar","/departmanlar","/odeme-tipleri","/ulkeler","/aksesuarlar","/iptal-sebepleri","/rezervasyon-kaynaklari","/gider-turleri","/hesaplar","/ozel-kodlar","/dovizler","/hesap-kodlari","/drop-tanimlari")">
-                            <summary><span class="ic">📋</span> Tanımlar <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Tanımlar <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/markalar">Markalar</a>
                                 <a href="/arac-gruplari">Araç Grupları</a>
@@ -135,7 +135,7 @@
                     @* ---- Finans ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
                         <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/donem-kapanis","/cezalar","/kurlar")">
-                            <summary><span class="ic">💰</span> Finans <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Finans <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/kasa">Kasa / Banka</a>
                                 <a href="/kurlar">Döviz Kurları</a>
@@ -155,7 +155,7 @@
                     @* ---- Raporlar ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="repCtx">
                         <details class="nav-group" open="@Acik("/raporlar")">
-                            <summary><span class="ic">📊</span> Raporlar <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Raporlar <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/raporlar/gelir-gider">Gelir-Gider</a>
                                 <a href="/raporlar/karlilik">Kârlılık</a>
@@ -177,20 +177,20 @@
 
                     @* ---- Vade + Bildirim (tüm roller) ---- *@
                     <a class="nav-solo" href="/vade" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">⏰</span> Vade Panosu
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Vade Panosu
                     </a>
                     <a class="nav-solo" href="/bildirimler" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">🔔</span> Bildirimler
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Bildirimler
                         @if (_okunmamis > 0) { <span class="badge-unread">@_okunmamis</span> }
                     </a>
                     <a class="nav-solo" href="/takvim-abonelik" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;">📅</span> Takvim Aboneliği
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Takvim Aboneliği
                     </a>
 
                     @* ---- Sistem (yalnız Admin) ---- *@
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <details class="nav-group" open="@Acik("/subeler","/kullanicilar","/personel","/ayarlar","/yetki","/denetim")">
-                            <summary><span class="ic">⚙️</span> Sistem <span class="chev">▶</span></summary>
+                            <summary><span class="ic"></span> Sistem <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/subeler">Şubeler</a>
                                 <a href="/kullanicilar">Kullanıcılar</a>
@@ -207,7 +207,7 @@
             <div class="main">
                 <header class="topbar">
                     <form method="get" action="/ara" class="tb-search">
-                        <span>🔍</span>
+                        <span></span>
                         <input name="q" placeholder="Hızlı Arama — Müşteri, Plaka, RA No, TC…" />
                         <span class="kbd">Ctrl + K</span>
                         <button type="submit" aria-label="Ara">→</button>
@@ -238,7 +238,7 @@
 <div id="blazor-error-ui" data-nosnippet>
     Beklenmeyen bir hata oluştu.
     <a href="." class="reload">Yenile</a>
-    <span class="dismiss">🗙</span>
+    <span class="dismiss"></span>
 </div>
 
 @code {

@@ -75,35 +75,35 @@ public sealed class CalendarFeedService(IConfiguration config)
                         && (sube == null || r.CikisOfisi == sube))
             .ToListAsync(ct))
         {
-            Timed($"rez-{r.Id}-cikis", r.BasTar, $"➡️ Çıkış: {P(r.VehicleId)} — {A(r.MusteriId)}");
-            Timed($"rez-{r.Id}-donus", r.BitTar, $"↩️ Dönüş: {P(r.VehicleId)} — {A(r.MusteriId)}");
+            Timed($"rez-{r.Id}-cikis", r.BasTar, $"Çıkış: {P(r.VehicleId)} — {A(r.MusteriId)}");
+            Timed($"rez-{r.Id}-donus", r.BitTar, $"Dönüş: {P(r.VehicleId)} — {A(r.MusteriId)}");
         }
         // Aktif kira dönüşü (Kirada, henüz dönmemiş). Şube kapsamı: çıkış ofisi.
         foreach (var r in await db.Rentals.AsNoTracking()
             .Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar == null
                         && (sube == null || r.CikisOfisi == sube)).ToListAsync(ct))
-            Timed($"kira-{r.Id}-donus", r.BitTar, $"↩️ Dönüş (kira): {P(r.VehicleId)} — {A(r.MusteriId)}");
+            Timed($"kira-{r.Id}-donus", r.BitTar, $"Dönüş (kira): {P(r.VehicleId)} — {A(r.MusteriId)}");
 
         // Vade: sigorta (Trafik/Kasko), muayene, MTV (ödenmemiş). Şube kapsamı: aracın şubesi.
         foreach (var p in await db.InsurancePolicies.AsNoTracking().Where(p => p.Bitis >= altSinir).ToListAsync(ct))
             if (AracKapsamda(p.VehicleId))
-                AllDay($"sig-{p.Id}", p.Bitis, $"🛡️ {p.Tip} bitiş: {P(p.VehicleId)}");
+                AllDay($"sig-{p.Id}", p.Bitis, $"{p.Tip} bitiş: {P(p.VehicleId)}");
         foreach (var m in await db.InspectionRecords.AsNoTracking().Where(x => x.Bitis >= altSinir).ToListAsync(ct))
             if (AracKapsamda(m.VehicleId))
-                AllDay($"muay-{m.Id}", m.Bitis, $"🔧 Muayene bitiş: {P(m.VehicleId)}");
+                AllDay($"muay-{m.Id}", m.Bitis, $"Muayene bitiş: {P(m.VehicleId)}");
         foreach (var t in await db.MtvRecords.AsNoTracking().Where(x => !x.Odendi && x.Vade >= altSinir).ToListAsync(ct))
             if (AracKapsamda(t.VehicleId))
-                AllDay($"mtv-{t.Id}", t.Vade, $"💳 MTV vade: {P(t.VehicleId)}");
+                AllDay($"mtv-{t.Id}", t.Vade, $"MTV vade: {P(t.VehicleId)}");
         // Ceza vade (iptal/ödenmemiş olanlar). Şube kapsamında araçsız ceza gösterilmez.
         foreach (var c in await db.Penalties.AsNoTracking()
             .Where(x => x.Durum != CezaDurum.Iptal && x.Durum != CezaDurum.Odendi && x.VadeTarihi >= altSinir).ToListAsync(ct))
             if (c.VehicleId is Guid cvId ? AracKapsamda(cvId) : sube is null)
-                AllDay($"ceza-{c.Id}", c.VadeTarihi, $"⚠️ Ceza vade: {P(c.VehicleId ?? Guid.Empty)}");
+                AllDay($"ceza-{c.Id}", c.VadeTarihi, $"Ceza vade: {P(c.VehicleId ?? Guid.Empty)}");
         // Fatura ödeme vadesi — FİNANSAL: şube-kapsamlı Operatör feed'inde GÖSTERİLMEZ (O4: uygulamada da
         // Operatör finans tutarı görmez; feed yan kapı olmasın).
         if (sube is null)
             foreach (var f in await db.Invoices.AsNoTracking().Where(x => x.VadeTarihi != null && x.VadeTarihi >= altSinir).ToListAsync(ct))
-                AllDay($"fat-{f.Id}", f.VadeTarihi!.Value, $"📄 Fatura ödeme: {(f.GenelToplam * f.Kur).ToString("N0", CultureInfo.GetCultureInfo("tr-TR"))} TL"); // döviz faturada TL karşılığı (×Kur)
+                AllDay($"fat-{f.Id}", f.VadeTarihi!.Value, $"Fatura ödeme: {(f.GenelToplam * f.Kur).ToString("N0", CultureInfo.GetCultureInfo("tr-TR"))} TL"); // döviz faturada TL karşılığı (×Kur)
 
         sb.Append("END:VCALENDAR\r\n");
         return sb.ToString();

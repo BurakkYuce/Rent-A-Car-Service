@@ -5,7 +5,7 @@
 <PageTitle>Periyodik Servis Raporu — RentPro</PageTitle>
 
 <div class="page-head">
-    <h1>🔧 Periyodik Servis (KM Bakım Uyarısı)</h1>
+    <h1>Periyodik Servis (KM Bakım Uyarısı)</h1>
     <div class="actions">
         <a href="/raporlar/export/periyodik-servis?format=excel">Excel</a> ·
         <a href="/raporlar/export/periyodik-servis?format=csv">CSV</a>
@@ -27,7 +27,7 @@
                 <td class="num">@r.GuncelKm</td>
                 <td class="num">@r.SonrakiBakimKm</td>
                 <td class="num">@r.KalanKm</td>
-                <td>@(r.KalanKm <= 0 ? "⚠️ geçti" : r.KalanKm <= 1000 ? "yaklaştı" : "")</td>
+                <td>@(r.KalanKm <= 0 ? "geçti" : r.KalanKm <= 1000 ? "yaklaştı" : "")</td>
             </tr>
         }
     </tbody>

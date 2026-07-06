@@ -9,14 +9,14 @@
 
 <PageTitle>Döviz Kurları — RentPro</PageTitle>
 
-<div class="page-head"><h1>💱 Döviz Kurları (TCMB)</h1></div>
+<div class="page-head"><h1>Döviz Kurları (TCMB)</h1></div>
 
 @if (Ok == "1") { <p class="ok">İşlem tamam.</p> }
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <div class="filter-panel">
     <form method="post" action="/kurlar/yenile" style="display:inline"><AntiforgeryToken />
-        <button type="submit">↻ TCMB'den Güncelle</button>
+        <button type="submit">TCMB'den Güncelle</button>
     </form>
     @if (_tarih is not null)
     {
@@ -42,13 +42,13 @@
                 <td>@k.Birim</td>
                 <td class="num">@(k.ForexAlis?.ToString("N4") ?? "—")</td>
                 <td class="num">@(k.ForexSatis?.ToString("N4") ?? "—")</td>
-                <td>@(sabit is { Aktif: true } ? $"🔒 {sabit.Kur.ToString("N4")}" : "")</td>
+                <td>@(sabit is { Aktif: true } ? $"{sabit.Kur.ToString("N4")}" : "")</td>
             </tr>
         }
     </tbody>
 </table>
 
-<h2>🔄 Mini Çevirici</h2>
+<h2>Mini Çevirici</h2>
 <div class="filter-panel">
     <form method="get" class="filter-bar">
         <input name="tutar" type="number" step="0.01" value="@Tutar" placeholder="Tutar" required />
@@ -71,7 +71,7 @@
     }
 </div>
 
-<h2>🔒 Kur Sabitleme (bu firma)</h2>
+<h2>Kur Sabitleme (bu firma)</h2>
 <p class="muted small">Sabit kur tanımlıysa çevirimde TCMB yerine bu kullanılır. Kod başına tek tanım (yeniden kaydet = güncelle).</p>
 <details class="new-vehicle" open="@(_sabitler.Count == 0)">
     <summary>+ Sabit Kur Ekle / Güncelle</summary>
