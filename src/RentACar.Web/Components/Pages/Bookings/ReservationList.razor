@@ -38,7 +38,14 @@
         </label>
         <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defBas" min="@DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm")" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
         <label>Bitiş<input name="bitTar" type="datetime-local" value="@_defBit" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
-        <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" value="0" /></label>
+        <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" placeholder="Otomatik için boş bırakın" /></label>
+        <label>Fiyat Türü
+            <select name="fiyatTuru">
+                <option value="">—</option>
+                @foreach (var o in new[] { "Otomatik", "KDV Dahil Günlük", "Günlük", "KDV Dahil Toplam", "Toplam" })
+                { <option value="@o">@o</option> }
+            </select>
+        </label>
         <details>
             <summary class="link">Ödeme/komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</summary>
             <div class="grid-form">

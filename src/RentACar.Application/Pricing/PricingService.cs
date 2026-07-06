@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Common;
 using RentACar.Application.Vehicles;
 
 namespace RentACar.Application.Pricing;
@@ -6,7 +7,9 @@ namespace RentACar.Application.Pricing;
 /// <summary>
 /// Fiyat çözüm adaptörü (booking akışı için ince facade): rezervasyon/teklif/kira oluştururken EFEKTİF
 /// günlük ücret + tutar çözer. TEK fiyat motoru = <see cref="RentalQuoteEngine"/> (tarife matrisi).
-/// Kural: manuel ücret (>0) DAİMA kazanır (geriye-uyumlu); aksi halde aracın grubuna göre tarife
+/// Kural: manuel ücret (>0) DAİMA kazanır (geriye-uyumlu) — İSTİSNA: FiyatTuru=="Otomatik" ise
+/// manuel ücret sunucu tarafında yok sayılır ve tarife çözülemezse temiz red (ValidationException);
+/// aksi halde aracın grubuna göre tarife
 /// matrisinden (onaylı) günlük ücret çözülür. Eşleşme yoksa **geriye-uyum fallback**: eski
 /// <see cref="RateCardService"/> (DEPRECATED — yeni tarifeler RateMatrix'e). Hiçbiri yoksa 0 (manuel girilir).
 /// Defter/bakiye YAZMAZ — yalnız tutar hesaplar.
@@ -29,11 +32,20 @@ public sealed class PricingService(
 
     /// <summary>
     /// Gün + tutar döner; gerekiyorsa input.GunlukUcret'i tarife matrisinden gelen efektif ücretle
-    /// günceller. Manuel ücret verilmişse (&gt;0) motora/tarifeye bakılmaz.
+    /// günceller. Manuel ücret verilmişse (&gt;0) motora/tarifeye bakılmaz — TEK İSTİSNA:
+    /// FiyatTuru=="Otomatik" ise manuel ücret SUNUCU tarafında yok sayılır (tarife tek gerçek
+    /// kaynak) ve tarife çözülemezse (matris yok / TRY-dışı matris) temiz redle
+    /// <see cref="ValidationException"/> atılır — sessiz 0-TL sözleşme oluşmaz. Tetikleyici bu
+    /// ortak facade'da olduğundan üç create yolu (kira/rezervasyon/teklif) + rezervasyon update
+    /// otomatik kapsanır.
     /// </summary>
     public async Task<(int Gun, decimal Tutar)> PriceAsync(BookingInput input, CancellationToken ct = default)
     {
         var gun = BookingMath.ComputeGun(input.BasTar, input.BitTar);
+
+        // "Otomatik" fiyat türü: manuel ücret yok sayılır → daima tarife çözümü.
+        var otomatik = string.Equals(input.FiyatTuru?.Trim(), "Otomatik", StringComparison.OrdinalIgnoreCase);
+        if (otomatik) input.GunlukUcret = 0m;
 
         if (input.GunlukUcret <= 0)
         {
@@ -41,6 +53,11 @@ public sealed class PricingService(
             var rate = await ResolveDailyRateAsync(input.VehicleId, input.BasTar, input.BitTar, input.CikisOfisi, ct);
             if (rate > 0) input.GunlukUcret = rate;
         }
+
+        // Otomatik seçildi ama tarife çözülemedi → temiz red. Otomatik DEĞİLKEN 0 kalması
+        // mevcut davranıştır (0-TL kira; manuel akış) — bilinçli olarak dokunulmadı.
+        if (otomatik && input.GunlukUcret <= 0)
+            throw new ValidationException("Otomatik tarife bulunamadı; manuel fiyat girin veya tarife tanımlayın.");
 
         return (gun, gun * input.GunlukUcret);
     }
