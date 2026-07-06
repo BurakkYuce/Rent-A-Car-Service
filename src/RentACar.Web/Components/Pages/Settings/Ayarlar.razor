@@ -4,7 +4,7 @@
 
 <PageTitle>Ayarlar — RentPro</PageTitle>
 
-<div class="page-head"><h1>⚙️ Ayarlar</h1><div class="actions"></div></div>
+<div class="page-head"><h1>Ayarlar</h1><div class="actions"></div></div>
 @if (Ok == "1")
 {
     <p class="ok">Ayarlar kaydedildi.</p>
@@ -23,7 +23,7 @@
 
     <fieldset>
         <legend>Entegrasyon kimlikleri</legend>
-        <p class="muted small">🔒 Sır alanları (şifre/anahtar) <strong>şifreli</strong> saklanır. Değiştirmek için
+        <p class="muted small">Sır alanları (şifre/anahtar) <strong>şifreli</strong> saklanır. Değiştirmek için
             doldurun; <strong>boş bırakırsanız mevcut değer korunur</strong>.</p>
         <label>e-Fatura Kullanıcı<input name="eFaturaKullanici" value="@_m.EFaturaKullanici" /></label>
         <label>e-Fatura Şifre<input name="eFaturaSifre" type="password" placeholder="@Placeholder(_m.EFaturaSifre)" /></label>
@@ -45,7 +45,7 @@
 
     <fieldset>
         <legend>SMTP (E-posta Gönderimi)</legend>
-        <p class="muted small">🔒 SMTP şifresi şifreli saklanır; boş bırakırsanız mevcut korunur.</p>
+        <p class="muted small">SMTP şifresi şifreli saklanır; boş bırakırsanız mevcut korunur.</p>
         <label>SMTP Host<input name="smtpHost" value="@_m.SmtpHost" /></label>
         <label>SMTP Port<input name="smtpPort" type="number" min="0" value="@_m.SmtpPort" /></label>
         <label>SMTP Kullanıcı<input name="smtpKullanici" value="@_m.SmtpKullanici" /></label>
