@@ -21,7 +21,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TarihKisitlariTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
+    // whole-second hizalı "now": PG timestamptz round-trip'i kayıpsız. H5 testi yaşlanmış rezervasyonu DB'ye
+    // yazıp geri okuyup input.BasTar == existing.BasTar bekliyor; UtcNow'un 100ns tick'i Linux CI'de µs'e kırpılıp
+    // eşitliği bozuyor (Mac µs-hizalı olduğundan lokalde geçiyordu). Gün-ölçekli tüm assertion'lar korunur.
+    private static readonly DateTimeOffset Now = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddHours(12);
 
     private static async Task<(Guid cari, Guid veh)> SeedAsync(IServiceProvider sp, string plaka)
     {
