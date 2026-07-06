@@ -26,6 +26,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     public async Task<Guid> CreateAsync(BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
+        TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
@@ -67,6 +68,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
+        TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         var existing = await _repository.FindReservationAsync(id, ct);
         if (existing is null) return false;
         if (existing.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))

@@ -11,8 +11,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BookingTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 7, 1, 10, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Bit = new(2026, 7, 5, 10, 0, 0, TimeSpan.Zero);
+    // now-göreli gelecek (rezervasyon geçmişe kapalı — TarihPolitikasi); span 4 gün korunur.
+    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3);
+    private static readonly DateTimeOffset Bit = Bas.AddDays(4);
 
     private static BookingInput Input(Guid vehicle, Guid customer, DateTimeOffset? bas = null, DateTimeOffset? bit = null)
         => new() { MusteriId = customer, VehicleId = vehicle, BasTar = bas ?? Bas, BitTar = bit ?? Bit, GunlukUcret = 100m };

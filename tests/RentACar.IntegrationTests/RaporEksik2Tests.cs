@@ -26,7 +26,7 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
             .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rez Müşteri" });
         var vehicles = sp.GetRequiredService<VehicleService>();
         var rez = sp.GetRequiredService<ReservationService>();
-        var bas = new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
+        var bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
 
         foreach (var plaka in new[] { "34 RZ 01", "34 RZ 02" })
         {
