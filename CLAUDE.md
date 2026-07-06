@@ -55,7 +55,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 
 ## 5. Yeni tenant-owned tablo ekleme reçetesi
 1. `Domain/Entities/X.cs` : `ITenantOwned, IAuditable`, `Id` Guid (ValueGeneratedNever), audit timestamp'leri.
-2. `AppDbContext`: `DbSet<X>` + `OnModelCreating`'de config (kolon tipleri `numeric(19,4)`, `HasIndex (TenantId, doğal-anahtar) IsUnique`, `HasQueryFilter(x => x.TenantId == TenantId)`).
+2. `AppDbContext`: `DbSet<X>` + config'i `Persistence/Configurations/` altında ilgili alan-dosyasına `internal sealed class XConfig : IEntityTypeConfiguration<X>` olarak ekle (kolon tipleri `numeric(19,4)`, `HasIndex (TenantId, doğal-anahtar) IsUnique`). **`HasQueryFilter` YAZMA** — `OnModelCreating`'deki merkezi döngü tüm `ITenantOwned` entity'lere tenant filtresini otomatik uygular (`ModelGuardTests` kapsamı doğrular).
 3. `dotnet ef migrations add AddX --project src/RentACar.Infrastructure --startup-project src/RentACar.Infrastructure`.
 4. **Migration'a RLS bloğunu ELLE ekle** (EF üretmez): `ENABLE`+`FORCE ROW LEVEL SECURITY` + `CREATE POLICY tenant_isolation … USING/WITH CHECK (NULLIF(current_setting('app.tenant_id',true),'')::uuid)` + `GRANT … TO racar_app`. (Mali belgeyse ayrıca immutability trigger; değilse tam CRUD grant.)
 5. `IXRepository` (Application) + `XRepository` (Infrastructure, `IDbContextFactory<AppDbContext>`, `AsNoTracking`).
