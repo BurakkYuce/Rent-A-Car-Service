@@ -64,6 +64,29 @@ public sealed class DepozitoTests(PostgresFixture fx)
             () => sp.GetRequiredService<DepozitoService>().AlAsync(cari, 100m, LedgerAccountType.Kasa));
     }
 
+    // Denetim O10a — negatif/sıfır tutar ve kur guard'ları: hepsi ValidationException,
+    // depozito bakiyesi 0 KALIR (hiçbir kayıt sızmadı).
+    [Fact]
+    public async Task Negatif_veya_sifir_tutar_ve_kur_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var cari = await Cari(sp);
+        var dep = sp.GetRequiredService<DepozitoService>();
+
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => dep.AlAsync(cari, 0m, LedgerAccountType.Kasa));            // tutar = 0
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => dep.AlAsync(cari, -100m, LedgerAccountType.Kasa));         // tutar < 0
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => dep.AlAsync(cari, 100m, LedgerAccountType.Kasa, "USD", 0m));   // kur = 0
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => dep.AlAsync(cari, 100m, LedgerAccountType.Kasa, "USD", -35m)); // kur < 0
+
+        Assert.Equal(0m, await dep.GetBakiyeAsync(cari)); // hiçbir şey yazılmadı
+    }
+
     [Fact]
     public async Task Idempotency_anahtar()
     {
