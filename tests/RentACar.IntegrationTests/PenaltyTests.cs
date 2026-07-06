@@ -125,7 +125,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
             new TollCrossing(t, "Köprü", 100m),
             new TollCrossing(t.AddHours(1), "OGS", 50m)
         ]);
-        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>());
+        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         // toplam 150 * 1.03 = 154.50 → cari borçlanır.
         var result = await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
@@ -154,7 +154,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
 
         var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
         var fake = new FakeHgsService([new TollCrossing(t, "Köprü", 100m)]);
-        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>());
+        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         // Aynı (cari, plaka, dönem) iki kez yansıt → DETERMİNİSTİK SourceId → ikinci no-op.
         await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
@@ -179,7 +179,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
 
         var t1 = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
         var t2 = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-        var hgs = new HgsReflectionService(new FakeHgsService([new TollCrossing(t1, "Köprü", 100m)]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>());
+        var hgs = new HgsReflectionService(new FakeHgsService([new TollCrossing(t1, "Köprü", 100m)]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         await hgs.ReflectAsync(cari, "34ABC34", t1, t1.AddDays(1)); // Şubat dönemi
         await hgs.ReflectAsync(cari, "34ABC34", t2, t2.AddDays(1)); // Mart dönemi → ayrı
@@ -193,7 +193,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
-        var hgs = new HgsReflectionService(new FakeHgsService([]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>());
+        var hgs = new HgsReflectionService(new FakeHgsService([]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         var result = await hgs.ReflectAsync(Guid.NewGuid(), "34XYZ34", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
         Assert.Equal(0, result.GecisSayisi);

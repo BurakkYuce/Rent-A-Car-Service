@@ -166,14 +166,12 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
         Assert.Equal(0, await db.AccountLedgerEntries.AsNoTracking().CountAsync());
     }
 
-    // ---- BULGU O7-HGS — HgsReflectionService.ReflectAsync yetki DENETİMSİZ ----
-    // Servis ICurrentUser almaz ve PermissionGuard ÇAĞIRMAZ → Operator (FinanceWrite YOK) HGS
-    // yansıtmasıyla cari BORÇLANDIRABİLİYOR (Borç Cari / Alacak Gelir). CLAUDE.md §4 servis-guard
-    // sözleşmesinin ihlali. Bu test MEVCUT YANLIŞ davranışı ampirik BELGELER (DenetimParaProbe
-    // "BULGU" deseni) — guard eklenince ValidationException beklenecek şekilde GÜNCELLENMELİDİR.
-    // Hafifletici: servis şu an hiçbir web ucuna bağlı değil (yalnız DI'da kayıtlı).
+    // ---- O7-HGS FIX — HgsReflectionService artık FinanceWrite guard'lı ----
+    // Denetim bulgusu: servis ICurrentUser almıyor ve PermissionGuard çağırmıyordu → Operator (FinanceWrite
+    // YOK) HGS yansıtmasıyla cari borçlandırabiliyordu. Guard eklendi; bu test reddi + defterin BOŞ kaldığını
+    // ampirik doğrular.
     [Fact]
-    public async Task BULGU_O7_Hgs_yansitma_Operator_ile_para_yazabiliyor_guard_yok()
+    public async Task Hgs_yansitma_Operator_reddedilir_defter_bos()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
@@ -182,14 +180,14 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
         var hgs = new HgsReflectionService(
             new SabitHgs([new TollCrossing(t, "Köprü", 100m)]),
             sp.GetRequiredService<ILedgerPoster>(),
-            sp.GetRequiredService<IPeriodLockGuard>());
+            sp.GetRequiredService<IPeriodLockGuard>(),
+            sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
         var cari = Guid.NewGuid();
 
-        // BEKLENEN (doğru davranış): ValidationException("yetkiniz yok"). GERÇEK: para postlanıyor.
-        var sonuc = await hgs.ReflectAsync(cari, "34 OP 01", t, t.AddDays(1));
-
-        Assert.Equal(103m, sonuc.YansitilanTutar); // 100 × 1.03 — bulgu kanıtı: defter yazıldı
-        Assert.Equal(103m, await Svc<CashService>(scope).GetCariBalanceAsync(cari));
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => hgs.ReflectAsync(cari, "34 OP 01", t, t.AddDays(1)));
+        Assert.Contains("yetkiniz yok", ex.Message);
+        Assert.Equal(0m, await Svc<CashService>(scope).GetCariBalanceAsync(cari)); // defter BOŞ kaldı
     }
 
     /// <summary>Sabit geçiş listesi döndüren HGS test double'ı.</summary>

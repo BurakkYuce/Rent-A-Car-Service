@@ -16,13 +16,17 @@ public sealed record HgsReflectionResult(int GecisSayisi, decimal ToplamGecis, d
 /// HGS geçişlerini müşteriye yansıtma: IHgsService'ten (v1 stub) geçişleri çeker, hizmet
 /// oranıyla (örn. 1.03 = +%3) çarpıp cari'ye yansıtır (Borç Cari / Alacak Gelir, dengeli).
 /// Gerçek HGS API'si Faz 3'te stub'ın arkasına gelir; stub boş döner → no-op.
+/// Para yazar → FinanceWrite guard (denetim O7-HGS: guard'sızdı, Operator cari borçlandırabiliyordu).
 /// </summary>
-public sealed class HgsReflectionService(IHgsService hgs, ILedgerPoster ledger, IPeriodLockGuard periodLock)
+public sealed class HgsReflectionService(
+    IHgsService hgs, ILedgerPoster ledger, IPeriodLockGuard periodLock, ICurrentUser currentUser)
 {
     public async Task<HgsReflectionResult> ReflectAsync(
         Guid cariId, string plaka, DateTimeOffset from, DateTimeOffset to,
         decimal hizmetOrani = 1.03m, CancellationToken ct = default)
     {
+        RentACar.Application.Authorization.PermissionGuard.Require(
+            currentUser, RentACar.Application.Authorization.Permission.FinanceWrite);
         if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (hizmetOrani <= 0) throw new ValidationException("Hizmet oranı pozitif olmalıdır.");
 
