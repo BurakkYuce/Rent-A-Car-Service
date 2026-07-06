@@ -16,8 +16,10 @@ namespace RentACar.IntegrationTests;
 public sealed class QuotationTests(PostgresFixture fx)
 {
     // Sabit aralık: 3 tam gün (72 saat) → gün 3.
-    // now-göreli gelecek: teklif oluşturma artık rez tarih politikasını uygular (geçmiş red — TarihPolitikasi).
-    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3);
+    // now-göreli gelecek: teklif oluşturma rez tarih politikasını uygular (geçmiş red — TarihPolitikasi).
+    // whole-second hizalı: PG timestamptz round-trip'i kayıpsız (Assert.Equal(Bas, res.BasTar) tüm platformlarda
+    // geçer; UtcNow'un 100ns tick'i Linux'ta µs'e kırpılıp eşitliği bozuyordu — Mac µs-hizalı olduğundan gizliydi).
+    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3).AddHours(9);
     private static readonly DateTimeOffset Bit = Bas.AddDays(3);
 
     private static async Task<(Guid musteri, Guid arac)> SeedAsync(IServiceScope scope)
