@@ -60,8 +60,11 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .topbar .user { color: var(--muted); font-size: .9rem; }
 .topbar .user .muted { margin-left: .35rem; padding: .1rem .4rem; background: #eef2ff; border-radius: .4rem; color: var(--brand); }
 .logout-form { margin: 0; }
-.link { background: none; border: none; color: var(--brand); cursor: pointer; padding: 0; font: inherit; }
-.link.danger { color: #c0392b; }
+/* Aksiyon-linkleri (satır içi Düzenle/Detay/Temizle vb.) — tema amber, hover altı çizili (düz-html değil) */
+.link { background: none; border: none; color: #b45309; cursor: pointer; padding: 0; font: inherit;
+    font-weight: 500; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.link.danger { color: #b91c1c; }
 .content { max-width: 1000px; margin: 1.5rem auto; padding: 0 1.2rem; }
 
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }
@@ -105,9 +108,39 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 
 .grid-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; align-items: end; background: #fff; border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; margin: 1rem 0; }
 .grid-form label { display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); gap: .25rem; }
-.grid-form input, .grid-form select { padding: .4rem; border: 1px solid var(--line); border-radius: .4rem; font: inherit; }
-.grid-form button { padding: .45rem .9rem; background: var(--brand); color: #fff; border: none; border-radius: .4rem; cursor: pointer; }
-.new-vehicle summary { cursor: pointer; color: var(--brand); margin: .5rem 0; }
+/* --- Form kontrolleri: tutarlı yükseklik, tema odak halkası, hover (düz-html değil) --- */
+.grid-form input:not([type=checkbox]):not([type=radio]), .grid-form select, .grid-form textarea,
+.filter-panel input:not([type=checkbox]):not([type=radio]), .filter-panel select, .filter-panel textarea,
+.filter-bar input:not([type=checkbox]):not([type=radio]), .filter-bar select {
+    padding: .5rem .6rem; border: 1px solid var(--tr-line); border-radius: .5rem; font: inherit; font-size: .9rem;
+    background: #fff; color: var(--tr-ink); min-height: 2.4rem; box-sizing: border-box;
+    transition: border-color .12s, box-shadow .12s; }
+.grid-form input:hover:not(:focus), .grid-form select:hover:not(:focus), .grid-form textarea:hover:not(:focus),
+.filter-panel input:hover:not(:focus), .filter-panel select:hover:not(:focus) { border-color: #cbd5e1; }
+.grid-form input:focus, .grid-form select:focus, .grid-form textarea:focus,
+.filter-panel input:focus, .filter-panel select:focus, .filter-bar input:focus, .filter-bar select:focus {
+    outline: none; border-color: var(--tr-primary); box-shadow: 0 0 0 3px rgba(217,119,6,.15); }
+/* Tarih/saat: takvim ikonu tema-uyumlu + tıklanır */
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=datetime-local]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .5; padding-left: .25rem; }
+input[type=date]:hover::-webkit-calendar-picker-indicator,
+input[type=datetime-local]:hover::-webkit-calendar-picker-indicator { opacity: .9; }
+.grid-form button { padding: .5rem .95rem; background: var(--brand); color: #fff; border: none; border-radius: .5rem; cursor: pointer; }
+
+/* "+ Yeni X" / bölüm-aç toggle'ı → belirgin amber buton (satır-içi Düzenle HARİÇ) */
+.new-vehicle { margin: .5rem 0 1rem; }
+.new-vehicle > summary,
+details:not(.nav-group):not(.new-vehicle) > summary:not(.link) {
+    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--tr-accent); color: #fff; padding: .5rem .9rem; border-radius: .5rem;
+    font-weight: 600; font-size: .88rem; box-shadow: 0 1px 3px rgba(217,119,6,.28);
+    transition: filter .12s, background .12s; }
+details:not(.nav-group) > summary::-webkit-details-marker { display: none; }
+.new-vehicle > summary:hover,
+details:not(.nav-group):not(.new-vehicle) > summary:not(.link):hover { filter: brightness(1.06); }
+.new-vehicle[open] > summary { background: #64748b; box-shadow: none; } /* açıkken slate = "kapat" hissi */
+/* Satır-içi "Düzenle" toggle → aksiyon-linki (üstteki .link kuralı rengi/hover'ı verir) */
+summary.link { list-style: none; display: inline-flex; align-items: center; }
 
 .login-card { max-width: 360px; margin: 4rem auto; background: #fff; border: 1px solid var(--line); border-radius: .8rem; padding: 2rem; }
 .login-card h1 { color: var(--brand); margin: 0 0 .25rem; }
