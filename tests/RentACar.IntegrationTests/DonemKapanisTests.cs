@@ -87,7 +87,7 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
 
         var hgs = new HgsReflectionService(
             new FakeHgs([new TollCrossing(Acik, "Köprü", 100m)]),
-            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>());
+            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
         await Assert.ThrowsAsync<ValidationException>(() => hgs.ReflectAsync(cari1, "34DK01", Acik, Acik.AddDays(1)));
 
         // Kilidi kaldır → bugün-tarihli postlama yeniden serbest.
