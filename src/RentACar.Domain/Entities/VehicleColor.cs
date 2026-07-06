@@ -6,7 +6,7 @@ namespace RentACar.Domain.Entities;
 /// Renk tanımı (master sözlük): araç renklerinin adlandırılmış listesi (ör. "Beyaz", "Siyah",
 /// "Gri", "Kırmızı"). Tenant-owned + auditable. Araç formundaki Renk açılır listesini besler.
 /// </summary>
-public class VehicleColor : ITenantOwned, IAuditable
+public class VehicleColor : ITenantOwned, IAuditable, IMasterTanim
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
