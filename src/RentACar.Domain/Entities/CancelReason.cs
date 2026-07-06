@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// adlandırılmış listesi (ör. "Müşteri Vazgeçti", "Araç Arızası"). Tenant-owned + auditable.
 /// İptal akışlarında açılır liste kaynağı (additive — mevcut iptal mantığını değiştirmez).
 /// </summary>
-public class CancelReason : ITenantOwned, IAuditable
+public class CancelReason : ITenantOwned, IAuditable, IMasterTanim
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
