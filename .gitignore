@@ -43,3 +43,6 @@ platform-*.png
 loginfix-*.png
 combo-*.png
 dash-*.png
+
+# Geçici UI doğrulama ekran görüntüleri (repo kökü)
+/*.png
