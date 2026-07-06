@@ -125,9 +125,15 @@ public static class BookingEndpoints
         });
 
         kira.MapPost("/donus", async (RentalService svc,
-            [FromForm] Guid id, [FromForm] int donusKm, [FromForm] int donusYakit, [FromForm] DateTimeOffset gercekDonus) =>
+            [FromForm] Guid id, [FromForm] int donusKm, [FromForm] int donusYakit, [FromForm] DateTimeOffset gercekDonus,
+            [FromForm] string? kmHediye, [FromForm] string? bitisSebebi, [FromForm] string? teslimAlanPersonelId) =>
         {
-            try { await svc.ReturnAsync(id, donusKm, donusYakit, gercekDonus); return Results.Redirect($"/kiralar/{id}"); }
+            try
+            {
+                await svc.ReturnAsync(id, donusKm, donusYakit, gercekDonus,
+                    FormParse.Int(kmHediye) ?? 0, bitisSebebi, FormParse.Id(teslimAlanPersonelId)); // servis boş→null normalize eder
+                return Results.Redirect($"/kiralar/{id}");
+            }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

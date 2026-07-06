@@ -11,10 +11,10 @@ public static class PdfEndpoints
     public static IEndpointRouteBuilder MapPdfEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite)
-            .MapGet("/{id:guid}/pdf", async (Guid id, IBookingRepository repo, PdfExportService pdf, CancellationToken ct) =>
+            .MapGet("/{id:guid}/pdf", async (Guid id, SozlesmeService sozlesme, PdfExportService pdf, CancellationToken ct) =>
             {
-                var c = await repo.FindRentalAsync(id, ct);
-                return c is null ? Results.NotFound() : Results.File(pdf.Contract(c), "application/pdf", $"{c.SozlesmeNo}.pdf");
+                var s = await sozlesme.GetAsync(id, ct); // HTML-print ile AYNI view-model (içerik tek kaynak)
+                return s is null ? Results.NotFound() : Results.File(pdf.Contract(s), "application/pdf", $"{s.SozlesmeNo}.pdf");
             });
 
         app.MapGroup("/faturalar").RequirePermission(Permission.FinanceWrite)
