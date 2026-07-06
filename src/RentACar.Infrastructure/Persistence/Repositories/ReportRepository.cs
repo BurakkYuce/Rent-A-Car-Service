@@ -269,7 +269,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var grup = await db.Rentals.AsNoTracking()
             .Where(r => r.Durum != RentalStatus.Iptal)
             .GroupBy(r => r.MusteriId)
-            .Select(g => new { MusteriId = g.Key, KiraSayisi = g.Count(), ToplamCiro = g.Sum(r => r.GenelToplam), SonIslem = g.Max(r => r.BasTar) })
+            .Select(g => new { MusteriId = g.Key, KiraSayisi = g.Count(), ToplamCiro = g.Sum(r => r.GenelToplam * r.KurSnapshot), SonIslem = g.Max(r => r.BasTar) }) // TL-baz (O5); VIP eşiği artık anlamlı
             .ToListAsync(ct);
 
         var cust = (await db.Customers.AsNoTracking().ToListAsync(ct)).ToDictionary(c => c.Id, c => c.DisplayName);

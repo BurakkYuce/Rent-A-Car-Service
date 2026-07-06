@@ -16,7 +16,8 @@ public sealed class RentalService(
     IBookingRepository repository,
     ICurrentUser currentUser,
     PricingService pricing,
-    RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository)
+    RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
+    RentACar.Application.Kur.KurService kurService)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -46,6 +47,12 @@ public sealed class RentalService(
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
 
+        // Kur snapshot (denetim O5 — yalnız RAPORLAMA: CRM ciro TL-baz): TRY→1; FX→oluşturma anındaki kur
+        // (SabitKur/TCMB). Kur çözülemezse FX kira REDDEDİLİR (ValidationException — fatura da aynı koşulda
+        // reddederdi; sessiz 1:1 ciro yanlışlığı yerine erken temiz hata).
+        var doviz = RentACar.Application.Kur.KurService.NormalizeKod(input.Doviz);
+        var kurSnapshot = doviz == "TRY" ? 1m : await kurService.GetRateAsync(doviz, input.BasTar, ct: ct);
+
         var contract = new RentalContract
         {
             Durum = RentalStatus.Kirada,
@@ -74,7 +81,8 @@ public sealed class RentalService(
             KiralamaTuru = input.KiralamaTuru,
             FaturalamaTipi = input.FaturalamaTipi,
             FiyatTuru = input.FiyatTuru,
-            Doviz = input.Doviz
+            Doviz = input.Doviz,
+            KurSnapshot = kurSnapshot
         };
         await _repository.CreateRentalAsync(contract, ct);
         return contract.Id;
