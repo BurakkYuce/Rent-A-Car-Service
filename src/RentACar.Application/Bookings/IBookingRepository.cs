@@ -25,6 +25,10 @@ public interface IBookingRepository
     /// <summary>SozlesmeNo'yu boşluksuz tahsis edip ekler; çakışmada AvailabilityConflictException.</summary>
     Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default);
     Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default);
+    /// <summary>Kira + aracı AYNI transaction'da günceller (teslim/dönüş km → araç odometresi;
+    /// ServiceRecordRepository.TransitionAsync deseni). Araç TX İÇİNDE okunur (PgRetry'de bayat okuma olmaz).</summary>
+    Task<bool> UpdateRentalWithVehicleAsync(
+        Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle, CancellationToken ct = default);
 
     /// <summary>Verilen araç+aralık için aktif (Kirada) kira çakışması var mı?</summary>
     Task<bool> HasOverlappingActiveRentalAsync(
