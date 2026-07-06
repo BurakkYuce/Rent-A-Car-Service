@@ -301,6 +301,10 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
+        // O5 (KurSnapshot): FX kira oluşturma kur ister → GBP sabit kuru seed (snapshot raporlama-amaçlı;
+        // bu testin ham-toplam invariant'ını etkilemez).
+        await scope.ServiceProvider.GetRequiredService<SabitKurService>()
+            .UpsertAsync(new SabitKurInput { Kod = "GBP", Kur = 48m, Aktif = true });
         var (sp, id, cari) = await Seed(scope, "34 DP 09", "GBP"); // 300 GBP
         var cash = sp.GetRequiredService<CashService>();
         await cash.CollectAsync(Ci(cari, id, 100m, "GBP", 47m));
