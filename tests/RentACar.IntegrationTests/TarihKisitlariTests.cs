@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
@@ -6,6 +7,7 @@ using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;
@@ -175,5 +177,79 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
             scope.ServiceProvider.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
             { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0.20m, Tarih = Now.AddDays(30) }));
         Assert.Contains("gelecekte", ex.Message);
+    }
+
+    // ---------- ADVERSARIAL REGRESYON ----------
+
+    // H5 (workflow-lock): yaşlanmış rezervasyon (başlangıcı geçmişte, hâlâ Rezerv), tarihe DOKUNMADAN
+    // not güncellemesi GEÇMELİ. Guard yalnız başlangıç GERÇEKTEN değişiyorsa uygulanır.
+    [Fact]
+    public async Task Rez_yaslanmis_tarih_degismeden_not_guncelleme_serbest()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var res = sp.GetRequiredService<ReservationService>();
+        var (cari, veh) = await SeedAsync(sp, "34 TR 05");
+        var id = await res.CreateAsync(Booking(cari, veh, Now.AddDays(10), Now.AddDays(13)));
+
+        // DB'de geçmişe yaşlandır (zaman geçmiş gibi) — rezervasyon hâlâ Rezerv.
+        var gecmisBas = Now.AddDays(-5); var gecmisBit = Now.AddDays(-2);
+        await using (var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync())
+        {
+            var r = await db.Reservations.FirstAsync(x => x.Id == id);
+            r.BasTar = gecmisBas; r.BitTar = gecmisBit;
+            await db.SaveChangesAsync();
+        }
+
+        // Tarihe dokunmadan (aynı geçmiş bas/bit) sadece açıklama güncelle → GEÇMELİ (kilit YOK).
+        var ok = await res.UpdateAsync(id, new BookingInput
+        { MusteriId = cari, VehicleId = veh, BasTar = gecmisBas, BitTar = gecmisBit, GunlukUcret = 100m, Aciklama = "guncel" });
+        Assert.True(ok);
+    }
+
+    // BULGU 1/2 (bypass): teklif→kabul→rezervasyon→kira zinciri tarih guard'ını atlıyordu. Teklif OLUŞTURMA
+    // artık rez politikasını uygular → geçmiş ve +1yıldan-fazla teklif giriş noktasında reddedilir (zincir kapalı).
+    [Fact]
+    public async Task Teklif_gecmis_tarihli_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (cari, veh) = await SeedAsync(scope.ServiceProvider, "34 TQ 01");
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            scope.ServiceProvider.GetRequiredService<QuotationService>().CreateAsync(new QuotationInput
+            { MusteriId = cari, VehicleId = veh, BasTar = Now.AddDays(-30), BitTar = Now.AddDays(-27), GunlukUcret = 100m }));
+        Assert.Contains("geçmiş", ex.Message);
+    }
+
+    [Fact]
+    public async Task Teklif_bir_yildan_fazla_ileri_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var (cari, veh) = await SeedAsync(scope.ServiceProvider, "34 TQ 02");
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            scope.ServiceProvider.GetRequiredService<QuotationService>().CreateAsync(new QuotationInput
+            { MusteriId = cari, VehicleId = veh, BasTar = Now.AddDays(400), BitTar = Now.AddDays(403), GunlukUcret = 100m }));
+        Assert.Contains("1 yıl", ex.Message);
+    }
+
+    // BULGU 3 (bypass): toplu tahsilat/ödeme (BatchCollect) ParaTarihi guard'ını atlıyordu (tek yolda vardı).
+    [Fact]
+    public async Task Toplu_tahsilat_gelecek_tarihli_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var cash = sp.GetRequiredService<CashService>();
+        var cari = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Batch", Soyad = "X" });
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(new[]
+        {
+            new CashInput { CariId = cari, Tutar = 100m },
+            new CashInput { CariId = cari, Tutar = 100m, Tarih = Now.AddDays(30) } // gelecek → TÜM batch red
+        }));
+        Assert.Contains("gelecekte", ex.Message);
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari)); // hiçbir şey yazılmadı (atomik)
     }
 }

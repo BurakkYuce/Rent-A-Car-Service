@@ -29,6 +29,10 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var booking = input.ToBooking();
         BookingMath.Validate(booking);
+        // Tarih politikası GİRİŞ noktasında (adversarial BULGU 1/2): teklif → kabul → rezervasyon → kira
+        // zinciri bu guard'ı atlıyordu. Teklif rezervasyona dönüşeceği için rez politikası uygulanır (geçmişe
+        // kapalı + ≤+1yıl). Kabul/convert TEKRAR guard'lamaz → gün sonra yaşlanmış teklifin kabulü kilitlenmez.
+        TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
         // Fiyat motoru: manuel >0 kazanır, yoksa tarife → booking.GunlukUcret efektif ücretle güncellenir.
         var (gun, tutar) = await _pricing.PriceAsync(booking, ct);
         if (input.GecerlilikTarihi is { } g && g < input.BasTar)

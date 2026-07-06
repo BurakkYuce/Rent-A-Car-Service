@@ -68,11 +68,15 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
     {
         BookingMath.Validate(input);
-        TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         var existing = await _repository.FindReservationAsync(id, ct);
         if (existing is null) return false;
         if (existing.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
             throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon düzenlenebilir.");
+        // Tarih politikası YALNIZ başlangıç GERÇEKTEN değişiyorsa (typo koruması) — yaşlanmış rezervasyonun
+        // (başlangıcı doğal olarak geçmişte kalmış, hâlâ Rezerv/Onaylı) not/araç/fiyat düzenlemesini KİLİTLEME
+        // (adversarial H5). Yeni bir geçmiş/aşırı-ileri tarihe taşıma hâlâ reddedilir.
+        if (input.BasTar != existing.BasTar)
+            TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
 
         var (gun, tutar) = await _pricing.PriceAsync(input, ct);
 
