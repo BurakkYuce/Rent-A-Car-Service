@@ -22,16 +22,17 @@ public sealed class KdvMathTests
     }
 
     [Theory]
-    [InlineData(99.9999, 0.20)]   // 4 ondalık brüt → kuruşa sabitlenir
-    [InlineData(33.3349, 0.18)]
-    [InlineData(1234.5678, 0.10)]
-    public void Net_and_kdv_are_always_two_decimals(decimal gross, decimal rate)
+    [InlineData(99.9999, 0.20, 100.00)]   // 4 ondalık brüt → kuruşa sabitlenir
+    [InlineData(33.3349, 0.18, 33.33)]
+    [InlineData(1234.5678, 0.10, 1234.57)]
+    public void Net_and_kdv_are_always_two_decimals(decimal gross, decimal rate, decimal expGrossKurus)
     {
         var (net, kdv) = KdvMath.FromGross(gross, rate);
         Assert.Equal(Math.Round(net, 2), net);
         Assert.Equal(Math.Round(kdv, 2), kdv);
-        // net + kdv = kuruşa sabitlenmiş brüt (denge korunur).
-        Assert.Equal(KdvMath.RoundGross(gross), net + kdv);
+        // net + kdv = kuruşa sabitlenmiş brüt (denge korunur). Denetim C6: beklenen ELLE sabit
+        // (bağımsız oracle) — KdvMath.RoundGross'tan (üretim kodundan) türetilmez.
+        Assert.Equal(expGrossKurus, net + kdv);
     }
 
     [Theory]
