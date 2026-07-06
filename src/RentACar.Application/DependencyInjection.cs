@@ -87,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
         services.AddScoped<RentalService>();
+        services.AddScoped<SozlesmeService>(); // sözleşme çıktısı view-model (HTML+PDF tek kaynak)
         services.AddScoped<RentACar.Application.RentalAddOns.RentalAddOnService>();
         services.AddScoped<CashService>();
         services.AddScoped<Finance.DepozitoService>(); // roadmap I3
