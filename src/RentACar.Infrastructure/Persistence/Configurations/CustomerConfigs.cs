@@ -1,0 +1,148 @@
+// Cari/CRM + personel/hukuk tablolari.
+// NOT: HasQueryFilter BURAYA YAZILMAZ — AppDbContext.OnModelCreating'deki merkezi
+// dongu tum ITenantOwned entity'lere tenant filtresini otomatik uygular.
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using RentACar.Domain.Entities;
+
+namespace RentACar.Infrastructure.Persistence.Configurations;
+
+// ---- Customer / Cari (tenant-owned) ----
+internal sealed class CustomerConfig : IEntityTypeConfiguration<Customer>
+{
+    public void Configure(EntityTypeBuilder<Customer> e)
+    {
+        e.ToTable("Customers");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Tip).HasConversion<int>();
+        e.Property(x => x.Ad).HasMaxLength(128);
+        e.Property(x => x.Soyad).HasMaxLength(128);
+        e.Property(x => x.TcKimlik).HasMaxLength(11);        // ESKİ düz metin — backfill null'lar
+        // KVKK/F2: PII cipher + blind-index kolonları
+        e.Property(x => x.TcKimlikEnc).HasMaxLength(1024);
+        e.Property(x => x.TcKimlikHash).HasMaxLength(64);    // HMAC-SHA256 hex
+        e.Property(x => x.EhliyetNoEnc).HasMaxLength(1024);
+        e.Property(x => x.PasaportNoEnc).HasMaxLength(1024);
+        e.Property(x => x.Unvan).HasMaxLength(256);
+        e.Property(x => x.VergiDairesi).HasMaxLength(128);
+        e.Property(x => x.VergiNo).HasMaxLength(16);
+        e.Property(x => x.CepTel).HasMaxLength(32);
+        e.Property(x => x.Gsm2).HasMaxLength(32);
+        e.Property(x => x.Email).HasMaxLength(256);
+        e.Property(x => x.Il).HasMaxLength(64);
+        e.Property(x => x.Ilce).HasMaxLength(64);
+        e.Property(x => x.Adres).HasMaxLength(512);
+        e.Property(x => x.Kaynak).HasMaxLength(64);
+        e.Property(x => x.MusteriTemsilcisi).HasMaxLength(128);
+        e.Property(x => x.UyariNedeni).HasMaxLength(256);
+        e.Property(x => x.EhliyetNo).HasMaxLength(32);
+        e.Property(x => x.EhliyetSinifi).HasMaxLength(16);
+        e.Property(x => x.EhliyetYeri).HasMaxLength(64);
+        e.Property(x => x.Tarife).HasMaxLength(64);
+        e.Property(x => x.RiskLimiti).HasColumnType("numeric(19,4)");
+        e.Property(x => x.RiskMesaji).HasMaxLength(256);
+        e.Property(x => x.HgsYansitmaTuru).HasMaxLength(32);
+        // CRM parite zenginleştirme (additive)
+        e.Property(x => x.Sinif).HasMaxLength(32);
+        e.Property(x => x.BabaAdi).HasMaxLength(128);
+        e.Property(x => x.AnaAdi).HasMaxLength(128);
+        e.Property(x => x.PasaportNo).HasMaxLength(32);
+        e.Property(x => x.FaturaDonemi).HasMaxLength(32);
+        e.Property(x => x.TevkifatOrani).HasColumnType("numeric(9,4)");
+        e.Property(x => x.Yetkili1Ad).HasMaxLength(128);
+        e.Property(x => x.Yetkili1Tel).HasMaxLength(32);
+        e.Property(x => x.Yetkili1Mail).HasMaxLength(256);
+        e.Property(x => x.Yetkili2Ad).HasMaxLength(128);
+        e.Property(x => x.Yetkili2Tel).HasMaxLength(32);
+        e.Property(x => x.Yetkili2Mail).HasMaxLength(256);
+        e.Property(x => x.Yetkili3Ad).HasMaxLength(128);
+        e.Property(x => x.Yetkili3Tel).HasMaxLength(32);
+        e.Property(x => x.Yetkili3Mail).HasMaxLength(256);
+        // roadmap K4
+        e.Property(x => x.EkAdres).HasMaxLength(512);
+        e.Property(x => x.BankaIban).HasMaxLength(34);
+        e.Property(x => x.BankaAdi).HasMaxLength(128);
+        e.Property(x => x.FaturaAdresi).HasMaxLength(512);
+        e.Property(x => x.FaturaUnvan).HasMaxLength(256);
+        e.Ignore(x => x.DisplayName);
+        // Tenant içinde benzersiz — yalnız dolu olduğunda (kısmi unique index).
+        // KVKK/F2: TC benzersizliği düz metin yerine blind-index üzerinde (şifreli PII'da
+        // deterministik eşleşme anahtarı). Eski (TenantId, TcKimlik) indexi migration'da düşürüldü.
+        e.HasIndex(x => new { x.TenantId, x.TcKimlikHash })
+            .IsUnique()
+            .HasFilter("\"TcKimlikHash\" IS NOT NULL");
+        e.HasIndex(x => new { x.TenantId, x.VergiNo })
+            .IsUnique()
+            .HasFilter("\"VergiNo\" IS NOT NULL");
+    }
+}
+
+// ---- Personel (tenant-owned; master, roadmap C1) ----
+// PII (*Enc) ŞİFRELİ cipher saklar (servis ISecretProtector ile); kolon düz metin değildir.
+internal sealed class PersonelConfig : IEntityTypeConfiguration<Personel>
+{
+    public void Configure(EntityTypeBuilder<Personel> e)
+    {
+        e.ToTable("Personeller");
+        e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+        e.HasIndex(x => x.SubeId);
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Soyad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.TcKimlikEnc).HasMaxLength(1024);
+        e.Property(x => x.SurucuBelgeNo).HasMaxLength(64);
+        e.Property(x => x.MaasEnc).HasMaxLength(1024);
+        e.Property(x => x.Sube).HasMaxLength(128);
+        e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+    }
+}
+
+// ---- HukukDosya (tenant-owned; master, roadmap C2) ----
+internal sealed class HukukDosyaConfig : IEntityTypeConfiguration<HukukDosya>
+{
+    public void Configure(EntityTypeBuilder<HukukDosya> e)
+    {
+        e.ToTable("HukukDosyalari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.DosyaNo).IsRequired().HasMaxLength(64);
+        e.Property(x => x.Avukat).HasMaxLength(128);
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Tur).HasConversion<int>();
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        e.HasIndex(x => new { x.TenantId, x.DosyaNo }).IsUnique();
+    }
+}
+
+// ---- Anket / Sikayet (tenant-owned; CRM, roadmap C3) ----
+internal sealed class AnketConfig : IEntityTypeConfiguration<Anket>
+{
+    public void Configure(EntityTypeBuilder<Anket> e)
+    {
+        e.ToTable("Anketler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Yorum).HasMaxLength(1024);
+        e.Property(x => x.Kaynak).HasMaxLength(64);
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+    }
+}
+
+internal sealed class SikayetConfig : IEntityTypeConfiguration<Sikayet>
+{
+    public void Configure(EntityTypeBuilder<Sikayet> e)
+    {
+        e.ToTable("Sikayetler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Konu).IsRequired().HasMaxLength(256);
+        e.Property(x => x.Detay).HasMaxLength(2048);
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.Cozum).HasMaxLength(2048);
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+    }
+}
