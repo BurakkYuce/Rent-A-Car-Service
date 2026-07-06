@@ -127,21 +127,21 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
     }
 
-    // ---- 4. EKSİK KUR: EUR kira, HİÇ kur yok → temiz red (sessiz 1:1 DEĞİL) ----
+    // ---- 4. EKSİK KUR: FX kira, HİÇ kur yok → temiz red — O5 sonrası red DAHA ERKEN (create anında) ----
     [Fact]
     public async Task P4_eksik_kur_temiz_red_sizinti_yok()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
         // İZOLE kod "CHF": paylaşımlı KurKayitlari tablosunda hiçbir test bunu seed etmez; sabit de yok.
+        // O5 (KurSnapshot): kur çözülemeyen FX kira artık OLUŞTURMADA reddedilir (faturayı beklemez).
         var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "CHF")); // sabit YOK, TCMB YOK
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(rentalId));
-        // Sessiz 1:1 (300) veya 0 borçlanma OLMAMALI.
+        await Assert.ThrowsAsync<ValidationException>(
+            () => rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "CHF"))); // sabit YOK, TCMB YOK
+        // Sessiz 1:1 (300) veya 0 borçlanma OLMAMALI — hiçbir şey yazılmadı.
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
     }
 
@@ -256,10 +256,10 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "XAU"));
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(rentalId));
+        // O5: kur çözülemeyen bilinmeyen döviz artık kira OLUŞTURMADA reddedilir.
+        await Assert.ThrowsAsync<ValidationException>(
+            () => rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "XAU")));
     }
 
     // ---- 8. TL REGRESYON: Doviz null / "TL" → TRY, Kur 1, 1:1 ----
