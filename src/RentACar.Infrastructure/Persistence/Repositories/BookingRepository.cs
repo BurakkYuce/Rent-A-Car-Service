@@ -169,6 +169,33 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
+    public async Task<bool> UpdateRentalWithVehicleAsync(
+        Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle, CancellationToken ct = default)
+    {
+        return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
+        {
+            // ServiceRecordRepository.TransitionAsync deseni: tek context + TX + iki entity + tek SaveChanges.
+            // Araç TX İÇİNDE okunur — PgRetry tekrarında bayat vehicle okunmaz (adversarial inceleme 3a).
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (r is null) return false;
+            applyRental(r);
+
+            var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == r.VehicleId, ct);
+            if (vehicle is not null)
+            {
+                applyVehicle(vehicle);
+                vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            }
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
+    }
+
     public async Task<bool> HasOverlappingActiveRentalAsync(
         Guid vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
         Guid? excludeRentalId = null, CancellationToken ct = default)

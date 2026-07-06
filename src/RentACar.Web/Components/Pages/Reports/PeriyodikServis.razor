@@ -11,23 +11,26 @@
         <a href="/raporlar/export/periyodik-servis?format=csv">CSV</a>
     </div>
 </div>
-<p class="muted">Her aracın sonraki bakım KM hedefine kalan mesafe (kalan KM artan sıralı). Negatif = bakım zamanı geçti.</p>
+<p class="muted">Her aracın sonraki bakım KM hedefine kalan mesafe (kalan KM artan sıralı). Negatif = bakım zamanı geçti.
+Kaynak: <strong>Servis</strong> = servis kaydında elle girilen hedef; <strong>Tanım</strong> = Son Bakım KM + araç tipinin periyodik
+aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listelenir (gizlenmez).</p>
 
 <table class="grid tr-grid">
-    <thead><tr><th>Plaka</th><th class="num">Güncel KM</th><th class="num">Sonraki Bakım KM</th><th class="num">Kalan KM</th><th></th></tr></thead>
+    <thead><tr><th>Plaka</th><th class="num">Güncel KM</th><th class="num">Sonraki Bakım KM</th><th class="num">Kalan KM</th><th>Kaynak</th><th></th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="5" class="muted">Bakım hedefi (Sonraki Bakım KM) tanımlı araç yok.</td></tr>
+            <tr><td colspan="6" class="muted">Araç yok.</td></tr>
         }
         @foreach (var r in _rows)
         {
             <tr>
                 <td>@r.Plaka</td>
                 <td class="num">@r.GuncelKm</td>
-                <td class="num">@r.SonrakiBakimKm</td>
-                <td class="num">@r.KalanKm</td>
-                <td>@(r.KalanKm <= 0 ? "geçti" : r.KalanKm <= 1000 ? "yaklaştı" : "")</td>
+                <td class="num">@(r.SonrakiBakimKm?.ToString() ?? "—")</td>
+                <td class="num">@(r.KalanKm?.ToString() ?? "—")</td>
+                <td>@(r.Kaynak ?? "")</td>
+                <td>@(r.KalanKm is null ? "tanım yok" : r.KalanKm <= 0 ? "geçti" : r.KalanKm <= 1000 ? "yaklaştı" : "")</td>
             </tr>
         }
     </tbody>
