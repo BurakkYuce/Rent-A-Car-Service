@@ -5,7 +5,7 @@
 
 <PageTitle>Takvim Aboneliği — RentPro</PageTitle>
 
-<div class="page-head"><h1>📅 Takvim Aboneliği</h1></div>
+<div class="page-head"><h1>Takvim Aboneliği</h1></div>
 
 @if (_url is null)
 {
@@ -22,7 +22,7 @@ else
         <input readonly value="@_url" onclick="this.select()" aria-label="Takvim bağlantısı" />
     </div>
     <p class="muted small">
-        ⚠️ Bu bağlantı <b>kişiye özeldir ve müşteri adı / plaka bilgisi içerir</b> — kimseyle paylaşma. Yanlışlıkla
+        Bu bağlantı <b>kişiye özeldir ve müşteri adı / plaka bilgisi içerir</b> — kimseyle paylaşma. Yanlışlıkla
         sızarsa aşağıdan <b>Yenile</b> ile eski bağlantıyı iptal et.
     </p>
     @if (Yeni == "1") { <p class="ok">Yeni bağlantı üretildi — eski bağlantı artık çalışmaz.</p> }

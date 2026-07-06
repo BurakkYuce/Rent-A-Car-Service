@@ -12,7 +12,7 @@
 <PageTitle>Panel — RentPro</PageTitle>
 
 <div class="page-head">
-    <h1>🏠 Panel</h1>
+    <h1>Panel</h1>
     <div class="actions">
         <a href="/rezervasyonlar">+ Rezervasyon</a>
         <a href="/kiralar">+ Kira</a>
@@ -24,7 +24,7 @@
 <div class="kpi-grid">
     <div class="kpi-cell">
         <div class="kpi k-purple">
-            <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic">🤝</span></div>
+            <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Kirada</div>
             <div class="k-bar"><span style="width:@Yuzde(_fleet.Kirada)%"></span></div>
             <div class="k-foot">Toplamdan %@Yuzde(_fleet.Kirada)</div>
@@ -33,7 +33,7 @@
     </div>
     <div class="kpi-cell">
         <div class="kpi k-green">
-            <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic">🚙</span></div>
+            <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Musait</div>
             <div class="k-bar"><span style="width:@Yuzde(_fleet.Musait)%"></span></div>
             <div class="k-foot">Toplamdan %@Yuzde(_fleet.Musait)</div>
@@ -42,7 +42,7 @@
     </div>
     <div class="kpi-cell">
         <div class="kpi k-red">
-            <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic">🔧</span></div>
+            <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Serviste</div>
             <div class="k-bar"><span style="width:@Yuzde(_fleet.Serviste)%"></span></div>
             <div class="k-foot">Toplamdan %@Yuzde(_fleet.Serviste)</div>
@@ -51,7 +51,7 @@
     </div>
     <div class="kpi-cell">
         <div class="kpi k-orange">
-            <div class="k-top"><span class="k-label">Açık Rezervasyonlar</span><span class="k-ic">⏱️</span></div>
+            <div class="k-top"><span class="k-label">Açık Rezervasyonlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_acikRezSayi</div>
             <div class="k-bar"><span style="width:@Yuzde(_acikRezSayi)%"></span></div>
             <div class="k-foot">Bekleyen rezervasyon</div>
@@ -71,7 +71,7 @@
 <div class="donus-cikis">
     <div class="dc-panel">
         <div class="dc-head">
-            <span class="dc-title">↩️ Dönüşler</span>
+            <span class="dc-title">Dönüşler</span>
             <span class="dc-tabs">
                 <a class="@(Df == "gec" ? "on" : "")" href="/?df=gec&cf=@Cf">Gecikmiş <b>@_donusGec.Count</b></a>
                 <a class="@(Df is null or "bugun" ? "on" : "")" href="/?df=bugun&cf=@Cf">Bugün <b>@_donusBugun.Count</b></a>
@@ -82,7 +82,7 @@
     </div>
     <div class="dc-panel">
         <div class="dc-head">
-            <span class="dc-title">➡️ Çıkışlar</span>
+            <span class="dc-title">Çıkışlar</span>
             <span class="dc-tabs">
                 <a class="@(Cf == "gec" ? "on" : "")" href="/?cf=gec&df=@Df">Gecikmiş <b>@_cikisGec.Count</b></a>
                 <a class="@(Cf is null or "bugun" ? "on" : "")" href="/?cf=bugun&df=@Df">Bugün <b>@_cikisBugun.Count</b></a>
@@ -96,7 +96,7 @@
 @if (_gecmis + _yakin > 0)
 {
     <div class="vade-alert">
-        ⚠️ <strong>Vade uyarısı:</strong>
+        <strong>Vade uyarısı:</strong>
         @if (_gecmis > 0) { <span class="badge danger">@_gecmis geçmiş</span> }
         @if (_yakin > 0) { <span class="badge warn">@_yakin yaklaşan (≤30 gün)</span> }
         @if (_acikSikayet > 0) { <span class="badge warn">@_acikSikayet açık şikayet</span> }
@@ -108,10 +108,10 @@
 <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
     <h2 class="dash-h2">Finans Özeti</h2>
     <div class="stat-row">
-        <div class="stat"><span class="s-ic">💵</span><div><div class="s-num">@_dash.KasaBakiye.ToString("N0")</div><div class="s-label">Kasa Bakiye</div></div></div>
-        <div class="stat"><span class="s-ic">🏦</span><div><div class="s-num">@_dash.BankaBakiye.ToString("N0")</div><div class="s-label">Banka Bakiye</div></div></div>
-        <div class="stat"><span class="s-ic">📄</span><div><div class="s-num">@_dash.AcikBakiye.ToString("N0")</div><div class="s-label">Açık Bakiye</div></div></div>
-        <div class="stat"><span class="s-ic">💰</span><div><div class="s-num">@_dash.BugunTahsilatTutar.ToString("N0")</div><div class="s-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet)</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.KasaBakiye.ToString("N0")</div><div class="s-label">Kasa Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.BankaBakiye.ToString("N0")</div><div class="s-label">Banka Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.AcikBakiye.ToString("N0")</div><div class="s-label">Açık Bakiye</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.BugunTahsilatTutar.ToString("N0")</div><div class="s-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet)</div></div></div>
     </div>
 </AuthorizeView>
 
