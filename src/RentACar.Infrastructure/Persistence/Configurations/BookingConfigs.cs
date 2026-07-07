@@ -21,6 +21,8 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.Property(x => x.DonusOfisi).HasMaxLength(64);
         e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.IskontoTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.HaftaSonuFark).HasColumnType("numeric(19,4)");
         e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
@@ -49,6 +51,8 @@ internal sealed class QuotationConfig : IEntityTypeConfiguration<Quotation>
         e.Property(x => x.DonusOfisi).HasMaxLength(64);
         e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.IskontoTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.HaftaSonuFark).HasColumnType("numeric(19,4)");
         e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Aciklama).HasMaxLength(1024);
