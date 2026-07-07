@@ -16,16 +16,16 @@ public static class QuotationEndpoints
         grp.MapPost("/create", async (QuotationService svc,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
-            [FromForm] decimal gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
-            [FromForm] string? gecerlilik, [FromForm] string? aciklama) =>
+            [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
+            [FromForm] string? gecerlilik, [FromForm] string? aciklama, [FromForm] string? fiyatTuru) =>
         {
             try
             {
                 await svc.CreateAsync(new QuotationInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
-                    GunlukUcret = gunlukUcret, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi,
-                    GecerlilikTarihi = FormParse.Date(gecerlilik), Aciklama = aciklama
+                    GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi,
+                    GecerlilikTarihi = FormParse.Date(gecerlilik), Aciklama = aciklama, FiyatTuru = fiyatTuru
                 });
                 return Results.Redirect("/teklifler");
             }

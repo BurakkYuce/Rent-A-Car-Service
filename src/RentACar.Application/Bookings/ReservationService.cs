@@ -45,6 +45,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
             Tutar = pr.Tutar,
+            HediyeGun = pr.HediyeGun, FaturalananGun = pr.FaturalananGun, IskontoTutar = pr.IskontoTutar, HaftaSonuFark = pr.HaftaSonuFark,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
@@ -96,6 +97,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             r.Gun = pr.Gun;
             r.GunlukUcret = input.GunlukUcret;
             r.Tutar = pr.Tutar;
+            r.HediyeGun = pr.HediyeGun; r.FaturalananGun = pr.FaturalananGun; r.IskontoTutar = pr.IskontoTutar; r.HaftaSonuFark = pr.HaftaSonuFark;
             r.KmLimit = input.KmLimit;
             r.FazlaKmUcret = input.FazlaKmUcret;
             r.YakitBirimUcret = input.YakitBirimUcret;
@@ -141,6 +143,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             FazlaKmUcret = res.FazlaKmUcret,
             YakitBirimUcret = res.YakitBirimUcret,
             Tutar = res.Tutar,
+            HediyeGun = res.HediyeGun, FaturalananGun = res.FaturalananGun, IskontoTutar = res.IskontoTutar, HaftaSonuFark = res.HaftaSonuFark,
             GenelToplam = res.Tutar,
             Tahsilat = 0m,
             Bakiye = res.Tutar,

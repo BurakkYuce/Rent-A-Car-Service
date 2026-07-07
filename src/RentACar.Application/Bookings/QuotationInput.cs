@@ -15,6 +15,7 @@ public sealed class QuotationInput
     public decimal YakitBirimUcret { get; set; }
     public DateTimeOffset? GecerlilikTarihi { get; set; }
     public string? Aciklama { get; set; }
+    public string? FiyatTuru { get; set; } // "Otomatik" → tarife motoru (döküm dolar)
 
     /// <summary>Doğrulama/hesap için rezervasyon giriş modeline köprü.</summary>
     public BookingInput ToBooking() => new()
@@ -29,6 +30,7 @@ public sealed class QuotationInput
         KmLimit = KmLimit,
         FazlaKmUcret = FazlaKmUcret,
         YakitBirimUcret = YakitBirimUcret,
-        Aciklama = Aciklama
+        Aciklama = Aciklama,
+        FiyatTuru = FiyatTuru
     };
 }
