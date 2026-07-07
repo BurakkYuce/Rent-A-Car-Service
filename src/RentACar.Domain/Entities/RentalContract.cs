@@ -65,6 +65,17 @@ public class RentalContract : ITenantOwned, IAuditable
     /// decrypt'li gösterilir). Oluşturma anında yakalanır (create-time otorite).</summary>
     public Guid? IkinciSurucuId { get; set; }
 
+    // ---- Tam teklif bileşenleri (fiyat motoru "Otomatik" — BİLGİ/döküm; Tutar zaten net brütü içerir,
+    // bunlar Tutar'a AYRICA katılmaz → çift-sayım yok; KURAL A) ----
+    /// <summary>Hediye (bedava) gün sayısı — kiralama kuralından. FaturalananGun = Gun − HediyeGun.</summary>
+    public int? HediyeGun { get; set; }
+    /// <summary>Faturalanan gün (Gun − HediyeGun) — motordan.</summary>
+    public int? FaturalananGun { get; set; }
+    /// <summary>Uygulanan iskonto tutarı (brüt) — kural iskonto oranından hesaplandı; Tutar'a zaten yansıdı.</summary>
+    public decimal? IskontoTutar { get; set; }
+    /// <summary>Hafta sonu farkı (brüt) — Cmt/Pzr günlerine ek; Tutar'a zaten yansıdı.</summary>
+    public decimal? HaftaSonuFark { get; set; }
+
     public int Gun { get; set; }
     public decimal GunlukUcret { get; set; }
     public decimal Tutar { get; set; }          // baz kira tutarı

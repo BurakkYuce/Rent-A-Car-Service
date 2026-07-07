@@ -66,6 +66,8 @@ public sealed class PdfExportService
                     col.Item().Text($"KM Limit: {(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())}    Aşım Ücreti: {s.FazlaKmUcret:N2} {pb}{(s.KmHediye is null ? "" : $"    KM Hediye: {s.KmHediye}")}").FontSize(9);
                     if (s.BitisSebebi is not null || s.TeslimAlanAd is not null)
                         col.Item().Text($"Bitiş Sebebi: {s.BitisSebebi ?? "—"}    Teslim Alan: {s.TeslimAlanAd ?? "—"}").FontSize(9);
+                    if (s.HediyeGun is not null || s.IskontoTutar is not null || s.HaftaSonuFark is not null)
+                        col.Item().Text($"Tarife dökümü:{(s.FaturalananGun is int fg ? $" Faturalanan {fg} gün" : "")}{(s.HediyeGun is int hg ? $" · Hediye {hg} gün" : "")}{(s.HaftaSonuFark is decimal hs && hs > 0 ? $" · Hafta sonu +{hs:N2}" : "")}{(s.IskontoTutar is decimal isk && isk > 0 ? $" · İskonto −{isk:N2}" : "")}").FontSize(9);
                     col.Item().Text($"Günlük: {s.GunlukUcret:N2}    Kira: {s.Tutar:N2}    Fazla KM: {s.FazlaKmBedeli:N2}    Yakıt: {s.YakitBedeli:N2}    Uzatma: {s.UzatmaBedeli:N2} ({pb})").FontSize(9);
                     if (s.EkHizmetler.Count > 0)
                         col.Item().Text($"Ek Hizmetler: {string.Join(" · ", s.EkHizmetler.Select(e => $"{e.Ad}: {e.Toplam:N2}"))} (toplam {s.EkHizmetToplam:N2} {pb})").FontSize(9);
