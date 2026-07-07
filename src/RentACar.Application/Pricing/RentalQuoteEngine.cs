@@ -15,7 +15,7 @@ namespace RentACar.Application.Pricing;
 /// ekranı sonucu sözleşmeye yazabilir. Tüm tutarlar 2 ondalık (kuruş) yuvarlanır (AwayFromZero), KdvMath
 /// ile aynı konvansiyon.
 ///
-/// KALİBRASYON NOTU: Gün sayma (<see cref="BookingMath.ComputeGun"/>: 24-saat bloğu yukarı yuvarla) ve
+/// KALİBRASYON NOTU: Gün sayma (<see cref="BookingMath.ComputeGun"/>: 24h tam blok + ~3sa kısmi eşiği — referans sistem kalibre) ve
 /// kuruş yuvarlama "makul varsayılan"dır — canlı referans sistem Gun_Hesapla/kuruş örneğiyle henüz doğrulanmadı
 /// (docs/parite README "Kalibrasyon boşlukları"). Parite örneği gelince burada kalibre edilecek.
 ///
