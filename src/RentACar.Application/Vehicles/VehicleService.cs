@@ -47,6 +47,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
 
     public async Task<Guid> CreateAsync(VehicleInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var plaka = Normalize(input.Plaka);
         Validate(plaka, input);
 
@@ -84,6 +85,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
 
     public async Task<bool> UpdateAsync(Guid id, VehicleInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var plaka = Normalize(input.Plaka);
         Validate(plaka, input);
 
@@ -119,6 +121,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var ok = await _repository.DeleteAsync(id, ct);
         _cache.Invalidate(CacheKey);
         return ok;
