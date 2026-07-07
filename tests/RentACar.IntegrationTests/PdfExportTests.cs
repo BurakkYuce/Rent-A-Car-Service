@@ -34,6 +34,7 @@ public sealed class PdfExportTests
             KmLimit: 500, FazlaKmUcret: 15m,
             KmHediye: 100, BitisSebebi: "Normal", TeslimAlanAd: "Onur Yuce", GercekDonusTar: null,
             GunlukUcret: 100m, Tutar: 400m, FazlaKmBedeli: 1500m, YakitBedeli: 70m, UzatmaBedeli: 0m,
+            HediyeGun: 1, FaturalananGun: 4, IskontoTutar: 50m, HaftaSonuFark: 30m,
             EkHizmetToplam: 50m, GenelToplam: 2020m, Tahsilat: 0m, Bakiye: 2020m, Doviz: "TL",
             EkHizmetler: [new RentACar.Application.Bookings.SozlesmeEkHizmet("Bebek Koltuğu", 50m)]);
 

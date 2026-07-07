@@ -79,6 +79,15 @@ else
                     <tr><th>KM Hediye</th><td>@(_s.KmHediye?.ToString() ?? "—")</td>
                         <th>Bitiş Sebebi / Teslim Alan</th><td>@(_s.BitisSebebi ?? "—") / @(_s.TeslimAlanAd ?? "—")</td></tr>
                 }
+                @if (_s.HediyeGun is not null || _s.IskontoTutar is not null || _s.HaftaSonuFark is not null)
+                {
+                    <tr><th>Tarife Dökümü</th><td colspan="3">
+                        @(_s.FaturalananGun is int fg ? $"Faturalanan {fg} gün" : "")
+                        @(_s.HediyeGun is int hg ? $" · Hediye {hg} gün" : "")
+                        @(_s.HaftaSonuFark is decimal hs && hs > 0 ? $" · Hafta sonu farkı {hs:N2} {Pb}" : "")
+                        @(_s.IskontoTutar is decimal isk && isk > 0 ? $" · İskonto −{isk:N2} {Pb}" : "")
+                    </td></tr>
+                }
                 <tr><th>Kira Tutarı</th><td>@_s.Tutar.ToString("N2") @Pb</td>
                     <th>Fazla KM Bedeli</th><td>@_s.FazlaKmBedeli.ToString("N2") @Pb</td></tr>
                 <tr><th>Yakıt Bedeli</th><td>@_s.YakitBedeli.ToString("N2") @Pb</td>

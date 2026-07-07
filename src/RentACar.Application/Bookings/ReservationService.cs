@@ -27,7 +27,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     {
         BookingMath.Validate(input);
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
-        var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
+        var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
@@ -42,9 +42,9 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             BitTar = input.BitTar,
             CikisOfisi = input.CikisOfisi,
             DonusOfisi = input.DonusOfisi,
-            Gun = gun,
+            Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
-            Tutar = tutar,
+            Tutar = pr.Tutar,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
@@ -78,7 +78,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
         if (input.BasTar != existing.BasTar)
             TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
 
-        var (gun, tutar) = await _pricing.PriceAsync(input, ct);
+        var pr = await _pricing.PriceAsync(input, ct);
 
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
@@ -93,9 +93,9 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             r.BitTar = input.BitTar;
             r.CikisOfisi = input.CikisOfisi;
             r.DonusOfisi = input.DonusOfisi;
-            r.Gun = gun;
+            r.Gun = pr.Gun;
             r.GunlukUcret = input.GunlukUcret;
-            r.Tutar = tutar;
+            r.Tutar = pr.Tutar;
             r.KmLimit = input.KmLimit;
             r.FazlaKmUcret = input.FazlaKmUcret;
             r.YakitBirimUcret = input.YakitBirimUcret;
