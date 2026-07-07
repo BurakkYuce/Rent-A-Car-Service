@@ -39,7 +39,16 @@ public sealed class PricingService(
     /// ortak facade'da olduğundan üç create yolu (kira/rezervasyon/teklif) + rezervasyon update
     /// otomatik kapsanır.
     /// </summary>
-    public async Task<(int Gun, decimal Tutar)> PriceAsync(BookingInput input, CancellationToken ct = default)
+    /// <summary>Fiyatlanmış kira: gün + TUTAR (baz kira brütü) + bilgi amaçlı bileşenler (hediye gün / iskonto /
+    /// hafta sonu farkı / faturalanan gün). Bileşenler yalnız tarife matrisi (Otomatik) çözdüğünde dolu; manuel
+    /// veya RateCard fallback'te null. Tutar = motorun GenelToplam'ı — KURAL A: booking yolunda km-tahmini +
+    /// sigorta MATRAHA GİRMEZ (req'te TahminiKm/SigortaUrunKodlari yok) → Tutar = bazTutar + haftaSonuFark −
+    /// iskonto = TEMİZ baz brüt. Bileşenler Tutar'a AYRICA katılmaz (çift-sayım yok); RentalTotals.BaseGross +
+    /// ReturnMath zaten yalnız Tutar'ı okur → tutarlı.</summary>
+    public sealed record PricedRental(
+        int Gun, decimal Tutar, int? HediyeGun, decimal? IskontoTutar, decimal? HaftaSonuFark, int? FaturalananGun);
+
+    public async Task<PricedRental> PriceAsync(BookingInput input, CancellationToken ct = default)
     {
         var gun = BookingMath.ComputeGun(input.BasTar, input.BitTar);
 
@@ -49,17 +58,45 @@ public sealed class PricingService(
 
         if (input.GunlukUcret <= 0)
         {
-            // CikisOfisi (şube) → şube-özel matris eşleşsin (HIGH-2).
-            var rate = await ResolveDailyRateAsync(input.VehicleId, input.BasTar, input.BitTar, input.CikisOfisi, ct);
-            if (rate > 0) input.GunlukUcret = rate;
+            var vehicle = await _vehicles.FindAsync(input.VehicleId, ct);
+            var grup = vehicle?.Grup?.Trim();
+            if (!string.IsNullOrWhiteSpace(grup))
+            {
+                // TEK motor çağrısı. CikisOfisi (şube) → şube-özel matris (HIGH-2).
+                var q = input.BitTar > input.BasTar
+                    ? await _quoteEngine.QuoteAsync(new QuoteRequest
+                        { AracGrupKod = grup, Sube = input.CikisOfisi, BasTar = input.BasTar, BitTar = input.BitTar }, ct)
+                    : null;
+                if (q?.TarifeKodu is not null)
+                {
+                    // Matris EŞLEŞTİ. TRY ise TAM teklifi persist et; TRY-dışı → booking tek-döviz → 0 kalır
+                    // (RateCard'a DÜŞME — MEDIUM-1 kararı); Otomatik ise aşağıda temiz red.
+                    if (string.Equals(q.ParaBirimi, "TRY", StringComparison.OrdinalIgnoreCase) && q.GunlukUcret > 0)
+                    {
+                        input.GunlukUcret = q.GunlukUcret; // efektif günlük ücret sözleşmeye
+                        return new PricedRental(q.Gun, q.GenelToplam,
+                            q.HediyeGun > 0 ? q.HediyeGun : null,
+                            q.IskontoTutar > 0 ? q.IskontoTutar : null,
+                            q.HaftaSonuFark > 0 ? q.HaftaSonuFark : null,
+                            q.HediyeGun > 0 ? q.FaturalananGun : null);
+                    }
+                }
+                else
+                {
+                    // Matris YOK → geriye-uyum fallback: eski RateCard (DEPRECATED; bileşen yok).
+#pragma warning disable CS0618
+                    var card = await _rateCards.GetRateAsync(grup, gun, input.BasTar, ct);
+#pragma warning restore CS0618
+                    if (card?.GunlukUcret is { } r && r > 0) input.GunlukUcret = r;
+                }
+            }
         }
 
-        // Otomatik seçildi ama tarife çözülemedi → temiz red. Otomatik DEĞİLKEN 0 kalması
-        // mevcut davranıştır (0-TL kira; manuel akış) — bilinçli olarak dokunulmadı.
+        // Otomatik seçildi ama tarife çözülemedi → temiz red. Otomatik DEĞİLKEN 0 kalması mevcut davranıştır.
         if (otomatik && input.GunlukUcret <= 0)
             throw new ValidationException("Otomatik tarife bulunamadı; manuel fiyat girin veya tarife tanımlayın.");
 
-        return (gun, gun * input.GunlukUcret);
+        return new PricedRental(gun, gun * input.GunlukUcret, null, null, null, null);
     }
 
     /// <summary>

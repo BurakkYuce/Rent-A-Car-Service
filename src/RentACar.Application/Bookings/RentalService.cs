@@ -53,7 +53,7 @@ public sealed class RentalService(
             if (await customerRepository.FindAsync(ikinci, ct) is null)
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
-        var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
+        var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
@@ -75,15 +75,20 @@ public sealed class RentalService(
             BitTar = input.BitTar,
             CikisOfisi = input.CikisOfisi,
             DonusOfisi = input.DonusOfisi,
-            Gun = gun,
+            Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
-            Tutar = tutar,
-            GenelToplam = tutar,
+            Tutar = pr.Tutar,
+            GenelToplam = pr.Tutar,
             Tahsilat = 0m,
-            Bakiye = tutar,
+            Bakiye = pr.Tutar,
+            // Tam teklif bileşenleri (bilgi/döküm; Tutar zaten net brütü — çift-sayım YOK, KURAL A).
+            HediyeGun = pr.HediyeGun,
+            IskontoTutar = pr.IskontoTutar,
+            HaftaSonuFark = pr.HaftaSonuFark,
+            FaturalananGun = pr.FaturalananGun,
             Provizyon = input.Provizyon,
             Depozito = input.Depozito,
             KomisyonOran = input.KomisyonOran,
