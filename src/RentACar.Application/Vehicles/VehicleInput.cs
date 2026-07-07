@@ -17,7 +17,7 @@ public sealed class VehicleInput
     public string? SasiNo { get; set; }
     public string? MotorNo { get; set; }
     public string? Sube { get; set; }
-    public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;
+    public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
     public FiloStatus? FiloDurum { get; set; }
     public int Km { get; set; }
     public FuelType Yakit { get; set; } = FuelType.Benzin;
