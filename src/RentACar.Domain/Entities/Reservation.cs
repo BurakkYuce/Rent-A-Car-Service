@@ -31,6 +31,12 @@ public class Reservation : ITenantOwned, IAuditable
     public decimal GunlukUcret { get; set; }
     public decimal Tutar { get; set; }
 
+    // Tam teklif dökümü (fiyat motoru "Otomatik" — BİLGİ; kiraya taşınır, sözleşmede gösterilir; PR-F2).
+    public int? HediyeGun { get; set; }
+    public int? FaturalananGun { get; set; }
+    public decimal? IskontoTutar { get; set; }
+    public decimal? HaftaSonuFark { get; set; }
+
     // Anlaşılan aşım koşulları (kiraya çevrilirken sözleşmeye taşınır).
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }

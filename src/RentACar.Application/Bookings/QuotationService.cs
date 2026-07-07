@@ -50,6 +50,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             Gun = pr.Gun,
             GunlukUcret = booking.GunlukUcret, // efektif ücret (fiyat motoru sonrası)
             Tutar = pr.Tutar,
+            HediyeGun = pr.HediyeGun, FaturalananGun = pr.FaturalananGun, IskontoTutar = pr.IskontoTutar, HaftaSonuFark = pr.HaftaSonuFark,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
@@ -87,6 +88,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             Gun = q.Gun,
             GunlukUcret = q.GunlukUcret,
             Tutar = q.Tutar,
+            HediyeGun = q.HediyeGun, FaturalananGun = q.FaturalananGun, IskontoTutar = q.IskontoTutar, HaftaSonuFark = q.HaftaSonuFark,
             KmLimit = q.KmLimit,
             FazlaKmUcret = q.FazlaKmUcret,
             YakitBirimUcret = q.YakitBirimUcret,
