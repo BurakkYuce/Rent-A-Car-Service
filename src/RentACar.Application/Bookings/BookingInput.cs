@@ -4,6 +4,7 @@ namespace RentACar.Application.Bookings;
 public sealed class BookingInput
 {
     public Guid MusteriId { get; set; }
+    public Guid? IkinciSurucuId { get; set; } // 2. sürücü (opsiyonel Customer bağı — sözleşmede gösterilir)
     public Guid VehicleId { get; set; }
     public DateTimeOffset BasTar { get; set; }
     public DateTimeOffset BitTar { get; set; }

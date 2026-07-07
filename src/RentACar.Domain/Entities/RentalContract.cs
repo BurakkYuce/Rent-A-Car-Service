@@ -61,6 +61,10 @@ public class RentalContract : ITenantOwned, IAuditable
     /// <summary>Dönüşü teslim alan personel (gevşek referans — Personel.Id; FK yok).</summary>
     public Guid? TeslimAlanPersonelId { get; set; }
 
+    /// <summary>2. sürücü (opsiyonel) — Customer bağı (gevşek referans; PII Customer'da şifreli, sözleşmede
+    /// decrypt'li gösterilir). Oluşturma anında yakalanır (create-time otorite).</summary>
+    public Guid? IkinciSurucuId { get; set; }
+
     public int Gun { get; set; }
     public decimal GunlukUcret { get; set; }
     public decimal Tutar { get; set; }          // baz kira tutarı

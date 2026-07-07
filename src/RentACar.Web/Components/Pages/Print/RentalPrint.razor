@@ -47,6 +47,15 @@ else
                 @if (_s.DogumTarihi is not null) { <p>Doğum Tarihi: @_s.DogumTarihi?.ToString("dd.MM.yyyy")</p> }
                 <p>@_s.MusteriTel</p>
                 <p>@_s.MusteriAdres</p>
+                @if (_s.IkinciSurucuAd is not null)
+                {
+                    <p class="ikinci-surucu"><strong>2. Sürücü:</strong> @_s.IkinciSurucuAd
+                    @if (_s.IkinciTcKimlik is not null) { <br /><span>TC: @_s.IkinciTcKimlik</span> }
+                    @if (_s.IkinciEhliyetNo is not null)
+                    { <br /><span>Ehliyet: @_s.IkinciEhliyetNo @(_s.IkinciEhliyetSinifi is null ? "" : $"({_s.IkinciEhliyetSinifi})") @(_s.IkinciEhliyetYeri is null ? "" : $"— {_s.IkinciEhliyetYeri}") @(_s.IkinciEhliyetTarihi is null ? "" : $"· {_s.IkinciEhliyetTarihi:dd.MM.yyyy}")</span> }
+                    @if (_s.IkinciDogumTarihi is not null) { <br /><span>Doğum: @_s.IkinciDogumTarihi?.ToString("dd.MM.yyyy")</span> }
+                    </p>
+                }
             </div>
             <div>
                 <h3>Araç</h3>
@@ -108,9 +117,13 @@ else
             responsibility for new damages. The renter accepts the Lessor's Standard Rental Terms.</p>
         </section>
 
-        <section class="print-signs">
+        <section class="print-signs @(_s.IkinciSurucuAd is null ? "" : "three")">
             <div>ARACI TESLİM EDEN / DELIVERED BY@(_s.TeslimAlanAd is null ? "" : $" — {_s.TeslimAlanAd}")<br /><span class="sign-line"></span></div>
-            <div>KİRACI / RENTER — @_s.MusteriAd<br /><span class="sign-line"></span></div>
+            <div>1. SÜRÜCÜ / RENTER — @_s.MusteriAd<br /><span class="sign-line"></span></div>
+            @if (_s.IkinciSurucuAd is not null)
+            {
+                <div>2. SÜRÜCÜ / 2ND DRIVER — @_s.IkinciSurucuAd<br /><span class="sign-line"></span></div>
+            }
         </section>
     </div>
 }
