@@ -33,6 +33,15 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == kaynakFaturaId, ct);
     }
 
+    public async Task<decimal> InvoicedGrossForRentalAsync(Guid rentalId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // base fatura (RentalId) + fark faturaları (KaynakKiraId); iptal hariç.
+        return await db.Invoices.AsNoTracking()
+            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal)
+            .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
+    }
+
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);

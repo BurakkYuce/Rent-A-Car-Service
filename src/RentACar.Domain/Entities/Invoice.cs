@@ -51,6 +51,11 @@ public class Invoice : ITenantOwned, IAuditable
     /// <summary>İade faturasıysa kaynak (iptal edilen) faturanın Id'si. Kaynak başına TEK iade
     /// (kısmi-unique index). Normal faturada null.</summary>
     public Guid? KaynakFaturaId { get; set; }
+
+    /// <summary>Fark faturası ise hangi kiranın ek-bedel farkı (dönüş/uzatma sonrası). Fark faturaları RentalId
+    /// = null (kira-fatura unique index'ine çarpmasın) → kira bağı bu alandan (PR-F1). Kira-brütü hesabı
+    /// (InvoicedGrossForRentalAsync) base fatura (RentalId) + fark faturalarını (KaynakKiraId) toplar.</summary>
+    public Guid? KaynakKiraId { get; set; }
     /// <summary>Kiradan bağımsız manuel fatura mı.</summary>
     public bool ManuelMi { get; set; }
 

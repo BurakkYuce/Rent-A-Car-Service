@@ -43,10 +43,6 @@ public sealed class InvoiceService(
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         if (rental.GenelToplam <= 0)
             throw new ValidationException("Faturalanacak tutar yok.");
-        // İdempotency: aynı kira iki kez faturalanıp cari ÇİFT borçlanmasın (DB kısmi unique index
-        // son güvence; bu ön-kontrol kullanıcı dostu hata verir).
-        if (await addOnRepository.IsRentalInvoicedAsync(rental.Id, ct))
-            throw new ValidationException("Kira zaten faturalanmış.");
 
         var rate = kdvRate ?? DefaultKdvRate;
 
@@ -65,6 +61,21 @@ public sealed class InvoiceService(
         var baseGross = KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
         if (baseGross < 0)
             throw new ValidationException("Baz kira tutarı negatif olamaz.");
+
+        // İdempotency + FARK FATURASI (PR-F1): kira zaten faturalandıysa, fatura SONRASI oluşan ek bedel
+        // (dönüş fazla km/yakıt/uzatma) için FARK faturası kesilir — aksi halde sözleşme GenelToplam büyür
+        // ama defter büyümez (sessiz ıraksama, adversarial P9). Fark = güncel toplam brüt − şimdiye dek
+        // faturalanan brüt. İlk fatura değilse base+addon satırları yerine tek "fark" satırı (kira dövizi).
+        if (await addOnRepository.IsRentalInvoicedAsync(rental.Id, ct))
+        {
+            var guncelBrut = baseGross + addOnGross;
+            var faturalanan = await repository.InvoicedGrossForRentalAsync(rental.Id, ct);
+            var fark = KdvMath.RoundGross(guncelBrut - faturalanan);
+            if (fark <= 0m)
+                throw new ValidationException("Kira zaten tam faturalanmış (yeni ek bedel yok).");
+            return await PostFarkFaturasiAsync(rental, fark, rate, vergi, ct);
+        }
+
         var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
 
         var net = baseNet + addOns.Sum(a => a.NetTutar);
@@ -131,6 +142,52 @@ public sealed class InvoiceService(
 
         var entries = BuildEntries(invoice);
         await repository.PostAsync(invoice, entries, ct);
+        return invoice.Id;
+    }
+
+    /// <summary>Fark faturası (PR-F1): kira zaten faturalandıktan SONRA oluşan ek bedel (dönüş/uzatma) için tek
+    /// satırlık fatura. RentalId = null (kira-fatura unique index'ine çarpmasın); kira bağı KaynakKiraId üzerinden.
+    /// fark = brüt (kira dövizi); net/kdv verilen orandan (dönüş bedelleri baz-oranlı). Dengeli defter yazar.</summary>
+    private async Task<Guid> PostFarkFaturasiAsync(
+        RentalContract rental, decimal farkGross, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
+    {
+        var (net, kdv) = KdvMath.FromGross(farkGross, rate);
+        var gross = net + kdv;
+        var tarih = DateTimeOffset.UtcNow;
+        var doviz = KurService.NormalizeKod(rental.Doviz);
+        var oran = doviz == "TRY" ? 1m : await kur.GetRateAsync(doviz, tarih, ct: ct);
+
+        var invoice = new Invoice
+        {
+            Durum = InvoiceStatus.Kesildi,
+            CariId = rental.MusteriId,
+            RentalId = null,            // kira-fatura unique index'ine çarpmasın
+            KaynakKiraId = rental.Id,   // kira bağı
+            Tarih = tarih,
+            NetTutar = net,
+            KdvTutar = kdv,
+            GenelToplam = gross,
+            Currency = doviz,
+            Kur = oran
+        };
+        await _lock.EnsureOpenAsync(invoice.Tarih, ct);
+        invoice.Lines.Add(new InvoiceLine
+        {
+            InvoiceId = invoice.Id,
+            Aciklama = $"Fark faturası (kira {rental.SozlesmeNo}) — dönüş/ek bedel",
+            Miktar = 1m,
+            BirimNetFiyat = net,
+            KdvOrani = rate,
+            SatirNet = net,
+            SatirKdv = kdv,
+            SatirToplam = gross
+        });
+        ApplyVergi(invoice, vergi);
+
+        var result = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, kdv, invoice.Currency), ct);
+        if (result.Success) { invoice.EFaturaEttn = result.Ettn; invoice.EFaturaGonderildi = true; }
+
+        await repository.PostAsync(invoice, BuildEntries(invoice), ct);
         return invoice.Id;
     }
 
