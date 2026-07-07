@@ -131,6 +131,10 @@ internal sealed class InvoiceConfig : IEntityTypeConfiguration<Invoice>
         e.HasIndex(x => new { x.TenantId, x.KaynakFaturaId })
             .IsUnique()
             .HasFilter("\"KaynakFaturaId\" IS NOT NULL");
+        // Fark faturası → kira brütü toplaması (InvoicedGrossForRentalAsync). NON-unique (bir kira için
+        // birden çok fark faturası olabilir: her dönüş/uzatma sonrası ayrı fark).
+        e.HasIndex(x => new { x.TenantId, x.KaynakKiraId })
+            .HasFilter("\"KaynakKiraId\" IS NOT NULL");
         e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
     }
 }
