@@ -27,6 +27,8 @@ public sealed class TenantSettingsService(
             FirmaAdres = s.FirmaAdres,
             FirmaTel = s.FirmaTel,
             FirmaEmail = s.FirmaEmail,
+            FirmaMobilTel = s.FirmaMobilTel,
+            FirmaMarka = s.FirmaMarka,
             EFaturaKullanici = s.EFaturaKullanici,
             EFaturaSifre = secrets.Unprotect(s.EFaturaSifreEnc),
             SmsBaslik = s.SmsBaslik,
@@ -62,6 +64,8 @@ public sealed class TenantSettingsService(
             s.FirmaAdres = Trim(m.FirmaAdres);
             s.FirmaTel = Trim(m.FirmaTel);
             s.FirmaEmail = Trim(m.FirmaEmail);
+            s.FirmaMobilTel = Trim(m.FirmaMobilTel);
+            s.FirmaMarka = Trim(m.FirmaMarka);
             s.EFaturaKullanici = Trim(m.EFaturaKullanici);
             s.SmsBaslik = Trim(m.SmsBaslik);
             s.PosMerchantId = Trim(m.PosMerchantId);

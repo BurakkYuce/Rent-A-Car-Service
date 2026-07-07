@@ -52,12 +52,14 @@ public sealed class PdfExportService
                     {
                         c.Item().Text("ARAÇ TESLİM BELGESİ / RENTAL AGREEMENT").FontSize(11).Bold();
                         if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
+                        if (s.FirmaMobilTel is not null) c.Item().Text($"MOBİL TEL : {s.FirmaMobilTel}").FontSize(8).SemiBold();
                         if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(8).SemiBold();
                         if (s.FirmaUnvan is not null) c.Item().Text(s.FirmaUnvan).FontSize(8).SemiBold();
                     });
                     r.ConstantItem(180).Column(c =>
                     {
-                        c.Item().AlignRight().Text((s.FirmaUnvan ?? "RENT A CAR").ToUpperInvariant()).FontSize(11).Bold();
+                        // Sağ üst: ticari MARKA (yoksa hukuki ünvan).
+                        c.Item().AlignRight().Text((s.FirmaMarka ?? s.FirmaUnvan ?? "RENT A CAR").ToUpperInvariant()).FontSize(11).Bold();
                         if (s.FirmaVergiNo is not null)
                             c.Item().AlignRight().Text($"{s.FirmaVergiDairesi} VD. {s.FirmaVergiNo}").FontSize(8).SemiBold();
                         c.Item().PaddingTop(4).AlignRight().Text(s.SozlesmeNo).FontSize(14).Bold();

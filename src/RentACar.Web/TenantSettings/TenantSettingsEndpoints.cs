@@ -23,6 +23,8 @@ public static class TenantSettingsEndpoints
                 FirmaAdres = f["firmaAdres"].ToString(),
                 FirmaTel = f["firmaTel"].ToString(),
                 FirmaEmail = f["firmaEmail"].ToString(),
+                FirmaMobilTel = f["firmaMobilTel"].ToString(),
+                FirmaMarka = f["firmaMarka"].ToString(),
                 EFaturaKullanici = f["eFaturaKullanici"].ToString(),
                 EFaturaSifre = f["eFaturaSifre"].ToString(),
                 SmsBaslik = f["smsBaslik"].ToString(),
