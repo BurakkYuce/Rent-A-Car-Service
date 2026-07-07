@@ -10,9 +10,12 @@ public interface IInvoiceRepository
     /// <summary>Verilen kaynak fatura için zaten bir iade faturası kesilmiş mi? (idempotency ön-kontrol)</summary>
     Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default);
 
-    /// <summary>Bir kira için faturalanmış toplam BRÜT (kira dövizinde): base fatura (RentalId) + fark
-    /// faturaları (KaynakKiraId), Iptal hariç. Fark faturası (PR-F1) bu toplamı günceller.</summary>
-    Task<decimal> InvoicedGrossForRentalAsync(Guid rentalId, CancellationToken ct = default);
+    /// <summary>Bir kira için fark-hesabı durumu TEK ATOMİK snapshot'ta (RepeatableRead): (a) faturalanmış NET
+    /// BRÜT = base+fark (Iptal + iade-faturası hariç) − iade brütü; (b) kesilmiş fark SAYISI (iade dahil = sıra
+    /// sayacı). İkisi AYNI snapshot'tan okunur → eşzamanlı fark isteklerinde faturalanan/sıra TUTARLI (TOCTOU
+    /// yok): ya ikisi de fark-öncesi (aynı sıra → unique index çakışır) ya ikisi de fark-sonrası (fark=0 red).
+    /// Sıradaki fark sıra no = FarkSayisi + 1 (idempotency doğal anahtarı; adversarial Kritik-1 + V6).</summary>
+    Task<(decimal FaturalananBrut, int FarkSayisi)> GetFarkStateAsync(Guid rentalId, CancellationToken ct = default);
 
     /// <summary>
     /// Fatura + satırlar + DENGELİ defter kümesini TEK transaction'da işler. No boşluksuz

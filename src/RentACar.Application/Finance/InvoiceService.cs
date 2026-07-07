@@ -69,14 +69,14 @@ public sealed class InvoiceService(
         if (await addOnRepository.IsRentalInvoicedAsync(rental.Id, ct))
         {
             var guncelBrut = KdvMath.RoundGross(baseGross + addOnGross);
-            // İade-farkında (adversarial High-2/3): faturalanan = base+fark brütü − iade brütü. İade edilmiş base
-            // "faturalanmış" sayılmaz → iade sonrası dönüş/yeniden-fatura defteri sözleşmeyle hizalar.
-            var faturalanan = await repository.InvoicedGrossForRentalAsync(rental.Id, ct);
+            // Faturalanan brüt + fark sayısı TEK ATOMİK snapshot'ta (TOCTOU yok — adversarial Kritik-1). İade
+            // netlenir (High-2/3): iade edilmiş base "faturalanmış" sayılmaz → iade sonrası dönüş/yeniden-fatura
+            // defteri sözleşmeyle hizalar. Sıra = fark sayısı + 1 (idempotency doğal anahtarı; V6 fark-iadesi).
+            var (faturalanan, farkSayisi) = await repository.GetFarkStateAsync(rental.Id, ct);
             var fark = KdvMath.RoundGross(guncelBrut - faturalanan);
             if (fark <= 0m)
                 throw new ValidationException("Kira zaten tam faturalanmış (yeni ek bedel yok).");
-            // guncelBrut = idempotency hedefi (KaynakKiraHedefBrut): eşzamanlı çift fark aynı hedefe çarpar.
-            return await PostFarkFaturasiAsync(rental, fark, guncelBrut, rate, vergi, ct);
+            return await PostFarkFaturasiAsync(rental, fark, farkSayisi + 1, rate, vergi, ct);
         }
 
         var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
@@ -152,7 +152,7 @@ public sealed class InvoiceService(
     /// satırlık fatura. RentalId = null (kira-fatura unique index'ine çarpmasın); kira bağı KaynakKiraId üzerinden.
     /// fark = brüt (kira dövizi); net/kdv verilen orandan (dönüş bedelleri baz-oranlı). Dengeli defter yazar.</summary>
     private async Task<Guid> PostFarkFaturasiAsync(
-        RentalContract rental, decimal farkGross, decimal hedefBrut, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
+        RentalContract rental, decimal farkGross, int sira, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
     {
         var (net, kdv) = KdvMath.FromGross(farkGross, rate);
         var gross = net + kdv;
@@ -164,9 +164,9 @@ public sealed class InvoiceService(
         {
             Durum = InvoiceStatus.Kesildi,
             CariId = rental.MusteriId,
-            RentalId = null,                 // kira-fatura unique index'ine çarpmasın
-            KaynakKiraId = rental.Id,        // kira bağı
-            KaynakKiraHedefBrut = hedefBrut, // idempotency doğal anahtarı (eşzamanlı çift fark → çakışır)
+            RentalId = null,              // kira-fatura unique index'ine çarpmasın
+            KaynakKiraId = rental.Id,     // kira bağı
+            KaynakKiraFarkSira = sira,    // idempotency doğal anahtarı (eşzamanlı çift fark → çakışır)
             Tarih = tarih,
             NetTutar = net,
             KdvTutar = kdv,
