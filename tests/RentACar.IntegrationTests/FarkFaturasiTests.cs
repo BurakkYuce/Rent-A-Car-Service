@@ -152,6 +152,33 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Fark_iade_edilince_yeniden_kesilebilir()
+    {
+        // Adversarial V6: fark faturasının KENDİSİ iade edilirse aynı ek bedel yeniden kesilebilmeli (FarkSira
+        // idempotency: iade'li fark sayaçta kalır → yeniden kesim yeni sıra alır; mutlak-hedef kilidi yok).
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var invoices = sp.GetRequiredService<InvoiceService>();
+        var cash = sp.GetRequiredService<CashService>();
+        var id = await KurKiraAsync(sp, "34 FK 07");
+        var cariId = (await rentals.GetAsync(id))!.MusteriId;
+
+        await invoices.CreateFromRentalAsync(id);                    // base 300
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
+        await rentals.ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3)); // sözleşme 900
+        var fark1 = await invoices.CreateFromRentalAsync(id);        // fark 600 (sıra 1) → cari 900
+        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));
+
+        await invoices.CreateIadeAsync(fark1);                        // fark'ı iade et → cari 300
+        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+
+        await invoices.CreateFromRentalAsync(id);                     // yeniden fark 600 (sıra 2) → cari 900
+        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));   // defter = sözleşme (kilitlenmedi)
+    }
+
+    [Fact]
     public async Task Donussuz_tek_fatura_hala_calisir()
     {
         // Regresyon: dönüşsüz normal faturalama (yaygın akış) bozulmadı.

@@ -33,23 +33,37 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == kaynakFaturaId, ct);
     }
 
-    public async Task<decimal> InvoicedGrossForRentalAsync(Guid rentalId, CancellationToken ct = default)
+    public async Task<(decimal FaturalananBrut, int FarkSayisi)> GetFarkStateAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        // Kira faturaları: base (RentalId) + fark (KaynakKiraId); iptal + iade-faturasının KENDİSİ hariç.
-        var kiraFaturalari = await db.Invoices.AsNoTracking()
-            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal && !i.IadeMi)
-            .Select(i => new { i.Id, i.GenelToplam })
-            .ToListAsync(ct);
-        var gross = kiraFaturalari.Sum(x => x.GenelToplam);
-        if (gross == 0m) return 0m;
-        // İade netleme (adversarial High-2/3): bu kira faturalarına kesilmiş iade faturalarının brütünü düş
-        // (iade GenelToplam pozitif ama defteri TERS döndürür → net faturalanan = base − iade).
-        var ids = kiraFaturalari.Select(x => x.Id).ToList();
-        var iadeGross = await db.Invoices.AsNoTracking()
-            .Where(i => i.IadeMi && i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value) && i.Durum != InvoiceStatus.Iptal)
-            .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
-        return gross - iadeGross;
+        // TOCTOU koruması (adversarial Kritik-1): faturalanan + fark-sayısı AYNI snapshot'tan okunur → eşzamanlı
+        // fark isteklerinde tutarlı sıra. RepeatableRead: tek tutarlı görüntü; salt-okuma → rollback.
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
+        try
+        {
+            // Kira faturaları: base (RentalId) + fark (KaynakKiraId); iptal + iade-faturasının KENDİSİ hariç.
+            var kiraFaturalari = await db.Invoices.AsNoTracking()
+                .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal && !i.IadeMi)
+                .Select(i => new { i.Id, i.GenelToplam })
+                .ToListAsync(ct);
+            var gross = kiraFaturalari.Sum(x => x.GenelToplam);
+            // İade netleme (adversarial High-2/3): bu kira faturalarına kesilmiş iade brütünü düş (iade
+            // GenelToplam pozitif ama defteri TERS döndürür → net faturalanan = base − iade).
+            var iadeGross = 0m;
+            if (gross != 0m)
+            {
+                var ids = kiraFaturalari.Select(x => x.Id).ToList();
+                iadeGross = await db.Invoices.AsNoTracking()
+                    .Where(i => i.IadeMi && i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value) && i.Durum != InvoiceStatus.Iptal)
+                    .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
+            }
+            // Fark sayısı (iade edilmiş fark faturanın kendisi de KaynakKiraId'yi korur → sayaçta kalır →
+            // yeniden kesim yeni sıra alır, adversarial V6).
+            var farkSayisi = await db.Invoices.AsNoTracking()
+                .CountAsync(i => i.KaynakKiraId == rentalId && i.Durum != InvoiceStatus.Iptal, ct);
+            return (gross - iadeGross, farkSayisi);
+        }
+        finally { await tx.RollbackAsync(ct); }
     }
 
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
