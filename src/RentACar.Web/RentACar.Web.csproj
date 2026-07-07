@@ -21,4 +21,9 @@
     <PackageReference Include="Radzen.Blazor" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Sözleşme ekspertiz araç şeması (orijinal YÜCE RENT sözleşmesinden) — PDF'e gömülü. -->
+    <EmbeddedResource Include="Reports/ekspertiz-sema.png" />
+  </ItemGroup>
+
 </Project>
