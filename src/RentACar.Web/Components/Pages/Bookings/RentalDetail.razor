@@ -140,7 +140,7 @@ else
     @if (_c.Bakiye > 0 && _c.Durum != RentalStatus.Iptal)
     {
         <h2>Tahsilat</h2>
-        <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
+        <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken /><input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />@* M5 *@
             <input type="hidden" name="cariId" value="@_c.MusteriId" />
             <input type="hidden" name="rentalId" value="@_c.Id" />
             <input type="hidden" name="donus" value="/kiralar/@_c.Id" />

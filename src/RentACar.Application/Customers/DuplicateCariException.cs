@@ -8,8 +8,10 @@ namespace RentACar.Application.Customers;
 /// </summary>
 public sealed class DuplicateCariException : ValidationException
 {
+    // Değer MESAJA KONMAZ (adversarial L2): mesaj hata URL'ine/geçmişe düşüyordu → düz TC sızıntısı. Değer
+    // yalnız Value property'sinde (programatik; kullanıcıya/URL'e gösterilmez).
     public DuplicateCariException(string field, string value)
-        : base($"Bu {field} ({value}) bu tenant içinde zaten kayıtlı.")
+        : base($"Bu {field} bu tenant içinde zaten kayıtlı.")
     {
         Field = field;
         Value = value;
