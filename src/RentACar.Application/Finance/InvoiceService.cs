@@ -25,7 +25,7 @@ public sealed class InvoiceService(
     IPeriodLockGuard periodLock,
     KurService kur)
 {
-    private const decimal DefaultKdvRate = 0.20m;
+    private const decimal DefaultKdvRate = KdvMath.VarsayilanOran; // tek kaynak (fiyat KDV-modu ile aynı oran)
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
 
