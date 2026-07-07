@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @using RentACar.Domain.Enums
 @inject UserService Users
+@inject RentACar.Application.Branches.BranchService Subeler
 
 <PageTitle>Kullanıcılar — RentPro</PageTitle>
 
@@ -25,7 +26,7 @@
                 }
             </select>
         </label>
-        <label>Şube (operatör kapsamı)<input name="atanmisSube" placeholder="boş = tüm şubeler" /></label>
+        <ComboBox Name="atanmisSube" Label="Şube (operatör kapsamı)" Options="_subeOpts" Placeholder="boş = tüm şubeler" />
         <label>Parola<input name="password" type="password" required /></label>
         <button type="submit">Oluştur</button>
     </form>
@@ -63,7 +64,11 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<UserListItem> _list = [];
+    private IReadOnlyList<string> _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await Users.ListAsync();
+    {
+        _list = await Users.ListAsync();
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+    }
 }
