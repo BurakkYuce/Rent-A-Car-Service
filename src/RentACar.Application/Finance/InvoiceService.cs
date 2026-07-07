@@ -44,6 +44,15 @@ public sealed class InvoiceService(
         if (rental.GenelToplam <= 0)
             throw new ValidationException("Faturalanacak tutar yok.");
 
+        // PR-F3 adversarial Bulgu-1: NET fiyat modlu kira (Günlük/Toplam — Tutar %20 net üstünden brüte
+        // çevrildi) FARKLI KDV oranıyla faturalanamaz; aksi halde faturadaki net matrah operatör niyetinden
+        // sapar (grossup %20, ayrıştırma başka oran). Brüt modlarda serbest (girilen zaten brüt; oran yalnız
+        // yeniden ayrıştırır → niyet korunur).
+        var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
+        if (kdvRate is { } overrideOran && overrideOran != KdvMath.VarsayilanOran && netMod)
+            throw new ValidationException("Net fiyat modlu kirada KDV oranı değiştirilemez (fiyat %20 net üstünden hesaplandı).");
+
         var rate = kdvRate ?? DefaultKdvRate;
 
         // Ek hizmet kalemleri: her biri KENDİ KDV oranını korur (farklı oranlar karışmaz).

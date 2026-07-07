@@ -67,6 +67,31 @@ public sealed class KdvModuTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Net_mod_kirada_kdv_orani_override_reddedilir()
+    {
+        // Adversarial Bulgu-1: "Günlük"(net) kira farklı kdvRate ile faturalanınca net matrah niyetten sapardı →
+        // net modda oran override reddedilir. Varsayılan (0.20) serbest.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var invoices = sp.GetRequiredService<InvoiceService>();
+        var (m, v) = await SeedAsync(sp, "34 KY 01");
+        var netId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, 100, "Günlük"));
+        var ex = await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => invoices.CreateFromRentalAsync(netId, kdvRate: 0.10m));
+        Assert.Contains("Net fiyat modlu", ex.Message);
+        // Varsayılan oran → sorunsuz (net 300).
+        var fId = await invoices.CreateFromRentalAsync(netId);
+        Assert.Equal(300m, (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(fId))!.NetTutar);
+
+        // Brüt modda override SERBEST (girilen zaten brüt; oran yalnız yeniden ayrıştırır).
+        var (m2, v2) = await SeedAsync(sp, "34 KY 02");
+        var brutId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m2, v2, 100, "KDV Dahil Günlük"));
+        var f2 = await invoices.CreateFromRentalAsync(brutId, kdvRate: 0.10m); // reddedilmez
+        Assert.NotEqual(Guid.Empty, f2);
+    }
+
+    [Fact]
     public async Task Net_gunluk_uzatma_brut_ile_buyur()
     {
         // "Günlük" (net) modda GunlukUcret brüte normalize → uzatma brüt gün ekler (tutarlı).
