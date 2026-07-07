@@ -111,8 +111,9 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         Assert.Equal(500m, r1!.GunlukUcret);
         Assert.Equal(1500m, r1.Tutar); // 3 × 500 (elle)
 
-        // FiyatTuru farklı ("Günlük") — aynı araçta çakışmasın diye 10 gün ötelenmiş tarih.
-        var id2 = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 500m, fiyatTuru: "Günlük", offsetGun: 10));
+        // FiyatTuru farklı ama Otomatik değil ("KDV Dahil Günlük" = brüt günlük; motora bakılmaz, manuel kazanır).
+        // ("Günlük" = NET mod artık brüte çevirir → PR-F3; bu test motor-ezme niyetini test eder, dönüşümü değil.)
+        var id2 = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 500m, fiyatTuru: "KDV Dahil Günlük", offsetGun: 10));
         var r2 = await kira.GetAsync(id2);
         Assert.Equal(500m, r2!.GunlukUcret);
         Assert.Equal(1500m, r2.Tutar);

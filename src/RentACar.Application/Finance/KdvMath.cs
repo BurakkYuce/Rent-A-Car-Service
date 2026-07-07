@@ -10,6 +10,10 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public static class KdvMath
 {
+    /// <summary>Varsayılan KDV oranı (Türkiye standart %20; canlı TürevRent Kdv_Sistemi=20 kalibrasyonu).
+    /// Fatura varsayılanı + fiyat KDV-modu net↔brüt çevrimi bunu kullanır (tek kaynak).</summary>
+    public const decimal VarsayilanOran = 0.20m;
+
     public static (decimal Net, decimal Kdv) FromGross(decimal gross, decimal kdvRate)
     {
         if (kdvRate < 0) throw new ArgumentOutOfRangeException(nameof(kdvRate));
