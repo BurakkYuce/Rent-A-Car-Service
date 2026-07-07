@@ -34,8 +34,9 @@ public sealed record SozlesmeView(
     int? CikisKm, int? DonusKm, int? KullanilanKm, int? CikisYakit, int? DonusYakit,
     int KmLimit, decimal FazlaKmUcret,
     int? KmHediye, string? BitisSebebi, string? TeslimAlanAd, DateTimeOffset? GercekDonusTar,
-    // Tutar dökümü
+    // Tutar dökümü (+ tam teklif bileşenleri: hediye gün / iskonto / hafta sonu — bilgi)
     decimal GunlukUcret, decimal Tutar, decimal FazlaKmBedeli, decimal YakitBedeli, decimal UzatmaBedeli,
+    int? HediyeGun, int? FaturalananGun, decimal? IskontoTutar, decimal? HaftaSonuFark,
     decimal EkHizmetToplam, decimal GenelToplam, decimal Tahsilat, decimal Bakiye, string? Doviz,
     IReadOnlyList<SozlesmeEkHizmet> EkHizmetler);
 
@@ -80,6 +81,7 @@ public sealed class SozlesmeService(
             c.KmLimit, c.FazlaKmUcret,
             c.KmHediye, c.BitisSebebi, teslimAlan, c.GercekDonusTar,
             c.GunlukUcret, c.Tutar, c.FazlaKmBedeli, c.YakitBedeli, c.UzatmaBedeli,
+            c.HediyeGun, c.FaturalananGun, c.IskontoTutar, c.HaftaSonuFark,
             ekler.Sum(a => a.Toplam), c.GenelToplam, c.Tahsilat, c.Bakiye, c.Doviz,
             ekler.Select(a => new SozlesmeEkHizmet(a.Ad, a.Toplam)).ToList());
     }

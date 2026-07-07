@@ -71,6 +71,8 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.CikisOfisi).HasMaxLength(64);
         e.Property(x => x.DonusOfisi).HasMaxLength(64);
         e.Property(x => x.BitisSebebi).HasMaxLength(64); // dönüş sebebi (PR2 additive)
+        e.Property(x => x.IskontoTutar).HasColumnType("numeric(19,4)");  // tam teklif bileşenleri (PR4b)
+        e.Property(x => x.HaftaSonuFark).HasColumnType("numeric(19,4)");
         e.Property(x => x.GunlukUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");

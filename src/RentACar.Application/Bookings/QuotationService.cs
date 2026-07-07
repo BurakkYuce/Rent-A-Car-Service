@@ -34,7 +34,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         // kapalı + ≤+1yıl). Kabul/convert TEKRAR guard'lamaz → gün sonra yaşlanmış teklifin kabulü kilitlenmez.
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
         // Fiyat motoru: manuel >0 kazanır, yoksa tarife → booking.GunlukUcret efektif ücretle güncellenir.
-        var (gun, tutar) = await _pricing.PriceAsync(booking, ct);
+        var pr = await _pricing.PriceAsync(booking, ct);
         if (input.GecerlilikTarihi is { } g && g < input.BasTar)
             throw new ValidationException("Geçerlilik tarihi başlangıç tarihinden önce olamaz.");
 
@@ -47,9 +47,9 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             BitTar = input.BitTar,
             CikisOfisi = input.CikisOfisi,
             DonusOfisi = input.DonusOfisi,
-            Gun = gun,
+            Gun = pr.Gun,
             GunlukUcret = booking.GunlukUcret, // efektif ücret (fiyat motoru sonrası)
-            Tutar = tutar,
+            Tutar = pr.Tutar,
             KmLimit = input.KmLimit,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
