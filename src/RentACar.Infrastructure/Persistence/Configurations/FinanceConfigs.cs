@@ -131,6 +131,12 @@ internal sealed class InvoiceConfig : IEntityTypeConfiguration<Invoice>
         e.HasIndex(x => new { x.TenantId, x.KaynakFaturaId })
             .IsUnique()
             .HasFilter("\"KaynakFaturaId\" IS NOT NULL");
+        // Fark faturası idempotency (adversarial Kritik-1 + V6): bir kira için AYNI sıra no'ya ancak TEK fark
+        // (eşzamanlı/çift istek aynı sırayı hesaplar → UniqueViolation → yutulur). Yeni ek bedel / fark-iadesi
+        // sonrası yeniden kesim yeni sıra alır → serbest. KaynakKiraId lookup'ı da bu index'ten karşılanır.
+        e.HasIndex(x => new { x.TenantId, x.KaynakKiraId, x.KaynakKiraFarkSira })
+            .IsUnique()
+            .HasFilter("\"KaynakKiraId\" IS NOT NULL");
         e.HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.InvoiceId);
     }
 }

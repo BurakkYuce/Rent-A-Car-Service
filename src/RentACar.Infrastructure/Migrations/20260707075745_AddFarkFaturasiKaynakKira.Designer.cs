@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707075745_AddFarkFaturasiKaynakKira")]
+    partial class AddFarkFaturasiKaynakKira
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1977,9 +1980,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid?>("KaynakFaturaId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("KaynakKiraFarkSira")
-                        .HasColumnType("integer");
-
                     b.Property<Guid?>("KaynakKiraId")
                         .HasColumnType("uuid");
 
@@ -2029,16 +2029,15 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"KaynakFaturaId\" IS NOT NULL");
 
+                    b.HasIndex("TenantId", "KaynakKiraId")
+                        .HasFilter("\"KaynakKiraId\" IS NOT NULL");
+
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
 
                     b.HasIndex("TenantId", "RentalId")
                         .IsUnique()
                         .HasFilter("\"RentalId\" IS NOT NULL");
-
-                    b.HasIndex("TenantId", "KaynakKiraId", "KaynakKiraFarkSira")
-                        .IsUnique()
-                        .HasFilter("\"KaynakKiraId\" IS NOT NULL");
 
                     b.ToTable("Invoices", (string)null);
                 });
