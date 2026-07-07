@@ -20,7 +20,10 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
         await using var db = await _factory.CreateDbContextAsync(ct);
 
         var pool = db.Vehicles.AsNoTracking()
-            .Where(v => v.Durum == VehicleStatus.Stokta || v.Durum == VehicleStatus.Musait);
+            // Kiralanabilir havuz: Stokta/Musait/Kirada. Kirada DAHİL — çünkü şu an çıkıştaki araç, döndükten
+            // SONRAKİ (çakışmayan) tarihler için müsait; gerçek dışlamayı aşağıdaki tarih-çakışması yapar.
+            // (Serviste/Pasif/Satildi havuz dışı.)
+            .Where(v => v.Durum == VehicleStatus.Stokta || v.Durum == VehicleStatus.Musait || v.Durum == VehicleStatus.Kirada);
         if (!string.IsNullOrWhiteSpace(grup)) pool = pool.Where(v => v.Grup == grup);
         if (!string.IsNullOrWhiteSpace(sube)) pool = pool.Where(v => v.Sube == sube);
 
