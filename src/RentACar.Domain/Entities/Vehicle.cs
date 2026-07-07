@@ -53,7 +53,7 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
 
     /// <summary>Operasyonel durum (Boş/Kirada/Serviste…).</summary>
-    public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;
+    public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
 
     /// <summary>Filo yaşam döngüsü statüsü (stok/havuz/tahsis…); operasyonel <see cref="Durum"/>'dan ayrı.</summary>
     public FiloStatus? FiloDurum { get; set; }
