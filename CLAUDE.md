@@ -78,7 +78,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 **Bilerek ertelendi (kullanıcı kararıyla):**
 - **Fiyat motoru** — şu an fiyat manuel günlük ücret (`BookingMath`). Canlı referans sistem paritesi 403 ile engelli → birebir parite alınamıyor.
 - **Gerçek entegrasyonlar** (e-Fatura/SMS/HGS/banka/GİB) — hepsi **stub**.
-- **Şube FK migrasyonu** — `Vehicle.Sube`/`Expense.Sube`/`User.AtanmisSube` hâlâ serbest metin; FK'ye çevirmek flagged bir karar.
+- **Şube FK migrasyonu — VERİ KATMANI BİTTİ** (2026-06-28 `AddSubeFk` + 2026-07 tutarlılık): 7 entity (Vehicle/Expense/User/Location/Personel/RateMatrix/RentalRule) gerçek composite FK `(TenantId,SubeId)→Branches`, canlı `BranchFkInterceptor` (serbest-metin şube→SubeId, case-insensitive) + iki-katmanlı backfill. Konvansiyon: METİN doğruluk kaynağı, FK türetilir (shadow FK). Formlar Branch master'dan ComboBox; gider listesi şube-kapsamlı. KALAN (opsiyonel, flagged): yetkiyi (BranchScope+kimlik+claim+filtreler) metin yerine FK'ye çevirmek — büyük+güvenlik-hassas (Rental/Rez/Teklif `CikisOfisi`=ofis, branch FK yok).
 
 **Eksik (genişlik):** orijinal ~155 ekranın çoğu (tanım/master ekranları: tarife, ek hizmet, ceza türü, KDV oranları, araç grubu; toplu işlemler; dönem kapanışı; PDF/Excel export; bildirim; dashboard derinliği).
 
@@ -108,7 +108,6 @@ RACAR_TEST_PG_ADMIN="Host=localhost;Port=5432;Username=burak;Database=postgres" 
 ## 9. Sıradaki iş (öneri sırası)
 1. **Tanım/master ekranları** (tarife, ek hizmet, ceza türü, KDV oranı, araç grubu) — engelsiz genişlik; tarife master'ı fiyat motorunun zeminini hazırlar.
 2. **Fiyat motoru v1** (kural-bazlı; parite olmadan makul kurallarla).
-3. **Şube FK migrasyonu** (flagged item'i kapat).
-4. Export (PDF/Excel), bildirim, dashboard derinliği.
+3. Export (PDF/Excel), bildirim, dashboard derinliği.
 
 Ertelenenler parite/kimlik bilgisi gerektirir (fiyat motoru canlı 403, entegrasyonlar GİB/SMS kimlikleri) — açmadan önce kullanıcıya sor.

@@ -20,7 +20,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     private readonly IPeriodLockGuard _lock = periodLock;
 
     public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct); // operatör yalnız kendi şubesi
 
     public Task<Expense?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
