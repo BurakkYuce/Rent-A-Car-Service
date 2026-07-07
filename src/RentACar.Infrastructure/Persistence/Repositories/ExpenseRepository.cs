@@ -15,10 +15,12 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Expense>> ListAsync(string? sube, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Expenses.AsNoTracking().OrderByDescending(x => x.Tarih).ToListAsync(ct);
+        var q = db.Expenses.AsNoTracking();
+        if (sube is not null) q = q.Where(x => x.Sube == sube); // şube-kapsamı (metin; diğer listelerle birebir)
+        return await q.OrderByDescending(x => x.Tarih).ToListAsync(ct);
     }
 
     public async Task<Expense?> FindAsync(Guid id, CancellationToken ct = default)
