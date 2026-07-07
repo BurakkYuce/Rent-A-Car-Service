@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707081859_AddFarkHedefBrutIdempotency")]
+    partial class AddFarkHedefBrutIdempotency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1977,8 +1980,8 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid?>("KaynakFaturaId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("KaynakKiraFarkSira")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("KaynakKiraHedefBrut")
+                        .HasColumnType("numeric(19,4)");
 
                     b.Property<Guid?>("KaynakKiraId")
                         .HasColumnType("uuid");
@@ -2036,7 +2039,7 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"RentalId\" IS NOT NULL");
 
-                    b.HasIndex("TenantId", "KaynakKiraId", "KaynakKiraFarkSira")
+                    b.HasIndex("TenantId", "KaynakKiraId", "KaynakKiraHedefBrut")
                         .IsUnique()
                         .HasFilter("\"KaynakKiraId\" IS NOT NULL");
 
