@@ -93,9 +93,10 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
-                // Yarış: aynı işlem için ikinci ters kayıt (kısmi unique index) → idempotent hata.
+                // Kısmi unique index çakışması: ya aynı işlemin ikinci ters kaydı ya da aynı IslemAnahtari ile
+                // çift-submit (adversarial M5) → her iki halde idempotent reddet.
                 await dbTx.RollbackAsync(ct);
-                throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
+                throw new ValidationException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
             }
         }, ct);
     }

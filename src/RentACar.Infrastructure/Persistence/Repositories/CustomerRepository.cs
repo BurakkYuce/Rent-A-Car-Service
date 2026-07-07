@@ -187,7 +187,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             return null;
         var constraint = pg.ConstraintName ?? string.Empty;
         if (constraint.Contains("TcKimlik", StringComparison.OrdinalIgnoreCase)) // TcKimlikHash indexi de eşleşir
-            return new DuplicateCariException("TC Kimlik No", _secrets.Unprotect(c.TcKimlikEnc) ?? string.Empty);
+            return new DuplicateCariException("TC Kimlik No", string.Empty); // L2: TC decrypt EDİLMEZ (mesajda gösterilmiyor)
         if (constraint.Contains("VergiNo", StringComparison.OrdinalIgnoreCase))
             return new DuplicateCariException("Vergi No", c.VergiNo ?? string.Empty);
         return new DuplicateCariException("kayıt", c.DisplayName);
