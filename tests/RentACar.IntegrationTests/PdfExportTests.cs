@@ -27,6 +27,8 @@ public sealed class PdfExportTests
             TcKimlik: "10000000146", EhliyetNo: "35030", EhliyetSinifi: "B",
             EhliyetTarihi: new DateTimeOffset(1993, 12, 29, 0, 0, 0, TimeSpan.Zero), EhliyetYeri: "BURDUR",
             DogumTarihi: new DateTimeOffset(1975, 4, 15, 0, 0, 0, TimeSpan.Zero),
+            IkinciSurucuAd: "İkinci Sürücü", IkinciTcKimlik: "10000000146", IkinciEhliyetNo: "99999",
+            IkinciEhliyetSinifi: "B", IkinciEhliyetTarihi: null, IkinciEhliyetYeri: "ANTALYA", IkinciDogumTarihi: null,
             Plaka: "07BOP605", Marka: "Fiat", Tip: "Egea", Grup: "Ekonomik", Yakit: "Dizel", ModelYili: 2024,
             CikisKm: 70500, DonusKm: 71200, KullanilanKm: 700, CikisYakit: 8, DonusYakit: 6,
             KmLimit: 500, FazlaKmUcret: 15m,

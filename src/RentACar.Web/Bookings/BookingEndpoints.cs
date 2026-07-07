@@ -92,13 +92,14 @@ public static class BookingEndpoints
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
-            [FromForm] string? aciklama) =>
+            [FromForm] string? aciklama, [FromForm] string? ikinciSurucuId) =>
         {
             try
             {
                 var input = new BookingInput
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
+                    IkinciSurucuId = FormParse.Id(ikinciSurucuId),
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
                 ApplyOdemeDerinlik(input, req.Form);

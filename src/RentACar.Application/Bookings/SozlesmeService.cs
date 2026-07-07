@@ -25,6 +25,9 @@ public sealed record SozlesmeView(
     string MusteriAd, string? MusteriTel, string? MusteriEmail, string? MusteriAdres,
     string? TcKimlik, string? EhliyetNo, string? EhliyetSinifi, DateTimeOffset? EhliyetTarihi, string? EhliyetYeri,
     DateTimeOffset? DogumTarihi,
+    // 2. sürücü (opsiyonel; decrypt'li) — null → tek sürücü
+    string? IkinciSurucuAd, string? IkinciTcKimlik, string? IkinciEhliyetNo, string? IkinciEhliyetSinifi,
+    DateTimeOffset? IkinciEhliyetTarihi, string? IkinciEhliyetYeri, DateTimeOffset? IkinciDogumTarihi,
     // Araç
     string Plaka, string? Marka, string? Tip, string? Grup, string Yakit, int? ModelYili,
     // KM / yakıt / dönüş
@@ -59,6 +62,8 @@ public sealed class SozlesmeService(
         if (c.TeslimAlanPersonelId is Guid pid && await personeller.FindAsync(pid, ct) is { } p)
             teslimAlan = $"{p.Ad} {p.Soyad}";
 
+        var ikinci = c.IkinciSurucuId is Guid isid ? await customers.FindAsync(isid, ct) : null; // decrypt'li
+
         int? kullanilan = c.CikisKm is int ck && c.DonusKm is int dk ? Math.Max(0, dk - ck) : null;
 
         return new SozlesmeView(
@@ -68,6 +73,8 @@ public sealed class SozlesmeService(
             musteri?.DisplayName ?? "(bilinmeyen cari)", musteri?.CepTel, musteri?.Email, musteri?.Adres,
             musteri?.TcKimlik, musteri?.EhliyetNo, musteri?.EhliyetSinifi, musteri?.EhliyetTarihi, musteri?.EhliyetYeri,
             musteri?.DogumTarihi,
+            ikinci?.DisplayName, ikinci?.TcKimlik, ikinci?.EhliyetNo, ikinci?.EhliyetSinifi,
+            ikinci?.EhliyetTarihi, ikinci?.EhliyetYeri, ikinci?.DogumTarihi,
             arac?.Plaka ?? "—", arac?.Marka, arac?.Tip, arac?.Grup, arac?.Yakit.ToString() ?? "—", arac?.ModelYili,
             c.CikisKm, c.DonusKm, kullanilan, c.CikisYakit, c.DonusYakit,
             c.KmLimit, c.FazlaKmUcret,
