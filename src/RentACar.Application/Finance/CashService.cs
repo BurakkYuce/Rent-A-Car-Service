@@ -62,7 +62,8 @@ public sealed class CashService(
             Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
             Amount = money,
             KarsiHesap = input.Hesap,
-            Aciklama = input.Aciklama
+            Aciklama = input.Aciklama,
+            IslemAnahtari = input.IslemAnahtari is { } k && k != Guid.Empty ? k : null // adversarial M5: çift-submit dedup
         };
         await _lock.EnsureOpenAsync(tx.Tarih, ct); // dönem kilidi: kapalı tarihe tahsilat/ödeme YOK
 

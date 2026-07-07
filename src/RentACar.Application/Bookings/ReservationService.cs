@@ -20,11 +20,16 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.Effective(_currentUser), ct);
 
-    public Task<Reservation?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindReservationAsync(id, ct);
+    public async Task<Reservation?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var r = await _repository.FindReservationAsync(id, ct);
+        if (r is not null) BranchScope.RequireInScope(_currentUser, r.CikisOfisi); // adversarial M3
+        return r;
+    }
 
     public async Task<Guid> CreateAsync(BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
@@ -68,6 +73,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     /// </summary>
     public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         var existing = await _repository.FindReservationAsync(id, ct);
         if (existing is null) return false;
@@ -86,6 +92,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
 
         return await _repository.UpdateReservationAsync(id, r =>
         {
+            BranchScope.RequireInScope(_currentUser, r.CikisOfisi); // adversarial M3
             if (r.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
                 throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon düzenlenebilir.");
             r.MusteriId = input.MusteriId;
@@ -114,16 +121,24 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     }
 
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, ReservationStatus.Onayli, [ReservationStatus.Rezerv], ct);
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        return Transition(id, ReservationStatus.Onayli, [ReservationStatus.Rezerv], ct);
+    }
 
     public Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        return Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
+    }
 
     /// <summary>Tasfiye: rezervasyonu kira sözleşmesine çevirir. Yeni kira Id döner.</summary>
     public async Task<Guid> ConvertToRentalAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var reservation = await _repository.FindReservationAsync(id, ct)
             ?? throw new ValidationException("Rezervasyon bulunamadı.");
+        BranchScope.RequireInScope(_currentUser, reservation.CikisOfisi); // adversarial M3
         if (reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
             throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon kiraya çevrilebilir.");
 
@@ -162,6 +177,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     {
         return await _repository.UpdateReservationAsync(id, r =>
         {
+            BranchScope.RequireInScope(_currentUser, r.CikisOfisi); // adversarial M3 (Confirm/Cancel)
             if (Array.IndexOf(allowedFrom, r.Durum) < 0)
                 throw new ValidationException($"Rezervasyon '{r.Durum}' durumundan '{to}' durumuna geçemez.");
             r.Durum = to;

@@ -214,6 +214,10 @@ builder.Services.AddScoped<CalendarTokenService>();
 var piiKey = builder.Configuration["Pii:HmacKey"];
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
     throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
+// DataProtection key-ring KALICI dizini (adversarial M1): üretimde zorunlu. Geçici FS'te (mount'suz container)
+// key-ring her redeploy'da yenilenir → önceki *Enc PII kalıcı ÇÖZÜLEMEZ (sessiz veri kaybı). Guard = enforce.
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RACAR_DP_KEYS")))
+    throw new InvalidOperationException("RACAR_DP_KEYS bu ortamda zorunludur (DataProtection key-ring kalıcı dizini; yoksa redeploy'da PII çözülemez).");
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // scheduler: vade→bildirim (kimliksiz)

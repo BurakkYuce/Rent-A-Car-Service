@@ -23,7 +23,7 @@ public static class FinanceEndpoints
         grp.MapPost("/tahsilat", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
-            [FromForm] string? hesap, [FromForm] string? donus) =>
+            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari) =>
         {
             try
             {
@@ -31,7 +31,7 @@ public static class FinanceEndpoints
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
-                    Aciklama = aciklama, Hesap = ParseHesap(hesap)
+                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
                 return Results.Redirect(donus ?? $"/cariler/{cariId}/ekstre");
             }
@@ -45,7 +45,7 @@ public static class FinanceEndpoints
         grp.MapPost("/odeme", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
-            [FromForm] string? hesap, [FromForm] string? donus) =>
+            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari) =>
         {
             try
             {
@@ -53,7 +53,7 @@ public static class FinanceEndpoints
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
-                    Aciklama = aciklama, Hesap = ParseHesap(hesap)
+                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
                 return Results.Redirect(donus ?? $"/cariler/{cariId}/ekstre");
             }

@@ -1,4 +1,5 @@
 using RentACar.Application.Common;
+using RentACar.Application.Authorization;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -14,12 +15,14 @@ namespace RentACar.Application.Customers;
 /// tam-eşleşme araması HMAC blind-index (IPiiHasher) üzerinden — düz metin DB'ye yazılmaz.
 /// </summary>
 public sealed class CustomerService(
-    ICustomerRepository repository, ISecretProtector secrets, IPiiHasher pii, ITenantContext tenant)
+    ICustomerRepository repository, ISecretProtector secrets, IPiiHasher pii, ITenantContext tenant,
+    ICurrentUser currentUser)
 {
     private readonly ICustomerRepository _repository = repository;
     private readonly ISecretProtector _secrets = secrets;
     private readonly IPiiHasher _pii = pii;
     private readonly ITenantContext _tenant = tenant;
+    private readonly ICurrentUser _currentUser = currentUser;
 
     /// <summary>Blind-index tuzu için tenant (PII yazan/arayan akışlar daima kimlikli).</summary>
     private Guid TenantId => _tenant.TenantId
@@ -59,6 +62,7 @@ public sealed class CustomerService(
 
     public async Task<Guid> CreateAsync(CustomerInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4: servis-katmanı savunma
         var n = Normalize(input);
         Validate(n);
         await EnsureUniqueAsync(n, excludeId: null, ct);
@@ -71,6 +75,7 @@ public sealed class CustomerService(
 
     public async Task<bool> UpdateAsync(Guid id, CustomerInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var n = Normalize(input);
         Validate(n);
         await EnsureUniqueAsync(n, excludeId: id, ct);
@@ -83,7 +88,10 @@ public sealed class CustomerService(
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
-        => _repository.DeleteAsync(id, ct);
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        return _repository.DeleteAsync(id, ct);
+    }
 
     // ---- iç yardımcılar ----
 
