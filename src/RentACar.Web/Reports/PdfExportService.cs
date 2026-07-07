@@ -48,6 +48,14 @@ public sealed class PdfExportService
                     if (s.DogumTarihi is not null) col.Item().Text($"Doğum Tarihi: {s.DogumTarihi:dd.MM.yyyy}").FontSize(9);
                     if (s.MusteriTel is not null) col.Item().Text($"Tel: {s.MusteriTel}").FontSize(9);
                     if (s.MusteriAdres is not null) col.Item().Text($"Adres: {s.MusteriAdres}").FontSize(9);
+                    if (s.IkinciSurucuAd is not null)
+                    {
+                        col.Item().PaddingTop(2).Text($"2. Sürücü: {s.IkinciSurucuAd}").FontSize(9).SemiBold();
+                        if (s.IkinciTcKimlik is not null) col.Item().Text($"  TC: {s.IkinciTcKimlik}").FontSize(9);
+                        if (s.IkinciEhliyetNo is not null)
+                            col.Item().Text($"  Ehliyet: {s.IkinciEhliyetNo} {s.IkinciEhliyetSinifi} {s.IkinciEhliyetYeri} {s.IkinciEhliyetTarihi:dd.MM.yyyy}".Trim()).FontSize(9);
+                        if (s.IkinciDogumTarihi is not null) col.Item().Text($"  Doğum: {s.IkinciDogumTarihi:dd.MM.yyyy}").FontSize(9);
+                    }
 
                     col.Item().PaddingTop(4).Text("Araç").FontSize(11).SemiBold();
                     col.Item().Text($"{s.Plaka} {s.Marka} {s.Tip}{(s.ModelYili is null ? "" : $" ({s.ModelYili})")} — Grup: {s.Grup ?? "—"} · Yakıt: {s.Yakit}").FontSize(9);
@@ -84,17 +92,16 @@ public sealed class PdfExportService
                     col.Item().PaddingTop(6).Text("Kiracı, aracı ve mevcut hasarları kontrol etmiş olup yeni oluşacak hasarlardan sorumludur. İmza ile kiracı, Kiralayanın Standart Kiralama Koşullarını kabul ettiğini beyan eder. / By signing, the renter accepts the Lessor's Standard Rental Terms.").FontSize(8).Italic();
                     col.Item().PaddingTop(14).Row(r =>
                     {
-                        r.RelativeItem().Column(c2 =>
+                        void Imza(IContainer col2, string etiket)
+                            => col2.Column(c2 => { c2.Item().Text(etiket).FontSize(9); c2.Item().PaddingTop(20).LineHorizontal(1); });
+                        r.RelativeItem().Element(b => Imza(b, $"ARACI TESLİM EDEN{(s.TeslimAlanAd is null ? "" : $" — {s.TeslimAlanAd}")}"));
+                        r.ConstantItem(18);
+                        r.RelativeItem().Element(b => Imza(b, $"1. SÜRÜCÜ — {s.MusteriAd}"));
+                        if (s.IkinciSurucuAd is not null)
                         {
-                            c2.Item().Text($"ARACI TESLİM EDEN{(s.TeslimAlanAd is null ? "" : $" — {s.TeslimAlanAd}")}").FontSize(9);
-                            c2.Item().PaddingTop(20).LineHorizontal(1);
-                        });
-                        r.ConstantItem(24);
-                        r.RelativeItem().Column(c2 =>
-                        {
-                            c2.Item().Text($"KİRACI — {s.MusteriAd}").FontSize(9);
-                            c2.Item().PaddingTop(20).LineHorizontal(1);
-                        });
+                            r.ConstantItem(18);
+                            r.RelativeItem().Element(b => Imza(b, $"2. SÜRÜCÜ — {s.IkinciSurucuAd}"));
+                        }
                     });
                 });
                 p.Footer().AlignCenter().Text($"{s.FirmaUnvan ?? "RentPro"} — {s.SozlesmeNo}").FontSize(9);

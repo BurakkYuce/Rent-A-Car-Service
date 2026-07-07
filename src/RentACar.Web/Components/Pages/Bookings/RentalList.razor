@@ -23,6 +23,12 @@
                 @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
             </select>
         </label>
+        <label>2. Sürücü (opsiyonel)
+            <select name="ikinciSurucuId">
+                <option value="">—</option>
+                @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
+            </select>
+        </label>
         <label>Araç
             <select name="vehicleId" required>
                 <option value="">—</option>
