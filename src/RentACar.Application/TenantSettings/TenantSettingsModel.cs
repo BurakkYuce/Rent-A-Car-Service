@@ -10,6 +10,8 @@ public sealed class TenantSettingsModel
     public string? FirmaAdres { get; set; }
     public string? FirmaTel { get; set; }
     public string? FirmaEmail { get; set; }
+    public string? FirmaMobilTel { get; set; }
+    public string? FirmaMarka { get; set; }
 
     public string? EFaturaKullanici { get; set; }
     public string? EFaturaSifre { get; set; }

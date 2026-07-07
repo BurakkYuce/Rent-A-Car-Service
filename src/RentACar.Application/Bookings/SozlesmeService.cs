@@ -17,7 +17,8 @@ public sealed record SozlesmeEkHizmet(string Ad, decimal Toplam);
 /// </summary>
 public sealed record SozlesmeView(
     // Firma başlığı (TenantSettings)
-    string? FirmaUnvan, string? FirmaAdres, string? FirmaTel, string? FirmaVergiDairesi, string? FirmaVergiNo,
+    string? FirmaUnvan, string? FirmaAdres, string? FirmaTel, string? FirmaMobilTel, string? FirmaMarka,
+    string? FirmaVergiDairesi, string? FirmaVergiNo,
     // Sözleşme
     string SozlesmeNo, string Durum, DateTimeOffset BasTar, DateTimeOffset BitTar, int Gun,
     string? CikisOfisi, string? DonusOfisi, string? Aciklama,
@@ -69,7 +70,8 @@ public sealed class SozlesmeService(
         int? kullanilan = c.CikisKm is int ck && c.DonusKm is int dk ? Math.Max(0, dk - ck) : null;
 
         return new SozlesmeView(
-            ayar.FirmaUnvan, ayar.FirmaAdres, ayar.FirmaTel, ayar.FirmaVergiDairesi, ayar.FirmaVergiNo,
+            ayar.FirmaUnvan, ayar.FirmaAdres, ayar.FirmaTel, ayar.FirmaMobilTel, ayar.FirmaMarka,
+            ayar.FirmaVergiDairesi, ayar.FirmaVergiNo,
             c.SozlesmeNo, c.Durum.ToString(), c.BasTar, c.BitTar, c.Gun,
             c.CikisOfisi, c.DonusOfisi, c.Aciklama,
             musteri?.DisplayName ?? "(bilinmeyen cari)", musteri?.CepTel, musteri?.Email, musteri?.Adres,

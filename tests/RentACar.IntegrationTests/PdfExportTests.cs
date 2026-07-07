@@ -18,6 +18,7 @@ public sealed class PdfExportTests
     {
         var s = new RentACar.Application.Bookings.SozlesmeView(
             FirmaUnvan: "Test Rent A Car", FirmaAdres: "Antalya", FirmaTel: "0242 000 00 00",
+            FirmaMobilTel: "0554 000 00 00", FirmaMarka: "TEST RENT",
             FirmaVergiDairesi: "Kurumlar", FirmaVergiNo: "1234567890",
             SozlesmeNo: "RZ-000123", Durum: "Tamamlandi",
             BasTar: new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero),
