@@ -112,8 +112,11 @@ public sealed class PricingService(
     /// <summary>FiyatTuru moduna göre brüt Tutar; GunlukUcret'i brüte normalize eder (yan etki). Modlar:
     /// "KDV Dahil Günlük"/varsayılan → günlük ücret zaten brüt (Tutar = gün×brüt); "Günlük" → girilen NET günlük
     /// → brüte çevir; "KDV Dahil Toplam" → girilen BRÜT toplam (gün-bağımsız), günlük türet; "Toplam" → girilen
-    /// NET toplam → brüte çevir, günlük türet. Toplam modlarında Tutar=girilen toplam (gün×türetilen günlük ≤0.01
-    /// sapabilir — kabul; fatura Tutar'ı okur).</summary>
+    /// NET toplam → brüte çevir, günlük türet. Toplam modlarında Tutar=girilen toplam AUTORİTE; türetilen günlük
+    /// yuvarlandığından gün×günlük Tutar'dan gün×0.005'e kadar sapabilir (adversarial Bulgu-4) — para ıraksaması
+    /// DEFTERE girmez (fatura/cari Tutar'ı okur), yalnız uzatmada türetilen günlük + ekran. Yan etki: GunlukUcret
+    /// mutasyonu net modlarda idempotent DEĞİL (aynı input'u iki kez fiyatlarsa çift grossup — adversarial Bulgu-2);
+    /// mevcut çağıranlar tek kez fiyatlar (rez/teklif update formu FiyatTuru göndermez → default brüt dalı).</summary>
     private static decimal KdvModuUygula(BookingInput input, int gun)
     {
         var mod = (input.FiyatTuru ?? string.Empty).Trim();
