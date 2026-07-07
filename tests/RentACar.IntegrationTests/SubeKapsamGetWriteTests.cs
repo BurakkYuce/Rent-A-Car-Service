@@ -1,0 +1,49 @@
+using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Bookings;
+using RentACar.Application.Common;
+using RentACar.Application.Customers;
+using RentACar.Application.Vehicles;
+using RentACar.Domain.Enums;
+using RentACar.IntegrationTests.Infrastructure;
+
+namespace RentACar.IntegrationTests;
+
+/// <summary>
+/// Pre-launch adversarial M3 — şube kapsamı artık LİSTE'nin yanı sıra GetAsync(id) + write yollarında da uygulanır.
+/// Önceden: operatör(Merkez) başka şube (Ankara) kirasını listede görmüyordu ama ID ile OKUYUP İPTAL edebiliyordu.
+/// (Tenant/RLS izolasyonu AYRI ve sağlam; bu tenant-içi yatay sınır.)
+/// </summary>
+[Collection("postgres")]
+public sealed class SubeKapsamGetWriteTests(PostgresFixture fx)
+{
+    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
+
+    [Fact]
+    public async Task Operator_baska_sube_kirasini_okuyamaz_ve_iptal_edemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid kira;
+        using (var seed = host.ScopeFor(tenant)) // Admin
+        {
+            var sp = seed.ServiceProvider;
+            var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "06 ANK 01" });
+            var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "A", Soyad = "B" });
+            kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+            { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m, CikisOfisi = "Ankara" });
+        }
+
+        using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
+        {
+            var rentals = op.ServiceProvider.GetRequiredService<RentalService>();
+            Assert.Contains("kapsamınız dışında", (await Assert.ThrowsAsync<ValidationException>(() => rentals.GetAsync(kira))).Message);
+            Assert.Contains("kapsamınız dışında", (await Assert.ThrowsAsync<ValidationException>(() => rentals.CancelAsync(kira))).Message);
+        }
+
+        using (var op2 = host.ScopeFor(tenant, Guid.NewGuid(), "op2", UserRole.Operator, assignedBranch: "Ankara"))
+            Assert.NotNull(await op2.ServiceProvider.GetRequiredService<RentalService>().GetAsync(kira)); // kendi şubesi
+
+        using (var admin = host.ScopeFor(tenant))
+            Assert.NotNull(await admin.ServiceProvider.GetRequiredService<RentalService>().GetAsync(kira)); // Admin tümü
+    }
+}

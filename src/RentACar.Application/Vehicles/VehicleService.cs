@@ -42,8 +42,12 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         return _repository.SearchAsync(filter, ct);
     }
 
-    public Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindAsync(id, ct);
+    public async Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var v = await _repository.FindAsync(id, ct);
+        if (v is not null) BranchScope.RequireInScope(_currentUser, v.Sube); // adversarial M3
+        return v;
+    }
 
     public async Task<Guid> CreateAsync(VehicleInput input, CancellationToken ct = default)
     {
@@ -95,6 +99,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         var subeId = await ResolveSubeAsync(input.Sube, ct);
         var ok = await _repository.UpdateAsync(id, v =>
         {
+            BranchScope.RequireInScope(_currentUser, v.Sube); // adversarial M3 (mevcut şube — reassign ÖNCESİ)
             v.Plaka = plaka;
             v.Marka = Trim(input.Marka);
             v.Tip = Trim(input.Tip);
@@ -122,6 +127,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        BranchScope.RequireInScope(_currentUser, (await _repository.FindAsync(id, ct))?.Sube); // adversarial M3
         var ok = await _repository.DeleteAsync(id, ct);
         _cache.Invalidate(CacheKey);
         return ok;
