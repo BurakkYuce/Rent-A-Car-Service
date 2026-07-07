@@ -1,5 +1,6 @@
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Application.Finance;
 using RentACar.Application.Vehicles;
 
 namespace RentACar.Application.Pricing;
@@ -101,7 +102,42 @@ public sealed class PricingService(
         if (otomatik && input.GunlukUcret <= 0)
             throw new ValidationException("Otomatik tarife bulunamadı; manuel fiyat girin veya tarife tanımlayın.");
 
-        return new PricedRental(gun, gun * input.GunlukUcret, null, null, null, null);
+        // KDV MODU (yalnız Otomatik DEĞİLKEN — Otomatik motor/RateCard brütü zaten çözdü). GunlukUcret DAİMA
+        // brüte (KDV-dahil) normalize edilir → ExtendAsync (gün × GunlukUcret) tutarlı; Tutar hep brüt (fatura
+        // BaseGross→FromGross ile net'i ayrıştırır → mod niyeti korunur). KURAL B: 3 create yolu bu facade'dan.
+        var tutar = otomatik ? KdvMath.RoundGross(gun * input.GunlukUcret) : KdvModuUygula(input, gun);
+        return new PricedRental(gun, tutar, null, null, null, null);
+    }
+
+    /// <summary>FiyatTuru moduna göre brüt Tutar; GunlukUcret'i brüte normalize eder (yan etki). Modlar:
+    /// "KDV Dahil Günlük"/varsayılan → günlük ücret zaten brüt (Tutar = gün×brüt); "Günlük" → girilen NET günlük
+    /// → brüte çevir; "KDV Dahil Toplam" → girilen BRÜT toplam (gün-bağımsız), günlük türet; "Toplam" → girilen
+    /// NET toplam → brüte çevir, günlük türet. Toplam modlarında Tutar=girilen toplam AUTORİTE; türetilen günlük
+    /// yuvarlandığından gün×günlük Tutar'dan gün×0.005'e kadar sapabilir (adversarial Bulgu-4) — para ıraksaması
+    /// DEFTERE girmez (fatura/cari Tutar'ı okur), yalnız uzatmada türetilen günlük + ekran. Yan etki: GunlukUcret
+    /// mutasyonu net modlarda idempotent DEĞİL (aynı input'u iki kez fiyatlarsa çift grossup — adversarial Bulgu-2);
+    /// mevcut çağıranlar tek kez fiyatlar (rez/teklif update formu FiyatTuru göndermez → default brüt dalı).</summary>
+    private static decimal KdvModuUygula(BookingInput input, int gun)
+    {
+        var mod = (input.FiyatTuru ?? string.Empty).Trim();
+        var oran = KdvMath.VarsayilanOran;
+        bool Es(string x) => string.Equals(mod, x, StringComparison.OrdinalIgnoreCase);
+
+        if (Es("Günlük")) // NET günlük ücret → brüt
+        {
+            input.GunlukUcret = KdvMath.RoundGross(input.GunlukUcret * (1 + oran));
+            return KdvMath.RoundGross(gun * input.GunlukUcret);
+        }
+        if (Es("KDV Dahil Toplam") || Es("Toplam")) // girilen değer TOPLAM (gün-bağımsız)
+        {
+            var tutar = Es("Toplam")
+                ? KdvMath.RoundGross(input.GunlukUcret * (1 + oran)) // NET toplam → brüt
+                : KdvMath.RoundGross(input.GunlukUcret);             // zaten brüt toplam
+            input.GunlukUcret = gun > 0 ? KdvMath.RoundGross(tutar / gun) : tutar; // uzatma için günlük türet
+            return tutar;
+        }
+        // "KDV Dahil Günlük" / null / bilinmeyen → günlük ücret zaten brüt (mevcut davranış).
+        return KdvMath.RoundGross(gun * input.GunlukUcret);
     }
 
     /// <summary>
