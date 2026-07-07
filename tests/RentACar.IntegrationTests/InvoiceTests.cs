@@ -39,8 +39,8 @@ public sealed class InvoiceTests(PostgresFixture fx)
         Assert.Equal(400m, inv.GenelToplam);
         Assert.Equal(333.33m, inv.NetTutar);
         Assert.Equal(66.67m, inv.KdvTutar);
-        Assert.NotNull(inv.EFaturaEttn);           // e-Fatura stub ETTN
-        Assert.True(inv.EFaturaGonderildi);
+        Assert.Null(inv.EFaturaEttn);              // stub GÖNDERMEZ (adversarial M2): sahte ETTN + "gönderildi" yok
+        Assert.False(inv.EFaturaGonderildi);       // gerçek e-Fatura adapter'ı takılınca işaretlenir
         Assert.Single(inv.Lines);
 
         // Borç Cari 400 → cari bakiye +400 (müşteri borçlu).

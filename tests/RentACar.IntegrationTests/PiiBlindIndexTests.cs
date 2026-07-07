@@ -305,6 +305,28 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         Assert.Contains("Pii:HmacKey", ex!.ToString());
     }
 
+    [Fact]
+    public void Development_disi_ortam_JwtKey_siz_ACILMAZ()
+    {
+        // Adversarial C1: API JWT imza anahtarı üretimde ZORUNLU — committed sabit/boş anahtarla açılmaz
+        // (aksi halde herkes Admin token forge eder → tam bypass). Pii+DP guard'larını geçir, yalnız Jwt:Key boş.
+        var oldDp = Environment.GetEnvironmentVariable("RACAR_DP_KEYS");
+        try
+        {
+            Environment.SetEnvironmentVariable("RACAR_DP_KEYS", Path.Combine(Path.GetTempPath(), "racar-dp-jwtguard"));
+            using var api = new ApiFactory(fx.AppConnectionString, new Dictionary<string, string?>
+            {
+                ["environment"] = "Staging",
+                ["Pii:HmacKey"] = "staging-pii-hmac-key-min-32-bytes-length-ok!!",
+                ["Jwt:Key"] = "", // JWT anahtarı YOK → JWT guard reddetmeli
+            });
+            var ex = Record.Exception(() => api.CreateClient());
+            Assert.NotNull(ex);
+            Assert.Contains("Jwt:Key", ex!.ToString());
+        }
+        finally { Environment.SetEnvironmentVariable("RACAR_DP_KEYS", oldDp); }
+    }
+
     /// <summary>
     /// Boot-idempotenslik (review bulgusu): tarihsel audit'te maskesiz PII varsa cari düz-metni
     /// OLMASA BİLE maskelenir (gate 'legacy cari var mı'ya değil 'maskesiz audit var mı'ya bağlı —

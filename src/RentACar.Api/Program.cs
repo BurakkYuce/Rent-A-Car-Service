@@ -44,6 +44,9 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 var piiKey = builder.Configuration["Pii:HmacKey"];
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
     throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
+// DataProtection key-ring kalıcı dizini (adversarial M1) — bkz. Web/Program.cs: geçici FS'te PII kalıcı çözülemez.
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RACAR_DP_KEYS")))
+    throw new InvalidOperationException("RACAR_DP_KEYS bu ortamda zorunludur (DataProtection key-ring kalıcı dizini; yoksa redeploy'da PII çözülemez).");
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 
@@ -57,11 +60,25 @@ builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<ApiIdentity
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TenantStatusCache>();
 
-// JWT üretimi + doğrulama.
+// JWT imzalama anahtarı (adversarial C1 — pre-launch): Pii:HmacKey deseniyle üretimde ZORUNLU. Committed
+// appsettings'te anahtar YOK (public repoda sabit anahtar = herkes Admin token forge eder → tam bypass + PII).
+// Boş/dev/zayıf anahtar prod'a SIZAMAZ; yalnız Development'ta sabit fallback.
+const string devJwtKey = "dev-only-symmetric-key-change-in-production-min-32-bytes!!";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("Jwt:Key bu ortamda zorunludur (API token imzalama; min 32 bayt).");
+    jwtKey = devJwtKey;
+}
+else if (!builder.Environment.IsDevelopment() && (jwtKey.Length < 32 || jwtKey == devJwtKey))
+    throw new InvalidOperationException("Jwt:Key üretimde dev/zayıf anahtar olamaz (min 32 bayt, özgün).");
+builder.Configuration["Jwt:Key"] = jwtKey; // JwtTokenService (IOptions) + doğrulama aynı çözülen anahtarı görsün
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<JwtTokenService>();
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key));
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
