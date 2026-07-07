@@ -17,11 +17,12 @@ namespace RentACar.Application.Pricing;
 /// Yan etki: <see cref="PriceAsync"/> auto-fiyat bulduğunda input.GunlukUcret'i günceller (çağıran servis
 /// efektif ücreti sözleşmeye yazsın diye). (roadmap A1: RentalQuoteEngine birincil; RateCard deprecate.)
 ///
-/// KAPSAM (önemli): bu facade YALNIZ **günlük baz ücreti** çözer (tarife matrisi gün-kademesi). RentalRule
-/// indirim/hediye-gün + sigorta/ek hizmet + KM aşım **uygulanmaz** — bunlar kira oluşturmada değil; tam
-/// teklif `RentalQuoteEngine.QuoteAsync` / `/fiyat-hesapla` ekranında, KM aşım dönüşte (ReturnMath), ek
-/// hizmet RentalAddOn'da hesaplanır. Sözleşme Tutar'ı = gün × baz günlük ücret (eskiden olduğu gibi).
-/// Çok-döviz: matris TRY değilse auto-fiyat UYGULANMAZ (booking tek-döviz) → 0 (manuel girilir).
+/// KAPSAM (önemli): FiyatTuru=="Otomatik" ise motorun TAM teklifi (baz + hediye-gün + iskonto + hafta-sonu →
+/// Tutar; KM aşım/sigorta MATRAHA GİRMEZ, booking QuoteRequest'inde yok — KURAL A) sözleşmeye yansır + döküm
+/// alanları dolar (HediyeGun/IskontoTutar/HaftaSonuFark/FaturalananGun). Otomatik DEĞİLKEN (legacy blank-rate)
+/// bu facade YALNIZ günlük baz ücreti çözer → Tutar = gün × baz (iskontosuz, döküm null; eski davranış).
+/// KM aşım dönüşte (ReturnMath), ek hizmet RentalAddOn'da. Çok-döviz: matris TRY değilse auto UYGULANMAZ
+/// (booking tek-döviz) → 0 (Otomatik ise temiz red).
 /// </summary>
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards)
@@ -69,16 +70,20 @@ public sealed class PricingService(
                     : null;
                 if (q?.TarifeKodu is not null)
                 {
-                    // Matris EŞLEŞTİ. TRY ise TAM teklifi persist et; TRY-dışı → booking tek-döviz → 0 kalır
+                    // Matris EŞLEŞTİ. TRY ise efektif günlük ücreti çöz; TRY-dışı → booking tek-döviz → 0 kalır
                     // (RateCard'a DÜŞME — MEDIUM-1 kararı); Otomatik ise aşağıda temiz red.
                     if (string.Equals(q.ParaBirimi, "TRY", StringComparison.OrdinalIgnoreCase) && q.GunlukUcret > 0)
                     {
                         input.GunlukUcret = q.GunlukUcret; // efektif günlük ücret sözleşmeye
-                        return new PricedRental(q.Gun, q.GenelToplam,
-                            q.HediyeGun > 0 ? q.HediyeGun : null,
-                            q.IskontoTutar > 0 ? q.IskontoTutar : null,
-                            q.HaftaSonuFark > 0 ? q.HaftaSonuFark : null,
-                            q.HediyeGun > 0 ? q.FaturalananGun : null);
+                        // TAM teklif (iskonto/hediye/hafta-sonu → Tutar + döküm) YALNIZ "Otomatik" seçildiğinde
+                        // (adversarial M1: aksi halde her boş-ücretli booking sessizce promosyon uygulardı; legacy
+                        // blank-rate yolu yalnız günlük ücreti çözer → gün × baz, iskontosuz, döküm null).
+                        if (otomatik)
+                            return new PricedRental(q.Gun, q.GenelToplam,
+                                q.HediyeGun > 0 ? q.HediyeGun : null,
+                                q.IskontoTutar > 0 ? q.IskontoTutar : null,
+                                q.HaftaSonuFark > 0 ? q.HaftaSonuFark : null,
+                                q.HediyeGun > 0 ? q.FaturalananGun : null);
                     }
                 }
                 else

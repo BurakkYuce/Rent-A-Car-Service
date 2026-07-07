@@ -222,6 +222,9 @@ public sealed class RentalService(
             x.Tutar += ekBedel;              // baz kira büyür (Tutar = Gun × GunlukUcret tutarlı; K1 fix)
             x.GenelToplam += ekBedel;
             x.Bakiye = x.GenelToplam - x.Tahsilat;
+            // Tam teklif dökümü (hediye/iskonto/hafta-sonu) uzatma sonrası BAYAT kalır (Gun/Tutar değişti,
+            // döküm create-anı değeri) → sözleşmede yanıltıcı olmasın diye TEMİZLENİR (adversarial L1; para yok).
+            x.HediyeGun = null; x.FaturalananGun = null; x.IskontoTutar = null; x.HaftaSonuFark = null;
             x.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
