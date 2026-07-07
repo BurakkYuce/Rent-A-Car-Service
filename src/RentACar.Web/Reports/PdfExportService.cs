@@ -13,102 +13,159 @@ public sealed class PdfExportService
 {
     static PdfExportService() => QuestPDF.Settings.License = LicenseType.Community;
 
-    /// <summary>Kira sözleşmesi PDF'i — HTML-print ile AYNI SozlesmeView'den (içerik tek kaynak; adversarial
-    /// inceleme 5c). Ekspertiz diyagramı PDF'te kutu-bazlı (SVG değil — bilinçli sunum farkı, içerik paritesi korunur).</summary>
+    // Ekspertiz araç şeması — orijinal sözleşmeden gömülü görsel (çıkış+dönüş, gösterge+ekipman+araç tek karede).
+    private static readonly byte[] EkspertizSema = LoadEmbedded("ekspertiz-sema.png");
+    private static byte[] LoadEmbedded(string suffix)
+    {
+        var asm = typeof(PdfExportService).Assembly;
+        var name = asm.GetManifestResourceNames().First(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+        using var s = asm.GetManifestResourceStream(name)!;
+        using var ms = new MemoryStream();
+        s.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    // Çerçeve/renkler — canlı referans sistem sözleşme paritesi (yoğun ızgara).
+    private const string Line = "#4b5563";
+    private const string LabelBg = "#f1f5f9";
+
+    /// <summary>Kira sözleşmesi PDF'i — canlı YÜCE RENT sözleşmesinin BİREBİR düzeni (çerçeveli 4-sütun ızgara
+    /// + çift ekspertiz araç şeması + iki dilli hukuki metin + 3 imza). HTML-print ile aynı SozlesmeView'den
+    /// (içerik tek kaynak). Değişkenler kiraya bağlı — her sözleşme aynı şablon, sadece veri değişir.</summary>
     public byte[] Contract(RentACar.Application.Bookings.SozlesmeView s) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
             {
                 p.Size(PageSizes.A4);
-                p.Margin(36);
+                p.Margin(24);
+                p.DefaultTextStyle(t => t.FontSize(8).FontColor("#111827"));
+                var pb = string.Equals(RentACar.Application.Kur.KurService.NormalizeKod(s.Doviz), "TRY",
+                    StringComparison.OrdinalIgnoreCase) ? "TL" : (s.Doviz ?? "TL");
+                string DT(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("dd.MM.yyyy") : "";
+                string Sa(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("HH:mm") : "";
+
+                // ---- ÜST BAŞLIK ----
                 p.Header().Row(r =>
                 {
                     r.RelativeItem().Column(c =>
                     {
-                        c.Item().Text("ARAÇ TESLİM BELGESİ / RENTAL AGREEMENT").FontSize(13).SemiBold();
-                        if (s.FirmaUnvan is not null) c.Item().Text(s.FirmaUnvan).FontSize(10).SemiBold();
-                        if (s.FirmaTel is not null) c.Item().Text($"Tel: {s.FirmaTel}").FontSize(9);
-                        if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(9);
-                        if (s.FirmaVergiNo is not null) c.Item().Text($"{s.FirmaVergiDairesi} VD. {s.FirmaVergiNo}").FontSize(9);
+                        c.Item().Text("ARAÇ TESLİM BELGESİ / RENTAL AGREEMENT").FontSize(11).Bold();
+                        if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
+                        if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(8).SemiBold();
+                        if (s.FirmaUnvan is not null) c.Item().Text(s.FirmaUnvan).FontSize(8).SemiBold();
                     });
-                    r.ConstantItem(120).AlignRight().Text(s.SozlesmeNo).FontSize(15).Bold();
+                    r.ConstantItem(180).Column(c =>
+                    {
+                        c.Item().AlignRight().Text((s.FirmaUnvan ?? "RENT A CAR").ToUpperInvariant()).FontSize(11).Bold();
+                        if (s.FirmaVergiNo is not null)
+                            c.Item().AlignRight().Text($"{s.FirmaVergiDairesi} VD. {s.FirmaVergiNo}").FontSize(8).SemiBold();
+                        c.Item().PaddingTop(4).AlignRight().Text(s.SozlesmeNo).FontSize(14).Bold();
+                    });
                 });
-                p.Content().PaddingVertical(10).Column(col =>
+
+                p.Content().PaddingTop(6).Column(col =>
                 {
-                    col.Spacing(4);
-                    var pb = string.Equals(RentACar.Application.Kur.KurService.NormalizeKod(s.Doviz), "TRY",
-                        StringComparison.OrdinalIgnoreCase) ? "TL" : (s.Doviz ?? "TL");
-
-                    col.Item().Text("Müşteri / Sürücü").FontSize(11).SemiBold();
-                    col.Item().Text(s.MusteriAd).SemiBold();
-                    if (s.TcKimlik is not null) col.Item().Text($"T.C. Kimlik / Pasaport: {s.TcKimlik}").FontSize(9);
-                    if (s.EhliyetNo is not null)
-                        col.Item().Text($"Ehliyet: {s.EhliyetNo} {s.EhliyetSinifi} {s.EhliyetYeri} {s.EhliyetTarihi:dd.MM.yyyy}".Trim()).FontSize(9);
-                    if (s.DogumTarihi is not null) col.Item().Text($"Doğum Tarihi: {s.DogumTarihi:dd.MM.yyyy}").FontSize(9);
-                    if (s.MusteriTel is not null) col.Item().Text($"Tel: {s.MusteriTel}").FontSize(9);
-                    if (s.MusteriAdres is not null) col.Item().Text($"Adres: {s.MusteriAdres}").FontSize(9);
-                    if (s.IkinciSurucuAd is not null)
+                    // ========== ANA IZGARA — SOL müşteri / SAĞ araç BAĞIMSIZ tablolar ==========
+                    // (referans: uzun alanlar [Adres/Fatura Adresi] sol sütunda boy alır, sağ sütun uzamaz).
+                    col.Item().Row(r =>
                     {
-                        col.Item().PaddingTop(2).Text($"2. Sürücü: {s.IkinciSurucuAd}").FontSize(9).SemiBold();
-                        if (s.IkinciTcKimlik is not null) col.Item().Text($"  TC: {s.IkinciTcKimlik}").FontSize(9);
-                        if (s.IkinciEhliyetNo is not null)
-                            col.Item().Text($"  Ehliyet: {s.IkinciEhliyetNo} {s.IkinciEhliyetSinifi} {s.IkinciEhliyetYeri} {s.IkinciEhliyetTarihi:dd.MM.yyyy}".Trim()).FontSize(9);
-                        if (s.IkinciDogumTarihi is not null) col.Item().Text($"  Doğum: {s.IkinciDogumTarihi:dd.MM.yyyy}").FontSize(9);
-                    }
-
-                    col.Item().PaddingTop(4).Text("Araç").FontSize(11).SemiBold();
-                    col.Item().Text($"{s.Plaka} {s.Marka} {s.Tip}{(s.ModelYili is null ? "" : $" ({s.ModelYili})")} — Grup: {s.Grup ?? "—"} · Yakıt: {s.Yakit}").FontSize(9);
-                    col.Item().Text($"Kiralandığı Yer: {s.CikisOfisi ?? "—"}{(s.DonusOfisi is null ? "" : $" → {s.DonusOfisi}")}").FontSize(9);
-
-                    col.Item().PaddingTop(4).Text($"Başlangıç: {s.BasTar.LocalDateTime:dd.MM.yyyy HH:mm}    Bitiş: {s.BitTar.LocalDateTime:dd.MM.yyyy HH:mm}    Gün: {s.Gun}").FontSize(9);
-                    col.Item().Text($"Çıkış KM/Yakıt: {s.CikisKm?.ToString() ?? "—"}/{s.CikisYakit?.ToString() ?? "—"}    Dönüş KM/Yakıt: {s.DonusKm?.ToString() ?? "—"}/{s.DonusYakit?.ToString() ?? "—"}    Kullanılan KM: {s.KullanilanKm?.ToString() ?? "—"}").FontSize(9);
-                    col.Item().Text($"KM Limit: {(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())}    Aşım Ücreti: {s.FazlaKmUcret:N2} {pb}{(s.KmHediye is null ? "" : $"    KM Hediye: {s.KmHediye}")}").FontSize(9);
-                    if (s.BitisSebebi is not null || s.TeslimAlanAd is not null)
-                        col.Item().Text($"Bitiş Sebebi: {s.BitisSebebi ?? "—"}    Teslim Alan: {s.TeslimAlanAd ?? "—"}").FontSize(9);
-                    if (s.HediyeGun is not null || s.IskontoTutar is not null || s.HaftaSonuFark is not null)
-                        col.Item().Text($"Tarife dökümü:{(s.FaturalananGun is int fg ? $" Faturalanan {fg} gün" : "")}{(s.HediyeGun is int hg ? $" · Hediye {hg} gün" : "")}{(s.HaftaSonuFark is decimal hs && hs > 0 ? $" · Hafta sonu +{hs:N2}" : "")}{(s.IskontoTutar is decimal isk && isk > 0 ? $" · İskonto −{isk:N2}" : "")}").FontSize(9);
-                    col.Item().Text($"Günlük: {s.GunlukUcret:N2}    Kira: {s.Tutar:N2}    Fazla KM: {s.FazlaKmBedeli:N2}    Yakıt: {s.YakitBedeli:N2}    Uzatma: {s.UzatmaBedeli:N2} ({pb})").FontSize(9);
-                    if (s.EkHizmetler.Count > 0)
-                        col.Item().Text($"Ek Hizmetler: {string.Join(" · ", s.EkHizmetler.Select(e => $"{e.Ad}: {e.Toplam:N2}"))} (toplam {s.EkHizmetToplam:N2} {pb})").FontSize(9);
-                    col.Item().Text($"Genel Toplam: {s.GenelToplam:N2} {pb}    Tahsilat: {s.Tahsilat:N2} {pb}    Bakiye: {s.Bakiye:N2} {pb}").FontSize(10).SemiBold();
-
-                    // Ekspertiz (çıkış + dönüş) — kutu-bazlı ızgara
-                    col.Item().PaddingTop(6).Row(r =>
-                    {
-                        static void Ekspertiz(IContainer box, string baslik, int? yakit)
-                            => box.Border(1).Padding(6).Column(e =>
+                        r.RelativeItem(48).Table(t =>
+                        {
+                            t.ColumnsDefinition(c => { c.RelativeColumn(1.15f); c.RelativeColumn(1.85f); });
+                            void L(string lbl, string? val, float minH = 0)
                             {
-                                e.Spacing(3);
-                                var dolu = Math.Clamp(yakit ?? 0, 0, 12);
-                                e.Item().Text(baslik).FontSize(9).SemiBold();
-                                e.Item().Text($"Yakıt: {yakit?.ToString() ?? "—"}/12   E [{new string('#', dolu)}{new string('.', 12 - dolu)}] F").FontSize(8);
-                                e.Item().Text("[ ] Avadanlık   [ ] Trafik Seti   [ ] Stepne   [ ] Zincir").FontSize(8);
-                                e.Item().Text("Hasar notu: ______________________________").FontSize(8);
-                            });
-                        r.RelativeItem().Element(b => Ekspertiz(b, "ARAÇ ÇIKIŞ EKSPERTİZİ", s.CikisYakit));
-                        r.ConstantItem(8);
-                        r.RelativeItem().Element(b => Ekspertiz(b, "ARAÇ DÖNÜŞ EKSPERTİZİ", s.DonusYakit));
+                                t.Cell().Element(LabelCell).Text(lbl);
+                                t.Cell().Element(minH > 0 ? c => ValCell(c).MinHeight(minH) : ValCell).Text(val ?? "");
+                            }
+                            L("Adı Soyadı", s.MusteriAd);
+                            L("T.C. / Pasaport No", s.TcKimlik);
+                            L("Adres", s.MusteriAdres, 32);          // uzun → boy
+                            L("Telefon", s.MusteriTel);
+                            L("E-Mail", s.MusteriEmail);
+                            L("Fatura Adresi", null, 24);            // uzun → boy
+                            L("V. Dairesi / No", null);
+                            L("1. Kullanıcı Tc", s.TcKimlik);
+                            L("Ad Soyad", s.MusteriAd);
+                            L("Ehliyet No / İl", $"{s.EhliyetNo} {s.EhliyetYeri}".Trim());
+                            L("Verildiği Tarih", DT(s.EhliyetTarihi));
+                            L("Doğum Tarihi", DT(s.DogumTarihi));
+                            L("2. Sürücü Ad Soyad", s.IkinciSurucuAd);
+                            L("2. Ehliyet / Doğum", s.IkinciSurucuAd is null ? null
+                                : $"{s.IkinciEhliyetNo} {s.IkinciEhliyetYeri} {DT(s.IkinciDogumTarihi)}".Trim());
+                        });
+                        r.ConstantItem(6);
+                        // SAĞ: 4-sütun yoğun ızgara — araç bilgisi | mali (referans paritesi, tüm alanlar).
+                        r.RelativeItem(52).Table(t =>
+                        {
+                            t.ColumnsDefinition(c => { c.RelativeColumn(1f); c.RelativeColumn(1.3f); c.RelativeColumn(1f); c.RelativeColumn(1f); });
+                            void Lb(string x) => t.Cell().Element(LabelCell).Text(x);
+                            void Vl(string? x) => t.Cell().Element(ValCell).Text(x ?? "");
+                            void Row(string al, string? av, string ml, string? mv) { Lb(al); Vl(av); Lb(ml); Vl(mv); }
+                            string M(decimal? d) => d is { } x ? $"{x:N2} {pb}" : "";
+
+                            Row("Kiralandığı Yer", $"{s.CikisOfisi ?? ""} {DT(s.BasTar)} {Sa(s.BasTar)}".Trim(), "Gün Sayısı", s.Gun.ToString());
+                            Row("Döneceği Tarih", $"{DT(s.BitTar)} {Sa(s.BitTar)}".Trim(), "Fazla Saat", null);
+                            Row("Döndüğü Yer", s.DonusOfisi, "Drop", M(s.DropUcreti));
+                            Row("Plaka", s.Plaka, "Kasko", null);
+                            Row("Marka / Model", $"{s.Marka} {s.Tip}{(s.ModelYili is null ? "" : $" ({s.ModelYili})")}", "Depozit", M(s.Depozito));
+                            Row("Araç Grup", s.Grup, "Ödeme Şekli", null);
+                            Row("Çıkış / Dönüş Km", $"{s.CikisKm?.ToString() ?? ""} / {s.DonusKm?.ToString() ?? ""}", "KM Limit / Aşım", $"{(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())} / {s.FazlaKmUcret:N2}");
+                            Row("Yapılan Km", s.KullanilanKm?.ToString(), "Tahsilat", M(s.Tahsilat));
+                            Row("Hasarlı Araç", null, "Kalan", M(s.Bakiye));
+                            Row("Rez Kaynağı", null, "Hazırlayan", s.TeslimAlanAd);
+                            Row("Dosya No", null, "G. TOPLAM", M(s.GenelToplam));
+                        });
                     });
 
-                    col.Item().PaddingTop(6).Text("Kiracı, aracı ve mevcut hasarları kontrol etmiş olup yeni oluşacak hasarlardan sorumludur. İmza ile kiracı, Kiralayanın Standart Kiralama Koşullarını kabul ettiğini beyan eder. / By signing, the renter accepts the Lessor's Standard Rental Terms.").FontSize(8).Italic();
-                    col.Item().PaddingTop(14).Row(r =>
+                    // ========== AÇIKLAMA (tam genişlik) ==========
+                    var acik = new List<string>();
+                    if (s.KmHediye is int kh && kh > 0) acik.Add($"KM Hediye: {kh}");
+                    if (s.BitisSebebi is not null) acik.Add($"Bitiş Sebebi: {s.BitisSebebi}");
+                    if (s.HediyeGun is int hg && hg > 0) acik.Add($"Hediye {hg} gün (faturalanan {s.FaturalananGun})");
+                    if (s.HaftaSonuFark is decimal hs && hs > 0) acik.Add($"Hafta sonu +{hs:N2}");
+                    if (s.IskontoTutar is decimal isk && isk > 0) acik.Add($"İskonto −{isk:N2}");
+                    if (s.EkHizmetler.Count > 0) acik.Add($"Ek Hizmet: {string.Join(", ", s.EkHizmetler.Select(e => $"{e.Ad} {e.Toplam:N2}"))}");
+                    col.Item().BorderHorizontal(0.75f).BorderColor(Line).Background(LabelBg).MinHeight(26).PaddingHorizontal(4).PaddingVertical(3)
+                        .Text($"Açıklama : {(acik.Count == 0 ? "" : string.Join("  ·  ", acik))}").FontSize(8);
+                    col.Item().Border(0.75f).BorderColor(Line).PaddingHorizontal(4).PaddingVertical(2)
+                        .Text($"Günlük {s.GunlukUcret:N2}   ·   Kira {s.Tutar:N2}   ·   Fazla KM {s.FazlaKmBedeli:N2}   ·   Yakıt {s.YakitBedeli:N2}   ·   Uzatma {s.UzatmaBedeli:N2}   ·   Ek Hizmet {s.EkHizmetToplam:N2}   ({pb})").FontSize(8);
+
+                    // ========== ÇİFT EKSPERTİZ (orijinal araç şeması görseli — çıkış+dönüş tek karede) ==========
+                    col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Image(EkspertizSema).FitWidth();
+
+                    // ========== HUKUKİ METİN (iki dilli) ==========
+                    col.Item().PaddingTop(2).Row(r =>
                     {
-                        void Imza(IContainer col2, string etiket)
-                            => col2.Column(c2 => { c2.Item().Text(etiket).FontSize(9); c2.Item().PaddingTop(20).LineHorizontal(1); });
-                        r.RelativeItem().Element(b => Imza(b, $"ARACI TESLİM EDEN{(s.TeslimAlanAd is null ? "" : $" — {s.TeslimAlanAd}")}"));
-                        r.ConstantItem(18);
-                        r.RelativeItem().Element(b => Imza(b, $"1. SÜRÜCÜ — {s.MusteriAd}"));
-                        if (s.IkinciSurucuAd is not null)
-                        {
-                            r.ConstantItem(18);
-                            r.RelativeItem().Element(b => Imza(b, $"2. SÜRÜCÜ — {s.IkinciSurucuAd}"));
-                        }
+                        r.RelativeItem().Border(0.75f).BorderColor(Line).Padding(4).Text(
+                            "By signing, the tenant has inspected the vehicle's damages and is responsible for the new damages.\n" +
+                            "Kiracı imza etmekle: Aracın hasarlarını incelemiş, yeni oluşacak hasarlardan sorumlu olduğunu kabul eder.").FontSize(7);
+                        r.RelativeItem().BorderVertical(0.75f).BorderRight(0.75f).BorderColor(Line).Padding(4).Text(
+                            "Kiracı imza etmekle: Kiralayanın Standart Kiralama Koşullarını ve sözleşmenin arka yüzündeki hususları tam anlamıyla kabul ettiğini beyan eder.\n" +
+                            "By signing the lessee accepts the Lessor's Standard Lease terms and the points stated on the reverse.").FontSize(7);
+                    });
+
+                    // ========== 3 İMZA BLOĞU ==========
+                    col.Item().Row(r =>
+                    {
+                        void Imza(IContainer box, string rol, string? ad)
+                            => box.Border(0.75f).BorderColor(Line).Padding(5).Column(c =>
+                            {
+                                c.Item().Text(rol).FontSize(7.5f).Bold();
+                                c.Item().Text(ad ?? "").FontSize(8);
+                                c.Item().Height(26);
+                                c.Item().Text("İMZA - SİGNATURE").FontSize(7.5f).Bold();
+                            });
+                        r.RelativeItem().Element(b => Imza(b, "ARACI TESLİM EDEN / DELIVERED BY", s.TeslimAlanAd));
+                        r.RelativeItem().Element(b => Imza(b, "1. SÜRÜCÜ / 1st DRIVER", s.MusteriAd));
+                        r.RelativeItem().Element(b => Imza(b, "2. SÜRÜCÜ / 2nd DRIVER", s.IkinciSurucuAd));
                     });
                 });
-                p.Footer().AlignCenter().Text($"{s.FirmaUnvan ?? "RentPro"} — {s.SozlesmeNo}").FontSize(9);
             });
         }).GeneratePdf();
+
+    private static IContainer LabelCell(IContainer c) => c.Border(0.5f).BorderColor(Line).Background(LabelBg).PaddingHorizontal(3).PaddingVertical(2.5f);
+    private static IContainer ValCell(IContainer c) => c.Border(0.5f).BorderColor(Line).PaddingHorizontal(3).PaddingVertical(2.5f);
 
     public byte[] Invoice(Invoice inv) =>
         Document.Create(doc =>

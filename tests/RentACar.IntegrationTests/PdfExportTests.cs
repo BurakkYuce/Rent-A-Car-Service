@@ -36,6 +36,7 @@ public sealed class PdfExportTests
             GunlukUcret: 100m, Tutar: 400m, FazlaKmBedeli: 1500m, YakitBedeli: 70m, UzatmaBedeli: 0m,
             HediyeGun: 1, FaturalananGun: 4, IskontoTutar: 50m, HaftaSonuFark: 30m,
             EkHizmetToplam: 50m, GenelToplam: 2020m, Tahsilat: 0m, Bakiye: 2020m, Doviz: "TL",
+            Depozito: 500m, DropUcreti: 0m,
             EkHizmetler: [new RentACar.Application.Bookings.SozlesmeEkHizmet("Bebek Koltuğu", 50m)]);
 
         var pdf = new PdfExportService().Contract(s);
