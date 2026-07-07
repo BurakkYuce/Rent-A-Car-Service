@@ -108,6 +108,41 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Otomatik_disi_bos_ucret_iskonto_uygulamaz_dokum_null()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var (m, v) = await SeedAsync(sp, "34 TT 06", iskonto: 10m); // iskonto kuralı VAR
+        // FiyatTuru "Otomatik" DEĞİL + günlük ücret boş (0) → legacy: yalnız günlük ücret çözülür,
+        // iskonto UYGULANMAZ (adversarial M1 gate). Tutar = 3×240 = 720; döküm null.
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = null, GunlukUcret = 0m });
+        var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
+        Assert.Equal(720m, c!.Tutar);   // iskontosuz baz
+        Assert.Null(c.IskontoTutar);    // döküm null (Otomatik değil)
+        Assert.Null(c.HediyeGun);
+    }
+
+    [Fact]
+    public async Task Uzatma_bayat_dokumu_temizler()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var (m, v) = await SeedAsync(sp, "34 TT 07", hediyeGun: 1, iskonto: 10m);
+        var id = await rentals.CreateDirectAsync(Otomatik(m, v, 3));
+        Assert.Equal(48m, (await rentals.GetAsync(id))!.IskontoTutar); // önce dolu
+
+        await rentals.ExtendAsync(id, Bas.AddDays(5)); // uzat → döküm bayatlar
+        var c = await rentals.GetAsync(id);
+        Assert.Null(c!.IskontoTutar);   // temizlendi (adversarial L1)
+        Assert.Null(c.HediyeGun);
+        Assert.Null(c.FaturalananGun);
+    }
+
+    [Fact]
     public async Task HaftaSonu_farki_tutara_yansir()
     {
         using var host = new TestHost(fx.AppConnectionString);
