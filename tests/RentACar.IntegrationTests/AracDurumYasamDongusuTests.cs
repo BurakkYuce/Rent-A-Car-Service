@@ -1,0 +1,97 @@
+using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Availability;
+using RentACar.Application.Bookings;
+using RentACar.Application.Customers;
+using RentACar.Application.Vehicles;
+using RentACar.Domain.Enums;
+using RentACar.IntegrationTests.Infrastructure;
+
+namespace RentACar.IntegrationTests;
+
+/// <summary>
+/// Araç durum yaşam döngüsü bug'ı: kira Durum'a hiç dokunmuyordu, araçlar "Stokta"da takılı → hiç "boşta"
+/// görünmüyordu. Artık: yeni araç Musait; teslim→Kirada; dönüş→Musait; iptal→Musait. Müsaitlik havuzu Kirada'yı
+/// DAHİL eder (ileri-tarih bookingi bozulmaz — tarih-çakışması gerçek dışlamayı yapar).
+/// </summary>
+[Collection("postgres")]
+public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
+{
+    private static readonly DateTimeOffset Bas =
+        new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
+
+    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
+    {
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "AD", Soyad = "M" });
+        return (m, v);
+    }
+
+    [Fact]
+    public async Task Yeni_arac_musait_bosta()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var (_, v) = await SeedAsync(sp, "34 DR 01");
+        var arac = await sp.GetRequiredService<VehicleService>().GetAsync(v);
+        Assert.Equal(VehicleStatus.Musait, arac!.Durum); // Stokta DEĞİL — boşta görünür
+    }
+
+    [Fact]
+    public async Task Teslim_kirada_donus_musait()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var vehicles = sp.GetRequiredService<VehicleService>();
+        var (m, v) = await SeedAsync(sp, "34 DR 02");
+        var id = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
+        Assert.Equal(VehicleStatus.Kirada, (await vehicles.GetAsync(v))!.Durum);   // çıktı → Kirada
+
+        await rentals.ReturnAsync(id, donusKm: 1200, donusYakit: 8, Bas.AddDays(2));
+        Assert.Equal(VehicleStatus.Musait, (await vehicles.GetAsync(v))!.Durum);   // döndü → Musait (boşta)
+    }
+
+    [Fact]
+    public async Task Iptal_araci_serbest_birakir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var vehicles = sp.GetRequiredService<VehicleService>();
+        var (m, v) = await SeedAsync(sp, "34 DR 03");
+        var id = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // Kirada
+        await rentals.CancelAsync(id);
+        Assert.Equal(VehicleStatus.Musait, (await vehicles.GetAsync(v))!.Durum); // iptal → serbest
+    }
+
+    [Fact]
+    public async Task Kirada_arac_cakismayan_ileri_tarihte_musait_kalir()
+    {
+        // Havuz Kirada'yı dahil ettiğinden: çıkıştaki araç, döndükten SONRAKİ (çakışmayan) tarihte hâlâ müsait.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var avail = sp.GetRequiredService<AvailabilityService>();
+        var (m, v) = await SeedAsync(sp, "34 DR 04");
+        var id = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // araç Kirada, kira [Bas, Bas+2)
+
+        // Çakışan aralık (kira dönemi) → müsait DEĞİL.
+        var cakisan = await avail.FindAvailableAsync(Bas, Bas.AddDays(2));
+        Assert.DoesNotContain(cakisan, x => x.Id == v);
+
+        // Çakışmayan ileri aralık (dönüşten sonra) → HÂLÂ müsait (Kirada olmasına rağmen — bug DEĞİL).
+        var ileri = await avail.FindAvailableAsync(Bas.AddDays(5), Bas.AddDays(7));
+        Assert.Contains(ileri, x => x.Id == v);
+    }
+}

@@ -121,7 +121,7 @@ public sealed class RentalService(
             c.CikisKm = cikisKm;
             c.CikisYakit = cikisYakit;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => v.Km = Math.Max(v.Km, cikisKm), ct);
+        }, v => { v.Km = Math.Max(v.Km, cikisKm); v.Durum = VehicleStatus.Kirada; }, ct); // araç çıktı → Kirada
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public sealed class RentalService(
             c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => v.Km = Math.Max(v.Km, donusKm), ct); // odometre monoton ileri (küçükse araç değişmez)
+        }, v => { v.Km = Math.Max(v.Km, donusKm); v.Durum = VehicleStatus.Musait; }, ct); // odometre monoton ileri; araç döndü → Musait (boşta)
     }
 
     /// <summary>
@@ -231,12 +231,12 @@ public sealed class RentalService(
 
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
-        return await _repository.UpdateRentalAsync(id, c =>
+        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }, v => v.Durum = VehicleStatus.Musait, ct); // iptal → araç serbest (boşta)
     }
 }
