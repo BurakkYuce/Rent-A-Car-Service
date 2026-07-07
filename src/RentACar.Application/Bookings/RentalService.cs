@@ -18,7 +18,8 @@ public sealed class RentalService(
     PricingService pricing,
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
     RentACar.Application.Kur.KurService kurService,
-    RentACar.Application.Personnel.IPersonelRepository personelRepository)
+    RentACar.Application.Personnel.IPersonelRepository personelRepository,
+    RentACar.Application.Customers.ICustomerRepository customerRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -43,6 +44,15 @@ public sealed class RentalService(
     {
         BookingMath.Validate(input);
         TarihPolitikasi.KiraBaslangic(input.BasTar); // geçmişe açık (retroaktif); gelecek anti-typo ≤ +1yıl
+        // 2. sürücü: aynı tenant'ta var olmalı (RLS çapraz-tenant'ı zaten keser; bu erken temiz hata) +
+        // kendisiyle aynı olamaz.
+        if (input.IkinciSurucuId is Guid ikinci)
+        {
+            if (ikinci == input.MusteriId)
+                throw new ValidationException("2. sürücü müşteriyle aynı olamaz.");
+            if (await customerRepository.FindAsync(ikinci, ct) is null)
+                throw new ValidationException("2. sürücü (cari) bulunamadı.");
+        }
         var (gun, tutar) = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
@@ -59,6 +69,7 @@ public sealed class RentalService(
         {
             Durum = RentalStatus.Kirada,
             MusteriId = input.MusteriId,
+            IkinciSurucuId = input.IkinciSurucuId,
             VehicleId = input.VehicleId,
             BasTar = input.BasTar,
             BitTar = input.BitTar,

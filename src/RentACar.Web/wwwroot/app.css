@@ -95,6 +95,8 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .print-table th, .print-table td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; }
 .print-totals { text-align: right; margin: 1rem 0; line-height: 1.6; }
 .print-signs { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 3rem; }
+.print-signs.three { grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+.ikinci-surucu { margin-top: .5rem; padding-top: .4rem; border-top: 1px dashed var(--line); font-size: .8rem; }
 .sign-line { display: block; border-top: 1px solid #111; margin-top: 2.5rem; }
 /* Sözleşme: firma başlığı + araç ekspertizi (çıkış/dönüş SVG) + koşul metni */
 .print-head .firma { font-size: .78rem; line-height: 1.4; margin: .3rem 0 0; }
