@@ -14,4 +14,8 @@ public sealed class CashInput
     public string? Aciklama { get; set; }
     /// <summary>Para hareketinin geçtiği hesap: Kasa veya Banka.</summary>
     public LedgerAccountType Hesap { get; set; } = LedgerAccountType.Kasa;
+
+    /// <summary>İdempotency anahtarı (adversarial M5): form başına render edilen token; çift-submit
+    /// (çift-tık/retry/geri-butonu) aynı anahtarla ikinci kez yazılamaz (kısmi unique index). Null → korumasız.</summary>
+    public Guid? IslemAnahtari { get; set; }
 }

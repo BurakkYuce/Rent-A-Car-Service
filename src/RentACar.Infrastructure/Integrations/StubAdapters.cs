@@ -28,8 +28,11 @@ public sealed class StubGoogleCalendarService : IGoogleCalendarService
 
 public sealed class StubEInvoiceService : IEInvoiceService
 {
+    // Stub GERÇEKTEN GÖNDERMEZ → Success=false (adversarial M2): aksi halde InvoiceService faturayı sahte ETTN ile
+    // "e-Fatura gönderildi" (EFaturaGonderildi=true) işaretliyordu — immutable kayıtta yasal/denetim açısından
+    // yanıltıcı. Gerçek adapter takılınca Success=true döner → o zaman işaretlenir. Fatura yine kesilir/postlanır.
     public Task<EInvoiceResult> SendAsync(EInvoiceRequest request, CancellationToken ct = default)
-        => Task.FromResult(new EInvoiceResult(true, Ettn: "STUB-" + Guid.NewGuid().ToString("N"), Error: null));
+        => Task.FromResult(new EInvoiceResult(false, Ettn: null, Error: "e-Fatura entegrasyonu yapılandırılmadı (stub)"));
 }
 
 public sealed class StubPosService : IPosService

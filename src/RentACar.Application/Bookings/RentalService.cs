@@ -37,11 +37,16 @@ public sealed class RentalService(
         return _repository.SearchRentalRowsAsync(filter, ct);
     }
 
-    public Task<RentalContract?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindRentalAsync(id, ct);
+    public async Task<RentalContract?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var r = await _repository.FindRentalAsync(id, ct);
+        if (r is not null) BranchScope.RequireInScope(_currentUser, r.CikisOfisi); // adversarial M3
+        return r;
+    }
 
     public async Task<Guid> CreateDirectAsync(BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1: çift savunma (web + servis)
         BookingMath.Validate(input);
         TarihPolitikasi.KiraBaslangic(input.BasTar); // geçmişe açık (retroaktif); gelecek anti-typo ≤ +1yıl
         // 2. sürücü: aynı tenant'ta var olmalı (RLS çapraz-tenant'ı zaten keser; bu erken temiz hata) +
@@ -110,8 +115,10 @@ public sealed class RentalService(
     /// güncellenir (monoton: yalnız İLERİ; küçük girilirse araç km'si değişmez, kira yine kaydolur).</summary>
     public async Task<bool> DeliverAsync(Guid id, int cikisKm, int cikisYakit, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede teslim yapılır.");
             if (c.CikisKm is not null)
@@ -133,6 +140,7 @@ public sealed class RentalService(
         int kmHediye = 0, string? bitisSebebi = null, Guid? teslimAlanPersonelId = null,
         CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         if (kmHediye < 0)
             throw new ValidationException("KM hediye negatif olamaz.");
         // Üst sınır: int.MaxValue hediye taşma vektörüydü (adversarial BULGU 1); km-farkı guard'ıyla simetrik.
@@ -149,6 +157,7 @@ public sealed class RentalService(
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
         return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede dönüş yapılır.");
             if (c.CikisKm is null)
@@ -196,6 +205,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var c = await _repository.FindRentalAsync(id, ct);
         if (c is null) return false;
+        BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
         if (c.Durum != RentalStatus.Kirada)
             throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
         if (yeniBitTar <= c.BitTar)
@@ -231,8 +241,10 @@ public sealed class RentalService(
 
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
             c.Durum = RentalStatus.Iptal;

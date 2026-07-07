@@ -86,7 +86,7 @@ public static class BookingEndpoints
             }
         });
 
-        var kira = app.MapGroup("/kiralar").RequireAuthorization().AntiforgeryByEnv();
+        var kira = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv(); // adversarial H1
 
         kira.MapPost("/create", async (RentalService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
