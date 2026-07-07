@@ -81,6 +81,77 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Escantli_cift_fark_idempotent_tek_yazar()
+    {
+        // Adversarial Kritik-1: N eşzamanlı CreateFromRentalAsync → TEK fark (900), cari 900 (12× DEĞİL).
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid id, cariId;
+        using (var scope = host.ScopeFor(tenant))
+        {
+            var sp = scope.ServiceProvider;
+            id = await KurKiraAsync(sp, "34 FK 04");
+            cariId = (await sp.GetRequiredService<RentalService>().GetAsync(id))!.MusteriId;
+            await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id);
+            await sp.GetRequiredService<RentalService>().DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
+            await sp.GetRequiredService<RentalService>().ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3));
+        }
+
+        // 10 eşzamanlı fark denemesi — her biri kendi scope'unda (kendi DbContext'i).
+        var basari = 0;
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
+        {
+            using var s = host.ScopeFor(tenant);
+            try { await s.ServiceProvider.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id); Interlocked.Increment(ref basari); }
+            catch (ValidationException) { /* idempotent red beklenir */ }
+        })));
+
+        using var check = host.ScopeFor(tenant);
+        Assert.Equal(1, basari);                                                            // yalnız 1 fark başardı
+        Assert.Equal(900m, await check.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cariId)); // 12× değil
+    }
+
+    [Fact]
+    public async Task Iade_sonrasi_donus_farki_defteri_hizalar()
+    {
+        // Adversarial High-2: base iade → dönüş ek bedel → fark, iade netlenerek defter = sözleşme.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var invoices = sp.GetRequiredService<InvoiceService>();
+        var cash = sp.GetRequiredService<CashService>();
+        var id = await KurKiraAsync(sp, "34 FK 05");
+        var cariId = (await rentals.GetAsync(id))!.MusteriId;
+
+        var bazId = await invoices.CreateFromRentalAsync(id);        // base 300
+        await invoices.CreateIadeAsync(bazId);                        // iade → cari 0
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(cariId));
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
+        await rentals.ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3)); // sözleşme 900
+        await invoices.CreateFromRentalAsync(id);                     // fark = 900 − 0 (iade netlendi)
+        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));   // defter = sözleşme
+    }
+
+    [Fact]
+    public async Task Iade_sonrasi_yeniden_faturalanabilir()
+    {
+        // Adversarial High-3: base iade → yeniden faturala → cari tekrar 300 (kayıp gelir yok).
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var invoices = sp.GetRequiredService<InvoiceService>();
+        var cash = sp.GetRequiredService<CashService>();
+        var id = await KurKiraAsync(sp, "34 FK 06");
+        var cariId = (await sp.GetRequiredService<RentalService>().GetAsync(id))!.MusteriId;
+
+        var bazId = await invoices.CreateFromRentalAsync(id);        // 300
+        await invoices.CreateIadeAsync(bazId);                        // iade → 0
+        await invoices.CreateFromRentalAsync(id);                     // yeniden → 300 (fark yolu, iade netlendi)
+        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+    }
+
+    [Fact]
     public async Task Donussuz_tek_fatura_hala_calisir()
     {
         // Regresyon: dönüşsüz normal faturalama (yaygın akış) bozulmadı.

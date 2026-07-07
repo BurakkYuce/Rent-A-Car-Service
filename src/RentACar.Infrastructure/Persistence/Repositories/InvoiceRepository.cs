@@ -36,10 +36,20 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
     public async Task<decimal> InvoicedGrossForRentalAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        // base fatura (RentalId) + fark faturaları (KaynakKiraId); iptal hariç.
-        return await db.Invoices.AsNoTracking()
-            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal)
+        // Kira faturaları: base (RentalId) + fark (KaynakKiraId); iptal + iade-faturasının KENDİSİ hariç.
+        var kiraFaturalari = await db.Invoices.AsNoTracking()
+            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal && !i.IadeMi)
+            .Select(i => new { i.Id, i.GenelToplam })
+            .ToListAsync(ct);
+        var gross = kiraFaturalari.Sum(x => x.GenelToplam);
+        if (gross == 0m) return 0m;
+        // İade netleme (adversarial High-2/3): bu kira faturalarına kesilmiş iade faturalarının brütünü düş
+        // (iade GenelToplam pozitif ama defteri TERS döndürür → net faturalanan = base − iade).
+        var ids = kiraFaturalari.Select(x => x.Id).ToList();
+        var iadeGross = await db.Invoices.AsNoTracking()
+            .Where(i => i.IadeMi && i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value) && i.Durum != InvoiceStatus.Iptal)
             .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
+        return gross - iadeGross;
     }
 
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
@@ -76,7 +86,10 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 // Kısmi unique index (eşzamanlı çift fatura/iade) → idempotent reddet. İade yarışında
                 // (TenantId,KaynakFaturaId) index'i tetiklenir → doğru ifadeyle reddet.
                 await tx.RollbackAsync(ct);
-                throw new ValidationException(invoice.IadeMi ? "Bu fatura zaten iade edilmiş." : "Kira zaten faturalanmış.");
+                // Fark faturası (KaynakKiraId): eşzamanlı/çift istek aynı hedefe çarptı → idempotent reddet.
+                throw new ValidationException(
+                    invoice.KaynakKiraId is not null ? "Kira farkı zaten faturalanmış (eşzamanlı istek)." :
+                    invoice.IadeMi ? "Bu fatura zaten iade edilmiş." : "Kira zaten faturalanmış.");
             }
         }, ct);
     }
