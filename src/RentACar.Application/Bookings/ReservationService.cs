@@ -25,6 +25,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
 
     public async Task<Guid> CreateAsync(BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
@@ -68,6 +69,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     /// </summary>
     public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         var existing = await _repository.FindReservationAsync(id, ct);
         if (existing is null) return false;
@@ -114,14 +116,21 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
     }
 
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, ReservationStatus.Onayli, [ReservationStatus.Rezerv], ct);
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        return Transition(id, ReservationStatus.Onayli, [ReservationStatus.Rezerv], ct);
+    }
 
     public Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        return Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
+    }
 
     /// <summary>Tasfiye: rezervasyonu kira sözleşmesine çevirir. Yeni kira Id döner.</summary>
     public async Task<Guid> ConvertToRentalAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var reservation = await _repository.FindReservationAsync(id, ct)
             ?? throw new ValidationException("Rezervasyon bulunamadı.");
         if (reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))

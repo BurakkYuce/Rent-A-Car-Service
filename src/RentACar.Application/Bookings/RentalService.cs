@@ -42,6 +42,7 @@ public sealed class RentalService(
 
     public async Task<Guid> CreateDirectAsync(BookingInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1: çift savunma (web + servis)
         BookingMath.Validate(input);
         TarihPolitikasi.KiraBaslangic(input.BasTar); // geçmişe açık (retroaktif); gelecek anti-typo ≤ +1yıl
         // 2. sürücü: aynı tenant'ta var olmalı (RLS çapraz-tenant'ı zaten keser; bu erken temiz hata) +
@@ -110,6 +111,7 @@ public sealed class RentalService(
     /// güncellenir (monoton: yalnız İLERİ; küçük girilirse araç km'si değişmez, kira yine kaydolur).</summary>
     public async Task<bool> DeliverAsync(Guid id, int cikisKm, int cikisYakit, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)
@@ -133,6 +135,7 @@ public sealed class RentalService(
         int kmHediye = 0, string? bitisSebebi = null, Guid? teslimAlanPersonelId = null,
         CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         if (kmHediye < 0)
             throw new ValidationException("KM hediye negatif olamaz.");
         // Üst sınır: int.MaxValue hediye taşma vektörüydü (adversarial BULGU 1); km-farkı guard'ıyla simetrik.
@@ -231,6 +234,7 @@ public sealed class RentalService(
 
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await _repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             if (c.Durum != RentalStatus.Kirada)

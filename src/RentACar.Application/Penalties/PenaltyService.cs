@@ -24,6 +24,7 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
 
     public async Task<Guid> CreateAsync(PenaltyInput input, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial L1 (para yolu YansitAsync ayrı FinanceWrite)
         if (string.IsNullOrWhiteSpace(input.CezaTuru)) throw new ValidationException("Ceza türü zorunludur.");
         if (input.Tutar <= 0) throw new ValidationException("Ceza tutarı pozitif olmalıdır.");
         if (input.VadeGun < 0) throw new ValidationException("Vade günü negatif olamaz.");
@@ -74,18 +75,24 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     }
 
     public Task<bool> OdeAsync(Guid id, CancellationToken ct = default)
-        => _repository.UpdateAsync(id, p =>
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial L1
+        return _repository.UpdateAsync(id, p =>
         {
             if (p.Durum is CezaDurum.Iptal) throw new ValidationException("İptal ceza ödenemez.");
             p.Durum = CezaDurum.Odendi;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
-        => _repository.UpdateAsync(id, p =>
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial L1
+        return _repository.UpdateAsync(id, p =>
         {
             if (p.Durum == CezaDurum.Yansitildi) throw new ValidationException("Yansıtılmış ceza iptal edilemez (ters kayıt gerekir).");
             p.Durum = CezaDurum.Iptal;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
 }

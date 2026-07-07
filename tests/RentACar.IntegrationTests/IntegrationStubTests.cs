@@ -24,13 +24,15 @@ public sealed class IntegrationStubTests
     }
 
     [Fact]
-    public async Task Einvoice_stub_returns_ettn()
+    public async Task Einvoice_stub_gondermez_ettn_yok()
     {
+        // Adversarial M2: stub GERÇEKTEN göndermez → Success=false, ETTN yok (fatura sahte "gönderildi"
+        // işaretlenmesin). Gerçek adapter takılınca Success=true döner.
         using var sp = Build();
         var result = await sp.GetRequiredService<IEInvoiceService>()
             .SendAsync(new EInvoiceRequest("1234567890", "ACME", 100m, 20m, "TRY"));
-        Assert.True(result.Success);
-        Assert.NotNull(result.Ettn);
+        Assert.False(result.Success);
+        Assert.Null(result.Ettn);
     }
 
     [Fact]
