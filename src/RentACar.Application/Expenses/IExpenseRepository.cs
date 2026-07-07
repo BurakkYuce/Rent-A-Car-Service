@@ -7,7 +7,8 @@ public sealed record ExpensePosting(Expense Expense, IReadOnlyList<AccountLedger
 
 public interface IExpenseRepository
 {
-    Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default);
+    /// <summary>Giderler; <paramref name="sube"/> verilirse yalnız o şubeninkiler (şube-kapsamı; null = tümü).</summary>
+    Task<IReadOnlyList<Expense>> ListAsync(string? sube, CancellationToken ct = default);
     Task<Expense?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
