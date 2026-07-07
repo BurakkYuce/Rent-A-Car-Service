@@ -20,6 +20,8 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? FirmaAdres { get; set; }
     public string? FirmaTel { get; set; }
     public string? FirmaEmail { get; set; }
+    public string? FirmaMobilTel { get; set; }   // 2. telefon (sözleşme başlığı MOBİL TEL)
+    public string? FirmaMarka { get; set; }       // ticari marka / kısa ad (sözleşme sağ üst; yoksa Ünvan)
 
     // Entegrasyon kimlikleri — gizli-olmayan düz metin; sır (*Enc) ŞİFRELİ cipher.
     public string? EFaturaKullanici { get; set; }

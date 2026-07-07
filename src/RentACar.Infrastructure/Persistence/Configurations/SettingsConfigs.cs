@@ -22,6 +22,8 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.FirmaAdres).HasMaxLength(512);
         e.Property(x => x.FirmaTel).HasMaxLength(64);
         e.Property(x => x.FirmaEmail).HasMaxLength(128);
+        e.Property(x => x.FirmaMobilTel).HasMaxLength(64);
+        e.Property(x => x.FirmaMarka).HasMaxLength(128);
         e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
         e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
         e.Property(x => x.SmsBaslik).HasMaxLength(64);
