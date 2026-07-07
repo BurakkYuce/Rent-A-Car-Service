@@ -56,6 +56,11 @@ public class Invoice : ITenantOwned, IAuditable
     /// = null (kira-fatura unique index'ine çarpmasın) → kira bağı bu alandan (PR-F1). Kira-brütü hesabı
     /// (InvoicedGrossForRentalAsync) base fatura (RentalId) + fark faturalarını (KaynakKiraId) toplar.</summary>
     public Guid? KaynakKiraId { get; set; }
+
+    /// <summary>Fark faturasının getirdiği KÜMÜLATİF kira brütü (fark-anındaki guncelBrut). İdempotency doğal
+    /// anahtarı: (TenantId, KaynakKiraId, KaynakKiraHedefBrut) kısmi-unique → eşzamanlı/çift fark isteği aynı
+    /// hedefe çarpar → tek fark (adversarial Kritik-1). Her yeni ek bedel farklı hedef → ayrı fark serbest.</summary>
+    public decimal? KaynakKiraHedefBrut { get; set; }
     /// <summary>Kiradan bağımsız manuel fatura mı.</summary>
     public bool ManuelMi { get; set; }
 

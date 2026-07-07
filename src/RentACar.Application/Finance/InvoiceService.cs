@@ -68,12 +68,15 @@ public sealed class InvoiceService(
         // faturalanan brüt. İlk fatura değilse base+addon satırları yerine tek "fark" satırı (kira dövizi).
         if (await addOnRepository.IsRentalInvoicedAsync(rental.Id, ct))
         {
-            var guncelBrut = baseGross + addOnGross;
+            var guncelBrut = KdvMath.RoundGross(baseGross + addOnGross);
+            // İade-farkında (adversarial High-2/3): faturalanan = base+fark brütü − iade brütü. İade edilmiş base
+            // "faturalanmış" sayılmaz → iade sonrası dönüş/yeniden-fatura defteri sözleşmeyle hizalar.
             var faturalanan = await repository.InvoicedGrossForRentalAsync(rental.Id, ct);
             var fark = KdvMath.RoundGross(guncelBrut - faturalanan);
             if (fark <= 0m)
                 throw new ValidationException("Kira zaten tam faturalanmış (yeni ek bedel yok).");
-            return await PostFarkFaturasiAsync(rental, fark, rate, vergi, ct);
+            // guncelBrut = idempotency hedefi (KaynakKiraHedefBrut): eşzamanlı çift fark aynı hedefe çarpar.
+            return await PostFarkFaturasiAsync(rental, fark, guncelBrut, rate, vergi, ct);
         }
 
         var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
@@ -149,7 +152,7 @@ public sealed class InvoiceService(
     /// satırlık fatura. RentalId = null (kira-fatura unique index'ine çarpmasın); kira bağı KaynakKiraId üzerinden.
     /// fark = brüt (kira dövizi); net/kdv verilen orandan (dönüş bedelleri baz-oranlı). Dengeli defter yazar.</summary>
     private async Task<Guid> PostFarkFaturasiAsync(
-        RentalContract rental, decimal farkGross, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
+        RentalContract rental, decimal farkGross, decimal hedefBrut, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
     {
         var (net, kdv) = KdvMath.FromGross(farkGross, rate);
         var gross = net + kdv;
@@ -161,8 +164,9 @@ public sealed class InvoiceService(
         {
             Durum = InvoiceStatus.Kesildi,
             CariId = rental.MusteriId,
-            RentalId = null,            // kira-fatura unique index'ine çarpmasın
-            KaynakKiraId = rental.Id,   // kira bağı
+            RentalId = null,                 // kira-fatura unique index'ine çarpmasın
+            KaynakKiraId = rental.Id,        // kira bağı
+            KaynakKiraHedefBrut = hedefBrut, // idempotency doğal anahtarı (eşzamanlı çift fark → çakışır)
             Tarih = tarih,
             NetTutar = net,
             KdvTutar = kdv,
