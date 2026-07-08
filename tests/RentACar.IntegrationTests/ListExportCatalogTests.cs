@@ -27,11 +27,14 @@ public sealed class ListExportCatalogTests
         };
         var t = ListExportCatalog.Araclar([v]);
 
-        Assert.Equal(40, t.Headers.Count);          // 15 → 40 (parite derinliği; ilk 15 sabit)
+        Assert.Equal(54, t.Headers.Count);          // 15 → 40 → 54 (tam parite; ilk 15 + ara 25 + son 14 sabit)
         Assert.Equal("Plaka", t.Headers[0]);
         Assert.Equal("Model Yılı", t.Headers[6]);
         Assert.Equal("Segment", t.Headers[15]);
         Assert.Equal("Lastik Durumu", t.Headers[39]);
+        Assert.Equal("Özel Kod 2", t.Headers[40]);  // yeni blok başı
+        Assert.Equal("Rehin", t.Headers[53]);        // son kolon
+        Assert.Equal("Hayır", t.Rows[0][53]);        // Rehin bool default false → E() Hayır
         Assert.Single(t.Rows);
         Assert.Equal("34ABC01", t.Rows[0][0]);
         Assert.Equal(2023, t.Rows[0][6]);
