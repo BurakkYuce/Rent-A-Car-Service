@@ -27,9 +27,19 @@ public interface IGoogleCalendarService
 public sealed record EInvoiceRequest(string AliciVknOrTckn, string AliciUnvan, decimal Tutar, decimal KdvTutar, string Currency);
 public sealed record EInvoiceResult(bool Success, string? Ettn, string? Error);
 
+/// <summary>GİB gelen kutusundan çekilen bir gelen e-fatura kalemi (ham).</summary>
+public sealed record EInvoiceInboxItem(
+    string Ettn, string GonderenVkn, string GonderenUnvan, DateTimeOffset Tarih,
+    decimal NetTutar, decimal KdvTutar, decimal GenelToplam, string Currency);
+
 public interface IEInvoiceService
 {
     Task<EInvoiceResult> SendAsync(EInvoiceRequest request, CancellationToken ct = default);
+
+    /// <summary>GİB gelen kutusundan [from,to] gelen faturaları çeker. Stub boş liste döner
+    /// (entegrasyon kimliği yapılandırılana dek). Kimlik gelince gerçek adapter takılır.</summary>
+    Task<IReadOnlyList<EInvoiceInboxItem>> FetchInboxAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }
 
 public sealed record PosCharge(decimal Amount, string Currency, string CardToken, bool ThreeD);

@@ -33,6 +33,12 @@ public sealed class StubEInvoiceService : IEInvoiceService
     // yanıltıcı. Gerçek adapter takılınca Success=true döner → o zaman işaretlenir. Fatura yine kesilir/postlanır.
     public Task<EInvoiceResult> SendAsync(EInvoiceRequest request, CancellationToken ct = default)
         => Task.FromResult(new EInvoiceResult(false, Ettn: null, Error: "e-Fatura entegrasyonu yapılandırılmadı (stub)"));
+
+    // Stub gelen kutusu BOŞ döner (GİB kimliği yapılandırılmadı). Gerçek adapter takılınca gerçek liste gelir;
+    // GelenEFaturaService bunları ETTN'e göre upsert eder → kimlik-flip yeterli, çağrı yolu hazır.
+    public Task<IReadOnlyList<EInvoiceInboxItem>> FetchInboxAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<EInvoiceInboxItem>>([]);
 }
 
 public sealed class StubPosService : IPosService

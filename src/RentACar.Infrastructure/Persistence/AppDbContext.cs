@@ -88,6 +88,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
     public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<GelenEFatura> GelenEFaturalar => Set<GelenEFatura>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<InsurancePolicy> InsurancePolicies => Set<InsurancePolicy>();
