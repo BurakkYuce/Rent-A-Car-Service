@@ -39,7 +39,7 @@ public sealed record GelirGiderKalemDto(string SourceType, decimal Tutar);
 
 /// <summary>Filo durum dağılımı + aktif kira (operasyonel rapor).</summary>
 public sealed record FleetUtilizationDto(
-    int Toplam, int Stokta, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);
+    int Toplam, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);
 
 /// <summary>
 /// Kira efektif aralığı (doluluk hesabı için ham satır): başlangıç + efektif bitiş
