@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Regulation;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -12,19 +13,29 @@ public static class ListExportCatalog
 {
     public static ExportTable Araclar(IReadOnlyList<Vehicle> v) => new(
         "Araclar",
-        ["Plaka", "Marka", "Tip", "Detay Tipi", "Grup", "Şube", "Model Yılı", "Renk", "Yakıt", "Vites", "SIPP", "KM", "Durum", "Özel Kod", "Kasa Tipi"],
+        // İlk 15 kolon geriye-uyum için SABİT sırada; kalanlar (parite derinliği) sona eklendi.
+        ["Plaka", "Marka", "Tip", "Detay Tipi", "Grup", "Şube", "Model Yılı", "Renk", "Yakıt", "Vites", "SIPP", "KM", "Durum", "Özel Kod", "Kasa Tipi",
+         "Segment", "Filo Durumu", "Şasi No", "Motor No", "Motor Gücü", "Silindir Hacmi", "Ruhsat No", "Tescil Tarihi", "Araç Sahibi",
+         "Alım Bedeli", "Alım Tarihi", "Alış Vergisiz", "Alış ÖTV", "Alış KDV", "Aylık Maliyet", "Filo Yön. Maliyeti", "2.El Değer",
+         "Filo Giriş", "Filo Çıkış", "HGS No", "OGS No", "Kira KM Limiti", "Son Bakım Tarih", "Son Bakım KM", "Lastik Durumu"],
         v.Select(x => new object?[]
         {
             x.Plaka, x.Marka, x.Tip, x.DetayTipi, x.Grup, x.Sube, x.ModelYili, x.Renk,
-            x.Yakit.ToString(), x.Vites?.ToString(), x.Sipp, x.Km, x.Durum.ToString(), x.OzelKod1, x.KasaTipi
+            x.Yakit.ToString(), x.Vites?.ToString(), x.Sipp, x.Km, x.Durum.ToString(), x.OzelKod1, x.KasaTipi,
+            x.Segment, x.FiloDurum?.ToString(), x.SasiNo, x.MotorNo, x.MotorGucu, x.SilindirHacmi, x.RuhsatNo, D(x.TescilTarihi), x.AracSahibi,
+            x.AlimBedeli, D(x.AlimTarihi), x.AlisVergisiz, x.AlisOtv, x.AlisKdv, x.AylikMaliyet, x.FiloYonetimMaliyeti, x.IkinciElDeger,
+            D(x.FiloGirisTarih), D(x.FiloCikisTarih), x.HgsNo, x.OgsNo, x.KiraKmLimiti, D(x.SonBakimTarih), x.SonBakimKm, x.LastikDurumu
         }).ToList());
 
     public static ExportTable Cariler(IReadOnlyList<Customer> c) => new(
         "Cariler",
-        ["Ünvan/Ad", "Tip", "TC Kimlik", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün"],
+        // İlk 10 kolon SABİT; kalanlar (CRM/finans parite derinliği) sona eklendi.
+        ["Ünvan/Ad", "Tip", "TC Kimlik", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün",
+         "Vergi Dairesi", "GSM2", "Adres", "Sınıf", "Müşteri Temsilcisi", "İYS İzinli", "Fatura Dönemi", "Risk Limiti", "HGS Yansıtma", "Özel Cari Tip"],
         c.Select(x => new object?[]
         {
-            x.DisplayName, x.Tip.ToString(), x.TcKimlik, x.VergiNo, x.CepTel, x.Email, x.Il, x.Ilce, x.Kaynak, x.VadeGun
+            x.DisplayName, x.Tip.ToString(), x.TcKimlik, x.VergiNo, x.CepTel, x.Email, x.Il, x.Ilce, x.Kaynak, x.VadeGun,
+            x.VergiDairesi, x.Gsm2, x.Adres, x.Sinif, x.MusteriTemsilcisi, E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
         }).ToList());
 
     public static ExportTable Faturalar(IReadOnlyList<Invoice> f) => new(
@@ -142,4 +153,28 @@ public static class ListExportCatalog
             x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), x.IseGiris?.ToString("yyyy-MM-dd"), x.IseCikis?.ToString("yyyy-MM-dd"),
             x.SurucuBelgeNo, decrypt(x.MaasEnc), x.Sube, x.Aktif ? "Aktif" : "Pasif"
         }).ToList());
+
+    /// <summary>Uzun-dönem (filo) kiralama sözleşmeleri. Plaka/müşteri FK'leri endpoint'te dict ile çözülür
+    /// (<paramref name="plaka"/>/<paramref name="musteri"/> resolver; katalog saf kalır, test'te sahte resolver).</summary>
+    public static ExportTable FiloKiralamalar(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plaka, Func<Guid, string?> musteri) => new(
+        "Filo Kiralama",
+        ["No", "Müşteri", "Plaka", "Başlangıç", "Süre (Ay)", "Aylık Ücret", "KDV Oranı", "Döviz", "Kur", "Toplam KM Limiti", "Damga Vergisi", "Durum", "Açıklama"],
+        f.Select(x => new object?[]
+        {
+            x.No, musteri(x.MusteriId), plaka(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
+            x.Currency, x.Kur, x.ToplamKmLimiti, x.DamgaVergisi, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    /// <summary>Birleşik vade panosu (sigorta/MTV/muayene bitişleri) — en yakına sıralı. Plaka endpoint'te çözülür.</summary>
+    public static ExportTable Vadeler(IReadOnlyList<VadeItem> v, Func<Guid, string?> plaka) => new(
+        "Vade (Sigorta-MTV-Muayene)",
+        ["Plaka", "Tür", "Bitiş", "Kalan Gün", "Durum"],
+        v.Select(x => new object?[]
+        {
+            plaka(x.VehicleId), x.Tur, D(x.Bitis), x.KalanGun, x.Bucket.ToString()
+        }).ToList());
+
+    // Hücre biçimleyiciler (sütun zenginleştirme için): bool → Evet/Hayır, nullable tarih → yyyy-MM-dd.
+    private static string E(bool b) => b ? "Evet" : "Hayır";
+    private static string? D(DateTimeOffset? d) => d?.ToString("yyyy-MM-dd");
 }
