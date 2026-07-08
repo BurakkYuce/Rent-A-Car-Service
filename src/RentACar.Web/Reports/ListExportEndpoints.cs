@@ -2,9 +2,12 @@ using RentACar.Application.AracKredileri;
 using RentACar.Application.AracSiparisleri;
 using RentACar.Application.Authorization;
 using RentACar.Application.Baflar;
+using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
+using RentACar.Application.DropTanimlari;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
+using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
@@ -25,7 +28,8 @@ public static class ListExportEndpoints
         grp.MapGet("/{liste}", async (string liste, string? format,
             VehicleService vs, CustomerService cs, InvoiceService inv,
             PenaltyService ps, ExpenseService es, CashService cash,
-            VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf, ReportExportService ex) =>
+            VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
+            RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop, ReportExportService ex) =>
         {
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
@@ -40,6 +44,10 @@ public static class ListExportEndpoints
                 "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),
                 "arac-kredileri" => ListExportCatalog.AracKredileri(await akr.ListAsync()),
                 "baflar" => ListExportCatalog.Baflar(await baf.ListAsync()),
+                "kiralar" => ListExportCatalog.Kiralar(await rs.SearchAsync(new RentalFilter())),
+                "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.ListAsync()),
+                "lokasyonlar" => ListExportCatalog.Lokasyonlar(await loc.ListAsync()),
+                "drop-tanimlari" => ListExportCatalog.DropTanimlari(await drop.ListAsync()),
                 _ => null
             };
             if (t is null) return Results.NotFound();
