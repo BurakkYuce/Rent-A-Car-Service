@@ -1,3 +1,4 @@
+using RentACar.Application.Bookings;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -95,5 +96,39 @@ public static class ListExportCatalog
         {
             x.No, x.CikisTarihi.ToString("yyyy-MM-dd"), x.CikisKm, x.CikisYakit, x.DonusTarihi?.ToString("yyyy-MM-dd"),
             x.DonusKm, x.DonusYakit, x.Sube, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    public static ExportTable Kiralar(IReadOnlyList<RentalRow> r) => new(
+        "Kiralar",
+        ["Sözleşme No", "Müşteri", "Plaka", "Başlangıç", "Bitiş", "Gün", "Tutar", "Bakiye", "Durum", "Faturalı"],
+        r.Select(x => new object?[]
+        {
+            x.SozlesmeNo, x.MusteriAd, x.Plaka, x.BasTar.ToString("yyyy-MM-dd"), x.BitTar.ToString("yyyy-MM-dd"),
+            x.Gun, x.Tutar, x.Bakiye, x.Durum.ToString(), x.Faturali ? "Evet" : "Hayır"
+        }).ToList());
+
+    public static ExportTable Rezervasyonlar(IReadOnlyList<Reservation> r) => new(
+        "Rezervasyonlar",
+        ["Rez No", "Durum", "Başlangıç", "Bitiş", "Çıkış Ofisi", "Dönüş Ofisi", "Gün", "Günlük Ücret", "Tutar"],
+        r.Select(x => new object?[]
+        {
+            x.ReservationNo, x.Durum.ToString(), x.BasTar.ToString("yyyy-MM-dd"), x.BitTar.ToString("yyyy-MM-dd"),
+            x.CikisOfisi, x.DonusOfisi, x.Gun, x.GunlukUcret, x.Tutar
+        }).ToList());
+
+    public static ExportTable Lokasyonlar(IReadOnlyList<Location> l) => new(
+        "Lokasyonlar",
+        ["Kod", "Ad", "Adres", "Telefon", "E-posta", "Çalışma Saatleri", "Teslim Ücreti", "Şube", "Aktif"],
+        l.Select(x => new object?[]
+        {
+            x.Kod, x.Ad, x.Adres, x.Telefon, x.Eposta, x.CalismaSaatleri, x.TeslimUcreti, x.Sube, x.Aktif ? "Evet" : "Hayır"
+        }).ToList());
+
+    public static ExportTable DropTanimlari(IReadOnlyList<DropTanim> d) => new(
+        "Drop Tanımları",
+        ["Lokasyon", "Şube", "Karşılama Şekli", "Çalışma Şekli", "Özel İletişim", "Aktif"],
+        d.Select(x => new object?[]
+        {
+            x.Lokasyon, x.Sube, x.KarsilamaSekli, x.CalismaSekli, x.OzelIletisim, x.Aktif ? "Evet" : "Hayır"
         }).ToList());
 }
