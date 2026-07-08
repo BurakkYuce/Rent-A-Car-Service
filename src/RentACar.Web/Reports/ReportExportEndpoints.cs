@@ -30,6 +30,9 @@ public static class ReportExportEndpoints
             Table? t = rapor switch
             {
                 "karlilik" => Karlilik(await rs.GetKarlilikAsync(from, to, sube, grup, plaka)),
+                "karlilik-grup" => KarlilikOzet(await rs.GetKarlilikOzetAsync("grup", from, to)),
+                "karlilik-sube" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sube", from, to)),
+                "karlilik-segment" => KarlilikOzet(await rs.GetKarlilikOzetAsync("segment", from, to)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
                 "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to)),
                 "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync()),
@@ -74,6 +77,13 @@ public static class ReportExportEndpoints
         var rows = d.Satirlar.Select(s => new object?[] { s.Plaka, s.Sube, s.Grup, s.Gelir, s.Gider, s.NetKar }).ToList();
         rows.Add(new object?[] { "TOPLAM", null, null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar });
         return new Table("Kârlılık", new[] { "Plaka", "Şube", "Grup", "Gelir", "Gider", "Net Kâr" }, rows);
+    }
+
+    private static Table KarlilikOzet(KarlilikOzetDto d)
+    {
+        var rows = d.Satirlar.Select(s => new object?[] { s.Boyut, s.AracAdet, s.Gelir, s.Gider, s.NetKar }).ToList();
+        rows.Add(new object?[] { "TOPLAM", null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar });
+        return new Table($"Kârlılık ({d.BoyutAdi})", new[] { d.BoyutAdi, "Araç Adet", "Gelir", "Gider", "Net Kâr" }, rows);
     }
 
     private static Table GelirGider(GelirGiderDto d)

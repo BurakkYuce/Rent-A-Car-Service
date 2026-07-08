@@ -457,8 +457,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
         var vehIds = giderByVeh.Keys.Concat(gelirByVeh.Keys).Where(k => k != Guid.Empty).Distinct().ToList();
         var dims = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
-                .Select(v => new { v.Id, v.Plaka, v.Sube, v.Grup }).ToListAsync(ct))
-            .ToDictionary(v => v.Id, v => (v.Plaka, v.Sube, v.Grup));
+                .Select(v => new { v.Id, v.Plaka, v.Sube, v.Grup, v.Segment }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => (v.Plaka, v.Sube, v.Grup, v.Segment));
 
         var rows = new List<KarlilikSatirDto>();
         foreach (var key in giderByVeh.Keys.Concat(gelirByVeh.Keys).Distinct())
@@ -466,11 +466,11 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             var gelir = gelirByVeh.GetValueOrDefault(key);
             var gider = giderByVeh.GetValueOrDefault(key);
             if (key == Guid.Empty)
-                rows.Add(new KarlilikSatirDto(null, "(Atanmamış)", null, null, gelir, gider, gelir - gider));
+                rows.Add(new KarlilikSatirDto(null, "(Atanmamış)", null, null, null, gelir, gider, gelir - gider));
             else
             {
-                var d = dims.TryGetValue(key, out var x) ? x : ("(bilinmeyen araç)", (string?)null, (string?)null);
-                rows.Add(new KarlilikSatirDto(key, d.Item1, d.Item2, d.Item3, gelir, gider, gelir - gider));
+                var d = dims.TryGetValue(key, out var x) ? x : ("(bilinmeyen araç)", (string?)null, (string?)null, (string?)null);
+                rows.Add(new KarlilikSatirDto(key, d.Item1, d.Item2, d.Item3, d.Item4, gelir, gider, gelir - gider));
             }
         }
         return rows;
