@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Common;
+using RentACar.Application.Authorization;
 using RentACar.Application.Penalties;
-
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Penalties;
@@ -11,9 +11,12 @@ public static class PenaltyEndpoints
 {
     public static IEndpointRouteBuilder MapPenaltyEndpoints(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/cezalar").RequireAuthorization().AntiforgeryByEnv();
+        // Çift savunma (adversarial LOW): create/öde/iptal OperationsWrite; yansıt PARA yolu (FinanceWrite). Tek
+        // grup OperationsWrite yansıt'ı Muhasebe'ye kapatırdı → aynı /cezalar prefix'inde iki alt-grup.
+        var ops = app.MapGroup("/cezalar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
+        var fin = app.MapGroup("/cezalar").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (PenaltyService svc,
+        ops.MapPost("/create", async (PenaltyService svc,
             [FromForm] string cezaTuru, [FromForm] string? tebligTarihi, [FromForm] string? vadeGun,
             [FromForm] string? vehicleId, [FromForm] string? cariId, [FromForm] string? rentalId,
             [FromForm] decimal tutar, [FromForm] string? sebep) =>
@@ -39,9 +42,9 @@ public static class PenaltyEndpoints
             }
         });
 
-        grp.MapPost("/yansit", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.YansitAsync(id)));
-        grp.MapPost("/ode", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.OdeAsync(id)));
-        grp.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id)));
+        fin.MapPost("/yansit", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.YansitAsync(id)));
+        ops.MapPost("/ode", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.OdeAsync(id)));
+        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id)));
 
         return app;
     }

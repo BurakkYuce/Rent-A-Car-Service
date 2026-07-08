@@ -43,6 +43,15 @@ internal sealed class AccountLedgerEntryConfig : IEntityTypeConfiguration<Accoun
             .IsUnique()
             .HasFilter("\"SourceType\" = 'CariVirman'")
             .HasDatabaseName("IX_AccountLedgerEntries_CariVirman_Idem");
+        // Kasa↔Banka virman idempotency (pre-launch takip): işlem anahtarı (SourceId) verilince çift-submit yutulur.
+        // İki kayıt AccountRef=null (hesap-arası) → CariVirman'ın AccountRef ayrımı yok; hedef/kaynak AccountType
+        // FARKLI (kaynak==hedef reddedilir) → AccountType ile ayrışır (ikisi de ilk post'ta geçer; tekrar gönderim
+        // çakışır). Yalnız 'Virman' (kısmi); kolon kümesi Hgs/CariVirman'dan FARKLI (…SourceId,AccountType) → EF
+        // ayrı kısmi index üretir.
+        e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.AccountType })
+            .IsUnique()
+            .HasFilter("\"SourceType\" = 'Virman'")
+            .HasDatabaseName("IX_AccountLedgerEntries_Virman_Idem");
         // Depozito idempotency (roadmap I3): aynı SourceId ile çift-submit yutulur. Dengeli çift
         // (Borç/Alacak) Direction'la ayrışır → ikisi de geçer; tekrar çakışır. Named overload ile
         // Hgs index'iyle (aynı kolon seti) ÇAKIŞMAYAN ayrı kısmi index üretilir.

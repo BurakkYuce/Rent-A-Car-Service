@@ -16,6 +16,13 @@ public static class FinanceEndpoints
         => string.Equals(s, "Banka", StringComparison.OrdinalIgnoreCase)
             ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
 
+    /// <summary>Açık-yönlendirme savunması (adversarial): donus formdan gelir; yalnız site-içi GÖRELİ yol kabul
+    /// edilir, harici/protokol-göreli (//evil, /\evil) → güvenli fallback (aksi halde phishing yönlendirmesi).</summary>
+    private static string SafeDonus(string? donus, string fallback)
+        => !string.IsNullOrEmpty(donus) && donus[0] == '/'
+           && !(donus.Length > 1 && (donus[1] == '/' || donus[1] == '\\'))
+            ? donus : fallback;
+
     public static IEndpointRouteBuilder MapFinanceEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
@@ -33,11 +40,11 @@ public static class FinanceEndpoints
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
-                return Results.Redirect(donus ?? $"/cariler/{cariId}/ekstre");
+                return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
             catch (ValidationException ex)
             {
-                var url = donus ?? $"/cariler/{cariId}/ekstre";
+                var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
                 return Results.Redirect($"{url}?hata={Uri.EscapeDataString(ex.Message)}");
             }
         });
@@ -55,22 +62,23 @@ public static class FinanceEndpoints
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
-                return Results.Redirect(donus ?? $"/cariler/{cariId}/ekstre");
+                return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
             catch (ValidationException ex)
             {
-                var url = donus ?? $"/cariler/{cariId}/ekstre";
+                var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
                 return Results.Redirect($"{url}?hata={Uri.EscapeDataString(ex.Message)}");
             }
         });
 
         grp.MapPost("/virman", async (CashService svc,
             [FromForm] string? kaynak, [FromForm] string? hedef, [FromForm] decimal tutar,
-            [FromForm] string? aciklama) =>
+            [FromForm] string? aciklama, [FromForm] string? islemAnahtari) =>
         {
             try
             {
-                await svc.TransferAsync(ParseHesap(kaynak), ParseHesap(hedef), tutar, aciklama: aciklama);
+                await svc.TransferAsync(ParseHesap(kaynak), ParseHesap(hedef), tutar, aciklama: aciklama,
+                    islemAnahtari: FormParse.Id(islemAnahtari)); // M5-takip: çift-submit idempotency
                 return Results.Redirect("/kasa");
             }
             catch (ValidationException ex)
