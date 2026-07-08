@@ -92,6 +92,39 @@ public sealed class CariVirmanTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task KasaBanka_virman_ayni_anahtari_idempotent() // pre-launch M5-takip
+    {
+        // Kasa↔Banka virman idempotency boşluğu (tekil tahsilat/ödeme M5 ile aynı sınıf): token verilince
+        // çift-submit (çift-tık/geri-gönder) TEK virman yazar. Bağımsız oracle: 2 çağrı × aynı token → 2 satır (4 değil).
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var anahtar = Guid.NewGuid();
+
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: anahtar);
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: anahtar);
+
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        var count = await db.AccountLedgerEntries.AsNoTracking()
+            .CountAsync(e => e.SourceType == "Virman");
+        Assert.Equal(2, count); // 1 virman × 2 satır (çift-submit yutuldu — 4 DEĞİL)
+    }
+
+    [Fact]
+    public async Task KasaBanka_virman_farkli_anahtar_iki_ayri_virman() // regresyon: idempotency meşruyu bloklamaz
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: Guid.NewGuid());
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: Guid.NewGuid());
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        Assert.Equal(4, await db.AccountLedgerEntries.AsNoTracking().CountAsync(e => e.SourceType == "Virman")); // 2 virman
+    }
+
+    [Fact]
     public async Task Different_keys_are_separate_transfers()
     {
         using var host = new TestHost(fx.AppConnectionString);

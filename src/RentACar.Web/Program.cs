@@ -273,7 +273,9 @@ app.UseAntiforgery();
 
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
 // (AntiforgeryByEnv build-time okur). Formlar <AntiforgeryToken/> taşır → prod'da CSRF korumalı.
-RentACar.Web.Identity.FormSecurity.EnforceAntiforgery = app.Environment.IsProduction();
+// Antiforgery (adversarial): Pii/DP-key guard deseniyle TUTARLI — Development DIŞINDA her ortamda AÇIK.
+// Önceden IsProduction()'dı → Staging (gerçek veri taşıyabilir) CSRF'e AÇIK kalıyordu. Dev-off/prod-on korunur.
+RentACar.Web.Identity.FormSecurity.EnforceAntiforgery = !app.Environment.IsDevelopment();
 
 // Sağlık (readiness, P0-2): DB'ye app rolüyle bağlanılabiliyor mu? Anonim (uptime monitörü/proxy ping'i).
 app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
