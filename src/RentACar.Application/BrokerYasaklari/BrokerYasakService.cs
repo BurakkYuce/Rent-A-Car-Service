@@ -64,7 +64,8 @@ public sealed class BrokerYasakService(IBrokerYasakRepository repository, ICurre
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Yasak kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Yasak kodu en çok 32 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Yasak adı zorunludur.");
-        if (n.MinGun is < 0) throw new ValidationException("Min gün negatif olamaz.");
+        // MinGun bir KISIT ise anlamlı olmalı: 0/negatif "0 gün altı yasak" hiçbir şeyi engellemez (L1).
+        if (n.MinGun is int mg && mg < 1) throw new ValidationException("Min gün en az 1 olmalıdır (0/negatif kısıt anlamsız).");
         if (n.GecerlilikBas is { } b && n.GecerlilikBit is { } t && t < b)
             throw new ValidationException("Geçerlilik bitişi başlangıçtan önce olamaz.");
         if (n.MinGun is null && !n.TumSatisKapali)

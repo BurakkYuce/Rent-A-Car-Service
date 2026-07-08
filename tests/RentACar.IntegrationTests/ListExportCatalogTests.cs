@@ -45,26 +45,30 @@ public sealed class ListExportCatalogTests
     }
 
     [Fact]
-    public void Cariler_PII_TC_decrypt_degeriyle_export_a_gecer()
+    public void Cariler_KVKK_TC_export_edilmez_diger_alanlar_dogru()
     {
+        // KVKK: cari export'u ViewReports-gate'li → TC gibi hassas PII BİLİNÇLİ olarak YOK.
+        // (Bir önceki sürümde 'TC Kimlik' kolonu vardı ama ölü düz-kolonu okuyordu; kaldırıldı. H1.)
         var c = new Customer
         {
-            Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", TcKimlik = "12345678901", VergiNo = null,
+            Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", TcKimlik = "12345678901", VergiNo = "V123",
             CepTel = "5551112233", Email = "a@b.c", Il = "İstanbul", Ilce = "Kadıköy", Kaynak = "Web", VadeGun = 30,
             Sinif = "VIP", IysIzinli = true, RiskLimiti = 25000m, HgsYansitmaTuru = "Faturalı", OzelCariTip = "Grup İçi"
         };
         var t = ListExportCatalog.Cariler([c]);
 
-        Assert.Equal(20, t.Headers.Count);          // 10 → 20 (CRM/finans derinliği; ilk 10 sabit)
-        Assert.Equal("TC Kimlik", t.Headers[2]);
-        Assert.Equal("Sınıf", t.Headers[13]);
-        Assert.Equal("12345678901", t.Rows[0][2]);  // decrypt edilmiş TC export'ta (KVKK: gate'li uç)
-        Assert.Equal("5551112233", t.Rows[0][4]);
-        Assert.Equal("Kadıköy", t.Rows[0][7]);
-        Assert.Equal("VIP", t.Rows[0][13]);         // Sınıf (yeni)
-        Assert.Equal("Evet", t.Rows[0][15]);        // İYS İzinli (bool → Evet)
-        Assert.Equal(25000m, t.Rows[0][17]);        // Risk Limiti (yeni)
-        Assert.Equal("Grup İçi", t.Rows[0][19]);    // Özel Cari Tip (son kolon)
+        Assert.Equal(19, t.Headers.Count);          // TC Kimlik kaldırıldı → 20-1
+        Assert.DoesNotContain("TC Kimlik", t.Headers);
+        Assert.DoesNotContain("12345678901", t.Rows[0].Select(x => x?.ToString()));  // TC hiçbir hücrede yok
+        Assert.Equal("Vergi No", t.Headers[2]);
+        Assert.Equal("V123", t.Rows[0][2]);         // kurumsal Vergi No dahil (PII değil)
+        Assert.Equal("5551112233", t.Rows[0][3]);   // Telefon (kaydı bir sola)
+        Assert.Equal("Kadıköy", t.Rows[0][6]);      // İlçe
+        Assert.Equal("Sınıf", t.Headers[12]);
+        Assert.Equal("VIP", t.Rows[0][12]);
+        Assert.Equal("Evet", t.Rows[0][14]);        // İYS İzinli
+        Assert.Equal(25000m, t.Rows[0][16]);        // Risk Limiti
+        Assert.Equal("Grup İçi", t.Rows[0][18]);    // Özel Cari Tip (son)
     }
 
     [Fact]
