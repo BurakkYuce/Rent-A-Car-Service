@@ -20,19 +20,27 @@ public sealed class ListExportCatalogTests
         {
             Plaka = "34ABC01", Marka = "Fiat", Tip = "Egea", DetayTipi = "Sedan", Grup = "B", Sube = "Merkez",
             ModelYili = 2023, Renk = "Beyaz", Yakit = FuelType.Dizel, Vites = Vites.Manuel, Sipp = "CDMR",
-            Km = 45000, Durum = VehicleStatus.Musait, OzelKod1 = "K1", KasaTipi = "Sedan"
+            Km = 45000, Durum = VehicleStatus.Musait, OzelKod1 = "K1", KasaTipi = "Sedan",
+            Segment = "Ekonomik", SasiNo = "SASI123", IkinciElDeger = 550000m,
+            TescilTarihi = new(2023, 3, 10, 0, 0, 0, TimeSpan.Zero), LastikDurumu = "Yazlık"
         };
         var t = ListExportCatalog.Araclar([v]);
 
-        Assert.Equal(15, t.Headers.Count);          // 6 → 15 zenginleşti
+        Assert.Equal(40, t.Headers.Count);          // 15 → 40 (parite derinliği; ilk 15 sabit)
         Assert.Equal("Plaka", t.Headers[0]);
         Assert.Equal("Model Yılı", t.Headers[6]);
+        Assert.Equal("Segment", t.Headers[15]);
+        Assert.Equal("Lastik Durumu", t.Headers[39]);
         Assert.Single(t.Rows);
         Assert.Equal("34ABC01", t.Rows[0][0]);
         Assert.Equal(2023, t.Rows[0][6]);
         Assert.Equal("Dizel", t.Rows[0][8]);        // Yakıt enum → metin
         Assert.Equal(45000, t.Rows[0][11]);         // KM
-        Assert.Equal("K1", t.Rows[0][13]);          // Özel Kod
+        Assert.Equal("K1", t.Rows[0][13]);          // Özel Kod (ilk 15 indeksleri korundu)
+        Assert.Equal("Ekonomik", t.Rows[0][15]);    // Segment (yeni)
+        Assert.Equal("2023-03-10", t.Rows[0][22]);  // Tescil Tarihi (yeni, D() biçim)
+        Assert.Equal(550000m, t.Rows[0][31]);       // 2.El Değer (yeni)
+        Assert.Equal("Yazlık", t.Rows[0][39]);      // Lastik Durumu (yeni, son kolon)
     }
 
     [Fact]
@@ -41,15 +49,21 @@ public sealed class ListExportCatalogTests
         var c = new Customer
         {
             Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", TcKimlik = "12345678901", VergiNo = null,
-            CepTel = "5551112233", Email = "a@b.c", Il = "İstanbul", Ilce = "Kadıköy", Kaynak = "Web", VadeGun = 30
+            CepTel = "5551112233", Email = "a@b.c", Il = "İstanbul", Ilce = "Kadıköy", Kaynak = "Web", VadeGun = 30,
+            Sinif = "VIP", IysIzinli = true, RiskLimiti = 25000m, HgsYansitmaTuru = "Faturalı", OzelCariTip = "Grup İçi"
         };
         var t = ListExportCatalog.Cariler([c]);
 
-        Assert.Equal(10, t.Headers.Count);          // 4 → 10
+        Assert.Equal(20, t.Headers.Count);          // 10 → 20 (CRM/finans derinliği; ilk 10 sabit)
         Assert.Equal("TC Kimlik", t.Headers[2]);
+        Assert.Equal("Sınıf", t.Headers[13]);
         Assert.Equal("12345678901", t.Rows[0][2]);  // decrypt edilmiş TC export'ta (KVKK: gate'li uç)
         Assert.Equal("5551112233", t.Rows[0][4]);
         Assert.Equal("Kadıköy", t.Rows[0][7]);
+        Assert.Equal("VIP", t.Rows[0][13]);         // Sınıf (yeni)
+        Assert.Equal("Evet", t.Rows[0][15]);        // İYS İzinli (bool → Evet)
+        Assert.Equal(25000m, t.Rows[0][17]);        // Risk Limiti (yeni)
+        Assert.Equal("Grup İçi", t.Rows[0][19]);    // Özel Cari Tip (son kolon)
     }
 
     [Fact]
