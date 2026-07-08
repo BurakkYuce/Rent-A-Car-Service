@@ -35,7 +35,7 @@ public static class ListExportEndpoints
             PenaltyService ps, ExpenseService es, CashService cash,
             VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
             RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop,
-            FiloKiralamaService fks, VadeService vade, ReportExportService ex) =>
+            FiloKiralamaService fks, VadeService vade, ReportExportService ex, PdfExportService pdf) =>
         {
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
@@ -61,26 +61,33 @@ public static class ListExportEndpoints
                 _ => null
             };
             if (t is null) return Results.NotFound();
-
-            var csv = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
-            var bytes = csv ? ex.Csv(t.Headers, t.Rows) : ex.Xlsx(t.Sheet, t.Headers, t.Rows);
-            var ct = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            return Results.File(bytes, ct, $"{liste}.{(csv ? "csv" : "xlsx")}");
+            return ExportFile(t, format, ex, pdf, liste);
         });
 
         // Personel export AYRI grup — HASSAS PII (TC + maaş) → ManageUsers (Admin) gate'i (ViewReports YETMEZ).
         // KVKK: docs/ops/kvkk-export-notu.md. decrypt cipher'ları bellekte çözer; erişim Serilog request-log'unda izlenir.
         var personel = app.MapGroup("/listeler/export-personel").RequirePermission(Permission.ManageUsers);
-        personel.MapGet("/", async (PersonelService ps, ISecretProtector secrets, ReportExportService ex, string? format) =>
+        personel.MapGet("/", async (PersonelService ps, ISecretProtector secrets, ReportExportService ex, PdfExportService pdf, string? format) =>
         {
             var t = ListExportCatalog.Personel(await ps.ListAsync(), c => secrets.Unprotect(c));
-            var csv = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
-            var bytes = csv ? ex.Csv(t.Headers, t.Rows) : ex.Xlsx(t.Sheet, t.Headers, t.Rows);
-            var ct = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            return Results.File(bytes, ct, $"personel.{(csv ? "csv" : "xlsx")}");
+            return ExportFile(t, format, ex, pdf, "personel");
         });
 
         return app;
+    }
+
+    /// <summary>Ortak dispatch: ?format=excel(default)|csv|pdf → ExportTable'ı ilgili byte'a çevirip File döner.
+    /// PDF PdfExportService.Table (Excel/CSV ile AYNI veri; generic tablo renderer). TÜM liste export'ları buradan.</summary>
+    internal static IResult ExportFile(ExportTable t, string? format, ReportExportService ex, PdfExportService pdf, string ad)
+    {
+        var fmt = (format ?? "excel").Trim().ToLowerInvariant();
+        return fmt switch
+        {
+            "csv" => Results.File(ex.Csv(t.Headers, t.Rows), "text/csv", $"{ad}.csv"),
+            "pdf" => Results.File(pdf.Table(t.Sheet, t.Headers, t.Rows), "application/pdf", $"{ad}.pdf"),
+            _ => Results.File(ex.Xlsx(t.Sheet, t.Headers, t.Rows),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{ad}.xlsx")
+        };
     }
 
     // FK→ad çözücüler (filo-kiralama/vade export'ları için): liste bir kez çekilip dict'e alınır.
