@@ -5,51 +5,107 @@
 <PageTitle>Kârlılık Raporu — RentPro</PageTitle>
 
 <div class="page-head">
-    <h1>Kârlılık Raporu (Araç-bazlı P&L)</h1>
+    <h1>Kârlılık Raporu (P&amp;L)</h1>
     <div class="actions">
-        <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
-        <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a>
+        @if (IsOzet)
+        {
+            <span>
+                <a href="/raporlar/export/karlilik-@Boyut?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+                <a href="/raporlar/export/karlilik-@Boyut?format=csv&amp;from=@From&amp;to=@To">CSV</a> ·
+                <a href="/raporlar/export/karlilik-@Boyut?format=pdf&amp;from=@From&amp;to=@To">PDF</a>
+            </span>
+        }
+        else
+        {
+            <span>
+                <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
+                <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a> ·
+                <a href="/raporlar/export/karlilik?format=pdf&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">PDF</a>
+            </span>
+        }
     </div>
 </div>
-<p class="muted small">Defterden türetilen araç-bazlı kâr/zarar (Gelir − Gider). Gelir <strong>fatura→kira</strong>,
-    <strong>araç satışı</strong> ve <strong>ceza</strong> ile araca; gider doğrudan araç-gideri (defter AccountRef)
-    ile atfedilir. Atfedilemeyenler "(Atanmamış)" satırına toplanır: <em>HGS yansıtması (plaka-bazlı), manuel/
-    kiradan bağımsız fatura</em>. NOT: servis işçiliği ayrı gider girilmedikçe maliyete yansımaz; iade faturası
-    (v1) gelir-azaltıcı değildir. Filtresiz toplamlar gelir-gider defter toplamıyla mutabıktır.</p>
+
+@* Çok-boyutlu P&L (referans sistem araç gelir-gider tablosu paritesi): araç / grup / şube / segment + ek hizmet. *@
+<p class="muted small"><strong>Boyut:</strong>
+    <a href="/raporlar/karlilik?from=@From&to=@To">@(Boyut is null ? Bold("Araç") : Plain("Araç"))</a> ·
+    <a href="/raporlar/karlilik?boyut=grup&from=@From&to=@To">@(Boyut == "grup" ? Bold("Grup") : Plain("Grup"))</a> ·
+    <a href="/raporlar/karlilik?boyut=sube&from=@From&to=@To">@(Boyut == "sube" ? Bold("Şube") : Plain("Şube"))</a> ·
+    <a href="/raporlar/karlilik?boyut=segment&from=@From&to=@To">@(Boyut == "segment" ? Bold("Segment") : Plain("Segment"))</a> ·
+    <a href="/raporlar/ek-hizmet">Ek Hizmet →</a>
+</p>
+<p class="muted small">Defterden türetilen kâr/zarar (Gelir − Gider). Araç görünümü tek tek araçları; grup/şube/segment
+    görünümü o boyutta toplanmış P&amp;L'i verir. Atfedilemeyen gelir/gider yalnız Araç görünümünde "(Atanmamış)"
+    satırında; boyut özetleri yalnız araca atfedilmiş satırları toplar. Ek hizmet P&amp;L'i ayrı rapordadır.</p>
 
 <form method="get" class="grid-form">
+    @if (IsOzet) { <input type="hidden" name="boyut" value="@Boyut" /> }
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
-    <label>Şube<input name="sube" value="@Sube" /></label>
-    <label>Grup<input name="grup" value="@Grup" /></label>
-    <label>Plaka<input name="plaka" value="@Plaka" /></label>
+    @if (!IsOzet)
+    {
+        <label>Şube<input name="sube" value="@Sube" /></label>
+        <label>Grup<input name="grup" value="@Grup" /></label>
+        <label>Plaka<input name="plaka" value="@Plaka" /></label>
+    }
     <button type="submit">Göster</button>
 </form>
 
-<table class="grid tr-grid">
-    <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
-    <tbody>
-        @if (_d.Satirlar.Count == 0)
-        {
-            <tr><td colspan="6" class="muted">Kayıt yok.</td></tr>
-        }
-        @foreach (var r in _d.Satirlar)
-        {
-            <tr>
-                <td>@r.Plaka</td><td>@r.Sube</td><td>@r.Grup</td>
-                <td class="num">@r.Gelir.ToString("N2")</td>
-                <td class="num">@r.Gider.ToString("N2")</td>
-                <td class="num">@r.NetKar.ToString("N2")</td>
-            </tr>
-        }
-    </tbody>
-    <tfoot>
-        <tr><th colspan="3">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
-            <th class="num">@_d.ToplamGelir.ToString("N2")</th>
-            <th class="num">@_d.ToplamGider.ToString("N2")</th>
-            <th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr>
-    </tfoot>
-</table>
+@if (IsOzet)
+{
+    <table class="grid tr-grid">
+        <thead><tr><th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
+        <tbody>
+            @if (_ozet.Satirlar.Count == 0)
+            {
+                <tr><td colspan="5" class="muted">Kayıt yok.</td></tr>
+            }
+            @foreach (var r in _ozet.Satirlar)
+            {
+                <tr>
+                    <td>@r.Boyut</td>
+                    <td class="num">@r.AracAdet</td>
+                    <td class="num">@r.Gelir.ToString("N2")</td>
+                    <td class="num">@r.Gider.ToString("N2")</td>
+                    <td class="num">@r.NetKar.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr><th>TOPLAM</th><th class="num"></th>
+                <th class="num">@_ozet.ToplamGelir.ToString("N2")</th>
+                <th class="num">@_ozet.ToplamGider.ToString("N2")</th>
+                <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th></tr>
+        </tfoot>
+    </table>
+}
+else
+{
+    <table class="grid tr-grid">
+        <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
+        <tbody>
+            @if (_d.Satirlar.Count == 0)
+            {
+                <tr><td colspan="7" class="muted">Kayıt yok.</td></tr>
+            }
+            @foreach (var r in _d.Satirlar)
+            {
+                <tr>
+                    <td>@r.Plaka</td><td>@r.Sube</td><td>@r.Grup</td><td>@r.Segment</td>
+                    <td class="num">@r.Gelir.ToString("N2")</td>
+                    <td class="num">@r.Gider.ToString("N2")</td>
+                    <td class="num">@r.NetKar.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr><th colspan="4">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
+                <th class="num">@_d.ToplamGelir.ToString("N2")</th>
+                <th class="num">@_d.ToplamGider.ToString("N2")</th>
+                <th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr>
+        </tfoot>
+    </table>
+}
 
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
@@ -57,14 +113,23 @@
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
     [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
     [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    [SupplyParameterFromQuery(Name = "boyut")] public string? Boyut { get; set; }
 
     private KarlilikDto _d = new([], 0m, 0m, 0m);
+    private KarlilikOzetDto _ozet = new("", [], 0m, 0m, 0m);
+    private bool IsOzet => Boyut is "grup" or "sube" or "segment";
     private bool _filtreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Grup) || !string.IsNullOrWhiteSpace(Plaka);
+
+    private static MarkupString Bold(string s) => new($"<strong>{s}</strong>");
+    private static MarkupString Plain(string s) => new(s);
 
     protected override async Task OnInitializedAsync()
     {
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
-        _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka);
+        if (IsOzet)
+            _ozet = await Reports.GetKarlilikOzetAsync(Boyut!, f, t);
+        else
+            _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka);
     }
 }
