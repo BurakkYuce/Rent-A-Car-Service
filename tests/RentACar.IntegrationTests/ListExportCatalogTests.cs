@@ -1,3 +1,4 @@
+using RentACar.Application.Bookings;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -146,5 +147,56 @@ public sealed class ListExportCatalogTests
         Assert.Equal("BF-1", t.Rows[0][0]);
         Assert.Equal(1000, t.Rows[0][2]);
         Assert.Equal("Merkez", t.Rows[0][7]);
+    }
+
+    [Fact]
+    public void Kiralar_projeksiyon()
+    {
+        var r = new RentalRow { SozlesmeNo = "RZ-1", MusteriAd = "Ali Veli", Plaka = "34ABC01",
+            BasTar = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), BitTar = new(2026, 1, 4, 0, 0, 0, TimeSpan.Zero),
+            Gun = 3, Tutar = 300m, Bakiye = 100m, Durum = RentalStatus.Kirada, Faturali = false };
+        var t = ListExportCatalog.Kiralar([r]);
+        Assert.Equal(10, t.Headers.Count);
+        Assert.Equal("RZ-1", t.Rows[0][0]);
+        Assert.Equal("Ali Veli", t.Rows[0][1]);
+        Assert.Equal(3, t.Rows[0][5]);
+        Assert.Equal("Hayır", t.Rows[0][9]);
+    }
+
+    [Fact]
+    public void Rezervasyonlar_projeksiyon()
+    {
+        var r = new Reservation { ReservationNo = "RE-1", BasTar = new(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+            BitTar = new(2026, 2, 3, 0, 0, 0, TimeSpan.Zero), CikisOfisi = "Merkez", DonusOfisi = "Ankara",
+            Gun = 2, GunlukUcret = 150m, Tutar = 300m };
+        var t = ListExportCatalog.Rezervasyonlar([r]);
+        Assert.Equal(9, t.Headers.Count);
+        Assert.Equal("RE-1", t.Rows[0][0]);
+        Assert.Equal("Merkez", t.Rows[0][4]);
+        Assert.Equal(300m, t.Rows[0][8]);
+    }
+
+    [Fact]
+    public void Lokasyonlar_projeksiyon()
+    {
+        var l = new Location { Kod = "IST", Ad = "İstanbul Havalimanı", Adres = "Arnavutköy", Telefon = "5551112233",
+            Eposta = "ist@x.c", CalismaSaatleri = "09-18", TeslimUcreti = 50m, Sube = "Merkez", Aktif = true };
+        var t = ListExportCatalog.Lokasyonlar([l]);
+        Assert.Equal(9, t.Headers.Count);
+        Assert.Equal("IST", t.Rows[0][0]);
+        Assert.Equal(50m, t.Rows[0][6]);
+        Assert.Equal("Evet", t.Rows[0][8]);
+    }
+
+    [Fact]
+    public void DropTanimlari_projeksiyon()
+    {
+        var d = new DropTanim { Lokasyon = "IST", Sube = "Merkez", KarsilamaSekli = "Kapıda", CalismaSekli = "7/24",
+            OzelIletisim = "x", Aktif = true };
+        var t = ListExportCatalog.DropTanimlari([d]);
+        Assert.Equal(6, t.Headers.Count);
+        Assert.Equal("IST", t.Rows[0][0]);
+        Assert.Equal("Kapıda", t.Rows[0][2]);
+        Assert.Equal("Evet", t.Rows[0][5]);
     }
 }
