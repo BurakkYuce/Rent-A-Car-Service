@@ -1,6 +1,8 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Customers;
+using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
+using RentACar.Application.Penalties;
 using RentACar.Application.Vehicles;
 using RentACar.Web.Identity;
 
@@ -17,7 +19,8 @@ public static class ListExportEndpoints
         var grp = app.MapGroup("/listeler/export").RequirePermission(Permission.ViewReports);
 
         grp.MapGet("/{liste}", async (string liste, string? format,
-            VehicleService vs, CustomerService cs, InvoiceService inv, ReportExportService ex) =>
+            VehicleService vs, CustomerService cs, InvoiceService inv,
+            PenaltyService ps, ExpenseService es, CashService cash, ReportExportService ex) =>
         {
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
@@ -25,6 +28,9 @@ public static class ListExportEndpoints
                 "araclar" => ListExportCatalog.Araclar(await vs.ListAsync()),
                 "cariler" => ListExportCatalog.Cariler(await cs.ListAsync()),
                 "faturalar" => ListExportCatalog.Faturalar(await inv.ListAsync()),
+                "cezalar" => ListExportCatalog.Cezalar(await ps.ListAsync()),
+                "giderler" => ListExportCatalog.Giderler(await es.ListAsync()),
+                "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
                 _ => null
             };
             if (t is null) return Results.NotFound();

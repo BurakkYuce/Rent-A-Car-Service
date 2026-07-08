@@ -33,4 +33,31 @@ public static class ListExportCatalog
         {
             x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString()
         }).ToList());
+
+    public static ExportTable Cezalar(IReadOnlyList<Penalty> c) => new(
+        "Cezalar",
+        ["No", "Ceza Türü", "Tebliğ Tarihi", "Vade", "Tutar", "Durum", "Sebep"],
+        c.Select(x => new object?[]
+        {
+            x.No, x.CezaTuru, x.TebligTarihi.ToString("yyyy-MM-dd"), x.VadeTarihi.ToString("yyyy-MM-dd"),
+            x.Tutar, x.Durum.ToString(), x.Sebep
+        }).ToList());
+
+    public static ExportTable Giderler(IReadOnlyList<Expense> g) => new(
+        "Giderler",
+        ["No", "Tip", "Tarih", "Şube", "Evrak No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Ödeme", "Hesap", "Açıklama"],
+        g.Select(x => new object?[]
+        {
+            x.No, x.Tip.ToString(), x.Tarih.ToString("yyyy-MM-dd"), x.Sube, x.EvrakNo, x.NetTutar, x.KdvOrani,
+            x.KdvTutar, x.GenelToplam, x.Currency, x.OdemeYontemi.ToString(), x.KasaBankaHesap.ToString(), x.Aciklama
+        }).ToList());
+
+    public static ExportTable NakitIslemler(IReadOnlyList<CashTransaction> n) => new(
+        "Nakit İşlemler",
+        ["No", "Tip", "Tarih", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
+        n.Select(x => new object?[]
+        {
+            x.No, x.Tip.ToString(), x.Tarih.ToString("yyyy-MM-dd"), x.Amount.Amount, x.Amount.Currency,
+            x.KarsiHesap.ToString(), x.TersKayitMi ? "Evet" : "Hayır", x.Aciklama
+        }).ToList());
 }
