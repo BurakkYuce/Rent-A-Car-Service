@@ -19,14 +19,18 @@ public static class ListExportCatalog
         ["Plaka", "Marka", "Tip", "Detay Tipi", "Grup", "Şube", "Model Yılı", "Renk", "Yakıt", "Vites", "SIPP", "KM", "Durum", "Özel Kod", "Kasa Tipi",
          "Segment", "Filo Durumu", "Şasi No", "Motor No", "Motor Gücü", "Silindir Hacmi", "Ruhsat No", "Tescil Tarihi", "Araç Sahibi",
          "Alım Bedeli", "Alım Tarihi", "Alış Vergisiz", "Alış ÖTV", "Alış KDV", "Aylık Maliyet", "Filo Yön. Maliyeti", "2.El Değer",
-         "Filo Giriş", "Filo Çıkış", "HGS No", "OGS No", "Kira KM Limiti", "Son Bakım Tarih", "Son Bakım KM", "Lastik Durumu"],
+         "Filo Giriş", "Filo Çıkış", "HGS No", "OGS No", "Kira KM Limiti", "Son Bakım Tarih", "Son Bakım KM", "Lastik Durumu",
+         "Özel Kod 2", "Özel Kod 3", "Özel Kod 4", "Özel Kod 5", "Alım Fatura No", "Alım Firma",
+         "Web Rez Kapalı", "Ofis Rez Kapalı", "Z İzni", "UTTS", "Kar Lastiği", "Yedek Anahtar", "Temizlik", "Rehin"],
         v.Select(x => new object?[]
         {
             x.Plaka, x.Marka, x.Tip, x.DetayTipi, x.Grup, x.Sube, x.ModelYili, x.Renk,
             x.Yakit.ToString(), x.Vites?.ToString(), x.Sipp, x.Km, x.Durum.ToString(), x.OzelKod1, x.KasaTipi,
             x.Segment, x.FiloDurum?.ToString(), x.SasiNo, x.MotorNo, x.MotorGucu, x.SilindirHacmi, x.RuhsatNo, D(x.TescilTarihi), x.AracSahibi,
             x.AlimBedeli, D(x.AlimTarihi), x.AlisVergisiz, x.AlisOtv, x.AlisKdv, x.AylikMaliyet, x.FiloYonetimMaliyeti, x.IkinciElDeger,
-            D(x.FiloGirisTarih), D(x.FiloCikisTarih), x.HgsNo, x.OgsNo, x.KiraKmLimiti, D(x.SonBakimTarih), x.SonBakimKm, x.LastikDurumu
+            D(x.FiloGirisTarih), D(x.FiloCikisTarih), x.HgsNo, x.OgsNo, x.KiraKmLimiti, D(x.SonBakimTarih), x.SonBakimKm, x.LastikDurumu,
+            x.OzelKod2, x.OzelKod3, x.OzelKod4, x.OzelKod5, x.AlimFaturaNo, x.AlimYapilanFirma,
+            E(x.WebRezKapat), E(x.OfisRezKapat), E(x.ZIzni), E(x.Utts), E(x.KarLastigi), E(x.YedekAnahtar), E(x.Temizlik), E(x.Rehin)
         }).ToList());
 
     public static ExportTable Cariler(IReadOnlyList<Customer> c) => new(
