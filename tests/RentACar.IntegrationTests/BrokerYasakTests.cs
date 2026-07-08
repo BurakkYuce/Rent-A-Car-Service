@@ -78,6 +78,9 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new BrokerYasakInput { Kod = "NEG", Ad = "Negatif", MinGun = -1 }));
+        // L1: MinGun=0 "0 gün altı yasak" no-op → reddedilir (kısıt olarak sayılmaz).
+        await Assert.ThrowsAsync<ValidationException>(
+            () => svc.CreateAsync(new BrokerYasakInput { Kod = "SIFIR", Ad = "Sıfır gün", MinGun = 0 }));
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new BrokerYasakInput
             {
