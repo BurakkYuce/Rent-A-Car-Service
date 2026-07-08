@@ -3,12 +3,14 @@ using RentACar.Application.AracSiparisleri;
 using RentACar.Application.Authorization;
 using RentACar.Application.Baflar;
 using RentACar.Application.Bookings;
+using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.DropTanimlari;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
+using RentACar.Application.Personnel;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Web.Identity;
@@ -56,6 +58,18 @@ public static class ListExportEndpoints
             var bytes = csv ? ex.Csv(t.Headers, t.Rows) : ex.Xlsx(t.Sheet, t.Headers, t.Rows);
             var ct = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             return Results.File(bytes, ct, $"{liste}.{(csv ? "csv" : "xlsx")}");
+        });
+
+        // Personel export AYRI grup — HASSAS PII (TC + maaş) → ManageUsers (Admin) gate'i (ViewReports YETMEZ).
+        // KVKK: docs/ops/kvkk-export-notu.md. decrypt cipher'ları bellekte çözer; erişim Serilog request-log'unda izlenir.
+        var personel = app.MapGroup("/listeler/export-personel").RequirePermission(Permission.ManageUsers);
+        personel.MapGet("/", async (PersonelService ps, ISecretProtector secrets, ReportExportService ex, string? format) =>
+        {
+            var t = ListExportCatalog.Personel(await ps.ListAsync(), c => secrets.Unprotect(c));
+            var csv = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
+            var bytes = csv ? ex.Csv(t.Headers, t.Rows) : ex.Xlsx(t.Sheet, t.Headers, t.Rows);
+            var ct = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            return Results.File(bytes, ct, $"personel.{(csv ? "csv" : "xlsx")}");
         });
 
         return app;

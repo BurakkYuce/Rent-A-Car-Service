@@ -199,4 +199,21 @@ public sealed class ListExportCatalogTests
         Assert.Equal("Kapıda", t.Rows[0][2]);
         Assert.Equal("Evet", t.Rows[0][5]);
     }
+
+    [Fact]
+    public void Personel_PII_decrypt_uygulanir()
+    {
+        // HASSAS PII: TC + maaş cipher'ları decrypt Func'ıyla çözülür (uçta ISecretProtector; burada sahte decrypt).
+        // Bağımsız oracle: cipher→düz eşlemesi doğru sütunlara girer.
+        var p = new Personel { Kod = "P1", Ad = "Ayşe", Soyad = "Yıldız", TcKimlikEnc = "TC_ENC", MaasEnc = "MAAS_ENC",
+            Sube = "Merkez", Aktif = true, IseGiris = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero) };
+        var t = ListExportCatalog.Personel([p], c => c == "TC_ENC" ? "12345678901" : c == "MAAS_ENC" ? "45000" : c);
+        Assert.Equal(10, t.Headers.Count);
+        Assert.Equal("TC Kimlik", t.Headers[3]);
+        Assert.Equal("Maaş", t.Headers[7]);
+        Assert.Equal("P1", t.Rows[0][0]);
+        Assert.Equal("12345678901", t.Rows[0][3]);   // decrypt uygulandı
+        Assert.Equal("45000", t.Rows[0][7]);
+        Assert.Equal("Aktif", t.Rows[0][9]);
+    }
 }

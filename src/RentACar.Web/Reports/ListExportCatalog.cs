@@ -131,4 +131,15 @@ public static class ListExportCatalog
         {
             x.Lokasyon, x.Sube, x.KarsilamaSekli, x.CalismaSekli, x.OzelIletisim, x.Aktif ? "Evet" : "Hayır"
         }).ToList());
+
+    /// <summary>Personel — HASSAS PII (TC + maaş). <paramref name="decrypt"/> cipher'ları çözer (ISecretProtector);
+    /// katalog saf kalır (test'te sahte decrypt). Uç ManageUsers (Admin) gate'li + KVKK notu (docs/ops/kvkk-export-notu.md).</summary>
+    public static ExportTable Personel(IReadOnlyList<Personel> p, Func<string?, string?> decrypt) => new(
+        "Personel",
+        ["Kod", "Ad", "Soyad", "TC Kimlik", "İşe Giriş", "İşe Çıkış", "Sürücü Belge No", "Maaş", "Şube", "Durum"],
+        p.Select(x => new object?[]
+        {
+            x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), x.IseGiris?.ToString("yyyy-MM-dd"), x.IseCikis?.ToString("yyyy-MM-dd"),
+            x.SurucuBelgeNo, decrypt(x.MaasEnc), x.Sube, x.Aktif ? "Aktif" : "Pasif"
+        }).ToList());
 }
