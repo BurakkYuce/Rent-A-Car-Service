@@ -93,6 +93,7 @@ public static class DependencyInjection
         services.AddScoped<CashService>();
         services.AddScoped<Finance.DepozitoService>(); // roadmap I3
         services.AddScoped<InvoiceService>();
+        services.AddScoped<RentACar.Application.GelenEFaturalar.GelenEFaturaService>();
         services.AddScoped<ExpenseService>();
         services.AddScoped<RegulationService>();
         services.AddScoped<VadeService>();
