@@ -108,7 +108,7 @@ public static class ReportExportEndpoints
             ("Araç-Gün Kapasite", d.AracGun), ("Kira-Gün", d.KiraGun), ("Doluluk %", d.DolulukYuzde));
 
     private static Table Filo(FleetUtilizationDto d)
-        => KV("Filo", ("Toplam", d.Toplam), ("Stokta", d.Stokta), ("Müsait", d.Musait), ("Kirada", d.Kirada),
+        => KV("Filo", ("Toplam", d.Toplam), ("Müsait", d.Musait), ("Kirada", d.Kirada),
             ("Serviste", d.Serviste), ("Pasif", d.Pasif), ("Satıldı", d.Satildi), ("Aktif Kira", d.AktifKira));
 
     private static Table Servis(IReadOnlyList<ServiceCostSummaryDto> rows)

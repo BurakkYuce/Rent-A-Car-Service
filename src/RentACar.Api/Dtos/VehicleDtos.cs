@@ -21,7 +21,7 @@ public sealed class VehicleRequest
     public string? Marka { get; set; }
     public string? Grup { get; set; }
     public string? Sube { get; set; }
-    public VehicleStatus Durum { get; set; } = VehicleStatus.Stokta;
+    public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
     public int Km { get; set; }
     public FuelType Yakit { get; set; } = FuelType.Benzin;
 

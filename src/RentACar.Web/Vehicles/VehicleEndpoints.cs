@@ -59,7 +59,7 @@ public static class VehicleEndpoints
         SasiNo = FormParse.Str(f, "sasiNo"),
         MotorNo = FormParse.Str(f, "motorNo"),
         Sube = FormParse.Str(f, "sube"),
-        Durum = ParseEnum<VehicleStatus>(FormParse.Str(f, "durum")) ?? VehicleStatus.Stokta,
+        Durum = ParseEnum<VehicleStatus>(FormParse.Str(f, "durum")) ?? VehicleStatus.Musait,
         FiloDurum = ParseEnum<FiloStatus>(FormParse.Str(f, "filoDurum")),
         Km = FormParse.Int(FormParse.Str(f, "km")) ?? 0,
         Yakit = ParseEnum<FuelType>(FormParse.Str(f, "yakit")) ?? FuelType.Benzin,

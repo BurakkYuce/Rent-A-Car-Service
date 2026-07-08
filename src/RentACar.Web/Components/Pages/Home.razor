@@ -121,7 +121,7 @@
     [SupplyParameterFromQuery(Name = "df")] public string? Df { get; set; } // dönüşler filtresi
     [SupplyParameterFromQuery(Name = "cf")] public string? Cf { get; set; } // çıkışlar filtresi
 
-    private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0, 0);
+    private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0);
     private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
     private int _acikRezSayi, _kmGecenBakim, _gorulmeyenRez, _gecmis, _yakin, _acikSikayet;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
