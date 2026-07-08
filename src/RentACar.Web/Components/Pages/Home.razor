@@ -10,6 +10,8 @@
 @inject RentACar.Application.Crm.SikayetService Sikayet
 
 <PageTitle>Panel — RentPro</PageTitle>
+@* Statik SSR panosu: sayfa 120 sn'de bir otomatik yenilenir → boştaki araç/rezervasyon sayaçları güncel kalır. *@
+<HeadContent><meta http-equiv="refresh" content="120" /></HeadContent>
 
 <div class="page-head">
     <h1>Panel</h1>

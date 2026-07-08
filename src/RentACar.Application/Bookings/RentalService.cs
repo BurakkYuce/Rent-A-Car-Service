@@ -19,12 +19,23 @@ public sealed class RentalService(
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
     RentACar.Application.Kur.KurService kurService,
     RentACar.Application.Personnel.IPersonelRepository personelRepository,
-    RentACar.Application.Customers.ICustomerRepository customerRepository)
+    RentACar.Application.Customers.ICustomerRepository customerRepository,
+    ITenantCache cache)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
     private readonly RentACar.Application.RentalAddOns.IRentalAddOnRepository _addOnRepository = addOnRepository;
+    private readonly ITenantCache _cache = cache;
+
+    // Kira, araç Durum'unu değiştirdiğinde (Teslim→Kirada / Dönüş→Musait / İptal→Musait) VehicleService'in
+    // "vehicles" cache'ini invalidate et → boş-araç dropdown/liste bayat kalmasın (latent cache tutarsızlığı fix).
+    private async Task<bool> Inv(Task<bool> op)
+    {
+        var ok = await op;
+        _cache.Invalidate(RentACar.Application.Vehicles.VehicleService.CacheKey);
+        return ok;
+    }
 
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
         => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
@@ -116,7 +127,7 @@ public sealed class RentalService(
     public async Task<bool> DeliverAsync(Guid id, int cikisKm, int cikisYakit, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
-        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
+        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
@@ -128,7 +139,7 @@ public sealed class RentalService(
             c.CikisKm = cikisKm;
             c.CikisYakit = cikisYakit;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => { v.Km = Math.Max(v.Km, cikisKm); v.Durum = VehicleStatus.Kirada; }, ct); // araç çıktı → Kirada
+        }, v => { v.Km = Math.Max(v.Km, cikisKm); v.Durum = VehicleStatus.Kirada; }, ct)); // araç çıktı → Kirada
     }
 
     /// <summary>
@@ -155,7 +166,7 @@ public sealed class RentalService(
         // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer).
         var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
-        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
+        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
@@ -190,7 +201,7 @@ public sealed class RentalService(
             c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => { v.Km = Math.Max(v.Km, donusKm); v.Durum = VehicleStatus.Musait; }, ct); // odometre monoton ileri; araç döndü → Musait (boşta)
+        }, v => { v.Km = Math.Max(v.Km, donusKm); v.Durum = VehicleStatus.Musait; }, ct)); // odometre monoton ileri; araç döndü → Musait (boşta)
     }
 
     /// <summary>
@@ -242,13 +253,13 @@ public sealed class RentalService(
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
-        return await _repository.UpdateRentalWithVehicleAsync(id, c =>
+        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => v.Durum = VehicleStatus.Musait, ct); // iptal → araç serbest (boşta)
+        }, v => v.Durum = VehicleStatus.Musait, ct)); // iptal → araç serbest (boşta)
     }
 }
