@@ -57,6 +57,7 @@ using RentACar.Web.Regulation;
 using RentACar.Web.CoverageProducts;
 using RentACar.Web.RateMatrices;
 using RentACar.Web.RentalRules;
+using RentACar.Web.BrokerYasaklari;
 using RentACar.Web.Reports;
 using RentACar.Web.ServiceRecords;
 using RentACar.Web.TenantSettings;
@@ -359,6 +360,7 @@ app.MapBildirimEndpoints();
 app.MapRateMatrixEndpoints();
 app.MapCoverageProductEndpoints();
 app.MapRentalRuleEndpoints();
+app.MapBrokerYasakEndpoints();
 app.MapQuoteEndpoints();
 app.MapEkHizmetEndpoints();
 app.MapRazorComponents<App>()

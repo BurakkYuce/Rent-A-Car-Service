@@ -129,3 +129,21 @@ internal sealed class RentalRuleConfig : IEntityTypeConfiguration<RentalRule>
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
+
+// ---- BrokerYasak / Broker-kaynak satış yasağı (tenant-owned; kural-tanım, defter postalamaz) ----
+internal sealed class BrokerYasakConfig : IEntityTypeConfiguration<BrokerYasak>
+{
+    public void Configure(EntityTypeBuilder<BrokerYasak> e)
+    {
+        e.ToTable("BrokerYasaklari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.Property(x => x.Kaynak).HasMaxLength(64);
+        e.Property(x => x.AracGrupKod).HasMaxLength(32);
+        e.Property(x => x.Bolge).HasMaxLength(64);
+        e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+    }
+}
