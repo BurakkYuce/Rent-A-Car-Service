@@ -60,4 +60,40 @@ public static class ListExportCatalog
             x.No, x.Tip.ToString(), x.Tarih.ToString("yyyy-MM-dd"), x.Amount.Amount, x.Amount.Currency,
             x.KarsiHesap.ToString(), x.TersKayitMi ? "Evet" : "Hayır", x.Aciklama
         }).ToList());
+
+    public static ExportTable AracSatislari(IReadOnlyList<VehicleSale> s) => new(
+        "Araç Satışları",
+        ["No", "Tarih", "Noter No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Durum", "Açıklama"],
+        s.Select(x => new object?[]
+        {
+            x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NoterNo, x.SatisNet, x.KdvOrani, x.KdvTutar,
+            x.GenelToplam, x.Currency, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    public static ExportTable AracSiparisleri(IReadOnlyList<AracSiparis> s) => new(
+        "Araç Siparişleri",
+        ["No", "Tedarikçi", "Sipariş Tarihi", "Beklenen Teslim", "Marka", "Tip", "Grup", "Adet", "Birim Fiyat", "Döviz", "Durum", "Açıklama"],
+        s.Select(x => new object?[]
+        {
+            x.No, x.Tedarikci, x.SiparisTarihi.ToString("yyyy-MM-dd"), x.BeklenenTeslim?.ToString("yyyy-MM-dd"),
+            x.Marka, x.Tip, x.Grup, x.Adet, x.BirimFiyat, x.Currency, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    public static ExportTable AracKredileri(IReadOnlyList<AracKredi> k) => new(
+        "Araç Kredileri",
+        ["No", "Banka", "Kredi Tutarı", "Faiz %", "Taksit", "Ödenen Taksit", "Başlangıç", "Döviz", "Durum", "Açıklama"],
+        k.Select(x => new object?[]
+        {
+            x.No, x.BankaAdi, x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
+            x.BaslangicTarihi.ToString("yyyy-MM-dd"), x.Currency, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    public static ExportTable Baflar(IReadOnlyList<Baf> b) => new(
+        "BAF (Personel Araç Tahsis)",
+        ["No", "Çıkış Tarihi", "Çıkış KM", "Çıkış Yakıt", "Dönüş Tarihi", "Dönüş KM", "Dönüş Yakıt", "Şube", "Durum", "Açıklama"],
+        b.Select(x => new object?[]
+        {
+            x.No, x.CikisTarihi.ToString("yyyy-MM-dd"), x.CikisKm, x.CikisYakit, x.DonusTarihi?.ToString("yyyy-MM-dd"),
+            x.DonusKm, x.DonusYakit, x.Sube, x.Durum.ToString(), x.Aciklama
+        }).ToList());
 }

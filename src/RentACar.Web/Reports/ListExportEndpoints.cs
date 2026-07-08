@@ -1,8 +1,12 @@
+using RentACar.Application.AracKredileri;
+using RentACar.Application.AracSiparisleri;
 using RentACar.Application.Authorization;
+using RentACar.Application.Baflar;
 using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Penalties;
+using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Web.Identity;
 
@@ -20,7 +24,8 @@ public static class ListExportEndpoints
 
         grp.MapGet("/{liste}", async (string liste, string? format,
             VehicleService vs, CustomerService cs, InvoiceService inv,
-            PenaltyService ps, ExpenseService es, CashService cash, ReportExportService ex) =>
+            PenaltyService ps, ExpenseService es, CashService cash,
+            VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf, ReportExportService ex) =>
         {
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
@@ -31,6 +36,10 @@ public static class ListExportEndpoints
                 "cezalar" => ListExportCatalog.Cezalar(await ps.ListAsync()),
                 "giderler" => ListExportCatalog.Giderler(await es.ListAsync()),
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
+                "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
+                "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),
+                "arac-kredileri" => ListExportCatalog.AracKredileri(await akr.ListAsync()),
+                "baflar" => ListExportCatalog.Baflar(await baf.ListAsync()),
                 _ => null
             };
             if (t is null) return Results.NotFound();
