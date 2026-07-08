@@ -1,3 +1,4 @@
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Web.Reports;
@@ -61,5 +62,42 @@ public sealed class ListExportCatalogTests
         Assert.Equal("FT-000001", t.Rows[0][0]);
         Assert.Equal("2026-01-15", t.Rows[0][1]);
         Assert.Equal(120m, t.Rows[0][4]);
+    }
+
+    [Fact]
+    public void Cezalar_projeksiyon()
+    {
+        var p = new Penalty { No = "CZ-1", CezaTuru = "Hız", TebligTarihi = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            VadeTarihi = new(2026, 1, 16, 0, 0, 0, TimeSpan.Zero), Tutar = 500m, Sebep = "Radar" };
+        var t = ListExportCatalog.Cezalar([p]);
+        Assert.Equal(7, t.Headers.Count);
+        Assert.Equal("CZ-1", t.Rows[0][0]);
+        Assert.Equal(500m, t.Rows[0][4]);
+        Assert.Equal("Radar", t.Rows[0][6]);
+    }
+
+    [Fact]
+    public void Giderler_projeksiyon()
+    {
+        var e = new Expense { No = "GD-1", Tarih = new(2026, 2, 1, 0, 0, 0, TimeSpan.Zero), Sube = "Merkez",
+            EvrakNo = "E1", NetTutar = 100m, KdvOrani = 0.20m, KdvTutar = 20m, GenelToplam = 120m, Currency = "TRY", Aciklama = "Yakıt" };
+        var t = ListExportCatalog.Giderler([e]);
+        Assert.Equal(13, t.Headers.Count);
+        Assert.Equal("GD-1", t.Rows[0][0]);
+        Assert.Equal(120m, t.Rows[0][8]);
+        Assert.Equal("Yakıt", t.Rows[0][12]);
+    }
+
+    [Fact]
+    public void NakitIslemler_projeksiyon()
+    {
+        var n = new CashTransaction { No = "TH-1", Tarih = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+            Amount = new Money(250m, "TRY", 1m), KarsiHesap = LedgerAccountType.Kasa, TersKayitMi = false, Aciklama = "Peşin" };
+        var t = ListExportCatalog.NakitIslemler([n]);
+        Assert.Equal(8, t.Headers.Count);
+        Assert.Equal("TH-1", t.Rows[0][0]);
+        Assert.Equal(250m, t.Rows[0][3]);
+        Assert.Equal("TRY", t.Rows[0][4]);
+        Assert.Equal("Hayır", t.Rows[0][6]);
     }
 }
