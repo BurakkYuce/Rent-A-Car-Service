@@ -94,4 +94,30 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
         var ileri = await avail.FindAvailableAsync(Bas.AddDays(5), Bas.AddDays(7));
         Assert.Contains(ileri, x => x.Id == v);
     }
+
+    [Fact]
+    public async Task Kira_teslim_donus_vehicles_cache_i_gunceller()
+    {
+        // Latent cache fix: VehicleService.ListAsync() cache'lidir. Kira Teslim/Dönüş araç Durum'unu
+        // değiştirince RentalService cache'i invalidate etmezse cache'li liste BAYAT Durum gösterirdi.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var rentals = sp.GetRequiredService<RentalService>();
+        var vehicles = sp.GetRequiredService<VehicleService>();
+        var (m, v) = await SeedAsync(sp, "34 DR 05");
+
+        // Cache'i ISIT: ListAsync şimdi Musait'i cache'ler.
+        Assert.Equal(VehicleStatus.Musait, (await vehicles.ListAsync()).Single(x => x.Id == v).Durum);
+
+        var id = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // araç Kirada + cache invalidate
+
+        // Cache'li liste artık TAZE Durum'u yansıtmalı (bayat Musait DEĞİL).
+        Assert.Equal(VehicleStatus.Kirada, (await vehicles.ListAsync()).Single(x => x.Id == v).Durum);
+
+        await rentals.ReturnAsync(id, donusKm: 1200, donusYakit: 8, Bas.AddDays(2)); // Musait + cache invalidate
+        Assert.Equal(VehicleStatus.Musait, (await vehicles.ListAsync()).Single(x => x.Id == v).Durum);
+    }
 }

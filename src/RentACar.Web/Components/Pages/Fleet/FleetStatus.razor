@@ -3,8 +3,10 @@
 @inject FleetStatusService Fleet
 
 <PageTitle>Araç Güncel Durum — RentPro</PageTitle>
+@* Canlı operasyon panosu: statik SSR olduğundan sayfa 60 sn'de bir otomatik yenilenir → araç durumu güncel görünür. *@
+<HeadContent><meta http-equiv="refresh" content="60" /></HeadContent>
 
-<div class="page-head"><h1>Araç Güncel Durum</h1><div class="actions"></div></div>
+<div class="page-head"><h1>Araç Güncel Durum</h1><div class="actions"><span class="muted small">60 sn'de bir otomatik yenilenir</span></div></div>
 <p class="muted small">Filonun anlık görünümü: her aracın operasyonel durumu, filo statüsü ve (kiradaysa)
     aktif kira özeti tek tabloda. Operatör yalnız kendi şubesini görür.</p>
 
