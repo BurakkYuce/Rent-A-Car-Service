@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -17,12 +18,14 @@ namespace RentACar.Application.Finance;
 ///   Ters:     orijinalin yönleri çevrilir.
 /// </summary>
 public sealed class CashService(
-    ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock)
+    ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock,
+    ICustomerRepository customers)
 {
     private readonly ICashRepository _repository = repository;
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
+    private readonly ICustomerRepository _customers = customers;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -189,6 +192,12 @@ public sealed class CashService(
         if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (cari virman bugün tarihli)
+        // L2: her iki cari tenant içinde GERÇEKTEN var olmalı (FindAsync RLS+query-filter → yoksa null).
+        // Aksi halde bakiye var-olmayan bir "hayalet" cari ekstresine taşınırdı (tenant-içi bütünlük).
+        if (await _customers.FindAsync(kaynakCariId, ct) is null)
+            throw new ValidationException("Kaynak cari bulunamadı.");
+        if (await _customers.FindAsync(hedefCariId, ct) is null)
+            throw new ValidationException("Hedef cari bulunamadı.");
         var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? "Cari virman";
