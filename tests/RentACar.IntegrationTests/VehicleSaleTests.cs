@@ -17,7 +17,7 @@ public sealed class VehicleSaleTests(PostgresFixture fx)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Stokta };
+        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
