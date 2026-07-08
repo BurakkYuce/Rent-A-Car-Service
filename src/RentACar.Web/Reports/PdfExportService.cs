@@ -169,6 +169,52 @@ public sealed class PdfExportService
     private static IContainer LabelCell(IContainer c) => c.Border(0.5f).BorderColor(Line).Background(LabelBg).PaddingHorizontal(3).PaddingVertical(2.5f);
     private static IContainer ValCell(IContainer c) => c.Border(0.5f).BorderColor(Line).PaddingHorizontal(3).PaddingVertical(2.5f);
 
+    /// <summary>Generic tablo PDF'i — TÜM liste/rapor export'larının ortak PDF çıktısı (Excel/CSV ile AYNI
+    /// veri; başlık + sütun başlıkları + satırlar). Landscape A4 (geniş tablolar için), tip-duyarlı hücre
+    /// biçimleme (decimal→N2, tarih→dd.MM.yyyy, bool→Evet/Hayır). Uçlar ?format=pdf ile bunu çağırır.</summary>
+    public byte[] Table(string baslik, IReadOnlyList<string> headers, IReadOnlyList<object?[]> rows) =>
+        Document.Create(doc =>
+        {
+            doc.Page(p =>
+            {
+                p.Size(PageSizes.A4.Landscape());
+                p.Margin(20);
+                p.DefaultTextStyle(t => t.FontSize(7).FontColor("#111827"));
+
+                p.Header().PaddingBottom(6).Column(c =>
+                {
+                    c.Item().Text(baslik).FontSize(13).Bold();
+                    c.Item().Text($"{rows.Count} kayıt · {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(7).FontColor("#6b7280");
+                });
+
+                p.Content().Table(tbl =>
+                {
+                    tbl.ColumnsDefinition(cd => { foreach (var _ in headers) cd.RelativeColumn(); });
+                    tbl.Header(h =>
+                    {
+                        foreach (var head in headers)
+                            h.Cell().Background(LabelBg).Border(0.5f).BorderColor(Line).Padding(3).Text(head).Bold();
+                    });
+                    foreach (var row in rows)
+                        foreach (var cell in row)
+                            tbl.Cell().Border(0.5f).BorderColor(Line).Padding(3).Text(Fmt(cell));
+                });
+
+                p.Footer().AlignRight().Text(x => { x.Span("Sayfa "); x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+            });
+        }).GeneratePdf();
+
+    // Generic tablo hücresi biçimleyici (tip-duyarlı).
+    private static string Fmt(object? c) => c switch
+    {
+        null => "",
+        decimal d => d.ToString("N2"),
+        DateTimeOffset dto => dto.LocalDateTime.ToString("dd.MM.yyyy"),
+        DateTime dt => dt.ToString("dd.MM.yyyy"),
+        bool b => b ? "Evet" : "Hayır",
+        _ => c.ToString() ?? ""
+    };
+
     public byte[] Invoice(Invoice inv) =>
         Document.Create(doc =>
         {

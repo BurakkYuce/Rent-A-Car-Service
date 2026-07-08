@@ -59,6 +59,21 @@ public sealed class PdfExportTests
         Assert.True(IsPdf(pdf));
     }
 
+    /// <summary>Generic tablo PDF'i (tüm liste/rapor ?format=pdf çıktısı) — geçerli PDF + tip-duyarlı hücreler.</summary>
+    [Fact]
+    public void Table_pdf_generic_valid_and_nonempty()
+    {
+        var pdf = new PdfExportService().Table(
+            "Test Listesi",
+            ["Kod", "Ad", "Tutar", "Tarih", "Aktif"],
+            [
+                new object?[] { "K1", "Birinci", 1234.5m, new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), true },
+                new object?[] { "K2", "İkinci", null, null, false }   // null/bool/decimal biçimleme yolu
+            ]);
+        Assert.True(pdf.Length > 500);
+        Assert.True(IsPdf(pdf));
+    }
+
     [Fact]
     public void Invoice_pdf_is_valid_and_nonempty()
     {
