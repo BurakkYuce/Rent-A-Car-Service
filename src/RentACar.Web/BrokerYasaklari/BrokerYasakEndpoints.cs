@@ -1,0 +1,49 @@
+using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
+using RentACar.Application.BrokerYasaklari;
+using RentACar.Application.Common;
+using RentACar.Web.Identity;
+
+namespace RentACar.Web.BrokerYasaklari;
+
+/// <summary>Broker/kaynak satış yasağı form post uçları. OperationsWrite. Opsiyonel sayısal/tarih alanlar
+/// boş "" ile bind 400 vermesin diye IFormCollection'dan FormParse ile çevrilir (boş → null).</summary>
+public static class BrokerYasakEndpoints
+{
+    public static IEndpointRouteBuilder MapBrokerYasakEndpoints(this IEndpointRouteBuilder app)
+    {
+        var grp = app.MapGroup("/broker-yasaklari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
+
+        grp.MapPost("/create", async (BrokerYasakService svc, HttpRequest req) =>
+            await Run(() => svc.CreateAsync(Build(req.Form))));
+
+        grp.MapPost("/update", async (BrokerYasakService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+
+        grp.MapPost("/delete", async (BrokerYasakService svc, [FromForm] Guid id) =>
+            await Run(() => svc.DeleteAsync(id)));
+
+        return app;
+    }
+
+    private static BrokerYasakInput Build(IFormCollection f) => new()
+    {
+        Kod = f["kod"].ToString(),
+        Ad = f["ad"].ToString(),
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Kaynak = FormParse.Str(f, "kaynak"),
+        AracGrupKod = FormParse.Str(f, "aracGrupKod"),
+        Bolge = FormParse.Str(f, "bolge"),
+        MinGun = FormParse.Int(FormParse.Str(f, "minGun")),
+        TumSatisKapali = (FormParse.Str(f, "tumSatisKapali")) is "true" or "True" or "on",
+        GecerlilikBas = FormParse.Date(FormParse.Str(f, "gecerlilikBas")),
+        GecerlilikBit = FormParse.Date(FormParse.Str(f, "gecerlilikBit")),
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
+    };
+
+    private static async Task<IResult> Run(Func<Task> action)
+    {
+        try { await action(); return Results.Redirect("/broker-yasaklari"); }
+        catch (ValidationException ex) { return Results.Redirect($"/broker-yasaklari?hata={Uri.EscapeDataString(ex.Message)}"); }
+    }
+}

@@ -72,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<RateMatrixService>();
         services.AddScoped<CoverageProductService>();
         services.AddScoped<RentalRuleService>();
+        services.AddScoped<RentACar.Application.BrokerYasaklari.BrokerYasakService>();
         services.AddScoped<TenantSettings.TenantSettingsService>();
         services.AddScoped<Personnel.PersonelService>();
         services.AddScoped<Legal.HukukDosyaService>();
