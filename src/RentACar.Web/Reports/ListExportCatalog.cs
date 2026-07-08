@@ -7,7 +7,9 @@ namespace RentACar.Web.Reports;
 /// <summary>
 /// Liste export sütun tanımları — saf, test-edilebilir projeksiyonlar. Her export'un başlıkları + hücre eşlemesi
 /// TEK yerde: "sütun değiştir/ekle" burada yapılır. Tam referans sistem sütun setleri docs/parite/09-export-karsilastirma.md'de
-/// (genişletme menüsü — şimdi anlamlı alt-küme). PII (TC/Vergi) okuma yolunda zaten decrypt edilir; export ucu gate'li (ViewReports).
+/// (genişletme menüsü — şimdi anlamlı alt-küme). KVKK: cari TC/ehliyet/pasaport gibi hassas PII bu
+/// ViewReports-gate'li export'a DAHİL EDİLMEZ (kaynakta zaten *Enc kolonlarında şifreli; düz kolonlar prod'da
+/// null). Yalnız kurumsal Vergi No dahil. Hassas PII yalnız Personel export'unda (ManageUsers-gate + decrypt) çıkar.
 /// </summary>
 public static class ListExportCatalog
 {
@@ -29,12 +31,12 @@ public static class ListExportCatalog
 
     public static ExportTable Cariler(IReadOnlyList<Customer> c) => new(
         "Cariler",
-        // İlk 10 kolon SABİT; kalanlar (CRM/finans parite derinliği) sona eklendi.
-        ["Ünvan/Ad", "Tip", "TC Kimlik", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün",
+        // KVKK: TC Kimlik BİLİNÇLİ olarak yok (bkz. sınıf özeti). Kurumsal Vergi No dahil.
+        ["Ünvan/Ad", "Tip", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün",
          "Vergi Dairesi", "GSM2", "Adres", "Sınıf", "Müşteri Temsilcisi", "İYS İzinli", "Fatura Dönemi", "Risk Limiti", "HGS Yansıtma", "Özel Cari Tip"],
         c.Select(x => new object?[]
         {
-            x.DisplayName, x.Tip.ToString(), x.TcKimlik, x.VergiNo, x.CepTel, x.Email, x.Il, x.Ilce, x.Kaynak, x.VadeGun,
+            x.DisplayName, x.Tip.ToString(), x.VergiNo, x.CepTel, x.Email, x.Il, x.Ilce, x.Kaynak, x.VadeGun,
             x.VergiDairesi, x.Gsm2, x.Adres, x.Sinif, x.MusteriTemsilcisi, E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
         }).ToList());
 
