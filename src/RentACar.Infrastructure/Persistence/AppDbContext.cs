@@ -76,6 +76,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RateMatrix> RateMatrices => Set<RateMatrix>();
     public DbSet<CoverageProduct> CoverageProducts => Set<CoverageProduct>();
     public DbSet<RentalRule> RentalRules => Set<RentalRule>();
+    public DbSet<BrokerYasak> BrokerYasaklar => Set<BrokerYasak>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
