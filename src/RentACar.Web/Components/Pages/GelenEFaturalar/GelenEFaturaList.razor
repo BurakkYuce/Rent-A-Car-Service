@@ -1,0 +1,113 @@
+@page "/gelen-efatura"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject GelenEFaturaService GelenFaturalar
+
+<PageTitle>Gelen e-Fatura — RentPro</PageTitle>
+
+<div class="page-head"><h1>Gelen e-Fatura</h1><div class="actions"></div></div>
+<p class="muted small">Gelen (satın-alma) e-faturaların triage kutusu: GİB'den çek (entegrasyon kimliği
+    gerekir — yoksa boş döner) veya elle gir, sonra Onayla / Reddet / İşle. Defter kaydı POSTLAMAZ;
+    gidere dönüştürme ileriki adımdır.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<div class="report-cols">
+    <details class="new-vehicle" open="@(_list.Count == 0)">
+        <summary>+ Elle Gelen Fatura Gir</summary>
+        <form method="post" action="/gelen-efatura/create" class="grid-form"><AntiforgeryToken />
+            <label>ETTN<input name="ettn" required placeholder="e-fatura tekil no" /></label>
+            <label>Gönderen VKN<input name="gonderenVkn" required /></label>
+            <label>Gönderen Ünvan<input name="gonderenUnvan" required /></label>
+            <label>Tarih<input name="tarih" type="date" /></label>
+            <label>Net<input name="netTutar" type="number" step="0.01" min="0" /></label>
+            <label>KDV<input name="kdvTutar" type="number" step="0.01" min="0" /></label>
+            <label>Genel Toplam<input name="genelToplam" type="number" step="0.01" min="0" /></label>
+            <label>Döviz<input name="currency" maxlength="3" placeholder="TRY" /></label>
+            <label>Açıklama<input name="aciklama" /></label>
+            <button type="submit">Ekle</button>
+        </form>
+    </details>
+
+    <details class="new-vehicle">
+        <summary>GİB'den Çek (sync)</summary>
+        <form method="post" action="/gelen-efatura/sync" class="grid-form"><AntiforgeryToken />
+            <label>Başlangıç<input name="from" type="date" /></label>
+            <label>Bitiş<input name="to" type="date" /></label>
+            <button type="submit">Çek</button>
+        </form>
+        <p class="muted small">Entegrasyon kimliği yoksa boş döner (stub); mevcut ETTN'ler atlanır (idempotent).</p>
+    </details>
+</div>
+
+<table class="grid tr-grid">
+    <thead><tr><th>ETTN</th><th>Gönderen</th><th>VKN</th><th>Tarih</th><th>Net</th><th>KDV</th><th>Genel</th><th>Döviz</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="10" class="muted">Gelen e-fatura yok.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td class="mono">@r.Ettn</td>
+                <td>@r.GonderenUnvan</td>
+                <td class="mono">@r.GonderenVkn</td>
+                <td>@r.Tarih.ToString("yyyy-MM-dd")</td>
+                <td class="num">@r.NetTutar.ToString("N2")</td>
+                <td class="num">@r.KdvTutar.ToString("N2")</td>
+                <td class="num">@r.GenelToplam.ToString("N2")</td>
+                <td class="mono">@r.Currency</td>
+                <td>@DurumEtiket(r.Durum)@(r.Durum == GelenEFaturaDurum.Reddedildi && !string.IsNullOrEmpty(r.RedNedeni) ? $" ({r.RedNedeni})" : "")</td>
+                <td>
+                    @if (r.Durum == GelenEFaturaDurum.Beklemede)
+                    {
+                        <form method="post" action="/gelen-efatura/onayla" style="display:inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <button type="submit" class="link">Onayla</button>
+                        </form>
+                        <details style="display:inline">
+                            <summary class="link danger">Reddet</summary>
+                            <form method="post" action="/gelen-efatura/reddet" class="grid-form"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <label>Red Nedeni<input name="neden" /></label>
+                                <button type="submit">Reddet</button>
+                            </form>
+                        </details>
+                    }
+                    else if (r.Durum == GelenEFaturaDurum.Onaylandi)
+                    {
+                        <form method="post" action="/gelen-efatura/isle" onsubmit="return confirm('Fatura işlensin mi?')" style="display:inline"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <button type="submit" class="link">İşle</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="muted">—</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<GelenEFatura> _list = [];
+
+    protected override async Task OnInitializedAsync()
+        => _list = await GelenFaturalar.ListAsync();
+
+    private static string DurumEtiket(GelenEFaturaDurum d) => d switch
+    {
+        GelenEFaturaDurum.Beklemede => "Beklemede",
+        GelenEFaturaDurum.Onaylandi => "Onaylandı",
+        GelenEFaturaDurum.Reddedildi => "Reddedildi",
+        GelenEFaturaDurum.Islendi => "İşlendi",
+        _ => d.ToString()
+    };
+}

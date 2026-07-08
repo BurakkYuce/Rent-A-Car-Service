@@ -211,3 +211,24 @@ internal sealed class DonemKilidiConfig : IEntityTypeConfiguration<DonemKilidi>
         e.HasIndex(x => x.TenantId).IsUnique();
     }
 }
+
+// ---- GelenEFatura / Gelen (satın-alma) e-Fatura triage kutusu (tenant-owned; deftere postalamaz) ----
+internal sealed class GelenEFaturaConfig : IEntityTypeConfiguration<GelenEFatura>
+{
+    public void Configure(EntityTypeBuilder<GelenEFatura> e)
+    {
+        e.ToTable("GelenEFaturalar");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Ettn).IsRequired().HasMaxLength(64);
+        e.Property(x => x.GonderenVkn).IsRequired().HasMaxLength(16);
+        e.Property(x => x.GonderenUnvan).IsRequired().HasMaxLength(256);
+        e.Property(x => x.Currency).HasMaxLength(3);
+        e.Property(x => x.RedNedeni).HasMaxLength(512);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.Property(x => x.NetTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
+        e.HasIndex(x => new { x.TenantId, x.Ettn }).IsUnique();
+    }
+}

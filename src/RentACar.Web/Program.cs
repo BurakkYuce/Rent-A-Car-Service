@@ -47,6 +47,7 @@ using RentACar.Web.DamageFiles;
 using RentACar.Web.EkHizmetler;
 using RentACar.Web.Expenses;
 using RentACar.Web.Finance;
+using RentACar.Web.GelenEFaturalar;
 using RentACar.Web.KdvRates;
 using RentACar.Web.Locations;
 using RentACar.Web.Penalties;
@@ -306,6 +307,7 @@ app.MapBookingEndpoints();
 app.MapRentalAddOnEndpoints();
 app.MapQuotationEndpoints();
 app.MapFinanceEndpoints();
+app.MapGelenEFaturaEndpoints();
 app.MapDepozitoEndpoints(); // roadmap I3
 app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
