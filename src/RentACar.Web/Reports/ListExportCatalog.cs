@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Regulation;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -151,6 +152,26 @@ public static class ListExportCatalog
         {
             x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), x.IseGiris?.ToString("yyyy-MM-dd"), x.IseCikis?.ToString("yyyy-MM-dd"),
             x.SurucuBelgeNo, decrypt(x.MaasEnc), x.Sube, x.Aktif ? "Aktif" : "Pasif"
+        }).ToList());
+
+    /// <summary>Uzun-dönem (filo) kiralama sözleşmeleri. Plaka/müşteri FK'leri endpoint'te dict ile çözülür
+    /// (<paramref name="plaka"/>/<paramref name="musteri"/> resolver; katalog saf kalır, test'te sahte resolver).</summary>
+    public static ExportTable FiloKiralamalar(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plaka, Func<Guid, string?> musteri) => new(
+        "Filo Kiralama",
+        ["No", "Müşteri", "Plaka", "Başlangıç", "Süre (Ay)", "Aylık Ücret", "KDV Oranı", "Döviz", "Kur", "Toplam KM Limiti", "Damga Vergisi", "Durum", "Açıklama"],
+        f.Select(x => new object?[]
+        {
+            x.No, musteri(x.MusteriId), plaka(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
+            x.Currency, x.Kur, x.ToplamKmLimiti, x.DamgaVergisi, x.Durum.ToString(), x.Aciklama
+        }).ToList());
+
+    /// <summary>Birleşik vade panosu (sigorta/MTV/muayene bitişleri) — en yakına sıralı. Plaka endpoint'te çözülür.</summary>
+    public static ExportTable Vadeler(IReadOnlyList<VadeItem> v, Func<Guid, string?> plaka) => new(
+        "Vade (Sigorta-MTV-Muayene)",
+        ["Plaka", "Tür", "Bitiş", "Kalan Gün", "Durum"],
+        v.Select(x => new object?[]
+        {
+            plaka(x.VehicleId), x.Tur, D(x.Bitis), x.KalanGun, x.Bucket.ToString()
         }).ToList());
 
     // Hücre biçimleyiciler (sütun zenginleştirme için): bool → Evet/Hayır, nullable tarih → yyyy-MM-dd.

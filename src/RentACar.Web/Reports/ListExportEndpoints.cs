@@ -7,12 +7,15 @@ using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.DropTanimlari;
 using RentACar.Application.Expenses;
+using RentACar.Application.FiloKiralamalar;
 using RentACar.Application.Finance;
 using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
 using RentACar.Application.Personnel;
+using RentACar.Application.Regulation;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
+using RentACar.Domain.Entities;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -31,7 +34,8 @@ public static class ListExportEndpoints
             VehicleService vs, CustomerService cs, InvoiceService inv,
             PenaltyService ps, ExpenseService es, CashService cash,
             VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
-            RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop, ReportExportService ex) =>
+            RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop,
+            FiloKiralamaService fks, VadeService vade, ReportExportService ex) =>
         {
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
@@ -50,6 +54,10 @@ public static class ListExportEndpoints
                 "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.ListAsync()),
                 "lokasyonlar" => ListExportCatalog.Lokasyonlar(await loc.ListAsync()),
                 "drop-tanimlari" => ListExportCatalog.DropTanimlari(await drop.ListAsync()),
+                "filo-kiralama" => ListExportCatalog.FiloKiralamalar(await fks.ListAsync(),
+                    PlakaResolver(await vs.ListAsync()), MusteriResolver(await cs.ListAsync())),
+                "vade" => ListExportCatalog.Vadeler(await vade.GetAllAsync(ct: default),
+                    PlakaResolver(await vs.ListAsync())),
                 _ => null
             };
             if (t is null) return Results.NotFound();
@@ -73,5 +81,18 @@ public static class ListExportEndpoints
         });
 
         return app;
+    }
+
+    // FK→ad çözücüler (filo-kiralama/vade export'ları için): liste bir kez çekilip dict'e alınır.
+    private static Func<Guid, string?> PlakaResolver(IReadOnlyList<Vehicle> vehicles)
+    {
+        var d = vehicles.ToDictionary(x => x.Id, x => (string?)x.Plaka);
+        return id => d.TryGetValue(id, out var p) ? p : null;
+    }
+
+    private static Func<Guid, string?> MusteriResolver(IReadOnlyList<Customer> customers)
+    {
+        var d = customers.ToDictionary(x => x.Id, x => (string?)x.DisplayName);
+        return id => d.TryGetValue(id, out var n) ? n : null;
     }
 }
