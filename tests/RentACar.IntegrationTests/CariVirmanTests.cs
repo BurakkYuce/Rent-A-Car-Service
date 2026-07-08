@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -23,8 +24,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid(); // kaynak
-        var b = Guid.NewGuid(); // hedef
+        var a = await SeedCariAsync(scope.ServiceProvider, "A"); // kaynak
+        var b = await SeedCariAsync(scope.ServiceProvider, "B"); // hedef
 
         await cash.TransferBetweenCariAsync(a, b, 250.00m);
 
@@ -58,8 +59,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid();
-        var b = Guid.NewGuid();
+        var a = await SeedCariAsync(scope.ServiceProvider, "A");
+        var b = await SeedCariAsync(scope.ServiceProvider, "B");
 
         await cash.TransferBetweenCariAsync(a, b, 500.00m);   // a −500, b +500
         await cash.TransferBetweenCariAsync(b, a, 500.00m);   // düzeltme: ters yön → sıfırlanır
@@ -73,8 +74,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid();
-        var b = Guid.NewGuid();
+        var a = await SeedCariAsync(scope.ServiceProvider, "A");
+        var b = await SeedCariAsync(scope.ServiceProvider, "B");
         var anahtar = Guid.NewGuid();
 
         // Aynı işlem anahtarıyla çift gönderim (çift tıklama/geri-gönder) → TEK virman.
@@ -130,8 +131,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid();
-        var b = Guid.NewGuid();
+        var a = await SeedCariAsync(scope.ServiceProvider, "A");
+        var b = await SeedCariAsync(scope.ServiceProvider, "B");
 
         // Farklı anahtar (veya anahtarsız) → ayrı virmanlar birikir.
         await cash.TransferBetweenCariAsync(a, b, 500.00m, islemAnahtari: Guid.NewGuid());
@@ -181,11 +182,14 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        var a = Guid.NewGuid();
-        var b = Guid.NewGuid();
+        Guid a, b;
 
         using (var s1 = host.ScopeFor(t1))
+        {
+            a = await SeedCariAsync(s1.ServiceProvider, "A");   // cari'ler t1'de gerçekten var
+            b = await SeedCariAsync(s1.ServiceProvider, "B");
             await s1.ServiceProvider.GetRequiredService<CashService>().TransferBetweenCariAsync(a, b, 300m);
+        }
 
         // t2 aynı cari id'lerinin bakiyesini GÖRMEZ (RLS).
         using var s2 = host.ScopeFor(t2);
@@ -193,4 +197,26 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         Assert.Equal(0m, await cash2.GetCariBalanceAsync(a));
         Assert.Equal(0m, await cash2.GetCariBalanceAsync(b));
     }
+
+    [Fact]
+    public async Task Transfer_to_nonexistent_cari_rejected()  // L2: hayalet cari'ye bakiye taşınmaz
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var a = await SeedCariAsync(scope.ServiceProvider, "A");  // gerçek cari
+        var hayalet = Guid.NewGuid();                             // tenant'ta YOK
+
+        // Hedef yoksa reddedilir.
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, hayalet, 100m));
+        // Kaynak yoksa reddedilir.
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(hayalet, a, 100m));
+        // Post olmadı → gerçek cari bakiyesi 0, hayalet ekstre oluşmadı.
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(hayalet));
+    }
+
+    private static Task<Guid> SeedCariAsync(IServiceProvider sp, string ad) =>
+        sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
 }
