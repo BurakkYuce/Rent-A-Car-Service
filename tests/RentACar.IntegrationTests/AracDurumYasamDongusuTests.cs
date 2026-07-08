@@ -9,8 +9,8 @@ using RentACar.IntegrationTests.Infrastructure;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// Araç durum yaşam döngüsü bug'ı: kira Durum'a hiç dokunmuyordu, araçlar "Stokta"da takılı → hiç "boşta"
-/// görünmüyordu. Artık: yeni araç Musait; teslim→Kirada; dönüş→Musait; iptal→Musait. Müsaitlik havuzu Kirada'yı
+/// Araç durum yaşam döngüsü: yeni araç Musait (boşta); teslim→Kirada; dönüş→Musait; iptal→Musait.
+/// (Kafa karıştıran operasyonel "Stokta" değeri kaldırıldı — boşta=Musait tek kavram.) Müsaitlik havuzu Kirada'yı
 /// DAHİL eder (ileri-tarih bookingi bozulmaz — tarih-çakışması gerçek dışlamayı yapar).
 /// </summary>
 [Collection("postgres")]

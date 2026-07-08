@@ -255,7 +255,7 @@ public sealed class ReportService(IReportRepository repository)
         int Count(VehicleStatus s) => statuses.Count(x => x == s);
         return new FleetUtilizationDto(
             statuses.Count,
-            Count(VehicleStatus.Stokta), Count(VehicleStatus.Musait), Count(VehicleStatus.Kirada),
+            Count(VehicleStatus.Musait), Count(VehicleStatus.Kirada),
             Count(VehicleStatus.Serviste), Count(VehicleStatus.Pasif), Count(VehicleStatus.Satildi),
             aktifKira);
     }

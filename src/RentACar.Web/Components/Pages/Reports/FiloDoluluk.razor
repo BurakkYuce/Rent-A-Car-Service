@@ -34,8 +34,7 @@
 <table class="grid tr-grid">
     <thead><tr><th>Durum</th><th>Adet</th></tr></thead>
     <tbody>
-        <tr><td>Stokta</td><td>@_f.Stokta</td></tr>
-        <tr><td>Müsait</td><td>@_f.Musait</td></tr>
+        <tr><td>Müsait (boşta)</td><td>@_f.Musait</td></tr>
         <tr><td>Kirada</td><td>@_f.Kirada</td></tr>
         <tr><td>Serviste</td><td>@_f.Serviste</td></tr>
         <tr><td>Pasif</td><td>@_f.Pasif</td></tr>
@@ -44,7 +43,7 @@
 </table>
 
 @code {
-    private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0, 0);
+    private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0);
 
     // Aktif filo = satılmış ve pasif hariç (kiralanabilir havuz).
     private string DolulukYuzde

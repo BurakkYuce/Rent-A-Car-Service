@@ -91,7 +91,7 @@ public sealed class ApiTests(PostgresFixture fx)
         var c = await LoginAsync(api, code, "muh", "p");
 
         var resp = await c.PostAsJsonAsync("/api/v1/vehicles",
-            new { plaka = "34NOPE", durum = "Stokta", km = 0, yakit = "Benzin" });
+            new { plaka = "34NOPE", durum = "Musait", km = 0, yakit = "Benzin" });
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
 
@@ -104,7 +104,7 @@ public sealed class ApiTests(PostgresFixture fx)
         var c = await LoginAsync(api, code, "umit", "p");
 
         var resp = await c.PostAsJsonAsync("/api/v1/vehicles",
-            new { plaka = "", durum = "Stokta", km = 0, yakit = "Benzin" });
+            new { plaka = "", durum = "Musait", km = 0, yakit = "Benzin" });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var err = await resp.Content.ReadFromJsonAsync<ErrBody>();
         Assert.Equal("validation", err!.error);
