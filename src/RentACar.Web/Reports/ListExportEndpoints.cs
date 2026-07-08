@@ -19,36 +19,18 @@ public static class ListExportEndpoints
         grp.MapGet("/{liste}", async (string liste, string? format,
             VehicleService vs, CustomerService cs, InvoiceService inv, ReportExportService ex) =>
         {
-            string sheet;
-            IReadOnlyList<string>? headers = null;
-            IEnumerable<IReadOnlyList<object?>> rows = [];
-
-            switch (liste)
+            // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
+            ExportTable? t = liste switch
             {
-                case "araclar":
-                    sheet = "Araclar";
-                    headers = ["Plaka", "Marka", "Grup", "Şube", "Durum", "KM"];
-                    rows = (await vs.ListAsync()).Select(v =>
-                        (IReadOnlyList<object?>)new object?[] { v.Plaka, v.Marka, v.Grup, v.Sube, v.Durum.ToString(), v.Km }).ToList();
-                    break;
-                case "cariler":
-                    sheet = "Cariler";
-                    headers = ["Ad", "Tip", "Telefon", "E-posta"];
-                    rows = (await cs.ListAsync()).Select(c =>
-                        (IReadOnlyList<object?>)new object?[] { c.DisplayName, c.Tip.ToString(), c.CepTel, c.Email }).ToList();
-                    break;
-                case "faturalar":
-                    sheet = "Faturalar";
-                    headers = ["No", "Tarih", "Net", "KDV", "Toplam", "Durum"];
-                    rows = (await inv.ListAsync()).Select(f =>
-                        (IReadOnlyList<object?>)new object?[] { f.No, f.Tarih.ToString("yyyy-MM-dd"), f.NetTutar, f.KdvTutar, f.GenelToplam, f.Durum.ToString() }).ToList();
-                    break;
-                default:
-                    return Results.NotFound();
-            }
+                "araclar" => ListExportCatalog.Araclar(await vs.ListAsync()),
+                "cariler" => ListExportCatalog.Cariler(await cs.ListAsync()),
+                "faturalar" => ListExportCatalog.Faturalar(await inv.ListAsync()),
+                _ => null
+            };
+            if (t is null) return Results.NotFound();
 
             var csv = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
-            var bytes = csv ? ex.Csv(headers, rows) : ex.Xlsx(sheet, headers, rows);
+            var bytes = csv ? ex.Csv(t.Headers, t.Rows) : ex.Xlsx(t.Sheet, t.Headers, t.Rows);
             var ct = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             return Results.File(bytes, ct, $"{liste}.{(csv ? "csv" : "xlsx")}");
         });
