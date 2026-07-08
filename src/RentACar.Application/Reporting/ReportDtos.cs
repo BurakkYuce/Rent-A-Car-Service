@@ -140,8 +140,15 @@ public sealed record EkHizmetRaporDto(
 /// (araca bağlanamayan genel gelir/gider). NetKar = Gelir − Gider.
 /// </summary>
 public sealed record KarlilikSatirDto(
-    Guid? VehicleId, string Plaka, string? Sube, string? Grup, decimal Gelir, decimal Gider, decimal NetKar);
+    Guid? VehicleId, string Plaka, string? Sube, string? Grup, string? Segment, decimal Gelir, decimal Gider, decimal NetKar);
 
 /// <summary>Dönem kârlılık raporu: araç/atanmamış satırları + genel toplamlar (defter Gelir/Gider ile mutabık).</summary>
 public sealed record KarlilikDto(
     IReadOnlyList<KarlilikSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);
+
+/// <summary>Çok-boyutlu kârlılık özeti — araç-bazlı P&amp;L'in bir boyuta (grup/şube/segment) göre toplamı.
+/// TürevRent'in "araç gelir-gider tablosu × N boyut" paritesi: araç=KarlilikDto, hizmet=EkHizmetRaporDto,
+/// grup/şube/segment=bu.</summary>
+public sealed record KarlilikOzetSatirDto(string Boyut, int AracAdet, decimal Gelir, decimal Gider, decimal NetKar);
+public sealed record KarlilikOzetDto(
+    string BoyutAdi, IReadOnlyList<KarlilikOzetSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);
