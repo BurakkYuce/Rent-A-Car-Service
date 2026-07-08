@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Regulation;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -212,6 +213,51 @@ public sealed class ListExportCatalogTests
         Assert.Equal("IST", t.Rows[0][0]);
         Assert.Equal("Kapıda", t.Rows[0][2]);
         Assert.Equal("Evet", t.Rows[0][5]);
+    }
+
+    [Fact]
+    public void FiloKiralamalar_plaka_musteri_resolver_ile_projeksiyon()
+    {
+        var vid = Guid.NewGuid();
+        var mid = Guid.NewGuid();
+        var f = new FiloKiralama
+        {
+            No = "FK-000001", MusteriId = mid, VehicleId = vid,
+            BasTar = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), SureAy = 12, AylikUcret = 15000m, KdvOrani = 0.20m,
+            Currency = "TRY", Kur = 1m, ToplamKmLimiti = 30000, DamgaVergisi = 500m,
+            Durum = FiloKiraDurum.Aktif, Aciklama = "kurumsal"
+        };
+        // Bağımsız oracle: sahte resolver → FK Guid'leri doğru ada çözülür.
+        var t = ListExportCatalog.FiloKiralamalar([f],
+            plaka: id => id == vid ? "34FK001" : null,
+            musteri: id => id == mid ? "ACME A.Ş." : null);
+
+        Assert.Equal(13, t.Headers.Count);
+        Assert.Equal("Müşteri", t.Headers[1]);
+        Assert.Equal("Plaka", t.Headers[2]);
+        Assert.Equal("FK-000001", t.Rows[0][0]);
+        Assert.Equal("ACME A.Ş.", t.Rows[0][1]);   // müşteri resolver
+        Assert.Equal("34FK001", t.Rows[0][2]);      // plaka resolver
+        Assert.Equal("2026-01-01", t.Rows[0][3]);   // BasTar D() biçim
+        Assert.Equal(12, t.Rows[0][4]);             // Süre (Ay)
+        Assert.Equal(15000m, t.Rows[0][5]);         // Aylık Ücret
+        Assert.Equal("Aktif", t.Rows[0][11]);       // Durum enum → metin
+    }
+
+    [Fact]
+    public void Vadeler_birlesik_plaka_resolver_ile_projeksiyon()
+    {
+        var vid = Guid.NewGuid();
+        var item = new VadeItem(vid, "Kasko", new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), 25, VadeBucket.OtuzGun);
+        var t = ListExportCatalog.Vadeler([item], plaka: id => id == vid ? "06VD100" : null);
+
+        Assert.Equal(5, t.Headers.Count);
+        Assert.Equal("Plaka", t.Headers[0]);
+        Assert.Equal("06VD100", t.Rows[0][0]);      // plaka resolver
+        Assert.Equal("Kasko", t.Rows[0][1]);
+        Assert.Equal("2026-03-01", t.Rows[0][2]);   // Bitiş D() biçim
+        Assert.Equal(25, t.Rows[0][3]);             // Kalan Gün
+        Assert.Equal("OtuzGun", t.Rows[0][4]);      // Bucket enum → metin
     }
 
     [Fact]
