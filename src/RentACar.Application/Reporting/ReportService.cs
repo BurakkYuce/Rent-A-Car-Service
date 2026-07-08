@@ -39,6 +39,27 @@ public sealed class ReportService(IReportRepository repository)
         return new KarlilikDto(list, list.Sum(r => r.Gelir), list.Sum(r => r.Gider), list.Sum(r => r.NetKar));
     }
 
+    /// <summary>Çok-boyutlu kârlılık özeti (roadmap #2): araç-bazlı P&amp;L satırlarını bir boyuta göre toplar.
+    /// boyut: "grup"|"sube"|"segment" (varsayılan grup). Yalnız araca atfedilmiş satırlar (VehicleId!=null) —
+    /// "(Atanmamış)" gruba dahil edilmez (boyut değeri yok). Aggregation saf gruplama; para mantığı KarlilikDto'dan.</summary>
+    public async Task<KarlilikOzetDto> GetKarlilikOzetAsync(
+        string boyut, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = (await _repository.GetKarlilikRowsAsync(from, to, ct)).Where(r => r.VehicleId != null).ToList();
+        var b = (boyut ?? "grup").Trim().ToLowerInvariant();
+        string ad = b switch { "sube" => "Şube", "segment" => "Segment", _ => "Grup" };
+        string Key(KarlilikSatirDto r) => b switch
+        {
+            "sube" => string.IsNullOrWhiteSpace(r.Sube) ? "(Şubesiz)" : r.Sube!.Trim(),
+            "segment" => string.IsNullOrWhiteSpace(r.Segment) ? "(Segmentsiz)" : r.Segment!.Trim(),
+            _ => string.IsNullOrWhiteSpace(r.Grup) ? "(Grupsuz)" : r.Grup!.Trim()
+        };
+        var satirlar = rows.GroupBy(Key)
+            .Select(g => new KarlilikOzetSatirDto(g.Key, g.Count(), g.Sum(r => r.Gelir), g.Sum(r => r.Gider), g.Sum(r => r.NetKar)))
+            .OrderByDescending(s => s.NetKar).ThenBy(s => s.Boyut, StringComparer.CurrentCulture).ToList();
+        return new KarlilikOzetDto(ad, satirlar, satirlar.Sum(s => s.Gelir), satirlar.Sum(s => s.Gider), satirlar.Sum(s => s.NetKar));
+    }
+
     /// <summary>Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.</summary>
     public async Task<IReadOnlyList<LedgerLineDto>> GetAccountLedgerAsync(
         LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)

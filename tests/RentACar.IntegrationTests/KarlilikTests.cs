@@ -107,4 +107,66 @@ public sealed class KarlilikTests(PostgresFixture fx)
         Assert.Equal(vehicleId, row.VehicleId);
         Assert.Equal(1000m, filtre.ToplamGider);
     }
+
+    [Fact]
+    public async Task Karlilik_ozet_boyuta_gore_toplar() // #2 çok-boyutlu P&L — bağımsız oracle
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var veh = sp.GetRequiredService<VehicleService>();
+        var exp = sp.GetRequiredService<ExpenseService>();
+        var sale = sp.GetRequiredService<VehicleSaleService>();
+
+        // Senaryo (elle kurulmuş oracle; KDV 0 → net = tutar):
+        //  v1: grup EKO, segment Ekonomik, şube Merkez → gider 1000, satış geliri 5000 (net 4000)
+        //  v2: grup EKO, segment Ekonomik, şube Merkez → gider  500, satış geliri 2000 (net 1500)
+        //  v3: grup LUX, segment Lüks,     şube Sube2  → gider  200, satış geliri 1000 (net  800)
+        async Task Seed(string plaka, string grup, string segment, string sube, decimal gider, decimal gelir)
+        {
+            var id = await veh.CreateAsync(new VehicleInput { Plaka = plaka, Grup = grup, Segment = segment, Sube = sube });
+            await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Arac, VehicleId = id, NetTutar = gider, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit });
+            await sale.CreateAsync(new VehicleSaleInput { VehicleId = id, AliciCariId = Guid.NewGuid(), SatisNet = gelir, KdvOrani = 0m, Doviz = "TRY", Kur = 1m });
+        }
+        await Seed("34 OZ 01", "EKO", "Ekonomik", "Merkez", 1000m, 5000m);
+        await Seed("34 OZ 02", "EKO", "Ekonomik", "Merkez", 500m, 2000m);
+        await Seed("34 OZ 03", "LUX", "Lüks", "Sube2", 200m, 1000m);
+
+        var rs = sp.GetRequiredService<ReportService>();
+
+        // GRUP: EKO {2 araç, gelir 7000, gider 1500, net 5500} > LUX {1, 1000, 200, 800} (net desc sıra).
+        var grup = await rs.GetKarlilikOzetAsync("grup");
+        Assert.Equal("Grup", grup.BoyutAdi);
+        Assert.Equal(2, grup.Satirlar.Count);
+        var eko = grup.Satirlar[0];
+        Assert.Equal("EKO", eko.Boyut);
+        Assert.Equal(2, eko.AracAdet);
+        Assert.Equal(7000m, eko.Gelir);
+        Assert.Equal(1500m, eko.Gider);
+        Assert.Equal(5500m, eko.NetKar);
+        Assert.Equal("LUX", grup.Satirlar[1].Boyut);
+        Assert.Equal(800m, grup.Satirlar[1].NetKar);
+        Assert.Equal(8000m, grup.ToplamGelir);
+        Assert.Equal(1700m, grup.ToplamGider);
+        Assert.Equal(6300m, grup.ToplamNetKar);
+
+        // SEGMENT: Ekonomik {2, 7000, 1500, 5500}, Lüks {1, 1000, 200, 800}.
+        var seg = await rs.GetKarlilikOzetAsync("segment");
+        Assert.Equal("Segment", seg.BoyutAdi);
+        var ekonomik = Assert.Single(seg.Satirlar, s => s.Boyut == "Ekonomik");
+        Assert.Equal(2, ekonomik.AracAdet);
+        Assert.Equal(5500m, ekonomik.NetKar);
+
+        // ŞUBE: Merkez {2, net 5500}, Sube2 {1, net 800}.
+        var subeOzet = await rs.GetKarlilikOzetAsync("sube");
+        Assert.Equal("Şube", subeOzet.BoyutAdi);
+        var merkez = Assert.Single(subeOzet.Satirlar, s => s.Boyut == "Merkez");
+        Assert.Equal(2, merkez.AracAdet);
+        Assert.Equal(5500m, merkez.NetKar);
+        Assert.Equal(2, subeOzet.Satirlar.Count);
+
+        // INVARIANT: özet toplamı = araç-bazlı karlılık toplamı (tümü araca atfedildiğinden Atanmamış yok).
+        var arac = await rs.GetKarlilikAsync();
+        Assert.Equal(arac.ToplamNetKar, grup.ToplamNetKar);
+    }
 }
