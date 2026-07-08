@@ -100,4 +100,51 @@ public sealed class ListExportCatalogTests
         Assert.Equal("TRY", t.Rows[0][4]);
         Assert.Equal("Hayır", t.Rows[0][6]);
     }
+
+    [Fact]
+    public void AracSatislari_projeksiyon()
+    {
+        var s = new VehicleSale { No = "AS-1", Tarih = new(2026, 4, 1, 0, 0, 0, TimeSpan.Zero), NoterNo = "N1",
+            SatisNet = 500000m, KdvOrani = 0.20m, KdvTutar = 100000m, GenelToplam = 600000m, Currency = "TRY", Aciklama = "2.el" };
+        var t = ListExportCatalog.AracSatislari([s]);
+        Assert.Equal(10, t.Headers.Count);
+        Assert.Equal("AS-1", t.Rows[0][0]);
+        Assert.Equal(600000m, t.Rows[0][6]);
+    }
+
+    [Fact]
+    public void AracSiparisleri_projeksiyon()
+    {
+        var s = new AracSiparis { No = "SP-1", Tedarikci = "Fiat Bayi", SiparisTarihi = new(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
+            Marka = "Fiat", Tip = "Egea", Grup = "B", Adet = 5, BirimFiyat = 800000m, Currency = "TRY" };
+        var t = ListExportCatalog.AracSiparisleri([s]);
+        Assert.Equal(12, t.Headers.Count);
+        Assert.Equal("SP-1", t.Rows[0][0]);
+        Assert.Equal("Fiat Bayi", t.Rows[0][1]);
+        Assert.Equal(5, t.Rows[0][7]);
+    }
+
+    [Fact]
+    public void AracKredileri_projeksiyon()
+    {
+        var k = new AracKredi { No = "KR-1", BankaAdi = "Ziraat", KrediTutari = 1000000m, FaizOran = 2.5m,
+            TaksitSayisi = 36, OdenenTaksit = 12, BaslangicTarihi = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), Currency = "TRY" };
+        var t = ListExportCatalog.AracKredileri([k]);
+        Assert.Equal(10, t.Headers.Count);
+        Assert.Equal("Ziraat", t.Rows[0][1]);
+        Assert.Equal(36, t.Rows[0][4]);
+        Assert.Equal(12, t.Rows[0][5]);
+    }
+
+    [Fact]
+    public void Baflar_projeksiyon()
+    {
+        var b = new Baf { No = "BF-1", CikisTarihi = new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), CikisKm = 1000,
+            CikisYakit = 80, Sube = "Merkez", Aciklama = "zimmet" };
+        var t = ListExportCatalog.Baflar([b]);
+        Assert.Equal(10, t.Headers.Count);
+        Assert.Equal("BF-1", t.Rows[0][0]);
+        Assert.Equal(1000, t.Rows[0][2]);
+        Assert.Equal("Merkez", t.Rows[0][7]);
+    }
 }
