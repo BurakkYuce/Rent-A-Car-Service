@@ -15,10 +15,14 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Baf>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct); // adversarial: şube-kapsam (Expense sınıfı kaçak)
 
-    public Task<Baf?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindAsync(id, ct);
+    public async Task<Baf?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var baf = await _repository.FindAsync(id, ct);
+        if (baf is not null) BranchScope.RequireInScope(_currentUser, baf.Sube); // tekil kapsam (M3 deseni)
+        return baf;
+    }
 
     public async Task<Guid> CreateAsync(BafInput input, CancellationToken ct = default)
     {
@@ -47,14 +51,18 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var baf = await _repository.FindAsync(id, ct);
         if (baf is null) return false;
+        BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
         if (baf.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
         if (donusKm < baf.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
         return await _repository.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi ?? DateTimeOffset.UtcNow, ct);
     }
 
-    public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.IptalAsync(id, ct);
+        var baf = await _repository.FindAsync(id, ct);
+        if (baf is null) return false;
+        BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
+        return await _repository.IptalAsync(id, ct);
     }
 }

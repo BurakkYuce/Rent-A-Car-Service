@@ -10,10 +10,12 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Baf>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Baf>> ListAsync(string? sube, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Baflar.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
+        return await db.Baflar.AsNoTracking()
+            .Where(x => sube == null || x.Sube == sube) // adversarial: şube-kapsam (operatör yalnız kendi şubesi)
+            .OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task<Baf?> FindAsync(Guid id, CancellationToken ct = default)
