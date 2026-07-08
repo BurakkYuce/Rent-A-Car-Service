@@ -139,7 +139,8 @@ public sealed class CashService(
     /// <summary>Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).</summary>
     public async Task TransferAsync(
         LedgerAccountType kaynak, LedgerAccountType hedef, decimal tutar,
-        string? doviz = "TRY", decimal kur = 1m, string? aciklama = null, CancellationToken ct = default)
+        string? doviz = "TRY", decimal kur = 1m, string? aciklama = null,
+        Guid? islemAnahtari = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         EnsureKasaBanka(kaynak);
@@ -150,7 +151,8 @@ public sealed class CashService(
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
         var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
-        var sourceId = Guid.NewGuid();
+        // İdempotency (pre-launch takip): token verilirse SourceId o olur → kısmi unique index çift-submit'i yutar.
+        var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? $"Virman {kaynak}→{hedef}";
         await _ledger.PostAsync(
         [
