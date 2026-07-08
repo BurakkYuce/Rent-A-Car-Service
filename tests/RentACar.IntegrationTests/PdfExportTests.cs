@@ -45,6 +45,20 @@ public sealed class PdfExportTests
         Assert.True(IsPdf(pdf));
     }
 
+    /// <summary>Örnek (şablon) sözleşme — gerçek kira gerekmez; RentPro markalı + geçerli PDF.</summary>
+    [Fact]
+    public void Ornek_sozlesme_pdf_rentpro_ve_gecerli()
+    {
+        var v = OrnekSozlesme.Ornek();
+        Assert.Equal("RentPro", v.FirmaMarka);                 // RentPro markası
+        Assert.False(string.IsNullOrWhiteSpace(v.SozlesmeNo)); // örnek sözleşme no dolu
+        Assert.Null(v.IkinciSurucuAd);                          // örnek: tek sürücü
+
+        var pdf = new PdfExportService().Contract(v);
+        Assert.True(pdf.Length > 500);
+        Assert.True(IsPdf(pdf));
+    }
+
     [Fact]
     public void Invoice_pdf_is_valid_and_nonempty()
     {
