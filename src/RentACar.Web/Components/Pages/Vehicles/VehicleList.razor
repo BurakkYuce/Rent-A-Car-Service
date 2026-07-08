@@ -9,6 +9,12 @@
 @inject VehicleTypeService AracTipleri
 
 <PageTitle>Araçlar — RentPro</PageTitle>
+@* Zengin araç listesi: aracı ayırt etmeye yeten tüm sütunlar tek tabloda; dar ekranda yatay kaydırılır. *@
+<style>
+    .arac-grid-wrap { overflow-x: auto; width: 100%; }
+    .arac-grid-wrap table { min-width: 1750px; }
+    .arac-grid-wrap th, .arac-grid-wrap td { white-space: nowrap; }
+</style>
 
 <div class="page-head">
     <h1>Araç Listesi</h1>
@@ -110,28 +116,46 @@
     <div class="cell"><div class="s-k">Doluluk</div><div class="s-v">%@_doluluk</div></div>
 </div>
 
+<div class="arac-grid-wrap">
 <table class="grid tr-grid">
     <thead>
         <tr>
-            <th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th>
-            <th>Durum</th><th>KM</th><th>Yakıt</th><th></th>
+            <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
+            <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th>KM</th><th>Şube</th><th>Durum</th>
+            <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th>Motor Gücü</th><th>Araç Sahibi</th>
+            <th>HGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th><th></th>
         </tr>
     </thead>
     <tbody>
         @if (_page.Items.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Kayıtlı araç yok.</td></tr>
+            <tr><td colspan="23" class="muted">Kayıtlı araç yok.</td></tr>
         }
         @foreach (var v in _page.Items)
         {
             <tr>
                 <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
                 <td>@v.Marka</td>
+                <td>@v.Tip</td>
+                <td>@v.DetayTipi</td>
                 <td>@v.Grup</td>
+                <td>@v.Segment</td>
+                <td>@v.Sipp</td>
+                <td>@v.ModelYili</td>
+                <td>@v.Renk</td>
+                <td>@v.Vites</td>
+                <td>@v.Yakit</td>
+                <td class="num">@v.Km</td>
                 <td>@v.Sube</td>
                 <td>@v.Durum</td>
-                <td>@v.Km</td>
-                <td>@v.Yakit</td>
+                <td>@v.FiloDurum</td>
+                <td>@v.SasiNo</td>
+                <td>@v.MotorNo</td>
+                <td class="num">@v.MotorGucu</td>
+                <td>@v.AracSahibi</td>
+                <td>@v.HgsNo</td>
+                <td>@v.KasaTipi</td>
+                <td class="num">@v.SonBakimKm</td>
                 <td>
                     <a href="/araclar/@v.Id" class="link">Detay</a>
                     <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')"><AntiforgeryToken />
@@ -143,6 +167,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @if (_page.TotalPages > 1)
 {
