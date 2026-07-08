@@ -29,7 +29,7 @@
                 <td>@(i.IadeMi ? "İade" : (_iadeEdilmis.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
                 <td>@i.Durum</td>
                 <td>
-                    <a href="/faturalar/@i.Id/yazdir" class="link">Yazdır</a>
+                    <a href="/faturalar/@i.Id/pdf" class="link" target="_blank" rel="noopener">Yazdır (PDF)</a>
                     @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
                     {
                         <form method="post" action="/finans/fatura-iade" style="display:inline"
