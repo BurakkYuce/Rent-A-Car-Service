@@ -17,7 +17,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IBranchRepository _branches = branches;
     private readonly ITenantCache _cache = cache;
-    private const string CacheKey = "vehicles"; // dropdown kaynağı (tam tenant listesi)
+    public const string CacheKey = "vehicles"; // dropdown kaynağı (tam tenant listesi); RentalService de invalidate eder (araç Durum değişince)
 
     /// <summary>Serbest-metin şubeyi tenant içi Branch FK'sine çözer (roadmap F1); eşleşmezse null (metin korunur).</summary>
     private async Task<Guid?> ResolveSubeAsync(string? sube, CancellationToken ct)
