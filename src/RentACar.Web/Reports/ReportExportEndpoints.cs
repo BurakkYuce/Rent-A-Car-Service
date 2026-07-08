@@ -15,7 +15,7 @@ public static class ReportExportEndpoints
     {
         var grp = app.MapGroup("/raporlar/export").RequirePermission(Permission.ViewReports);
 
-        grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex) =>
+        grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex, PdfExportService pdf) =>
         {
             var from = FormParse.Date(req.Query["from"].ToString());
             var to = FormParse.Date(req.Query["to"].ToString());
@@ -50,10 +50,15 @@ public static class ReportExportEndpoints
             };
             if (t is null) return Results.NotFound($"Bilinmeyen rapor: {rapor}");
 
-            var excel = !string.Equals(req.Query["format"].ToString(), "csv", StringComparison.OrdinalIgnoreCase);
-            var bytes = excel ? ex.Xlsx(t.Sheet, t.Headers, t.Rows) : ex.Csv(t.Headers, t.Rows);
-            var ct = excel ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv";
-            return Results.File(bytes, ct, $"{rapor}.{(excel ? "xlsx" : "csv")}");
+            // ?format=excel(default)|csv|pdf — PDF, liste export'larıyla AYNI generic tablo renderer'ı.
+            var fmt = req.Query["format"].ToString().Trim().ToLowerInvariant();
+            return fmt switch
+            {
+                "csv" => Results.File(ex.Csv(t.Headers, t.Rows), "text/csv", $"{rapor}.csv"),
+                "pdf" => Results.File(pdf.Table(t.Sheet, t.Headers, t.Rows), "application/pdf", $"{rapor}.pdf"),
+                _ => Results.File(ex.Xlsx(t.Sheet, t.Headers, t.Rows),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{rapor}.xlsx")
+            };
         });
 
         return app;
