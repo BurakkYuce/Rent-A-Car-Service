@@ -126,14 +126,15 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                 {
                     Plaka = plaka,
                     Marka = Get(r, "Marka"),
-                    Tip = Get(r, "Tip", "Model", "Model Tipi", "Araç Model"),
+                    // "Tipi" = model adı (Egea); "Model" bazı export'larda YIL'dır → ModelYili'ye gider, Tip'e DEĞİL.
+                    Tip = Get(r, "Tip", "Tipi", "Model Tipi", "Araç Model"),
                     Grup = Get(r, "Grup", "Araç Grubu", "Grubu"),
                     Segment = Get(r, "Segment", "Sınıf"),
                     Renk = Get(r, "Renk"),
-                    ModelYili = ParseInt(Get(r, "Model Yılı", "Yıl", "Model Yili")),
-                    Yakit = ParseEnum<FuelType>(Get(r, "Yakıt", "Yakit")) ?? FuelType.Benzin,
-                    Vites = ParseEnum<Vites>(Get(r, "Vites", "Şanzıman")),
-                    Km = ParseInt(Get(r, "KM", "Kilometre")) ?? 0,
+                    ModelYili = ParseInt(Get(r, "Model Yılı", "Yıl", "Model Yili", "Model")),
+                    Yakit = ParseEnum<FuelType>(Get(r, "Yakıt Türü", "Yakıt", "Yakit")) ?? FuelType.Benzin,
+                    Vites = ParseEnum<Vites>(VitesNorm(Get(r, "Vites", "Şanzıman"))),
+                    Km = ParseInt(Get(r, "KM", "Kilometre", "Son Km")) ?? 0,
                     SasiNo = Get(r, "Şasi No", "Şase No", "Şase", "Şasi", "Şasi Numarası"),
                     MotorNo = Get(r, "Motor No", "Motor Numarası"),
                     Sube = Get(r, "Şube", "Ofis"),
@@ -220,4 +221,14 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     }
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>(s, true, out var v) && Enum.IsDefined(v) ? v : null;
+
+    // Vites serbest-metnini enum'a köprüle (referans sistem "Düz" = Manuel, "Oto" = Otomatik).
+    private static string? VitesNorm(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return s;
+        var n = s.Trim().ToLowerInvariant();
+        if (n.StartsWith("düz") || n.StartsWith("duz") || n.StartsWith("man")) return "Manuel";
+        if (n.StartsWith("oto")) return "Otomatik";
+        return s;
+    }
 }
