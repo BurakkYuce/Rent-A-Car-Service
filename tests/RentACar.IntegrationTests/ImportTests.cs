@@ -30,7 +30,7 @@ public sealed class ImportTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // 3 satır: 2 farklı plaka + 1 tekrar (normalize edilince aynı) → 2 eklenir, 1 atlanır.
-        var csv = "Plaka;Marka;Model;Grup;Yakıt;KM\n" +
+        var csv = "Plaka;Marka;Tipi;Grup;Yakıt Türü;Son Km\n" +
                   "34 ABC 01;Fiat;Egea;EKO;Dizel;45000\n" +
                   "34ABC02;Renault;Clio;EKO;Benzin;12000\n" +
                   "34abc01;Kopya;Kopya;EKO;Benzin;0";
