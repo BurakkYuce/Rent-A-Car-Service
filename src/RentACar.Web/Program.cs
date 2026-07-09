@@ -17,6 +17,7 @@ using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Calendar;
+using RentACar.Web.Import;
 using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
@@ -231,6 +232,7 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"]))
     builder.Services.AddSingleton<RentACar.Application.Integrations.IWhatsAppService, RentACar.Web.Integrations.TwilioWhatsAppService>();
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
+builder.Services.AddScoped<RentACar.Web.Import.ImportService>(); // veri göçü: Excel/CSV → araç/cari (PII şifreli)
 
 // LoginService + IPasswordHasher<User> + Application IPasswordHasher köprüsü artık
 // AddInfrastructure'da (Web cookie + API JWT ortak kullanır).
@@ -352,6 +354,7 @@ app.MapVehicleGroupEndpoints();
 app.MapReportExportEndpoints();
 app.MapListExportEndpoints(); // roadmap G6: liste export
 app.MapPdfEndpoints();
+app.MapImportEndpoints(); // veri göçü içe-aktarım (ManageUsers)
 app.MapTenantSettingsEndpoints();
 app.MapPersonelEndpoints();
 app.MapHukukEndpoints();
