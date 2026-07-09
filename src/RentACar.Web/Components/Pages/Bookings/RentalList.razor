@@ -17,12 +17,26 @@
 <details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
     <form method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
-        <label>Müşteri
-            <select name="musteriId" required>
-                <option value="">—</option>
+        <label>Müşteri (mevcut cari seç — ya da aşağıdan yeni oluştur)
+            <select name="musteriId">
+                <option value="">— yeni müşteri gireceğim —</option>
                 @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
             </select>
         </label>
+        <details class="new-vehicle" style="grid-column:1/-1;">
+            <summary class="link">veya buradan Yeni Müşteri oluştur (kayıtlı değilse — kirayla tek adımda)</summary>
+            <div class="grid-form">
+                <label>Ad<input name="yeniAd" /></label>
+                <label>Soyad<input name="yeniSoyad" /></label>
+                <label>Ünvan (kurumsal ise)<input name="yeniUnvan" /></label>
+                <label>TC Kimlik<input name="yeniTc" maxlength="11" /></label>
+                <label>Gsm<input name="yeniGsm" /></label>
+                <label>Mail<input name="yeniMail" type="email" /></label>
+                <label>İl<input name="yeniIl" /></label>
+                <label>İlçe<input name="yeniIlce" /></label>
+            </div>
+            <p class="muted small">Mevcut müşteriyi seçtiysen burayı boş bırak. Yeni müşteri için en az Ad (bireysel) ya da Ünvan (kurumsal) yeter; TC/PII şifreli saklanır.</p>
+        </details>
         <label>2. Sürücü (opsiyonel)
             <select name="ikinciSurucuId">
                 <option value="">—</option>
@@ -88,6 +102,9 @@
                 <option value="">—</option>
                 @foreach (var o in _locations) { <option>@o.Ad</option> }
             </select>
+        </label>
+        <label style="grid-column:1/-1;">Açıklama / Notlar (serbest — ek istekler, notlar)
+            <textarea name="aciklama" rows="2"></textarea>
         </label>
         <button type="submit">Kira Aç</button>
     </form>

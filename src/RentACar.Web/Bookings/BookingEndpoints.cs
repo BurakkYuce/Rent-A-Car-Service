@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Bookings;
@@ -88,17 +89,21 @@ public static class BookingEndpoints
 
         var kira = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv(); // adversarial H1
 
-        kira.MapPost("/create", async (RentalService svc, HttpRequest req,
-            [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
+        kira.MapPost("/create", async (RentalService svc, CustomerService customers, HttpRequest req,
+            [FromForm] string? musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
             [FromForm] string? aciklama, [FromForm] string? ikinciSurucuId) =>
         {
             try
             {
+                // Müşteri: mevcut cari seçildi mi (musteriId), yoksa kira ekranından yeni müşteri mi girildi?
+                // Tek akış — önce cari oluştur, sonra kira ona bağlanır (ayrı ekranda cari açma zorunluluğu kalktı).
+                var musteriGuid = FormParse.Id(musteriId) ?? await OlusturYeniCariAsync(customers, req.Form);
+
                 var input = new BookingInput
                 {
-                    MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
+                    MusteriId = musteriGuid, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     IkinciSurucuId = FormParse.Id(ikinciSurucuId),
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
@@ -150,6 +155,28 @@ public static class BookingEndpoints
 
     /// <summary>Opsiyonel ödeme-derinlik alanlarını forma göre doldurur (roadmap A2; bilgi amaçlı,
     /// deftere yansımaz). Boş → null (FormParse.Dec).</summary>
+    /// <summary>Kira ekranından inline yeni müşteri oluşturur (mevcut cari seçilmediyse). CustomerService PII'ı
+    /// şifreler + TC checksum/benzersizlik doğrular. En az Ad (bireysel) ya da Ünvan (kurumsal) gerekir.</summary>
+    private static async Task<Guid> OlusturYeniCariAsync(CustomerService customers, IFormCollection form)
+    {
+        var ad = FormParse.Str(form, "yeniAd");
+        var unvan = FormParse.Str(form, "yeniUnvan");
+        if (string.IsNullOrWhiteSpace(ad) && string.IsNullOrWhiteSpace(unvan))
+            throw new ValidationException("Müşteri seçin ya da yeni müşteri bilgilerini girin (en az Ad veya Ünvan).");
+        return await customers.CreateAsync(new CustomerInput
+        {
+            Tip = string.IsNullOrWhiteSpace(unvan) ? RentACar.Domain.Enums.CariType.Bireysel : RentACar.Domain.Enums.CariType.Kurumsal,
+            Ad = ad,
+            Soyad = FormParse.Str(form, "yeniSoyad"),
+            Unvan = unvan,
+            TcKimlik = FormParse.Str(form, "yeniTc"),
+            CepTel = FormParse.Str(form, "yeniGsm"),
+            Email = FormParse.Str(form, "yeniMail"),
+            Il = FormParse.Str(form, "yeniIl"),
+            Ilce = FormParse.Str(form, "yeniIlce")
+        });
+    }
+
     private static void ApplyOdemeDerinlik(BookingInput input, IFormCollection f)
     {
         input.Provizyon = FormParse.Dec(f["provizyon"].ToString());
