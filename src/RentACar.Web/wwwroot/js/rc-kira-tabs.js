@@ -27,26 +27,30 @@
     }
     function setHash(g, k) {
         var m = hashMap();
-        m[g] = k;
+        if (k == null) delete m[g]; else m[g] = k; // null → grubu hash'ten çıkar (kapalı panel)
         var s = Object.keys(m).map(function (x) { return x + '=' + encodeURIComponent(m[x]); }).join('&');
         // TAM yol verilir: çıplak '#...' Blazor enhanced-nav'da <base href="/">'e göre çözülüp
         // path'i köke düşürüyordu (canlı Playwright bulgusu) — pathname+search açıkça korunur.
-        history.replaceState(null, '', location.pathname + location.search + '#' + s);
+        history.replaceState(null, '', location.pathname + location.search + (s ? '#' + s : ''));
     }
 
     function activate(strip, key, updateHash) {
         var g = strip.getAttribute('data-tabs');
+        // data-tabs-collapsed grupları (sticky finans): açık sekmeye tekrar tıklanırsa KAPANIR
+        // (panel varsayılan kapalı — sticky bar kompakt kalır, içerik ekranı yemez).
+        var acikBtn = strip.querySelector('[data-tab][aria-selected="true"]');
+        var kapat = strip.hasAttribute('data-tabs-collapsed') && acikBtn && acikBtn.getAttribute('data-tab') === key;
         strip.querySelectorAll('[data-tab]').forEach(function (b) {
-            b.setAttribute('aria-selected', b.getAttribute('data-tab') === key ? 'true' : 'false');
+            b.setAttribute('aria-selected', !kapat && b.getAttribute('data-tab') === key ? 'true' : 'false');
         });
         document.querySelectorAll('[data-panel-group="' + g + '"]').forEach(function (p) {
-            p.hidden = p.getAttribute('data-panel') !== key;
+            p.hidden = kapat || p.getAttribute('data-panel') !== key;
         });
         if (g === 'sekme') { // edit modunda POST-redirect aynı sekmeye dönsün (hidden alan → #sekme fragment)
             var sek = document.querySelector('#kira-form [data-kf-sekme]');
             if (sek) sek.value = key;
         }
-        if (updateHash) setHash(g, key);
+        if (updateHash) setHash(g, kapat ? null : key);
     }
 
     function bindTabs() {
@@ -56,11 +60,11 @@
             strip.querySelectorAll('[data-tab]').forEach(function (b) {
                 b.addEventListener('click', function () { activate(strip, b.getAttribute('data-tab'), true); });
             });
-            // İlk durum: hash'te varsa o, yoksa ilk buton.
+            // İlk durum: hash'te varsa o; yoksa ilk buton — collapsed gruplar hash'siz KAPALI başlar.
             var m = hashMap();
             var g = strip.getAttribute('data-tabs');
             var first = strip.querySelector('[data-tab]');
-            var key = m[g] || (first && first.getAttribute('data-tab'));
+            var key = m[g] || (strip.hasAttribute('data-tabs-collapsed') ? null : first && first.getAttribute('data-tab'));
             if (key) activate(strip, key, false);
         });
     }
@@ -240,7 +244,7 @@
         bar._kfBound = true;
         var mesaj = bar.getAttribute('data-mesaj') || '';
         var konu = bar.getAttribute('data-konu') || '';
-        function hata(t) { var el = bar.querySelector('[data-paylas-hata]'); if (el) el.textContent = t; }
+        function hata(t) { var el = bar.querySelector('[data-paylas-hata]'); if (el) { el.textContent = t; el.className = t ? 'error small' : 'small'; } }
         // Numara normalizasyonu (sunucudaki eski WaLink kuralları): 00+ülke → önek at; 05xx/5xx → 90'lı TR
         function normalizeTel(tel) {
             var d = (tel || '').replace(/\D/g, '');

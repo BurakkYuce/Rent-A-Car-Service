@@ -9,10 +9,10 @@
         <button type="submit" form="kira-form" class="kf-kaydet" disabled="@(!Vm.OperasyonYetkisi || (Vm.Edit && Vm.Rental!.Durum == RentACar.Domain.Enums.RentalStatus.Iptal))" title="@(Vm.OperasyonYetkisi ? "" : "Operasyon (OperationsWrite) yetkisi gerekir")">Kaydet</button>
         @if (Vm.Kirada)
         {
-            <button type="submit" form="kira-iptal" class="link danger" style="border:1px solid #dc2626;border-radius:6px;padding:.4rem .8rem;background:none;" disabled="@(!Vm.OperasyonYetkisi)">Kira İptal</button>
+            <button type="submit" form="kira-iptal" class="kf-btn-danger" disabled="@(!Vm.OperasyonYetkisi)">Kira İptal</button>
         }
-        <button type="button" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
-        <button type="button" disabled title="TODO: dönemsel faturalama (uzun kira)">Fatura Dönemleri</button>
+        <button type="button" class="kf-btn-ghost" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
+        <button type="button" class="kf-btn-ghost" disabled title="TODO: dönemsel faturalama (uzun kira)">Fatura Dönemleri</button>
         <span class="muted small">Durum: <strong>@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Hazır")</strong></span>
         @if (Vm.Edit)
         {
@@ -20,8 +20,8 @@
         }
         <span class="kf-kalan-badge">Kalan: <span data-fp="kalan">@(Vm.Edit ? Vm.Rental!.Bakiye.ToString("N2") : "—")</span></span>
     </div>
-    <div class="kf-subtabs" role="tablist" data-tabs="fin">
-        <button type="button" role="tab" data-tab="kredikart" aria-selected="true">Kredi Kart/Havale İşlemleri</button>
+    <div class="kf-subtabs" role="tablist" data-tabs="fin" data-tabs-collapsed>
+        <button type="button" role="tab" data-tab="kredikart" aria-selected="false">Kredi Kart/Havale İşlemleri</button>
         <button type="button" role="tab" data-tab="nakit" aria-selected="false">Nakit İşlemler</button>
         <button type="button" role="tab" data-tab="faturalar" aria-selected="false">Faturalar</button>
         <button type="button" role="tab" data-tab="kurlar" aria-selected="false">Kur Bilgileri</button>
@@ -29,7 +29,7 @@
     </div>
 
     @* ---- Kredi Kart / Havale (Banka hesabına tahsilat + giden havale) ---- *@
-    <div class="kf-fin-panel" data-panel-group="fin" data-panel="kredikart">
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="kredikart" hidden>
         @if (TahsilatOlur)
         {
             <div class="report-cols">
@@ -55,7 +55,7 @@
                     <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
                 </form>
             </div>
-            <button type="button" disabled title="TODO: POS provizyon kapama (entegrasyon stub)">Manuel Provizyon Kapama</button>
+            <button type="button" class="kf-btn-ghost" disabled title="TODO: POS provizyon kapama (entegrasyon stub)">Manuel Provizyon Kapama</button>
             @if (!Vm.FinansYetkisi) { <p class="muted small">Muhasebe (FinanceWrite) yetkisi gerekir.</p> }
         }
         else { <p class="muted small">@KapaliNot</p> }
