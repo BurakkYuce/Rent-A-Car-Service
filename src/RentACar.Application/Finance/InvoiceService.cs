@@ -35,6 +35,11 @@ public sealed class InvoiceService(
     public Task<Invoice?> GetAsync(Guid id, CancellationToken ct = default)
         => repository.FindAsync(id, ct);
 
+    /// <summary>Bir kiranın faturaları (base+fark+iade; iptal dahil) — kira formu "Faturalar" alt-sekmesi.
+    /// Salt-okuma; ListAsync ile tutarlı olarak guard'sız.</summary>
+    public Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
+        => repository.ListByRentalAsync(rentalId, ct);
+
     public async Task<Guid> CreateFromRentalAsync(
         Guid rentalId, decimal? kdvRate = null, InvoiceTaxInfo? vergi = null, CancellationToken ct = default)
     {

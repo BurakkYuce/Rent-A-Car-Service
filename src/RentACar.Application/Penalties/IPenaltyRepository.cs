@@ -7,6 +7,9 @@ public interface IPenaltyRepository
     Task<IReadOnlyList<Penalty>> ListAsync(CancellationToken ct = default);
     Task<Penalty?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Bir kiraya bağlı cezalar (kira formu "Ceza/Geçişler" alt-sekmesi).</summary>
+    Task<IReadOnlyList<Penalty>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default);
+
     /// <summary>No boşluksuz tahsis edip ekler.</summary>
     Task CreateAsync(Penalty penalty, CancellationToken ct = default);
 

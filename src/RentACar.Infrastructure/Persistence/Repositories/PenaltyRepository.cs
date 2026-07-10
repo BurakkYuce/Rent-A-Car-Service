@@ -23,6 +23,14 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Penalties.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
+    public async Task<IReadOnlyList<Penalty>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Penalties.AsNoTracking()
+            .Where(p => p.RentalId == rentalId)
+            .OrderByDescending(p => p.CreatedAtUtc).ToListAsync(ct);
+    }
+
     public async Task CreateAsync(Penalty penalty, CancellationToken ct = default)
     {
         await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene

@@ -27,6 +27,25 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().Include(i => i.Lines).FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
+    public async Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // base (RentalId) + fark (KaynakKiraId) — GetFarkStateAsync ile aynı kapsam; burada iptal/iade de
+        // listelenir (görsel liste, filtre yok). İadeler kaynak fatura üzerinden dolaylı bağlı olduğundan
+        // ikinci sorguyla eklenir.
+        var kiraFaturalari = await db.Invoices.AsNoTracking()
+            .Where(i => i.RentalId == rentalId || i.KaynakKiraId == rentalId)
+            .ToListAsync(ct);
+        var ids = kiraFaturalari.Select(x => x.Id).ToList();
+        var iadeler = ids.Count == 0
+            ? []
+            : await db.Invoices.AsNoTracking()
+                .Where(i => i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value))
+                .ToListAsync(ct);
+        return kiraFaturalari.Concat(iadeler.Where(i => !ids.Contains(i.Id)))
+            .OrderByDescending(i => i.Tarih).ThenByDescending(i => i.No).ToList();
+    }
+
     public async Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

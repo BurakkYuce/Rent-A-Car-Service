@@ -18,7 +18,7 @@ public static class FinanceEndpoints
 
     /// <summary>Açık-yönlendirme savunması (adversarial): donus formdan gelir; yalnız site-içi GÖRELİ yol kabul
     /// edilir, harici/protokol-göreli (//evil, /\evil) → güvenli fallback (aksi halde phishing yönlendirmesi).</summary>
-    private static string SafeDonus(string? donus, string fallback)
+    internal static string SafeDonus(string? donus, string fallback) // Depozito uçlarıyla paylaşılır
         => !string.IsNullOrEmpty(donus) && donus[0] == '/'
            && !(donus.Length > 1 && (donus[1] == '/' || donus[1] == '\\'))
             ? donus : fallback;

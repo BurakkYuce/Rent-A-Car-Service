@@ -27,6 +27,21 @@ public sealed class PersonelService(
         return await _repository.ListAsync(ct);
     }
 
+    /// <summary>
+    /// Seçim listesi (dropdown) — kira dönüşü "Teslim Alan" gibi OPERASYON ekranları için. PII TAŞIMAZ
+    /// (yalnız Id/Ad/Soyad/Şube projeksiyonu; TcKimlikEnc/MaasEnc dışarı çıkmaz) → ManageUsers yerine
+    /// OperationsWrite yeter. (Önceki gizli bug: dönüş formu ListAsync çağırıyordu → Operatör rolünde
+    /// ManageUsers guard'ı sayfayı patlatıyordu; seed Admin olduğundan görünmüyordu.)
+    /// </summary>
+    public async Task<IReadOnlyList<PersonelSecim>> ListForSelectAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var rows = await _repository.ListAsync(ct);
+        return rows.Where(p => p.Aktif)
+            .Select(p => new PersonelSecim(p.Id, p.Ad, p.Soyad, p.Sube))
+            .ToList();
+    }
+
     /// <summary>Detay (PII çözülmüş) — düzenleme formu için.</summary>
     public async Task<PersonelDetail?> GetDetailAsync(Guid id, CancellationToken ct = default)
     {
