@@ -1,79 +1,105 @@
-// Kira açma formunda CANLI fiyat önizlemesi (TAHMİNİ). Sunucu PricingService.KdvModuUygula ile birebir ayna:
-//   gun = 24h tam blok + kısmi >= 2.9sa ? +1 (min 1); KDV %20 sabit; brüt Tutar moda göre.
-// KESİN tutar sunucuda (PricingService). Statik SSR: enhanced-navigation sonrası yeniden bağlanır
-// (rc-datepicker.js deseni). flatpickr datetime input'ları ISO değeri korur → new Date(value) çalışır.
+// Kira formu CANLI fiyat paneli — SUNUCU MOTORUNDAN (GET /kiralar/hesapla → KiraHesapService →
+// PricingService/RentalQuoteEngine). Bu dosyada FORMÜL YOKTUR: eski istemci-aynası (round2/computeGun/KDV
+// kopyası) kaldırıldı — UI'daki rakam ile testlerdeki golden değer AYNI motordan gelir (sessiz sapma biter).
+// 300ms debounce + AbortController (eski istek iptal). Statik SSR: rc-datepicker.js bind deseni
+// (DOMContentLoaded + Blazor enhancedload + form-instance guard).
 (function () {
-    // C# MidpointRounding.AwayFromZero eşdeğeri (yarım-kuruş yukarı; float-altı düzeltmesi için epsilon).
-    function round2(x) {
-        var s = x < 0 ? -1 : 1;
-        return s * Math.round((Math.abs(x) + 1e-9) * 100) / 100;
+    var timer = null, ctrl = null;
+
+    function form() { return document.getElementById('kira-form'); }
+    function val(f, n) { var el = f.querySelector('[name="' + n + '"]'); return el ? el.value : ''; }
+    function fmt(x) { return Number(x).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function fill(k, v) { document.querySelectorAll('[data-fp="' + k + '"]').forEach(function (el) { el.textContent = v; }); }
+    function note(msg) { fill('not', msg); }
+    function bosla() {
+        ['gun', 'gunluk', 'net', 'kdv', 'ektoplam', 'toplam', 'kur', 'tl', 'kalan', 'dokum']
+            .forEach(function (k) { fill(k, '—'); });
+        document.querySelectorAll('[data-ekrow]').forEach(function (el) { el.textContent = '—'; });
     }
-    function computeGun(bas, bit) {
-        var t = (bit - bas) / 3600000; // saat
-        if (!(t > 0)) return 1;
-        var tam = Math.floor(t / 24);
-        var kismi = t - tam * 24;
-        return Math.max(1, tam + (kismi >= 2.9 ? 1 : 0));
+
+    // İşaretli ek hizmetler → "id:miktar,id:miktar"
+    function ekParam(f) {
+        var parts = [];
+        f.querySelectorAll('input[name="ekSecim"]:checked').forEach(function (cb) {
+            var m = f.querySelector('[name="ekMiktar_' + cb.value + '"]');
+            var miktar = m && m.value ? m.value.replace(',', '.') : '1';
+            parts.push(cb.value + ':' + miktar);
+        });
+        return parts.join(',');
     }
-    function fmt(x) { return x.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    function recalc(form) {
-        var out = {};
-        ['gun', 'net', 'kdv', 'toplam', 'kalan', 'not'].forEach(function (k) { out[k] = form.querySelector('[data-fp=' + k + ']'); });
-        if (!out.toplam) return;
-        var uEl = form.querySelector('[name=gunlukUcret]');
-        var basEl = form.querySelector('[name=basTar]');
-        var bitEl = form.querySelector('[name=bitTar]');
-        var mod = (form.querySelector('[name=fiyatTuru]') || {}).value || '';
-        var sym = (form.querySelector('[name=doviz]') || {}).value || 'TL';
+    async function run() {
+        var f = form();
+        if (!f) return;
+        var bas = val(f, 'basTar'), bit = val(f, 'bitTar');
+        if (!bas || !bit) { bosla(); note('Tarih aralığı girin.'); return; }
 
-        var u = parseFloat(((uEl && uEl.value) || '').replace(',', '.'));
-        var basD = basEl && basEl.value ? new Date(basEl.value) : null;
-        var bitD = bitEl && bitEl.value ? new Date(bitEl.value) : null;
-        var gun = (basD && bitD && !isNaN(basD) && !isNaN(bitD)) ? computeGun(basD, bitD) : null;
+        if (ctrl) ctrl.abort();
+        ctrl = new AbortController();
+        var q = new URLSearchParams({ basTar: bas, bitTar: bit });
+        ['vehicleId', 'gunlukUcret', 'fiyatTuru', 'doviz', 'cikisOfisi'].forEach(function (n) {
+            var v = val(f, n);
+            if (v) q.set(n, v);
+        });
+        var ek = ekParam(f);
+        if (ek) q.set('ek', ek);
+        var rid = f.getAttribute('data-rental-id'); // edit modu (PR-D): Kalan = GenelToplam − Tahsilat
+        if (rid) q.set('rentalId', rid);
 
-        if (out.gun) out.gun.textContent = gun != null ? gun : '—';
+        try {
+            var r = await fetch('/kiralar/hesapla?' + q.toString(), {
+                signal: ctrl.signal, headers: { 'Accept': 'application/json' }
+            });
+            if (!r.ok) { note('Hesap alınamadı (' + r.status + ').'); return; }
+            var d = await r.json();
+            if (!d.ok) { bosla(); note(d.hata || 'Hesaplanamadı.'); return; }
 
-        function bosla(msg) {
-            ['net', 'kdv', 'toplam', 'kalan'].forEach(function (k) { if (out[k]) out[k].textContent = '—'; });
-            if (out.not) out.not.textContent = msg;
+            var dv = d.doviz || 'TL';
+            fill('gun', d.gun);
+            fill('gunluk', fmt(d.gunlukUcret) + ' ' + dv);
+            fill('net', fmt(d.net) + ' ' + dv);
+            fill('kdv', fmt(d.kdv) + ' ' + dv);
+            fill('ektoplam', fmt(d.ekHizmetToplam) + ' ' + dv);
+            fill('toplam', fmt(d.genelToplam) + ' ' + dv);
+            fill('kur', d.kur != null ? fmt(d.kur) : '—');
+            fill('tl', d.genelToplamTl != null ? fmt(d.genelToplamTl) + ' TL' : '—');
+            fill('kalan', fmt(d.kalan) + ' ' + dv);
+
+            // Motor dökümü (Otomatik tarife bileşenleri — bilgi)
+            var dok = [];
+            if (d.hediyeGun != null) dok.push('Hediye gün: ' + d.hediyeGun);
+            if (d.faturalananGun != null) dok.push('Faturalanan gün: ' + d.faturalananGun);
+            if (d.iskontoTutar != null) dok.push('İskonto: ' + fmt(d.iskontoTutar) + ' ' + dv);
+            if (d.haftaSonuFark != null) dok.push('Hafta sonu farkı: ' + fmt(d.haftaSonuFark) + ' ' + dv);
+            fill('dokum', dok.length ? dok.join(' · ') : '—');
+
+            // Ek hizmet satır toplamları
+            document.querySelectorAll('[data-ekrow]').forEach(function (el) { el.textContent = '—'; });
+            (d.ekKalemler || []).forEach(function (k) {
+                document.querySelectorAll('[data-ekrow="' + k.tanimId + '"]')
+                    .forEach(function (el) { el.textContent = fmt(k.toplam) + ' ' + dv; });
+            });
+
+            note('Sunucu motoru hesabı — kayıtta da aynı motor çalışır.');
+        } catch (e) {
+            if (e.name !== 'AbortError') note('Hesap alınamadı.');
         }
-        if (mod === 'Otomatik') { bosla('Otomatik: tutar sunucuda tarifeden hesaplanır.'); return; }
-        if (isNaN(u) || gun == null) { bosla('Ücret ve tarih girin (tahmini).'); return; }
-
-        var tutar;
-        if (mod === 'Günlük') tutar = round2(gun * round2(u * 1.2));
-        else if (mod === 'KDV Dahil Toplam') tutar = round2(u);
-        else if (mod === 'Toplam') tutar = round2(u * 1.2);
-        else tutar = round2(gun * u); // KDV Dahil Günlük / boş / bilinmeyen
-
-        var net = round2(tutar / 1.2);
-        var kdv = round2(tutar - net);
-        if (out.net) out.net.textContent = fmt(net) + ' ' + sym;
-        if (out.kdv) out.kdv.textContent = fmt(kdv) + ' ' + sym;
-        if (out.toplam) out.toplam.textContent = fmt(tutar) + ' ' + sym;
-        if (out.kalan) out.kalan.textContent = fmt(tutar) + ' ' + sym;
-        var toplamNot = (mod === 'KDV Dahil Toplam' || mod === 'Toplam') ? '"Günlük Ücret" burada TOPLAM girdisidir. ' : '';
-        if (out.not) out.not.textContent = toplamNot + 'Tahmini — kesin tutar kayıtta.';
     }
+
+    function recalc() { clearTimeout(timer); timer = setTimeout(run, 300); }
 
     function bind() {
-        var form = document.getElementById('kira-create-form');
-        if (!form || form._fpBound) return;
-        form._fpBound = true;
-        ['gunlukUcret', 'basTar', 'bitTar', 'fiyatTuru', 'doviz'].forEach(function (n) {
-            var el = form.querySelector('[name=' + n + ']');
-            if (el) {
-                el.addEventListener('input', function () { recalc(form); });
-                el.addEventListener('change', function () { recalc(form); });
-            }
-        });
-        recalc(form);
+        var f = form();
+        if (!f || f._fpBound) return;
+        f._fpBound = true;
+        // Delege dinleme: form içindeki HER alan (kanonikler + ek hizmet matris satırları).
+        f.addEventListener('input', recalc);
+        f.addEventListener('change', recalc);
+        run();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
     else bind();
-    // Enhanced-navigation sonrası yeni form için yeniden bağla
     function hookBlazor() {
         if (window.Blazor && window.Blazor.addEventListener) window.Blazor.addEventListener('enhancedload', bind);
         else setTimeout(hookBlazor, 200);

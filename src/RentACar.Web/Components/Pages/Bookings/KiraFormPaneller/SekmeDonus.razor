@@ -1,0 +1,46 @@
+@* DÖNÜŞ — hesap yapan ekran. Create modunda tümü gri ("kira açıldıktan sonra"); edit modunda /kiralar/donus
+   formu + canlı km hesabı PR-D'de bu panele bağlanır. Alanların TAMAMI görünür (hiçbiri atlanmadı). *@
+<section class="kf-panel" data-panel-group="sekme" data-panel="donus" hidden>
+    @if (!Vm.Edit)
+    {
+        <p class="muted"><strong>Kira açıldıktan sonra</strong> dönüş bu sekmeden işlenir: dönüş km/yakıt girilir, fazla km + yakıt farkı + geç-dönüş bedeli SUNUCU motorundan (ReturnMath) hesaplanır ve Genel Toplam güncellenir.</p>
+    }
+    <div class="card">
+        <strong>Dönüş Bilgileri</strong>
+        <div class="grid-form">
+            <label>Durum<input readonly value="@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "—")" /></label>
+            <label>Bitiş Tarihi/Saati<input readonly value="@(Vm.Edit ? Vm.Rental!.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") : "—")" /></label>
+            <label>Gerçek Dönüş<input readonly value="@(Vm.Edit && Vm.Rental!.GercekDonusTar is { } g ? g.LocalDateTime.ToString("dd.MM.yyyy HH:mm") : "dönüşte girilir")" /></label>
+            <label>Teslim Alan<input readonly value="dönüş formunda seçilir (personel)" /></label>
+            <label>Bitiş Sebebi<input readonly value="@(Vm.Edit ? (Vm.Rental!.BitisSebebi ?? "dönüşte girilir") : "—")" /></label>
+            <label>Ofis Alış-Teslim<input readonly value="@(Vm.Edit ? (Vm.Rental!.DonusOfisi ?? "—") : "—")" /></label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>Km / Yakıt</strong>
+        <div class="grid-form">
+            <label>Çıkış Km<input readonly value="@(Vm.Edit && Vm.Rental!.CikisKm is int ck ? ck.ToString() : "—")" /></label>
+            <label>Çıkış Yakıt<input readonly value="@(Vm.Edit && Vm.Rental!.CikisYakit is int cy ? cy.ToString() : "—")" /></label>
+            <label>Dönüş Km<input readonly value="@(Vm.Edit && Vm.Rental!.DonusKm is int dk ? dk.ToString() : "dönüşte girilir")" /></label>
+            <label>Dönüş Yakıt<input readonly value="@(Vm.Edit && Vm.Rental!.DonusYakit is int dy ? dy.ToString() : "dönüşte girilir")" /></label>
+            <label>KM Günlük/Toplam Sınır<input readonly value="@(Vm.Edit ? (Vm.Rental!.KmLimit == 0 ? "sınırsız" : Vm.Rental!.KmLimit.ToString()) : "Kira Bilgisi sekmesinde")" /></label>
+            <label>KM Hediye<input readonly value="@(Vm.Edit ? (Vm.Rental!.KmHediye?.ToString() ?? "dönüşte girilir") : "—")" /></label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>Dönüş Bedelleri (motor hesabı — ReturnMath)</strong>
+        <div class="kf-hesap">
+            <div class="row"><span>Fazla KM</span><span class="num">@(Vm.Edit ? Vm.Rental!.FazlaKm.ToString() : "—")</span></div>
+            <div class="row"><span>Fazla KM Bedeli</span><span class="num">@(Vm.Edit ? Vm.Rental!.FazlaKmBedeli.ToString("N2") : "—")</span></div>
+            <div class="row"><span>Eksik Yakıt</span><span class="num">@(Vm.Edit ? Vm.Rental!.EksikYakit.ToString() : "—")</span></div>
+            <div class="row"><span>Yakıt Bedeli</span><span class="num">@(Vm.Edit ? Vm.Rental!.YakitBedeli.ToString("N2") : "—")</span></div>
+            <div class="row"><span>Uzatma Gün (geç dönüş)</span><span class="num">@(Vm.Edit ? Vm.Rental!.UzatmaGun.ToString() : "—")</span></div>
+            <div class="row"><span>Uzatma Bedeli</span><span class="num">@(Vm.Edit ? Vm.Rental!.UzatmaBedeli.ToString("N2") : "—")</span></div>
+            <div class="row top"><span>Genel Toplam</span><span class="num">@(Vm.Edit ? Vm.Rental!.GenelToplam.ToString("N2") : "—")</span></div>
+        </div>
+        <p class="muted small">Dönüş km girilince fazla km + bedeller CANLI hesaplanacak (edit modu; sunucu motoru). Planlı uzatma ayrı: Kira Uzat işlemi.</p>
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}

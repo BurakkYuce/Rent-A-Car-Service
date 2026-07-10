@@ -1,0 +1,182 @@
+@* AYRINTILAR — 8 alt-sekme (Açıklama / Finans-Uçuş / Sürücüler / Diğer Bilgiler / Hizmet Alımı /
+   Web Api Bilgisi / Aksesuar / Ek Koşullar). Hiçbir alt-sekme atlanmadı: backing'i olmayanlar
+   görsel-tam + TODO (Seviye 2), gerisi gerçek kolonlara bağlı (Seviye 1). *@
+<section class="kf-panel" data-panel-group="sekme" data-panel="ayrintilar" hidden>
+    <div class="kf-subtabs" role="tablist" data-tabs="alt">
+        <button type="button" role="tab" data-tab="aciklama" aria-selected="true">Açıklama</button>
+        <button type="button" role="tab" data-tab="finans" aria-selected="false">Finans/Uçuş</button>
+        <button type="button" role="tab" data-tab="suruculer" aria-selected="false">Sürücüler</button>
+        <button type="button" role="tab" data-tab="diger" aria-selected="false">Diğer Bilgiler</button>
+        <button type="button" role="tab" data-tab="hizmetalimi" aria-selected="false">Hizmet Alımı</button>
+        <button type="button" role="tab" data-tab="webapi" aria-selected="false">Web Api Bilgisi</button>
+        <button type="button" role="tab" data-tab="aksesuar" aria-selected="false">Aksesuar</button>
+        <button type="button" role="tab" data-tab="ekkosullar" aria-selected="false">Ek Koşullar</button>
+    </div>
+
+    @* 1. Açıklama (S1) *@
+    <div data-panel-group="alt" data-panel="aciklama">
+        <div class="grid-form">
+            <label style="grid-column:1/-1;">Açıklama<textarea name="aciklama" rows="3" maxlength="1024"></textarea></label>
+            <label style="grid-column:1/-1;">Uyarı Açıklama (sözleşme açılışında operatöre gösterilir)<textarea name="uyariAciklama" rows="2" maxlength="512"></textarea></label>
+            <label style="grid-column:1/-1;">Özel Fatura Açıklaması<textarea name="ozelFaturaAciklama" rows="2" maxlength="512"></textarea></label>
+            <label style="display:flex;gap:.4rem;align-items:center;">
+                <input type="hidden" name="faturaListesindeGizle" value="false" />
+                <input type="checkbox" name="faturaListesindeGizle" value="true" style="width:auto;" /> Fatura Listesinde Gösterme
+            </label>
+        </div>
+    </div>
+
+    @* 2. Finans/Uçuş (kart alanları PCI — name'siz, saklanmaz; provizyon referansları S1) *@
+    <div data-panel-group="alt" data-panel="finans" hidden>
+        <div class="card">
+            <strong>Kart (provizyon için — SAKLANMAZ)</strong>
+            <div class="grid-form">
+                <label>Hesap Sahibi<input autocomplete="off" disabled title="TODO: POS entegrasyonu (stub) — kart verisi sisteme YAZILMAZ (PCI)" /></label>
+                <label>Kart No<input autocomplete="off" disabled title="PCI: kart no saklanmaz" /></label>
+                <label>Son Kullanma<input autocomplete="off" disabled title="PCI: saklanmaz" /></label>
+                <label>Güvenlik Kodu (CVV)<input autocomplete="off" disabled title="CVV ASLA saklanmaz" /></label>
+            </div>
+            <p class="muted small">PCI kuralı: kart verisi ve CVV sisteme kaydedilmez; provizyon POS üzerinden alınır (entegrasyon stub).</p>
+            <div style="display:flex;gap:.5rem;">
+                <button type="button" disabled title="TODO: POS provizyon (hold)">Provizyon Al</button>
+                <button type="button" disabled title="TODO: POS provizyon kapama (capture/release)">Provizyon Kapat</button>
+            </div>
+        </div>
+        <div class="card">
+            <strong>Provizyon / Uçuş Referansları</strong>
+            <div class="grid-form">
+                <label>Provizyon No<input name="provizyonNo" maxlength="64" /></label>
+                <label>Provizyon Tarihi<input name="provizyonTarih" type="date" /></label>
+                <label>Provizyon Tutarı<input readonly value="Fiyat sekmesindeki Provizyon alanı" /></label>
+                <label>Uçuş No<input name="ucusNo" maxlength="32" placeholder="TK1923" /></label>
+                <label>Onay Kodu<input name="onayKodu" maxlength="64" /></label>
+                <label>Firma Kodu<input name="firmaKodu" maxlength="64" /></label>
+                <label>Proje Adı<input name="projeAdi" maxlength="128" /></label>
+                <label>Özel Kod<input name="ozelKod" list="dl-kf-ozelkod" autocomplete="off" maxlength="64" placeholder="Seç veya yaz" /></label>
+            </div>
+        </div>
+    </div>
+
+    @* 3. Sürücüler (PII; kanonik ikinciSurucuId Müşteri sekmesinde — burada ayna + kartlar) *@
+    <div data-panel-group="alt" data-panel="suruculer" hidden>
+        <div class="report-cols">
+            <div class="card">
+                <strong>1. Sürücü (müşteri)</strong>
+                <p class="muted small">@(Vm.Edit ? "Cari kartından (TC/ehliyet şifreli — yetkili gösterimde çözülür)." : "Müşteri sekmesinden seçilir/oluşturulur; kimlik-ehliyet bilgisi cari kartında şifreli tutulur.")</p>
+            </div>
+            <div class="card">
+                <strong>2. Sürücü</strong>
+                <div class="grid-form">
+                    <label>2. Sürücü Seç
+                        <select data-mirror="ikinciSurucuId">
+                            <option value="">—</option>
+                            @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
+                        </select>
+                    </label>
+                </div>
+                <p class="muted small">Ehliyet/doğum bilgileri seçilen carinin kartından (geleceğe kapalı tarih kuralları cari formunda).</p>
+            </div>
+        </div>
+        <div class="grid-form">
+            <label style="grid-column:1/-1;">Özel Şoför Bilgisi<input name="ozelSoforBilgisi" maxlength="512" /></label>
+        </div>
+    </div>
+
+    @* 4. Diğer Bilgiler *@
+    <div data-panel-group="alt" data-panel="diger" hidden>
+        <div class="grid-form">
+            <label>Assist Firma<input name="assistFirma" maxlength="128" /></label>
+            <label>Talep Türü<input data-mirror="talepTuru" /></label>
+            <label>Geldiği Birim<input data-mirror="geldigiBirim" /></label>
+            <label>Manuel Findeks<input data-mirror="manuelFindexPuan" type="number" min="0" /></label>
+            <label>Müşteri Araç<input disabled title="TODO: müşteri kendi aracı (ikame senaryosu) alanı" /></label>
+            <label>Araç Detayı<input disabled title="TODO" /></label>
+            <label>Doluluk Hesap<input readonly value="—" title="TODO: doluluk-bazlı fiyat çarpanı" /></label>
+            <label>Kefil<input data-mirror="kefilBilgisi" /></label>
+        </div>
+    </div>
+
+    @* 5. Hizmet Alımı (B2B/komisyon — görsel-tam, bağlantı TODO; backing tablo yok) *@
+    <div data-panel-group="alt" data-panel="hizmetalimi" hidden>
+        <div class="card">
+            <strong>Dış Hizmet Alımı <span class="muted small">(B2B — bağlantı TODO; alanlar kaydedilmez)</span></strong>
+            <div class="grid-form">
+                <label>Bakiyelendirme<select disabled><option>Müşteri Borçlu (peşin)</option><option>Cari (3)</option></select></label>
+                <label>Bakiye<input disabled /></label>
+                <label>Hesaplama<input disabled /></label>
+                <label>Fatura Kesilecek Firma Ara<input disabled placeholder="cari ara" /></label>
+                <label>Bakiyeli Cari Ara<input disabled placeholder="cari ara" /></label>
+                <label>Alınan Hizmet<input disabled /></label>
+                <label>Hizmet Alınan Firma<input disabled /></label>
+                <label>Hizmet Bedeli<input disabled type="number" /></label>
+                <label>Tedarikçiden Komisyon %<input disabled type="number" /></label>
+                <label>Bayiden Komisyon %<input disabled type="number" /></label>
+                <label>Vereceğimiz Komisyon (tutar)<input disabled type="number" /></label>
+                <label>Komisyon Fatura No<input disabled /></label>
+                <label>Bayi Fatura No<input disabled /></label>
+                <label style="display:flex;gap:.4rem;align-items:center;"><input type="checkbox" disabled style="width:auto;" /> Kdv Muafiyeti Var</label>
+                <label>İndirim Türü<select disabled><option>—</option></select></label>
+            </div>
+            <p class="muted small">Komisyon/dış-tedarik defter eşlemesi ileri faz (FX+komisyon birim tutarlılığına dikkat — K2 dersi).</p>
+        </div>
+    </div>
+
+    @* 6. Web Api Bilgisi (OTA kanalı — görsel-tam, veri kaynağı TODO) *@
+    <div data-panel-group="alt" data-panel="webapi" hidden>
+        <div class="grid-form">
+            @foreach (var alan in new[] { "Kira Bedeli", "Drop Bedeli", "Bebek Koltuğu", "Navigasyon", "LCF", "CDW", "SCDW", "Ek Sürücü" })
+            {
+                <label>@alan<input readonly value="—" title="Web/OTA rezervasyonundan dolar; ofis kirasında boş (kanal entegrasyonu TODO)" /></label>
+            }
+        </div>
+        <p class="muted small">Online kanal (OTA/web) rezervasyon bileşen fiyatları — kanal entegrasyonu açılınca dolar.</p>
+    </div>
+
+    @* 7. Aksesuar (S1 — çıkış "önce" burada; dönüş "sonra" edit modunda aktifleşir) *@
+    <div data-panel-group="alt" data-panel="aksesuar" hidden>
+        <table class="grid">
+            <thead><tr><th>Aksesuar</th><th>Çıkış (önce)</th><th>Dönüş (sonra)</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>Yedek Anahtar</td>
+                    <td><input type="hidden" name="aksYedekAnahtarCikis" value="false" /><input type="checkbox" name="aksYedekAnahtarCikis" value="true" style="width:auto;" /></td>
+                    <td><input type="checkbox" disabled="@(!Vm.Edit)" style="width:auto;" title="@(Vm.Edit ? "" : "dönüşte işaretlenir")" /></td>
+                </tr>
+                <tr>
+                    <td>Stepne</td>
+                    <td><input type="hidden" name="aksStepneCikis" value="false" /><input type="checkbox" name="aksStepneCikis" value="true" style="width:auto;" /></td>
+                    <td><input type="checkbox" disabled="@(!Vm.Edit)" style="width:auto;" title="@(Vm.Edit ? "" : "dönüşte işaretlenir")" /></td>
+                </tr>
+                <tr>
+                    <td>Zincir</td>
+                    <td><input type="hidden" name="aksZincirCikis" value="false" /><input type="checkbox" name="aksZincirCikis" value="true" style="width:auto;" /></td>
+                    <td><input type="checkbox" disabled="@(!Vm.Edit)" style="width:auto;" title="@(Vm.Edit ? "" : "dönüşte işaretlenir")" /></td>
+                </tr>
+                <tr>
+                    <td>İlk Yardım Çantası</td>
+                    <td><input type="hidden" name="aksIlkYardimCikis" value="false" /><input type="checkbox" name="aksIlkYardimCikis" value="true" style="width:auto;" /></td>
+                    <td><input type="checkbox" disabled="@(!Vm.Edit)" style="width:auto;" title="@(Vm.Edit ? "" : "dönüşte işaretlenir")" /></td>
+                </tr>
+                <tr>
+                    <td>Lastikler (ÖnSol/ÖnSağ/ArkaSol/ArkaSağ)</td>
+                    <td><input name="aksLastikCikis" maxlength="64" placeholder="ÖS:iyi ÖSğ:iyi AS:iyi ASğ:iyi" /></td>
+                    <td><input disabled="@(!Vm.Edit)" maxlength="64" placeholder="dönüşte" /></td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="muted small">Hasar/eksik kanıtı: "önce" teslimde, "sonra" dönüşte doldurulur (dönüş alanları kayıttan sonra aktif).</p>
+    </div>
+
+    @* 8. Ek Koşullar (S1 — sözleşme özel şartları) *@
+    <div data-panel-group="alt" data-panel="ekkosullar" hidden>
+        <div class="grid-form">
+            <label style="grid-column:1/-1;">Ek Koşullar / Sözleşme Özel Şartları
+                <textarea name="ekKosullar" rows="6" maxlength="2048" placeholder="Örn: Sigara içilmez; şehir dışı çıkış bildirime tabidir..."></textarea>
+            </label>
+        </div>
+        <p class="muted small">Yazdırılan sözleşmeye eklenmesi TODO (sözleşme PDF şablonu).</p>
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}
