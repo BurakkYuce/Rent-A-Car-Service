@@ -59,18 +59,17 @@ else
     @* Paylaşım barı: numara/e-posta DÜZENLENEBİLİR (kayıtlı değer prefill; farklı numaraya/adrese de
        gönderilebilir). WhatsApp → wa.me, E-posta → GMAIL compose yönlendirmesi (mailto değil). Hazır
        özet metin data-attr'da; PDF eki elle (medya/ek göndermek Twilio/SMTP kimliği ister — stub). *@
-    <div class="card" data-paylas data-mesaj="@_paylasMesaj" data-konu="@_paylasKonu"
-         style="display:flex;gap:.7rem;align-items:flex-end;flex-wrap:wrap;padding:.5rem .8rem;margin:.4rem 0;">
-        <strong style="align-self:center;">Paylaş</strong>
-        <label class="small" style="display:flex;flex-direction:column;gap:.15rem;">Numara (GSM)
+    <div class="card kf-paylas" data-paylas data-mesaj="@_paylasMesaj" data-konu="@_paylasKonu">
+        <strong>Paylaş</strong>
+        <label>Numara (GSM)
             <input data-paylas-tel value="@_musteriTel" placeholder="05xx xxx xx xx" style="min-width:11rem;" />
         </label>
-        <button type="button" data-paylas-wa title="Girilen numaraya hazır özet mesajla WhatsApp açar; PDF'i konuşmada eklersiniz">WhatsApp'ta Aç</button>
-        <label class="small" style="display:flex;flex-direction:column;gap:.15rem;">E-posta
+        <button type="button" class="kf-btn-ghost" data-paylas-wa title="Girilen numaraya hazır özet mesajla WhatsApp açar; PDF'i konuşmada eklersiniz">WhatsApp'ta Aç</button>
+        <label>E-posta
             <input data-paylas-mail type="email" value="@_musteriEmail" placeholder="ornek@mail.com" style="min-width:13rem;" />
         </label>
-        <button type="button" data-paylas-gmail title="Gmail taslağını hazır konu/metinle açar; PDF'i taslağa eklersiniz">Gmail'de Aç</button>
-        <span data-paylas-hata class="error small" style="align-self:center;"></span>
+        <button type="button" class="kf-btn-ghost" data-paylas-gmail title="Gmail taslağını hazır konu/metinle açar; PDF'i taslağa eklersiniz">Gmail'de Aç</button>
+        <span data-paylas-hata class="small" style="align-self:center;"></span>
     </div>
 }
 
