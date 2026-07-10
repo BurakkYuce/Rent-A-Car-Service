@@ -22,6 +22,10 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     public Task<Penalty?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
+    /// <summary>Bir kiraya bağlı cezalar — kira formu "Ceza/Geçişler" alt-sekmesi (salt-okuma).</summary>
+    public Task<IReadOnlyList<Penalty>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
+        => _repository.ListByRentalAsync(rentalId, ct);
+
     public async Task<Guid> CreateAsync(PenaltyInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial L1 (para yolu YansitAsync ayrı FinanceWrite)

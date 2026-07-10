@@ -36,7 +36,8 @@ public static class DepozitoEndpoints
         var doviz = S("doviz") ?? "TRY";
         var kur = FormParse.Dec(S("kur")) ?? 1m;
         var anahtar = FormParse.Id(S("islemAnahtari"));
-        try { await action(cari, tutar, hesap, doviz, kur, anahtar); return Results.Redirect("/depozito?ok=1"); }
-        catch (ValidationException ex) { return Results.Redirect($"/depozito?hata={Uri.EscapeDataString(ex.Message)}"); }
+        var donus = S("donus"); // kira formu gibi çağıran ekrana geri dönüş (SafeDonus: yalnız yerel yol)
+        try { await action(cari, tutar, hesap, doviz, kur, anahtar); return Results.Redirect(FinanceEndpoints.SafeDonus(donus, "/depozito?ok=1")); }
+        catch (ValidationException ex) { return Results.Redirect($"{FinanceEndpoints.SafeDonus(donus, "/depozito")}?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

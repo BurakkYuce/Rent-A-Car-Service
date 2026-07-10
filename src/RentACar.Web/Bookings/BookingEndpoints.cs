@@ -108,6 +108,7 @@ public static class BookingEndpoints
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
                 ApplyOdemeDerinlik(input, req.Form);
+                ApplyKiraDetay(input, req.Form);
                 var id = await svc.CreateDirectAsync(input);
                 // Kira açılınca DETAY ekranına git → oradaki tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
                 return Results.Redirect($"/kiralar/{id}");
@@ -115,6 +116,74 @@ public static class BookingEndpoints
             catch (ValidationException ex)
             {
                 return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}");
+            }
+        });
+
+        // Açık kira alan güncelleme (mega-form "Kaydet" — edit modu). Whitelist RentalUpdateInput tipiyle
+        // zorlanır (para/tarih alanları tipte YOK). Redirect'te #sekme fragment'i korunur (tab kaybolmaz).
+        kira.MapPost("/update", async (RentalService svc, HttpRequest req, [FromForm] Guid id) =>
+        {
+            var f = req.Form;
+            var sekme = SekmeFragment(FormParse.Str(f, "sekme"));
+            try
+            {
+                var input = new RentalUpdateInput
+                {
+                    CikisOfisi = FormParse.Str(f, "cikisOfisi"),
+                    DonusOfisi = FormParse.Str(f, "donusOfisi"),
+                    IkinciSurucuId = FormParse.Id(f["ikinciSurucuId"].ToString()),
+                    Aciklama = FormParse.Str(f, "aciklama"),
+                    Kaynak = FormParse.Str(f, "kaynak"),
+                    KiralamaTuru = FormParse.Str(f, "kiralamaTuru"),
+                    FaturalamaTipi = FormParse.Str(f, "faturalamaTipi"),
+                    KmLimit = FormParse.Int(f["kmLimit"].ToString()) ?? 0,
+                    FazlaKmUcret = FormParse.Dec(f["fazlaKmUcret"].ToString()) ?? 0m,
+                    YakitBirimUcret = FormParse.Dec(f["yakitBirimUcret"].ToString()) ?? 0m,
+                    Provizyon = FormParse.Dec(f["provizyon"].ToString()),
+                    Depozito = FormParse.Dec(f["depozito"].ToString()),
+                    KomisyonOran = FormParse.Dec(f["komisyonOran"].ToString()),
+                    KomisyonTutar = FormParse.Dec(f["komisyonTutar"].ToString()),
+                    DropUcreti = FormParse.Dec(f["dropUcreti"].ToString()),
+                    SonraOdeOran = FormParse.Dec(f["sonraOdeOran"].ToString()),
+                    UyariAciklama = FormParse.Str(f, "uyariAciklama"),
+                    OzelFaturaAciklama = FormParse.Str(f, "ozelFaturaAciklama"),
+                    FaturaListesindeGizle = FormBool(f, "faturaListesindeGizle"),
+                    UcusNo = FormParse.Str(f, "ucusNo"),
+                    ProvizyonNo = FormParse.Str(f, "provizyonNo"),
+                    ProvizyonTarih = FormParse.Date(f["provizyonTarih"].ToString()),
+                    OnayKodu = FormParse.Str(f, "onayKodu"),
+                    FirmaKodu = FormParse.Str(f, "firmaKodu"),
+                    ProjeAdi = FormParse.Str(f, "projeAdi"),
+                    OzelKod = FormParse.Str(f, "ozelKod"),
+                    TalepTuru = FormParse.Str(f, "talepTuru"),
+                    GeldigiBirim = FormParse.Str(f, "geldigiBirim"),
+                    KefilBilgisi = FormParse.Str(f, "kefilBilgisi"),
+                    AssistFirma = FormParse.Str(f, "assistFirma"),
+                    OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi"),
+                    EkKosullar = FormParse.Str(f, "ekKosullar"),
+                    ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString()),
+                    KabisCikis = FormBool(f, "kabisCikis"),
+                    KabisDonus = FormBool(f, "kabisDonus"),
+                    OtomatikUzat = FormBool(f, "otomatikUzat"),
+                    AksYedekAnahtarCikis = FormBool(f, "aksYedekAnahtarCikis"),
+                    AksYedekAnahtarDonus = FormBool(f, "aksYedekAnahtarDonus"),
+                    AksStepneCikis = FormBool(f, "aksStepneCikis"),
+                    AksStepneDonus = FormBool(f, "aksStepneDonus"),
+                    AksZincirCikis = FormBool(f, "aksZincirCikis"),
+                    AksZincirDonus = FormBool(f, "aksZincirDonus"),
+                    AksIlkYardimCikis = FormBool(f, "aksIlkYardimCikis"),
+                    AksIlkYardimDonus = FormBool(f, "aksIlkYardimDonus"),
+                    AksLastikCikis = FormParse.Str(f, "aksLastikCikis"),
+                    AksLastikDonus = FormParse.Str(f, "aksLastikDonus")
+                };
+                var ok = await svc.UpdateOpenAsync(id, input);
+                return Results.Redirect(ok
+                    ? $"/kiralar/{id}?ok=1{sekme}"
+                    : $"/kiralar?hata={Uri.EscapeDataString("Kira bulunamadı.")}");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}{sekme}");
             }
         });
 
@@ -176,6 +245,59 @@ public static class BookingEndpoints
             Il = FormParse.Str(form, "yeniIl"),
             Ilce = FormParse.Str(form, "yeniIlce")
         });
+    }
+
+    /// <summary>Kira formu detay alanlarını (bilgi amaçlı; mega-form) BookingInput'a doldurur. Eski/eksik
+    /// formlarda alanlar yoktur → null kalır (geriye uyumlu).</summary>
+    private static void ApplyKiraDetay(BookingInput input, IFormCollection f)
+    {
+        input.Kaynak = FormParse.Str(f, "kaynak"); // parite fix: kira create artık kaynağı da taşır
+        input.UyariAciklama = FormParse.Str(f, "uyariAciklama");
+        input.OzelFaturaAciklama = FormParse.Str(f, "ozelFaturaAciklama");
+        input.FaturaListesindeGizle = FormBool(f, "faturaListesindeGizle");
+        input.UcusNo = FormParse.Str(f, "ucusNo");
+        input.ProvizyonNo = FormParse.Str(f, "provizyonNo");
+        input.ProvizyonTarih = FormParse.Date(f["provizyonTarih"].ToString());
+        input.OnayKodu = FormParse.Str(f, "onayKodu");
+        input.FirmaKodu = FormParse.Str(f, "firmaKodu");
+        input.ProjeAdi = FormParse.Str(f, "projeAdi");
+        input.OzelKod = FormParse.Str(f, "ozelKod");
+        input.TalepTuru = FormParse.Str(f, "talepTuru");
+        input.GeldigiBirim = FormParse.Str(f, "geldigiBirim");
+        input.KefilBilgisi = FormParse.Str(f, "kefilBilgisi");
+        input.AssistFirma = FormParse.Str(f, "assistFirma");
+        input.OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi");
+        input.EkKosullar = FormParse.Str(f, "ekKosullar");
+        input.ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString());
+        input.KabisCikis = FormBool(f, "kabisCikis");
+        input.KabisDonus = FormBool(f, "kabisDonus");
+        input.OtomatikUzat = FormBool(f, "otomatikUzat");
+        input.AksYedekAnahtarCikis = FormBool(f, "aksYedekAnahtarCikis");
+        input.AksStepneCikis = FormBool(f, "aksStepneCikis");
+        input.AksZincirCikis = FormBool(f, "aksZincirCikis");
+        input.AksIlkYardimCikis = FormBool(f, "aksIlkYardimCikis");
+        input.AksLastikCikis = FormParse.Str(f, "aksLastikCikis");
+    }
+
+    /// <summary>Üçlü checkbox: alan formda hiç yok → null (dokunulmadı); hidden-false + checkbox-true çifti
+    /// gönderildiyse herhangi biri "true" ise true, aksi false.</summary>
+    private static bool? FormBool(IFormCollection f, string key)
+    {
+        var v = f[key];
+        if (v.Count == 0) return null;
+        foreach (var s in v)
+            if (string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "on") return true;
+        return false;
+    }
+
+    /// <summary>Redirect fragment'i: yalnız [a-z0-9-] geçirir (header-injection/karmaşa koruması).</summary>
+    private static string SekmeFragment(string? sekme)
+    {
+        if (string.IsNullOrWhiteSpace(sekme)) return string.Empty;
+        var t = sekme.Trim().ToLowerInvariant();
+        return t.Length <= 32 && t.All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '-')
+            ? $"#sekme={t}"
+            : string.Empty;
     }
 
     private static void ApplyOdemeDerinlik(BookingInput input, IFormCollection f)

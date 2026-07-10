@@ -95,6 +95,24 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.DropUcreti).HasColumnType("numeric(19,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
         e.Property(x => x.Aciklama).HasMaxLength(1024);
+        // Kira formu detay alanları (mega-form; bilgi amaçlı — additive)
+        e.Property(x => x.Kaynak).HasMaxLength(64);
+        e.Property(x => x.UyariAciklama).HasMaxLength(512);
+        e.Property(x => x.OzelFaturaAciklama).HasMaxLength(512);
+        e.Property(x => x.UcusNo).HasMaxLength(32);
+        e.Property(x => x.ProvizyonNo).HasMaxLength(64);
+        e.Property(x => x.OnayKodu).HasMaxLength(64);
+        e.Property(x => x.FirmaKodu).HasMaxLength(64);
+        e.Property(x => x.ProjeAdi).HasMaxLength(128);
+        e.Property(x => x.OzelKod).HasMaxLength(64);
+        e.Property(x => x.TalepTuru).HasMaxLength(64);
+        e.Property(x => x.GeldigiBirim).HasMaxLength(64);
+        e.Property(x => x.KefilBilgisi).HasMaxLength(512);
+        e.Property(x => x.AssistFirma).HasMaxLength(128);
+        e.Property(x => x.OzelSoforBilgisi).HasMaxLength(512);
+        e.Property(x => x.EkKosullar).HasMaxLength(2048);
+        e.Property(x => x.AksLastikCikis).HasMaxLength(64);
+        e.Property(x => x.AksLastikDonus).HasMaxLength(64);
         e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         e.HasMany(x => x.EkHizmetler).WithOne().HasForeignKey(a => a.RentalId).OnDelete(DeleteBehavior.Cascade);
