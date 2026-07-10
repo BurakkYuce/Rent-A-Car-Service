@@ -42,6 +42,10 @@
         document.querySelectorAll('[data-panel-group="' + g + '"]').forEach(function (p) {
             p.hidden = p.getAttribute('data-panel') !== key;
         });
+        if (g === 'sekme') { // edit modunda POST-redirect aynı sekmeye dönsün (hidden alan → #sekme fragment)
+            var sek = document.querySelector('#kira-form [data-kf-sekme]');
+            if (sek) sek.value = key;
+        }
         if (updateHash) setHash(g, key);
     }
 

@@ -65,3 +65,14 @@ public sealed class RentalUpdateInput
     public string? AksLastikCikis { get; set; }
     public string? AksLastikDonus { get; set; }
 }
+
+/// <summary>Dönüş canlı önizleme sonucu (GET /kiralar/donus-hesapla → JSON). Ok=false → nazik hata.</summary>
+public sealed record KiraDonusOnizleme(
+    bool Ok, string? Hata,
+    int KullanilanKm = 0, int FazlaKm = 0, decimal FazlaKmBedeli = 0m,
+    int EksikYakit = 0, decimal YakitBedeli = 0m,
+    int UzatmaGun = 0, decimal UzatmaBedeli = 0m,
+    decimal EkHizmetToplam = 0m, decimal YeniGenelToplam = 0m, decimal Kalan = 0m)
+{
+    public static KiraDonusOnizleme Hatali(string mesaj) => new(false, mesaj);
+}

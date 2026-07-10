@@ -3,16 +3,27 @@
     <div class="card">
         <strong>Müşteri Seçimi</strong>
         <div class="grid-form">
-            <label>Müşteri (mevcut cari)
-                <select name="musteriId">
-                    <option value="">— yeni müşteri gireceğim —</option>
-                    @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
-                </select>
-            </label>
+            @if (Vm.Edit)
+            {
+                <label>Müşteri (değiştirilemez — sözleşme tarafı)
+                    <select disabled>
+                        @foreach (var c in Vm.Customers) { <option value="@c.Id" selected="@(c.Id == Vm.Rental!.MusteriId)">@c.DisplayName</option> }
+                    </select>
+                </label>
+            }
+            else
+            {
+                <label>Müşteri (mevcut cari)
+                    <select name="musteriId">
+                        <option value="">— yeni müşteri gireceğim —</option>
+                        @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
+                    </select>
+                </label>
+            }
             <label>2. Sürücü (opsiyonel)
                 <select name="ikinciSurucuId">
                     <option value="">—</option>
-                    @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
+                    @foreach (var c in Vm.Customers) { <option value="@c.Id" selected="@(Vm.Edit && Vm.Rental!.IkinciSurucuId == c.Id)">@c.DisplayName</option> }
                 </select>
             </label>
             <label>Analiz<input readonly value="@(Vm.Edit ? "cari ekstre bağlantısı aşağıda" : "kayıttan sonra cari ekstre")" /></label>
@@ -22,6 +33,8 @@
             <p class="small"><a class="link" href="/cariler/@Vm.Rental!.MusteriId/ekstre">Cari Ekstre (Analiz)</a></p>
         }
     </div>
+    @if (!Vm.Edit)
+    {
     <details class="new-vehicle">
         <summary class="link">Yeni Müşteri oluştur (kayıtlı değilse — kirayla tek adımda)</summary>
         <div class="grid-form">
@@ -41,6 +54,7 @@
         </div>
         <p class="muted small">Mevcut müşteri seçiliyse boş bırak. En az Ad (bireysel) ya da Ünvan (kurumsal) yeter; TC/ehliyet PII şifreli saklanır (blind-index arama).</p>
     </details>
+    }
     <div class="card">
         <strong>İletişim / Kimlik (müşteriden)</strong>
         <div class="grid-form">
@@ -58,10 +72,10 @@
     <div class="card">
         <strong>Risk / Kefil</strong>
         <div class="grid-form">
-            <label>Manuel Findeks Puanı<input name="manuelFindexPuan" type="number" min="0" step="1" /></label>
+            <label>Manuel Findeks Puanı<input name="manuelFindexPuan" type="number" min="0" step="1" value="@Vm.I(c => c.ManuelFindexPuan)" /></label>
             <label>Risk İzinli<input readonly value="Normal" title="TODO: Risk_Izin akışı (Customer.RiskLimiti/KaraListe bugün cari kartında)" /></label>
             <label>Risk Limiti (cariden)<input readonly value="@MusteriAlan(c => c.RiskLimiti.ToString("N2"))" /></label>
-            <label style="grid-column:1/-1;">Kefil Bilgisi<input name="kefilBilgisi" maxlength="512" /></label>
+            <label style="grid-column:1/-1;">Kefil Bilgisi<input name="kefilBilgisi" maxlength="512" value="@Vm.S(c => c.KefilBilgisi)" /></label>
         </div>
         <p class="muted small">Findeks entegrasyonu yok — puan manuel girilir ve sözleşmede saklanır.</p>
     </div>
