@@ -1,7 +1,9 @@
 @page "/kiralar/yeni"
+@page "/kiralar/{Id:guid}"
 @attribute [Authorize]
 @using RentACar.Application.Availability
 @using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller
+@inject RentalService Rentals
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
@@ -11,21 +13,43 @@
 @inject ReservationSourceService Kaynaklar
 @inject CustomCodeService OzelKodlar
 @inject RentACar.Application.Kur.KurService Kurlar
+@inject RentACar.Application.RentalAddOns.RentalAddOnService AddOns
+@inject InvoiceService Faturalar
+@inject PenaltyService Cezalar
+@inject PersonelService Personeller
 
-<PageTitle>Yeni Kira — RentPro</PageTitle>
+<PageTitle>@(_vm.Edit ? $"Kira {_vm.Rental!.SozlesmeNo}" : "Yeni Kira") — RentPro</PageTitle>
 
-@* Yeni Kira mega-formu (referans sistem Kiralama.Aspx paritesi): 8 ana sekme + Ayrıntılar'da 8 alt-sekme +
-   sticky alt panel. STATİK SSR — tek ana form tüm sekme panellerini sarar (gizli paneller hidden attr ile
-   DOM'da kalır → submit'e girer); sekme/ayna/arama/canlı-fiyat JS'i: rc-kira-tabs.js + rc-kira-fiyat.js.
-   Canlı hesap SUNUCU motorundan (GET /kiralar/hesapla) — UI formül taşımaz. *@
+@* Kira mega-formu (referans sistem Kiralama.Aspx paritesi): 8 ana sekme + Ayrıntılar'da 8 alt-sekme + sticky alt
+   panel. TEK EKRAN: /kiralar/yeni (create) + /kiralar/{id} (edit/operasyon — RentalDetail'in yerine geçti).
+   STATİK SSR — ana form panelleri sarar; ikincil işlem formları (teslim/dönüş/uzat/ek hizmet) ana formun
+   DIŞINDA tanımlı, kontrolleri panellerde form= attribute'üyle bağlı (iç içe form YOK). Canlı hesap
+   SUNUCU motorundan (create: /kiralar/hesapla; dönüş: /kiralar/donus-hesapla). *@
 
+@if (_bulunamadi)
+{
+    <p class="error">Kira sözleşmesi bulunamadı.</p>
+    <a href="/kiralar">← Listeye dön</a>
+}
+else
+{
 <div class="page-head">
-    <h1>Yeni Kira</h1>
-    <div class="actions"><a href="/kiralar">Kira Listesi</a> · <a href="/rezervasyonlar">Rezervasyonlar</a></div>
+    <h1>@(_vm.Edit ? $"Kira {_vm.Rental!.SozlesmeNo}" : "Yeni Kira") @(_vm.Edit ? "" : "")@if (_vm.Edit) { <span class="badge">@_vm.Rental!.Durum</span> }</h1>
+    <div class="actions">
+        @if (_vm.Edit)
+        {
+            <a href="/kiralar/@Id/pdf" target="_blank">Sözleşme (PDF)</a><span> · </span>
+            <a href="/cariler/@_vm.Rental!.MusteriId/ekstre">Cari Ekstre</a><span> · </span>
+            <a href="/kiralar/yeni"><strong>+ Yeni Kira</strong></a><span> · </span>
+        }
+        <a href="/kiralar">Kira Listesi</a>
+    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 @if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+@if (_vm.Edit && !string.IsNullOrEmpty(_vm.DovizNot)) { <p class="muted small">@_vm.DovizNot</p> }
+@if (_vm.Edit && !string.IsNullOrWhiteSpace(_vm.Rental!.UyariAciklama)) { <p class="error"><strong>UYARI:</strong> @_vm.Rental!.UyariAciklama</p> }
 
 <div class="kf-tabs" role="tablist" data-tabs="sekme">
     <button type="button" role="tab" data-tab="hizli" aria-selected="true">Hızlı Giriş</button>
@@ -38,8 +62,14 @@
     <button type="button" role="tab" data-tab="donus" aria-selected="false">Dönüş</button>
 </div>
 
-<form id="kira-form" method="post" action="/kiralar/create">
+<form id="kira-form" method="post" action="@(_vm.Edit ? "/kiralar/update" : "/kiralar/create")"
+      data-mode="@(_vm.Edit ? "edit" : "create")" data-rental-id="@(Id?.ToString() ?? "")">
     <AntiforgeryToken />
+    @if (_vm.Edit)
+    {
+        <input type="hidden" name="id" value="@Id" />
+        <input type="hidden" name="sekme" value="hizli" data-kf-sekme />
+    }
     <SekmeHizliGiris Vm="_vm" />
     <SekmeKiraBilgisi Vm="_vm" />
     <SekmeMusteri Vm="_vm" />
@@ -52,6 +82,27 @@
 
 @* Müsaitlik GET alt-formu — ana formun DIŞINDA (iç içe form yasak); Araç sekmesindeki inputlar form= ile bağlı. *@
 <form id="musait-form" method="get" action="/kiralar/yeni"></form>
+
+@* İkincil işlem formları (edit) — ana formun DIŞINDA; görünür kontrolleri sekme panellerinde form= ile. *@
+@if (_vm.Edit)
+{
+    <form id="kira-teslim" method="post" action="/kiralar/teslim"><AntiforgeryToken /><input type="hidden" name="id" value="@Id" /></form>
+    <form id="kira-donus" method="post" action="/kiralar/donus"><AntiforgeryToken /><input type="hidden" name="id" value="@Id" /></form>
+    <form id="kira-uzat" method="post" action="/kiralar/uzat"><AntiforgeryToken /><input type="hidden" name="id" value="@Id" /></form>
+    <form id="kira-ekhizmet" method="post" action="/kiralar/ekhizmet-ekle"><AntiforgeryToken /><input type="hidden" name="rentalId" value="@Id" /></form>
+    @foreach (var a in _vm.Kalemler)
+    {
+        <form id="ekhizmet-sil-@a.Id" method="post" action="/kiralar/ekhizmet-sil" onsubmit="return confirm('Ek hizmet silinsin mi?')">
+            <AntiforgeryToken /><input type="hidden" name="addOnId" value="@a.Id" /><input type="hidden" name="rentalId" value="@Id" />
+        </form>
+    }
+    @if (_vm.Kirada)
+    {
+        <form id="kira-iptal" method="post" action="/kiralar/cancel" onsubmit="return confirm('Kira iptal edilsin mi?')">
+            <AntiforgeryToken /><input type="hidden" name="id" value="@Id" />
+        </form>
+    }
+}
 
 <StickyPanel Vm="_vm" />
 
@@ -77,18 +128,37 @@
 <datalist id="dl-kf-ozelkod">
     @foreach (var k in _vm.OzelKodlar) { <option value="@k"></option> }
 </datalist>
+}
 
 @code {
+    [Parameter] public Guid? Id { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
     [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; }
     [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }
     [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private readonly KiraFormVm _vm = new();
+    private bool _bulunamadi;
 
     protected override async Task OnInitializedAsync()
     {
+        // Edit modu: ÖNCE şube-kapsamlı GetAsync (adversarial kapı) — başarısızsa hiçbir liste yüklenmez.
+        if (Id is Guid rid)
+        {
+            _vm.Rental = await Rentals.GetAsync(rid);
+            if (_vm.Rental is null) { _bulunamadi = true; return; }
+        }
+
+        // Rol yetkileri: butonlar 403 sürprizi yerine disabled + not (sunucu guard'ları asıl savunma).
+        if (AuthState is not null)
+        {
+            var user = (await AuthState).User;
+            _vm.FinansYetkisi = RolePermissions.RolesWith(Permission.FinanceWrite).Any(user.IsInRole);
+            _vm.OperasyonYetkisi = RolePermissions.RolesWith(Permission.OperationsWrite).Any(user.IsInRole);
+        }
+
         _vm.Customers = await Customers.ListAsync();
         _vm.Locations = await Locations.ListActiveAsync();
         _vm.EkHizmetler = await EkHizmetler.ListActiveAsync();
@@ -98,7 +168,34 @@
         _vm.Kurlar = await Kurlar.BugunKurlarAsync();
         _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
 
-        // Müsaitlik penceresi (vfrom<vto) → araç listesi yalnız müsait araçlar (RentalList/PR#26 deseni:
+        if (_vm.Edit)
+        {
+            var c = _vm.Rental!;
+            _vm.Kalemler = await AddOns.ListAsync(c.Id);
+            _vm.Faturalar = await Faturalar.ListByRentalAsync(c.Id); // GetAsync kapısından SONRA (kapsam)
+            _vm.Cezalar = await Cezalar.ListByRentalAsync(c.Id);
+            // Personel seçim listesi (dönüş formu + teslim-alan adı) — PII'sız projeksiyon; OperationsWrite'ı
+            // olmayan rol (Muhasebe) sayfayı YİNE açabilsin diye nazikçe boş bırakılır (eski RentalDetail
+            // ManageUsers'lı ListAsync ile Operatör'de bile patlıyordu — kök çözüm PR-A ListForSelectAsync).
+            try { _vm.Personeller = await Personeller.ListForSelectAsync(); }
+            catch (RentACar.Application.Common.ValidationException) { /* yetkisiz rol → ad çözülmez, form gizli */ }
+            if (c.TeslimAlanPersonelId is Guid tp)
+                _vm.TeslimAlanAd = _vm.Personeller.FirstOrDefault(p => p.Id == tp) is { } ps ? $"{ps.Ad} {ps.Soyad}" : null;
+
+            // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kuru kesim anında sabitlenir).
+            var doviz = RentACar.Application.Kur.KurService.NormalizeKod(c.Doviz);
+            if (doviz != "TRY")
+            {
+                try { _vm.DovizNot = $"{doviz} · güncel ≈ {(c.GenelToplam * await Kurlar.GetRateAsync(doviz)).ToString("N2")} TL"; }
+                catch { _vm.DovizNot = $"{doviz} · güncel kur yok"; }
+            }
+
+
+            _vm.Vehicles = await Vehicles.ListAsync(); // araç kartı prefill (değişmez — whitelist dışı)
+            return;
+        }
+
+        // Create: müsaitlik penceresi (vfrom<vto) → araç listesi yalnız müsait araçlar (PR#26 deseni:
         // UTC gün-başı — Npgsql timestamptz offset-0 ister; guard: FindAvailableAsync to<=from'da fırlatır).
         var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
         var vt = DateTimeOffset.TryParse(Vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;

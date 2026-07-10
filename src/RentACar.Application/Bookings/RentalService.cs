@@ -255,6 +255,39 @@ public sealed class RentalService(
         }, ct);
     }
 
+    /// <summary>
+    /// Dönüş CANLI ÖNİZLEMESİ (mega-form Dönüş sekmesi; GET /kiralar/donus-hesapla). GERÇEK motor
+    /// (ReturnMath.Compute) + ek hizmet brütü — PERSIST ETMEZ, durum değiştirmez. ReturnAsync ile aynı
+    /// guard'lar NAZİK hataya çevrilir (Ok=false — kullanıcı yazarken 500/exception yok). Şube kapsamı zorlanır.
+    /// </summary>
+    public async Task<KiraDonusOnizleme> PreviewReturnAsync(
+        Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus, int kmHediye = 0,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var c = await _repository.FindRentalAsync(id, ct);
+        if (c is null) return KiraDonusOnizleme.Hatali("Kira bulunamadı.");
+        BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // kapsam: sızıntı yok (GetAsync ile aynı)
+
+        if (c.Durum != RentalStatus.Kirada) return KiraDonusOnizleme.Hatali("Yalnız aktif (Kirada) sözleşmede dönüş hesaplanır.");
+        if (c.CikisKm is null) return KiraDonusOnizleme.Hatali("Önce teslim (çıkış KM) girilmelidir.");
+        if (donusKm < c.CikisKm) return KiraDonusOnizleme.Hatali("Dönüş KM, çıkış KM'den küçük olamaz.");
+        if (donusKm - c.CikisKm.Value > 100_000) return KiraDonusOnizleme.Hatali("KM farkı gerçekçi değil (100.000 üstü).");
+        if (gercekDonus < c.BasTar) return KiraDonusOnizleme.Hatali("Dönüş tarihi başlangıçtan önce olamaz.");
+        if (kmHediye is < 0 or > 100_000) return KiraDonusOnizleme.Hatali("KM hediye 0-100.000 aralığında olmalıdır.");
+
+        var r = ReturnMath.Compute(c, donusKm, donusYakit, gercekDonus, kmHediye);
+        var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
+        var yeniGenelToplam = r.GenelToplam + ekHizmetToplam; // ReturnAsync ile birebir aynı formül
+        return new KiraDonusOnizleme(
+            Ok: true, Hata: null,
+            KullanilanKm: r.KullanilanKm, FazlaKm: r.FazlaKm, FazlaKmBedeli: r.FazlaKmBedeli,
+            EksikYakit: r.EksikYakit, YakitBedeli: r.YakitBedeli,
+            UzatmaGun: r.UzatmaGun, UzatmaBedeli: r.UzatmaBedeli,
+            EkHizmetToplam: ekHizmetToplam, YeniGenelToplam: yeniGenelToplam,
+            Kalan: yeniGenelToplam - c.Tahsilat);
+    }
+
     /// <summary>Serbest metin alanı: trim + boş→null + aşımda temiz red (DB varchar taşması 500 yerine).</summary>
     private static string? Lim(string? s, int max, string alan)
     {

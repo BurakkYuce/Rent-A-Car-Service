@@ -6,6 +6,14 @@
             <div class="card">
                 <strong>Fiyat Girişi</strong>
                 <div class="grid-form">
+                    @if (Vm.Edit)
+                    {
+                        <label>Hesaplama Tipi<input value="@(Vm.Rental!.FiyatTuru ?? "KDV Dahil Günlük")" readonly title="Fiyat değişikliği: fark faturası akışı; tarih: Uzat" /></label>
+                        <label>Günlük Ücret (brüt)<input value="@Vm.Rental!.GunlukUcret.ToString("N2")" readonly title="Fiyat sözleşmede sabit — güncelleme fark faturasıyla" /></label>
+                        <label>Döviz<input value="@(Vm.Rental!.Doviz ?? "TL")" readonly /></label>
+                    }
+                    else
+                    {
                     <label>Hesaplama Tipi
                         <select name="fiyatTuru">
                             <option value="">—</option>
@@ -21,6 +29,7 @@
                             @foreach (var o in KiraFormVm.Dovizler) { <option>@o</option> }
                         </select>
                     </label>
+                    }
                     <label>Kira Gün<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gun">—</span></label>
                     <label>Efektif Günlük (brüt)<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gunluk">—</span></label>
                     <label>Tarife<input readonly value="Otomatik seçilirse tarife matrisi (RateMatrix) çözer" /></label>
@@ -33,28 +42,42 @@
             <div class="card">
                 <strong>Ödeme / Komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</strong>
                 <div class="grid-form">
-                    <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" /></label>
-                    <label>Depozito<input name="depozito" type="number" step="0.01" min="0" /></label>
-                    <label>Komisyon %<input name="komisyonOran" type="number" step="0.01" min="0" /></label>
-                    <label>Komisyon Tutar<input name="komisyonTutar" type="number" step="0.01" min="0" /></label>
-                    <label>Drop Ücreti<input name="dropUcreti" type="number" step="0.01" min="0" /></label>
-                    <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" /></label>
+                    <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" value="@Vm.D(c => c.Provizyon)" /></label>
+                    <label>Depozito<input name="depozito" type="number" step="0.01" min="0" value="@Vm.D(c => c.Depozito)" /></label>
+                    <label>Komisyon %<input name="komisyonOran" type="number" step="0.01" min="0" value="@Vm.D(c => c.KomisyonOran)" /></label>
+                    <label>Komisyon Tutar<input name="komisyonTutar" type="number" step="0.01" min="0" value="@Vm.D(c => c.KomisyonTutar)" /></label>
+                    <label>Drop Ücreti<input name="dropUcreti" type="number" step="0.01" min="0" value="@Vm.D(c => c.DropUcreti)" /></label>
+                    <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" value="@Vm.D(c => c.SonraOdeOran)" /></label>
                 </div>
             </div>
         </div>
         <div>
             <div class="kf-hesap">
-                <strong>Vergi + Toplam (canlı — sunucu motoru)</strong>
-                <div class="row"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
-                <div class="row"><span>KDV (%20)</span><span class="num" data-fp="kdv">—</span></div>
-                <div class="row"><span>Ek Hizmet Tutarı</span><span class="num" data-fp="ektoplam">—</span></div>
-                <div class="row"><span>Damga Vergisi</span><span class="num" title="TODO: kira-seviyesi damga alanı — fatura formunda mevcut (bilgi)">—</span></div>
-                <div class="row top"><span>Genel Toplam</span><span class="num" data-fp="toplam">—</span></div>
-                <div class="row"><span>Kur</span><span class="num" data-fp="kur">—</span></div>
-                <div class="row"><span>Genel Toplam (TL)</span><span class="num" data-fp="tl">—</span></div>
-                <div class="row"><span>Tahsilat</span><span class="num">@(Vm.Edit ? Vm.Rental!.Tahsilat.ToString("N2") : "0,00")</span></div>
-                <div class="row top"><span>Kalan</span><span class="num" data-fp="kalan">—</span></div>
-                <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin.</p>
+                @if (Vm.Edit)
+                {
+                    <strong>Vergi + Toplam (sözleşme değerleri)</strong>
+                    <div class="row"><span>Baz Tutar (brüt)</span><span class="num">@Vm.Rental!.Tutar.ToString("N2")</span></div>
+                    <div class="row"><span>Ek Hizmet Tutarı</span><span class="num">@Vm.Kalemler.Sum(a => a.Toplam).ToString("N2")</span></div>
+                    <div class="row"><span>Fazla KM / Yakıt / Uzatma</span><span class="num">@((Vm.Rental!.FazlaKmBedeli + Vm.Rental!.YakitBedeli + Vm.Rental!.UzatmaBedeli).ToString("N2"))</span></div>
+                    <div class="row top"><span>Genel Toplam</span><span class="num">@Vm.Rental!.GenelToplam.ToString("N2")</span></div>
+                    <div class="row"><span>Tahsilat</span><span class="num">@Vm.Rental!.Tahsilat.ToString("N2")</span></div>
+                    <div class="row top"><span>Kalan (Bakiye)</span><span class="num">@Vm.Rental!.Bakiye.ToString("N2")</span></div>
+                    <p class="muted small" style="margin:.3rem 0 0;">Fiyat güncellemesi fark faturası akışıyla; KDV ayrışımı fatura kesiminde.</p>
+                }
+                else
+                {
+                    <strong>Vergi + Toplam (canlı — sunucu motoru)</strong>
+                    <div class="row"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
+                    <div class="row"><span>KDV (%20)</span><span class="num" data-fp="kdv">—</span></div>
+                    <div class="row"><span>Ek Hizmet Tutarı</span><span class="num" data-fp="ektoplam">—</span></div>
+                    <div class="row"><span>Damga Vergisi</span><span class="num" title="TODO: kira-seviyesi damga alanı — fatura formunda mevcut (bilgi)">—</span></div>
+                    <div class="row top"><span>Genel Toplam</span><span class="num" data-fp="toplam">—</span></div>
+                    <div class="row"><span>Kur</span><span class="num" data-fp="kur">—</span></div>
+                    <div class="row"><span>Genel Toplam (TL)</span><span class="num" data-fp="tl">—</span></div>
+                    <div class="row"><span>Tahsilat</span><span class="num">0,00</span></div>
+                    <div class="row top"><span>Kalan</span><span class="num" data-fp="kalan">—</span></div>
+                    <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin.</p>
+                }
             </div>
             <div class="card">
                 <strong>Bakiye / Fatura Durumu</strong>

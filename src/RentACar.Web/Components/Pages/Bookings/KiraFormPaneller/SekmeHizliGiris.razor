@@ -8,9 +8,16 @@
             <div class="card">
                 <strong>Müşteri</strong>
                 <div class="grid-form">
-                    <label style="grid-column:1/-1;">Müşteri Ara (yazdıkça öner — listeden seç)
-                        <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" />
-                    </label>
+                    @if (Vm.Edit)
+                    {
+                        <label style="grid-column:1/-1;">Müşteri<input readonly value="@(Vm.Customers.FirstOrDefault(c => c.Id == Vm.Rental!.MusteriId)?.DisplayName ?? "—")" /></label>
+                    }
+                    else
+                    {
+                        <label style="grid-column:1/-1;">Müşteri Ara (yazdıkça öner — listeden seç)
+                            <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" />
+                        </label>
+                    }
                     <label>Durum<input value="@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Yeni")" readonly /></label>
                     <label>Sözleşme No<input value="@(Vm.Edit ? Vm.Rental!.SozlesmeNo : "kayıtta verilir (boşluksuz sıra)")" readonly /></label>
                 </div>
@@ -20,9 +27,17 @@
             <div class="card">
                 <strong>Tarih / Lokasyon</strong>
                 <div class="grid-form">
-                    <label>Başlangıç<input type="datetime-local" data-mirror="basTar" /></label>
-                    <label>Bitiş (beklenen)<input type="datetime-local" data-mirror="bitTar" /></label>
-                    <label>Gün<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gun">—</span></label>
+                    @if (Vm.Edit)
+                    {
+                        <label>Başlangıç<input readonly value="@Vm.Rental!.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")" title="Tarih değişikliği: Dönüş sekmesi > Uzat" /></label>
+                        <label>Bitiş (beklenen)<input readonly value="@Vm.Rental!.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")" /></label>
+                    }
+                    else
+                    {
+                        <label>Başlangıç<input type="datetime-local" data-mirror="basTar" /></label>
+                        <label>Bitiş (beklenen)<input type="datetime-local" data-mirror="bitTar" /></label>
+                    }
+                    <label>Gün<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gun">@(Vm.Edit ? Vm.Rental!.Gun.ToString() : "—")</span></label>
                     <label>Çıkış Ofisi
                         <select data-mirror="cikisOfisi">
                             <option value="">—</option>
@@ -42,9 +57,16 @@
             <div class="card">
                 <strong>Araç</strong>
                 <div class="grid-form">
-                    <label style="grid-column:1/-1;">Araç Ara (plaka yaz — müsaitlik penceresi Araç sekmesinde)
-                        <input list="dl-kf-arac" data-lookup-target="vehicleId" placeholder="Plaka yaz..." autocomplete="off" />
-                    </label>
+                    @if (Vm.Edit)
+                    {
+                        <label style="grid-column:1/-1;">Araç<input readonly value="@(Vm.Vehicles.FirstOrDefault(v => v.Id == Vm.Rental!.VehicleId)?.Plaka ?? "—")" /></label>
+                    }
+                    else
+                    {
+                        <label style="grid-column:1/-1;">Araç Ara (plaka yaz — müsaitlik penceresi Araç sekmesinde)
+                            <input list="dl-kf-arac" data-lookup-target="vehicleId" placeholder="Plaka yaz..." autocomplete="off" />
+                        </label>
+                    }
                     <label>Marka<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="marka">—</span></label>
                     <label>Tip<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="tip">—</span></label>
                     <label>Vites<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="vites">—</span></label>
@@ -66,6 +88,13 @@
                             @foreach (var o in KiraFormVm.KiralamaTurleri) { <option>@o</option> }
                         </select>
                     </label>
+                    @if (Vm.Edit)
+                    {
+                        <label>Hesaplama Tipi<input readonly value="@(Vm.Rental!.FiyatTuru ?? "KDV Dahil Günlük")" /></label>
+                        <label>Döviz<input readonly value="@(Vm.Rental!.Doviz ?? "TL")" /></label>
+                    }
+                    else
+                    {
                     <label>Hesaplama Tipi
                         <select data-mirror="fiyatTuru">
                             <option value="">—</option>
@@ -78,11 +107,32 @@
                             @foreach (var o in KiraFormVm.Dovizler) { <option>@o</option> }
                         </select>
                     </label>
-                    <label>Günlük Ücret<input type="number" step="0.01" min="0" data-mirror="gunlukUcret" placeholder="Otomatik'te boş" /></label>
+                    }
+                    @if (Vm.Edit)
+                    {
+                        <label>Günlük Ücret<input readonly value="@Vm.Rental!.GunlukUcret.ToString("N2")" title="Fiyat değişikliği: fark faturası" /></label>
+                    }
+                    else
+                    {
+                        <label>Günlük Ücret<input type="number" step="0.01" min="0" data-mirror="gunlukUcret" placeholder="Otomatik'te boş" /></label>
+                    }
                     <label>Rezervasyon Kaynağı
                         <input list="dl-kf-kaynak" data-mirror="kaynak" autocomplete="off" placeholder="Seç veya yaz" />
                     </label>
                 </div>
+                @if (Vm.Edit)
+                {
+                    <div class="kf-hesap" style="margin-top:.5rem;">
+                        <div class="row"><span>Gün</span><span class="num">@Vm.Rental!.Gun</span></div>
+                        <div class="row"><span>Baz Tutar (brüt)</span><span class="num">@Vm.Rental!.Tutar.ToString("N2")</span></div>
+                        <div class="row"><span>Ek Hizmet Tutarı</span><span class="num">@Vm.Kalemler.Sum(a => a.Toplam).ToString("N2")</span></div>
+                        <div class="row top"><span>Genel Toplam</span><span class="num">@Vm.Rental!.GenelToplam.ToString("N2")</span></div>
+                        <div class="row"><span>Tahsilat</span><span class="num">@Vm.Rental!.Tahsilat.ToString("N2")</span></div>
+                        <div class="row top"><span>Kalan (Bakiye)</span><span class="num">@Vm.Rental!.Bakiye.ToString("N2")</span></div>
+                    </div>
+                }
+                else
+                {
                 <div class="kf-hesap" style="margin-top:.5rem;">
                     <div class="row"><span>Gün</span><span class="num" data-fp="gun">—</span></div>
                     <div class="row"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
@@ -94,12 +144,13 @@
                     <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin.</p>
                     <p class="muted small" data-fp="dokum" style="margin:.2rem 0 0;">—</p>
                 </div>
+                }
             </div>
             @* Alt şerit rozetleri *@
             <div class="card" style="display:flex;gap:1rem;flex-wrap:wrap;">
                 <span class="badge">Tahsilat: @(Vm.Edit ? Vm.Rental!.Tahsilat.ToString("N2") : "0,00")</span>
                 <span class="badge">Kalan: <span data-fp="kalan">—</span></span>
-                <span class="badge">Ceza: 0,00</span>
+                <span class="badge">Ceza: @(Vm.Edit ? Vm.Cezalar.Sum(cz => cz.Tutar).ToString("N2") : "0,00")</span>
             </div>
         </div>
     </div>
