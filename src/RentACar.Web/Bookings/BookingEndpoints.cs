@@ -89,12 +89,16 @@ public static class BookingEndpoints
 
         var kira = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv(); // adversarial H1
 
-        kira.MapPost("/create", async (RentalService svc, CustomerService customers, HttpRequest req,
+        kira.MapPost("/create", async (RentalService svc, CustomerService customers,
+            RentACar.Application.RentalAddOns.RentalAddOnService addOns,
+            RentACar.Application.EkHizmetler.EkHizmetTanimService ekTanimlar, HttpRequest req,
             [FromForm] string? musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
             [FromForm] string? aciklama, [FromForm] string? ikinciSurucuId) =>
         {
+            Guid id;
+            List<(Guid TanimId, decimal Miktar)> ekSecim;
             try
             {
                 // Müşteri: mevcut cari seçildi mi (musteriId), yoksa kira ekranından yeni müşteri mi girildi?
@@ -109,14 +113,38 @@ public static class BookingEndpoints
                 };
                 ApplyOdemeDerinlik(input, req.Form);
                 ApplyKiraDetay(input, req.Form);
-                var id = await svc.CreateDirectAsync(input);
-                // Kira açılınca DETAY ekranına git → oradaki tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
-                return Results.Redirect($"/kiralar/{id}");
+
+                // Ek hizmet seçimleri (mega-form matrisi): tanımlar create ÖNCESİ doğrulanır — kira, geçersiz
+                // seçimle yarım kalmasın. Fiyat DAİMA tanım snapshot'ı (serbest-fiyat override bilinçli YOK —
+                // canlı önizleme /kiralar/hesapla ile bit-eş kalsın; adversarial PR-B notu).
+                ekSecim = ParseEkForm(req.Form);
+                if (ekSecim.Count > 0)
+                {
+                    var tanimlar = (await ekTanimlar.ListActiveAsync()).Select(t => t.Id).ToHashSet();
+                    if (ekSecim.Any(e => !tanimlar.Contains(e.TanimId)))
+                        throw new ValidationException("Seçilen ek hizmet tanımı bulunamadı (silinmiş/pasif olabilir).");
+                }
+
+                id = await svc.CreateDirectAsync(input);
             }
             catch (ValidationException ex)
             {
-                return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}");
+                return Results.Redirect($"/kiralar/yeni?hata={Uri.EscapeDataString(ex.Message)}");
             }
+            // Kira oluştu — ek hizmet kalemleri (aynı AddAsync yolu: tanım snapshot + RentalTotals.Recompute).
+            // Yarıda hata (ön-doğrulamayla dar yarış penceresi) → kira DURUR, detayda hata gösterilir;
+            // kalemler detay ekranından eklenebilir.
+            try
+            {
+                foreach (var (tanimId, miktar) in ekSecim)
+                    await addOns.AddAsync(id, tanimId, miktar);
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString($"Kira açıldı ancak ek hizmet eklenemedi: {ex.Message}")}");
+            }
+            // Kira açılınca DETAY ekranına git → tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
+            return Results.Redirect($"/kiralar/{id}");
         });
 
         // CANLI HESAP (kira formu önizleme paneli; JS fetch). SALT-OKUNUR JSON — persist sıfır; gerçek motor
@@ -274,8 +302,27 @@ public static class BookingEndpoints
             CepTel = FormParse.Str(form, "yeniGsm"),
             Email = FormParse.Str(form, "yeniMail"),
             Il = FormParse.Str(form, "yeniIl"),
-            Ilce = FormParse.Str(form, "yeniIlce")
+            Ilce = FormParse.Str(form, "yeniIlce"),
+            // Mega-form ek alanları (sürücü kimliği — CustomerInput'ta zaten vardı; ehliyet PII şifreli saklanır)
+            DogumTarihi = FormParse.Date(form["yeniDogum"].ToString()),
+            EhliyetNo = FormParse.Str(form, "yeniEhliyetNo"),
+            EhliyetSinifi = FormParse.Str(form, "yeniEhliyetSinifi"),
+            EhliyetTarihi = FormParse.Date(form["yeniEhliyetTarihi"].ToString()),
+            EhliyetYeri = FormParse.Str(form, "yeniEhliyetYeri")
         });
+    }
+
+    /// <summary>Mega-form ek hizmet matrisi: ekSecim checkbox'ları (value=tanimId) + ekMiktar_{id} alanları.</summary>
+    private static List<(Guid TanimId, decimal Miktar)> ParseEkForm(IFormCollection f)
+    {
+        var list = new List<(Guid, decimal)>();
+        foreach (var s in f["ekSecim"])
+        {
+            if (!Guid.TryParse(s, out var id)) continue;
+            var miktar = FormParse.Dec(f[$"ekMiktar_{id}"].ToString()) ?? 1m;
+            list.Add((id, miktar <= 0 ? 1m : miktar));
+        }
+        return list;
     }
 
     /// <summary>Kira formu detay alanlarını (bilgi amaçlı; mega-form) BookingInput'a doldurur. Eski/eksik
