@@ -233,6 +233,37 @@
         });
     }
 
+    // ---- Paylaşım barı: girilen numaraya WhatsApp, girilen adrese GMAIL compose (hazır özet metinle) ----
+    function bindPaylas() {
+        var bar = document.querySelector('[data-paylas]');
+        if (!bar || bar._kfBound) return;
+        bar._kfBound = true;
+        var mesaj = bar.getAttribute('data-mesaj') || '';
+        var konu = bar.getAttribute('data-konu') || '';
+        function hata(t) { var el = bar.querySelector('[data-paylas-hata]'); if (el) el.textContent = t; }
+        // Numara normalizasyonu (sunucudaki eski WaLink kuralları): 00+ülke → önek at; 05xx/5xx → 90'lı TR
+        function normalizeTel(tel) {
+            var d = (tel || '').replace(/\D/g, '');
+            if (d.indexOf('00') === 0) d = d.slice(2);
+            else if (d.indexOf('0') === 0) d = '9' + d;
+            else if (d.indexOf('5') === 0) d = '90' + d;
+            return (d.length >= 10 && d.length <= 15) ? d : null;
+        }
+        bar.querySelector('[data-paylas-wa]').addEventListener('click', function () {
+            var d = normalizeTel(bar.querySelector('[data-paylas-tel]').value);
+            if (!d) { hata('Geçerli bir GSM girin (örn. 05xx xxx xx xx).'); return; }
+            hata('');
+            window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(mesaj), '_blank', 'noopener');
+        });
+        bar.querySelector('[data-paylas-gmail]').addEventListener('click', function () {
+            var mail = (bar.querySelector('[data-paylas-mail]').value || '').trim();
+            if (!mail || mail.indexOf('@') < 1) { hata('Geçerli bir e-posta adresi girin.'); return; }
+            hata('');
+            window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(mail) +
+                '&su=' + encodeURIComponent(konu) + '&body=' + encodeURIComponent(mesaj), '_blank', 'noopener');
+        });
+    }
+
     function bind() {
         bindTabs();
         bindInvalid();
@@ -242,6 +273,7 @@
         bindYeniMusteri();
         bindMusaitKoru();
         bindPdfYazdir();
+        bindPaylas();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
