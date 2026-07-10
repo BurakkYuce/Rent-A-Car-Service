@@ -89,8 +89,10 @@ public sealed class RentalService(
             VehicleId = input.VehicleId,
             BasTar = input.BasTar,
             BitTar = input.BitTar,
-            CikisOfisi = input.CikisOfisi,
-            DonusOfisi = input.DonusOfisi,
+            // Trim+boş→null: UpdateOpenAsync'in Tamamlandi "ofis değişti mi" Ordinal karşılaştırmasıyla
+            // tutarlı saklama (adversarial Low: boşluklu kayıt yanlış red üretiyordu).
+            CikisOfisi = Lim(input.CikisOfisi, 64, "Çıkış ofisi"),
+            DonusOfisi = Lim(input.DonusOfisi, 64, "Dönüş ofisi"),
             Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
             KmLimit = input.KmLimit,
@@ -111,16 +113,160 @@ public sealed class RentalService(
             KomisyonTutar = input.KomisyonTutar,
             DropUcreti = input.DropUcreti,
             SonraOdeOran = input.SonraOdeOran,
-            Aciklama = input.Aciklama,
+            Aciklama = Lim(input.Aciklama, 1024, "Açıklama"),
             KiralamaTuru = input.KiralamaTuru,
             FaturalamaTipi = input.FaturalamaTipi,
             FiyatTuru = input.FiyatTuru,
             Doviz = input.Doviz,
-            KurSnapshot = kurSnapshot
+            KurSnapshot = kurSnapshot,
+            // Kira formu detay alanları (bilgi amaçlı; Kaynak daha önce input'ta olup MAP EDİLMİYORDU — parite fix)
+            Kaynak = Lim(input.Kaynak, 64, "Kaynak"),
+            UyariAciklama = Lim(input.UyariAciklama, 512, "Uyarı açıklama"),
+            OzelFaturaAciklama = Lim(input.OzelFaturaAciklama, 512, "Özel fatura açıklaması"),
+            FaturaListesindeGizle = input.FaturaListesindeGizle,
+            UcusNo = Lim(input.UcusNo, 32, "Uçuş no"),
+            ProvizyonNo = Lim(input.ProvizyonNo, 64, "Provizyon no"),
+            ProvizyonTarih = input.ProvizyonTarih,
+            OnayKodu = Lim(input.OnayKodu, 64, "Onay kodu"),
+            FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu"),
+            ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı"),
+            OzelKod = Lim(input.OzelKod, 64, "Özel kod"),
+            TalepTuru = Lim(input.TalepTuru, 64, "Talep türü"),
+            GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim"),
+            KefilBilgisi = Lim(input.KefilBilgisi, 512, "Kefil bilgisi"),
+            AssistFirma = Lim(input.AssistFirma, 128, "Assist firma"),
+            OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi"),
+            EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar"),
+            ManuelFindexPuan = ValidFindex(input.ManuelFindexPuan),
+            KabisCikis = input.KabisCikis,
+            KabisDonus = input.KabisDonus,
+            OtomatikUzat = input.OtomatikUzat,
+            AksYedekAnahtarCikis = input.AksYedekAnahtarCikis,
+            AksStepneCikis = input.AksStepneCikis,
+            AksZincirCikis = input.AksZincirCikis,
+            AksIlkYardimCikis = input.AksIlkYardimCikis,
+            AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)")
         };
         await _repository.CreateRentalAsync(contract, ct);
         return contract.Id;
     }
+
+    /// <summary>
+    /// Açık kira alan güncelleme (mega-form "Kaydet" — edit modu). Whitelist <see cref="RentalUpdateInput"/>
+    /// TİPİYLE zorlanır: para/tarih/durum alanları input'ta yoktur, form ne gönderirse göndersin değişemez
+    /// (tarih = ExtendAsync, fiyat farkı = fark faturası). Kirada → operasyonel + bilgi alanları;
+    /// Tamamlandi → yalnız bilgi alanları (aşım parametreleri/2. sürücü/ofisler DONMUŞ — ReturnMath koştu);
+    /// Iptal → red. Ofis değişiminde HEM mevcut HEM yeni ofis şube kapsamında olmalı.
+    /// </summary>
+    public async Task<bool> UpdateOpenAsync(Guid id, RentalUpdateInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var mevcut = await _repository.FindRentalAsync(id, ct);
+        if (mevcut is null) return false;
+        BranchScope.RequireInScope(_currentUser, mevcut.CikisOfisi);
+        if (mevcut.Durum == RentalStatus.Iptal)
+            throw new ValidationException("İptal edilmiş kira güncellenemez.");
+
+        var cikisOfisi = Lim(input.CikisOfisi, 64, "Çıkış ofisi");
+        var donusOfisi = Lim(input.DonusOfisi, 64, "Dönüş ofisi");
+        if (!string.Equals(cikisOfisi ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal))
+            BranchScope.RequireInScope(_currentUser, cikisOfisi); // kira kapsam DIŞINA taşınamaz
+        if (input.KmLimit < 0)
+            throw new ValidationException("KM limit negatif olamaz.");
+        if (input.FazlaKmUcret < 0m || input.YakitBirimUcret < 0m)
+            throw new ValidationException("Aşım ücretleri negatif olamaz.");
+
+        if (mevcut.Durum == RentalStatus.Tamamlandi)
+        {
+            if (input.KmLimit != mevcut.KmLimit || input.FazlaKmUcret != mevcut.FazlaKmUcret
+                || input.YakitBirimUcret != mevcut.YakitBirimUcret)
+                throw new ValidationException("Tamamlanmış kirada aşım parametreleri değiştirilemez (dönüş hesabı yapıldı).");
+            if (input.IkinciSurucuId != mevcut.IkinciSurucuId)
+                throw new ValidationException("Tamamlanmış kirada 2. sürücü değiştirilemez.");
+            if (!string.Equals(cikisOfisi ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal)
+                || !string.Equals(donusOfisi ?? "", mevcut.DonusOfisi ?? "", StringComparison.Ordinal))
+                throw new ValidationException("Tamamlanmış kirada ofisler değiştirilemez.");
+        }
+        else if (input.IkinciSurucuId is Guid ikinci && ikinci != mevcut.IkinciSurucuId)
+        {
+            if (ikinci == mevcut.MusteriId)
+                throw new ValidationException("2. sürücü müşteriyle aynı olamaz.");
+            if (await customerRepository.FindAsync(ikinci, ct) is null)
+                throw new ValidationException("2. sürücü (cari) bulunamadı.");
+        }
+
+        return await _repository.UpdateRentalAsync(id, c =>
+        {
+            // TX içinde yeniden doğrula (ön-kontrol ile arasında durum değişmiş olabilir).
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            if (c.Durum == RentalStatus.Iptal)
+                throw new ValidationException("İptal edilmiş kira güncellenemez.");
+            if (c.Durum == RentalStatus.Kirada)
+            {
+                c.CikisOfisi = cikisOfisi;
+                c.DonusOfisi = donusOfisi;
+                c.IkinciSurucuId = input.IkinciSurucuId;
+                c.KmLimit = input.KmLimit;
+                c.FazlaKmUcret = input.FazlaKmUcret;
+                c.YakitBirimUcret = input.YakitBirimUcret;
+            }
+            // Bilgi alanları — her iki durumda da (Kirada/Tamamlandi) serbest.
+            c.Aciklama = Lim(input.Aciklama, 1024, "Açıklama");
+            c.Kaynak = Lim(input.Kaynak, 64, "Kaynak");
+            c.KiralamaTuru = Lim(input.KiralamaTuru, 64, "Kiralama türü");
+            c.FaturalamaTipi = Lim(input.FaturalamaTipi, 64, "Faturalama tipi");
+            c.Provizyon = input.Provizyon;
+            c.Depozito = input.Depozito;
+            c.KomisyonOran = input.KomisyonOran;
+            c.KomisyonTutar = input.KomisyonTutar;
+            c.DropUcreti = input.DropUcreti;
+            c.SonraOdeOran = input.SonraOdeOran;
+            c.UyariAciklama = Lim(input.UyariAciklama, 512, "Uyarı açıklama");
+            c.OzelFaturaAciklama = Lim(input.OzelFaturaAciklama, 512, "Özel fatura açıklaması");
+            c.FaturaListesindeGizle = input.FaturaListesindeGizle;
+            c.UcusNo = Lim(input.UcusNo, 32, "Uçuş no");
+            c.ProvizyonNo = Lim(input.ProvizyonNo, 64, "Provizyon no");
+            c.ProvizyonTarih = input.ProvizyonTarih;
+            c.OnayKodu = Lim(input.OnayKodu, 64, "Onay kodu");
+            c.FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu");
+            c.ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı");
+            c.OzelKod = Lim(input.OzelKod, 64, "Özel kod");
+            c.TalepTuru = Lim(input.TalepTuru, 64, "Talep türü");
+            c.GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim");
+            c.KefilBilgisi = Lim(input.KefilBilgisi, 512, "Kefil bilgisi");
+            c.AssistFirma = Lim(input.AssistFirma, 128, "Assist firma");
+            c.OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi");
+            c.EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar");
+            c.ManuelFindexPuan = ValidFindex(input.ManuelFindexPuan);
+            c.KabisCikis = input.KabisCikis;
+            c.KabisDonus = input.KabisDonus;
+            c.OtomatikUzat = input.OtomatikUzat;
+            c.AksYedekAnahtarCikis = input.AksYedekAnahtarCikis;
+            c.AksYedekAnahtarDonus = input.AksYedekAnahtarDonus;
+            c.AksStepneCikis = input.AksStepneCikis;
+            c.AksStepneDonus = input.AksStepneDonus;
+            c.AksZincirCikis = input.AksZincirCikis;
+            c.AksZincirDonus = input.AksZincirDonus;
+            c.AksIlkYardimCikis = input.AksIlkYardimCikis;
+            c.AksIlkYardimDonus = input.AksIlkYardimDonus;
+            c.AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)");
+            c.AksLastikDonus = Lim(input.AksLastikDonus, 64, "Lastik durumu (dönüş)");
+            c.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>Serbest metin alanı: trim + boş→null + aşımda temiz red (DB varchar taşması 500 yerine).</summary>
+    private static string? Lim(string? s, int max, string alan)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        if (t.Length > max)
+            throw new ValidationException($"{alan} en fazla {max} karakter olabilir.");
+        return t;
+    }
+
+    private static int? ValidFindex(int? puan)
+        => puan is < 0 ? throw new ValidationException("Findeks puanı negatif olamaz.") : puan;
 
     /// <summary>Teslim: araç çıkışında KM/yakıt girişi. Araç odometresi (Vehicle.Km) AYNI transaction'da
     /// güncellenir (monoton: yalnız İLERİ; küçük girilirse araç km'si değişmez, kira yine kaydolur).</summary>

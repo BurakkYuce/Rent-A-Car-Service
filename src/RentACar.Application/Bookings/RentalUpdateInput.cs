@@ -1,21 +1,29 @@
 namespace RentACar.Application.Bookings;
 
-/// <summary>Rezervasyon/Kira oluştur giriş modeli.</summary>
-public sealed class BookingInput
+/// <summary>
+/// Açık kira güncelleme giriş modeli (mega-form "Kaydet"). WHITELIST TİP DÜZEYİNDE ZORLANIR:
+/// para/tarih/durum alanları (BasTar/BitTar/Gun/GunlukUcret/Tutar/GenelToplam/Tahsilat/Bakiye/Durum/
+/// FiyatTuru/Doviz/KurSnapshot/MusteriId/VehicleId) bu tipte YOKTUR — form ne gönderirse göndersin
+/// değişemezler. Tarih değişikliği yalnız ExtendAsync; fiyat farkları fark faturası akışıyla.
+/// Form tam-durum gönderir (tüm alanlar prefill) → null = alan temizlendi (null yazılır);
+/// KmLimit/FazlaKmUcret/YakitBirimUcret'te null → 0 (create semantiğiyle aynı: 0 = sınırsız/ücretsiz).
+/// </summary>
+public sealed class RentalUpdateInput
 {
-    public Guid MusteriId { get; set; }
-    public Guid? IkinciSurucuId { get; set; } // 2. sürücü (opsiyonel Customer bağı — sözleşmede gösterilir)
-    public Guid VehicleId { get; set; }
-    public DateTimeOffset BasTar { get; set; }
-    public DateTimeOffset BitTar { get; set; }
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
-    public decimal GunlukUcret { get; set; }
+    public Guid? IkinciSurucuId { get; set; }
+    public string? Aciklama { get; set; }
+    public string? Kaynak { get; set; }
+    public string? KiralamaTuru { get; set; }
+    public string? FaturalamaTipi { get; set; }
+
+    // Aşım parametreleri (yalnız Kirada değiştirilebilir — dönüşte ReturnMath bunlarla hesaplar)
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }
     public decimal YakitBirimUcret { get; set; }
 
-    // Ödeme-derinlik (roadmap A2; bilgi amaçlı, deftere yansımaz)
+    // Ödeme-derinlik (bilgi amaçlı; deftere yansımaz)
     public decimal? Provizyon { get; set; }
     public decimal? Depozito { get; set; }
     public decimal? KomisyonOran { get; set; }
@@ -23,16 +31,7 @@ public sealed class BookingInput
     public decimal? DropUcreti { get; set; }
     public decimal? SonraOdeOran { get; set; }
 
-    public string? Aciklama { get; set; }
-    public string? Kaynak { get; set; } // roadmap H2
-
-    // referans sistem parite (additive metadata)
-    public string? KiralamaTuru { get; set; }
-    public string? FaturalamaTipi { get; set; }
-    public string? FiyatTuru { get; set; }
-    public string? Doviz { get; set; }
-
-    // Kira formu detay alanları (mega-form; bilgi amaçlı — para hesabına girmez)
+    // Detay alanları (bilgi amaçlı)
     public string? UyariAciklama { get; set; }
     public string? OzelFaturaAciklama { get; set; }
     public bool? FaturaListesindeGizle { get; set; }
@@ -54,10 +53,15 @@ public sealed class BookingInput
     public bool? KabisDonus { get; set; }
     public bool? OtomatikUzat { get; set; }
 
-    // Aksesuar tespiti (çıkış "önce"; dönüş alanları dönüş/güncelleme akışında)
+    // Aksesuar tespiti (çıkış + dönüş)
     public bool? AksYedekAnahtarCikis { get; set; }
+    public bool? AksYedekAnahtarDonus { get; set; }
     public bool? AksStepneCikis { get; set; }
+    public bool? AksStepneDonus { get; set; }
     public bool? AksZincirCikis { get; set; }
+    public bool? AksZincirDonus { get; set; }
     public bool? AksIlkYardimCikis { get; set; }
+    public bool? AksIlkYardimDonus { get; set; }
     public string? AksLastikCikis { get; set; }
+    public string? AksLastikDonus { get; set; }
 }

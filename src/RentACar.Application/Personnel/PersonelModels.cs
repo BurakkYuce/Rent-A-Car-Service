@@ -20,3 +20,6 @@ public sealed record PersonelDetail(
     Guid Id, string Kod, string Ad, string Soyad, string? TcKimlik,
     DateTimeOffset? IseGiris, DateTimeOffset? IseCikis, string? SurucuBelgeNo,
     decimal? Maas, string? Sube, bool Aktif);
+
+/// <summary>Personel seçim satırı (dropdown projeksiyonu) — PII İÇERMEZ (operasyon ekranları için).</summary>
+public sealed record PersonelSecim(Guid Id, string Ad, string Soyad, string? Sube);
