@@ -108,8 +108,9 @@ public static class BookingEndpoints
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
                 ApplyOdemeDerinlik(input, req.Form);
-                await svc.CreateDirectAsync(input);
-                return Results.Redirect("/kiralar");
+                var id = await svc.CreateDirectAsync(input);
+                // Kira açılınca DETAY ekranına git → oradaki tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
+                return Results.Redirect($"/kiralar/{id}");
             }
             catch (ValidationException ex)
             {
