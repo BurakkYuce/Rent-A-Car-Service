@@ -149,7 +149,14 @@
             @* Alt şerit rozetleri *@
             <div class="card" style="display:flex;gap:1rem;flex-wrap:wrap;">
                 <span class="badge">Tahsilat: @(Vm.Edit ? Vm.Rental!.Tahsilat.ToString("N2") : "0,00")</span>
-                <span class="badge">Kalan: <span data-fp="kalan">—</span></span>
+                @if (Vm.Edit)
+                {
+                    <span class="badge">Kalan: @Vm.Rental!.Bakiye.ToString("N2")</span>
+                }
+                else
+                {
+                    <span class="badge">Kalan: <span data-fp="kalan">—</span></span>
+                }
                 <span class="badge">Ceza: @(Vm.Edit ? Vm.Cezalar.Sum(cz => cz.Tutar).ToString("N2") : "0,00")</span>
             </div>
         </div>
