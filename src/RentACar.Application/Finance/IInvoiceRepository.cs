@@ -7,6 +7,10 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default);
     Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Bir kiranın TÜM faturaları: base (RentalId) + fark (KaynakKiraId) + bunların iadeleri —
+    /// iptal/iade DAHİL (görsel liste; durum rozetiyle ayrışır). Kira formu "Faturalar" alt-sekmesi.</summary>
+    Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default);
+
     /// <summary>Verilen kaynak fatura için zaten bir iade faturası kesilmiş mi? (idempotency ön-kontrol)</summary>
     Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default);
 

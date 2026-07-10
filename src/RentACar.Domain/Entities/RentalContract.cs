@@ -95,6 +95,54 @@ public class RentalContract : ITenantOwned, IAuditable
 
     public string? Aciklama { get; set; }
 
+    // ---- Kira formu detay alanları (TürevRent parite, mega-form; TÜMÜ BİLGİ AMAÇLI — para hesabına girmez) ----
+    /// <summary>Rezervasyon/satış kaynağı (ReservationSource master'dan seç-veya-yaz).</summary>
+    public string? Kaynak { get; set; }
+    /// <summary>Uyarı açıklaması (sözleşme açılışında operatöre gösterilecek not).</summary>
+    public string? UyariAciklama { get; set; }
+    /// <summary>Özel fatura açıklaması (faturaya taşınacak serbest metin).</summary>
+    public string? OzelFaturaAciklama { get; set; }
+    /// <summary>Fatura listesinde gösterme bayrağı (liste filtresi ileride; şimdilik persist).</summary>
+    public bool? FaturaListesindeGizle { get; set; }
+    /// <summary>Uçuş no (havalimanı teslimlerinde).</summary>
+    public string? UcusNo { get; set; }
+    /// <summary>Provizyon (ön otorizasyon) referans no — bilgi; hold/capture yaşam döngüsü POS entegrasyonuyla.</summary>
+    public string? ProvizyonNo { get; set; }
+    public DateTimeOffset? ProvizyonTarih { get; set; }
+    public string? OnayKodu { get; set; }
+    public string? FirmaKodu { get; set; }
+    public string? ProjeAdi { get; set; }
+    /// <summary>Özel kod (CustomCode master'dan seç-veya-yaz).</summary>
+    public string? OzelKod { get; set; }
+    public string? TalepTuru { get; set; }
+    public string? GeldigiBirim { get; set; }
+    public string? KefilBilgisi { get; set; }
+    public string? AssistFirma { get; set; }
+    public string? OzelSoforBilgisi { get; set; }
+    /// <summary>Ek koşullar / sözleşme özel şartları (yazdırılan sözleşmeye eklenebilir).</summary>
+    public string? EkKosullar { get; set; }
+    /// <summary>Manuel girilen Findeks puanı (entegrasyon yok; operatör görür).</summary>
+    public int? ManuelFindexPuan { get; set; }
+    /// <summary>KABİS çıkış/dönüş bildirimi yapıldı işaretleri (entegrasyon stub; operatör takibi).</summary>
+    public bool? KabisCikis { get; set; }
+    public bool? KabisDonus { get; set; }
+    /// <summary>Otomatik uzat bayrağı (davranış ileride; şimdilik persist).</summary>
+    public bool? OtomatikUzat { get; set; }
+
+    // ---- Aksesuar durum tespiti (çıkışta "önce" / dönüşte "sonra"; hasar-eksik kanıtı).
+    // bool? BİLİNÇLİ: null = hiç işaretlenmedi (eski kayıtlar/atlanan tespit), false = "yok" beyanı. ----
+    public bool? AksYedekAnahtarCikis { get; set; }
+    public bool? AksYedekAnahtarDonus { get; set; }
+    public bool? AksStepneCikis { get; set; }
+    public bool? AksStepneDonus { get; set; }
+    public bool? AksZincirCikis { get; set; }
+    public bool? AksZincirDonus { get; set; }
+    public bool? AksIlkYardimCikis { get; set; }
+    public bool? AksIlkYardimDonus { get; set; }
+    /// <summary>4 lastik durumu serbest metin (ör. "ÖnSol:iyi ÖnSağ:iyi ArkaSol:az ArkaSağ:iyi").</summary>
+    public string? AksLastikCikis { get; set; }
+    public string? AksLastikDonus { get; set; }
+
     // ---- TürevRent parite (additive metadata; mevcut para hesabını etkilemez) ----
     public string? KiralamaTuru { get; set; }   // Kısa/Uzun/İkame/Aylık
     public string? FaturalamaTipi { get; set; } // Müşteri Ödemeli/Full Credit/Extralar Müşteriye/Drop Dahil/Diğer
