@@ -119,6 +119,37 @@ public static class BookingEndpoints
             }
         });
 
+        // CANLI HESAP (kira formu önizleme paneli; JS fetch). SALT-OKUNUR JSON — persist sıfır; gerçek motor
+        // (PricingService/RentalQuoteEngine) tek hesap kaynağı → önizleme == kayıt. GET → antiforgery'ye
+        // takılmaz (middleware yalnız unsafe metodları doğrular); RequirePermission grup mirasıyla korunur.
+        // ek formatı: "tanimId:miktar,tanimId:miktar".
+        kira.MapGet("/hesapla", async (KiraHesapService svc,
+            string? vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
+            string? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi,
+            string? ek, string? rentalId) =>
+        {
+            try
+            {
+                var sonuc = await svc.HesaplaAsync(new KiraHesapIstek(
+                    VehicleId: FormParse.Id(vehicleId),
+                    BasTar: basTar, BitTar: bitTar,
+                    GunlukUcret: FormParse.Dec(gunlukUcret),
+                    FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
+                    EkHizmetler: ParseEkSecim(ek),
+                    RentalId: FormParse.Id(rentalId)));
+                return Results.Json(sonuc);
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Json(new { ok = false, hata = ex.Message }); // örn. şube kapsamı dışı rentalId
+            }
+            catch (OverflowException)
+            {
+                // Emniyet kemeri (adversarial PR-B): servis guard'larını aşan uç değer 500 yerine nazik hata.
+                return Results.Json(new { ok = false, hata = "Girilen değerler hesaplanamayacak kadar büyük." });
+            }
+        });
+
         // Açık kira alan güncelleme (mega-form "Kaydet" — edit modu). Whitelist RentalUpdateInput tipiyle
         // zorlanır (para/tarih alanları tipte YOK). Redirect'te #sekme fragment'i korunur (tab kaybolmaz).
         kira.MapPost("/update", async (RentalService svc, HttpRequest req, [FromForm] Guid id) =>
@@ -277,6 +308,23 @@ public static class BookingEndpoints
         input.AksZincirCikis = FormBool(f, "aksZincirCikis");
         input.AksIlkYardimCikis = FormBool(f, "aksIlkYardimCikis");
         input.AksLastikCikis = FormParse.Str(f, "aksLastikCikis");
+    }
+
+    /// <summary>Canlı hesap "ek" parametresi: "tanimId:miktar,..." — hatalı çift sessiz atlanır (önizleme).</summary>
+    private static IReadOnlyList<KiraHesapEkHizmet> ParseEkSecim(string? ek)
+    {
+        if (string.IsNullOrWhiteSpace(ek)) return [];
+        var list = new List<KiraHesapEkHizmet>();
+        foreach (var parca in ek.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var i = parca.IndexOf(':');
+            if (i <= 0) continue;
+            if (Guid.TryParse(parca[..i], out var id) &&
+                decimal.TryParse(parca[(i + 1)..], System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var miktar))
+                list.Add(new KiraHesapEkHizmet(id, miktar));
+        }
+        return list;
     }
 
     /// <summary>Üçlü checkbox: alan formda hiç yok → null (dokunulmadı); hidden-false + checkbox-true çifti
