@@ -155,12 +155,72 @@
         apply();
     }
 
+    // ---- ANINDA yeni müşteri: fetch ile cari aç, sayfa yenilenmeden seç (form durumu korunur) ----
+    function bindYeniMusteri() {
+        var btn = document.querySelector('[data-yeni-musteri-kaydet]');
+        var form = document.getElementById('kira-form');
+        if (!btn || !form || btn._kfBound) return;
+        btn._kfBound = true;
+        btn.addEventListener('click', async function () {
+            var msg = document.querySelector('[data-yeni-musteri-mesaj]');
+            function de(t, cls) { if (msg) { msg.textContent = t; msg.className = cls + ' small'; } }
+            var body = new URLSearchParams();
+            form.querySelectorAll('input[name^="yeni"]').forEach(function (i) { if (i.value) body.set(i.name, i.value); });
+            var tok = form.querySelector('input[name="__RequestVerificationToken"]');
+            if (tok) body.set('__RequestVerificationToken', tok.value); // prod antiforgery
+            btn.disabled = true;
+            try {
+                var r = await fetch('/kiralar/musteri-olustur', { method: 'POST', body: body, headers: { 'Accept': 'application/json' } });
+                var d = await r.json();
+                if (!d.ok) { de(d.hata || 'Kaydedilemedi.', 'error'); return; }
+                // musteriId + 2.sürücü select'lerine ekle; müşteride SEÇ
+                ['musteriId', 'ikinciSurucuId'].forEach(function (n) {
+                    var sel = form.querySelector('select[name="' + n + '"]');
+                    if (!sel) return;
+                    var opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.ad;
+                    sel.appendChild(opt);
+                    if (n === 'musteriId') { sel.value = d.id; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+                });
+                // Hızlı Giriş arama datalist'i + kutu görüntüsü (KiraFormVm.MusteriGoruntu deseniyle)
+                var goruntu = d.ad + ' · #' + String(d.id).slice(0, 8);
+                var dl = document.getElementById('dl-kf-musteri');
+                if (dl) { var o = document.createElement('option'); o.value = goruntu; o.setAttribute('data-id', d.id); dl.appendChild(o); }
+                var arama = document.querySelector('[data-lookup-target="musteriId"]');
+                if (arama) arama.value = goruntu;
+                // Yeni-müşteri alanlarını temizle (flatpickr-farkındalıklı)
+                form.querySelectorAll('input[name^="yeni"]').forEach(function (i) {
+                    if (i._flatpickr) i._flatpickr.clear(); else i.value = '';
+                });
+                de('Müşteri kaydedildi ve seçildi: ' + d.ad, 'ok');
+            } catch (e) {
+                de('Kaydedilemedi (bağlantı hatası).', 'error');
+            } finally { btn.disabled = false; }
+        });
+    }
+
+    // ---- Müsaitlik GET yenilemesinde müşteri seçimini koru (hidden musteriId → query → preselect) ----
+    function bindMusaitKoru() {
+        var mf = document.getElementById('musait-form');
+        var form = document.getElementById('kira-form');
+        if (!mf || !form || mf._kfBound) return;
+        mf._kfBound = true;
+        mf.addEventListener('submit', function () {
+            var sel = form.querySelector('select[name="musteriId"]');
+            var h = mf.querySelector('input[name="musteriId"]');
+            if (sel && h) h.value = sel.value;
+        });
+    }
+
     function bind() {
         bindTabs();
         bindInvalid();
         bindMirrors();
         bindLookups();
         bindDateRange();
+        bindYeniMusteri();
+        bindMusaitKoru();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);

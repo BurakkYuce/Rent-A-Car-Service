@@ -45,6 +45,11 @@ public sealed class KiraFormVm
     /// <summary>Select option seçili mi (edit prefill).</summary>
     public bool Sel(Func<RentalContract, string?> f, string option) => Edit && f(Rental!) == option;
 
+    /// <summary>Müsaitlik yenilemesi/yönlendirme sonrası korunan müşteri seçimi (?musteriId= query).</summary>
+    public Guid? QMusteriId { get; set; }
+    public string QMusteriGoruntu =>
+        QMusteriId is Guid q && Customers.FirstOrDefault(c => c.Id == q) is { } m ? MusteriGoruntu(m) : "";
+
     // Müsaitlik penceresi (GET alt-formundan; araç listesi filtreli + tarihler prefill)
     public bool MusaitMod { get; set; }
     public string? Vfrom { get; set; }
