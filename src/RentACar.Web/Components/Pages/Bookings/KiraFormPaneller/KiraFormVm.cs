@@ -21,6 +21,30 @@ public sealed class KiraFormVm
     public RentalContract? Rental { get; set; }
     public bool Edit => Rental is not null;
 
+    // Edit modu verileri (sayfa şube-kapsamlı GetAsync BAŞARILI olduktan sonra doldurur — sızıntı kapısı)
+    public IReadOnlyList<RentalAddOn> Kalemler { get; set; } = [];
+    public IReadOnlyList<RentACar.Application.Personnel.PersonelSecim> Personeller { get; set; } = [];
+    public IReadOnlyList<Invoice> Faturalar { get; set; } = [];
+    public IReadOnlyList<Penalty> Cezalar { get; set; } = [];
+    public string? TeslimAlanAd { get; set; }
+    public string? DovizNot { get; set; }
+    /// <summary>Kullanıcının FinanceWrite yetkisi var mı (tahsilat/fatura butonları — 403 sürprizi yerine disabled).</summary>
+    public bool FinansYetkisi { get; set; }
+    /// <summary>OperationsWrite var mı (Kaydet/teslim/dönüş/uzat/ek hizmet/iptal — Muhasebe'de disabled + not).</summary>
+    public bool OperasyonYetkisi { get; set; } = true;
+    public bool Kirada => Edit && Rental!.Durum == RentACar.Domain.Enums.RentalStatus.Kirada;
+    public bool TeslimEdildi => Edit && Rental!.CikisKm is not null;
+
+    // ---- Edit prefill yardımcıları (create'te boş) ----
+    public string S(Func<RentalContract, string?> f) => Edit ? f(Rental!) ?? "" : "";
+    /// <summary>Sayı input'u prefill — InvariantCulture (tr virgülü number input'u boşaltıyordu; PR#27 dersi).</summary>
+    public string D(Func<RentalContract, decimal?> f)
+        => Edit && f(Rental!) is decimal d ? d.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    public string I(Func<RentalContract, int?> f) => Edit && f(Rental!) is int i ? i.ToString() : "";
+    public bool B(Func<RentalContract, bool?> f) => Edit && f(Rental!) == true;
+    /// <summary>Select option seçili mi (edit prefill).</summary>
+    public bool Sel(Func<RentalContract, string?> f, string option) => Edit && f(Rental!) == option;
+
     // Müsaitlik penceresi (GET alt-formundan; araç listesi filtreli + tarihler prefill)
     public bool MusaitMod { get; set; }
     public string? Vfrom { get; set; }

@@ -1,56 +1,77 @@
 @* KİRA BİLGİSİ / TESLİMAT — tarih/ofis/tür KANONİK alanları burada (name taşır; Hızlı Giriş aynalar).
-   Teslimat (çıkış km/yakıt) kayıttan sonra /kiralar/teslim akışıyla (edit modu PR-D). *@
+   EDIT: tarih alanları DONUK (gri — değişiklik yalnız Uzat; whitelist'te de yok), ofis/tür/km-parametreleri
+   düzenlenebilir (Kirada), teslim mini-formu (form="kira-teslim") teslim edilmemiş kirada görünür. *@
 <section class="kf-panel" data-panel-group="sekme" data-panel="kira" hidden>
     <div class="card">
         <strong>Kira Bilgisi</strong>
         <div class="grid-form">
-            <label>Başlangıç Tarihi
-                <input name="basTar" type="datetime-local" max="@KiraFormVm.MaxBasTarStr"
-                       value="@Vm.BasTarPrefill" required />
-            </label>
-            <label>Bitiş (Beklenen) Tarih
-                <input name="bitTar" type="datetime-local" value="@Vm.BitTarPrefill" required />
-            </label>
+            @if (Vm.Edit)
+            {
+                <label>Başlangıç Tarihi<input value="@Vm.Rental!.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")" readonly title="Tarih değişikliği: Dönüş sekmesi > Kira Uzat" /></label>
+                <label>Bitiş (Beklenen)<input value="@Vm.Rental!.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")" readonly title="Tarih değişikliği: Dönüş sekmesi > Kira Uzat" /></label>
+            }
+            else
+            {
+                <label>Başlangıç Tarihi
+                    <input name="basTar" type="datetime-local" max="@KiraFormVm.MaxBasTarStr" value="@Vm.BasTarPrefill" required />
+                </label>
+                <label>Bitiş (Beklenen) Tarih
+                    <input name="bitTar" type="datetime-local" value="@Vm.BitTarPrefill" required />
+                </label>
+            }
             <label>Çıkış Ofisi
                 <select name="cikisOfisi">
                     <option value="">—</option>
-                    @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                    @foreach (var o in Vm.Locations) { <option selected="@Vm.Sel(c => c.CikisOfisi, o.Ad)">@o.Ad</option> }
                 </select>
             </label>
             <label>Dönüş Ofisi
                 <select name="donusOfisi">
                     <option value="">—</option>
-                    @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                    @foreach (var o in Vm.Locations) { <option selected="@Vm.Sel(c => c.DonusOfisi, o.Ad)">@o.Ad</option> }
                 </select>
             </label>
             <label>Kiralama Türü
                 <select name="kiralamaTuru">
                     <option value="">—</option>
-                    @foreach (var o in KiraFormVm.KiralamaTurleri) { <option>@o</option> }
+                    @foreach (var o in KiraFormVm.KiralamaTurleri) { <option selected="@Vm.Sel(c => c.KiralamaTuru, o)">@o</option> }
                 </select>
             </label>
             <label>Faturalama Tipi
                 <select name="faturalamaTipi">
                     <option value="">—</option>
-                    @foreach (var o in KiraFormVm.FaturalamaTipleri) { <option>@o</option> }
+                    @foreach (var o in KiraFormVm.FaturalamaTipleri) { <option selected="@Vm.Sel(c => c.FaturalamaTipi, o)">@o</option> }
                 </select>
             </label>
             <label>Rezervasyon Kaynağı
-                <input name="kaynak" list="dl-kf-kaynak" autocomplete="off" placeholder="Seç veya yaz" maxlength="64" />
+                <input name="kaynak" list="dl-kf-kaynak" autocomplete="off" placeholder="Seç veya yaz" maxlength="64" value="@Vm.S(c => c.Kaynak)" />
             </label>
-            <label>Talep Türü<input name="talepTuru" maxlength="64" /></label>
-            <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" /></label>
+            <label>Talep Türü<input name="talepTuru" maxlength="64" value="@Vm.S(c => c.TalepTuru)" /></label>
+            <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" value="@Vm.S(c => c.GeldigiBirim)" /></label>
             <label>İşlem Şube<input value="çıkış ofisinden türetilir" readonly title="TODO: şube FK yetki katmanı (flagged iş)" /></label>
         </div>
     </div>
     <div class="card">
         <strong>Km / Aşım Parametreleri</strong>
         <div class="grid-form">
-            <label>KM Limit (0 = sınırsız)<input name="kmLimit" type="number" min="0" step="1" /></label>
-            <label>Fazla KM Ücreti<input name="fazlaKmUcret" type="number" min="0" step="0.01" /></label>
-            <label>Eksik Yakıt Birim Ücreti<input name="yakitBirimUcret" type="number" min="0" step="0.01" /></label>
+            @if (Vm.Edit && !Vm.Kirada)
+            {
+                <label>KM Limit<input value="@Vm.Rental!.KmLimit" readonly title="Tamamlanmış kirada donuk (dönüş hesabı yapıldı)" /></label>
+                <label>Fazla KM Ücreti<input value="@Vm.Rental!.FazlaKmUcret.ToString("N2")" readonly /></label>
+                <label>Eksik Yakıt Birim Ücreti<input value="@Vm.Rental!.YakitBirimUcret.ToString("N2")" readonly /></label>
+                @* Donuk değerler yine POST edilir (update whitelist'i değişiklik olmadığını doğrular) *@
+                <input type="hidden" name="kmLimit" value="@Vm.Rental!.KmLimit" />
+                <input type="hidden" name="fazlaKmUcret" value="@Vm.D(c => c.FazlaKmUcret)" />
+                <input type="hidden" name="yakitBirimUcret" value="@Vm.D(c => c.YakitBirimUcret)" />
+            }
+            else
+            {
+                <label>KM Limit (0 = sınırsız)<input name="kmLimit" type="number" min="0" step="1" value="@Vm.I(c => c.KmLimit)" /></label>
+                <label>Fazla KM Ücreti<input name="fazlaKmUcret" type="number" min="0" step="0.01" value="@Vm.D(c => c.FazlaKmUcret)" /></label>
+                <label>Eksik Yakıt Birim Ücreti<input name="yakitBirimUcret" type="number" min="0" step="0.01" value="@Vm.D(c => c.YakitBirimUcret)" /></label>
+            }
         </div>
-        <p class="muted small">Dönüş hesabında (fazla km × ücret, eksik yakıt × ücret) kullanılır — para otoritesi dönüş anı.</p>
+        <p class="muted small">Dönüş hesabında (fazla km × ücret, eksik yakıt × ücret) kullanılır — para otoritesi dönüş anı; her değişiklik denetim izinde.</p>
     </div>
     <div class="card">
         <strong>Vade / Opsiyon / Takip</strong>
@@ -58,10 +79,17 @@
             <label>Opsiyon (Net + Gün)<input value="cari karttan / ileride" readonly title="TODO: kira-seviyesi opsiyon alanı" /></label>
             <label>Vade / Fatura Dönemi<input value="cari karttan okunur" readonly title="Customer.VadeGun / FaturaDonemi" /></label>
             <label>Fatura Profili<input value="—" readonly title="TODO: e-Fatura profili (entegrasyon stub)" /></label>
-            <label>Hediye Gün<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="dokum">—</span></label>
+            @if (Vm.Edit)
+            {
+                <label>Hediye Gün<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;">@(Vm.Rental!.HediyeGun?.ToString() ?? "—")</span></label>
+            }
+            else
+            {
+                <label>Hediye Gün / Motor Dökümü<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="dokum">—</span></label>
+            }
             <label style="display:flex;gap:.4rem;align-items:center;">
                 <input type="hidden" name="otomatikUzat" value="false" />
-                <input type="checkbox" name="otomatikUzat" value="true" style="width:auto;" /> Otomatik Uzat
+                <input type="checkbox" name="otomatikUzat" value="true" style="width:auto;" checked="@Vm.B(c => c.OtomatikUzat)" /> Otomatik Uzat
             </label>
         </div>
     </div>
@@ -70,21 +98,34 @@
         <div class="grid-form">
             <label style="display:flex;gap:.4rem;align-items:center;">
                 <input type="hidden" name="kabisCikis" value="false" />
-                <input type="checkbox" name="kabisCikis" value="true" style="width:auto;" /> Kabis Çıkış Yapıldı
+                <input type="checkbox" name="kabisCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.KabisCikis)" /> Kabis Çıkış Yapıldı
             </label>
             <label style="display:flex;gap:.4rem;align-items:center;">
                 <input type="hidden" name="kabisDonus" value="false" />
-                <input type="checkbox" name="kabisDonus" value="true" style="width:auto;" /> Kabis Dönüş Yapıldı
+                <input type="checkbox" name="kabisDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.KabisDonus)" /> Kabis Dönüş Yapıldı
             </label>
         </div>
         <p class="muted small">KABİS bildirimi entegrasyonu stub — işaretler operatör takibi için saklanır.</p>
     </div>
     <div class="card">
         <strong>Teslimat (Çıkış)</strong>
-        <div class="grid-form">
-            <label>Çıkış Km<input readonly value="@(Vm.Edit && Vm.Rental!.CikisKm is int ck ? ck.ToString() : "kayıttan sonra teslimde girilir")" /></label>
-            <label>Çıkış Yakıt (0-12)<input readonly value="@(Vm.Edit && Vm.Rental!.CikisYakit is int cy ? cy.ToString() : "kayıttan sonra teslimde girilir")" /></label>
-        </div>
+        @if (Vm.Kirada && !Vm.TeslimEdildi)
+        {
+            @* Teslim mini-formu — ikincil form (form="kira-teslim", ana formun dışında tanımlı) *@
+            <div class="grid-form">
+                <label>Çıkış Km<input form="kira-teslim" name="cikisKm" type="number" min="0" value="0" required /></label>
+                <label>Çıkış Yakıt (0-12)<input form="kira-teslim" name="cikisYakit" type="number" min="0" max="12" value="8" required /></label>
+                <label style="align-self:end;"><button type="submit" form="kira-teslim" disabled="@(!Vm.OperasyonYetkisi)">Teslim Et</button></label>
+            </div>
+            <p class="muted small">Araç odometresi aynı işlemde güncellenir; araç durumu Kirada olur.</p>
+        }
+        else
+        {
+            <div class="grid-form">
+                <label>Çıkış Km<input readonly value="@(Vm.TeslimEdildi ? Vm.Rental!.CikisKm.ToString() : "kayıttan sonra teslimde girilir")" /></label>
+                <label>Çıkış Yakıt (0-12)<input readonly value="@(Vm.TeslimEdildi ? Vm.Rental!.CikisYakit?.ToString() : "kayıttan sonra teslimde girilir")" /></label>
+            </div>
+        }
     </div>
 </section>
 @code {
