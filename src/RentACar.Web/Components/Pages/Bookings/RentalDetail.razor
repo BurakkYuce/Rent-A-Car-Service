@@ -15,7 +15,7 @@
 }
 else
 {
-    <div class="page-head"><h1>Kira @_c.SozlesmeNo <span class="badge">@_c.Durum</span></h1><div class="actions"></div></div>
+    <div class="page-head"><h1>Kira @_c.SozlesmeNo <span class="badge">@_c.Durum</span></h1><div class="actions"><a href="/kiralar/@_c.Id/pdf" target="_blank">Sözleşme (PDF)</a> · <a href="/kiralar">+ Yeni Kira / Liste</a></div></div>
 
     @if (!string.IsNullOrEmpty(Hata))
     {
@@ -139,12 +139,13 @@ else
 
     @if (_c.Bakiye > 0 && _c.Durum != RentalStatus.Iptal)
     {
-        <h2>Tahsilat</h2>
+        <h2>Tahsilat — ödeme alın</h2>
+        <p class="muted small">Kira açık; müşteriden peşin/kısmi tahsilat yapabilirsiniz (Kasa/Banka). Bakiye buna göre düşer.</p>
         <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken /><input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />@* M5 *@
             <input type="hidden" name="cariId" value="@_c.MusteriId" />
             <input type="hidden" name="rentalId" value="@_c.Id" />
             <input type="hidden" name="donus" value="/kiralar/@_c.Id" />
-            <label>Tutar<input name="tutar" type="number" step="0.01" value="@_c.Bakiye" required /></label>
+            <label>Tutar<input name="tutar" type="number" step="0.01" value="@_c.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
             <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
             <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
             <button type="submit">Tahsil Et</button>
