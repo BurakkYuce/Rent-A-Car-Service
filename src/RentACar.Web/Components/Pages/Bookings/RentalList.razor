@@ -16,7 +16,7 @@
 
 <details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
-    <form method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
+    <form id="kira-create-form" method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri (mevcut cari seç — ya da aşağıdan yeni oluştur)
             <select name="musteriId">
                 <option value="">— yeni müşteri gireceğim —</option>
@@ -80,6 +80,16 @@
                 { <option value="@o">@o</option> }
             </select>
         </label>
+        @* Canlı fiyat önizlemesi (rc-kira-fiyat.js doldurur — statik SSR, tahmini; kesin tutar kayıtta). *@
+        <div class="card" style="grid-column:1/-1;padding:.6rem .8rem;">
+            <strong>Canlı Fiyat (tahmini)</strong>
+            <div style="display:flex;justify-content:space-between;"><span>Gün</span><span class="num" data-fp="gun">—</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>KDV (%20)</span><span class="num" data-fp="kdv">—</span></div>
+            <div style="display:flex;justify-content:space-between;font-weight:600;"><span>Genel Toplam</span><span class="num" data-fp="toplam">—</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Kalan</span><span class="num" data-fp="kalan">—</span></div>
+            <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin (tahmini).</p>
+        </div>
         <details>
             <summary class="link">Ödeme/komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</summary>
             <div class="grid-form">
