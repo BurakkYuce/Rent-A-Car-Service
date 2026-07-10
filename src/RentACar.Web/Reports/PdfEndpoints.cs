@@ -12,22 +12,34 @@ public static class PdfEndpoints
     {
         var kiralar = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite);
 
-        kiralar.MapGet("/{id:guid}/pdf", async (Guid id, SozlesmeService sozlesme, PdfExportService pdf, CancellationToken ct) =>
+        // VARSAYILAN: tarayıcıda GÖRÜNTÜLE (inline — her tıklama indirme klasörünü doldurmasın; oradan
+        // yazdırılabilir/kaydedilebilir). ?indir=1 → klasik dosya indirme (Content-Disposition: attachment).
+        kiralar.MapGet("/{id:guid}/pdf", async (Guid id, SozlesmeService sozlesme, PdfExportService pdf, string? indir, CancellationToken ct) =>
         {
             var s = await sozlesme.GetAsync(id, ct); // HTML-print ile AYNI view-model (içerik tek kaynak)
-            return s is null ? Results.NotFound() : Results.File(pdf.Contract(s), "application/pdf", $"{s.SozlesmeNo}.pdf");
+            if (s is null) return Results.NotFound();
+            var bytes = pdf.Contract(s);
+            return indir == "1"
+                ? Results.File(bytes, "application/pdf", $"{s.SozlesmeNo}.pdf")
+                : Results.File(bytes, "application/pdf");
         });
 
         // Örnek (şablon) sözleşme PDF'i — gerçek kira gerekmez; RentPro markalı numune (OrnekSozlesme.Ornek()).
         // Gerçek sözleşmeyle AYNI renderer (PdfExportService.Contract) → çıktı formatı tek kaynak.
-        kiralar.MapGet("/ornek-sozlesme/pdf", (PdfExportService pdf) =>
-            Results.File(pdf.Contract(OrnekSozlesme.Ornek()), "application/pdf", "ornek-sozlesme.pdf"));
+        kiralar.MapGet("/ornek-sozlesme/pdf", (PdfExportService pdf, string? indir) =>
+            indir == "1"
+                ? Results.File(pdf.Contract(OrnekSozlesme.Ornek()), "application/pdf", "ornek-sozlesme.pdf")
+                : Results.File(pdf.Contract(OrnekSozlesme.Ornek()), "application/pdf"));
 
         app.MapGroup("/faturalar").RequirePermission(Permission.FinanceWrite)
-            .MapGet("/{id:guid}/pdf", async (Guid id, InvoiceService svc, PdfExportService pdf, CancellationToken ct) =>
+            .MapGet("/{id:guid}/pdf", async (Guid id, InvoiceService svc, PdfExportService pdf, string? indir, CancellationToken ct) =>
             {
                 var inv = await svc.GetAsync(id, ct);
-                return inv is null ? Results.NotFound() : Results.File(pdf.Invoice(inv), "application/pdf", $"{inv.No}.pdf");
+                if (inv is null) return Results.NotFound();
+                var bytes = pdf.Invoice(inv);
+                return indir == "1"
+                    ? Results.File(bytes, "application/pdf", $"{inv.No}.pdf")
+                    : Results.File(bytes, "application/pdf");
             });
 
         return app;

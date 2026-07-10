@@ -213,6 +213,26 @@
         });
     }
 
+    // ---- PDF Yazdır: gizli iframe'e inline PDF yükle → print (indirme klasörüne dokunmadan) ----
+    function bindPdfYazdir() {
+        document.querySelectorAll('[data-pdf-yazdir]').forEach(function (a) {
+            if (a._kfBound) return;
+            a._kfBound = true;
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                var url = a.getAttribute('data-pdf-yazdir');
+                var fr = document.createElement('iframe');
+                fr.style.display = 'none';
+                fr.src = url;
+                fr.onload = function () {
+                    try { fr.contentWindow.focus(); fr.contentWindow.print(); }
+                    catch (_) { window.open(url, '_blank'); } // görüntüleyici engellerse: aç, oradan yazdır
+                };
+                document.body.appendChild(fr);
+            });
+        });
+    }
+
     function bind() {
         bindTabs();
         bindInvalid();
@@ -221,6 +241,7 @@
         bindDateRange();
         bindYeniMusteri();
         bindMusaitKoru();
+        bindPdfYazdir();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
