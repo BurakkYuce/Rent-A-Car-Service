@@ -31,6 +31,9 @@ public sealed class RentalAddOnService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (miktar <= 0) throw new ValidationException("Miktar sıfırdan büyük olmalıdır.");
+        // Taşma guard'ı (adversarial PR-B): devasa miktar round(birim×miktar)'da OverflowException → 500
+        // üretiyordu; canlı-hesap ucuyla simetrik gerçekçi üst sınır.
+        if (miktar > 100_000m) throw new ValidationException("Miktar gerçekçi değil (100.000 üstü).");
 
         var tanim = await _ekHizmetRepository.FindAsync(ekHizmetTanimId, ct)
             ?? throw new ValidationException("Ek hizmet tanımı bulunamadı.");
