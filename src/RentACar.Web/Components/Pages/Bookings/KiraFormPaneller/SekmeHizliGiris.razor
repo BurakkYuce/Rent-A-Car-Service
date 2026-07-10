@@ -15,7 +15,7 @@
                     else
                     {
                         <label style="grid-column:1/-1;">Müşteri Ara (yazdıkça öner — listeden seç)
-                            <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" />
+                            <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" value="@Vm.QMusteriGoruntu" />
                         </label>
                     }
                     <label>Durum<input value="@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Yeni")" readonly /></label>

@@ -147,6 +147,24 @@ public static class BookingEndpoints
             return Results.Redirect($"/kiralar/{id}");
         });
 
+        // ANINDA YENİ MÜŞTERİ (kira formu "Müşteriyi Kaydet" — JS fetch, sayfa yenilenmez → formdaki diğer
+        // alanlar kaybolmaz). Aynı OlusturYeniCariAsync yolu (PII şifreleme + TC checksum/benzersizlik
+        // CustomerService'te). JSON döner; hata nazik (ok:false) — inline gösterilir, form durumu korunur.
+        kira.MapPost("/musteri-olustur", async (CustomerService customers, HttpRequest req) =>
+        {
+            try
+            {
+                var id = await OlusturYeniCariAsync(customers, req.Form);
+                var ad = ((FormParse.Str(req.Form, "yeniUnvan")
+                          ?? $"{FormParse.Str(req.Form, "yeniAd")} {FormParse.Str(req.Form, "yeniSoyad")}").Trim());
+                return Results.Json(new { ok = true, id, ad });
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Json(new { ok = false, hata = ex.Message });
+            }
+        });
+
         // CANLI HESAP (kira formu önizleme paneli; JS fetch). SALT-OKUNUR JSON — persist sıfır; gerçek motor
         // (PricingService/RentalQuoteEngine) tek hesap kaynağı → önizleme == kayıt. GET → antiforgery'ye
         // takılmaz (middleware yalnız unsafe metodları doğrular); RequirePermission grup mirasıyla korunur.

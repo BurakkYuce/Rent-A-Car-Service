@@ -16,7 +16,7 @@
                 <label>Müşteri (mevcut cari)
                     <select name="musteriId">
                         <option value="">— yeni müşteri gireceğim —</option>
-                        @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
+                        @foreach (var c in Vm.Customers) { <option value="@c.Id" selected="@(Vm.QMusteriId == c.Id)">@c.DisplayName</option> }
                     </select>
                 </label>
             }
@@ -52,7 +52,11 @@
             <label>İl<input name="yeniIl" /></label>
             <label>İlçe<input name="yeniIlce" /></label>
         </div>
-        <p class="muted small">Mevcut müşteri seçiliyse boş bırak. En az Ad (bireysel) ya da Ünvan (kurumsal) yeter; TC/ehliyet PII şifreli saklanır (blind-index arama).</p>
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.4rem 0;">
+            <button type="button" data-yeni-musteri-kaydet>Müşteriyi Kaydet</button>
+            <span data-yeni-musteri-mesaj class="muted small"></span>
+        </div>
+        <p class="muted small">Müşteriyi Kaydet: cari ANINDA açılır ve yukarıda seçili gelir (sayfa yenilenmez — girdiğin diğer alanlar kaybolmaz). Butona basmasan da alanlar doluysa kira Kaydet'iyle birlikte oluşturulur. En az Ad (bireysel) ya da Ünvan (kurumsal) yeter; TC/ehliyet PII şifreli saklanır (blind-index arama).</p>
     </details>
     }
     <div class="card">
