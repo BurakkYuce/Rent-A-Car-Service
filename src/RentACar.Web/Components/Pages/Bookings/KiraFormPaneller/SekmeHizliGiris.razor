@@ -1,0 +1,109 @@
+@* HIZLI GİRİŞ — süper-sekme: diğer sekmelerin kritik alanlarını tek ekranda toplar (deneyimli operatör
+   buradan kira açar). Alanların çoğu AYNA (data-mirror — kanonik input kendi sekmesinde, name yalnız orada);
+   arama kutuları datalist + JS id-çözümü ile kanonik select'leri sürer. Gri kutular hesap/salt-okunur. *@
+<section class="kf-panel" data-panel-group="sekme" data-panel="hizli">
+    <div class="report-cols">
+        <div>
+            @* A. Müşteri + durum *@
+            <div class="card">
+                <strong>Müşteri</strong>
+                <div class="grid-form">
+                    <label style="grid-column:1/-1;">Müşteri Ara (yazdıkça öner — listeden seç)
+                        <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" />
+                    </label>
+                    <label>Durum<input value="@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Yeni")" readonly /></label>
+                    <label>Sözleşme No<input value="@(Vm.Edit ? Vm.Rental!.SozlesmeNo : "kayıtta verilir (boşluksuz sıra)")" readonly /></label>
+                </div>
+                <p class="muted small">Kayıtlı değilse: Müşteri sekmesinden tek adımda yeni müşteri girilir. Analiz: cari ekstre kayıttan sonra açılır.</p>
+            </div>
+            @* B. Tarih / lokasyon *@
+            <div class="card">
+                <strong>Tarih / Lokasyon</strong>
+                <div class="grid-form">
+                    <label>Başlangıç<input type="datetime-local" data-mirror="basTar" /></label>
+                    <label>Bitiş (beklenen)<input type="datetime-local" data-mirror="bitTar" /></label>
+                    <label>Gün<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gun">—</span></label>
+                    <label>Çıkış Ofisi
+                        <select data-mirror="cikisOfisi">
+                            <option value="">—</option>
+                            @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                        </select>
+                    </label>
+                    <label>Dönüş Ofisi
+                        <select data-mirror="donusOfisi">
+                            <option value="">—</option>
+                            @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                        </select>
+                    </label>
+                </div>
+                <p class="muted small">Çıkış ≠ Dönüş ofisi → drop ücreti (Fiyat sekmesindeki alan; bilgi amaçlı).</p>
+            </div>
+            @* C. Araç *@
+            <div class="card">
+                <strong>Araç</strong>
+                <div class="grid-form">
+                    <label style="grid-column:1/-1;">Araç Ara (plaka yaz — müsaitlik penceresi Araç sekmesinde)
+                        <input list="dl-kf-arac" data-lookup-target="vehicleId" placeholder="Plaka yaz..." autocomplete="off" />
+                    </label>
+                    <label>Marka<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="marka">—</span></label>
+                    <label>Tip<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="tip">—</span></label>
+                    <label>Vites<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="vites">—</span></label>
+                    <label>Yakıt<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yakit">—</span></label>
+                    <label>Araç Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="grup">—</span></label>
+                    <label>Güncel Km<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="km">—</span></label>
+                </div>
+                <p class="muted small">Çıkış Km / yakıt seviyesi teslim anında girilir (kayıttan sonra, Kira Bilgisi &gt; Teslimat).</p>
+            </div>
+        </div>
+        <div>
+            @* D. Fiyat (kritik) — kanonikler Fiyat sekmesinde; burada aynalar + canlı hesap kutuları *@
+            <div class="card">
+                <strong>Fiyat</strong>
+                <div class="grid-form">
+                    <label>Kiralama Türü
+                        <select data-mirror="kiralamaTuru">
+                            <option value="">—</option>
+                            @foreach (var o in KiraFormVm.KiralamaTurleri) { <option>@o</option> }
+                        </select>
+                    </label>
+                    <label>Hesaplama Tipi
+                        <select data-mirror="fiyatTuru">
+                            <option value="">—</option>
+                            @foreach (var o in KiraFormVm.FiyatTurleri) { <option>@o</option> }
+                        </select>
+                    </label>
+                    <label>Döviz
+                        <select data-mirror="doviz">
+                            <option value="">—</option>
+                            @foreach (var o in KiraFormVm.Dovizler) { <option>@o</option> }
+                        </select>
+                    </label>
+                    <label>Günlük Ücret<input type="number" step="0.01" min="0" data-mirror="gunlukUcret" placeholder="Otomatik'te boş" /></label>
+                    <label>Rezervasyon Kaynağı
+                        <input list="dl-kf-kaynak" data-mirror="kaynak" autocomplete="off" placeholder="Seç veya yaz" />
+                    </label>
+                </div>
+                <div class="kf-hesap" style="margin-top:.5rem;">
+                    <div class="row"><span>Gün</span><span class="num" data-fp="gun">—</span></div>
+                    <div class="row"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
+                    <div class="row"><span>KDV</span><span class="num" data-fp="kdv">—</span></div>
+                    <div class="row"><span>Ek Hizmet Tutarı</span><span class="num" data-fp="ektoplam">—</span></div>
+                    <div class="row top"><span>Genel Toplam</span><span class="num" data-fp="toplam">—</span></div>
+                    <div class="row"><span>Genel Toplam (TL karşılığı)</span><span class="num" data-fp="tl">—</span></div>
+                    <div class="row"><span>Kalan</span><span class="num" data-fp="kalan">—</span></div>
+                    <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin.</p>
+                    <p class="muted small" data-fp="dokum" style="margin:.2rem 0 0;">—</p>
+                </div>
+            </div>
+            @* Alt şerit rozetleri *@
+            <div class="card" style="display:flex;gap:1rem;flex-wrap:wrap;">
+                <span class="badge">Tahsilat: @(Vm.Edit ? Vm.Rental!.Tahsilat.ToString("N2") : "0,00")</span>
+                <span class="badge">Kalan: <span data-fp="kalan">—</span></span>
+                <span class="badge">Ceza: 0,00</span>
+            </div>
+        </div>
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}

@@ -1,136 +1,18 @@
 @page "/kiralar"
 @attribute [Authorize]
-@using RentACar.Application.Availability
 @inject RentalService Rentals
-@inject CustomerService Customers
-@inject VehicleService Vehicles
 @inject LocationService Locations
-@inject AvailabilityService Availability
 
 <PageTitle>Kira Sözleşmeleri — RentPro</PageTitle>
 
-<div class="page-head"><h1>Kira Sözleşmeleri</h1><div class="actions"><a href="/listeler/export/kiralar">Excel</a> · <a href="/listeler/export/kiralar?format=csv">CSV</a> · <a href="/listeler/export/kiralar?format=pdf">PDF</a> · <a href="/kiralar/ornek-sozlesme/pdf" target="_blank">Örnek Sözleşme (PDF)</a></div></div>
+<div class="page-head"><h1>Kira Sözleşmeleri</h1><div class="actions"><a href="/kiralar/yeni"><strong>+ Yeni Kira</strong></a> · <a href="/listeler/export/kiralar">Excel</a> · <a href="/listeler/export/kiralar?format=csv">CSV</a> · <a href="/listeler/export/kiralar?format=pdf">PDF</a> · <a href="/kiralar/ornek-sozlesme/pdf" target="_blank">Örnek Sözleşme (PDF)</a></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_rows.Count == 0 || _musaitMod)">
-    <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
-    @* Müsaitlik: tarih penceresi ver → araç listesi yalnız o aralıkta MÜSAİT araçlarla dolar (GET alt-form). *@
-    <form method="get" class="filter-bar" style="margin:.4rem 0;">
-        <span class="small">Müsaitlik:</span>
-        <input name="vfrom" type="date" value="@Vfrom" title="Müsaitlik başlangıç" />
-        <input name="vto" type="date" value="@Vto" title="Müsaitlik bitiş" />
-        <input name="vgrup" value="@Vgrup" placeholder="Grup (ops.)" />
-        <button type="submit">Müsait Araçları Getir</button>
-        @if (_musaitMod) { <a href="/kiralar" class="link">Tümünü göster</a> }
-    </form>
-    @if (_musaitMod) { <p class="muted small">Seçili aralıkta <strong>@_vehicles.Count</strong> araç müsait (araç listesi filtrelendi; tarihler kira alanlarına da geçti).</p> }
-    <form id="kira-create-form" method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
-        <label>Müşteri (mevcut cari seç — ya da aşağıdan yeni oluştur)
-            <select name="musteriId">
-                <option value="">— yeni müşteri gireceğim —</option>
-                @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
-            </select>
-        </label>
-        <details class="new-vehicle" style="grid-column:1/-1;">
-            <summary class="link">veya buradan Yeni Müşteri oluştur (kayıtlı değilse — kirayla tek adımda)</summary>
-            <div class="grid-form">
-                <label>Ad<input name="yeniAd" /></label>
-                <label>Soyad<input name="yeniSoyad" /></label>
-                <label>Ünvan (kurumsal ise)<input name="yeniUnvan" /></label>
-                <label>TC Kimlik<input name="yeniTc" maxlength="11" /></label>
-                <label>Gsm<input name="yeniGsm" /></label>
-                <label>Mail<input name="yeniMail" type="email" /></label>
-                <label>İl<input name="yeniIl" /></label>
-                <label>İlçe<input name="yeniIlce" /></label>
-            </div>
-            <p class="muted small">Mevcut müşteriyi seçtiysen burayı boş bırak. Yeni müşteri için en az Ad (bireysel) ya da Ünvan (kurumsal) yeter; TC/PII şifreli saklanır.</p>
-        </details>
-        <label>2. Sürücü (opsiyonel)
-            <select name="ikinciSurucuId">
-                <option value="">—</option>
-                @foreach (var c in _customers) { <option value="@c.Id">@c.DisplayName</option> }
-            </select>
-        </label>
-        <label>Araç
-            <select name="vehicleId" required>
-                <option value="">—</option>
-                @foreach (var v in _vehicles) { <option value="@v.Id">@v.Plaka</option> }
-            </select>
-        </label>
-        <label>Başlangıç<input name="basTar" type="datetime-local" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" value="@(_musaitMod && !string.IsNullOrEmpty(Vfrom) ? $"{Vfrom}T09:00" : "")" required /></label>
-        <label>Bitiş<input name="bitTar" type="datetime-local" value="@(_musaitMod && !string.IsNullOrEmpty(Vto) ? $"{Vto}T09:00" : "")" required /></label>
-        <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" placeholder="Otomatik için boş bırakın" /></label>
-        <label>Kiralama Türü
-            <select name="kiralamaTuru">
-                <option value="">—</option>
-                @foreach (var o in new[] { "Kısa Kiralama", "Uzun Kiralama", "İkame", "Aylık" })
-                { <option value="@o">@o</option> }
-            </select>
-        </label>
-        <label>Faturalama Tipi
-            <select name="faturalamaTipi">
-                <option value="">—</option>
-                @foreach (var o in new[] { "Müşteri Ödemeli", "Full Credit", "Extralar Müşteriye Ait", "Drop Dahil", "Diğer" })
-                { <option value="@o">@o</option> }
-            </select>
-        </label>
-        <label>Fiyat Türü
-            <select name="fiyatTuru">
-                <option value="">—</option>
-                @foreach (var o in new[] { "Otomatik", "KDV Dahil Günlük", "Günlük", "KDV Dahil Toplam", "Toplam" })
-                { <option value="@o">@o</option> }
-            </select>
-        </label>
-        <label>Döviz
-            <select name="doviz">
-                <option value="">—</option>
-                @foreach (var o in new[] { "TL", "EURO", "USD" })
-                { <option value="@o">@o</option> }
-            </select>
-        </label>
-        @* Canlı fiyat önizlemesi (rc-kira-fiyat.js doldurur — statik SSR, tahmini; kesin tutar kayıtta). *@
-        <div class="card" style="grid-column:1/-1;padding:.6rem .8rem;">
-            <strong>Canlı Fiyat (tahmini)</strong>
-            <div style="display:flex;justify-content:space-between;"><span>Gün</span><span class="num" data-fp="gun">—</span></div>
-            <div style="display:flex;justify-content:space-between;"><span>Kira Tutarı (KDV hariç)</span><span class="num" data-fp="net">—</span></div>
-            <div style="display:flex;justify-content:space-between;"><span>KDV (%20)</span><span class="num" data-fp="kdv">—</span></div>
-            <div style="display:flex;justify-content:space-between;font-weight:600;"><span>Genel Toplam</span><span class="num" data-fp="toplam">—</span></div>
-            <div style="display:flex;justify-content:space-between;"><span>Kalan</span><span class="num" data-fp="kalan">—</span></div>
-            <p class="muted small" data-fp="not" style="margin:.3rem 0 0;">Ücret ve tarih girin (tahmini).</p>
-        </div>
-        <details>
-            <summary class="link">Ödeme/komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</summary>
-            <div class="grid-form">
-                <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" /></label>
-                <label>Depozito<input name="depozito" type="number" step="0.01" min="0" /></label>
-                <label>Komisyon %<input name="komisyonOran" type="number" step="0.01" min="0" /></label>
-                <label>Komisyon Tutar<input name="komisyonTutar" type="number" step="0.01" min="0" /></label>
-                <label>Drop Ücreti<input name="dropUcreti" type="number" step="0.01" min="0" /></label>
-                <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" /></label>
-            </div>
-        </details>
-        <label>Çıkış Ofisi
-            <select name="cikisOfisi">
-                <option value="">—</option>
-                @foreach (var o in _locations) { <option>@o.Ad</option> }
-            </select>
-        </label>
-        <label>Dönüş Ofisi
-            <select name="donusOfisi">
-                <option value="">—</option>
-                @foreach (var o in _locations) { <option>@o.Ad</option> }
-            </select>
-        </label>
-        <label style="grid-column:1/-1;">Açıklama / Notlar (serbest — ek istekler, notlar)
-            <textarea name="aciklama" rows="2"></textarea>
-        </label>
-        <button type="submit">Kira Aç</button>
-    </form>
-</details>
+@* Yeni kira: /kiralar/yeni mega-formu (8 sekme + sticky panel). Inline form oraya taşındı. *@
 
 <div class="filter-panel">
 <form method="get" class="filter-bar">
@@ -204,36 +86,13 @@
     [SupplyParameterFromQuery(Name = "basMin")] public string? BasMin { get; set; }
     [SupplyParameterFromQuery(Name = "basMax")] public string? BasMax { get; set; }
     [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
-    [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; } // müsaitlik penceresi başlangıç
-    [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }     // müsaitlik penceresi bitiş
-    [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
 
     private IReadOnlyList<RentalRow> _rows = [];
-    private IReadOnlyList<Customer> _customers = [];
-    private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Location> _locations = [];
-    private bool _musaitMod; // araç dropdown'ı müsaitlik penceresine göre filtreli mi
 
     protected override async Task OnInitializedAsync()
     {
-        // Yeni-kira formu açılır listeleri.
-        _customers = await Customers.ListAsync();
         _locations = await Locations.ListActiveAsync();
-
-        // Araç listesi: müsaitlik penceresi (vfrom<vto) verildiyse YALNIZ müsait araçlar; değilse tüm liste.
-        // GUARD: FindAvailableAsync to<=from'da ValidationException fırlatır → yalnız vto>vfrom iken çağır.
-        // Tarihi UTC gün-başına indir (offset-0 → Npgsql timestamptz'ye yazılabilir; MusaitlikArama.ParseDate deseni).
-        var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
-        var vt = DateTimeOffset.TryParse(Vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
-        if (vf is { } vff && vt is { } vtt && vtt > vff)
-        {
-            _vehicles = await Availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(Vgrup) ? null : Vgrup);
-            _musaitMod = true;
-        }
-        else
-        {
-            _vehicles = await Vehicles.ListAsync();
-        }
 
         var filter = new RentalFilter
         {

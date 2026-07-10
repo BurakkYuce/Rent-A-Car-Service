@@ -1,0 +1,115 @@
+@page "/kiralar/yeni"
+@attribute [Authorize]
+@using RentACar.Application.Availability
+@using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller
+@inject CustomerService Customers
+@inject VehicleService Vehicles
+@inject LocationService Locations
+@inject AvailabilityService Availability
+@inject EkHizmetTanimService EkHizmetler
+@inject CoverageProductService Sigortalar
+@inject ReservationSourceService Kaynaklar
+@inject CustomCodeService OzelKodlar
+@inject RentACar.Application.Kur.KurService Kurlar
+
+<PageTitle>Yeni Kira — RentPro</PageTitle>
+
+@* Yeni Kira mega-formu (TürevRent Kiralama.Aspx paritesi): 8 ana sekme + Ayrıntılar'da 8 alt-sekme +
+   sticky alt panel. STATİK SSR — tek ana form tüm sekme panellerini sarar (gizli paneller hidden attr ile
+   DOM'da kalır → submit'e girer); sekme/ayna/arama/canlı-fiyat JS'i: rc-kira-tabs.js + rc-kira-fiyat.js.
+   Canlı hesap SUNUCU motorundan (GET /kiralar/hesapla) — UI formül taşımaz. *@
+
+<div class="page-head">
+    <h1>Yeni Kira</h1>
+    <div class="actions"><a href="/kiralar">Kira Listesi</a> · <a href="/rezervasyonlar">Rezervasyonlar</a></div>
+</div>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+
+<div class="kf-tabs" role="tablist" data-tabs="sekme">
+    <button type="button" role="tab" data-tab="hizli" aria-selected="true">Hızlı Giriş</button>
+    <button type="button" role="tab" data-tab="kira" aria-selected="false">Kira Bilgisi/Teslimat</button>
+    <button type="button" role="tab" data-tab="musteri" aria-selected="false">Müşteri</button>
+    <button type="button" role="tab" data-tab="arac" aria-selected="false">Araç</button>
+    <button type="button" role="tab" data-tab="fiyat" aria-selected="false">Fiyat/Toplam</button>
+    <button type="button" role="tab" data-tab="ekhizmet" aria-selected="false">Ek Hizmetler</button>
+    <button type="button" role="tab" data-tab="ayrintilar" aria-selected="false">Ayrıntılar</button>
+    <button type="button" role="tab" data-tab="donus" aria-selected="false">Dönüş</button>
+</div>
+
+<form id="kira-form" method="post" action="/kiralar/create">
+    <AntiforgeryToken />
+    <SekmeHizliGiris Vm="_vm" />
+    <SekmeKiraBilgisi Vm="_vm" />
+    <SekmeMusteri Vm="_vm" />
+    <SekmeArac Vm="_vm" />
+    <SekmeFiyat Vm="_vm" />
+    <SekmeEkHizmet Vm="_vm" />
+    <SekmeAyrintilar Vm="_vm" />
+    <SekmeDonus Vm="_vm" />
+</form>
+
+@* Müsaitlik GET alt-formu — ana formun DIŞINDA (iç içe form yasak); Araç sekmesindeki inputlar form= ile bağlı. *@
+<form id="musait-form" method="get" action="/kiralar/yeni"></form>
+
+<StickyPanel Vm="_vm" />
+
+@* Arama datalist'leri (JS id-çözümü: option value birebir eşleşince data-id hedefe yazılır) *@
+<datalist id="dl-kf-musteri">
+    @foreach (var c in _vm.Customers)
+    {
+        <option value="@KiraFormVm.MusteriGoruntu(c)" data-id="@c.Id"></option>
+    }
+</datalist>
+<datalist id="dl-kf-arac">
+    @foreach (var v in _vm.Vehicles)
+    {
+        <option value="@KiraFormVm.AracGoruntu(v)" data-id="@v.Id"
+                data-marka="@v.Marka" data-tip="@v.Tip" data-yil="@(v.ModelYili?.ToString() ?? "")"
+                data-vites="@(v.Vites?.ToString() ?? "")" data-yakit="@v.Yakit" data-grup="@v.Grup"
+                data-segment="@v.Segment" data-km="@v.Km" data-sube="@v.Sube"></option>
+    }
+</datalist>
+<datalist id="dl-kf-kaynak">
+    @foreach (var k in _vm.Kaynaklar) { <option value="@k"></option> }
+</datalist>
+<datalist id="dl-kf-ozelkod">
+    @foreach (var k in _vm.OzelKodlar) { <option value="@k"></option> }
+</datalist>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; }
+    [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }
+    [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
+
+    private readonly KiraFormVm _vm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _vm.Customers = await Customers.ListAsync();
+        _vm.Locations = await Locations.ListActiveAsync();
+        _vm.EkHizmetler = await EkHizmetler.ListActiveAsync();
+        _vm.Sigortalar = await Sigortalar.ListActiveAsync();
+        _vm.Kaynaklar = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
+        _vm.OzelKodlar = (await OzelKodlar.ListActiveAsync()).Select(k => k.Ad).ToList();
+        _vm.Kurlar = await Kurlar.BugunKurlarAsync();
+        _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
+
+        // Müsaitlik penceresi (vfrom<vto) → araç listesi yalnız müsait araçlar (RentalList/PR#26 deseni:
+        // UTC gün-başı — Npgsql timestamptz offset-0 ister; guard: FindAvailableAsync to<=from'da fırlatır).
+        var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+        var vt = DateTimeOffset.TryParse(Vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+        if (vf is { } vff && vt is { } vtt && vtt > vff)
+        {
+            _vm.Vehicles = await Availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(Vgrup) ? null : Vgrup);
+            _vm.MusaitMod = true;
+        }
+        else
+        {
+            _vm.Vehicles = await Vehicles.ListAsync();
+        }
+    }
+}

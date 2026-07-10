@@ -1,0 +1,92 @@
+@* KİRA BİLGİSİ / TESLİMAT — tarih/ofis/tür KANONİK alanları burada (name taşır; Hızlı Giriş aynalar).
+   Teslimat (çıkış km/yakıt) kayıttan sonra /kiralar/teslim akışıyla (edit modu PR-D). *@
+<section class="kf-panel" data-panel-group="sekme" data-panel="kira" hidden>
+    <div class="card">
+        <strong>Kira Bilgisi</strong>
+        <div class="grid-form">
+            <label>Başlangıç Tarihi
+                <input name="basTar" type="datetime-local" max="@KiraFormVm.MaxBasTarStr"
+                       value="@Vm.BasTarPrefill" required />
+            </label>
+            <label>Bitiş (Beklenen) Tarih
+                <input name="bitTar" type="datetime-local" value="@Vm.BitTarPrefill" required />
+            </label>
+            <label>Çıkış Ofisi
+                <select name="cikisOfisi">
+                    <option value="">—</option>
+                    @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                </select>
+            </label>
+            <label>Dönüş Ofisi
+                <select name="donusOfisi">
+                    <option value="">—</option>
+                    @foreach (var o in Vm.Locations) { <option>@o.Ad</option> }
+                </select>
+            </label>
+            <label>Kiralama Türü
+                <select name="kiralamaTuru">
+                    <option value="">—</option>
+                    @foreach (var o in KiraFormVm.KiralamaTurleri) { <option>@o</option> }
+                </select>
+            </label>
+            <label>Faturalama Tipi
+                <select name="faturalamaTipi">
+                    <option value="">—</option>
+                    @foreach (var o in KiraFormVm.FaturalamaTipleri) { <option>@o</option> }
+                </select>
+            </label>
+            <label>Rezervasyon Kaynağı
+                <input name="kaynak" list="dl-kf-kaynak" autocomplete="off" placeholder="Seç veya yaz" maxlength="64" />
+            </label>
+            <label>Talep Türü<input name="talepTuru" maxlength="64" /></label>
+            <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" /></label>
+            <label>İşlem Şube<input value="çıkış ofisinden türetilir" readonly title="TODO: şube FK yetki katmanı (flagged iş)" /></label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>Km / Aşım Parametreleri</strong>
+        <div class="grid-form">
+            <label>KM Limit (0 = sınırsız)<input name="kmLimit" type="number" min="0" step="1" /></label>
+            <label>Fazla KM Ücreti<input name="fazlaKmUcret" type="number" min="0" step="0.01" /></label>
+            <label>Eksik Yakıt Birim Ücreti<input name="yakitBirimUcret" type="number" min="0" step="0.01" /></label>
+        </div>
+        <p class="muted small">Dönüş hesabında (fazla km × ücret, eksik yakıt × ücret) kullanılır — para otoritesi dönüş anı.</p>
+    </div>
+    <div class="card">
+        <strong>Vade / Opsiyon / Takip</strong>
+        <div class="grid-form">
+            <label>Opsiyon (Net + Gün)<input value="cari karttan / ileride" readonly title="TODO: kira-seviyesi opsiyon alanı" /></label>
+            <label>Vade / Fatura Dönemi<input value="cari karttan okunur" readonly title="Customer.VadeGun / FaturaDonemi" /></label>
+            <label>Fatura Profili<input value="—" readonly title="TODO: e-Fatura profili (entegrasyon stub)" /></label>
+            <label>Hediye Gün<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="dokum">—</span></label>
+            <label style="display:flex;gap:.4rem;align-items:center;">
+                <input type="hidden" name="otomatikUzat" value="false" />
+                <input type="checkbox" name="otomatikUzat" value="true" style="width:auto;" /> Otomatik Uzat
+            </label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>KABİS</strong>
+        <div class="grid-form">
+            <label style="display:flex;gap:.4rem;align-items:center;">
+                <input type="hidden" name="kabisCikis" value="false" />
+                <input type="checkbox" name="kabisCikis" value="true" style="width:auto;" /> Kabis Çıkış Yapıldı
+            </label>
+            <label style="display:flex;gap:.4rem;align-items:center;">
+                <input type="hidden" name="kabisDonus" value="false" />
+                <input type="checkbox" name="kabisDonus" value="true" style="width:auto;" /> Kabis Dönüş Yapıldı
+            </label>
+        </div>
+        <p class="muted small">KABİS bildirimi entegrasyonu stub — işaretler operatör takibi için saklanır.</p>
+    </div>
+    <div class="card">
+        <strong>Teslimat (Çıkış)</strong>
+        <div class="grid-form">
+            <label>Çıkış Km<input readonly value="@(Vm.Edit && Vm.Rental!.CikisKm is int ck ? ck.ToString() : "kayıttan sonra teslimde girilir")" /></label>
+            <label>Çıkış Yakıt (0-12)<input readonly value="@(Vm.Edit && Vm.Rental!.CikisYakit is int cy ? cy.ToString() : "kayıttan sonra teslimde girilir")" /></label>
+        </div>
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}
