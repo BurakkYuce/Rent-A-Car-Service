@@ -222,8 +222,9 @@
 
         // Araç listesi: müsaitlik penceresi (vfrom<vto) verildiyse YALNIZ müsait araçlar; değilse tüm liste.
         // GUARD: FindAvailableAsync to<=from'da ValidationException fırlatır → yalnız vto>vfrom iken çağır.
-        var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? a : (DateTimeOffset?)null;
-        var vt = DateTimeOffset.TryParse(Vto, out var b) ? b : (DateTimeOffset?)null;
+        // Tarihi UTC gün-başına indir (offset-0 → Npgsql timestamptz'ye yazılabilir; MusaitlikArama.ParseDate deseni).
+        var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+        var vt = DateTimeOffset.TryParse(Vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
         if (vf is { } vff && vt is { } vtt && vtt > vff)
         {
             _vehicles = await Availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(Vgrup) ? null : Vgrup);
