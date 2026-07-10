@@ -38,7 +38,18 @@ else
     <div class="actions">
         @if (_vm.Edit)
         {
-            <a href="/kiralar/@Id/pdf" target="_blank">Sözleşme (PDF)</a><span> · </span>
+            @* PDF: varsayılan GÖRÜNTÜLE (indirme klasörü dolmaz); Yazdır gizli-iframe print; İndir isteğe bağlı *@
+            <a href="/kiralar/@Id/pdf" target="_blank">Sözleşme: Görüntüle</a><span> · </span>
+            <a href="#" data-pdf-yazdir="/kiralar/@Id/pdf">Yazdır</a><span> · </span>
+            <a href="/kiralar/@Id/pdf?indir=1">İndir</a><span> · </span>
+            @if (_waLink is not null)
+            {
+                <a href="@_waLink" target="_blank" rel="noopener" title="Müşterinin GSM'ine hazır mesajla WhatsApp açar; PDF'i konuşmada eklersiniz (medya gönderimi entegrasyon ister)">WhatsApp</a><span> · </span>
+            }
+            @if (_mailLink is not null)
+            {
+                <a href="@_mailLink" title="Müşterinin e-postasına hazır konu/metinle taslak açar; PDF'i taslağa eklersiniz">E-posta</a><span> · </span>
+            }
             <a href="/cariler/@_vm.Rental!.MusteriId/ekstre">Cari Ekstre</a><span> · </span>
             <a href="/kiralar/yeni"><strong>+ Yeni Kira</strong></a><span> · </span>
         }
@@ -145,6 +156,19 @@ else
 
     private readonly KiraFormVm _vm = new();
     private bool _bulunamadi;
+    private string? _waLink;   // wa.me/<90...>?text=... — müşteri GSM'i yoksa null (link gizlenir)
+    private string? _mailLink; // mailto:...?subject=&body= — müşteri e-postası yoksa null
+
+    /// <summary>wa.me linki — numara normalize: "00"+ülke kodu (uluslararası) → önek atılır;
+    /// 05xx → 905xx; 5xx → 905xx (TR varsayımı). Geçersiz/boş → null (link gizlenir).</summary>
+    private static string? WaLink(string? tel, string mesaj)
+    {
+        var d = new string((tel ?? "").Where(char.IsDigit).ToArray());
+        if (d.StartsWith("00")) d = d[2..];           // 0044... → 44... (uluslararası önek)
+        else if (d.StartsWith("0")) d = "9" + d;      // 05xx → 905xx
+        else if (d.StartsWith("5")) d = "90" + d;     // 5xx  → 905xx
+        return d.Length is >= 10 and <= 15 ? $"https://wa.me/{d}?text={Uri.EscapeDataString(mesaj)}" : null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,6 +210,17 @@ else
             catch (RentACar.Application.Common.ValidationException) { /* yetkisiz rol → ad çözülmez, form gizli */ }
             if (c.TeslimAlanPersonelId is Guid tp)
                 _vm.TeslimAlanAd = _vm.Personeller.FirstOrDefault(p => p.Id == tp) is { } ps ? $"{ps.Ad} {ps.Soyad}" : null;
+
+            // Paylaşım kısayolları: müşterinin kayıtlı GSM/e-postasına hazır metin (PDF eki elle —
+            // WhatsApp medya/e-posta eki göndermek Twilio/SMTP kimliği ister, entegrasyonlar stub).
+            var musteri = _vm.Customers.FirstOrDefault(x => x.Id == c.MusteriId);
+            var ozet = $"Sayın {musteri?.DisplayName}, {c.SozlesmeNo} nolu kira sözleşmeniz: " +
+                       $"{c.BasTar.LocalDateTime:dd.MM.yyyy} - {c.BitTar.LocalDateTime:dd.MM.yyyy}, " +
+                       $"genel toplam {c.GenelToplam:N2} {c.Doviz ?? "TL"}.";
+            _waLink = WaLink(musteri?.CepTel, ozet);
+            _mailLink = string.IsNullOrWhiteSpace(musteri?.Email)
+                ? null
+                : $"mailto:{musteri!.Email}?subject={Uri.EscapeDataString($"Kira Sözleşmesi {c.SozlesmeNo}")}&body={Uri.EscapeDataString(ozet)}";
 
             // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kuru kesim anında sabitlenir).
             var doviz = RentACar.Application.Kur.KurService.NormalizeKod(c.Doviz);

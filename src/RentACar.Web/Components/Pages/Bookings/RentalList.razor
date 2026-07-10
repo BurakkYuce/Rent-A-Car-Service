@@ -67,7 +67,7 @@
                 <td>@r.Durum</td>
                 <td>@(r.Faturali ? "Faturalı" : "—")</td>
                 <td class="row-actions">
-                    <a href="/kiralar/@r.Id/pdf" class="link" target="_blank" rel="noopener">Sözleşme (PDF)</a>
+                    <a href="/kiralar/@r.Id/pdf" class="link" target="_blank" rel="noopener" title="Tarayıcıda görüntüler (indirmez)">Sözleşme (PDF)</a>
                     @if (r.Durum == RentalStatus.Kirada)
                     {
                         <form method="post" action="/kiralar/cancel" onsubmit="return confirm('İptal edilsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
