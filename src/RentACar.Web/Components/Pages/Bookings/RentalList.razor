@@ -1,9 +1,11 @@
 @page "/kiralar"
 @attribute [Authorize]
+@using RentACar.Application.Availability
 @inject RentalService Rentals
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
+@inject AvailabilityService Availability
 
 <PageTitle>Kira Sözleşmeleri — RentPro</PageTitle>
 
@@ -14,8 +16,18 @@
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_rows.Count == 0)">
+<details class="new-vehicle" open="@(_rows.Count == 0 || _musaitMod)">
     <summary>+ Yeni Kira (doğrudan — rezervasyonsuz)</summary>
+    @* Müsaitlik: tarih penceresi ver → araç listesi yalnız o aralıkta MÜSAİT araçlarla dolar (GET alt-form). *@
+    <form method="get" class="filter-bar" style="margin:.4rem 0;">
+        <span class="small">Müsaitlik:</span>
+        <input name="vfrom" type="date" value="@Vfrom" title="Müsaitlik başlangıç" />
+        <input name="vto" type="date" value="@Vto" title="Müsaitlik bitiş" />
+        <input name="vgrup" value="@Vgrup" placeholder="Grup (ops.)" />
+        <button type="submit">Müsait Araçları Getir</button>
+        @if (_musaitMod) { <a href="/kiralar" class="link">Tümünü göster</a> }
+    </form>
+    @if (_musaitMod) { <p class="muted small">Seçili aralıkta <strong>@_vehicles.Count</strong> araç müsait (araç listesi filtrelendi; tarihler kira alanlarına da geçti).</p> }
     <form id="kira-create-form" method="post" action="/kiralar/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri (mevcut cari seç — ya da aşağıdan yeni oluştur)
             <select name="musteriId">
@@ -49,8 +61,8 @@
                 @foreach (var v in _vehicles) { <option value="@v.Id">@v.Plaka</option> }
             </select>
         </label>
-        <label>Başlangıç<input name="basTar" type="datetime-local" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
-        <label>Bitiş<input name="bitTar" type="datetime-local" required /></label>
+        <label>Başlangıç<input name="basTar" type="datetime-local" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" value="@(_musaitMod && !string.IsNullOrEmpty(Vfrom) ? $"{Vfrom}T09:00" : "")" required /></label>
+        <label>Bitiş<input name="bitTar" type="datetime-local" value="@(_musaitMod && !string.IsNullOrEmpty(Vto) ? $"{Vto}T09:00" : "")" required /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" placeholder="Otomatik için boş bırakın" /></label>
         <label>Kiralama Türü
             <select name="kiralamaTuru">
@@ -192,18 +204,36 @@
     [SupplyParameterFromQuery(Name = "basMin")] public string? BasMin { get; set; }
     [SupplyParameterFromQuery(Name = "basMax")] public string? BasMax { get; set; }
     [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
+    [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; } // müsaitlik penceresi başlangıç
+    [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }     // müsaitlik penceresi bitiş
+    [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
 
     private IReadOnlyList<RentalRow> _rows = [];
     private IReadOnlyList<Customer> _customers = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Location> _locations = [];
+    private bool _musaitMod; // araç dropdown'ı müsaitlik penceresine göre filtreli mi
 
     protected override async Task OnInitializedAsync()
     {
         // Yeni-kira formu açılır listeleri.
         _customers = await Customers.ListAsync();
-        _vehicles = await Vehicles.ListAsync();
         _locations = await Locations.ListActiveAsync();
+
+        // Araç listesi: müsaitlik penceresi (vfrom<vto) verildiyse YALNIZ müsait araçlar; değilse tüm liste.
+        // GUARD: FindAvailableAsync to<=from'da ValidationException fırlatır → yalnız vto>vfrom iken çağır.
+        // Tarihi UTC gün-başına indir (offset-0 → Npgsql timestamptz'ye yazılabilir; MusaitlikArama.ParseDate deseni).
+        var vf = DateTimeOffset.TryParse(Vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+        var vt = DateTimeOffset.TryParse(Vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+        if (vf is { } vff && vt is { } vtt && vtt > vff)
+        {
+            _vehicles = await Availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(Vgrup) ? null : Vgrup);
+            _musaitMod = true;
+        }
+        else
+        {
+            _vehicles = await Vehicles.ListAsync();
+        }
 
         var filter = new RentalFilter
         {
