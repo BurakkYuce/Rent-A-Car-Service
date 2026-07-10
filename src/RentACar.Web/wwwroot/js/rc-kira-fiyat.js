@@ -88,10 +88,62 @@
 
     function recalc() { clearTimeout(timer); timer = setTimeout(run, 300); }
 
+    // ---- DÖNÜŞ canlı önizlemesi (edit modu) — GET /kiralar/donus-hesapla (ReturnMath; persist yok) ----
+    var dTimer = null, dCtrl = null;
+    function fillDp(k, v) { document.querySelectorAll('[data-dp="' + k + '"]').forEach(function (el) { el.textContent = v; }); }
+    async function runDonus() {
+        var f = form();
+        var rid = f && f.getAttribute('data-rental-id');
+        if (!rid) return;
+        function dv(n) { var el = document.querySelector('[form="kira-donus"][name="' + n + '"]'); return el ? el.value : ''; }
+        var km = dv('donusKm'), yakit = dv('donusYakit'), don = dv('gercekDonus');
+        if (!km || !don) return;
+        if (dCtrl) dCtrl.abort();
+        dCtrl = new AbortController();
+        var q = new URLSearchParams({ id: rid, donusKm: km, donusYakit: yakit || '0', gercekDonus: don });
+        var kh = dv('kmHediye');
+        if (kh) q.set('kmHediye', kh);
+        try {
+            var r = await fetch('/kiralar/donus-hesapla?' + q.toString(), { signal: dCtrl.signal, headers: { 'Accept': 'application/json' } });
+            if (!r.ok) { fillDp('not', 'Önizleme alınamadı (' + r.status + ').'); return; }
+            var d = await r.json();
+            if (!d.ok) {
+                ['kullanilan', 'fazlaKm', 'fazlaKmBedeli', 'eksikYakit', 'yakitBedeli', 'uzatmaGun', 'uzatmaBedeli', 'yeniGenelToplam', 'kalan']
+                    .forEach(function (k) { fillDp(k, '—'); });
+                fillDp('not', d.hata || 'Hesaplanamadı.');
+                return;
+            }
+            fillDp('kullanilan', d.kullanilanKm);
+            fillDp('fazlaKm', d.fazlaKm);
+            fillDp('fazlaKmBedeli', fmt(d.fazlaKmBedeli));
+            fillDp('eksikYakit', d.eksikYakit);
+            fillDp('yakitBedeli', fmt(d.yakitBedeli));
+            fillDp('uzatmaGun', d.uzatmaGun);
+            fillDp('uzatmaBedeli', fmt(d.uzatmaBedeli));
+            fillDp('yeniGenelToplam', fmt(d.yeniGenelToplam));
+            fillDp('kalan', fmt(d.kalan));
+            fillDp('not', 'Motor önizlemesi — dönüşte aynı hesap (ReturnMath) kaydedilir.');
+        } catch (e) { if (e.name !== 'AbortError') fillDp('not', 'Önizleme alınamadı.'); }
+    }
+    function recalcDonus() { clearTimeout(dTimer); dTimer = setTimeout(runDonus, 300); }
+    function bindDonus() {
+        var els = document.querySelectorAll('[data-dp-in]');
+        if (!els.length) return;
+        els.forEach(function (el) {
+            if (el._dpBound) return;
+            el._dpBound = true;
+            ['input', 'change'].forEach(function (ev) { el.addEventListener(ev, recalcDonus); });
+        });
+        runDonus();
+    }
+
     function bind() {
+        bindDonus(); // edit modunda dönüş önizlemesi
         var f = form();
         if (!f || f._fpBound) return;
         f._fpBound = true;
+        // Edit modunda fiyat alanları donuk → fiyat fetch'i KAPALI (server değerleri render edilir).
+        if (f.getAttribute('data-mode') === 'edit') return;
         // Delege dinleme: form içindeki HER alan (kanonikler + ek hizmet matris satırları).
         f.addEventListener('input', recalc);
         f.addEventListener('change', recalc);

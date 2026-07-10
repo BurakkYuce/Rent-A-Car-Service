@@ -1,10 +1,16 @@
-@* STICKY ALT PANEL — her sekmede sabit. Kaydet ana formu (form= attribute — VehicleEdit emsali) gönderir.
-   Finans alt-sekmeleri: create modunda görsel-tam + "önce kaydedin" (S2 görünüm); edit modunda gerçek
-   tahsilat/fatura/depozito formları PR-D'de bağlanır. Kur Bilgileri her modda canlı (TCMB/SabitKur). *@
+@* STICKY ALT PANEL — her sekmede sabit. Kaydet ana formu (form= — VehicleEdit emsali) gönderir.
+   EDIT: gerçek finans formları (sticky ana formun DIŞINDA olduğundan doğrudan <form> kullanılabilir):
+   Nakit → /finans/tahsilat hesap=Kasa + depozito al/iade/mahsup; Kredi Kart/Havale → aynı uç hesap=Banka
+   + Giden Havale (/finans/odeme); Faturalar → ListByRental listesi + /finans/fatura; Ceza → ListByRental.
+   FinanceWrite olmayan rolde butonlar disabled + not (403 sürprizi yok). Tahsilat formlarında render-başına
+   islemAnahtari (idempotency — çift tıklama çift kayıt üretmez). *@
 <div class="kf-sticky">
     <div class="kf-sticky-main">
-        <button type="submit" form="kira-form" class="kf-kaydet">Kaydet</button>
-        <button type="button" disabled="@(!Vm.Edit)" title="@(Vm.Edit ? "Nakit İşlemler alt-sekmesi" : "kayıttan sonra")">Tahsilat</button>
+        <button type="submit" form="kira-form" class="kf-kaydet" disabled="@(!Vm.OperasyonYetkisi || (Vm.Edit && Vm.Rental!.Durum == RentACar.Domain.Enums.RentalStatus.Iptal))" title="@(Vm.OperasyonYetkisi ? "" : "Operasyon (OperationsWrite) yetkisi gerekir")">Kaydet</button>
+        @if (Vm.Kirada)
+        {
+            <button type="submit" form="kira-iptal" class="link danger" style="border:1px solid #dc2626;border-radius:6px;padding:.4rem .8rem;background:none;" disabled="@(!Vm.OperasyonYetkisi)">Kira İptal</button>
+        }
         <button type="button" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
         <button type="button" disabled title="TODO: dönemsel faturalama (uzun kira)">Fatura Dönemleri</button>
         <span class="muted small">Durum: <strong>@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Hazır")</strong></span>
@@ -22,39 +28,112 @@
         <button type="button" role="tab" data-tab="ceza" aria-selected="false">Ceza/Geçişler</button>
     </div>
 
+    @* ---- Kredi Kart / Havale (Banka hesabına tahsilat + giden havale) ---- *@
     <div class="kf-fin-panel" data-panel-group="fin" data-panel="kredikart">
-        <div class="grid-form">
-            <label>Ödemeyi Yapan<select disabled="@(!Vm.Edit)"><option>Müşteri</option><option>Firma</option></select></label>
-            <label>Tutar<input type="number" step="0.01" disabled="@(!Vm.Edit)" /></label>
-            <label>Banka (POS/havale hesabı)<input disabled="@(!Vm.Edit)" placeholder="Banka hesabına işlenir" /></label>
-        </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/tahsilat hesap=Banka" : "önce kaydedin")">Kart/Havale Tahsilatı</button>
-            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/odeme" : "önce kaydedin")">Giden Havale</button>
+        @if (TahsilatOlur)
+        {
+            <div class="report-cols">
+                <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                    <input type="hidden" name="cariId" value="@Vm.Rental!.MusteriId" />
+                    <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
+                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                    <input type="hidden" name="hesap" value="Banka" />
+                    <label>Tutar<input name="tutar" type="number" step="0.01" value="@Vm.Rental!.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
+                    <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
+                    <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
+                    <label>Ödemeyi Yapan / Not<input name="aciklama" placeholder="Kart/havale — ödeyen" /></label>
+                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Kart/Havale Tahsilatı (Banka)</button></label>
+                </form>
+                <form method="post" action="/finans/odeme" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                    <input type="hidden" name="cariId" value="@Vm.Rental!.MusteriId" />
+                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                    <input type="hidden" name="hesap" value="Banka" />
+                    <label>Giden Havale Tutarı<input name="tutar" type="number" step="0.01" min="0.01" /></label>
+                    <label>Açıklama<input name="aciklama" placeholder="İade/giden havale" /></label>
+                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
+                </form>
+            </div>
             <button type="button" disabled title="TODO: POS provizyon kapama (entegrasyon stub)">Manuel Provizyon Kapama</button>
-        </div>
-        @if (!Vm.Edit) { <p class="muted small">Önce kaydedin — kart/havale tahsilatı kayıtlı sözleşmede yapılır (Banka hesabına, dengeli defter kaydıyla).</p> }
+            @if (!Vm.FinansYetkisi) { <p class="muted small">Muhasebe (FinanceWrite) yetkisi gerekir.</p> }
+        }
+        else { <p class="muted small">@KapaliNot</p> }
     </div>
 
+    @* ---- Nakit (Kasa) + Depozito ---- *@
     <div class="kf-fin-panel" data-panel-group="fin" data-panel="nakit" hidden>
-        <div class="grid-form">
-            <label>Tarih<input type="date" disabled="@(!Vm.Edit)" /></label>
-            <label>Tutar<input type="number" step="0.01" disabled="@(!Vm.Edit)" /></label>
-            <label>Döviz<select disabled="@(!Vm.Edit)"><option>TRY</option><option>EUR</option><option>USD</option></select></label>
-            <label>Hesap<select disabled="@(!Vm.Edit)"><option>Kasa</option></select></label>
-        </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/tahsilat hesap=Kasa (idempotent)" : "önce kaydedin")">Nakit Tahsilat</button>
-            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /depozito/al" : "önce kaydedin")">Depozito Al</button>
-            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /depozito/iade|mahsup" : "önce kaydedin")">Depozito İade/Mahsup</button>
-        </div>
-        @if (!Vm.Edit) { <p class="muted small">Önce kaydedin — nakit tahsilat Kasa'ya, çift-taraflı defter kaydıyla işlenir.</p> }
+        @if (TahsilatOlur)
+        {
+            <div class="report-cols">
+                <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                    <input type="hidden" name="cariId" value="@Vm.Rental!.MusteriId" />
+                    <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
+                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                    <input type="hidden" name="hesap" value="Kasa" />
+                    <label>Tutar<input name="tutar" type="number" step="0.01" value="@Vm.Rental!.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
+                    <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
+                    <label>Kur<input name="kur" type="number" step="0.0001" value="1" /></label>
+                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Nakit Tahsilat (Kasa)</button></label>
+                </form>
+                <form method="post" action="/depozito/al" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                    <input type="hidden" name="cariId" value="@Vm.Rental!.MusteriId" />
+                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                    <label>Depozito Tutarı<input name="tutar" type="number" step="0.01" min="0.01" value="@(Vm.Rental!.Depozito is { } dep ? dep.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")" /></label>
+                    <label>Hesap<select name="hesap"><option>Kasa</option><option>Banka</option></select></label>
+                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Depozito Al</button></label>
+                </form>
+            </div>
+            <p class="muted small">Depozito iade/mahsup: <a class="link" href="/depozito">Depozito ekranı</a> (cari bazında emanet bakiyesi). Tahsilat çift-taraflı defter kaydıyla işlenir; Bakiye otomatik düşer.</p>
+            @if (!Vm.FinansYetkisi) { <p class="muted small">Muhasebe (FinanceWrite) yetkisi gerekir.</p> }
+        }
+        else { <p class="muted small">@KapaliNot</p> }
     </div>
 
+    @* ---- Faturalar (base + fark + iade listesi + fatura kes) ---- *@
     <div class="kf-fin-panel" data-panel-group="fin" data-panel="faturalar" hidden>
         @if (Vm.Edit)
         {
-            <p class="muted small">Kesilen faturalar + fatura kesme formu (PR-D — base/fark/iade listesi).</p>
+            <table class="grid">
+                <thead><tr><th>Fatura No</th><th>Tarih</th><th class="num">Genel Toplam</th><th>Tür</th><th>Durum</th></tr></thead>
+                <tbody>
+                    @if (Vm.Faturalar.Count == 0)
+                    {
+                        <tr><td colspan="5" class="muted">Fatura kesilmemiş.</td></tr>
+                    }
+                    @foreach (var f in Vm.Faturalar)
+                    {
+                        <tr>
+                            <td><a class="link" href="/faturalar">@f.No</a></td>
+                            <td>@f.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                            <td class="num">@f.GenelToplam.ToString("N2")</td>
+                            <td>@(f.IadeMi ? "İade" : f.KaynakKiraId is not null ? "Fark" : "Kira")</td>
+                            <td>@f.Durum</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (Vm.Rental!.GenelToplam > 0 && Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal)
+            {
+                <form method="post" action="/finans/fatura"><AntiforgeryToken />
+                    <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
+                    <details>
+                        <summary class="link">Vergi/belge alanları (opsiyonel)</summary>
+                        <div class="grid-form">
+                            <label>ÖTV<input name="otv" type="number" step="0.01" min="0" /></label>
+                            <label>Tevkifat Oran %<input name="tevkifatOran" type="number" step="0.01" min="0" max="100" /></label>
+                            <label>Tevkifat Tutar<input name="tevkifatTutar" type="number" step="0.01" min="0" /></label>
+                            <label>Damga Vergisi<input name="damgaVergisi" type="number" step="0.01" min="0" /></label>
+                            <label>İade Faturası<select name="iadeMi"><option value="false">Hayır</option><option value="true">Evet</option></select></label>
+                            <label>Manuel Fatura<select name="manuelMi"><option value="false">Hayır</option><option value="true">Evet</option></select></label>
+                        </div>
+                    </details>
+                    <button type="submit" disabled="@(!Vm.FinansYetkisi)">Fatura Kes (KDV %20 — fark otomatiği)</button>
+                </form>
+                @if (!Vm.FinansYetkisi) { <p class="muted small">Muhasebe (FinanceWrite) yetkisi gerekir.</p> }
+            }
         }
         else
         {
@@ -63,6 +142,7 @@
         }
     </div>
 
+    @* ---- Kur Bilgileri (her modda canlı — TCMB/SabitKur) ---- *@
     <div class="kf-fin-panel" data-panel-group="fin" data-panel="kurlar" hidden>
         @if (Vm.Kurlar.Count == 0)
         {
@@ -87,10 +167,24 @@
         }
     </div>
 
+    @* ---- Ceza / Geçişler ---- *@
     <div class="kf-fin-panel" data-panel-group="fin" data-panel="ceza" hidden>
         @if (Vm.Edit)
         {
-            <p class="muted small">Kiraya bağlı cezalar + HGS geçişleri (PR-D — /cezalar bağlantısıyla).</p>
+            <table class="grid">
+                <thead><tr><th>Ceza No</th><th>Türü</th><th class="num">Tutar</th><th>Durum</th></tr></thead>
+                <tbody>
+                    @if (Vm.Cezalar.Count == 0)
+                    {
+                        <tr><td colspan="4" class="muted">Bu kiraya bağlı ceza yok.</td></tr>
+                    }
+                    @foreach (var cz in Vm.Cezalar)
+                    {
+                        <tr><td>@cz.No</td><td>@cz.CezaTuru</td><td class="num">@cz.Tutar.ToString("N2")</td><td>@cz.Durum</td></tr>
+                    }
+                </tbody>
+            </table>
+            <p class="small"><a class="link" href="/cezalar">Ceza ekle / yansıt (Cezalar ekranı)</a> — HGS geçişleri plaka+cari bazında yansıtılır (kira-bazlı liste TODO, entegrasyon stub).</p>
         }
         else
         {
@@ -100,4 +194,9 @@
 </div>
 @code {
     [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+
+    private bool TahsilatOlur => Vm.Edit && Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal;
+    private string KapaliNot => Vm.Edit
+        ? "İptal edilmiş kirada tahsilat yapılmaz."
+        : "Önce kaydedin — tahsilat kayıtlı sözleşmede yapılır (çift-taraflı defter, idempotent).";
 }
