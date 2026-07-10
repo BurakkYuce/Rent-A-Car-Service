@@ -1,0 +1,103 @@
+@* STICKY ALT PANEL — her sekmede sabit. Kaydet ana formu (form= attribute — VehicleEdit emsali) gönderir.
+   Finans alt-sekmeleri: create modunda görsel-tam + "önce kaydedin" (S2 görünüm); edit modunda gerçek
+   tahsilat/fatura/depozito formları PR-D'de bağlanır. Kur Bilgileri her modda canlı (TCMB/SabitKur). *@
+<div class="kf-sticky">
+    <div class="kf-sticky-main">
+        <button type="submit" form="kira-form" class="kf-kaydet">Kaydet</button>
+        <button type="button" disabled="@(!Vm.Edit)" title="@(Vm.Edit ? "Nakit İşlemler alt-sekmesi" : "kayıttan sonra")">Tahsilat</button>
+        <button type="button" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
+        <button type="button" disabled title="TODO: dönemsel faturalama (uzun kira)">Fatura Dönemleri</button>
+        <span class="muted small">Durum: <strong>@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Hazır")</strong></span>
+        @if (Vm.Edit)
+        {
+            <span class="muted small">@Vm.Rental!.SozlesmeNo</span>
+        }
+        <span class="kf-kalan-badge">Kalan: <span data-fp="kalan">@(Vm.Edit ? Vm.Rental!.Bakiye.ToString("N2") : "—")</span></span>
+    </div>
+    <div class="kf-subtabs" role="tablist" data-tabs="fin">
+        <button type="button" role="tab" data-tab="kredikart" aria-selected="true">Kredi Kart/Havale İşlemleri</button>
+        <button type="button" role="tab" data-tab="nakit" aria-selected="false">Nakit İşlemler</button>
+        <button type="button" role="tab" data-tab="faturalar" aria-selected="false">Faturalar</button>
+        <button type="button" role="tab" data-tab="kurlar" aria-selected="false">Kur Bilgileri</button>
+        <button type="button" role="tab" data-tab="ceza" aria-selected="false">Ceza/Geçişler</button>
+    </div>
+
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="kredikart">
+        <div class="grid-form">
+            <label>Ödemeyi Yapan<select disabled="@(!Vm.Edit)"><option>Müşteri</option><option>Firma</option></select></label>
+            <label>Tutar<input type="number" step="0.01" disabled="@(!Vm.Edit)" /></label>
+            <label>Banka (POS/havale hesabı)<input disabled="@(!Vm.Edit)" placeholder="Banka hesabına işlenir" /></label>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/tahsilat hesap=Banka" : "önce kaydedin")">Kart/Havale Tahsilatı</button>
+            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/odeme" : "önce kaydedin")">Giden Havale</button>
+            <button type="button" disabled title="TODO: POS provizyon kapama (entegrasyon stub)">Manuel Provizyon Kapama</button>
+        </div>
+        @if (!Vm.Edit) { <p class="muted small">Önce kaydedin — kart/havale tahsilatı kayıtlı sözleşmede yapılır (Banka hesabına, dengeli defter kaydıyla).</p> }
+    </div>
+
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="nakit" hidden>
+        <div class="grid-form">
+            <label>Tarih<input type="date" disabled="@(!Vm.Edit)" /></label>
+            <label>Tutar<input type="number" step="0.01" disabled="@(!Vm.Edit)" /></label>
+            <label>Döviz<select disabled="@(!Vm.Edit)"><option>TRY</option><option>EUR</option><option>USD</option></select></label>
+            <label>Hesap<select disabled="@(!Vm.Edit)"><option>Kasa</option></select></label>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /finans/tahsilat hesap=Kasa (idempotent)" : "önce kaydedin")">Nakit Tahsilat</button>
+            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /depozito/al" : "önce kaydedin")">Depozito Al</button>
+            <button type="button" disabled title="@(Vm.Edit ? "PR-D: /depozito/iade|mahsup" : "önce kaydedin")">Depozito İade/Mahsup</button>
+        </div>
+        @if (!Vm.Edit) { <p class="muted small">Önce kaydedin — nakit tahsilat Kasa'ya, çift-taraflı defter kaydıyla işlenir.</p> }
+    </div>
+
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="faturalar" hidden>
+        @if (Vm.Edit)
+        {
+            <p class="muted small">Kesilen faturalar + fatura kesme formu (PR-D — base/fark/iade listesi).</p>
+        }
+        else
+        {
+            <table class="grid"><thead><tr><th>Fatura No</th><th>Tarih</th><th>Tutar</th><th>Durum</th></tr></thead>
+            <tbody><tr><td colspan="4" class="muted">Önce kaydedin — fatura kayıtlı sözleşmeden kesilir (fark faturası otomatik).</td></tr></tbody></table>
+        }
+    </div>
+
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="kurlar" hidden>
+        @if (Vm.Kurlar.Count == 0)
+        {
+            <p class="muted small">Kur kaydı yok (TCMB güncellemesi bekleniyor ya da sabit kur tanımlı değil).</p>
+        }
+        else
+        {
+            <table class="grid">
+                <thead><tr><th>Kod</th><th>Ad</th><th class="num">Döviz Alış</th><th class="num">Döviz Satış</th><th>Tarih</th></tr></thead>
+                <tbody>
+                    @foreach (var k in Vm.Kurlar.Take(8))
+                    {
+                        <tr>
+                            <td>@k.Kod</td><td>@k.Ad</td>
+                            <td class="num">@(k.ForexAlis?.ToString("N4") ?? "—")</td>
+                            <td class="num">@(k.ForexSatis?.ToString("N4") ?? "—")</td>
+                            <td>@k.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="kf-fin-panel" data-panel-group="fin" data-panel="ceza" hidden>
+        @if (Vm.Edit)
+        {
+            <p class="muted small">Kiraya bağlı cezalar + HGS geçişleri (PR-D — /cezalar bağlantısıyla).</p>
+        }
+        else
+        {
+            <p class="muted small">Önce kaydedin — ceza/HGS geçişleri kayıtlı sözleşmeye bağlanır (<a class="link" href="/cezalar">Cezalar</a>).</p>
+        }
+    </div>
+</div>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}

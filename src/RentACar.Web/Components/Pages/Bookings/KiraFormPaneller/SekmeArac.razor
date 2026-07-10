@@ -1,0 +1,56 @@
+@* ARAÇ — kanonik vehicleId + müsaitlik penceresi (GET alt-formu; inputlar form= attribute ile ana formun
+   DIŞINDAKİ #musait-form'a bağlı — iç içe form OLUŞMAZ) + araçtan dolan gri bilgi kartı. *@
+<section class="kf-panel" data-panel-group="sekme" data-panel="arac" hidden>
+    <div class="card">
+        <strong>Müsaitlik Penceresi</strong>
+        <div class="filter-bar" style="margin:.3rem 0;">
+            <input form="musait-form" name="vfrom" type="date" value="@Vm.Vfrom" title="Müsaitlik başlangıç" />
+            <input form="musait-form" name="vto" type="date" value="@Vm.Vto" title="Müsaitlik bitiş" />
+            <input form="musait-form" name="vgrup" value="@Vm.Vgrup" placeholder="Grup (ops.)" />
+            <button form="musait-form" type="submit">Müsait Araçları Getir</button>
+            @if (Vm.MusaitMod) { <a href="/kiralar/yeni" class="link">Tümünü göster</a> }
+        </div>
+        @if (Vm.MusaitMod)
+        {
+            <p class="muted small">Seçili aralıkta <strong>@Vm.Vehicles.Count</strong> araç müsait — araç listesi filtrelendi, tarihler kira alanlarına geçti.</p>
+        }
+    </div>
+    <div class="card">
+        <strong>Araç Seçimi</strong>
+        <div class="grid-form">
+            <label>Araç
+                <select name="vehicleId" required>
+                    <option value="">—</option>
+                    @foreach (var v in Vm.Vehicles) { <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip</option> }
+                </select>
+            </label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>Araç Bilgisi (seçimden dolar)</strong>
+        <div class="grid-form">
+            <label>Tipi<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="tip">—</span></label>
+            <label>Marka<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="marka">—</span></label>
+            <label>Yılı<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yil">—</span></label>
+            <label>Vites<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="vites">—</span></label>
+            <label>Yakıt Türü<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yakit">—</span></label>
+            <label>Araç Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="grup">—</span></label>
+            <label>Segment<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="segment">—</span></label>
+            <label>Güncel Km<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="km">—</span></label>
+            <label>Şube<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="sube">—</span></label>
+            <label>Rez. Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: araçta ayrı rezervasyon grubu alanı yok — Grup kullanılıyor">—</span></label>
+            <label>Araç Yeri<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: fiziksel araç-yeri alanı yok — Şube kullanılıyor">—</span></label>
+            <label>Doluluk Hesap<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: doluluk-bazlı dinamik fiyat çarpanı (fiyat motoru v2)">—</span></label>
+        </div>
+    </div>
+    <div class="card">
+        <strong>Çıkış Km / Yakıt</strong>
+        <div class="grid-form">
+            <label>Çıkış Km<input readonly value="@(Vm.Edit && Vm.Rental!.CikisKm is int ck ? ck.ToString() : "teslim anında girilir")" /></label>
+            <label>Çıkış Yakıt (0-12)<input readonly value="@(Vm.Edit && Vm.Rental!.CikisYakit is int cy ? cy.ToString() : "teslim anında girilir")" /></label>
+        </div>
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+}
