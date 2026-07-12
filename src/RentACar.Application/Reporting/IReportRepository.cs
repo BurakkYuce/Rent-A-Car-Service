@@ -110,4 +110,11 @@ public interface IReportRepository
     /// </summary>
     Task<AracKarneRawDto> GetAracKarneRawAsync(
         Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// Filo analiz hamı: dönem-pencereli + ömür-boyu Karlilik satırları (aynı atıf kuralları) + araç KPI
+    /// alanları (pencere/satış) + İptal-dışı kira aralıkları. Gün/KPI matematiği ReportService'te.
+    /// </summary>
+    Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }

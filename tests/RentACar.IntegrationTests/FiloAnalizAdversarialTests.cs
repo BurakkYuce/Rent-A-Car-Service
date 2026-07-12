@@ -1,0 +1,296 @@
+using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Bookings;
+using RentACar.Application.Customers;
+using RentACar.Application.Expenses;
+using RentACar.Application.Finance;
+using RentACar.Application.Reporting;
+using RentACar.Application.ServiceRecords;
+using RentACar.Application.VehicleSales;
+using RentACar.Application.Vehicles;
+using RentACar.Domain.Enums;
+using RentACar.IntegrationTests.Infrastructure;
+
+namespace RentACar.IntegrationTests;
+
+/// <summary>
+/// Filo Analiz adversarial senaryoları (bağımsız ajan probe'larından kalıcılaştırıldı; D/E düzeltme
+/// SONRASI davranışı kilitler). A: silinmiş araç (kalıntı satır + mutabakat + kohort-dışı);
+/// B: karne↔filo KPI paritesi (zengin satılmış araç, elle sağlamalı) — iki kod yolu drift kilidi;
+/// C: pencereli invariant (karışık pencere + manuel fatura → GelirGider mutabakatı);
+/// D: pencere-dışı hareketli ve hiç-hareketsiz araç PANODA GÖRÜNÜR (filo-tohumlama);
+/// E: yaş kovası gün-hassas; E2: gelecek alım tarihi clamp; F: keyfi sıralama string.
+/// </summary>
+[Collection("postgres")]
+public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
+{
+    private static readonly DateTimeOffset FiloGiris = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset KiraBas = new(2025, 1, 10, 9, 0, 0, TimeSpan.Zero);
+
+    private static async Task<Guid> RucuAsync(IServiceProvider sp, Guid vehicle, Guid cari, decimal maliyet,
+        DateTimeOffset? tarih = null)
+    {
+        var svc = sp.GetRequiredService<ServiceRecordService>();
+        var id = await svc.CreateAsync(new ServiceRecordInput
+        {
+            VehicleId = vehicle, Tip = ServisTipi.Ariza, GirisKm = 0,
+            HasarSorumlu = HasarSorumlu.Musteri, KusurOrani = 0.5m,
+            Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = maliyet }]
+        });
+        await svc.BaslatAsync(id);
+        await svc.TamamlaAsync(id, cikisKm: 10);
+        await svc.YansitAsync(id, cari, tarih: tarih);
+        return id;
+    }
+
+    // ---------- A: silinmiş araç (VehicleList "Sil") ----------
+    [Fact]
+    public async Task ProbeA_silinmis_arac_crash_yok_toplam_mutabik()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var veh = sp.GetRequiredService<VehicleService>();
+        var v = await veh.CreateAsync(new VehicleInput
+        { Plaka = "34 DEL 1", AlimBedeli = 1000m, AlimTarihi = DateTimeOffset.UtcNow.AddMonths(-6) });
+        await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+
+        Assert.True(await veh.DeleteAsync(v)); // hard delete; defter (immutable) kalır
+
+        var rs = sp.GetRequiredService<ReportService>();
+        var d = await rs.GetFiloAnalizAsync(); // crash?
+        var row = Assert.Single(d.Satirlar);
+        Assert.Equal(v, row.VehicleId);
+        Assert.Equal("(bilinmeyen araç)", row.Plaka);   // Karlilik ile aynı yol
+        Assert.Equal(100m, row.Gider);
+        Assert.Null(row.DolulukYuzde);
+        Assert.Null(row.RoiYuzde);                       // AlimBedeli kayboldu → null
+        Assert.Null(row.YasAy);                          // kohort: "Alım tarihi yok"
+        Assert.Equal(0, row.SahiplikGun);
+
+        // İnvaryant 1: toplam defterle mutabık
+        var gg = await rs.GetGelirGiderAsync();
+        Assert.Equal(gg.GiderToplam, d.ToplamGider);
+        Assert.Equal(100m, d.ToplamGider);
+        Assert.Empty(d.YasKohortu);   // silinmiş araç kohorta girmez (yalnız mevcut filo sayılır)
+
+        // Karne aynı id: null (dashboard'daki plaka linki 404'e gider — UX notu)
+        Assert.Null(await rs.GetAracKarneAsync(v));
+
+        // F (ayrıca): keyfi sıralama string patlamaz + default'a düşer; tüm-null doluluk sıralaması patlamaz
+        var garbage = await rs.GetFiloAnalizAsync(siralama: "  DROP TABLE; ");
+        Assert.Single(garbage.Satirlar);
+        var dol = await rs.GetFiloAnalizAsync(siralama: "doluluk"); // tek satır, DolulukYuzde null
+        Assert.Single(dol.Satirlar);
+    }
+
+    // ---------- B: karne-vs-filo KPI paritesi (zengin, SATILMIŞ araç) ----------
+    [Fact]
+    public async Task ProbeB_karne_ve_filo_kpi_birebir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var simdi = DateTimeOffset.UtcNow;
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        {
+            Plaka = "34 ZP 01", AlimBedeli = 1000m, IkinciElDeger = 800m,
+            AlimTarihi = simdi.AddMonths(-20), FiloGirisTarih = FiloGiris
+        });
+        var cari = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Zengin", Soyad = "Cari" });
+
+        // Kira 10–12 Oca (2g×100), 300 km, faturalı (net 166,67)
+        var rentals = sp.GetRequiredService<RentalService>();
+        var r = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = cari, VehicleId = v, BasTar = KiraBas, BitTar = KiraBas.AddDays(2), GunlukUcret = 100m });
+        await rentals.DeliverAsync(r, cikisKm: 1000, cikisYakit: 8);
+        await rentals.ReturnAsync(r, donusKm: 1300, donusYakit: 8, KiraBas.AddDays(2));
+        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r);
+
+        // Rücu 620×0,5=310 gelir + gider 150
+        await RucuAsync(sp, v, cari, 620m);
+        await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+
+        // TAMAMLANMIŞ satış 800 (31 Mart) → Satildi → sahiplik penceresi satışta biter
+        await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
+        {
+            VehicleId = v, AliciCariId = Guid.NewGuid(), SatisNet = 800m, KdvOrani = 0m,
+            Doviz = "TRY", Kur = 1m, Tarih = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero)
+        });
+
+        var rs = sp.GetRequiredService<ReportService>();
+        var karne = (await rs.GetAracKarneAsync(v))!;
+        var filo = await rs.GetFiloAnalizAsync();
+        var row = filo.Satirlar.Single(x => x.VehicleId == v);
+
+        // İnvaryant 2: iki kod yolu birebir
+        Assert.Equal(karne.Kpi.DolulukYuzde, row.DolulukYuzde);
+        Assert.Equal(karne.Kpi.RoiYuzde, row.RoiYuzde);
+        Assert.Equal(karne.Kpi.KmBasinaMaliyet, row.KmBasinaMaliyet);
+        Assert.Equal(karne.Kpi.SahiplikGun, row.SahiplikGun);
+        Assert.Equal(karne.Kpi.KiralananGun, row.KiralananGun);
+        Assert.Equal(karne.ToplamGelir - karne.ToplamGider, row.NetKar);
+
+        // Elle sağlama: gelir 166,67+310+800=1276,67; gider 150; net 1126,67;
+        // ROI (satılmış, kapanış): (1126,67−1000)×100/1000 = 12,67; km-maliyet 150/300 = 0,50;
+        // sahiplik 1 Oca–31 Mart = 90 gün; doluluk 3×100/90 = 3,33.
+        Assert.Equal(1126.67m, row.NetKar);
+        Assert.Equal(12.67m, row.RoiYuzde);
+        Assert.Equal(0.50m, row.KmBasinaMaliyet);
+        Assert.Equal(90, row.SahiplikGun);
+        Assert.Equal(3.33m, row.DolulukYuzde);
+
+        // Dar pencere (yalnız bugün ±1g): P&L daralır ama KPI ömür-boyu AYNI kalır (karne F2 dersi)
+        var dar = await rs.GetFiloAnalizAsync(simdi.AddDays(-1), simdi.AddDays(1));
+        var darRow = dar.Satirlar.Single(x => x.VehicleId == v);
+        Assert.Equal(row.RoiYuzde, darRow.RoiYuzde);
+        Assert.Equal(row.DolulukYuzde, darRow.DolulukYuzde);
+        Assert.Equal(row.KmBasinaMaliyet, darRow.KmBasinaMaliyet);
+        // dar pencere P&L: bugün postlananlar (fatura 166,67 + rücu 310 + gider 150); satış (31 Mart) DIŞARIDA
+        Assert.Equal(476.67m, darRow.Gelir);
+        Assert.Equal(150m, darRow.Gider);
+        // pencereli karne ile parite
+        var karneDar = (await rs.GetAracKarneAsync(v, simdi.AddDays(-1), simdi.AddDays(1)))!;
+        Assert.Equal(karneDar.ToplamGelir, darRow.Gelir);
+        Assert.Equal(karneDar.ToplamGider, darRow.Gider);
+        Assert.Equal(karneDar.Kpi.RoiYuzde, darRow.RoiYuzde);
+    }
+
+    // ---------- C: pencereli invariant + manuel (atanamayan) fatura ----------
+    [Fact]
+    public async Task ProbeC_pencereli_toplam_gelirgider_ile_mutabik()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var simdi = DateTimeOffset.UtcNow;
+        var pencereBas = simdi.AddMonths(-3);
+        var pencereBit = simdi.AddMonths(-1);
+        var icTarih = simdi.AddMonths(-2);       // pencere İÇİ
+        var disTarih = simdi.AddMonths(-8);      // pencere DIŞI
+
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PC 01" });
+        var cari = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Pencere", Soyad = "Cari" });
+        var exp = sp.GetRequiredService<ExpenseService>();
+
+        // Araç gideri: 100 içeride, 50 dışarıda
+        await exp.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = icTarih });
+        await exp.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = disTarih });
+        // Genel gider (Atanmamış): 40 içeride
+        await exp.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = icTarih });
+        // Araca atfedilen gelir: rücu 310 içeride, 100 dışarıda
+        await RucuAsync(sp, v, cari, 620m, icTarih);
+        await RucuAsync(sp, v, cari, 200m, disTarih);
+        // MANUEL fatura (kaynak atfı yok → Atanmamış gelir): net 500 içeride
+        await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
+        { CariId = cari, NetTutar = 500m, KdvOrani = 0m, Tarih = icTarih, Aciklama = "manuel" });
+
+        var rs = sp.GetRequiredService<ReportService>();
+        var d = await rs.GetFiloAnalizAsync(pencereBas, pencereBit);
+        var gg = await rs.GetGelirGiderAsync(pencereBas, pencereBit);
+
+        // İnvaryant 1 (pencereli): satırlar + Atanmamış == defter
+        Assert.Equal(gg.GelirToplam, d.ToplamGelir);
+        Assert.Equal(gg.GiderToplam, d.ToplamGider);
+        // Elle: pencere içi gelir 310 (rücu) + 500 (manuel) = 810; gider 100 + 40 = 140
+        Assert.Equal(810m, d.ToplamGelir);
+        Assert.Equal(140m, d.ToplamGider);
+        Assert.Equal(500m, d.AtanmamisGelir);
+        Assert.Equal(40m, d.AtanmamisGider);
+        var row = d.Satirlar.Single(x => x.VehicleId == v);
+        Assert.Equal(310m, row.Gelir);   // dışarıdaki 100 pencere P&L'inde yok
+        Assert.Equal(100m, row.Gider);
+
+        // Penceresiz de mutabık
+        var d0 = await rs.GetFiloAnalizAsync();
+        var gg0 = await rs.GetGelirGiderAsync();
+        Assert.Equal(gg0.GelirToplam, d0.ToplamGelir);
+        Assert.Equal(gg0.GiderToplam, d0.ToplamGider);
+        Assert.Equal(910m, d0.ToplamGelir);   // 310+100+500
+        Assert.Equal(190m, d0.ToplamGider);   // 100+50+40
+    }
+
+    // ---------- D (düzeltildi): pano TÜM filodan tohumlanır ----------
+    [Fact]
+    public async Task ProbeD_tum_filo_panoda_gorunur()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var simdi = DateTimeOffset.UtcNow;
+
+        // Araç: 8 ay önce 999 gider (zarar makinesi), pencerede hiçbir hareket yok
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "34 GH 01", AlimBedeli = 5000m, AlimTarihi = simdi.AddMonths(-9) });
+        await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 999m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = simdi.AddMonths(-8) });
+        // Hiç defter hareketi olmayan araç (yeni alım — AlimBedeli defter yazmaz)
+        var v2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "34 GH 02", AlimBedeli = 9000m, AlimTarihi = simdi.AddMonths(-1) });
+
+        var rs = sp.GetRequiredService<ReportService>();
+        // Düzeltme (F-D): aylık görünümde v pencere-dışı hareketli olsa da SATIRDA (0 P&L) — gizli
+        // zarar makinesi panodan kaçmaz; ROI ömür-boyu kaybı yine gösterir.
+        var aylik = await rs.GetFiloAnalizAsync(simdi.AddMonths(-1), simdi);
+        var vRow = aylik.Satirlar.Single(x => x.VehicleId == v);
+        Assert.Equal(0m, vRow.Gelir);
+        Assert.Equal(0m, vRow.Gider);
+        Assert.Equal(-19.98m, vRow.RoiYuzde);                 // −999×100/5000 (ömür boyu, elle)
+        // Hiç defter hareketi olmayan v2 de görünür (0 doluluk yakalanabilir).
+        var v2Row = aylik.Satirlar.Single(x => x.VehicleId == v2);
+        Assert.Equal(0m, v2Row.NetKar);
+        // Kohort filo mevcudunu sayar: 2 araç.
+        Assert.Equal(2, aylik.YasKohortu.Sum(k => k.AracAdet));
+        // Toplamlar yine defterle mutabık (0-satırlar toplamı değiştirmez).
+        Assert.Equal((await rs.GetGelirGiderAsync(simdi.AddMonths(-1), simdi)).GiderToplam, aylik.ToplamGider);
+    }
+
+    // ---------- E: YasAy ay-farkı gün ihmali (sınır) ----------
+    [Fact]
+    public async Task ProbeE_yas_kovasi_gun_hassas()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var simdi = DateTimeOffset.UtcNow;
+
+        // Gerçek yaş: 1 yıldan 3 gün EKSİK (AlimTarihi = 1 yıl önce + 3 gün).
+        // NOT: ay sonunda (gün>=29) AddDays(3) ay atlatır ve senaryo bozulur → o günlerde atla.
+        var at = simdi.AddYears(-1).AddDays(3);
+        if (at.Month != simdi.Month) return; // run-date guard (probe)
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "34 YA 01", AlimBedeli = 100m, AlimTarihi = at });
+        await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var d = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var row = Assert.Single(d.Satirlar);
+        // Düzeltme (F-E): gün-hassas ay farkı — 1 yıldan 3 gün eksik araç hâlâ "0-1 yıl".
+        Assert.Equal(11, row.YasAy);
+        Assert.Equal("0-1 yıl", Assert.Single(d.YasKohortu).Kova);
+    }
+
+    // ---------- E2: gelecekteki AlimTarihi → negatif clamp ----------
+    [Fact]
+    public async Task ProbeE2_gelecek_alim_tarihi_clamp()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "34 YA 02", AlimTarihi = DateTimeOffset.UtcNow.AddMonths(5) });
+        await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var d = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var row = Assert.Single(d.Satirlar);
+        Assert.Equal(0, row.YasAy);   // Math.Max(0, negatif) — "0-1 yıl" kovası
+        Assert.Equal("0-1 yıl", Assert.Single(d.YasKohortu).Kova);
+    }
+}
