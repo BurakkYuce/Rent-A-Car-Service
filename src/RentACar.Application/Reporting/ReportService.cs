@@ -1,3 +1,4 @@
+using RentACar.Application.Pricing;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -102,8 +103,110 @@ public sealed class ReportService(IReportRepository repository)
             .Select(g => new AracKirilimRow(g.Key, g.Sum(x => x.Tutar), Pct(g.Sum(x => x.Tutar))))
             .OrderByDescending(r => r.Tutar).ToList();
 
-        return new AracKarneDto(header, toplamGelir, toplamGider, toplamGelir - toplamGider,
-            yillik, gelirKaynak, giderKategori, raw.Olaylar);
+        var netKar = toplamGelir - toplamGider;
+        // KPI para girdileri ÖMÜR-BOYU (raw.OmurGelir/OmurGider) — sayfanın dönem filtresi P&L'i daraltır
+        // ama KPI paydaları/payları daralmaz (adversarial F2: karışık-payda sızıntısı kapatıldı).
+        var kpi = AracKpiHesapla(v, raw, out var sureAy);
+
+        // Amortisman/başabaş modeli: yalnız AlimBedeli>0 (MaliyetHesapService guard'ları ValidationException
+        // atar — null bırakılır). Ömür-boyu holding varsayımı; FaizOran=0 (uydurma finansman yazılmaz),
+        // Residual = IkinciElDeger/AlimBedeli (yoksa varsayılan 0.30), AylikGider = gerçekleşen ortalama.
+        // TEK payda: model her yerde AYNI clamp'lenmiş ayı kullanır (>120 ayda karışık-payda çarpıklığı olmaz).
+        MaliyetHesapSonuc? maliyetModel = null;
+        if (v.AlimBedeli is > 0m)
+        {
+            var modelAy = Math.Clamp(sureAy, 1, 120);
+            maliyetModel = MaliyetHesapService.Hesapla(new MaliyetHesapInput
+            {
+                AlisBedeli = v.AlimBedeli.Value,
+                SureAy = modelAy,
+                ResidualYuzde = v.IkinciElDeger is > 0m
+                    ? Math.Clamp(v.IkinciElDeger.Value / v.AlimBedeli.Value, 0m, 1m) : 0.30m,
+                AylikGider = decimal.Round(raw.OmurGider / modelAy, 2, MidpointRounding.AwayFromZero),
+                FaizOran = 0m, DamgaOran = 0m
+            });
+        }
+
+        return new AracKarneDto(header, toplamGelir, toplamGider, netKar,
+            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel);
+    }
+
+    /// <summary>
+    /// Kurumsal KPI bloğu — sahiplik penceresi (ömür boyu; sayfa dönem-filtresinden bağımsız, raw KPI hamı
+    /// da öyle). Gün matematiği GetDolulukAsync ile aynı: .UtcDateTime.Date + kapsayıcı OverlapDays.
+    /// Oranlar yalnız pozitif paydayla anlamlı; aksi null (negatif dönem-net'i yüzdesi dersi).
+    /// sureAy = sahiplik günü / 30.44 yuvarlanmış (yaklaşık takvim ayı), min 1 — amortisman/başabaş paydası.
+    /// </summary>
+    private static AracKpiDto AracKpiHesapla(Vehicle v, AracKarneRawDto raw, out int sureAy)
+    {
+        // Para girdileri ömür-boyu — dönem filtresinden bağımsız (DTO sözleşmesi).
+        var gelir = raw.OmurGelir;
+        var gider = raw.OmurGider;
+        var netKar = gelir - gider;
+        DateTimeOffset? wBas = v.FiloGirisTarih ?? v.AlimTarihi;
+        DateTimeOffset? wBit = v.FiloCikisTarih
+            ?? (v.Durum == VehicleStatus.Satildi ? raw.SonSatisTarih : null)
+            ?? DateTimeOffset.UtcNow;
+
+        int sahiplik = 0, kiralanan = 0, servis = 0;
+        if (wBas is { } wb && wBit is { } we)
+        {
+            var basD = wb.UtcDateTime.Date;
+            var bitD = we.UtcDateTime.Date;
+            sahiplik = bitD >= basD ? (bitD - basD).Days + 1 : 0;
+            kiralanan = raw.KiraAraliklari.Sum(r =>
+                OverlapDays(r.Bas.UtcDateTime.Date, r.Bit.UtcDateTime.Date, basD, bitD));
+            var now = DateTimeOffset.UtcNow.UtcDateTime.Date;
+            servis = raw.ServisAraliklari.Sum(a =>
+                OverlapDays(a.Giris.UtcDateTime.Date, (a.Cikis?.UtcDateTime.Date ?? now), basD, bitD));
+        }
+        sureAy = Math.Max(1, (int)Math.Round(sahiplik / 30.44, MidpointRounding.AwayFromZero));
+
+        decimal? R2(decimal? x) => x is { } d ? decimal.Round(d, 2, MidpointRounding.AwayFromZero) : null;
+        // Gerçekleşen amortisman: SATILMIŞ araçta kalıntı realize edildi ve satış geliri netKar'ın İÇİNDE →
+        // tam AlimBedeli düşülür (yoksa kalıntı çift sayılır — adversarial F3). Aktif araçta tahmin:
+        // AlimBedeli − IkinciElDeger (yalnız >0; 0/negatif "veri yok" — modelin 0.30 varsayımıyla çelişmesin).
+        var satilmis = v.Durum == VehicleStatus.Satildi && raw.SonSatisTarih is not null;
+        var amortisman = v.AlimBedeli is > 0m
+            ? satilmis ? v.AlimBedeli
+                       : v.IkinciElDeger is > 0m ? v.AlimBedeli.Value - v.IkinciElDeger.Value : (decimal?)null
+            : null;
+
+        return new AracKpiDto(
+            SahiplikGun: sahiplik,
+            KiralananGun: kiralanan,
+            ServisGun: servis,
+            BosGun: Math.Max(0, sahiplik - kiralanan - servis),
+            // Doluluk 100 ile sınırlanır: geç dönüş sonraki sözleşmeyle çakışabilir (veri gerçeği) —
+            // kurumsal panoda >%100 doluluk güven zedeler (adversarial F4).
+            DolulukYuzde: sahiplik > 0 ? R2(Math.Min(100m, kiralanan * 100m / sahiplik)) : null,
+            RevPacd: sahiplik > 0 ? R2(gelir / sahiplik) : null,
+            Adr: kiralanan > 0 ? R2(gelir / kiralanan) : null,
+            KmBasinaMaliyet: raw.ToplamKatedilenKm > 0 ? R2(gider / raw.ToplamKatedilenKm) : null,
+            NetMarjYuzde: gelir > 0m ? R2(netKar * 100m / gelir) : null,
+            // ROI: satılmışta yaşam-döngüsü KAPANIŞ getirisi (satış netKar'da, alım düşülür — çift sayım yok);
+            // aktifte defter ROI (amortisman EkonomikKar satırında ayrıca görünür).
+            RoiYuzde: v.AlimBedeli is > 0m
+                ? R2((satilmis ? netKar - v.AlimBedeli.Value : netKar) * 100m / v.AlimBedeli.Value) : null,
+            GeriOdemeAy: GeriOdemeAyHesapla(v.AlimBedeli, netKar, sureAy, sahiplik),
+            Tco: (v.AlimBedeli ?? 0m) + gider,
+            GerceklesenAmortisman: amortisman,
+            AylikAmortisman: amortisman is { } a2 ? R2(a2 / sureAy) : null,
+            EkonomikKar: amortisman is { } a3 ? netKar - a3 : null,
+            ToplamKatedilenKm: raw.ToplamKatedilenKm,
+            KiraSayisi: raw.KiraSayisi);
+    }
+
+    /// <summary>Geri-ödeme ayı: alım bedelinin aylık net kârla amortismanı. TAMAMEN decimal hesap —
+    /// (int) cast taşması yok (adversarial F1: 1-kuruş net + milyonluk araç OverflowException veriyordu).
+    /// 1200 aydan (100 yıl) uzun geri ödeme pratikte "geri ödemez" → null.</summary>
+    private static int? GeriOdemeAyHesapla(decimal? alimBedeli, decimal netKar, int sureAy, int sahiplik)
+    {
+        if (netKar <= 0m || alimBedeli is not > 0m || sahiplik <= 0) return null;
+        var aylikNet = netKar / sureAy;
+        if (aylikNet <= 0m) return null;
+        var ay = Math.Ceiling(alimBedeli.Value / aylikNet);
+        return ay > 1200m ? null : (int)ay;
     }
 
     /// <summary>Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.</summary>
