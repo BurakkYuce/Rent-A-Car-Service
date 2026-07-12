@@ -91,7 +91,10 @@ else
             @foreach (var r in _d.Satirlar)
             {
                 <tr>
-                    <td>@r.Plaka</td><td>@r.Sube</td><td>@r.Grup</td><td>@r.Segment</td>
+                    <td>@if (r.VehicleId is Guid vid)
+                        { <a href="/raporlar/arac-karne/@vid" title="Araç Karnesi — ön muhasebe 360°">@r.Plaka</a> }
+                        else { @r.Plaka }</td>
+                    <td>@r.Sube</td><td>@r.Grup</td><td>@r.Segment</td>
                     <td class="num">@r.Gelir.ToString("N2")</td>
                     <td class="num">@r.Gider.ToString("N2")</td>
                     <td class="num">@r.NetKar.ToString("N2")</td>
