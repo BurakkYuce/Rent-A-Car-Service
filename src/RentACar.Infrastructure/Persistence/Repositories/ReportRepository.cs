@@ -416,30 +416,45 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
 
         // Atfetme haritaları: kaynak türüne göre araç çözümü. İade faturası RentalId=null taşır →
-        // kira bağı KaynakFaturaId üzerinden (iki-hop): iade → kaynak fatura → RentalId.
+        // kira bağı KaynakFaturaId üzerinden (iki-hop): iade → kaynak fatura → RentalId ?? KaynakKiraId.
+        // FARK faturası da RentalId=null taşır (kira-fatura unique index'ine çarpmasın) → kira bağı
+        // KaynakKiraId'dedir (atıf düzeltmesi: fark + iade-of-fark geliri önceden "(Atanmamış)"a düşüyordu).
         var invAll = await db.Invoices.AsNoTracking()
-            .Select(i => new { i.Id, i.RentalId, i.KaynakFaturaId }).ToListAsync(ct);
+            .Select(i => new { i.Id, i.RentalId, i.KaynakFaturaId, i.KaynakKiraId }).ToListAsync(ct);
         var invById = invAll.ToDictionary(x => x.Id);
         Guid? RentalOf(Guid invId)
         {
             if (!invById.TryGetValue(invId, out var i)) return null;
             if (i.RentalId is Guid r) return r;
-            if (i.KaynakFaturaId is Guid k && invById.TryGetValue(k, out var s)) return s.RentalId;
+            if (i.KaynakKiraId is Guid kk) return kk; // fark faturası
+            if (i.KaynakFaturaId is Guid k && invById.TryGetValue(k, out var s)) return s.RentalId ?? s.KaynakKiraId;
             return null;
         }
         var rentalToVeh = (await db.Rentals.AsNoTracking().Select(r => new { r.Id, r.VehicleId }).ToListAsync(ct))
             .ToDictionary(x => x.Id, x => x.VehicleId);
         var saleToVeh = (await db.VehicleSales.AsNoTracking().Select(s => new { s.Id, s.VehicleId }).ToListAsync(ct))
             .ToDictionary(x => x.Id, x => x.VehicleId);
-        var cezaToVeh = (await db.Penalties.AsNoTracking().Where(p => p.VehicleId != null)
-            .Select(p => new { p.Id, VehicleId = p.VehicleId!.Value }).ToListAsync(ct))
+        // Ceza: VehicleId doğrudan; yoksa RentalId → kira → araç fallback (araçsız+kirasız ceza atfedilemez).
+        var cezaToVeh = (await db.Penalties.AsNoTracking().Where(p => p.VehicleId != null || p.RentalId != null)
+                .Select(p => new { p.Id, p.VehicleId, p.RentalId }).ToListAsync(ct))
+            .Select(p => new
+            {
+                p.Id,
+                VehicleId = p.VehicleId
+                    ?? (p.RentalId is Guid prid && rentalToVeh.TryGetValue(prid, out var prv) ? prv : (Guid?)null)
+            })
+            .Where(x => x.VehicleId != null)
+            .ToDictionary(x => x.Id, x => x.VehicleId!.Value);
+        var servisToVeh = (await db.ServiceRecords.AsNoTracking()
+                .Select(s => new { s.Id, s.VehicleId }).ToListAsync(ct))
             .ToDictionary(x => x.Id, x => x.VehicleId);
 
         var gelirByVeh = new Dictionary<Guid, decimal>();
         foreach (var e in gelirRaw)
         {
-            // Fatura/FaturaIade→kira→araç, AracSatis→satış→araç, Ceza→ceza→araç. HGS (plaka-bazlı) ve
-            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial: satış/ceza geliri atfedilir.)
+            // Fatura/FaturaIade→kira→araç (fark faturası dahil), AracSatis→satış→araç, Ceza→ceza→araç
+            // (RentalId fallback'li), ServisYansitma→servis→araç. HGS (plaka-bazlı, kalıcı VehicleId yok) ve
+            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial + araç-karne atıf düzeltmesi.)
             var veh = Guid.Empty;
             switch (e.SourceType)
             {
@@ -449,6 +464,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                     veh = sv; break;
                 case "Ceza" when cezaToVeh.TryGetValue(e.SourceId, out var cv):
                     veh = cv; break;
+                case "ServisYansitma" when servisToVeh.TryGetValue(e.SourceId, out var srv):
+                    veh = srv; break;
             }
             // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
             var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
