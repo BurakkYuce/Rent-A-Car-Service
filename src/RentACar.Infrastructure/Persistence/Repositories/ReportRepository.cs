@@ -666,4 +666,37 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis,
             omurGelir, omurGider);
     }
+
+    public async Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        // P&L: mevcut Karlilik atfı yeniden kullanılır (tek doğruluk kaynağı). Pencere verilmişse KPI
+        // payları için ömür-boyu set AYRICA çekilir (karışık-payda dersi); verilmemişse aynı liste.
+        var pencere = await GetKarlilikRowsAsync(from, to, ct);
+        var omur = from is null && to is null ? pencere : await GetKarlilikRowsAsync(null, null, ct);
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var sonSatis = (await db.VehicleSales.AsNoTracking()
+                .Where(s => s.Durum == SatisDurum.Tamamlandi)
+                .GroupBy(s => s.VehicleId)
+                .Select(g => new { VehicleId = g.Key, Tarih = g.Max(x => x.Tarih) })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.VehicleId, x => x.Tarih);
+
+        var araclar = (await db.Vehicles.AsNoTracking()
+                .Select(v => new { v.Id, v.Plaka, v.Grup, v.Segment, v.Sube, v.AlimBedeli, v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih, v.Durum })
+                .ToListAsync(ct))
+            .Select(v => new FiloAracRow(v.Id, v.Plaka, v.Grup, v.Segment, v.Sube,
+                v.AlimBedeli, v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih,
+                v.Durum, sonSatis.TryGetValue(v.Id, out var t) ? t : null))
+            .ToList();
+
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new FiloKiraRow(r.VehicleId, r.BasTar, r.GercekDonusTar ?? r.BitTar, r.CikisKm, r.DonusKm))
+            .ToListAsync(ct);
+
+        return new FiloAnalizRawDto(pencere, omur, araclar, kiralar);
+    }
 }
