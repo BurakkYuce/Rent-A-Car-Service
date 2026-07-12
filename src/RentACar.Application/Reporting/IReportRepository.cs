@@ -98,4 +98,16 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<KarlilikSatirDto>> GetKarlilikRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// Araç karnesi ham paketi: TEK araca scope'lu defter Gelir/Gider satırları (Karlilik atfıyla birebir
+    /// aynı kurallar: fark/iade KaynakKiraId, ServisYansitma, Ceza RentalId-fallback) + kaynak-varlık olay
+    /// zaman çizelgesi + KPI hamı (kira/servis aralıkları, katedilen km). Vehicle null = bulunamadı/başka
+    /// tenant. from/to EKSENLERİ FARKLIDIR (bilinçli): defter satırları EntryDateUtc (ödeme/fatura tarihi),
+    /// olaylar KAYNAK tarihi (MTV=Vade, poliçe=Başlangıç, kira=BasTar) — pencere P&L'de para gösterip olayı
+    /// gizleyebilir (ör. 2025 vadeli MTV 2026'da ödendi). KPI ham alanları (aralıklar/KiraSayisi/katedilenKm/
+    /// SonSatisTarih) pencereden BAĞIMSIZ tüm geçmiştir — KPI'lar sahiplik-penceresi (ömür boyu) metrikleridir.
+    /// </summary>
+    Task<AracKarneRawDto> GetAracKarneRawAsync(
+        Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }

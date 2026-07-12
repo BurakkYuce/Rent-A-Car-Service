@@ -492,4 +492,169 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         }
         return rows;
     }
+
+    public async Task<AracKarneRawDto> GetAracKarneRawAsync(
+        Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Araç (query filter + RLS tenant-scope'lu) — yoksa/başka tenant'sa boş paket → servis null → 404.
+        var vehicle = await db.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId, ct);
+        if (vehicle is null)
+            return new AracKarneRawDto(null, [], [], [], [], [], 0, 0, null);
+
+        // ---- GİDER (defterden): AccountRef = araç. Kategori etiketi kaynak varlıktan zenginleşir
+        // (SigortaOdeme→poliçe Tip; Gider→Expense.Tip). Base = Amount×Rate (bellekte).
+        var gq = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gider
+                        && e.Direction == LedgerDirection.Debit && e.AccountRef == vehicleId);
+        if (from is { } gf) gq = gq.Where(e => e.EntryDateUtc >= gf);
+        if (to is { } gt) gq = gq.Where(e => e.EntryDateUtc <= gt);
+        var giderRaw = await gq
+            .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct);
+
+        var policeler = await db.InsurancePolicies.AsNoTracking()
+            .Where(p => p.VehicleId == vehicleId).ToListAsync(ct);
+        var sigortaTip = policeler.ToDictionary(x => x.Id, x => x.Tip);
+        var giderKayitlari = await db.Expenses.AsNoTracking()
+            .Where(x => x.VehicleId == vehicleId).ToListAsync(ct);
+        var giderTip = giderKayitlari.ToDictionary(x => x.Id, x => x.Tip);
+
+        string GiderKategori(string sourceType, Guid sourceId) => sourceType switch
+        {
+            "MtvOdeme" => "MTV",
+            "MuayeneOdeme" => "Muayene",
+            "SigortaOdeme" => sigortaTip.TryGetValue(sourceId, out var t) && t == InsuranceType.Kasko
+                ? "Kasko" : "Sigorta (Trafik)",
+            "Gider" => giderTip.TryGetValue(sourceId, out var g) ? g switch
+            {
+                ExpenseType.Genel => "Genel Gider",
+                ExpenseType.Arac => "Araç Gideri",
+                ExpenseType.Personel => "Personel",
+                ExpenseType.Sigorta => "Sigorta",
+                ExpenseType.Mtv => "MTV",
+                ExpenseType.Muayene => "Muayene",
+                _ => "Diğer"
+            } : "Diğer",
+            _ => sourceType
+        };
+        var giderler = giderRaw
+            .Select(e => new AracLedgerGiderRow(
+                e.EntryDateUtc.UtcDateTime.Year, GiderKategori(e.SourceType, e.SourceId), e.A * e.R))
+            .ToList();
+
+        // ---- GELİR (defterden): GetKarlilikRowsAsync atıf kurallarının araç-scope'lu birebir kopyası
+        // (parite testi kilitler). Kaynak id-kümeleri bu araca göre kurulur; atanamayan gelir karnede YOK.
+        var kiralar = await db.Rentals.AsNoTracking().Where(r => r.VehicleId == vehicleId)
+            .Select(r => new { r.Id, r.SozlesmeNo, r.BasTar, r.BitTar, r.GercekDonusTar, r.Durum, r.GenelToplam, r.CikisKm, r.DonusKm })
+            .ToListAsync(ct);
+        var rentalIds = kiralar.Select(r => r.Id).ToList();
+
+        // Fatura bağı: RentalId (base) veya KaynakKiraId (fark) bu aracın kirasına işaret eder;
+        // iade faturaları KaynakFaturaId ile bu kümeye iki-hop bağlanır.
+        var dogrudanInvRows = await db.Invoices.AsNoTracking()
+            .Where(i => (i.RentalId != null && rentalIds.Contains(i.RentalId.Value))
+                     || (i.KaynakKiraId != null && rentalIds.Contains(i.KaynakKiraId.Value)))
+            .Select(i => new { i.Id, i.RentalId, i.KaynakKiraId }).ToListAsync(ct);
+        var dogrudanInv = dogrudanInvRows.Select(i => i.Id).ToList();
+        var iadeInv = await db.Invoices.AsNoTracking()
+            .Where(i => i.KaynakFaturaId != null && dogrudanInv.Contains(i.KaynakFaturaId.Value))
+            .Select(i => i.Id).ToListAsync(ct);
+        var invIds = dogrudanInv.Concat(iadeInv).ToHashSet();
+        // Kira olayı DeftereYansir sinyali: kiranın parası deftere FATURA ile girer (iptal edilse bile
+        // kesilmiş fatura defterde kalır — immutable). "İptal değil" durumuna değil buna bakılır (adversarial F3).
+        var faturaliKiralar = dogrudanInvRows
+            .Select(i => i.RentalId ?? i.KaynakKiraId!.Value).ToHashSet();
+
+        var satislar = await db.VehicleSales.AsNoTracking().Where(s => s.VehicleId == vehicleId)
+            .Select(s => new { s.Id, s.No, s.Tarih, s.GenelToplam, s.Durum }).ToListAsync(ct);
+        var saleIds = satislar.Select(s => s.Id).ToHashSet();
+
+        // Ceza: VehicleId öncelikli (Karlilik ile aynı) — VehicleId BAŞKA araca işaret ediyorsa buraya sayılmaz;
+        // VehicleId=null + RentalId bu aracın kirası → fallback.
+        var cezaIds = (await db.Penalties.AsNoTracking()
+                .Where(p => p.VehicleId == vehicleId
+                         || (p.VehicleId == null && p.RentalId != null && rentalIds.Contains(p.RentalId.Value)))
+                .Select(p => p.Id).ToListAsync(ct)).ToHashSet();
+
+        var servisKayitlari = await db.ServiceRecords.AsNoTracking()
+            .Where(s => s.VehicleId == vehicleId).ToListAsync(ct);
+        var servisIds = servisKayitlari.Select(s => s.Id).ToHashSet();
+
+        var lq = db.AccountLedgerEntries.AsNoTracking().Where(e => e.AccountType == LedgerAccountType.Gelir);
+        if (from is { } ef) lq = lq.Where(e => e.EntryDateUtc >= ef);
+        if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
+        var gelirRaw = await lq
+            .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct);
+
+        string? GelirKaynak(string st, Guid sid) => st switch
+        {
+            "Fatura" or "FaturaIade" when invIds.Contains(sid) => "Kira/Fatura",
+            "AracSatis" when saleIds.Contains(sid) => "Araç Satışı",
+            "Ceza" when cezaIds.Contains(sid) => "Ceza Yansıtma",
+            "ServisYansitma" when servisIds.Contains(sid) => "Servis Yansıtma",
+            _ => null // başka araca/kaynağa ait ya da atanamayan → karnede yok
+        };
+        var gelirler = gelirRaw
+            .Select(e => new { e, K = GelirKaynak(e.SourceType, e.SourceId) })
+            .Where(x => x.K != null)
+            .Select(x => new AracLedgerGelirRow(
+                x.e.EntryDateUtc.UtcDateTime.Year, x.K!,
+                (x.e.Direction == LedgerDirection.Credit ? 1m : -1m) * x.e.A * x.e.R))
+            .ToList();
+
+        // ---- OLAYLAR ("neyi ne zaman") — kaynak varlıktan, BİLGİ amaçlı (tutar brüt/native; P&L'e toplanmaz).
+        var mtvler = await db.MtvRecords.AsNoTracking().Where(m => m.VehicleId == vehicleId).ToListAsync(ct);
+        var muayeneler = await db.InspectionRecords.AsNoTracking().Where(i => i.VehicleId == vehicleId).ToListAsync(ct);
+
+        var olaylar = new List<AracOlayRow>();
+        foreach (var p in policeler)
+            olaylar.Add(new AracOlayRow(p.Baslangic,
+                p.Tip == InsuranceType.Kasko ? "Kasko" : "Trafik Sigortası",
+                $"Poliçe {p.PoliceNo ?? "-"} ({p.Firma ?? "-"}) — bitiş {p.Bitis:dd.MM.yyyy}" + (p.Odendi ? "" : " — ÖDENMEDİ"),
+                p.Prim + p.ZeyilPrim, p.Odendi));
+        foreach (var m in mtvler)
+            olaylar.Add(new AracOlayRow(m.Vade, "MTV",
+                $"Dönem {m.Donem}" + (m.Odendi ? "" : " — ÖDENMEDİ"), m.Tutar, m.Odendi));
+        foreach (var i in muayeneler)
+            olaylar.Add(new AracOlayRow(i.MuayeneTarihi, "Muayene",
+                $"Geçerlilik {i.Bitis:dd.MM.yyyy}" + (i.Odendi ? "" : " — ÖDENMEDİ"), i.Ucret + i.Ceza, i.Odendi));
+        foreach (var s in servisKayitlari)
+            olaylar.Add(new AracOlayRow(s.GirisTarihi, $"Servis ({s.Tip})",
+                $"{s.No} — km {s.GirisKm}→{(s.CikisKm?.ToString() ?? "-")} ({s.Durum})"
+                + (s.Yansitildi ? $" — rücu {s.YansitilanTutar:N2}" : ""),
+                s.ToplamIscilik, false)); // servis maliyeti deftere yazılmaz (mali belge değil)
+        foreach (var x in giderKayitlari)
+            olaylar.Add(new AracOlayRow(x.Tarih, $"Gider ({x.Tip})",
+                $"{x.No}{(string.IsNullOrWhiteSpace(x.Aciklama) ? "" : " — " + x.Aciklama)}", x.GenelToplam, true));
+        foreach (var s in satislar)
+            olaylar.Add(new AracOlayRow(s.Tarih, "Satış",
+                s.No + (s.Durum == SatisDurum.Iptal ? " — İPTAL" : ""), s.GenelToplam,
+                s.Durum == SatisDurum.Tamamlandi));
+        foreach (var r in kiralar)
+            olaylar.Add(new AracOlayRow(r.BasTar, "Kira",
+                $"{r.SozlesmeNo} — {r.BasTar:dd.MM.yyyy} → {(r.GercekDonusTar ?? r.BitTar):dd.MM.yyyy} ({r.Durum})"
+                + (faturaliKiralar.Contains(r.Id) ? "" : " — faturalanmamış"),
+                r.GenelToplam, faturaliKiralar.Contains(r.Id)));
+        if (from is { } of) olaylar.RemoveAll(o => o.Tarih < of);
+        if (to is { } ot) olaylar.RemoveAll(o => o.Tarih > ot);
+        olaylar = olaylar.OrderByDescending(o => o.Tarih).ToList();
+
+        // ---- KPI hamı: kira aralıkları (İptal hariç; efektif bitiş = GercekDonusTar ?? BitTar),
+        // servis aralıkları (İptal hariç), katedilen km (çıkış+dönüş dolu kiralar).
+        var aktifKiralar = kiralar.Where(r => r.Durum != RentalStatus.Iptal).ToList();
+        var kiraAraliklari = aktifKiralar
+            .Select(r => new DolulukKiraRowDto(r.BasTar, r.GercekDonusTar ?? r.BitTar)).ToList();
+        var servisAraliklari = servisKayitlari.Where(s => s.Durum != ServisDurum.Iptal)
+            .Select(s => new AracServisGunRow(s.GirisTarihi, s.CikisTarihi)).ToList();
+        var katedilenKm = aktifKiralar.Where(r => r.CikisKm != null && r.DonusKm != null)
+            .Sum(r => r.DonusKm!.Value - r.CikisKm!.Value);
+        var sonSatis = satislar.Where(s => s.Durum == SatisDurum.Tamamlandi)
+            .Select(s => (DateTimeOffset?)s.Tarih).DefaultIfEmpty(null).Max();
+
+        return new AracKarneRawDto(vehicle, gelirler, giderler, olaylar,
+            kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis);
+    }
 }
