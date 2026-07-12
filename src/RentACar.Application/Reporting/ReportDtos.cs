@@ -1,3 +1,4 @@
+using RentACar.Application.Pricing;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -192,15 +193,33 @@ public sealed record AracKarneRawDto(
     IReadOnlyList<AracOlayRow> Olaylar,
     IReadOnlyList<DolulukKiraRowDto> KiraAraliklari,
     IReadOnlyList<AracServisGunRow> ServisAraliklari,
-    int KiraSayisi, int ToplamKatedilenKm, DateTimeOffset? SonSatisTarih);
+    int KiraSayisi, int ToplamKatedilenKm, DateTimeOffset? SonSatisTarih,
+    decimal OmurGelir, decimal OmurGider);
+
+/// <summary>Kurumsal araç KPI bloğu — SAHİPLİK PENCERESİ (ömür boyu) metrikleri; sayfadaki dönem
+/// filtresinden bağımsız. Pencere: W_bas = FiloGirisTarih ?? AlimTarihi; W_bit = FiloCikisTarih ??
+/// (Satıldıysa son satış tarihi) ?? şimdi. Gün matematiği kapsayıcı takvim günü (GetDolulukAsync deseni).
+/// RevPACD = gelir ÷ sahiplik-günü (boş günler dahil gerçek verim); ADR = gelir ÷ kiralanan gün
+/// (ortalama günlük fiyat); özdeşlik RevPACD ≈ ADR × Doluluk. Oranlar yalnız pozitif paydayla; aksi null.
+/// EkonomikKar = NetKar − GerçekleşenAmortisman (AlimBedeli − IkinciElDeger) — kurumsal alıcının baktığı kâr.</summary>
+public sealed record AracKpiDto(
+    int SahiplikGun, int KiralananGun, int ServisGun, int BosGun,
+    decimal? DolulukYuzde, decimal? RevPacd, decimal? Adr, decimal? KmBasinaMaliyet,
+    decimal? NetMarjYuzde, decimal? RoiYuzde, int? GeriOdemeAy, decimal Tco,
+    decimal? GerceklesenAmortisman, decimal? AylikAmortisman, decimal? EkonomikKar,
+    int ToplamKatedilenKm, int KiraSayisi);
 
 /// <summary>Araç karnesi — tek araç 360° ön muhasebe. P&amp;L DEFTERDEN (Karlilik satırıyla mutabık —
 /// parite testi kilitler); olaylar kaynak varlıktan bilgi amaçlı. "(Atanmamış)" gelir/gider tek-araç
-/// karnesinde yer almaz (Σ araç kartları + Atanmamış = defter toplamı invaryantı).</summary>
+/// karnesinde yer almaz (Σ araç kartları + Atanmamış = defter toplamı invaryantı).
+/// Kpi ömür-boyu (dönem filtresinden bağımsız); MaliyetModel yalnız AlimBedeli>0 iken (ömür-boyu holding
+/// varsayımı; şeffaf makul-varsayım modeli — MaliyetHesapService).</summary>
 public sealed record AracKarneDto(
     AracKarneHeaderDto Header,
     decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
     IReadOnlyList<AracYilPnlRow> YillikPnl,
     IReadOnlyList<AracKirilimRow> GelirKaynak,
     IReadOnlyList<AracKirilimRow> GiderKategori,
-    IReadOnlyList<AracOlayRow> Olaylar);
+    IReadOnlyList<AracOlayRow> Olaylar,
+    AracKpiDto Kpi,
+    MaliyetHesapSonuc? MaliyetModel);

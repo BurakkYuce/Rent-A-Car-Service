@@ -501,18 +501,20 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // Araç (query filter + RLS tenant-scope'lu) — yoksa/başka tenant'sa boş paket → servis null → 404.
         var vehicle = await db.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId, ct);
         if (vehicle is null)
-            return new AracKarneRawDto(null, [], [], [], [], [], 0, 0, null);
+            return new AracKarneRawDto(null, [], [], [], [], [], 0, 0, null, 0m, 0m);
 
         // ---- GİDER (defterden): AccountRef = araç. Kategori etiketi kaynak varlıktan zenginleşir
         // (SigortaOdeme→poliçe Tip; Gider→Expense.Tip). Base = Amount×Rate (bellekte).
-        var gq = db.AccountLedgerEntries.AsNoTracking()
+        // Tüm geçmiş çekilir; dönem penceresi BELLEKTE uygulanır — KPI için ömür-boyu toplamlar
+        // aynı sorgudan türetilir (adversarial F2: KPI parası dönem filtresinden sızmasın).
+        var giderRawTum = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.AccountType == LedgerAccountType.Gider
-                        && e.Direction == LedgerDirection.Debit && e.AccountRef == vehicleId);
-        if (from is { } gf) gq = gq.Where(e => e.EntryDateUtc >= gf);
-        if (to is { } gt) gq = gq.Where(e => e.EntryDateUtc <= gt);
-        var giderRaw = await gq
+                        && e.Direction == LedgerDirection.Debit && e.AccountRef == vehicleId)
             .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, A = e.Amount.Amount, R = e.Amount.Rate })
             .ToListAsync(ct);
+        var giderRaw = giderRawTum
+            .Where(e => (from is not { } gf || e.EntryDateUtc >= gf) && (to is not { } gt || e.EntryDateUtc <= gt))
+            .ToList();
 
         var policeler = await db.InsurancePolicies.AsNoTracking()
             .Where(p => p.VehicleId == vehicleId).ToListAsync(ct);
@@ -582,12 +584,13 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Where(s => s.VehicleId == vehicleId).ToListAsync(ct);
         var servisIds = servisKayitlari.Select(s => s.Id).ToHashSet();
 
-        var lq = db.AccountLedgerEntries.AsNoTracking().Where(e => e.AccountType == LedgerAccountType.Gelir);
-        if (from is { } ef) lq = lq.Where(e => e.EntryDateUtc >= ef);
-        if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
-        var gelirRaw = await lq
+        var gelirRawTum = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gelir)
             .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
             .ToListAsync(ct);
+        var gelirRaw = gelirRawTum
+            .Where(e => (from is not { } ef || e.EntryDateUtc >= ef) && (to is not { } et || e.EntryDateUtc <= et))
+            .ToList();
 
         string? GelirKaynak(string st, Guid sid) => st switch
         {
@@ -604,6 +607,11 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 x.e.EntryDateUtc.UtcDateTime.Year, x.K!,
                 (x.e.Direction == LedgerDirection.Credit ? 1m : -1m) * x.e.A * x.e.R))
             .ToList();
+        // Ömür-boyu (pencereden bağımsız) toplamlar — KPI/amortisman paydaları bunlardan.
+        var omurGider = giderRawTum.Sum(e => e.A * e.R);
+        var omurGelir = gelirRawTum
+            .Where(e => GelirKaynak(e.SourceType, e.SourceId) != null)
+            .Sum(e => (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R);
 
         // ---- OLAYLAR ("neyi ne zaman") — kaynak varlıktan, BİLGİ amaçlı (tutar brüt/native; P&L'e toplanmaz).
         var mtvler = await db.MtvRecords.AsNoTracking().Where(m => m.VehicleId == vehicleId).ToListAsync(ct);
@@ -655,6 +663,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(s => (DateTimeOffset?)s.Tarih).DefaultIfEmpty(null).Max();
 
         return new AracKarneRawDto(vehicle, gelirler, giderler, olaylar,
-            kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis);
+            kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis,
+            omurGelir, omurGider);
     }
 }
