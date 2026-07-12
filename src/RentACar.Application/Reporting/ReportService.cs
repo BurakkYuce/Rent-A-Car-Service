@@ -60,6 +60,52 @@ public sealed class ReportService(IReportRepository repository)
         return new KarlilikOzetDto(ad, satirlar, satirlar.Sum(s => s.Gelir), satirlar.Sum(s => s.Gider), satirlar.Sum(s => s.NetKar));
     }
 
+    /// <summary>
+    /// Araç karnesi (araç ön muhasebe 360°): tek aracın defterden P&L'i (yıllık kırılım + gelir-kaynak +
+    /// gider-kategori) + kaynak-varlık olay zaman çizelgesi. Toplamlar o aracın Karlilik satırıyla MUTABIK
+    /// (atıf kuralları birebir; parite testi kilitler). Araç yoksa/başka tenant'sa null (sayfa 404).
+    /// Saf toplama — DB erişimi repo'da; KPI/amortisman bloğu ayrı artışta eklenir.
+    /// </summary>
+    public async Task<AracKarneDto?> GetAracKarneAsync(
+        Guid vehicleId, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var raw = await _repository.GetAracKarneRawAsync(vehicleId, from, to, ct);
+        if (raw.Vehicle is null) return null;
+        var v = raw.Vehicle;
+
+        var header = new AracKarneHeaderDto(
+            v.Id, v.Plaka, v.Marka, v.Tip, v.Grup, v.Segment, v.Sube, v.AracSahibi, v.Durum, v.Km,
+            v.AlimBedeli, v.AlimTarihi, v.IkinciElDeger, v.FiloGirisTarih, v.FiloCikisTarih,
+            v.SonBakimTarih, v.SonBakimKm);
+
+        var toplamGelir = raw.Gelirler.Sum(g => g.Tutar);
+        var toplamGider = raw.Giderler.Sum(g => g.Tutar);
+
+        // Yıllık P&L: gelir ∪ gider yıllarının birleşimi (yalnız gelirli/yalnız giderli yıl kaybolmaz).
+        var yillik = raw.Gelirler.Select(g => g.Yil).Concat(raw.Giderler.Select(g => g.Yil))
+            .Distinct().OrderBy(y => y)
+            .Select(y =>
+            {
+                var ge = raw.Gelirler.Where(g => g.Yil == y).Sum(g => g.Tutar);
+                var gi = raw.Giderler.Where(g => g.Yil == y).Sum(g => g.Tutar);
+                return new AracYilPnlRow(y, ge, gi, ge - gi);
+            }).ToList();
+
+        // Kırılım yüzdesi: tutar ÷ toplam gelir (kurumsal "% of revenue"). Yalnız POZİTİF gelirde
+        // anlamlı — dönem-net'i 0/negatifse (iade > gelir) yüzde yanıltır → null (adversarial F1).
+        decimal? Pct(decimal t) => toplamGelir > 0m
+            ? Math.Round(t * 100m / toplamGelir, 2, MidpointRounding.AwayFromZero) : null;
+        var gelirKaynak = raw.Gelirler.GroupBy(g => g.Kaynak)
+            .Select(g => new AracKirilimRow(g.Key, g.Sum(x => x.Tutar), Pct(g.Sum(x => x.Tutar))))
+            .OrderByDescending(r => r.Tutar).ToList();
+        var giderKategori = raw.Giderler.GroupBy(g => g.Kategori)
+            .Select(g => new AracKirilimRow(g.Key, g.Sum(x => x.Tutar), Pct(g.Sum(x => x.Tutar))))
+            .OrderByDescending(r => r.Tutar).ToList();
+
+        return new AracKarneDto(header, toplamGelir, toplamGider, toplamGelir - toplamGider,
+            yillik, gelirKaynak, giderKategori, raw.Olaylar);
+    }
+
     /// <summary>Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.</summary>
     public async Task<IReadOnlyList<LedgerLineDto>> GetAccountLedgerAsync(
         LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
