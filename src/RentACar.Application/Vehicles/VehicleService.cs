@@ -145,6 +145,11 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         var sipp = input.Sipp?.Trim();
         if (!string.IsNullOrEmpty(sipp) && sipp.Length != 4)
             throw new ValidationException("SIPP kodu 4 harf olmalıdır (ör. CDMD).");
+        // Karne/KPI para alanları — negatif bedel anlamsız ve aşağı akışta (amortisman/ROI) bozucu.
+        if (input.AlimBedeli is < 0m)
+            throw new ValidationException("Alım bedeli negatif olamaz.");
+        if (input.IkinciElDeger is < 0m)
+            throw new ValidationException("İkinci el değeri negatif olamaz.");
     }
 
     private static string Normalize(string? plaka)
