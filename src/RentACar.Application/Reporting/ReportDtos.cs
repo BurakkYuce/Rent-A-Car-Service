@@ -152,3 +152,55 @@ public sealed record KarlilikDto(
 public sealed record KarlilikOzetSatirDto(string Boyut, int AracAdet, decimal Gelir, decimal Gider, decimal NetKar);
 public sealed record KarlilikOzetDto(
     string BoyutAdi, IReadOnlyList<KarlilikOzetSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);
+
+// ---------- Araç Karnesi (araç ön muhasebe 360°) ----------
+
+/// <summary>Araç karnesi başlığı: kimlik + edinim/filo yaşam döngüsü alanları (Vehicle'dan).</summary>
+public sealed record AracKarneHeaderDto(
+    Guid VehicleId, string Plaka, string? Marka, string? Tip, string? Grup, string? Segment,
+    string? Sube, string? AracSahibi, VehicleStatus Durum, int Km,
+    decimal? AlimBedeli, DateTimeOffset? AlimTarihi, decimal? IkinciElDeger,
+    DateTimeOffset? FiloGirisTarih, DateTimeOffset? FiloCikisTarih,
+    DateTimeOffset? SonBakimTarih, int? SonBakimKm);
+
+/// <summary>Yıllık P&amp;L satırı (yıl = UTC takvim yılı; defterden).</summary>
+public sealed record AracYilPnlRow(int Yil, decimal Gelir, decimal Gider, decimal NetKar);
+
+/// <summary>Gelir-kaynak / gider-kategori kırılım satırı. YuzdeGelir = Tutar ÷ ToplamGelir (gelir 0 → null).</summary>
+public sealed record AracKirilimRow(string Kategori, decimal Tutar, decimal? YuzdeGelir);
+
+/// <summary>Olay zaman çizelgesi satırı — KAYNAK VARLIKTAN; Tutar BİLGİ amaçlı (brüt/native, P&amp;L'e
+/// TOPLANMAZ; dövizli kayıtta defterin TL katkısından farklı olabilir). DeftereYansir: true = bu olayın
+/// parası defter P&amp;L'inde; false = yalnız bilgi (ör. servis maliyeti — mali belge değil).</summary>
+public sealed record AracOlayRow(DateTimeOffset Tarih, string Tur, string Aciklama, decimal? Tutar, bool DeftereYansir);
+
+/// <summary>Defterden araç-scope'lu gelir satırı (Tutar = işaretli base: iade Borç Gelir negatif).</summary>
+public sealed record AracLedgerGelirRow(int Yil, string Kaynak, decimal Tutar);
+
+/// <summary>Defterden araç-scope'lu gider satırı (Tutar = base; kategori kaynak varlıktan etiketlenir).</summary>
+public sealed record AracLedgerGiderRow(int Yil, string Kategori, decimal Tutar);
+
+/// <summary>Servis aralığı (KPI hamı: serviste geçen gün; Cikis null = hâlâ serviste).</summary>
+public sealed record AracServisGunRow(DateTimeOffset Giris, DateTimeOffset? Cikis);
+
+/// <summary>Araç karnesi repo ham paketi — DB erişimi repo'da, matematik ReportService'te (desen).
+/// Vehicle null = bulunamadı / başka tenant (RLS) → servis null döndürür → sayfa 404.</summary>
+public sealed record AracKarneRawDto(
+    Vehicle? Vehicle,
+    IReadOnlyList<AracLedgerGelirRow> Gelirler,
+    IReadOnlyList<AracLedgerGiderRow> Giderler,
+    IReadOnlyList<AracOlayRow> Olaylar,
+    IReadOnlyList<DolulukKiraRowDto> KiraAraliklari,
+    IReadOnlyList<AracServisGunRow> ServisAraliklari,
+    int KiraSayisi, int ToplamKatedilenKm, DateTimeOffset? SonSatisTarih);
+
+/// <summary>Araç karnesi — tek araç 360° ön muhasebe. P&amp;L DEFTERDEN (Karlilik satırıyla mutabık —
+/// parite testi kilitler); olaylar kaynak varlıktan bilgi amaçlı. "(Atanmamış)" gelir/gider tek-araç
+/// karnesinde yer almaz (Σ araç kartları + Atanmamış = defter toplamı invaryantı).</summary>
+public sealed record AracKarneDto(
+    AracKarneHeaderDto Header,
+    decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
+    IReadOnlyList<AracYilPnlRow> YillikPnl,
+    IReadOnlyList<AracKirilimRow> GelirKaynak,
+    IReadOnlyList<AracKirilimRow> GiderKategori,
+    IReadOnlyList<AracOlayRow> Olaylar);
