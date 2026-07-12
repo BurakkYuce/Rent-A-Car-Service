@@ -11,7 +11,13 @@
 }
 else
 {
-    <div class="page-head"><h1>@_d.Vehicle.Plaka <span class="muted">@_d.Vehicle.Marka</span></h1><div class="actions"></div></div>
+    <div class="page-head"><h1>@_d.Vehicle.Plaka <span class="muted">@_d.Vehicle.Marka</span></h1>
+        <div class="actions">
+            @* Karne finans-rol kapılı — Operatör 403 görmesin diye link de rol-kapılı. *@
+            <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
+                <a href="/raporlar/arac-karne/@_d.Vehicle.Id">Ön Muhasebe / Analiz →</a>
+            </AuthorizeView>
+        </div></div>
     <div class="kv-inline">
         <span>Grup: <strong>@_d.Vehicle.Grup</strong></span>
         <span>Şube: <strong>@_d.Vehicle.Sube</strong></span>
