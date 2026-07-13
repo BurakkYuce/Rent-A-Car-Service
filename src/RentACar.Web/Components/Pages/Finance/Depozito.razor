@@ -6,8 +6,9 @@
 <PageTitle>Depozito — RentPro</PageTitle>
 
 <div class="page-head"><h1>Depozito (Emanet) İşlemleri</h1><div class="actions"></div></div>
-<p class="muted small">Nakit depozito al / iade / cari borca mahsup. Dengeli defter: Al → Borç Kasa-Banka / Alacak
-    Depozito; İade → ters; Mahsup → Borç Depozito / Alacak Cari. İade/mahsup tutulanı aşamaz.</p>
+<p class="muted small">Nakit depozito al / iade / cari borca mahsup / İRAT (gelire al). Dengeli defter: Al → Borç
+    Kasa-Banka / Alacak Depozito; İade → ters; Mahsup → Borç Depozito / Alacak Cari; İrat → Borç Depozito /
+    Alacak GELİR (kira bağıyla araca atfedilir — kira formundaki Nakit sekmesinden). İade/mahsup/irat tutulanı aşamaz.</p>
 
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 @if (Ok is not null) { <p class="muted">İşlem tamam.</p> }
@@ -27,6 +28,8 @@
     <button type="submit" formaction="/depozito/al">Al</button>
     <button type="submit" formaction="/depozito/iade" class="btn-secondary">İade</button>
     <button type="submit" formaction="/depozito/mahsup" class="btn-secondary">Mahsup</button>
+    <button type="submit" formaction="/depozito/irat" class="btn-secondary"
+        title="İade edilmeyen depozito GELİR yazılır (Borç Depozito / Alacak Gelir)">İrat (Gelire Al)</button>
 </form></div>
 
 <h2>Tutulan Depozitolar</h2>

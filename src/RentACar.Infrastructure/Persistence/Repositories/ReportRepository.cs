@@ -448,6 +448,12 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var servisToVeh = (await db.ServiceRecords.AsNoTracking()
                 .Select(s => new { s.Id, s.VehicleId }).ToListAsync(ct))
             .ToDictionary(x => x.Id, x => x.VehicleId);
+        // Depozito iradı (FAZ 1.2): kira bağı → araç (kirasız irat Atanmamış'ta kalır).
+        var iratToVeh = (await db.DepozitoIratlar.AsNoTracking().Where(d => d.RentalId != null)
+                .Select(d => new { d.Id, RentalId = d.RentalId!.Value }).ToListAsync(ct))
+            .Select(d => new { d.Id, VehicleId = rentalToVeh.TryGetValue(d.RentalId, out var iv) ? (Guid?)iv : null })
+            .Where(x => x.VehicleId != null)
+            .ToDictionary(x => x.Id, x => x.VehicleId!.Value);
 
         var gelirByVeh = new Dictionary<Guid, decimal>();
         foreach (var e in gelirRaw)
@@ -466,6 +472,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                     veh = cv; break;
                 case "ServisYansitma" when servisToVeh.TryGetValue(e.SourceId, out var srv):
                     veh = srv; break;
+                case "DepozitoIrat" when iratToVeh.TryGetValue(e.SourceId, out var irv):
+                    veh = irv; break;
             }
             // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
             var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
@@ -584,6 +592,11 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Where(s => s.VehicleId == vehicleId).ToListAsync(ct);
         var servisIds = servisKayitlari.Select(s => s.Id).ToHashSet();
 
+        // Depozito iratları (FAZ 1.2): bu aracın kiralarına bağlı olanlar.
+        var iratlar = await db.DepozitoIratlar.AsNoTracking()
+            .Where(d => d.RentalId != null && rentalIds.Contains(d.RentalId.Value)).ToListAsync(ct);
+        var iratIds = iratlar.Select(d => d.Id).ToHashSet();
+
         var gelirRawTum = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.AccountType == LedgerAccountType.Gelir)
             .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
@@ -598,6 +611,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             "AracSatis" when saleIds.Contains(sid) => "Araç Satışı",
             "Ceza" when cezaIds.Contains(sid) => "Ceza Yansıtma",
             "ServisYansitma" when servisIds.Contains(sid) => "Servis Yansıtma",
+            "DepozitoIrat" when iratIds.Contains(sid) => "Depozito İradı",
             _ => null // başka araca/kaynağa ait ya da atanamayan → karnede yok
         };
         var gelirler = gelirRaw
@@ -634,6 +648,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 $"{s.No} — km {s.GirisKm}→{(s.CikisKm?.ToString() ?? "-")} ({s.Durum})"
                 + (s.Yansitildi ? $" — rücu {s.YansitilanTutar:N2}" : ""),
                 s.ToplamIscilik, false)); // servis maliyeti deftere yazılmaz (mali belge değil)
+        foreach (var d in iratlar)
+            olaylar.Add(new AracOlayRow(d.Tarih, "Depozito İradı",
+                d.Aciklama ?? "İade edilmeyen depozito gelir yazıldı", d.Tutar, true));
         foreach (var x in giderKayitlari)
             olaylar.Add(new AracOlayRow(x.Tarih, $"Gider ({x.Tip})",
                 $"{x.No}{(string.IsNullOrWhiteSpace(x.Aciklama) ? "" : " — " + x.Aciklama)}", x.GenelToplam, true));

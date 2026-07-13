@@ -38,6 +38,14 @@ public interface ICashRepository
     /// <summary>Cari'nin elde tutulan depozito bakiyesi (roadmap I3): Σ Depozito (Alacak:+ Borç:−) = tutulan tutar.</summary>
     Task<decimal> GetDepozitoBakiyeAsync(Guid cariId, CancellationToken ct = default);
 
+    /// <summary>Depozito işlemi (Al/İade/Mahsup/İrat) — TEK transaction + (tenant,cari) danışma kilidi.
+    /// kontrolEt: bakiye kontrolü KİLİDİN ARKASINDA tx-İÇİNDE yapılır (TOCTOU çiti — adversarial 1.2 Medium:
+    /// eşzamanlı iki işlem tutulanı aşamaz). izKaydi (yalnız İrat) verilirse aynı tx'te yazılır; RentalId
+    /// çiti (kira bu carinin olmalı) tx içinde. Çift-submit: TENANT-GÖRÜNÜR kayıt varsa sessiz no-op
+    /// (I3 sözleşmesi); görünmüyorsa (çapraz-tenant PK çakışması) NET RED — sessiz para kaybı yok.</summary>
+    Task PostDepozitoIslemAsync(Guid cariId, bool kontrolEt, DepozitoIrat? izKaydi,
+        IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
     Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default);
 }

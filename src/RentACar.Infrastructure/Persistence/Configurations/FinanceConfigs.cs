@@ -232,3 +232,18 @@ internal sealed class GelenEFaturaConfig : IEntityTypeConfiguration<GelenEFatura
         e.HasIndex(x => new { x.TenantId, x.Ettn }).IsUnique();
     }
 }
+
+// ---- DepozitoIrat (FAZ 1.2; mali iz — immutability trigger migration'da) ----
+internal sealed class DepozitoIratConfig : IEntityTypeConfiguration<DepozitoIrat>
+{
+    public void Configure(EntityTypeBuilder<DepozitoIrat> e)
+    {
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+        e.Property(x => x.Currency).HasMaxLength(3);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.HasIndex(x => new { x.TenantId, x.CariId });
+        e.HasIndex(x => new { x.TenantId, x.RentalId }); // karne/karlilik atıf sorgusu
+    }
+}
