@@ -194,7 +194,8 @@ public sealed record AracKarneRawDto(
     IReadOnlyList<DolulukKiraRowDto> KiraAraliklari,
     IReadOnlyList<AracServisGunRow> ServisAraliklari,
     int KiraSayisi, int ToplamKatedilenKm, DateTimeOffset? SonSatisTarih,
-    decimal OmurGelir, decimal OmurGider);
+    decimal OmurGelir, decimal OmurGider,
+    FiloTutSatRow TutSatHam, decimal? GrupOrtDegerOrani);
 
 /// <summary>Kurumsal araç KPI bloğu — SAHİPLİK PENCERESİ (ömür boyu) metrikleri; sayfadaki dönem
 /// filtresinden bağımsız. Pencere: W_bas = FiloGirisTarih ?? AlimTarihi; W_bit = FiloCikisTarih ??
@@ -222,7 +223,8 @@ public sealed record AracKarneDto(
     IReadOnlyList<AracKirilimRow> GiderKategori,
     IReadOnlyList<AracOlayRow> Olaylar,
     AracKpiDto Kpi,
-    MaliyetHesapSonuc? MaliyetModel);
+    MaliyetHesapSonuc? MaliyetModel,
+    TutSatSinyalDto TutSat);
 
 // ---------- Filo Analiz Panosu ----------
 
@@ -235,7 +237,8 @@ public sealed record FiloAnalizRow(
     Guid VehicleId, string Plaka, string? Grup, string? Segment, string? Sube,
     decimal Gelir, decimal Gider, decimal NetKar,
     decimal? DolulukYuzde, decimal? RoiYuzde, decimal? KmBasinaMaliyet,
-    int SahiplikGun, int KiralananGun, int? YasAy);
+    int SahiplikGun, int KiralananGun, int? YasAy,
+    int TutSatSinyal = 0);
 
 /// <summary>Yaş kohortu satırı — alım tarihine göre kova (0-1/1-2/2-3/3+ yıl); ortalamalar yalnız
 /// değeri olan araçlar üzerinden (kurumsal "cost-per-km eğrisi" görünümü).</summary>
@@ -255,7 +258,8 @@ public sealed record FiloAnalizRawDto(
     IReadOnlyList<KarlilikSatirDto> KarlilikPencere,
     IReadOnlyList<KarlilikSatirDto> KarlilikOmur,
     IReadOnlyList<FiloAracRow> Araclar,
-    IReadOnlyList<FiloKiraRow> Kiralar);
+    IReadOnlyList<FiloKiraRow> Kiralar,
+    IReadOnlyList<FiloTutSatRow> TutSatHam);
 
 /// <summary>Filo aracı KPI hamı (kimlik boyutları + sahiplik penceresi alanları + son tamamlanmış satış).
 /// Pano satırları BU listeden tohumlanır (adversarial F-D: dönemde hareketi olmayan araç da görünür).</summary>
@@ -263,7 +267,23 @@ public sealed record FiloAracRow(
     Guid Id, string Plaka, string? Grup, string? Segment, string? Sube,
     decimal? AlimBedeli, DateTimeOffset? AlimTarihi,
     DateTimeOffset? FiloGirisTarih, DateTimeOffset? FiloCikisTarih,
-    VehicleStatus Durum, DateTimeOffset? SonSatisTarih);
+    VehicleStatus Durum, DateTimeOffset? SonSatisTarih,
+    decimal? IkinciElDeger = null);
 
 /// <summary>Filo kirası (İptal hariç): efektif aralık (GercekDonusTar ?? BitTar) + km çifti.</summary>
 public sealed record FiloKiraRow(Guid VehicleId, DateTimeOffset Bas, DateTimeOffset Bit, int? CikisKm, int? DonusKm);
+
+// ---------- Tut/Sat (defleet) sinyali — FAZ 2.2 ----------
+
+/// <summary>Tut/Sat eşikleri (şeffaf varsayım; appsettings "TutSat" bölümüyle override edilebilir).
+/// DegerOrani: son-12-ay araç gideri ÷ İkinciElDeğer eşiği. SinifKati: sınıf (Grup) ortalamasının katı.</summary>
+public sealed record TutSatEsikleri(decimal DegerOrani = 0.45m, decimal SinifKati = 1.5m)
+{
+    public static readonly TutSatEsikleri Varsayilan = new();
+}
+
+/// <summary>Tut/Sat sinyal sonucu: 0-3 kural tetiklendi + gerekçe metinleri (karne kartı / filo kolonu).</summary>
+public sealed record TutSatSinyalDto(int Sinyal, IReadOnlyList<string> Gerekceler);
+
+/// <summary>Filo tut/sat hamı: araç-başına son-12-ay / önceki-12-ay gider (defter, base) ve km.</summary>
+public sealed record FiloTutSatRow(Guid VehicleId, decimal Gider12, decimal GiderOnceki12, int Km12, int KmOnceki12);

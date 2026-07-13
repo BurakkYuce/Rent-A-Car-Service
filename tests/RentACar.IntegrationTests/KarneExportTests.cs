@@ -23,7 +23,8 @@ public sealed class KarneExportTests
         Olaylar: [],
         Kpi: new AracKpiDto(31, 3, 3, 25, 9.68m, 5.38m, 55.56m, 0.50m, 10.00m, 1.67m, 60, 1150m,
             200m, 200m, -183.33m, 300, 1),
-        MaliyetModel: new MaliyetHesapSonuc(800m, 200m, 0m, 0m, 0m, 150m, 350m, 350m, 70m, 420m, 420m, 504m));
+        MaliyetModel: new MaliyetHesapSonuc(800m, 200m, 0m, 0m, 0m, 150m, 350m, 350m, 70m, 420m, 420m, 504m),
+        TutSat: new TutSatSinyalDto(0, []));
 
     [Fact]
     public void Karne_null_ise_null_doner() // uç 404'e çevirir

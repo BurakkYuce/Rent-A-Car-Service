@@ -30,6 +30,7 @@
             <option value="zarar" selected="@(Sira == "zarar")">En zararlı</option>
             <option value="doluluk" selected="@(Sira == "doluluk")">Doluluk</option>
             <option value="roi" selected="@(Sira == "roi")">ROI</option>
+            <option value="tutsat" selected="@(Sira == "tutsat")">Tut/Sat sinyali</option>
         </select>
     </label>
     <button type="submit">Göster</button>
@@ -47,9 +48,9 @@
     <thead><tr><th>Plaka</th><th>Grup</th><th>Segment</th><th>Şube</th>
         <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
         <th class="num">Doluluk %</th><th class="num">ROI %</th><th class="num">Km Maliyet</th>
-        <th class="num">Yaş (ay)</th><th class="num">Vade</th></tr></thead>
+        <th class="num">Yaş (ay)</th><th class="num">Vade</th><th class="num">Tut/Sat</th></tr></thead>
     <tbody>
-        @if (_d.Satirlar.Count == 0) { <tr><td colspan="12" class="muted">Kayıt yok.</td></tr> }
+        @if (_d.Satirlar.Count == 0) { <tr><td colspan="13" class="muted">Kayıt yok.</td></tr> }
         @foreach (var r in _d.Satirlar)
         {
             <tr>
@@ -68,13 +69,16 @@
                 <td class="num">@{ var vs = _vadeSayilari.GetValueOrDefault(r.VehicleId); }
                     @if (vs > 0) { <a class="badge" href="/vade?plaka=@r.Plaka" title="Geçmiş + ≤30 gün vade uyarısı">@vs</a> }
                     else { <span class="muted">0</span> }</td>
+                <td class="num">@if (r.TutSatSinyal > 0)
+                    { <a class="badge" href="/raporlar/arac-karne/@r.VehicleId" title="Defleet sinyali — gerekçeler karnede">@r.TutSatSinyal</a> }
+                    else { <span class="muted">0</span> }</td>
             </tr>
         }
     </tbody>
     <tfoot><tr><th colspan="4">TOPLAM (Atanmamış dahil)</th>
         <th class="num">@_d.ToplamGelir.ToString("N2")</th>
         <th class="num">@_d.ToplamGider.ToString("N2")</th>
-        <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="5"></th></tr></tfoot>
+        <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="6"></th></tr></tfoot>
 </table>
 
 <h2>Yaş Kohortu <span class="muted small">(alım tarihine göre — km-maliyet eğrisi)</span></h2>
