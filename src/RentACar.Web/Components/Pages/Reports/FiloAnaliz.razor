@@ -53,6 +53,15 @@
         <div class="card-label">Filo RevPACD (Σ gelir @h.OmurGelir.ToString("N2") ÷ Σ sahiplik gün)</div></div>
     <div class="card"><div class="card-num">@(h.Adr?.ToString("N2") ?? "—")</div>
         <div class="card-label">Filo ADR (Σ gelir ÷ Σ kiralanan gün)</div></div>
+    @* FAZ 2.4: yenileme bütçesi özet kartı — tut/sat adayları (sinyal ≥2) + 12-ay-sonu kalıntı Σ. *@
+    @if (_d.TutSatAday is { AracSayisi: > 0 } ta)
+    {
+        <div class="card" style="border-color:#d97706;">
+            <div class="card-num">@ta.AracSayisi araç</div>
+            <div class="card-label">Tut/Sat adayı (sinyal ≥2) — 12 ay sonu tahmini kalıntı Σ @ta.TahminiGeriKazanim12Ay.ToString("N2")
+                <span class="muted small">(azalan-bakiye projeksiyonu; yatırım tavsiyesi değildir)</span></div>
+        </div>
+    }
 </div>
 }
 
