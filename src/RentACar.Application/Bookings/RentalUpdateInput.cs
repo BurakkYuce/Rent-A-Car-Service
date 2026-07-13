@@ -42,6 +42,10 @@ public sealed class RentalUpdateInput
     public string? FirmaKodu { get; set; }
     public string? ProjeAdi { get; set; }
     public string? OzelKod { get; set; }
+
+    /// <summary>FAZ 1.4 — bilgi/fatura-varsayılanı (Tutar'ı değiştirmez; Tamamlandi'da da güncellenebilir).</summary>
+    public decimal? OzelKdvOran { get; set; }
+    public decimal? DamgaVergisi { get; set; }
     public string? TalepTuru { get; set; }
     public string? GeldigiBirim { get; set; }
     public string? KefilBilgisi { get; set; }

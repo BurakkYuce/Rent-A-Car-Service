@@ -83,6 +83,9 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.Tahsilat).HasColumnType("numeric(19,4)");
         e.Property(x => x.Bakiye).HasColumnType("numeric(19,4)");
         e.Property(x => x.KurSnapshot).HasColumnType("numeric(19,6)").HasDefaultValue(1m); // O5 raporlama kuru
+
+        e.Property(x => x.OzelKdvOran).HasColumnType("numeric(9,4)");   // FAZ 1.4
+        e.Property(x => x.DamgaVergisi).HasColumnType("numeric(19,4)"); // FAZ 1.4
         e.Property(x => x.FazlaKmUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.FazlaKmBedeli).HasColumnType("numeric(19,4)");
         e.Property(x => x.YakitBirimUcret).HasColumnType("numeric(19,4)");
