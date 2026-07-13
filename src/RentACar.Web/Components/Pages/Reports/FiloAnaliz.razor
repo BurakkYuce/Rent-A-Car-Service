@@ -1,0 +1,96 @@
+@page "/raporlar/filo-analiz"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+
+<PageTitle>Filo Analiz — RentPro</PageTitle>
+
+<div class="page-head">
+    <h1>Filo Analiz Panosu</h1>
+    <div class="actions"><a href="/raporlar/karlilik">Kârlılık Raporu</a></div>
+</div>
+
+<p class="muted small">Araç bazlı ön muhasebe sıralaması. <strong>Gelir/Gider/Net dönem-pencerelidir</strong>
+    (Kârlılık raporuyla mutabık); <strong>Doluluk/ROI/Km-Maliyet/Yaş ömür boyudur</strong> (araç karnesi
+    KPI semantiği — karışık payda yok). Plaka → araç karnesi. Atfedilemeyen gelir/gider ayrıca gösterilir.</p>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <label>Sıralama
+        <select name="siralama">
+            <option value="net" selected="@(Sira is null or "net")">En kârlı</option>
+            <option value="zarar" selected="@(Sira == "zarar")">En zararlı</option>
+            <option value="doluluk" selected="@(Sira == "doluluk")">Doluluk</option>
+            <option value="roi" selected="@(Sira == "roi")">ROI</option>
+        </select>
+    </label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="cards">
+    <div class="card"><div class="card-num">@_d.ToplamGelir.ToString("N2")</div><div class="card-label">Gelir (dönem)</div></div>
+    <div class="card"><div class="card-num">@_d.ToplamGider.ToString("N2")</div><div class="card-label">Gider (dönem)</div></div>
+    <div class="card"><div class="card-num">@_d.ToplamNetKar.ToString("N2")</div><div class="card-label">Net Kâr (dönem)</div></div>
+    <div class="card"><div class="card-num">@((_d.AtanmamisGelir - _d.AtanmamisGider).ToString("N2"))</div>
+        <div class="card-label">Atanmamış net (gelir @_d.AtanmamisGelir.ToString("N2") − gider @_d.AtanmamisGider.ToString("N2"))</div></div>
+</div>
+
+<table class="grid tr-grid">
+    <thead><tr><th>Plaka</th><th>Grup</th><th>Segment</th><th>Şube</th>
+        <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
+        <th class="num">Doluluk %</th><th class="num">ROI %</th><th class="num">Km Maliyet</th>
+        <th class="num">Yaş (ay)</th></tr></thead>
+    <tbody>
+        @if (_d.Satirlar.Count == 0) { <tr><td colspan="11" class="muted">Kayıt yok.</td></tr> }
+        @foreach (var r in _d.Satirlar)
+        {
+            <tr>
+                <td>@if (r.Plaka == "(bilinmeyen araç)")
+                    { @r.Plaka }
+                    else { <a href="/raporlar/arac-karne/@r.VehicleId" title="Araç Karnesi">@r.Plaka</a> }</td>
+                <td>@r.Grup</td><td>@r.Segment</td><td>@r.Sube</td>
+                <td class="num">@r.Gelir.ToString("N2")</td>
+                <td class="num">@r.Gider.ToString("N2")</td>
+                <td class="num">@if (r.NetKar < 0) { <span class="error">@r.NetKar.ToString("N2")</span> }
+                    else { @r.NetKar.ToString("N2") }</td>
+                <td class="num">@(r.DolulukYuzde?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.RoiYuzde?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.KmBasinaMaliyet?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.YasAy?.ToString() ?? "—")</td>
+            </tr>
+        }
+    </tbody>
+    <tfoot><tr><th colspan="4">TOPLAM (Atanmamış dahil)</th>
+        <th class="num">@_d.ToplamGelir.ToString("N2")</th>
+        <th class="num">@_d.ToplamGider.ToString("N2")</th>
+        <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="4"></th></tr></tfoot>
+</table>
+
+<h2>Yaş Kohortu <span class="muted small">(alım tarihine göre — km-maliyet eğrisi)</span></h2>
+<table class="grid tr-grid">
+    <thead><tr><th>Kova</th><th class="num">Araç</th><th class="num">Ort. Km Maliyet</th><th class="num">Ort. Doluluk %</th></tr></thead>
+    <tbody>
+        @if (_d.YasKohortu.Count == 0) { <tr><td colspan="4" class="muted">Kayıt yok.</td></tr> }
+        @foreach (var k in _d.YasKohortu)
+        {
+            <tr><td>@k.Kova</td><td class="num">@k.AracAdet</td>
+                <td class="num">@(k.OrtKmMaliyet?.ToString("N2") ?? "—")</td>
+                <td class="num">@(k.OrtDoluluk?.ToString("N2") ?? "—")</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "siralama")] public string? Sira { get; set; }
+
+    private FiloAnalizDto _d = new([], 0m, 0m, 0m, 0m, 0m, []);
+
+    protected override async Task OnInitializedAsync()
+    {
+        DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
+        DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
+        _d = await Reports.GetFiloAnalizAsync(f, t, Sira);
+    }
+}
