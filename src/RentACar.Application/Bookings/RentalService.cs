@@ -131,6 +131,8 @@ public sealed class RentalService(
             FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu"),
             ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı"),
             OzelKod = Lim(input.OzelKod, 64, "Özel kod"),
+            OzelKdvOran = GirisOzelKdv(input.FiyatTuru, input.OzelKdvOran), // FAZ 1.4 (net-mod çiti dahil)
+            DamgaVergisi = VergiDamga(input.DamgaVergisi),   // FAZ 1.4
             TalepTuru = Lim(input.TalepTuru, 64, "Talep türü"),
             GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim"),
             KefilBilgisi = Lim(input.KefilBilgisi, 512, "Kefil bilgisi"),
@@ -231,6 +233,8 @@ public sealed class RentalService(
             c.FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu");
             c.ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı");
             c.OzelKod = Lim(input.OzelKod, 64, "Özel kod");
+            c.OzelKdvOran = GirisOzelKdv(c.FiyatTuru, input.OzelKdvOran); // FAZ 1.4 (net-mod çiti dahil)
+            c.DamgaVergisi = VergiDamga(input.DamgaVergisi); // FAZ 1.4
             c.TalepTuru = Lim(input.TalepTuru, 64, "Talep türü");
             c.GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim");
             c.KefilBilgisi = Lim(input.KefilBilgisi, 512, "Kefil bilgisi");
@@ -289,6 +293,40 @@ public sealed class RentalService(
     }
 
     /// <summary>Serbest metin alanı: trim + boş→null + aşımda temiz red (DB varchar taşması 500 yerine).</summary>
+    /// <summary>FAZ 1.4: özel KDV oranı kesir 0..1 (aksi red).</summary>
+    private static decimal? VergiOran(decimal? oran)
+    {
+        if (oran is { } o && (o < 0m || o > 1m))
+            throw new ValidationException("Özel KDV oranı 0 ile 1 arasında olmalıdır (kesir, ör. 0.10).");
+        return oran;
+    }
+
+    /// <summary>FAZ 1.4 (adversarial D — guard'ı GİRİŞ noktasına koy dersi): NET fiyat modlu kirada
+    /// varsayılan-dışı özel KDV çelişkisi girişte reddedilir — aksi halde dönüş fark-faturası kesilene
+    /// dek kilitlenir (fatura-anı guard'ı savunma-derinliği olarak kalır).</summary>
+    private static decimal? GirisOzelKdv(string? fiyatTuru, decimal? ozelKdvOran)
+    {
+        var oran = VergiOran(ozelKdvOran);
+        OzelKdvNetModCiti(fiyatTuru, oran);
+        return oran;
+    }
+
+    private static void OzelKdvNetModCiti(string? fiyatTuru, decimal? ozelKdvOran)
+    {
+        var netMod = string.Equals(fiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(fiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
+        if (netMod && ozelKdvOran is { } o && o != RentACar.Application.Finance.KdvMath.VarsayilanOran)
+            throw new ValidationException("Net fiyat modlu kirada özel KDV oranı kullanılamaz (fiyat %20 net üstünden hesaplanır).");
+    }
+
+    /// <summary>FAZ 1.4: damga vergisi negatif olamaz.</summary>
+    private static decimal? VergiDamga(decimal? damga)
+    {
+        if (damga is < 0m)
+            throw new ValidationException("Damga vergisi negatif olamaz.");
+        return damga;
+    }
+
     private static string? Lim(string? s, int max, string alan)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;

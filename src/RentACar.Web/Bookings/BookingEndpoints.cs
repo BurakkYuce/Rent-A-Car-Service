@@ -232,6 +232,8 @@ public static class BookingEndpoints
                     FirmaKodu = FormParse.Str(f, "firmaKodu"),
                     ProjeAdi = FormParse.Str(f, "projeAdi"),
                     OzelKod = FormParse.Str(f, "ozelKod"),
+                    OzelKdvOran = FormParse.Dec(f["ozelKdvOran"].ToString()),   // FAZ 1.4 (kesir 0..1)
+                    DamgaVergisi = FormParse.Dec(f["damgaVergisi"].ToString()), // FAZ 1.4
                     TalepTuru = FormParse.Str(f, "talepTuru"),
                     GeldigiBirim = FormParse.Str(f, "geldigiBirim"),
                     KefilBilgisi = FormParse.Str(f, "kefilBilgisi"),
@@ -374,6 +376,8 @@ public static class BookingEndpoints
         input.FirmaKodu = FormParse.Str(f, "firmaKodu");
         input.ProjeAdi = FormParse.Str(f, "projeAdi");
         input.OzelKod = FormParse.Str(f, "ozelKod");
+        input.OzelKdvOran = FormParse.Dec(f["ozelKdvOran"].ToString());   // FAZ 1.4
+        input.DamgaVergisi = FormParse.Dec(f["damgaVergisi"].ToString()); // FAZ 1.4
         input.TalepTuru = FormParse.Str(f, "talepTuru");
         input.GeldigiBirim = FormParse.Str(f, "geldigiBirim");
         input.KefilBilgisi = FormParse.Str(f, "kefilBilgisi");

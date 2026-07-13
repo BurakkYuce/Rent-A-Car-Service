@@ -43,6 +43,11 @@ public sealed class BookingInput
     public string? FirmaKodu { get; set; }
     public string? ProjeAdi { get; set; }
     public string? OzelKod { get; set; }
+
+    /// <summary>Kira-seviyesi özel KDV oranı (kesir 0..1; FAZ 1.4) — fatura varsayılanı, Tutar'ı değiştirmez.</summary>
+    public decimal? OzelKdvOran { get; set; }
+    /// <summary>Kira-seviyesi damga vergisi (bilgi; FAZ 1.4) — fatura varsayılanı.</summary>
+    public decimal? DamgaVergisi { get; set; }
     public string? TalepTuru { get; set; }
     public string? GeldigiBirim { get; set; }
     public string? KefilBilgisi { get; set; }
