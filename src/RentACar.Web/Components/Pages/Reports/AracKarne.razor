@@ -16,7 +16,12 @@ else
         <h1>Araç Karnesi — @h.Plaka <span class="muted">@h.Marka @h.Tip</span></h1>
         <div class="actions">
             <a href="/araclar/@h.VehicleId">Operasyonel Geçmiş →</a> ·
-            <a href="/raporlar/karlilik">Kârlılık Raporu</a>
+            <a href="/raporlar/karlilik">Kârlılık Raporu</a> ·
+            <span>
+                <a href="/raporlar/export/arac-karne?vehicleId=@VehicleId&amp;format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
+                <a href="/raporlar/export/arac-karne?vehicleId=@VehicleId&amp;format=csv&amp;from=@From&amp;to=@To">CSV</a> ·
+                <a href="/raporlar/export/arac-karne?vehicleId=@VehicleId&amp;format=pdf&amp;from=@From&amp;to=@To">PDF</a>
+            </span>
         </div>
     </div>
 
