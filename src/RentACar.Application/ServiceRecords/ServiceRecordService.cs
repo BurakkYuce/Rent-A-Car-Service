@@ -14,11 +14,13 @@ namespace RentACar.Application.ServiceRecords;
 /// Hasar rücu: tamamlanmış servis maliyeti kusur-oranıyla cari'ye yansıtılır (J4).
 /// </summary>
 public sealed class ServiceRecordService(
-    IServiceRecordRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
+    IServiceRecordRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
+    RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly IServiceRecordRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<ServiceRecord>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -98,11 +100,10 @@ public sealed class ServiceRecordService(
     /// kusur>0 + henüz yansıtılmamış. FinanceWrite + dönem-kilidi + idempotency (SourceId=serviceId).
     /// </summary>
     public async Task YansitAsync(Guid serviceId, Guid cariId, DateTimeOffset? tarih = null,
-        string? doviz = "TRY", decimal kur = 1m, CancellationToken ct = default)
+        string? doviz = "TRY", decimal? kur = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (cariId == Guid.Empty) throw new ValidationException("Yansıtılacak cari seçilmelidir.");
-        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
 
         var rec = await _repository.FindAsync(serviceId, ct) ?? throw new ValidationException("Servis kaydı bulunamadı.");
         if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
@@ -117,7 +118,9 @@ public sealed class ServiceRecordService(
         var entryDate = tarih ?? DateTimeOffset.UtcNow;
         await _lock.EnsureOpenAsync(entryDate, ct); // dönem kilidi
 
-        var money = new Money(yansitilan, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        // Kur çözümü (1.1): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red).
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, entryDate, ct);
+        var money = new Money(yansitilan, (doviz ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
         var desc = $"Servis rücu {rec.No} (kusur %{rec.KusurOrani.Value * 100m:0.##})";
         await _repository.PostYansitmaAsync(serviceId, cariId, yansitilan,
         [

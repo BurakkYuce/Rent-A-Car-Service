@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.FuelKinds.FuelKindService>();
         services.AddScoped<RentACar.Application.Kur.KurService>();
         services.AddScoped<RentACar.Application.Kur.SabitKurService>();
+        services.AddScoped<RentACar.Application.Kur.KurCozucu>(); // ödeme uçları kur çözümü (1.1)
         services.AddScoped<RentACar.Application.TransmissionTypes.TransmissionTypeService>();
         services.AddScoped<RentACar.Application.VehicleColors.VehicleColorService>();
         services.AddScoped<RentACar.Application.CustomerGroups.CustomerGroupService>();

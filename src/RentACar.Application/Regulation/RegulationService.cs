@@ -8,11 +8,13 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.Regulation;
 
 /// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı) + MTV ödeme→defter (J1).</summary>
-public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
+public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
+    RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly IRegulationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     /// <summary>Sigorta poliçesi para birimi beyaz-listesi (Currency kolonu HasMaxLength(3)).</summary>
     private static readonly HashSet<string> AllowedCurrencies = new(StringComparer.Ordinal) { "TRY", "EUR", "USD", "GBP" };
@@ -74,12 +76,11 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// idempotency (SourceId=mtvId; çift-ödeme reddedilir). MtvRecord.Odendi=true (atomik, tek transaction).
     /// </summary>
     public async Task MtvOdeAsync(Guid mtvId, LedgerAccountType hesap, DateTimeOffset? odemeTarih = null,
-        string? doviz = "TRY", decimal kur = 1m, CancellationToken ct = default)
+        string? doviz = "TRY", decimal? kur = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
-        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
 
         var rec = await _repository.FindMtvAsync(mtvId, ct) ?? throw new ValidationException("MTV kaydı bulunamadı.");
         if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
@@ -88,7 +89,9 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
         await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi: kapalı döneme MTV ödemesi YOK
 
-        var money = new Money(rec.Tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        // Kur çözümü (1.1 adversarial Low: aynı dosyada sessiz kur=1 sınıfı kalmasın — tutarlılık).
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, tarih, ct);
+        var money = new Money(rec.Tutar, (doviz ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
         var desc = $"MTV ödeme {rec.Donem}";
         await _repository.PostMtvOdemeAsync(mtvId,
         [
@@ -104,12 +107,11 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// dönem-kilidi + idempotency (SourceId=inspectionId). InspectionRecord.Odendi=true + Ceza (atomik, tek tx).
     /// </summary>
     public async Task MuayeneOdeAsync(Guid inspectionId, LedgerAccountType hesap, decimal ceza = 0m,
-        DateTimeOffset? odemeTarih = null, string? doviz = "TRY", decimal kur = 1m, CancellationToken ct = default)
+        DateTimeOffset? odemeTarih = null, string? doviz = "TRY", decimal? kur = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
-        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
         if (ceza < 0m) throw new ValidationException("Ceza negatif olamaz.");
 
         var rec = await _repository.FindInspectionAsync(inspectionId, ct) ?? throw new ValidationException("Muayene kaydı bulunamadı.");
@@ -120,7 +122,9 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
         await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
 
-        var money = new Money(toplam, (doviz ?? "TRY").Trim().ToUpperInvariant(), kur);
+        // Kur çözümü (1.1 tutarlılık).
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, tarih, ct);
+        var money = new Money(toplam, (doviz ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
         var desc = $"Muayene ödeme {rec.MuayeneTarihi.LocalDateTime:dd.MM.yyyy}" + (ceza > 0m ? $" (+ceza {ceza})" : "");
         await _repository.PostMuayeneOdemeAsync(inspectionId, ceza,
         [
@@ -137,12 +141,11 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// (atomik, tek tx). Para birimi poliçenin Currency'si; kur ile baz tutara çevrilir.
     /// </summary>
     public async Task SigortaOdeAsync(Guid policyId, LedgerAccountType hesap, decimal zeyilEkPrim = 0m,
-        DateTimeOffset? odemeTarih = null, decimal kur = 1m, CancellationToken ct = default)
+        DateTimeOffset? odemeTarih = null, decimal? kur = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
-        if (kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
         if (zeyilEkPrim < 0m) throw new ValidationException("Zeyil ek prim negatif olamaz.");
 
         var rec = await _repository.FindInsuranceAsync(policyId, ct) ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
@@ -153,7 +156,9 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
         await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
 
-        var money = new Money(toplam, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), kur);
+        // Kur çözümü (1.1): açık kur aynen; boş → TRY=1 / döviz poliçede KurService (yoksa net red).
+        var cozulenKur = await _kurCozucu.CozAsync(rec.Currency, kur, tarih, ct);
+        var money = new Money(toplam, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
         var desc = $"Sigorta ödeme {rec.Tip}" + (zeyilEkPrim > 0m ? $" (+zeyil {zeyilEkPrim})" : "");
         await _repository.PostSigortaOdemeAsync(policyId, zeyilEkPrim,
         [
