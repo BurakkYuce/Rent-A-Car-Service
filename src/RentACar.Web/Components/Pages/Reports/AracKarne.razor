@@ -1,6 +1,7 @@
 @page "/raporlar/arac-karne/{VehicleId:guid}"
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
+@inject RentACar.Application.Regulation.VadeService Vadeler
 
 <PageTitle>Araç Karnesi — RentPro</PageTitle>
 
@@ -145,6 +146,38 @@ else
         </div>
     }
 
+    @* FAZ 2.1: Yaklaşan vadeler (sigorta/kasko/MTV/muayene) + bakım-km *@
+    <h2>Yaklaşan Vadeler</h2>
+    <table class="grid tr-grid">
+        <thead><tr><th>Tür</th><th>Bitiş / Hedef</th><th class="num">Kalan</th><th>Durum</th></tr></thead>
+        <tbody>
+            @if (_vadeler.Count == 0 && _bakimKm?.SonrakiBakimKm is null)
+            { <tr><td colspan="4" class="muted">Kayıtlı vade yok (sigorta/MTV/muayene girilmemiş olabilir).</td></tr> }
+            @foreach (var vi in _vadeler)
+            {
+                <tr>
+                    <td>@vi.Tur</td>
+                    <td>@vi.Bitis.UtcDateTime.ToString("dd.MM.yyyy")</td>
+                    <td class="num">@vi.KalanGun gün</td>
+                    <td>@(vi.Bucket switch {
+                        RentACar.Domain.Enums.VadeBucket.Gecmis => "GEÇMİŞ",
+                        RentACar.Domain.Enums.VadeBucket.YediGun => "≤7 gün",
+                        RentACar.Domain.Enums.VadeBucket.OtuzGun => "≤30 gün",
+                        _ => "İleri" })</td>
+                </tr>
+            }
+            @if (_bakimKm is { SonrakiBakimKm: { } hedefKm, KalanKm: { } kalanKm })
+            {
+                <tr>
+                    <td>Periyodik Bakım (KM)</td>
+                    <td>hedef @hedefKm.ToString("N0") km</td>
+                    <td class="num">@kalanKm.ToString("N0") km</td>
+                    <td>@(kalanKm <= 0 ? "GEÇMİŞ" : kalanKm <= 1000 ? "YAKIN" : "İleri")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
     @* Olay zaman çizelgesi *@
     <h2>Olay Geçmişi — Neyi Ne Zaman</h2>
     <table class="grid tr-grid">
@@ -174,6 +207,8 @@ else
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
     private AracKarneDto? _d;
+    private IReadOnlyList<RentACar.Application.Regulation.VadeItem> _vadeler = [];
+    private PeriyodikServisRow? _bakimKm;
 
     private static string Para(decimal? d) => d?.ToString("N2") ?? "—";
     private static string Yuzde(decimal? d) => d is { } x ? x.ToString("N2") + "%" : "—";
@@ -184,5 +219,10 @@ else
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
         _d = await Reports.GetAracKarneAsync(VehicleId, f, t);
+        if (_d is not null)
+        {
+            _vadeler = await Vadeler.GetForVehicleAsync(VehicleId); // FAZ 2.1 (ömür-boyu vade — pencereden bağımsız)
+            _bakimKm = (await Reports.GetPeriyodikServisAsync()).FirstOrDefault(r => r.Plaka == _d.Header.Plaka);
+        }
     }
 }

@@ -8,6 +8,11 @@
 <div class="page-head"><h1>Vade Uyarıları</h1><div class="actions"><a href="/listeler/export/vade">Excel</a> · <a href="/listeler/export/vade?format=csv">CSV</a> · <a href="/listeler/export/vade?format=pdf">PDF</a></div></div>
 <p class="muted">Sigorta / MTV / Muayene bitiş takibi.</p>
 
+<form method="get" class="grid-form">
+    <label>Plaka<input name="plaka" value="@PlakaFiltre" placeholder="ör. 34ABC" /></label>
+    <button type="submit">Filtrele</button>
+</form>
+
 <table class="grid tr-grid">
     <thead>
         <tr><th>Araç</th><th>Tür</th><th>Bitiş</th><th>Kalan Gün</th><th>Durum</th></tr>
@@ -17,7 +22,7 @@
         {
             <tr><td colspan="5" class="muted">Yaklaşan vade yok.</td></tr>
         }
-        @foreach (var i in _items)
+        @foreach (var i in _items.Where(x => PlakaUyar(x.VehicleId)))
         {
             <tr>
                 <td>@Plaka(i.VehicleId)</td>
@@ -31,6 +36,8 @@
 </table>
 
 @code {
+    [SupplyParameterFromQuery(Name = "plaka")] public string? PlakaFiltre { get; set; }
+
     private IReadOnlyList<VadeItem> _items = [];
     private Dictionary<Guid, string> _vehMap = new();
 
@@ -41,6 +48,11 @@
     }
 
     private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+
+    // FAZ 2.1: plaka filtresi (?plaka=) — normalize karşılaştırma (boşluksuz, case-insensitive).
+    private bool PlakaUyar(Guid id)
+        => string.IsNullOrWhiteSpace(PlakaFiltre)
+           || Plaka(id).Replace(" ", "").Contains(PlakaFiltre.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
 
     private static string BucketClass(VadeBucket b) => b switch
     {
