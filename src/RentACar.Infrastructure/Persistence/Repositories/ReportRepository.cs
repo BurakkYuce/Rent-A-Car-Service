@@ -725,10 +725,17 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var sonSatis = satislar.Where(s => s.Durum == SatisDurum.Tamamlandi)
             .Select(s => (DateTimeOffset?)s.Tarih).DefaultIfEmpty(null).Max();
 
+        // FAZ 2.5: km zaman serisi (Tarih artan — servis dönem-km farkını bu sıradan alır).
+        var kmLoglari = await db.KmLoglari.AsNoTracking()
+            .Where(k => k.VehicleId == vehicleId)
+            .OrderBy(k => k.Tarih).ThenBy(k => k.Km)
+            .Select(k => new AracKmLogRow(k.Tarih, k.Km))
+            .ToListAsync(ct);
+
         return new AracKarneRawDto(vehicle, gelirler, giderler, olaylar,
             kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis,
             omurGelir, omurGider,
-            new FiloTutSatRow(vehicleId, gider12, giderOnceki12, km12, kmOnceki12), grupOrt);
+            new FiloTutSatRow(vehicleId, gider12, giderOnceki12, km12, kmOnceki12), grupOrt, kmLoglari);
     }
 
     public async Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(

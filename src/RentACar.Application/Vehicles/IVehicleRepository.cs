@@ -26,4 +26,11 @@ public interface IVehicleRepository
     Task<bool> UpdateAsync(Guid id, Action<Vehicle> apply, CancellationToken ct = default);
 
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>FAZ 2.5 — manuel odometre girişi: Vehicle.Km + km log satırı AYNI transaction'da.
+    /// Geriye-gitme reddi TX İÇİNDE (yetkili karar — eşzamanlı girişte de tutar). Araç yoksa false.</summary>
+    Task<bool> ManuelKmEkleAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default);
+
+    /// <summary>FAZ 2.5 — aracın km zaman serisi (en yeni önce, limitli; araç kartı listesi).</summary>
+    Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(Guid vehicleId, int limit = 20, CancellationToken ct = default);
 }

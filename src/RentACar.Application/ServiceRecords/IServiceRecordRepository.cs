@@ -17,7 +17,8 @@ public interface IServiceRecordRepository
     /// </summary>
     Task<bool> TransitionAsync(
         Guid id, Action<ServiceRecord> apply,
-        VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs, CancellationToken ct = default);
+        VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs,
+        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default);
 
     /// <summary>İşçilik/parça kalemi ekler ve ToplamIscilik'i yeniden hesaplar (kapanmamış serviste).</summary>
     Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default);

@@ -135,8 +135,29 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             : decimal.Round(maliyetModel.BasaBasAylik / 30.44m, 2, MidpointRounding.AwayFromZero);
         // FAZ 2.4: kalıntı projeksiyonu (azalan bakiye; salt-hesap, deftere yazmaz).
         var kalinti = KalintiProjeksiyon.Hesapla(v.AlimBedeli, v.IkinciElDeger, v.AlimTarihi, DateTimeOffset.UtcNow);
+
+        // FAZ 2.5: dönemsel km — km-log serisinden pencere farkı. BİLGİ satırı: KPI km-maliyeti
+        // ömür-boyu tanımını KORUR (karışık-payda yasak). Tanım: pencere-içi SON log −
+        // (pencere-öncesi SON log ?? pencere-içi İLK log); maliyet = dönem P&L gideri ÷ dönem km.
+        int? donemKm = null; decimal? donemKmMaliyet = null;
+        if (raw.KmLoglari is { Count: > 0 } loglar)
+        {
+            var bitSiniri = to ?? DateTimeOffset.UtcNow;
+            var pencereIci = loglar.Where(k => k.Tarih <= bitSiniri && (from is null || k.Tarih >= from)).ToList();
+            if (pencereIci.Count > 0)
+            {
+                var taban = from is { } f
+                    ? loglar.Where(k => k.Tarih < f).Select(k => (int?)k.Km).LastOrDefault() ?? pencereIci[0].Km
+                    : pencereIci[0].Km;
+                donemKm = Math.Max(0, pencereIci[^1].Km - taban);
+                if (donemKm > 0 && toplamGider > 0m)
+                    donemKmMaliyet = decimal.Round(toplamGider / donemKm.Value, 2, MidpointRounding.AwayFromZero);
+            }
+        }
+
         return new AracKarneDto(header, toplamGelir, toplamGider, netKar,
-            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat, basaBasGunluk, kalinti);
+            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat, basaBasGunluk, kalinti,
+            donemKm, donemKmMaliyet);
     }
 
     /// <summary>
