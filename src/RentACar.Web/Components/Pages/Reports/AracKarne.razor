@@ -144,6 +144,16 @@ else
             <span>Toplam Maliyet: <strong>@m.ToplamMaliyet.ToString("N2")</strong></span>
             <span>Başabaş (aylık): <strong>@m.BasaBasAylik.ToString("N2")</strong></span>
         </div>
+        @* FAZ 2.3: başabaş günlük (model) vs gerçekleşen ADR — fiyat yeterliliği bir bakışta. *@
+        <div class="kv-inline">
+            <span>Başabaş günlük (model, aylık ÷ 30,44): <strong>@(_d.BasaBasGunluk?.ToString("N2") ?? "—")</strong></span>
+            <span>Gerçekleşen ADR: <strong>@(_d.Kpi.Adr?.ToString("N2") ?? "—")</strong></span>
+            @if (_d.BasaBasGunluk is { } bb && _d.Kpi.Adr is { } adr)
+            {
+                <span class="@(adr >= bb ? "" : "error")">@(adr >= bb ? "ADR başabaşın üzerinde" : "ADR başabaşın ALTINDA")</span>
+            }
+            <span class="muted small">Model varsayımlı (ömür-boyu holding) — kesin maliyet değildir.</span>
+        </div>
     }
 
     @* FAZ 2.2: Tut/Sat (defleet) sinyali *@
