@@ -22,6 +22,28 @@ public static class DepozitoEndpoints
         grp.MapPost("/mahsup", async (DepozitoService svc, HttpRequest req) =>
             await Run(req, (cari, tutar, _, doviz, kur, anahtar) => svc.MahsupAsync(cari, tutar, doviz, kur, null, anahtar)));
 
+        // İRAT (FAZ 1.2): iade edilmeyen depozito GELİR olur; rentalId verilirse araca atfedilir.
+        grp.MapPost("/irat", async (DepozitoService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
+            var cari = FormParse.Id(S("cariId")) ?? Guid.Empty;
+            var tutar = FormParse.Dec(S("tutar")) ?? 0m;
+            var doviz = S("doviz") ?? "TRY";
+            var kur = FormParse.Dec(S("kur")); // boş → otomatik (1.1)
+            var rentalId = FormParse.Id(S("rentalId"));
+            var anahtar = FormParse.Id(S("islemAnahtari"));
+            var aciklama = S("aciklama");
+            var donus = S("donus");
+            try
+            {
+                await svc.IratAsync(cari, tutar, doviz, kur, rentalId, null, anahtar, aciklama);
+                return Results.Redirect(FinanceEndpoints.SafeDonus(donus, "/depozito?ok=1"));
+            }
+            catch (ValidationException ex)
+            { return Results.Redirect($"{FinanceEndpoints.SafeDonus(donus, "/depozito")}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 

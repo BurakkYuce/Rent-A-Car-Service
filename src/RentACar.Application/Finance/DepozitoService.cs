@@ -45,6 +45,43 @@ public sealed class DepozitoService(
         => PostAsync(cariId, tutar, LedgerAccountType.Cari, doviz, kur, tarih, islemAnahtari, "DepozitoMahsup", "Depozito mahsup",
             borc: LedgerAccountType.Depozito, borcRef: cariId, alacak: LedgerAccountType.Cari, alacakRef: cariId, kontrolEt: true, ct);
 
+    /// <summary>Depozito İRAT (FAZ 1.2): iade edilmeyen depozito GELİR olur — Borç Depozito(cari) /
+    /// Alacak Gelir. Tutulan depozitoyu aşamaz (mevcut bakiye guard'ı). rentalId verilirse gelir o
+    /// kiranın aracına atfedilir (karne/Karlilik); kira carisi eşleşmezse repo çiti reddeder.
+    /// Çift-submit sessiz idempotent (Depozito% kısmi unique index — I3 sözleşmesi).</summary>
+    public async Task<Guid> IratAsync(Guid cariId, decimal tutar, string? doviz = "TRY",
+        decimal? kur = null, Guid? rentalId = null, DateTimeOffset? tarih = null,
+        Guid? islemAnahtari = null, string? aciklama = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
+        if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.");
+
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, tarih, ct); // 1.1 sözleşmesi
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
+        // Bakiye kontrolü repo tx'inde, kilidin arkasında (TOCTOU çiti — tek otorite).
+
+        var entryDate = tarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(entryDate, ct); // dönem kilidi
+
+        var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
+        var desc = string.IsNullOrWhiteSpace(aciklama) ? "Depozito irat (gelir)" : aciklama.Trim();
+        var kayit = new DepozitoIrat
+        {
+            Id = sourceId, CariId = cariId, RentalId = rentalId,
+            Tutar = tutar, Currency = money.Currency, Kur = cozulenKur,
+            Tarih = entryDate, Aciklama = desc
+        };
+        await _repository.PostDepozitoIslemAsync(cariId, kontrolEt: true, kayit,
+        [
+            new AccountLedgerEntry { EntryDateUtc = entryDate, AccountType = LedgerAccountType.Depozito, AccountRef = cariId,
+                Direction = LedgerDirection.Debit, Amount = money, SourceType = "DepozitoIrat", SourceId = sourceId, Description = desc },
+            new AccountLedgerEntry { EntryDateUtc = entryDate, AccountType = LedgerAccountType.Gelir, AccountRef = null,
+                Direction = LedgerDirection.Credit, Amount = money, SourceType = "DepozitoIrat", SourceId = sourceId, Description = desc }
+        ], ct);
+        return sourceId;
+    }
+
     private async Task<Guid> PostAsync(
         Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz, decimal? kur,
         DateTimeOffset? tarih, Guid? islemAnahtari, string sourceType, string aciklama,
@@ -58,19 +95,14 @@ public sealed class DepozitoService(
         // Kur çözümü (1.1): açık kur (>0) aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, tarih, ct);
         var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
-
-        if (kontrolEt)
-        {
-            var tutulan = await _repository.GetDepozitoBakiyeAsync(cariId, ct);
-            if (money.AmountInBase > tutulan)
-                throw new ValidationException($"İşlem tutarı ({money.AmountInBase}) tutulan depozitoyu ({tutulan}) aşamaz.");
-        }
+        // Bakiye kontrolü repo tx'inde, kilidin arkasında (TOCTOU çiti — adversarial 1.2:
+        // eşzamanlı iki iade/irat pre-check'i birlikte geçip tutulanı aşabiliyordu).
 
         var entryDate = tarih ?? DateTimeOffset.UtcNow;
         await _lock.EnsureOpenAsync(entryDate, ct); // dönem kilidi: kapalı tarihe depozito işlemi YOK
 
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
-        await _ledger.PostAsync(
+        await _repository.PostDepozitoIslemAsync(cariId, kontrolEt, izKaydi: null,
         [
             new AccountLedgerEntry { EntryDateUtc = entryDate, AccountType = borc, AccountRef = borcRef,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = sourceType, SourceId = sourceId, Description = aciklama },
