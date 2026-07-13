@@ -9,5 +9,7 @@ public enum ExpenseType
     Sigorta = 3,
     Mtv = 4,
     Muayene = 5,
-    Diger = 6
+    Diger = 6,
+    /// <summary>Kredi taksiti/faiz — araç finansman gideri (FAZ 1.3; TaksitOdeAsync postlar).</summary>
+    Finansman = 7
 }
