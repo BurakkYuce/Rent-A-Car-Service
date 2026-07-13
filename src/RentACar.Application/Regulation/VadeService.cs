@@ -28,4 +28,17 @@ public sealed class VadeService(IRegulationRepository repository)
     /// <summary>Yalnız uyarı gerektirenler (geçmiş / ≤30 gün).</summary>
     public async Task<IReadOnlyList<VadeItem>> GetWarningsAsync(DateTimeOffset? now = null, CancellationToken ct = default)
         => (await GetAllAsync(now, ct)).Where(i => i.Bucket != VadeBucket.Ileri).ToList();
+
+    /// <summary>FAZ 2.1: tek aracın vade kalemleri (karne "Yaklaşan Vadeler" bloğu). Union'a
+    /// dokunulmaz (bildirim üreticiyle paylaşımlı — O12a); saf filtre.</summary>
+    public async Task<IReadOnlyList<VadeItem>> GetForVehicleAsync(
+        Guid vehicleId, DateTimeOffset? now = null, CancellationToken ct = default)
+        => (await GetAllAsync(now, ct)).Where(i => i.VehicleId == vehicleId).ToList();
+
+    /// <summary>FAZ 2.1: araç-başına UYARI sayısı (geçmiş + ≤30 gün) — filo panosu "Vade" kolonu.</summary>
+    public async Task<IReadOnlyDictionary<Guid, int>> GetWarningCountsByVehicleAsync(
+        DateTimeOffset? now = null, CancellationToken ct = default)
+        => (await GetWarningsAsync(now, ct))
+            .GroupBy(i => i.VehicleId)
+            .ToDictionary(g => g.Key, g => g.Count());
 }
