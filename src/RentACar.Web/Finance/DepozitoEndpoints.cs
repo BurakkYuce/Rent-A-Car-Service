@@ -26,7 +26,7 @@ public static class DepozitoEndpoints
     }
 
     private static async Task<IResult> Run(HttpRequest req,
-        Func<Guid, decimal, LedgerAccountType, string?, decimal, Guid?, Task<Guid>> action)
+        Func<Guid, decimal, LedgerAccountType, string?, decimal?, Guid?, Task<Guid>> action)
     {
         var f = req.Form;
         string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
@@ -34,7 +34,7 @@ public static class DepozitoEndpoints
         var tutar = FormParse.Dec(S("tutar")) ?? 0m;
         var hesap = string.Equals(S("hesap"), "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
         var doviz = S("doviz") ?? "TRY";
-        var kur = FormParse.Dec(S("kur")) ?? 1m;
+        var kur = FormParse.Dec(S("kur")); // boş → otomatik kur çözümü (1.1)
         var anahtar = FormParse.Id(S("islemAnahtari"));
         var donus = S("donus"); // kira formu gibi çağıran ekrana geri dönüş (SafeDonus: yalnız yerel yol)
         try { await action(cari, tutar, hesap, doviz, kur, anahtar); return Results.Redirect(FinanceEndpoints.SafeDonus(donus, "/depozito?ok=1")); }
