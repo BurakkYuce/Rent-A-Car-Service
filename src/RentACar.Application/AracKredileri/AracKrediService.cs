@@ -10,10 +10,13 @@ namespace RentACar.Application.AracKredileri;
 /// Araç kredisi iş mantığı (roadmap L4): kredi oluştur/listele + taksit öde (kalan bakiye) + durum.
 /// Banka entegrasyonu YOK, DEFTER POSTLAMAZ → salt kayıt/hesap; yazma OperationsWrite.
 /// </summary>
-public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUser currentUser)
+public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUser currentUser,
+    RentACar.Application.Periods.IPeriodLockGuard periodLock, RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly IAracKrediRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly RentACar.Application.Periods.IPeriodLockGuard _lock = periodLock;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<AracKredi>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -48,10 +51,59 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         return row.Id;
     }
 
-    public Task<bool> TaksitOdeAsync(Guid id, CancellationToken ct = default)
+    /// <summary>Taksit öde (FAZ 1.3): artık GERÇEK GİDER postlar — Expense(Tip=Finansman,
+    /// VehicleId=kredinin aracı) + Borç Gider / Alacak Kasa-Banka, sayaçla AYNI transaction'da.
+    /// Bu yüzden yetki OperationsWrite→FinanceWrite'a yükseldi (davranış değişikliği). Kur: ödeme
+    /// günü 1.1 sözleşmesi (TRY=1; döviz sabit-kur/TCMB, yoksa red). Mevcut kredilerin GEÇMİŞ
+    /// ödenmiş taksitleri retro postlanmaz. Çift-submit: islemAnahtari + Expense kısmi unique index.</summary>
+    public async Task<bool> TaksitOdeAsync(Guid id, LedgerAccountType hesap = LedgerAccountType.Kasa,
+        DateTimeOffset? odemeTarih = null, Guid? islemAnahtari = null, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.TaksitOdeAsync(id, ct);
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite); // defter yazar
+        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+            throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
+
+        var kredi = await _repository.FindAsync(id, ct);
+        if (kredi is null) return false;
+        if (kredi.Durum == KrediDurum.Iptal) throw new ValidationException("İptal kredinin taksiti ödenemez.");
+
+        TarihPolitikasi.ParaTarihi(odemeTarih, "Taksit"); // gelecek tarih reddi (para-yolu simetrisi — L2)
+        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
+        var kur = await _kurCozucu.CozAsync(kredi.Currency, null, tarih, ct); // 1.1 sözleşmesi
+        var ozet = Hesapla(kredi);
+        var anahtar = islemAnahtari is { } a && a != Guid.Empty ? a : (Guid?)null;
+
+        return await _repository.TaksitOdeAsync(id, sira =>
+        {
+            // Kalan-yöntemi (adversarial 1.3 L1): SON taksit = toplam − (n−1)×aylık → Σ taksit
+            // kuruş-birebir toplam geri ödemeye eşit (yuvarlama kayması deftere sızmaz).
+            var taksit = sira == kredi.TaksitSayisi
+                ? Math.Round(ozet.ToplamGeriOdeme - ozet.AylikTaksit * (kredi.TaksitSayisi - 1), 2, MidpointRounding.AwayFromZero)
+                : ozet.AylikTaksit;
+            var money = new Money(taksit, kredi.Currency, kur);
+            var desc = $"Kredi taksiti {kredi.No} #{sira}/{kredi.TaksitSayisi} ({kredi.BankaAdi})";
+            var expense = new Expense
+            {
+                Tip = ExpenseType.Finansman,
+                Tarih = tarih,
+                VehicleId = kredi.VehicleId,
+                NetTutar = taksit, KdvOrani = 0m, KdvTutar = 0m, GenelToplam = taksit, // sira-bazlı (kalan-yöntemi)
+                Currency = kredi.Currency, Kur = kur,
+                OdemeYontemi = hesap == LedgerAccountType.Banka ? OdemeYontemi.Banka : OdemeYontemi.Nakit,
+                KasaBankaHesap = hesap,
+                Aciklama = desc,
+                IslemAnahtari = anahtar
+            };
+            IReadOnlyList<AccountLedgerEntry> entries =
+            [
+                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = kredi.VehicleId,
+                    Direction = LedgerDirection.Debit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc },
+                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                    Direction = LedgerDirection.Credit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc }
+            ];
+            return (expense, entries);
+        }, ct);
     }
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
@@ -68,12 +120,18 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         var toplamGeriOdeme = k.KrediTutari + toplamFaiz;
         var aylikTaksit = R(toplamGeriOdeme / k.TaksitSayisi);
 
+        // Kalan-yöntemi (L1): son taksit farkı emer → Σ taksit == toplam geri ödeme kuruş-birebir
+        // (kapanmış kredide "0,01 kalan" hayaleti ve deftere fazla/eksik yazım biter).
+        var sonTaksit = R(toplamGeriOdeme - aylikTaksit * (k.TaksitSayisi - 1));
         var taksitler = new List<AracKrediTaksit>(k.TaksitSayisi);
         for (var i = 0; i < k.TaksitSayisi; i++)
-            taksitler.Add(new AracKrediTaksit(i + 1, k.BaslangicTarihi.AddMonths(i), aylikTaksit, i < k.OdenenTaksit));
+            taksitler.Add(new AracKrediTaksit(i + 1, k.BaslangicTarihi.AddMonths(i),
+                i == k.TaksitSayisi - 1 ? sonTaksit : aylikTaksit, i < k.OdenenTaksit));
 
         var odenenAdet = Math.Clamp(k.OdenenTaksit, 0, k.TaksitSayisi);
-        var odenenTutar = R(odenenAdet * aylikTaksit);
+        var odenenTutar = odenenAdet >= k.TaksitSayisi
+            ? toplamGeriOdeme
+            : R(odenenAdet * aylikTaksit);
         var kalanBakiye = Math.Max(0m, toplamGeriOdeme - odenenTutar);
 
         return new AracKrediOzet(toplamFaiz, toplamGeriOdeme, aylikTaksit, odenenTutar, kalanBakiye, taksitler);

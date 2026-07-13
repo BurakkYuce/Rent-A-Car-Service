@@ -33,7 +33,14 @@ public static class AracKrediEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/arac-kredi?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/taksit-ode", async (AracKrediService svc, [FromForm] Guid id) => await Durum(() => svc.TaksitOdeAsync(id)));
+        // Adversarial 1.3 M2: taksit artık DEFTER yazar → FinanceWrite grubu (Muhasebe erişir;
+        // grubun geri kalanı — create/iptal — OperationsWrite kalır).
+        var fin = app.MapGroup("/arac-kredi").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
+        fin.MapPost("/taksit-ode", async (AracKrediService svc, [FromForm] Guid id,
+            [FromForm] string? hesap, [FromForm] string? islemAnahtari) =>
+            await Durum(() => svc.TaksitOdeAsync(id,
+                string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? Domain.Enums.LedgerAccountType.Banka : Domain.Enums.LedgerAccountType.Kasa,
+                null, FormParse.Id(islemAnahtari))));
         grp.MapPost("/iptal", async (AracKrediService svc, [FromForm] Guid id) => await Durum(() => svc.IptalAsync(id)));
 
         return app;

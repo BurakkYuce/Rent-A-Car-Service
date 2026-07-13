@@ -545,6 +545,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 ExpenseType.Sigorta => "Sigorta",
                 ExpenseType.Mtv => "MTV",
                 ExpenseType.Muayene => "Muayene",
+                ExpenseType.Finansman => "Finansman",
                 _ => "Diğer"
             } : "Diğer",
             _ => sourceType
@@ -629,6 +630,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
         // ---- OLAYLAR ("neyi ne zaman") — kaynak varlıktan, BİLGİ amaçlı (tutar brüt/native; P&L'e toplanmaz).
         var mtvler = await db.MtvRecords.AsNoTracking().Where(m => m.VehicleId == vehicleId).ToListAsync(ct);
+        var krediler = await db.AracKredileri.AsNoTracking().Where(k => k.VehicleId == vehicleId).ToListAsync(ct);
         var muayeneler = await db.InspectionRecords.AsNoTracking().Where(i => i.VehicleId == vehicleId).ToListAsync(ct);
 
         var olaylar = new List<AracOlayRow>();
@@ -648,6 +650,10 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 $"{s.No} — km {s.GirisKm}→{(s.CikisKm?.ToString() ?? "-")} ({s.Durum})"
                 + (s.Yansitildi ? $" — rücu {s.YansitilanTutar:N2}" : ""),
                 s.ToplamIscilik, false)); // servis maliyeti deftere yazılmaz (mali belge değil)
+        foreach (var kr in krediler)
+            olaylar.Add(new AracOlayRow(kr.BaslangicTarihi, "Kredi",
+                $"{kr.No} ({kr.BankaAdi}) — {kr.OdenenTaksit}/{kr.TaksitSayisi} taksit ({kr.Durum})",
+                kr.KrediTutari, false)); // anapara defter dışı; taksit ÖDEMELERİ Gider(Finansman) olarak düşer
         foreach (var d in iratlar)
             olaylar.Add(new AracOlayRow(d.Tarih, "Depozito İradı",
                 d.Aciklama ?? "İade edilmeyen depozito gelir yazıldı", d.Tutar, true));
