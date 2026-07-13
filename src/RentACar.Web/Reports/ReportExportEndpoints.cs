@@ -49,9 +49,14 @@ public static class ReportExportEndpoints
                 "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
                 "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
                 "tahsilat-fatura" => TahsilatFatura(await rs.GetTahsilatFaturaAsync(from, to)),
+                // Araç karnesi (vehicleId zorunlu; bulunamayan/başka-tenant araç → null → 404) + filo analiz.
+                "arac-karne" => ToTable(KarneExportKatalog.AracKarne(await rs.GetAracKarneAsync(
+                    Guid.TryParse(req.Query["vehicleId"].ToString(), out var vid) ? vid : Guid.Empty, from, to))),
+                "filo-analiz" => ToTable(KarneExportKatalog.FiloAnaliz(await rs.GetFiloAnalizAsync(
+                    from, to, NullIfEmpty(req.Query["siralama"].ToString())))),
                 _ => null
             };
-            if (t is null) return Results.NotFound($"Bilinmeyen rapor: {rapor}");
+            if (t is null) return Results.NotFound($"Bilinmeyen rapor veya kayıt: {rapor}");
 
             // ?format=excel(default)|csv|pdf — PDF, liste export'larıyla AYNI generic tablo renderer'ı.
             var fmt = req.Query["format"].ToString().Trim().ToLowerInvariant();
@@ -68,6 +73,9 @@ public static class ReportExportEndpoints
     }
 
     private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    /// <summary>Test-edilebilir katalog (KarneExportKatalog) çıktısını yerel Table'a çevirir.</summary>
+    private static Table? ToTable(ExportTable? e) => e is null ? null : new(e.Sheet, e.Headers, e.Rows);
 
     private static Table KV(string sheet, params (string K, object? V)[] kv)
         => new(sheet, new[] { "Metrik", "Değer" }, kv.Select(x => new object?[] { x.K, x.V }).ToList());
