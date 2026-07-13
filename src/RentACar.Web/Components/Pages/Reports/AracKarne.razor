@@ -146,6 +146,20 @@ else
         </div>
     }
 
+    @* FAZ 2.2: Tut/Sat (defleet) sinyali *@
+    @if (_d.TutSat.Sinyal > 0)
+    {
+        <div class="cards">
+            <div class="card" style="border-color:#d97706;">
+                <div class="card-num">Tut/Sat: @_d.TutSat.Sinyal sinyal</div>
+                <div class="card-label">
+                    @foreach (var g in _d.TutSat.Gerekceler) { <div>@g</div> }
+                    <div class="muted small">Şeffaf eşik kuralları — yatırım tavsiyesi değildir.</div>
+                </div>
+            </div>
+        </div>
+    }
+
     @* FAZ 2.1: Yaklaşan vadeler (sigorta/kasko/MTV/muayene) + bakım-km *@
     <h2>Yaklaşan Vadeler</h2>
     <table class="grid tr-grid">

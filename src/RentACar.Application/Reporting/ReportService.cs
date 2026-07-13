@@ -12,9 +12,10 @@ namespace RentACar.Application.Reporting;
 /// Semantik: Kasa/Banka bakiye = Σ (Borç +base, Alacak −base). Gelir = Σ Alacak(Gelir),
 /// Gider = Σ Borç(Gider), KDV tahsil = Σ Alacak(Kdv), KDV indirilecek = Σ Borç(Kdv).
 /// </summary>
-public sealed class ReportService(IReportRepository repository)
+public sealed class ReportService(IReportRepository repository, TutSatEsikleri tutSatEsikleri)
 {
     private readonly IReportRepository _repository = repository;
+    private readonly TutSatEsikleri _tutSat = tutSatEsikleri;
 
     /// <summary>
     /// Araç-bazlı kârlılık raporu (roadmap B2): defterden türetilen Gelir/Gider satırları (repo'da
@@ -127,8 +128,9 @@ public sealed class ReportService(IReportRepository repository)
             });
         }
 
+        var tutSat = TutSatHesap.Hesapla(raw.TutSatHam, v.IkinciElDeger, raw.GrupOrtDegerOrani, _tutSat);
         return new AracKarneDto(header, toplamGelir, toplamGider, netKar,
-            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel);
+            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat);
     }
 
     /// <summary>
@@ -255,10 +257,30 @@ public sealed class ReportService(IReportRepository repository)
             if (km > 0 && om is not null)
                 kmMaliyet = decimal.Round(om.Gider / km, 2, MidpointRounding.AwayFromZero);
 
+            // FAZ 2.2: tut/sat sinyali — grup ortalaması aşağıda TÜM satırlar kurulduktan sonra
+            // hesaplanacağından burada ham+İkinciEl saklanır; sinyal ikinci geçişte eklenir.
             rows.Add(new FiloAnalizRow(a.Id, a.Plaka, a.Grup, a.Segment, a.Sube,
                 p?.Gelir ?? 0m, p?.Gider ?? 0m, p?.NetKar ?? 0m,
                 doluluk, roi, kmMaliyet, sahiplik, kiralanan, yasAy));
         }
+
+        // FAZ 2.2 ikinci geçiş: grup-ortalama gider/değer oranı (İkinciEl>0 araçlar) → satır sinyalleri.
+        var tutSatByVeh = raw.TutSatHam.ToDictionary(x => x.VehicleId);
+        var ikinciElByVeh = raw.Araclar.ToDictionary(a => a.Id, a => a.IkinciElDeger);
+        var grupOrtalamalari = raw.Araclar
+            .Where(a => a.IkinciElDeger is > 0m && !string.IsNullOrWhiteSpace(a.Grup))
+            .GroupBy(a => a.Grup!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key,
+                g => g.Average(a => tutSatByVeh.GetValueOrDefault(a.Id, new FiloTutSatRow(a.Id, 0m, 0m, 0, 0)).Gider12 / a.IkinciElDeger!.Value),
+                StringComparer.OrdinalIgnoreCase);
+        rows = rows.Select(r =>
+        {
+            var ham = tutSatByVeh.GetValueOrDefault(r.VehicleId, new FiloTutSatRow(r.VehicleId, 0m, 0m, 0, 0));
+            decimal? grupOrt = !string.IsNullOrWhiteSpace(r.Grup)
+                && grupOrtalamalari.TryGetValue(r.Grup!.Trim(), out var go) ? go : null;
+            var sinyal = TutSatHesap.Hesapla(ham, ikinciElByVeh.GetValueOrDefault(r.VehicleId), grupOrt, _tutSat);
+            return r with { TutSatSinyal = sinyal.Sinyal };
+        }).ToList();
         // Silinmiş aracın defter kalıntısı: satır olarak korunur (Σ satır + Atanmamış = defter mutabakatı),
         // KPI'sız; kohorta girmez, karne linki çizilmez ("(bilinmeyen araç)").
         foreach (var p in raw.KarlilikPencere.Where(x => x.VehicleId is Guid vid && !aracById.ContainsKey(vid)))
@@ -270,6 +292,7 @@ public sealed class ReportService(IReportRepository repository)
             "zarar" => [.. rows.OrderBy(x => x.NetKar).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
             "doluluk" => [.. rows.OrderByDescending(x => x.DolulukYuzde ?? -1m).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
             "roi" => [.. rows.OrderByDescending(x => x.RoiYuzde ?? decimal.MinValue).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
+            "tutsat" => [.. rows.OrderByDescending(x => x.TutSatSinyal).ThenBy(x => x.NetKar).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
             _ => [.. rows.OrderByDescending(x => x.NetKar).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)]
         };
 
