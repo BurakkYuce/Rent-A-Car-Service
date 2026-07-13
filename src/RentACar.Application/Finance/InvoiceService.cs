@@ -55,10 +55,11 @@ public sealed class InvoiceService(
         // yeniden ayrıştırır → niyet korunur).
         var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
                   || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
-        if (kdvRate is { } overrideOran && overrideOran != KdvMath.VarsayilanOran && netMod)
+        // FAZ 1.4 oran zinciri: parametre ?? kira-seviyesi özel oran ?? varsayılan. Net-mod guard'ı
+        // ZİNCİR SONUCUNA bakar (kiradan gelen özel oran da net-modda matrahı saptıramaz).
+        var rate = kdvRate ?? rental.OzelKdvOran ?? DefaultKdvRate;
+        if (rate != KdvMath.VarsayilanOran && netMod)
             throw new ValidationException("Net fiyat modlu kirada KDV oranı değiştirilemez (fiyat %20 net üstünden hesaplandı).");
-
-        var rate = kdvRate ?? DefaultKdvRate;
 
         // Ek hizmet kalemleri: her biri KENDİ KDV oranını korur (farklı oranlar karışmaz).
         var addOns = await addOnRepository.ListForRentalAsync(rental.Id, ct);
@@ -88,10 +89,17 @@ public sealed class InvoiceService(
             // defteri sözleşmeyle hizalar. Sıra = fark sayısı + 1 (idempotency doğal anahtarı; V6 fark-iadesi).
             var (faturalanan, farkSayisi) = await repository.GetFarkStateAsync(rental.Id, ct);
             var fark = KdvMath.RoundGross(guncelBrut - faturalanan);
+            // NOT (adversarial 1.4 Low): kira-seviyesi damga FARK'a KOPYALANMAZ — damga sözleşme-başı tek
+            // puldur; base faturada uygulanır. Operatör parametreyle açıkça verirse aynen geçer.
             if (fark <= 0m)
                 throw new ValidationException("Kira zaten tam faturalanmış (yeni ek bedel yok).");
             return await PostFarkFaturasiAsync(rental, fark, farkSayisi + 1, rate, vergi, ct);
         }
+
+        // FAZ 1.4 damga varsayılanı (YALNIZ base fatura — sözleşme-başı tek pul; fark'ta tekrarlanmaz):
+        // parametrede damga yoksa kiradaki kullanılır (bilgi kolonu; boş alan=kiradaki, açık 0=damgasız).
+        if (rental.DamgaVergisi is { } kiraDamga && (vergi is null || vergi.DamgaVergisi is null))
+            vergi = (vergi ?? new InvoiceTaxInfo(null, null, null, null, false, false)) with { DamgaVergisi = kiraDamga };
 
         var (baseNet, baseKdv) = KdvMath.FromGross(baseGross, rate);
 

@@ -136,7 +136,7 @@
                             <label>ÖTV<input name="otv" type="number" step="0.01" min="0" /></label>
                             <label>Tevkifat Oran %<input name="tevkifatOran" type="number" step="0.01" min="0" max="100" /></label>
                             <label>Tevkifat Tutar<input name="tevkifatTutar" type="number" step="0.01" min="0" /></label>
-                            <label>Damga Vergisi<input name="damgaVergisi" type="number" step="0.01" min="0" /></label>
+                            <label>Damga Vergisi<input name="damgaVergisi" value="@Vm.D(c => c.DamgaVergisi)" title="Boş = kiradaki damga; 0 = bu faturada damgasız" type="number" step="0.01" min="0" /></label>
                             <label>İade Faturası<select name="iadeMi"><option value="false">Hayır</option><option value="true">Evet</option></select></label>
                             <label>Manuel Fatura<select name="manuelMi"><option value="false">Hayır</option><option value="true">Evet</option></select></label>
                         </div>
