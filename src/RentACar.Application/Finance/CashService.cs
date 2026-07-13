@@ -19,13 +19,14 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class CashService(
     ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    ICustomerRepository customers)
+    ICustomerRepository customers, RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly ICashRepository _repository = repository;
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly ICustomerRepository _customers = customers;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -52,11 +53,12 @@ public sealed class CashService(
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (input.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (input.Tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
-        if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
         TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         EnsureKasaBanka(input.Hesap);
 
-        var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);
+        // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
+        var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
+        var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
         var tx = new CashTransaction
         {
             Tip = tip,
@@ -100,16 +102,31 @@ public sealed class CashService(
         var closing = await _lock.GetClosingDateAsync(ct);
 
         // TÜM satırlar önce doğrulanır (fail-fast) → repo'ya yalnız geçerli set gider; atomiklik repo'da.
+        var kurCache = new Dictionary<(string, DateTime?), decimal>();
         var postings = new List<CashPosting>(satirlar.Count);
         for (var i = 0; i < satirlar.Count; i++)
         {
             var input = satirlar[i];
             if (input.CariId == Guid.Empty) throw new ValidationException($"Satır {i + 1}: cari seçilmelidir.");
             if (input.Tutar <= 0) throw new ValidationException($"Satır {i + 1}: tutar pozitif olmalıdır.");
-            if (input.Kur <= 0) throw new ValidationException($"Satır {i + 1}: kur pozitif olmalıdır.");
             EnsureKasaBanka(input.Hesap);
 
-            var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), input.Kur);
+            // Kur çözümü (1.1b) — açık kur satır-bazlı ÖNCE (satır-önekli guard); otomatik çözüm
+            // (kod, gün) önbelleğiyle (500 satırda tek lookup).
+            decimal cozulenKur;
+            if (input.Kur is { } acik)
+            {
+                if (acik <= 0m) throw new ValidationException($"Satır {i + 1}: kur pozitif olmalıdır.");
+                cozulenKur = acik;
+            }
+            else
+            {
+                var kurKey = (RentACar.Application.Kur.KurService.NormalizeKod(input.Doviz), input.Tarih?.UtcDateTime.Date);
+                if (!kurCache.TryGetValue(kurKey, out cozulenKur))
+                    kurCache[kurKey] = cozulenKur = await _kurCozucu.CozAsync(input.Doviz, null, input.Tarih, ct);
+            }
+
+            var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
             var tx = new CashTransaction
             {
                 Tip = tip,
@@ -142,7 +159,7 @@ public sealed class CashService(
     /// <summary>Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).</summary>
     public async Task TransferAsync(
         LedgerAccountType kaynak, LedgerAccountType hedef, decimal tutar,
-        string? doviz = "TRY", decimal kur = 1m, string? aciklama = null,
+        string? doviz = "TRY", decimal? kur = null, string? aciklama = null,
         Guid? islemAnahtari = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
@@ -150,10 +167,10 @@ public sealed class CashService(
         EnsureKasaBanka(hedef);
         if (kaynak == hedef) throw new ValidationException("Kaynak ve hedef hesap farklı olmalıdır.");
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
-        if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
-        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, null, ct); // 1.1b: bugünkü kur
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
         // İdempotency (pre-launch takip): token verilirse SourceId o olur → kısmi unique index çift-submit'i yutar.
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? $"Virman {kaynak}→{hedef}";
@@ -177,10 +194,12 @@ public sealed class CashService(
     /// çift tıklama tek virman). Verilmezse her çağrı AYRI virmandır (Guid.NewGuid).
     /// DÜZELTME: ledger-only (CashTransaction/storno yok) → düzeltme, AYNI KUR ile ters yön virmandır
     /// (kaynak↔hedef değiş); FARKLI kurda baz para kalıntısı kalır (bakiye baz-para'da tutulur).
+    /// DİKKAT (1.1b): kur BOŞ bırakılırsa GÜNÜN kuru çözülür — ertesi gün ters kayıtta kalıntı
+    /// oluşmaması için düzeltmede ORİJİNAL kuru AÇIKÇA girin.
     /// </summary>
     public async Task TransferBetweenCariAsync(
         Guid kaynakCariId, Guid hedefCariId, decimal tutar,
-        string? doviz = "TRY", decimal kur = 1m, string? aciklama = null,
+        string? doviz = "TRY", decimal? kur = null, string? aciklama = null,
         Guid? islemAnahtari = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
@@ -189,7 +208,6 @@ public sealed class CashService(
         if (kaynakCariId == hedefCariId)
             throw new ValidationException("Kaynak ve hedef cari farklı olmalıdır.");
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
-        if (kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (cari virman bugün tarihli)
         // L2: her iki cari tenant içinde GERÇEKTEN var olmalı (FindAsync RLS+query-filter → yoksa null).
@@ -198,7 +216,8 @@ public sealed class CashService(
             throw new ValidationException("Kaynak cari bulunamadı.");
         if (await _customers.FindAsync(hedefCariId, ct) is null)
             throw new ValidationException("Hedef cari bulunamadı.");
-        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), kur);
+        var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, null, ct); // 1.1b
+        var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? "Cari virman";
         await _ledger.PostAsync(

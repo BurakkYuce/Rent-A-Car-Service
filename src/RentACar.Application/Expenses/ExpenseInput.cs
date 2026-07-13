@@ -14,7 +14,8 @@ public sealed class ExpenseInput
     public decimal NetTutar { get; set; }
     public decimal KdvOrani { get; set; } = 0.20m;
     public string Doviz { get; set; } = "TRY";
-    public decimal Kur { get; set; } = 1m;
+    /// <summary>Boş → otomatik çözüm (TRY=1; döviz KurService). Açık değer aynen kullanılır (1.1b).</summary>
+    public decimal? Kur { get; set; }
     public OdemeYontemi OdemeYontemi { get; set; } = OdemeYontemi.Nakit;
     public LedgerAccountType KasaBankaHesap { get; set; } = LedgerAccountType.Kasa;
     public string? Aciklama { get; set; }
