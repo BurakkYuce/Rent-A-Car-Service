@@ -195,7 +195,11 @@ public sealed record AracKarneRawDto(
     IReadOnlyList<AracServisGunRow> ServisAraliklari,
     int KiraSayisi, int ToplamKatedilenKm, DateTimeOffset? SonSatisTarih,
     decimal OmurGelir, decimal OmurGider,
-    FiloTutSatRow TutSatHam, decimal? GrupOrtDegerOrani);
+    FiloTutSatRow TutSatHam, decimal? GrupOrtDegerOrani,
+    IReadOnlyList<AracKmLogRow>? KmLoglari = null);
+
+/// <summary>Km zaman-serisi ham satırı (FAZ 2.5) — Tarih artan sıralı gelir (dönem-km farkı için).</summary>
+public sealed record AracKmLogRow(DateTimeOffset Tarih, int Km);
 
 /// <summary>Kurumsal araç KPI bloğu — SAHİPLİK PENCERESİ (ömür boyu) metrikleri; sayfadaki dönem
 /// filtresinden bağımsız. Pencere: W_bas = FiloGirisTarih ?? AlimTarihi; W_bit = FiloCikisTarih ??
@@ -226,7 +230,9 @@ public sealed record AracKarneDto(
     MaliyetHesapSonuc? MaliyetModel,
     TutSatSinyalDto TutSat,
     decimal? BasaBasGunluk = null,
-    KalintiProjeksiyonDto? Kalinti = null);
+    KalintiProjeksiyonDto? Kalinti = null,
+    int? DonemKm = null,
+    decimal? DonemKmMaliyet = null);
 
 /// <summary>Kalıntı projeksiyonu (FAZ 2.4): 2-hane yuvarlak yıllık oran (gösterilen == kullanılan),
 /// OranGozlenen=false → şeffaf varsayılan 0.85 (yaş&lt;1 / alım verisi yok); 12/24 ay sonu tahmin.</summary>

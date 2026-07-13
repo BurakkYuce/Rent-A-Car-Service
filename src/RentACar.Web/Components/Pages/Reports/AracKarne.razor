@@ -86,6 +86,15 @@ else
         <span>Gerçekleşen Amortisman: <strong>@Para(_d.Kpi.GerceklesenAmortisman)</strong></span>
         <span>Aylık Amortisman: <strong>@Para(_d.Kpi.AylikAmortisman)</strong></span>
     </div>
+    @* FAZ 2.5: dönemsel km (km-log serisinden) — bilgi satırı; KPI km-maliyeti ömür-boyu kalır. *@
+    @if (_d.DonemKm is { } dkm)
+    {
+        <div class="kv-inline">
+            <span>Dönem KM (log serisinden): <strong>@dkm.ToString("N0")</strong></span>
+            <span>Dönem KM-Maliyet: <strong>@(_d.DonemKmMaliyet?.ToString("N2") ?? "—")</strong></span>
+            <span class="muted small">Sayfa dönem filtresiyle daralır; KPI'daki km-maliyet ömür boyudur.</span>
+        </div>
+    }
 
     @* Yıllık P&L *@
     <h2>Yıllık Kâr/Zarar</h2>

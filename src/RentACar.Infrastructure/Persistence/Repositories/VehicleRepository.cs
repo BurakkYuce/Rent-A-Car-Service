@@ -3,6 +3,7 @@ using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -101,6 +102,42 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         db.Vehicles.Remove(vehicle);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task<bool> ManuelKmEkleAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default)
+    {
+        return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+            // FOR UPDATE: eşzamanlı manuel girişler serileşir — geriye-gitme kararı taze Km ile verilir.
+            var vehicle = await db.Vehicles
+                .FromSqlRaw("SELECT * FROM \"Vehicles\" WHERE \"Id\" = {0} FOR UPDATE", id)
+                .FirstOrDefaultAsync(ct);
+            if (vehicle is null) return false;
+            if (km < vehicle.Km)
+                throw new ValidationException($"KM geriye gidemez (araç odometresi {vehicle.Km}).");
+
+            vehicle.Km = km;
+            vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.KmLoglari.Add(new VehicleKmLog
+            { VehicleId = id, Tarih = tarih, Km = km, Kaynak = KmLogKaynak.Manuel });
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
+    }
+
+    public async Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(
+        Guid vehicleId, int limit = 20, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.KmLoglari.AsNoTracking()
+            .Where(k => k.VehicleId == vehicleId)
+            .OrderByDescending(k => k.Tarih).ThenByDescending(k => k.Km)
+            .Take(limit).ToListAsync(ct);
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex)
