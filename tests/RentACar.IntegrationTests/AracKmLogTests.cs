@@ -29,7 +29,9 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
-        var simdi = DateTimeOffset.UtcNow;
+        // Whole-second taban (CI dersi): PG timestamptz µs kesiyor — .NET 100ns tick'li "now" ile
+        // DB round-trip eşitliği Linux'ta patlar; tam-saniye hizalı tarih birebir döner.
+        var simdi = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddHours(9);
 
         var v = await veh.CreateAsync(new VehicleInput { Plaka = "34 KM 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
