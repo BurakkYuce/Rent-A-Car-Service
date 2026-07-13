@@ -129,8 +129,12 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         }
 
         var tutSat = TutSatHesap.Hesapla(raw.TutSatHam, v.IkinciElDeger, raw.GrupOrtDegerOrani, _tutSat);
+        // FAZ 2.3: başabaş GÜNLÜK (model) = BasaBasAylik / 30.44 — Kpi.Adr ile kıyas satırı
+        // (aynı 30.44 gün/ay paydası; model yoksa null → UI "—" gösterir, uydurma değer yok).
+        decimal? basaBasGunluk = maliyetModel is null ? null
+            : decimal.Round(maliyetModel.BasaBasAylik / 30.44m, 2, MidpointRounding.AwayFromZero);
         return new AracKarneDto(header, toplamGelir, toplamGider, netKar,
-            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat);
+            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat, basaBasGunluk);
     }
 
     /// <summary>
@@ -264,23 +268,36 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
                 doluluk, roi, kmMaliyet, sahiplik, kiralanan, yasAy));
         }
 
-        // FAZ 2.2 ikinci geçiş: grup-ortalama gider/değer oranı (İkinciEl>0 araçlar) → satır sinyalleri.
+        // FAZ 2.2/2.3 ikinci geçiş — grup ortalamaları ORTAK helper'dan (GrupOrtalama; iki kopya yasak):
+        // (2.2) gider/değer oranı → tut/sat kural-b; (2.3) km-maliyet → SinifEndeks (1.00 = sınıf ort.).
         var tutSatByVeh = raw.TutSatHam.ToDictionary(x => x.VehicleId);
         var ikinciElByVeh = raw.Araclar.ToDictionary(a => a.Id, a => a.IkinciElDeger);
-        var grupOrtalamalari = raw.Araclar
-            .Where(a => a.IkinciElDeger is > 0m && !string.IsNullOrWhiteSpace(a.Grup))
-            .GroupBy(a => a.Grup!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key,
-                g => g.Average(a => tutSatByVeh.GetValueOrDefault(a.Id, new FiloTutSatRow(a.Id, 0m, 0m, 0, 0)).Gider12 / a.IkinciElDeger!.Value),
-                StringComparer.OrdinalIgnoreCase);
+        var grupOrtDegerOrani = GrupOrtalama.Hesapla(raw.Araclar, a => a.Grup,
+            a => a.IkinciElDeger is > 0m
+                ? tutSatByVeh.GetValueOrDefault(a.Id, new FiloTutSatRow(a.Id, 0m, 0m, 0, 0)).Gider12 / a.IkinciElDeger.Value
+                : null);
+        var grupOrtKmMaliyet = GrupOrtalama.Hesapla(rows, r => r.Grup, r => r.KmBasinaMaliyet);
         rows = rows.Select(r =>
         {
             var ham = tutSatByVeh.GetValueOrDefault(r.VehicleId, new FiloTutSatRow(r.VehicleId, 0m, 0m, 0, 0));
-            decimal? grupOrt = !string.IsNullOrWhiteSpace(r.Grup)
-                && grupOrtalamalari.TryGetValue(r.Grup!.Trim(), out var go) ? go : null;
-            var sinyal = TutSatHesap.Hesapla(ham, ikinciElByVeh.GetValueOrDefault(r.VehicleId), grupOrt, _tutSat);
-            return r with { TutSatSinyal = sinyal.Sinyal };
+            var sinyal = TutSatHesap.Hesapla(ham, ikinciElByVeh.GetValueOrDefault(r.VehicleId),
+                GrupOrtalama.Deger(grupOrtDegerOrani, r.Grup), _tutSat);
+            decimal? endeks = null;
+            if (r.KmBasinaMaliyet is { } km && GrupOrtalama.Deger(grupOrtKmMaliyet, r.Grup) is { } go && go > 0m)
+                endeks = decimal.Round(km / go, 2, MidpointRounding.AwayFromZero);
+            return r with { TutSatSinyal = sinyal.Sinyal, SinifEndeks = endeks };
         }).ToList();
+
+        // FAZ 2.3: filo-geneli HAVUZ KPI — Σ havuzlardan (satır KPI'larının ortalaması DEĞİL; karışık-payda
+        // yasak). Ömür semantik: gelir = Σ araç ömür geliri (defter), günler = Σ sahiplik/kiralanan.
+        // Silinmiş-araç kalıntısı eklenmeden ÖNCE hesaplanır (paydasız gelir RevPACD'yi şişirmesin).
+        var havuzSahiplik = rows.Sum(r => r.SahiplikGun);
+        var havuzKiralanan = rows.Sum(r => r.KiralananGun);
+        var havuzGelir = rows.Sum(r => omurByVeh.TryGetValue(r.VehicleId, out var og) ? og.Gelir : 0m);
+        var havuzKpi = new FiloHavuzKpiDto(havuzSahiplik, havuzKiralanan, havuzGelir,
+            havuzSahiplik > 0 ? decimal.Round(Math.Min(100m, havuzKiralanan * 100m / havuzSahiplik), 2, MidpointRounding.AwayFromZero) : null,
+            havuzSahiplik > 0 ? decimal.Round(havuzGelir / havuzSahiplik, 2, MidpointRounding.AwayFromZero) : null,
+            havuzKiralanan > 0 ? decimal.Round(havuzGelir / havuzKiralanan, 2, MidpointRounding.AwayFromZero) : null);
         // Silinmiş aracın defter kalıntısı: satır olarak korunur (Σ satır + Atanmamış = defter mutabakatı),
         // KPI'sız; kohorta girmez, karne linki çizilmez ("(bilinmeyen araç)").
         foreach (var p in raw.KarlilikPencere.Where(x => x.VehicleId is Guid vid && !aracById.ContainsKey(vid)))
@@ -322,7 +339,7 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         var toplamGelir = rows.Sum(x => x.Gelir) + (atanmamis?.Gelir ?? 0m);
         var toplamGider = rows.Sum(x => x.Gider) + (atanmamis?.Gider ?? 0m);
         return new FiloAnalizDto(rows, toplamGelir, toplamGider, toplamGelir - toplamGider,
-            atanmamis?.Gelir ?? 0m, atanmamis?.Gider ?? 0m, kohort);
+            atanmamis?.Gelir ?? 0m, atanmamis?.Gider ?? 0m, kohort, havuzKpi);
     }
 
     /// <summary>Geri-ödeme ayı: alım bedelinin aylık net kârla amortismanı. TAMAMEN decimal hesap —
