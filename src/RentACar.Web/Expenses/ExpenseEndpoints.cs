@@ -27,7 +27,7 @@ public static class ExpenseEndpoints
                 CariId = Guid.TryParse(cariId, out var c) ? c : null,
                 Sube = sube, EvrakNo = evrakNo,
                 NetTutar = netTutar, KdvOrani = kdvOrani, OdemeYontemi = odemeYontemi,
-                Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m, Aciklama = aciklama
+                Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), Aciklama = aciklama // boş kur → otomatik (1.1b)
             };
             try
             {

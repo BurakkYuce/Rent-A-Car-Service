@@ -9,7 +9,8 @@ public sealed class CashInput
     public Guid? RentalId { get; set; }
     public decimal Tutar { get; set; }
     public string Doviz { get; set; } = "TRY";
-    public decimal Kur { get; set; } = 1m;
+    /// <summary>Boş → otomatik çözüm (TRY=1; döviz KurService). Açık değer aynen kullanılır (1.1b).</summary>
+    public decimal? Kur { get; set; }
     public DateTimeOffset? Tarih { get; set; }
     public string? Aciklama { get; set; }
     /// <summary>Para hareketinin geçtiği hesap: Kasa veya Banka.</summary>

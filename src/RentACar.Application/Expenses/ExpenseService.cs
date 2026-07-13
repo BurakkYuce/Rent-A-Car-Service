@@ -13,11 +13,13 @@ namespace RentACar.Application.Expenses;
 ///   Borç Gider(net) + Borç KDV(indirilecek, kdv) / Alacak Kasa·Banka·Cari(gross).
 /// Nakit/Banka → Kasa/Banka azalır; AçıkHesap → tedarikçi cari'ye borçlanılır (Alacak).
 /// </summary>
-public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
+public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
+    RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly IExpenseRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.Effective(_currentUser), ct); // operatör yalnız kendi şubesi
@@ -29,7 +31,8 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         TarihPolitikasi.ParaTarihi(input.Tarih, "Gider"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
-        var posting = BuildPosting(input, islemAnahtari: null);
+        var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct); // 1.1b
+        var posting = BuildPosting(input, islemAnahtari: null, cozulenKur);
         await _lock.EnsureOpenAsync(posting.Expense.Tarih, ct); // dönem kilidi: kapalı tarihe gider YOK
         await _repository.PostAsync(posting.Expense, posting.Entries, ct);
         return posting.Expense.Id;
@@ -47,10 +50,24 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         foreach (var k in kalemler) TarihPolitikasi.ParaTarihi(k.Tarih, "Gider"); // savunma: gelecek tarih reddi
 
         var closing = await _lock.GetClosingDateAsync(ct); // dönem kilidi: bir kez oku, kalem-bazlı karşılaştır
+        var kurCache = new Dictionary<(string, DateTime?), decimal>(); // 1.1b: aynı (kod,gün) tek lookup
         var postings = new List<ExpensePosting>(kalemler.Count);
         for (var i = 0; i < kalemler.Count; i++)
         {
-            var p = BuildPosting(kalemler[i], batchAnahtari is { } b ? CashService.RowKey(b, i) : null);
+            var input = kalemler[i];
+            decimal cozulenKur;
+            if (input.Kur is { } acikKur)
+            {
+                if (acikKur <= 0m) throw new ValidationException($"Kalem {i + 1}: kur pozitif olmalıdır.");
+                cozulenKur = acikKur;
+            }
+            else
+            {
+                var kurKey = (RentACar.Application.Kur.KurService.NormalizeKod(input.Doviz), input.Tarih?.UtcDateTime.Date);
+                if (!kurCache.TryGetValue(kurKey, out cozulenKur))
+                    kurCache[kurKey] = cozulenKur = await _kurCozucu.CozAsync(input.Doviz, null, input.Tarih, ct);
+            }
+            var p = BuildPosting(input, batchAnahtari is { } b ? CashService.RowKey(b, i) : null, cozulenKur);
             PeriodLock.ThrowIfClosed(p.Expense.Tarih, closing, $"Kalem {i + 1}");
             postings.Add(p);
         }
@@ -59,10 +76,9 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     }
 
     /// <summary>Bir gider girişini doğrular + Expense belgesi + dengeli defter kümesi kurar (tek + toplu ortak).</summary>
-    private static ExpensePosting BuildPosting(ExpenseInput input, Guid? islemAnahtari)
+    private static ExpensePosting BuildPosting(ExpenseInput input, Guid? islemAnahtari, decimal cozulenKur)
     {
         if (input.NetTutar <= 0) throw new ValidationException("Gider tutarı pozitif olmalıdır.");
-        if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");
         if (input.OdemeYontemi == OdemeYontemi.AcikHesap && (input.CariId is null || input.CariId == Guid.Empty))
             throw new ValidationException("Açık hesap (tedarikçi) gideri için cari seçilmelidir.");
@@ -90,7 +106,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             KdvTutar = kdv,
             GenelToplam = gross,
             Currency = currency,
-            Kur = input.Kur,
+            Kur = cozulenKur,
             OdemeYontemi = input.OdemeYontemi,
             KasaBankaHesap = karsiHesap == LedgerAccountType.Cari ? LedgerAccountType.Kasa : karsiHesap,
             Aciklama = input.Aciklama,

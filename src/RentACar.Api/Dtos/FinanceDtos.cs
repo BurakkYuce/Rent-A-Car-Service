@@ -18,7 +18,8 @@ public sealed class CashRequest
     public Guid? RentalId { get; set; }
     public decimal Tutar { get; set; }
     public string Doviz { get; set; } = "TRY";
-    public decimal Kur { get; set; } = 1m;
+    /// <summary>Boş/gönderilmez → otomatik çözüm (TRY=1; döviz sabit-kur/TCMB, yoksa red — 1.1b).</summary>
+    public decimal? Kur { get; set; }
     public DateTimeOffset? Tarih { get; set; }
     public string? Aciklama { get; set; }
     public LedgerAccountType Hesap { get; set; } = LedgerAccountType.Kasa;
@@ -37,7 +38,8 @@ public sealed class TransferRequest
     public LedgerAccountType Hedef { get; set; }
     public decimal Tutar { get; set; }
     public string? Doviz { get; set; } = "TRY";
-    public decimal Kur { get; set; } = 1m;
+    /// <summary>Boş/gönderilmez → otomatik çözüm (TRY=1; döviz sabit-kur/TCMB, yoksa red — 1.1b).</summary>
+    public decimal? Kur { get; set; }
     public string? Aciklama { get; set; }
 }
 
