@@ -224,7 +224,8 @@ public sealed record AracKarneDto(
     IReadOnlyList<AracOlayRow> Olaylar,
     AracKpiDto Kpi,
     MaliyetHesapSonuc? MaliyetModel,
-    TutSatSinyalDto TutSat);
+    TutSatSinyalDto TutSat,
+    decimal? BasaBasGunluk = null);
 
 // ---------- Filo Analiz Panosu ----------
 
@@ -238,7 +239,8 @@ public sealed record FiloAnalizRow(
     decimal Gelir, decimal Gider, decimal NetKar,
     decimal? DolulukYuzde, decimal? RoiYuzde, decimal? KmBasinaMaliyet,
     int SahiplikGun, int KiralananGun, int? YasAy,
-    int TutSatSinyal = 0);
+    int TutSatSinyal = 0,
+    decimal? SinifEndeks = null);
 
 /// <summary>Yaş kohortu satırı — alım tarihine göre kova (0-1/1-2/2-3/3+ yıl); ortalamalar yalnız
 /// değeri olan araçlar üzerinden (kurumsal "cost-per-km eğrisi" görünümü).</summary>
@@ -250,7 +252,17 @@ public sealed record FiloAnalizDto(
     IReadOnlyList<FiloAnalizRow> Satirlar,
     decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
     decimal AtanmamisGelir, decimal AtanmamisGider,
-    IReadOnlyList<FiloKohortRow> YasKohortu);
+    IReadOnlyList<FiloKohortRow> YasKohortu,
+    FiloHavuzKpiDto? HavuzKpi = null);
+
+/// <summary>Filo-geneli HAVUZ KPI'ları (FAZ 2.3) — Σ gelir/gün havuzlarından hesaplanır; araç-bazlı
+/// KPI'ların ortalaması DEĞİL (karışık-payda yasak). Ömür-boyu semantik (satır KPI'larıyla aynı):
+/// gelir = Σ araç ömür geliri (defter, araca atanabilen), günler = Σ sahiplik/kiralanan. Silinmiş
+/// aracın defter kalıntısı havuza girmez (sahiplik günü yok — paydasız gelir RevPACD'yi şişirir).
+/// Doluluk cap-100 (karne konvansiyonu); oranlar yalnız pozitif paydayla, aksi null.</summary>
+public sealed record FiloHavuzKpiDto(
+    int SahiplikGun, int KiralananGun, decimal OmurGelir,
+    decimal? DolulukYuzde, decimal? RevPacd, decimal? Adr);
 
 /// <summary>Filo analiz repo ham paketi. KarlilikPencere = dönem-filtreli araç P&amp;L satırları;
 /// KarlilikOmur = pencereden bağımsız (from/to null ise aynı liste). Kiralar İptal-dışı, efektif bitişli.</summary>

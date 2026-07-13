@@ -43,14 +43,27 @@
     <div class="card"><div class="card-num">@((_d.AtanmamisGelir - _d.AtanmamisGider).ToString("N2"))</div>
         <div class="card-label">Atanmamış net (gelir @_d.AtanmamisGelir.ToString("N2") − gider @_d.AtanmamisGider.ToString("N2"))</div></div>
 </div>
+@* FAZ 2.3: filo-geneli HAVUZ KPI'ları — Σ havuzlardan (satır ortalaması değil); ömür-boyu semantik. *@
+@if (_d.HavuzKpi is { } h)
+{
+<div class="cards">
+    <div class="card"><div class="card-num">@(h.DolulukYuzde?.ToString("N2") ?? "—")</div>
+        <div class="card-label">Filo Doluluk % (Σ kiralanan @h.KiralananGun ÷ Σ sahiplik @h.SahiplikGun gün — ömür boyu)</div></div>
+    <div class="card"><div class="card-num">@(h.RevPacd?.ToString("N2") ?? "—")</div>
+        <div class="card-label">Filo RevPACD (Σ gelir @h.OmurGelir.ToString("N2") ÷ Σ sahiplik gün)</div></div>
+    <div class="card"><div class="card-num">@(h.Adr?.ToString("N2") ?? "—")</div>
+        <div class="card-label">Filo ADR (Σ gelir ÷ Σ kiralanan gün)</div></div>
+</div>
+}
 
 <table class="grid tr-grid">
     <thead><tr><th>Plaka</th><th>Grup</th><th>Segment</th><th>Şube</th>
         <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
         <th class="num">Doluluk %</th><th class="num">ROI %</th><th class="num">Km Maliyet</th>
+        <th class="num" title="Km-maliyet ÷ sınıf (grup) ortalaması — 1,00 = ortalama">Sınıf Endeks</th>
         <th class="num">Yaş (ay)</th><th class="num">Vade</th><th class="num">Tut/Sat</th></tr></thead>
     <tbody>
-        @if (_d.Satirlar.Count == 0) { <tr><td colspan="13" class="muted">Kayıt yok.</td></tr> }
+        @if (_d.Satirlar.Count == 0) { <tr><td colspan="14" class="muted">Kayıt yok.</td></tr> }
         @foreach (var r in _d.Satirlar)
         {
             <tr>
@@ -65,6 +78,9 @@
                 <td class="num">@(r.DolulukYuzde?.ToString("N2") ?? "—")</td>
                 <td class="num">@(r.RoiYuzde?.ToString("N2") ?? "—")</td>
                 <td class="num">@(r.KmBasinaMaliyet?.ToString("N2") ?? "—")</td>
+                <td class="num">@if (r.SinifEndeks is { } se && se > 1m)
+                    { <span class="error" title="Sınıf ortalamasından pahalı">@se.ToString("N2")</span> }
+                    else { @(r.SinifEndeks?.ToString("N2") ?? "—") }</td>
                 <td class="num">@(r.YasAy?.ToString() ?? "—")</td>
                 <td class="num">@{ var vs = _vadeSayilari.GetValueOrDefault(r.VehicleId); }
                     @if (vs > 0) { <a class="badge" href="/vade?plaka=@r.Plaka" title="Geçmiş + ≤30 gün vade uyarısı">@vs</a> }
@@ -78,7 +94,7 @@
     <tfoot><tr><th colspan="4">TOPLAM (Atanmamış dahil)</th>
         <th class="num">@_d.ToplamGelir.ToString("N2")</th>
         <th class="num">@_d.ToplamGider.ToString("N2")</th>
-        <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="6"></th></tr></tfoot>
+        <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="7"></th></tr></tfoot>
 </table>
 
 <h2>Yaş Kohortu <span class="muted small">(alım tarihine göre — km-maliyet eğrisi)</span></h2>
