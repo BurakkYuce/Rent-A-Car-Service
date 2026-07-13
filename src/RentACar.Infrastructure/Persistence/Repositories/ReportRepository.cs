@@ -509,7 +509,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // Araç (query filter + RLS tenant-scope'lu) — yoksa/başka tenant'sa boş paket → servis null → 404.
         var vehicle = await db.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId, ct);
         if (vehicle is null)
-            return new AracKarneRawDto(null, [], [], [], [], [], 0, 0, null, 0m, 0m);
+            return new AracKarneRawDto(null, [], [], [], [], [], 0, 0, null, 0m, 0m,
+                new FiloTutSatRow(vehicleId, 0m, 0m, 0, 0), null);
 
         // ---- GİDER (defterden): AccountRef = araç. Kategori etiketi kaynak varlıktan zenginleşir
         // (SigortaOdeme→poliçe Tip; Gider→Expense.Tip). Base = Amount×Rate (bellekte).
@@ -624,6 +625,13 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
         // Ömür-boyu (pencereden bağımsız) toplamlar — KPI/amortisman paydaları bunlardan.
         var omurGider = giderRawTum.Sum(e => e.A * e.R);
+        // FAZ 2.2 Tut/Sat hamı: son-12-ay / önceki-12-ay gider (defter) — now-göreli pencereler.
+        var simdiUtc = DateTimeOffset.UtcNow;
+        var son12Bas = simdiUtc.AddMonths(-12);
+        var onceki12Bas = simdiUtc.AddMonths(-24);
+        var gider12 = giderRawTum.Where(e => e.EntryDateUtc >= son12Bas).Sum(e => e.A * e.R);
+        var giderOnceki12 = giderRawTum
+            .Where(e => e.EntryDateUtc >= onceki12Bas && e.EntryDateUtc < son12Bas).Sum(e => e.A * e.R);
         var omurGelir = gelirRawTum
             .Where(e => GelirKaynak(e.SourceType, e.SourceId) != null)
             .Sum(e => (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R);
@@ -682,12 +690,45 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(s => new AracServisGunRow(s.GirisTarihi, s.CikisTarihi)).ToList();
         var katedilenKm = aktifKiralar.Where(r => r.CikisKm != null && r.DonusKm != null)
             .Sum(r => r.DonusKm!.Value - r.CikisKm!.Value);
+        // FAZ 2.2: km pencereleri — efektif bitişi pencerede olan kiraların km'si.
+        int KmPencere(DateTimeOffset bas, DateTimeOffset bit) => aktifKiralar
+            .Where(r => r.CikisKm != null && r.DonusKm != null)
+            .Where(r => (r.GercekDonusTar ?? r.BitTar) >= bas && (r.GercekDonusTar ?? r.BitTar) < bit)
+            .Sum(r => r.DonusKm!.Value - r.CikisKm!.Value);
+        var km12 = KmPencere(son12Bas, simdiUtc.AddDays(1));
+        var kmOnceki12 = KmPencere(onceki12Bas, son12Bas);
+
+        // FAZ 2.2 sınıf (Grup) ortalaması: grup araçlarının son-12-ay gider ÷ IkinciElDeger oranlarının
+        // ortalaması (IkinciEl>0 olanlar; kendisi dahil). Grup yoksa null.
+        decimal? grupOrt = null;
+        if (!string.IsNullOrWhiteSpace(vehicle.Grup))
+        {
+            var grupAraclar = await db.Vehicles.AsNoTracking()
+                .Where(v => v.Grup == vehicle.Grup && v.IkinciElDeger > 0)
+                .Select(v => new { v.Id, v.IkinciElDeger }).ToListAsync(ct);
+            if (grupAraclar.Count > 0)
+            {
+                var ids = grupAraclar.Select(g => (Guid?)g.Id).ToList();
+                var grupGider = (await db.AccountLedgerEntries.AsNoTracking()
+                        .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit
+                                    && e.AccountRef != null && ids.Contains(e.AccountRef)
+                                    && e.EntryDateUtc >= son12Bas)
+                        .Select(e => new { e.AccountRef, A = e.Amount.Amount, R = e.Amount.Rate })
+                        .ToListAsync(ct))
+                    .GroupBy(x => x.AccountRef!.Value)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.A * x.R));
+                var oranlar = grupAraclar
+                    .Select(g => grupGider.GetValueOrDefault(g.Id) / g.IkinciElDeger!.Value).ToList();
+                grupOrt = oranlar.Count > 0 ? oranlar.Average() : null;
+            }
+        }
         var sonSatis = satislar.Where(s => s.Durum == SatisDurum.Tamamlandi)
             .Select(s => (DateTimeOffset?)s.Tarih).DefaultIfEmpty(null).Max();
 
         return new AracKarneRawDto(vehicle, gelirler, giderler, olaylar,
             kiraAraliklari, servisAraliklari, aktifKiralar.Count, katedilenKm, sonSatis,
-            omurGelir, omurGider);
+            omurGelir, omurGider,
+            new FiloTutSatRow(vehicleId, gider12, giderOnceki12, km12, kmOnceki12), grupOrt);
     }
 
     public async Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(
@@ -708,11 +749,11 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToDictionary(x => x.VehicleId, x => x.Tarih);
 
         var araclar = (await db.Vehicles.AsNoTracking()
-                .Select(v => new { v.Id, v.Plaka, v.Grup, v.Segment, v.Sube, v.AlimBedeli, v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih, v.Durum })
+                .Select(v => new { v.Id, v.Plaka, v.Grup, v.Segment, v.Sube, v.AlimBedeli, v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih, v.Durum, v.IkinciElDeger })
                 .ToListAsync(ct))
             .Select(v => new FiloAracRow(v.Id, v.Plaka, v.Grup, v.Segment, v.Sube,
                 v.AlimBedeli, v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih,
-                v.Durum, sonSatis.TryGetValue(v.Id, out var t) ? t : null))
+                v.Durum, sonSatis.TryGetValue(v.Id, out var t) ? t : null, v.IkinciElDeger))
             .ToList();
 
         var kiralar = await db.Rentals.AsNoTracking()
@@ -720,6 +761,32 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(r => new FiloKiraRow(r.VehicleId, r.BasTar, r.GercekDonusTar ?? r.BitTar, r.CikisKm, r.DonusKm))
             .ToListAsync(ct);
 
-        return new FiloAnalizRawDto(pencere, omur, araclar, kiralar);
+        // FAZ 2.2 Tut/Sat hamı: TEK ledger taramasıyla araç-başına son-12 / önceki-12 gider + km pencereleri.
+        var simdiUtc = DateTimeOffset.UtcNow;
+        var son12Bas = simdiUtc.AddMonths(-12);
+        var onceki12Bas = simdiUtc.AddMonths(-24);
+        var giderPencereRaw = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit
+                        && e.AccountRef != null && e.EntryDateUtc >= onceki12Bas)
+            .Select(e => new { e.AccountRef, e.EntryDateUtc, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct);
+        var tutSat = giderPencereRaw
+            .GroupBy(x => x.AccountRef!.Value)
+            .ToDictionary(g => g.Key, g => (
+                G12: g.Where(x => x.EntryDateUtc >= son12Bas).Sum(x => x.A * x.R),
+                GOnceki: g.Where(x => x.EntryDateUtc < son12Bas).Sum(x => x.A * x.R)));
+        var kmByVeh = kiralar.Where(k => k.CikisKm != null && k.DonusKm != null)
+            .GroupBy(k => k.VehicleId)
+            .ToDictionary(g => g.Key, g => (
+                Km12: g.Where(k => k.Bit >= son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value),
+                KmOnceki: g.Where(k => k.Bit >= onceki12Bas && k.Bit < son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value)));
+        var tutSatHam = araclar.Select(a =>
+        {
+            var g = tutSat.GetValueOrDefault(a.Id);
+            var km = kmByVeh.GetValueOrDefault(a.Id);
+            return new FiloTutSatRow(a.Id, g.G12, g.GOnceki, km.Km12, km.KmOnceki);
+        }).ToList();
+
+        return new FiloAnalizRawDto(pencere, omur, araclar, kiralar, tutSatHam);
     }
 }

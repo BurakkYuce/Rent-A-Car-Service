@@ -237,6 +237,12 @@ builder.Services.AddScoped<RentACar.Web.Import.ImportService>(); // veri göçü
 // LoginService + IPasswordHasher<User> + Application IPasswordHasher köprüsü artık
 // AddInfrastructure'da (Web cookie + API JWT ortak kullanır).
 
+// FAZ 2.2: Tut/Sat eşikleri appsettings "TutSat" bölümünden override edilebilir (yoksa varsayılan).
+if (builder.Configuration.GetSection("TutSat").Exists())
+    builder.Services.AddSingleton(new RentACar.Application.Reporting.TutSatEsikleri(
+        builder.Configuration.GetValue("TutSat:DegerOrani", 0.45m),
+        builder.Configuration.GetValue("TutSat:SinifKati", 1.5m)));
+
 var app = builder.Build();
 
 // ---- Şema + seed (owner bağlantısı) ----
