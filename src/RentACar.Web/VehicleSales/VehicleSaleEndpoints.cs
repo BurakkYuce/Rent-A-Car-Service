@@ -22,7 +22,7 @@ public static class VehicleSaleEndpoints
             {
                 VehicleId = vehicleId, AliciCariId = aliciCariId, SatisNet = satisNet, KdvOrani = kdvOrani,
                 NoterNo = noterNo, Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz,
-                Kur = FormParse.Dec(kur) ?? 1m, Aciklama = aciklama
+                Kur = FormParse.Dec(kur), Aciklama = aciklama // boş → otomatik kur (1.1)
             };
             try
             {

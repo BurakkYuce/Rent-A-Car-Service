@@ -58,7 +58,7 @@ public static class RegulationEndpoints
         {
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var z = FormParse.Dec(zeyil) ?? 0m;
-            var k = FormParse.Dec(kur) ?? 1m; // döviz poliçe: baz tutara çevirim kuru (boş → 1, yerel TRY)
+            var k = FormParse.Dec(kur); // boş → otomatik çözüm (TRY=1; döviz KurService — 1.1)
             try { await svc.SigortaOdeAsync(id, h, z, kur: k); return Results.Redirect("/regulasyon?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });

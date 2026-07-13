@@ -10,7 +10,8 @@ public sealed class VehicleSaleInput
     /// <summary>KDV oranı (örn. 0.20). Araç satışı KDV'lidir.</summary>
     public decimal KdvOrani { get; set; } = 0.20m;
     public string Doviz { get; set; } = "TRY";
-    public decimal Kur { get; set; } = 1m;
+    /// <summary>Boş → otomatik çözüm (TRY=1; döviz KurService). Açık değer aynen kullanılır (1.1).</summary>
+    public decimal? Kur { get; set; }
     public string? Aciklama { get; set; }
 
     // roadmap G2 (additive — bilgilendirme; deftere yansımaz)

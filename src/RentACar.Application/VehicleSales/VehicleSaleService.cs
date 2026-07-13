@@ -15,11 +15,13 @@ namespace RentACar.Application.VehicleSales;
 /// kira gelirinde olduğu gibi; gelecekte amortisman/defter-değeri eklenebilir.
 /// </summary>
 public sealed class VehicleSaleService(
-    IVehicleSaleRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock)
+    IVehicleSaleRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
+    RentACar.Application.Kur.KurCozucu kurCozucu)
 {
     private readonly IVehicleSaleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
+    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -33,8 +35,9 @@ public sealed class VehicleSaleService(
         if (input.AliciCariId == Guid.Empty) throw new ValidationException("Alıcı (cari) seçilmelidir.");
         if (input.SatisNet <= 0) throw new ValidationException("Satış tutarı pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");
-        if (input.Kur <= 0) throw new ValidationException("Kur pozitif olmalıdır.");
 
+        // Kur çözümü (1.1): açık kur (>0 guard çözücüde) aynen; boş → TRY=1 / döviz KurService (yoksa net red).
+        var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
         var (kdv, gross) = KdvMath.FromNet(input.SatisNet, input.KdvOrani);
         var sale = new VehicleSale
         {
@@ -47,7 +50,7 @@ public sealed class VehicleSaleService(
             KdvTutar = kdv,
             GenelToplam = gross,
             Currency = string.IsNullOrWhiteSpace(input.Doviz) ? "TRY" : input.Doviz.Trim().ToUpperInvariant(),
-            Kur = input.Kur,
+            Kur = cozulenKur,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,
             SatisKm = input.SatisKm,
