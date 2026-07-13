@@ -133,8 +133,10 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         // (aynı 30.44 gün/ay paydası; model yoksa null → UI "—" gösterir, uydurma değer yok).
         decimal? basaBasGunluk = maliyetModel is null ? null
             : decimal.Round(maliyetModel.BasaBasAylik / 30.44m, 2, MidpointRounding.AwayFromZero);
+        // FAZ 2.4: kalıntı projeksiyonu (azalan bakiye; salt-hesap, deftere yazmaz).
+        var kalinti = KalintiProjeksiyon.Hesapla(v.AlimBedeli, v.IkinciElDeger, v.AlimTarihi, DateTimeOffset.UtcNow);
         return new AracKarneDto(header, toplamGelir, toplamGider, netKar,
-            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat, basaBasGunluk);
+            yillik, gelirKaynak, giderKategori, raw.Olaylar, kpi, maliyetModel, tutSat, basaBasGunluk, kalinti);
     }
 
     /// <summary>
@@ -298,6 +300,13 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             havuzSahiplik > 0 ? decimal.Round(Math.Min(100m, havuzKiralanan * 100m / havuzSahiplik), 2, MidpointRounding.AwayFromZero) : null,
             havuzSahiplik > 0 ? decimal.Round(havuzGelir / havuzSahiplik, 2, MidpointRounding.AwayFromZero) : null,
             havuzKiralanan > 0 ? decimal.Round(havuzGelir / havuzKiralanan, 2, MidpointRounding.AwayFromZero) : null);
+
+        // FAZ 2.4: tut/sat-adayı özeti — sinyal ≥2 araçlar + 12-ay-sonu tahmini kalıntı toplamı
+        // (KalintiProjeksiyon; İkinciEl'siz aday projeksiyona katılmaz — uydurma taban yok).
+        var adaylar = rows.Where(r => r.TutSatSinyal >= 2)
+            .Select(r => aracById.GetValueOrDefault(r.VehicleId)).Where(a => a is not null).ToList();
+        var tutSatAday = new TutSatAdayOzetDto(adaylar.Count,
+            adaylar.Sum(a => KalintiProjeksiyon.Hesapla(a!.AlimBedeli, a.IkinciElDeger, a.AlimTarihi, simdi)?.Deger12Ay ?? 0m));
         // Silinmiş aracın defter kalıntısı: satır olarak korunur (Σ satır + Atanmamış = defter mutabakatı),
         // KPI'sız; kohorta girmez, karne linki çizilmez ("(bilinmeyen araç)").
         foreach (var p in raw.KarlilikPencere.Where(x => x.VehicleId is Guid vid && !aracById.ContainsKey(vid)))
@@ -339,7 +348,7 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         var toplamGelir = rows.Sum(x => x.Gelir) + (atanmamis?.Gelir ?? 0m);
         var toplamGider = rows.Sum(x => x.Gider) + (atanmamis?.Gider ?? 0m);
         return new FiloAnalizDto(rows, toplamGelir, toplamGider, toplamGelir - toplamGider,
-            atanmamis?.Gelir ?? 0m, atanmamis?.Gider ?? 0m, kohort, havuzKpi);
+            atanmamis?.Gelir ?? 0m, atanmamis?.Gider ?? 0m, kohort, havuzKpi, tutSatAday);
     }
 
     /// <summary>Geri-ödeme ayı: alım bedelinin aylık net kârla amortismanı. TAMAMEN decimal hesap —

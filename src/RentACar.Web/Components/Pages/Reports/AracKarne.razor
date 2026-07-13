@@ -156,6 +156,18 @@ else
         </div>
     }
 
+    @* FAZ 2.4: kalıntı projeksiyonu — azalan bakiye; salt-görünüm, deftere yazmaz. *@
+    @if (_d.Kalinti is { } kp)
+    {
+        <h2>Kalıntı Projeksiyonu <span class="muted small">(azalan bakiye — şeffaf varsayım; değer artışı projekte edilmez)</span></h2>
+        <div class="kv-inline">
+            <span>Yıllık değer oranı: <strong>@kp.YillikOran.ToString("N2")</strong>
+                <span class="muted small">@(kp.OranGozlenen ? "(gözlenen amortismandan türetildi)" : "(varsayılan — yaş <1 yıl veya alım verisi yok)")</span></span>
+            <span>12 ay sonra tahmini: <strong>@kp.Deger12Ay.ToString("N2")</strong></span>
+            <span>24 ay sonra tahmini: <strong>@kp.Deger24Ay.ToString("N2")</strong></span>
+        </div>
+    }
+
     @* FAZ 2.2: Tut/Sat (defleet) sinyali *@
     @if (_d.TutSat.Sinyal > 0)
     {

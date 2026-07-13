@@ -225,7 +225,17 @@ public sealed record AracKarneDto(
     AracKpiDto Kpi,
     MaliyetHesapSonuc? MaliyetModel,
     TutSatSinyalDto TutSat,
-    decimal? BasaBasGunluk = null);
+    decimal? BasaBasGunluk = null,
+    KalintiProjeksiyonDto? Kalinti = null);
+
+/// <summary>Kalıntı projeksiyonu (FAZ 2.4): 2-hane yuvarlak yıllık oran (gösterilen == kullanılan),
+/// OranGozlenen=false → şeffaf varsayılan 0.85 (yaş&lt;1 / alım verisi yok); 12/24 ay sonu tahmin.</summary>
+public sealed record KalintiProjeksiyonDto(
+    decimal YillikOran, bool OranGozlenen, decimal Deger12Ay, decimal Deger24Ay);
+
+/// <summary>Filo özet kartı (FAZ 2.4): tut/sat adayı (sinyal ≥2) araç sayısı + adayların 12-ay-sonu
+/// tahmini kalıntı toplamı (aday satılırsa geri kazanım — muhafazakâr uç: bugünkü değer değil).</summary>
+public sealed record TutSatAdayOzetDto(int AracSayisi, decimal TahminiGeriKazanim12Ay);
 
 // ---------- Filo Analiz Panosu ----------
 
@@ -253,7 +263,8 @@ public sealed record FiloAnalizDto(
     decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
     decimal AtanmamisGelir, decimal AtanmamisGider,
     IReadOnlyList<FiloKohortRow> YasKohortu,
-    FiloHavuzKpiDto? HavuzKpi = null);
+    FiloHavuzKpiDto? HavuzKpi = null,
+    TutSatAdayOzetDto? TutSatAday = null);
 
 /// <summary>Filo-geneli HAVUZ KPI'ları (FAZ 2.3) — Σ gelir/gün havuzlarından hesaplanır; araç-bazlı
 /// KPI'ların ortalaması DEĞİL (karışık-payda yasak). Ömür-boyu semantik (satır KPI'larıyla aynı):
