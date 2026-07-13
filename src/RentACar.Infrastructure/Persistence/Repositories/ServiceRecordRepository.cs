@@ -47,7 +47,8 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
 
     public async Task<bool> TransitionAsync(
         Guid id, Action<ServiceRecord> apply,
-        VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs, CancellationToken ct = default)
+        VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs,
+        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -58,6 +59,9 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             if (rec is null) return false;
             apply(rec);
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            // FAZ 2.5: km zaman-serisi — servis geçişiyle AYNI transaction (tamamlamada çıkış km).
+            if (kmLog is not null) db.KmLoglari.Add(kmLog(rec));
 
             if (setVehicleTo is VehicleStatus vs)
             {

@@ -170,7 +170,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     }
 
     public async Task<bool> UpdateRentalWithVehicleAsync(
-        Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle, CancellationToken ct = default)
+        Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle,
+        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -189,6 +190,9 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                 applyVehicle(vehicle);
                 vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }
+
+            // FAZ 2.5: km zaman-serisi — kira güncellemesiyle AYNI transaction (yarım seri kalmaz).
+            if (kmLog is not null) db.KmLoglari.Add(kmLog(r));
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

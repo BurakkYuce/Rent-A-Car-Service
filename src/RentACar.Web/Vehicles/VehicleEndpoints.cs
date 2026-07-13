@@ -42,6 +42,19 @@ public static class VehicleEndpoints
             return Results.Redirect("/vehicles");
         });
 
+        // FAZ 2.5: manuel odometre girişi — km log + Vehicle.Km aynı transaction (geriye gitme reddi).
+        group.MapPost("/km-log", async (VehicleService svc, [FromForm] Guid id, [FromForm] string? km) =>
+        {
+            try
+            {
+                await svc.ManuelKmGirAsync(id,
+                    FormParse.Int(km) ?? throw new ValidationException("KM zorunludur."));
+                return Results.Redirect($"/araclar/{id}");
+            }
+            catch (ValidationException ex)
+            { return Results.Redirect($"/araclar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
 

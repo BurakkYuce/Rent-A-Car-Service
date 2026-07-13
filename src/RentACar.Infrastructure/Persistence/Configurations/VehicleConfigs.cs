@@ -176,3 +176,16 @@ internal sealed class BafConfig : IEntityTypeConfiguration<Baf>
         e.HasIndex(x => new { x.TenantId, x.PersonelId });
     }
 }
+
+// ---- VehicleKmLog (FAZ 2.5 — km zaman serisi; salt-ekleme, mali belge değil) ----
+internal sealed class VehicleKmLogConfig : IEntityTypeConfiguration<VehicleKmLog>
+{
+    public void Configure(EntityTypeBuilder<VehicleKmLog> e)
+    {
+        e.ToTable("VehicleKmLoglari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Kaynak).HasConversion<int>();
+        e.HasIndex(x => new { x.TenantId, x.VehicleId, x.Tarih });
+    }
+}

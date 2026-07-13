@@ -356,7 +356,7 @@ public sealed class RentalService(
             c.CikisKm = cikisKm;
             c.CikisYakit = cikisYakit;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => { v.Km = Math.Max(v.Km, cikisKm); v.Durum = VehicleStatus.Kirada; }, ct)); // araç çıktı → Kirada
+        }, v => { v.Km = Math.Max(v.Km, cikisKm); v.Durum = VehicleStatus.Kirada; }, ct: ct)); // araç çıktı → Kirada
     }
 
     /// <summary>
@@ -418,7 +418,10 @@ public sealed class RentalService(
             c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => { v.Km = Math.Max(v.Km, donusKm); v.Durum = VehicleStatus.Musait; }, ct)); // odometre monoton ileri; araç döndü → Musait (boşta)
+        }, v => { v.Km = Math.Max(v.Km, donusKm); v.Durum = VehicleStatus.Musait; },
+        // FAZ 2.5: dönüş odometresi km zaman-serisine AYNI transaction'da düşer (karnede "dönem km").
+        kmLog: c => new VehicleKmLog { VehicleId = c.VehicleId, Tarih = gercekDonus, Km = donusKm, Kaynak = KmLogKaynak.Donus },
+        ct: ct)); // odometre monoton ileri; araç döndü → Musait (boşta)
     }
 
     /// <summary>
@@ -477,6 +480,6 @@ public sealed class RentalService(
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => v.Durum = VehicleStatus.Musait, ct)); // iptal → araç serbest (boşta)
+        }, v => v.Durum = VehicleStatus.Musait, ct: ct)); // iptal → araç serbest (boşta)
     }
 }

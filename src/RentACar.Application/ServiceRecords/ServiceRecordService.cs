@@ -62,7 +62,7 @@ public sealed class ServiceRecordService(
             if (r.Durum != ServisDurum.Acik)
                 throw new ValidationException("Yalnız 'Açık' servis başlatılabilir.");
             r.Durum = ServisDurum.Serviste;
-        }, setVehicleTo: VehicleStatus.Serviste, onlyWhenVehicleIs: null, ct);
+        }, setVehicleTo: VehicleStatus.Serviste, onlyWhenVehicleIs: null, ct: ct);
 
     /// <summary>Serviste → Tamamlandi; çıkış KM/tarih, sonraki bakım KM; araç Musait'e döner.</summary>
     public Task<bool> TamamlaAsync(Guid id, int cikisKm, int? sonrakiBakimKm = null, CancellationToken ct = default)
@@ -76,7 +76,11 @@ public sealed class ServiceRecordService(
             r.CikisKm = cikisKm;
             r.CikisTarihi = DateTimeOffset.UtcNow;
             r.SonrakiBakimKm = sonrakiBakimKm;
-        }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste, ct);
+        }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste,
+        // FAZ 2.5: servis çıkış odometresi km zaman-serisine AYNI transaction'da düşer.
+        kmLog: r => new VehicleKmLog
+        { VehicleId = r.VehicleId, Tarih = r.CikisTarihi!.Value, Km = cikisKm, Kaynak = KmLogKaynak.Servis },
+        ct: ct);
 
     /// <summary>Açık/Serviste → Iptal; araç Serviste'den çıktıysa Musait'e döner.</summary>
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
@@ -85,7 +89,7 @@ public sealed class ServiceRecordService(
             if (r.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
                 throw new ValidationException("Kapanmış servis iptal edilemez.");
             r.Durum = ServisDurum.Iptal;
-        }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste, ct);
+        }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste, ct: ct);
 
     public async Task<bool> KalemEkleAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
     {
