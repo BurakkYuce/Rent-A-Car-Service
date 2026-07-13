@@ -87,6 +87,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AccountLedgerEntry> AccountLedgerEntries => Set<AccountLedgerEntry>();
     public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
+    public DbSet<DepozitoIrat> DepozitoIratlar => Set<DepozitoIrat>(); // FAZ 1.2
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<GelenEFatura> GelenEFaturalar => Set<GelenEFatura>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();

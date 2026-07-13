@@ -18,7 +18,7 @@ namespace RentACar.IntegrationTests;
 /// EUR poliçe TL'ye eksik yazılabiliyordu (yalnız InvoiceService otomatik çözüyordu).
 /// SÖZLEŞME: açık kur (>0) aynen; boş → TRY=1, döviz → sabit-kur/TCMB; bulunamazsa NET RED (sessiz 1 YOK).
 /// BAĞIMSIZ ORACLE (elle): prim 100 EUR × sabit kur 40 = 4000 base; açık kur 35 → 3500; TRY 100 → 100.
-/// "Kur yok" senaryoları izole kodla (SEK — hiçbir testte seed'lenmez; KurKayitlari platform-tablo sızıntı dersi).
+/// "Kur yok" senaryoları izole kodla (DKK — hiçbir testte seed'lenmez; KurKayitlari platform-tablo sızıntı dersi).
 /// </summary>
 [Collection("postgres")]
 public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
@@ -114,9 +114,9 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         await depo.IadeAsync(cari, 50m, LedgerAccountType.Kasa, doviz: "EUR");  // 2000 base iade
         Assert.Equal(2000m, await depo.GetBakiyeAsync(cari));
 
-        // Kur'suz döviz (SEK): net red + bakiye değişmez.
+        // Kur'suz döviz (DKK): net red + bakiye değişmez.
         await Assert.ThrowsAsync<ValidationException>(
-            () => depo.AlAsync(cari, 10m, LedgerAccountType.Kasa, doviz: "SEK"));
+            () => depo.AlAsync(cari, 10m, LedgerAccountType.Kasa, doviz: "DKK"));
         Assert.Equal(2000m, await depo.GetBakiyeAsync(cari));
     }
 

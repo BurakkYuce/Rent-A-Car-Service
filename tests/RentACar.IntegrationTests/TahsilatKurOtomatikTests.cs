@@ -14,7 +14,7 @@ namespace RentACar.IntegrationTests;
 /// FAZ1-1.1b — En yüksek trafikli FX yazma yolları (tahsilat/ödeme/virmanlar + gider) KurCozucu'ya
 /// bağlandı (1.1 adversarial kapsam-notu). SÖZLEŞME 1.1 ile aynı: açık kur aynen; boş → TRY=1 /
 /// döviz sabit-kur/TCMB; bulunamazsa NET RED sıfır yan etki. BAĞIMSIZ ORACLE (elle): 100 EUR × 40 = 4000.
-/// Toplu yollarda satır-bazlı çözüm + (kod,gün) önbelleği; atomiklik korunur (SEK'li satır → HİÇBİRİ yazılmaz).
+/// Toplu yollarda satır-bazlı çözüm + (kod,gün) önbelleği; atomiklik korunur (DKK'li satır → HİÇBİRİ yazılmaz).
 /// </summary>
 [Collection("postgres")]
 public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
@@ -53,7 +53,7 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "SEK" }));
+            () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "DKK" }));
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
         Assert.Empty(await cash.ListAsync()); // CashTransaction bile yazılmadı
     }
@@ -79,11 +79,11 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         Assert.Equal(-4100m, await cash.GetCariBalanceAsync(c1));
         Assert.Equal(-3500m, await cash.GetCariBalanceAsync(c2));
 
-        // Atomiklik: 2. satır SEK (çözülemez) → HİÇBİR satır yazılmaz.
+        // Atomiklik: 2. satır DKK (çözülemez) → HİÇBİR satır yazılmaz.
         await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(
         [
             new CashInput { CariId = c1, Tutar = 50m },
-            new CashInput { CariId = c2, Tutar = 50m, Doviz = "SEK" }
+            new CashInput { CariId = c2, Tutar = 50m, Doviz = "DKK" }
         ]));
         Assert.Equal(-4100m, await cash.GetCariBalanceAsync(c1)); // değişmedi
         Assert.Equal(-3500m, await cash.GetCariBalanceAsync(c2));
@@ -114,7 +114,7 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
 
         // Kur'suz döviz virmanı → red (bakiyeler değişmez).
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.TransferBetweenCariAsync(k, h, 1m, doviz: "SEK"));
+            () => cash.TransferBetweenCariAsync(k, h, 1m, doviz: "DKK"));
         Assert.Equal(-200m, await cash.GetCariBalanceAsync(k));
     }
 
@@ -156,11 +156,11 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         ]);
         Assert.Equal(4450m, (await rs.GetGelirGiderAsync()).GiderToplam);
 
-        // Toplu içinde SEK → atomik red, toplam değişmez.
+        // Toplu içinde DKK → atomik red, toplam değişmez.
         await Assert.ThrowsAsync<ValidationException>(() => exp.BatchCreateAsync(
         [
             new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit },
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, Doviz = "SEK", OdemeYontemi = OdemeYontemi.Nakit }
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, Doviz = "DKK", OdemeYontemi = OdemeYontemi.Nakit }
         ]));
         Assert.Equal(4450m, (await rs.GetGelirGiderAsync()).GiderToplam);
     }
