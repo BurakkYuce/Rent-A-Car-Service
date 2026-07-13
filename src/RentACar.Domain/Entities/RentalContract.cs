@@ -154,6 +154,15 @@ public class RentalContract : ITenantOwned, IAuditable
     /// yakalanır). Retroaktif değişmez (snapshot).</summary>
     public decimal KurSnapshot { get; set; } = 1m;
 
+    /// <summary>Kira-seviyesi ÖZEL KDV oranı (kesir 0..1) — fatura kesiminde varsayılan oran
+    /// (FAZ 1.4; zincir: kdvRate ?? OzelKdvOran ?? 0.20). Sözleşme Tutar'ını DEĞİŞTİRMEZ; NET fiyat
+    /// modlarında fatura kesimi mevcut guard'la reddedilir (matrah niyeti korunur).</summary>
+    public decimal? OzelKdvOran { get; set; }
+
+    /// <summary>Kira-seviyesi damga vergisi (bilgi) — fatura kesiminde InvoiceTaxInfo.DamgaVergisi
+    /// varsayılanı (FAZ 1.4). Deftere/bakiyeye yansımaz (fatura üstünde bilgi kolonu).</summary>
+    public decimal? DamgaVergisi { get; set; }
+
     /// <summary>Kira ek hizmet kalemleri (bebek koltuğu, GPS…). GenelToplam'a brüt olarak girer.</summary>
     public List<RentalAddOn> EkHizmetler { get; set; } = [];
 
