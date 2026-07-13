@@ -48,7 +48,14 @@
                 <td>
                     @if (k.Durum == KrediDurum.Aktif)
                     {
-                        <form method="post" action="/arac-kredi/taksit-ode" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" /><button type="submit">Taksit Öde</button></form>
+                        <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
+                            <form method="post" action="/arac-kredi/taksit-ode" style="display:inline"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@k.Id" />
+                                <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                                <select name="hesap" title="Taksit artık GERÇEK GİDER yazar (Finansman)"><option>Kasa</option><option>Banka</option></select>
+                                <button type="submit" title="Gider(Finansman) + defter kaydı — araç karnesine düşer">Taksit Öde</button>
+                            </form>
+                        </AuthorizeView>
                         <form method="post" action="/arac-kredi/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
                     }
                 </td>
