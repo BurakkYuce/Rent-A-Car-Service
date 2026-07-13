@@ -133,6 +133,25 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         return ok;
     }
 
+    /// <summary>FAZ 2.5 — araç kartından manuel odometre girişi: km log + Vehicle.Km AYNI transaction'da.
+    /// Geriye-gitme reddi repo TX'inde (odometre monoton); tarih geleceğe kapalı.</summary>
+    public async Task ManuelKmGirAsync(Guid id, int km, DateTimeOffset? tarih = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        BranchScope.RequireInScope(_currentUser, (await _repository.FindAsync(id, ct))?.Sube);
+        if (km < 0) throw new ValidationException("KM negatif olamaz.");
+        var t = tarih ?? DateTimeOffset.UtcNow;
+        if (t > DateTimeOffset.UtcNow.AddMinutes(5))
+            throw new ValidationException("KM tarihi gelecekte olamaz.");
+        if (!await _repository.ManuelKmEkleAsync(id, km, t, ct))
+            throw new ValidationException("Araç bulunamadı.");
+        _cache.Invalidate(CacheKey); // Km listede görünür — bayat kalmasın
+    }
+
+    /// <summary>FAZ 2.5 — km zaman serisi (araç kartı; en yeni önce).</summary>
+    public Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(Guid vehicleId, int limit = 10, CancellationToken ct = default)
+        => _repository.KmLoglariAsync(vehicleId, limit, ct);
+
     private static void Validate(string plaka, VehicleInput input)
     {
         if (string.IsNullOrWhiteSpace(plaka))
