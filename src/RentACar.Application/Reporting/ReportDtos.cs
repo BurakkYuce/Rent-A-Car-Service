@@ -223,3 +223,47 @@ public sealed record AracKarneDto(
     IReadOnlyList<AracOlayRow> Olaylar,
     AracKpiDto Kpi,
     MaliyetHesapSonuc? MaliyetModel);
+
+// ---------- Filo Analiz Panosu ----------
+
+/// <summary>Filo analiz satırı — TÜM filo araçları listelenir (dönemde hareketi olmayan araç 0 P&amp;L
+/// ile görünür — gizli zararlı/boşta araç panodan kaçmaz). P&amp;L sütunları DÖNEM-pencereli (Karlilik ile
+/// mutabık); KPI sütunları (Doluluk/ROI/KmMaliyet/YasAy) ÖMÜR BOYU (karne semantiğiyle birebir).
+/// ROI: satılmışta kapanış getirisi (satış gelirde, alım düşülür), aktifte defter ROI. Silinmiş aracın
+/// defter kalıntısı "(bilinmeyen araç)" satırı olarak korunur (mutabakat) — kohorta ve karne linkine girmez.</summary>
+public sealed record FiloAnalizRow(
+    Guid VehicleId, string Plaka, string? Grup, string? Segment, string? Sube,
+    decimal Gelir, decimal Gider, decimal NetKar,
+    decimal? DolulukYuzde, decimal? RoiYuzde, decimal? KmBasinaMaliyet,
+    int SahiplikGun, int KiralananGun, int? YasAy);
+
+/// <summary>Yaş kohortu satırı — alım tarihine göre kova (0-1/1-2/2-3/3+ yıl); ortalamalar yalnız
+/// değeri olan araçlar üzerinden (kurumsal "cost-per-km eğrisi" görünümü).</summary>
+public sealed record FiloKohortRow(string Kova, int AracAdet, decimal? OrtKmMaliyet, decimal? OrtDoluluk);
+
+/// <summary>Filo analiz panosu. Toplamlar dönem-pencereli defterle mutabık: Σ satır + Atanmamış = defter
+/// Gelir/Gider (invaryant — Karlilik ile aynı). Atanmamış ayrı gösterilir (satır değil).</summary>
+public sealed record FiloAnalizDto(
+    IReadOnlyList<FiloAnalizRow> Satirlar,
+    decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
+    decimal AtanmamisGelir, decimal AtanmamisGider,
+    IReadOnlyList<FiloKohortRow> YasKohortu);
+
+/// <summary>Filo analiz repo ham paketi. KarlilikPencere = dönem-filtreli araç P&amp;L satırları;
+/// KarlilikOmur = pencereden bağımsız (from/to null ise aynı liste). Kiralar İptal-dışı, efektif bitişli.</summary>
+public sealed record FiloAnalizRawDto(
+    IReadOnlyList<KarlilikSatirDto> KarlilikPencere,
+    IReadOnlyList<KarlilikSatirDto> KarlilikOmur,
+    IReadOnlyList<FiloAracRow> Araclar,
+    IReadOnlyList<FiloKiraRow> Kiralar);
+
+/// <summary>Filo aracı KPI hamı (kimlik boyutları + sahiplik penceresi alanları + son tamamlanmış satış).
+/// Pano satırları BU listeden tohumlanır (adversarial F-D: dönemde hareketi olmayan araç da görünür).</summary>
+public sealed record FiloAracRow(
+    Guid Id, string Plaka, string? Grup, string? Segment, string? Sube,
+    decimal? AlimBedeli, DateTimeOffset? AlimTarihi,
+    DateTimeOffset? FiloGirisTarih, DateTimeOffset? FiloCikisTarih,
+    VehicleStatus Durum, DateTimeOffset? SonSatisTarih);
+
+/// <summary>Filo kirası (İptal hariç): efektif aralık (GercekDonusTar ?? BitTar) + km çifti.</summary>
+public sealed record FiloKiraRow(Guid VehicleId, DateTimeOffset Bas, DateTimeOffset Bit, int? CikisKm, int? DonusKm);

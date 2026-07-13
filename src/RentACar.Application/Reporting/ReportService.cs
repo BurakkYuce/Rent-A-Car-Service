@@ -197,6 +197,111 @@ public sealed class ReportService(IReportRepository repository)
             KiraSayisi: raw.KiraSayisi);
     }
 
+    /// <summary>
+    /// Filo analiz panosu: dönem-pencereli araç P&L satırları (Karlilik ile mutabık) + ÖMÜR-BOYU KPI
+    /// sütunları (Doluluk cap-100 / ROI [satılmışta kapanış] / km-maliyet — karne semantiğiyle birebir,
+    /// karışık-payda yok) + yaş kohortu (alım tarihi kovası → ort. km-maliyet & doluluk).
+    /// siralama: "net"(vars.) | "zarar" | "doluluk" | "roi". Toplamlar (satır+Atanmamış) defterle mutabık.
+    /// </summary>
+    public async Task<FiloAnalizDto> GetFiloAnalizAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, string? siralama = null,
+        CancellationToken ct = default)
+    {
+        var raw = await _repository.GetFiloAnalizRawAsync(from, to, ct);
+        var omurByVeh = raw.KarlilikOmur.Where(r => r.VehicleId != null).ToDictionary(r => r.VehicleId!.Value);
+        var pencereByVeh = raw.KarlilikPencere.Where(r => r.VehicleId != null).ToDictionary(r => r.VehicleId!.Value);
+        var kiraByVeh = raw.Kiralar.GroupBy(k => k.VehicleId).ToDictionary(g => g.Key, g => g.ToList());
+        var aracById = raw.Araclar.ToDictionary(a => a.Id);
+        var simdi = DateTimeOffset.UtcNow;
+
+        // Satırlar TÜM filodan tohumlanır (adversarial F-D): dönemde hareketi olmayan araç 0 P&L ile
+        // görünür — gizli zararlı / hiç kiralanmamış araç panodan kaçmaz; kohort filoyu sayar.
+        var rows = new List<FiloAnalizRow>();
+        foreach (var a in raw.Araclar)
+        {
+            var p = pencereByVeh.TryGetValue(a.Id, out var pr) ? pr : null;
+            var om = omurByVeh.TryGetValue(a.Id, out var o) ? o : null;
+            var omurNet = (om?.Gelir ?? 0m) - (om?.Gider ?? 0m);
+            var kiralar = kiraByVeh.TryGetValue(a.Id, out var ks) ? ks : [];
+
+            int sahiplik = 0, kiralanan = 0; int? yasAy = null;
+            decimal? doluluk = null, roi = null, kmMaliyet = null;
+            DateTimeOffset? wBas = a.FiloGirisTarih ?? a.AlimTarihi;
+            var wBit = a.FiloCikisTarih
+                ?? (a.Durum == VehicleStatus.Satildi ? a.SonSatisTarih : null) ?? simdi;
+            if (wBas is { } wb)
+            {
+                var basD = wb.UtcDateTime.Date;
+                var bitD = wBit.UtcDateTime.Date;
+                sahiplik = bitD >= basD ? (bitD - basD).Days + 1 : 0;
+                kiralanan = kiralar.Sum(k => OverlapDays(k.Bas.UtcDateTime.Date, k.Bit.UtcDateTime.Date, basD, bitD));
+                if (sahiplik > 0)
+                    doluluk = decimal.Round(Math.Min(100m, kiralanan * 100m / sahiplik), 2, MidpointRounding.AwayFromZero);
+            }
+            var satilmis = a.Durum == VehicleStatus.Satildi && a.SonSatisTarih is not null;
+            if (a.AlimBedeli is > 0m)
+                roi = decimal.Round((satilmis ? omurNet - a.AlimBedeli.Value : omurNet) * 100m / a.AlimBedeli.Value,
+                    2, MidpointRounding.AwayFromZero);
+            if (a.AlimTarihi is { } at)
+            {
+                var son = (a.Durum == VehicleStatus.Satildi ? a.SonSatisTarih : null) ?? simdi;
+                // Gün-hassas ay farkı (adversarial F-E): gün-of-ay geçmemişse ay tamamlanmadı sayılır
+                // (362 günlük araç "1-2 yıl" kovasına düşmesin).
+                var ay = (son.Year - at.Year) * 12 + son.Month - at.Month - (son.Day < at.Day ? 1 : 0);
+                yasAy = Math.Max(0, ay);
+            }
+            var km = kiralar.Where(k => k.CikisKm != null && k.DonusKm != null)
+                .Sum(k => k.DonusKm!.Value - k.CikisKm!.Value);
+            if (km > 0 && om is not null)
+                kmMaliyet = decimal.Round(om.Gider / km, 2, MidpointRounding.AwayFromZero);
+
+            rows.Add(new FiloAnalizRow(a.Id, a.Plaka, a.Grup, a.Segment, a.Sube,
+                p?.Gelir ?? 0m, p?.Gider ?? 0m, p?.NetKar ?? 0m,
+                doluluk, roi, kmMaliyet, sahiplik, kiralanan, yasAy));
+        }
+        // Silinmiş aracın defter kalıntısı: satır olarak korunur (Σ satır + Atanmamış = defter mutabakatı),
+        // KPI'sız; kohorta girmez, karne linki çizilmez ("(bilinmeyen araç)").
+        foreach (var p in raw.KarlilikPencere.Where(x => x.VehicleId is Guid vid && !aracById.ContainsKey(vid)))
+            rows.Add(new FiloAnalizRow(p.VehicleId!.Value, p.Plaka, p.Grup, p.Segment, p.Sube,
+                p.Gelir, p.Gider, p.NetKar, null, null, null, 0, 0, null));
+
+        rows = (siralama ?? "net").Trim().ToLowerInvariant() switch
+        {
+            "zarar" => [.. rows.OrderBy(x => x.NetKar).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
+            "doluluk" => [.. rows.OrderByDescending(x => x.DolulukYuzde ?? -1m).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
+            "roi" => [.. rows.OrderByDescending(x => x.RoiYuzde ?? decimal.MinValue).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)],
+            _ => [.. rows.OrderByDescending(x => x.NetKar).ThenBy(x => x.Plaka, StringComparer.OrdinalIgnoreCase)]
+        };
+
+        var atanmamis = raw.KarlilikPencere.FirstOrDefault(x => x.VehicleId == null);
+
+        static string Kova(int? yasAy) => yasAy switch
+        {
+            null => "Alım tarihi yok",
+            < 12 => "0-1 yıl",
+            < 24 => "1-2 yıl",
+            < 36 => "2-3 yıl",
+            _ => "3+ yıl"
+        };
+        static int KovaSira(string k) => k switch
+        { "0-1 yıl" => 0, "1-2 yıl" => 1, "2-3 yıl" => 2, "3+ yıl" => 3, _ => 4 };
+        static decimal? Ort(IEnumerable<decimal?> xs)
+        {
+            var v = xs.Where(x => x != null).Select(x => x!.Value).ToList();
+            return v.Count > 0 ? decimal.Round(v.Average(), 2, MidpointRounding.AwayFromZero) : null;
+        }
+        var kohort = rows.Where(x => aracById.ContainsKey(x.VehicleId)).GroupBy(x => Kova(x.YasAy))
+            .Select(g => new FiloKohortRow(g.Key, g.Count(),
+                Ort(g.Select(x => x.KmBasinaMaliyet)), Ort(g.Select(x => x.DolulukYuzde))))
+            .OrderBy(k => KovaSira(k.Kova)).ToList();
+
+        // İnvaryant: satırlar + Atanmamış = dönem defter toplamı (Karlilik ile aynı).
+        var toplamGelir = rows.Sum(x => x.Gelir) + (atanmamis?.Gelir ?? 0m);
+        var toplamGider = rows.Sum(x => x.Gider) + (atanmamis?.Gider ?? 0m);
+        return new FiloAnalizDto(rows, toplamGelir, toplamGider, toplamGelir - toplamGider,
+            atanmamis?.Gelir ?? 0m, atanmamis?.Gider ?? 0m, kohort);
+    }
+
     /// <summary>Geri-ödeme ayı: alım bedelinin aylık net kârla amortismanı. TAMAMEN decimal hesap —
     /// (int) cast taşması yok (adversarial F1: 1-kuruş net + milyonluk araç OverflowException veriyordu).
     /// 1200 aydan (100 yıl) uzun geri ödeme pratikte "geri ödemez" → null.</summary>
