@@ -37,7 +37,7 @@ public static class FinanceEndpoints
                 await svc.CollectAsync(new CashInput
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
-                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
+                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
@@ -59,7 +59,7 @@ public static class FinanceEndpoints
                 await svc.PayAsync(new CashInput
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
-                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur) ?? 1m,
+                    Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
@@ -129,7 +129,7 @@ public static class FinanceEndpoints
             var hedef = FormParse.Id(f["hedefCariId"].ToString()) ?? Guid.Empty;
             var tutar = FormParse.Dec(f["tutar"].ToString()) ?? 0m;
             var doviz = f["doviz"].ToString();
-            var kur = FormParse.Dec(f["kur"].ToString()) ?? 1m;
+            var kur = FormParse.Dec(f["kur"].ToString()); // boş → otomatik (1.1b)
             var aciklama = f["aciklama"].ToString();
             var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
             try
