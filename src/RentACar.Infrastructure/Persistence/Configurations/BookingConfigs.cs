@@ -107,6 +107,8 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.Kaynak).HasMaxLength(64);
         e.Property(x => x.KampanyaKodu).HasMaxLength(64); // FAZ 3.A5
         e.Property(x => x.KdvOranSnapshot).HasColumnType("numeric(9,4)"); // FAZ 3.A6
+        e.Property(x => x.ProvizyonDurum).HasConversion<int>(); // FAZ 4.1
+        e.Property(x => x.ProvizyonKapamaTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.UyariAciklama).HasMaxLength(512);
         e.Property(x => x.OzelFaturaAciklama).HasMaxLength(512);
         e.Property(x => x.UcusNo).HasMaxLength(32);

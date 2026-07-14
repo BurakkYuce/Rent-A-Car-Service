@@ -55,7 +55,23 @@
                     <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
                 </form>
             </div>
-            <button type="button" class="kf-btn-ghost" disabled title="TODO: POS provizyon kapama (entegrasyon stub)">Manuel Provizyon Kapama</button>
+            @* FAZ 4.1: manuel provizyon yaşam döngüsü — POS'suz kayıt (deftere yazmaz). Bu formlar ana
+               formun DIŞINDA; SekmeAyrintilar'daki butonlar form= attribute'üyle bunlara bağlanır. *@
+            <form id="kf-prov-al" method="post" action="/kiralar/provizyon-al" style="display:none;"><AntiforgeryToken />
+                <input type="hidden" name="id" value="@Vm.Rental!.Id" />
+            </form>
+            <details>
+                <summary class="link">Manuel Provizyon Kapama (durum: @Vm.Rental!.ProvizyonDurum)</summary>
+                <form id="kf-prov-kapat" method="post" action="/kiralar/provizyon-kapat" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="id" value="@Vm.Rental!.Id" />
+                    <label>Kapama Tutarı<input name="kapamaTutar" type="number" step="0.01" min="0"
+                        placeholder="Boş = bloke tutarın tamamı" value="@Vm.Rental!.Provizyon" /></label>
+                    <label><input type="checkbox" name="iade" value="true" /> Çekim yok — serbest bırak (iade)</label>
+                    <label style="align-self:end;"><button type="submit"
+                        disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Alindi)">Provizyonu Kapat</button></label>
+                    <p class="muted small">Bilgi kaydıdır — deftere/bakiyeye yazmaz; gerçek tahsilat yukarıdaki akışlardan.</p>
+                </form>
+            </details>
             @if (!Vm.FinansYetkisi) { <p class="muted small">Muhasebe (FinanceWrite) yetkisi gerekir.</p> }
         }
         else { <p class="muted small">@KapaliNot</p> }
