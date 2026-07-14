@@ -322,6 +322,25 @@ public static class BookingEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=donus"); }
         });
 
+        // FAZ 4.1: MANUEL provizyon yaşam döngüsü — POS'suz kayıt (IPosService çağrılmaz; kart verisi
+        // sisteme girmez); deftere yazmaz. Yok→Alindi→(Kapandi|IadeEdildi) guard'ları serviste.
+        kira.MapPost("/provizyon-al", async (RentalService svc, [FromForm] Guid id) =>
+        {
+            try { await svc.ProvizyonAlAsync(id); return Results.Redirect($"/kiralar/{id}?ok=1#sekme=ayrintilar"); }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
+        });
+
+        kira.MapPost("/provizyon-kapat", async (RentalService svc,
+            [FromForm] Guid id, [FromForm] string? kapamaTutar, [FromForm] string? iade) =>
+        {
+            try
+            {
+                await svc.ProvizyonKapatAsync(id, FormParse.Dec(kapamaTutar), iade is "true" or "on");
+                return Results.Redirect($"/kiralar/{id}?ok=1#sekme=ayrintilar");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
+        });
+
         return app;
     }
 
