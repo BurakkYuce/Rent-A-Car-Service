@@ -61,7 +61,8 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             DropUcreti = input.DropUcreti,
             SonraOdeOran = input.SonraOdeOran,
             Aciklama = input.Aciklama,
-            Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim()
+            Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim(),
+            KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim()
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
@@ -116,6 +117,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             r.SonraOdeOran = input.SonraOdeOran;
             r.Aciklama = input.Aciklama;
             r.Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim();
+            r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -168,7 +170,12 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             KomisyonTutar = res.KomisyonTutar,
             DropUcreti = res.DropUcreti,
             SonraOdeOran = res.SonraOdeOran,
-            Aciklama = res.Aciklama
+            Aciklama = res.Aciklama,
+            // Dönüşüm REZERVASYON FİYAT TAAHHÜDÜNÜ taşır — yeniden fiyatlama/kod doğrulaması YAPILMAZ
+            // (müşteriye verilen fiyat dönüşümde değişmez). Kod + kaynak İZ olarak kopyalanır
+            // (adversarial A5-B3: iz kopyalanmayınca indirimli tutarın gerekçesi denetimde kayboluyordu).
+            Kaynak = res.Kaynak,
+            KampanyaKodu = res.KampanyaKodu
         }, ct);
     }
 

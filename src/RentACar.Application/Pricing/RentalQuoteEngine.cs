@@ -123,8 +123,14 @@ public sealed class RentalQuoteEngine(
 
         // 4) Kiralama kuralı → hediye gün + iskonto. KM aşım + sigorta DAHİL gerçek iskonto matrahıyla
         // (araToplam) müşteri lehine en iyi kural seçilir (M-NEW: iskonto yalnız bazdan sayılmaz).
-        var kural = SelectRule(await _rentalRules.ListActiveAsync(ct), grupKod, kanal, sube, req.BasTar,
-            gun, gunlukUcret, kmAsim + sigortaToplam, req.MusteriSegment);
+        var aktifKurallar = await _rentalRules.ListActiveAsync(ct);
+        // FAZ 3.A5: kod girildiyse kural seçimi KODLU kuralla DEĞİŞTİRİLİR (REPLACE — stacking yok);
+        // kod geçersiz/kapsam-dışıysa gürültülü red (sessiz otomatiğe düşme yok).
+        var kural = string.IsNullOrWhiteSpace(req.KampanyaKodu)
+            ? SelectRule(aktifKurallar, grupKod, kanal, sube, req.BasTar,
+                gun, gunlukUcret, kmAsim + sigortaToplam, req.MusteriSegment)
+            : KodluKuralSec(aktifKurallar, req.KampanyaKodu, grupKod, kanal, sube, req.BasTar,
+                gun, req.MusteriSegment, gunlukUcret, kmAsim + sigortaToplam, notlar);
         var hediyeGun = Math.Min(kural?.HediyeGun ?? 0, gun);
         var iskontoOran = kural?.Iskonto ?? 0m;
         var faturalananGun = Math.Max(0, gun - hediyeGun);
@@ -265,6 +271,75 @@ public sealed class RentalQuoteEngine(
             .ThenByDescending(r => RuleBenefit(r, gun, gunlukUcret, digerTutar))
             .ThenBy(r => r.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
+
+    /// <summary>Promosyon kodu çözümü (FAZ 3.A5): birebir eşleşme REPLACE — otomatik seçim atlanır,
+    /// stacking yok (tek-kural invaryantı korunur). Kapsam (grup/kanal/şube/segment/tarih/gün)
+    /// sağlanmazsa GÜRÜLTÜLÜ RED — sessiz yutma yok (uygunsuz kod fiyatı sessizce otomatiğe
+    /// düşüremez; operatör alanı düzeltir ya da temizler). Kod açık operatör talimatı olduğundan
+    /// otomatik kuraldan DAHA AZ avantajlı olsa da uygulanır (karşılaştırma NOTU düşülür).</summary>
+    private static RentalRule KodluKuralSec(
+        IReadOnlyList<RentalRule> all, string kod, string grupKod, string? kanal, string? sube,
+        DateTimeOffset tarih, int gun, string? musteriSegment, decimal gunlukUcret, decimal digerTutar,
+        List<string> notlar)
+    {
+        var k = kod.Trim();
+        var adaylar = all.Where(r => !string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
+            string.Equals(r.KampanyaKodu.Trim(), k, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (adaylar.Count == 0)
+            throw new ValidationException($"Kampanya kodu geçersiz: '{k}'.");
+
+        // Adversarial B4: aynı kod birden çok kuralda (servis artık engelliyor; eski veri kalabilir) —
+        // kapsamı UYAN aday dururken diğerinin reddi fırlatılmaz: uyanlar arasından müşteri lehine en
+        // faydalısı seçilir + not. Tek adayda aşağıdaki AYRINTILI kapsam redleri anlamlı mesaj verir.
+        var kural = adaylar[0];
+        if (adaylar.Count > 1)
+        {
+            kural = adaylar
+                .Where(r => KapsamUyar(r, grupKod, kanal, sube, musteriSegment, tarih, gun))
+                .OrderByDescending(r => RuleBenefit(r, gun, gunlukUcret, digerTutar))
+                .ThenBy(r => r.Kod, StringComparer.Ordinal)
+                .FirstOrDefault()
+                ?? throw new ValidationException(
+                    $"'{k}' kampanyasının hiçbir tanımı bu kiralamanın kapsamına uymuyor (grup/kanal/şube/segment/tarih/gün).");
+            notlar.Add($"Uyarı: '{k}' kodu birden çok kuralda tanımlı; kapsamı uyan '{kural.Kod}' uygulandı.");
+        }
+
+        if (kural.AracGrupKod != null && kural.AracGrupKod != grupKod)
+            throw new ValidationException($"'{k}' kampanyası bu araç grubunda geçerli değil (kapsam: {kural.AracGrupKod}).");
+        if (kural.Kanal != null && !string.Equals(kural.Kanal, kanal, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException($"'{k}' kampanyası bu kanalda geçerli değil (kapsam: {kural.Kanal}).");
+        if (kural.Sube != null && !string.Equals(kural.Sube, sube, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException($"'{k}' kampanyası bu şubede geçerli değil (kapsam: {kural.Sube}).");
+        if (kural.MusteriSegment != null && !string.Equals(kural.MusteriSegment.Trim(),
+                musteriSegment?.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException($"'{k}' kampanyası bu müşteri segmentinde geçerli değil (kapsam: {kural.MusteriSegment}).");
+        if (kural.GecerlilikBas is { } gb && gb > tarih)
+            throw new ValidationException($"'{k}' kampanyası henüz başlamadı (başlangıç {gb:dd.MM.yyyy}).");
+        if (kural.GecerlilikBit is { } gt && gt < tarih)
+            throw new ValidationException($"'{k}' kampanyasının süresi doldu ({gt:dd.MM.yyyy}). Kod alanını temizleyin.");
+        if (kural.MinGun is { } min && gun < min)
+            throw new ValidationException($"'{k}' kampanyası en az {min} gün kiralamada geçerli (istenen {gun} gün).");
+        if (kural.MaxGun is { } max && gun > max)
+            throw new ValidationException($"'{k}' kampanyası en çok {max} gün kiralamada geçerli (istenen {gun} gün).");
+
+        var otomatik = SelectRule(all, grupKod, kanal, sube, tarih, gun, gunlukUcret, digerTutar, musteriSegment);
+        if (otomatik is not null &&
+            RuleBenefit(otomatik, gun, gunlukUcret, digerTutar) > RuleBenefit(kural, gun, gunlukUcret, digerTutar))
+            notlar.Add($"Bilgi: otomatik kural '{otomatik.Kod}' kodlu kampanyadan daha avantajlıydı; operatör talimatı (kod) uygulandı.");
+        return kural;
+    }
+
+    /// <summary>Kodlu kural kapsam predicate'i (çoklu-aday yolu) — ayrıntılı red mesajlarıyla birebir aynı şartlar.</summary>
+    private static bool KapsamUyar(RentalRule r, string grupKod, string? kanal, string? sube,
+        string? musteriSegment, DateTimeOffset tarih, int gun)
+        => (r.AracGrupKod == null || r.AracGrupKod == grupKod)
+        && (r.Kanal == null || string.Equals(r.Kanal, kanal, StringComparison.OrdinalIgnoreCase))
+        && (r.Sube == null || string.Equals(r.Sube, sube, StringComparison.OrdinalIgnoreCase))
+        && (r.MusteriSegment == null || string.Equals(r.MusteriSegment.Trim(), musteriSegment?.Trim(), StringComparison.OrdinalIgnoreCase))
+        && (r.GecerlilikBas == null || r.GecerlilikBas <= tarih)
+        && (r.GecerlilikBit == null || r.GecerlilikBit >= tarih)
+        && (r.MinGun == null || gun >= r.MinGun)
+        && (r.MaxGun == null || gun <= r.MaxGun);
 
     /// <summary>Kuralın müşteriye sağladığı tahmini indirim değeri: hediye-gün × günlük ücret +
     /// iskonto% × GERÇEK matrah (faturalanan gün × günlük ücret + KM aşım + sigorta = araToplam).

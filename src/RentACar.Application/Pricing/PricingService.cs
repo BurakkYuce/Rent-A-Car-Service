@@ -61,6 +61,12 @@ public sealed class PricingService(
         var otomatik = string.Equals(input.FiyatTuru?.Trim(), "Otomatik", StringComparison.OrdinalIgnoreCase);
         if (otomatik) input.GunlukUcret = 0m;
 
+        // FAZ 3.A5: kampanya kodu yalnız motor (Otomatik) yolunda uygulanabilir — manuel/legacy fiyat
+        // yolunda SESSİZCE yutulması para kaçağı sınıfıdır → gürültülü red (Otomatik seçilir ya da alan
+        // temizlenir; kod her fiyatlamada motorca yeniden doğrulanır).
+        if (!string.IsNullOrWhiteSpace(input.KampanyaKodu) && !otomatik)
+            throw new ValidationException("Kampanya kodu yalnız 'Otomatik' fiyat türünde uygulanır; manuel fiyatla birlikte kullanılamaz.");
+
         if (input.GunlukUcret <= 0)
         {
             var vehicle = await _vehicles.FindAsync(input.VehicleId, ct);
@@ -82,7 +88,8 @@ public sealed class PricingService(
                     ? await _quoteEngine.QuoteAsync(new QuoteRequest
                         {
                             AracGrupKod = grup, Kanal = kanal, Sube = input.CikisOfisi,
-                            BasTar = input.BasTar, BitTar = input.BitTar, MusteriSegment = segment
+                            BasTar = input.BasTar, BitTar = input.BitTar, MusteriSegment = segment,
+                            KampanyaKodu = input.KampanyaKodu
                         }, ct)
                     : null;
                 if (q?.TarifeKodu is not null)
@@ -105,6 +112,12 @@ public sealed class PricingService(
                 }
                 else
                 {
+                    // FAZ 3.A5 adversarial B1 (High): kodlu fiyat YALNIZ tarife matrisiyle çözülür —
+                    // RateCard fallback'i kuralları bilmez; kod sessizce etkisiz kalır + iz yazılırdı
+                    // (indirimsiz tutar, sözleşmede "kod uygulandı" yanılsaması) → gürültülü red.
+                    if (!string.IsNullOrWhiteSpace(input.KampanyaKodu))
+                        throw new ValidationException(
+                            "Kampanya kodu yalnız tarife matrisiyle fiyatlanan kirada uygulanır; tarife tanımlayın veya kodu temizleyin.");
                     // Matris YOK → geriye-uyum fallback: eski RateCard (DEPRECATED; bileşen yok).
 #pragma warning disable CS0618
                     var card = await _rateCards.GetRateAsync(grup, gun, input.BasTar, ct);

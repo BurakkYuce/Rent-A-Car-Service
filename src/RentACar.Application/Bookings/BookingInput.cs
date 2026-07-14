@@ -25,6 +25,8 @@ public sealed class BookingInput
 
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; } // roadmap H2
+    /// <summary>Promosyon kodu (FAZ 3.A5) — yalnız "Otomatik" fiyat türünde geçerli; aksi gürültülü red.</summary>
+    public string? KampanyaKodu { get; set; }
 
     // TürevRent parite (additive metadata)
     public string? KiralamaTuru { get; set; }

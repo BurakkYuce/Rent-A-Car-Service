@@ -18,7 +18,9 @@ public sealed record KiraHesapIstek(
     string? Doviz,
     string? CikisOfisi,
     IReadOnlyList<KiraHesapEkHizmet> EkHizmetler,
-    Guid? RentalId = null);
+    Guid? RentalId = null,
+    Guid? MusteriId = null,
+    string? KampanyaKodu = null);
 
 public sealed record KiraHesapEkHizmet(Guid TanimId, decimal Miktar);
 
@@ -98,7 +100,11 @@ public sealed class KiraHesapService(
             GunlukUcret = istek.GunlukUcret ?? 0m,
             FiyatTuru = istek.FiyatTuru,
             CikisOfisi = istek.CikisOfisi,
-            Doviz = doviz
+            Doviz = doviz,
+            // Adversarial A5-B5: önizleme == kayıt — müşteri (A2 segment) ve kampanya kodu (A5)
+            // canlı hesaba da girer; kod geçersizse Hatali(ok:false) nazik geri bildirimi.
+            MusteriId = istek.MusteriId ?? Guid.Empty,
+            KampanyaKodu = istek.KampanyaKodu
         };
 
         PricingService.PricedRental pr;
