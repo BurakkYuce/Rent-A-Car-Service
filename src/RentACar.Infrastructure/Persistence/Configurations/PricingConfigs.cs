@@ -152,3 +152,19 @@ internal sealed class BrokerYasakConfig : IEntityTypeConfiguration<BrokerYasak>
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
+
+// ---- DolulukFiyatKural (FAZ 3.A7 — doluluk-bazlı çarpan; tenant-owned master, defter postalamaz) ----
+internal sealed class DolulukFiyatKuralConfig : IEntityTypeConfiguration<DolulukFiyatKural>
+{
+    public void Configure(EntityTypeBuilder<DolulukFiyatKural> e)
+    {
+        e.ToTable("DolulukFiyatKurallari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.AracGrupKod).HasMaxLength(32);
+        e.Property(x => x.CarpanYuzde).HasColumnType("numeric(9,4)");
+        e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+    }
+}
