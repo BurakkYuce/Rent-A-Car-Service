@@ -214,11 +214,15 @@ public sealed class RentalQuoteEngine(
 
     /// <summary>Kapsam + tarih + min/max gün eşleşen tek kural seçilir (promosyonlar stack'lenmez).
     /// M3: eşit spesifiklikte MÜŞTERİ LEHİNE en yüksek faydalı kural (hediye-gün değeri + iskonto)
-    /// kazanır — daha cömert hediye-gün kampanyası, düşük iskontolu kurala feda edilmez.</summary>
+    /// kazanır — daha cömert hediye-gün kampanyası, düşük iskontolu kurala feda edilmez.
+    /// KAMPANYA ÇİTİ (FAZ 3.A0 — canlı bug düzeltmesi): KampanyaKodu'lu kural KOD GİRİLMEDEN
+    /// otomatik seçime GİRMEZ (kod-kapılı kural en-avantajlı seçimle sessizce uygulanıyordu);
+    /// kodla uygulama A5'in (promosyon kodu) işi. Kodsuz kampanya (KampanyaMi, kodsuz) otomatik kalır.</summary>
     private static RentalRule? SelectRule(
         IReadOnlyList<RentalRule> all, string grupKod, string? kanal, string? sube,
         DateTimeOffset tarih, int gun, decimal gunlukUcret, decimal digerTutar)
         => all.Where(r =>
+                string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
                 (r.AracGrupKod == null || r.AracGrupKod == grupKod) &&
                 (r.Kanal == null || string.Equals(r.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
                 (r.Sube == null || string.Equals(r.Sube, sube, StringComparison.OrdinalIgnoreCase)) &&
