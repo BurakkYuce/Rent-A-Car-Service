@@ -27,7 +27,13 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
     public async Task<bool> IsRentalInvoicedAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Invoices.AsNoTracking().AnyAsync(i => i.RentalId == rentalId, ct);
+        // FAZ 4.2-B2: DÖNEM faturaları fark formatındadır (RentalId=null, KaynakKiraId=kira) ve base
+        // fatura OLMADAN var olabilirler — yalnız RentalId'ye bakmak dönemsel kirada normal "Fatura
+        // Kes"i BASE yoluna sokup TAM tutarı İKİNCİ KEZ kestirirdi (çift faturalama). Her iki bağ da
+        // "faturalanmış" sayılır; addon/drop dondurma guard'ları da ilk dönem kesiminden itibaren
+        // tutarlı biçimde devreye girer (defter snapshot ilkesiyle aynı).
+        return await db.Invoices.AsNoTracking()
+            .AnyAsync(i => i.RentalId == rentalId || i.KaynakKiraId == rentalId, ct);
     }
 
     public async Task AddAsync(RentalAddOn addOn, CancellationToken ct = default)
