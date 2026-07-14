@@ -56,7 +56,7 @@ public sealed class PricingService(
         int Gun, decimal Tutar, int? HediyeGun, decimal? IskontoTutar, decimal? HaftaSonuFark, int? FaturalananGun,
         decimal? KdvOranSnapshot = null);
 
-    public async Task<PricedRental> PriceAsync(BookingInput input, CancellationToken ct = default)
+    public async Task<PricedRental> PriceAsync(BookingInput input, bool dolulukUygula = true, CancellationToken ct = default)
     {
         var gun = BookingMath.ComputeGun(input.BasTar, input.BitTar);
 
@@ -92,7 +92,8 @@ public sealed class PricingService(
                         {
                             AracGrupKod = grup, Kanal = kanal, Sube = input.CikisOfisi,
                             BasTar = input.BasTar, BitTar = input.BitTar, MusteriSegment = segment,
-                            KampanyaKodu = input.KampanyaKodu
+                            KampanyaKodu = input.KampanyaKodu,
+                            DolulukUygula = dolulukUygula // FAZ 3.A7 (rez-update reprice'ında false)
                         }, ct)
                     : null;
                 if (q?.TarifeKodu is not null)
