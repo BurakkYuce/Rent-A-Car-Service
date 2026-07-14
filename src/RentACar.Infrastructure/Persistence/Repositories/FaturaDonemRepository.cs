@@ -18,6 +18,17 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
             .OrderBy(d => d.DonemSira).ToListAsync(ct);
     }
 
+    public async Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var d = await db.FaturaDonemleri.FirstOrDefaultAsync(x => x.Id == donemId, ct);
+        if (d is null || d.Durum != FaturaDonemDurum.Planlandi) return false;
+        d.Durum = FaturaDonemDurum.Atlandi;
+        d.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task ReplacePlannedAsync(
         Guid rentalId, IReadOnlyList<FaturaDonemi> yeniPlanlar, CancellationToken ct = default)
     {
