@@ -116,6 +116,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
     public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();
     public DbSet<VehicleKmLog> KmLoglari => Set<VehicleKmLog>(); // FAZ 2.5 — km zaman serisi
+    public DbSet<DolulukFiyatKural> DolulukFiyatKurallari => Set<DolulukFiyatKural>(); // FAZ 3.A7
 
     protected override void OnModelCreating(ModelBuilder b)
     {

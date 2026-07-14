@@ -34,7 +34,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         // kapalı + ≤+1yıl). Kabul/convert TEKRAR guard'lamaz → gün sonra yaşlanmış teklifin kabulü kilitlenmez.
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
         // Fiyat motoru: manuel >0 kazanır, yoksa tarife → booking.GunlukUcret efektif ücretle güncellenir.
-        var pr = await _pricing.PriceAsync(booking, ct);
+        var pr = await _pricing.PriceAsync(booking, ct: ct);
         if (input.GecerlilikTarihi is { } g && g < input.BasTar)
             throw new ValidationException("Geçerlilik tarihi başlangıç tarihinden önce olamaz.");
 

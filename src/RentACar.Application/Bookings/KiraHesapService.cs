@@ -115,7 +115,7 @@ public sealed class KiraHesapService(
         };
 
         PricingService.PricedRental pr;
-        try { pr = await pricing.PriceAsync(input, ct); }
+        try { pr = await pricing.PriceAsync(input, ct: ct); }
         catch (ValidationException ex) { return Hatali(ex.Message, doviz); } // örn. Otomatik + tarife yok
 
         // FAZ 3.A6: Net/KDV göstergesi tenant varsayılanıyla ayrışır (net-mod gross-up'ı da PriceAsync

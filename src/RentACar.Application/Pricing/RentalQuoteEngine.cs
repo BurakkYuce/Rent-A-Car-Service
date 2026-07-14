@@ -33,7 +33,9 @@ public sealed class RentalQuoteEngine(
     RateMatrixService rateMatrices,
     RentalRuleService rentalRules,
     VehicleGroupService vehicleGroups,
-    CoverageProductService coverageProducts)
+    CoverageProductService coverageProducts,
+    DolulukFiyat.IDolulukFiyatKuralRepository dolulukKurallari,
+    DolulukFiyat.IOccupancyProvider doluluk)
 {
     private readonly RateMatrixService _rateMatrices = rateMatrices;
     private readonly RentalRuleService _rentalRules = rentalRules;
@@ -64,6 +66,33 @@ public sealed class RentalQuoteEngine(
             notlar.Add("Eşleşen tarife matrisi bulunamadı; günlük ücret 0 (manuel girilebilir).");
         else
             gunlukUcret = ResolveTierRate(matris, gun, notlar);
+
+        // FAZ 3.A7: DOLULUK ÇARPANI — ResolveTierRate SONRASI, hediye/iskonto ÖNCESİ bağımsız aşama
+        // (kural-seçimi en-avantajlıyı seçtiğinden surge RentalRule'a konamaz — her indirime yenilirdi).
+        // Yalnız MOTOR yolu (manuel fiyat asla); kural yoksa KISA DEVRE (doluluk sorgusu atılmaz);
+        // rezervasyon-UPDATE reprice'ında DolulukUygula=false (müşteriye verilen fiyat sıçramaz).
+        // İskonto matrahı surge'lü baz olur (sonraki tüm hesaplar bu günlük ücretten). TOCTOU bilinçli
+        // kabul: doluluk create anında okunur, fiyat sözleşmede kilitlenir.
+        if (req.DolulukUygula && gunlukUcret > 0)
+        {
+            var dolulukAdaylari = (await dolulukKurallari.ListActiveAsync(ct))
+                .Where(k => (k.AracGrupKod == null || k.AracGrupKod == grupKod)
+                    && (k.GecerlilikBas == null || k.GecerlilikBas <= req.BasTar)
+                    && (k.GecerlilikBit == null || k.GecerlilikBit >= req.BasTar)).ToList();
+            if (dolulukAdaylari.Count > 0
+                && await doluluk.GetGrupDolulukYuzdeAsync(grupKod, req.BasTar, req.BitTar, ct) is { } dolulukYuzde)
+            {
+                var surge = dolulukAdaylari.Where(k => dolulukYuzde >= k.EsikYuzde)
+                    .OrderByDescending(k => k.EsikYuzde).ThenByDescending(k => k.CarpanYuzde)
+                    .ThenBy(k => k.Kod, StringComparer.Ordinal).FirstOrDefault();
+                if (surge is not null)
+                {
+                    var carpan = Math.Min(surge.CarpanYuzde, 50m); // uygulama KEMERİ (DB CHECK pantolon askısı)
+                    gunlukUcret = R(gunlukUcret * (1m + carpan / 100m));
+                    notlar.Add($"Doluluk %{dolulukYuzde:0.##} ≥ %{surge.EsikYuzde} → +%{carpan:0.##} ({surge.Kod}).");
+                }
+            }
+        }
 
         // Teklif dövizi = tarife matrisinin para birimi (yoksa TRY). KM aşım ücreti (araç grubunda
         // döviz alanı YOK) bu baz dövizde kabul edilir; sigorta ürünleri farklı döviz taşıyamaz (C1).
