@@ -87,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<Authorization.ScreenPermissionService>();
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
+        services.AddScoped<Bookings.FeeLineService>(); // FAZ 3.A3a sistem ücret satırları (sürücü ücretleri)
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
         services.AddScoped<RentalService>();

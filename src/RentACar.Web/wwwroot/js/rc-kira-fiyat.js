@@ -38,7 +38,7 @@
         ctrl = new AbortController();
         var q = new URLSearchParams({ basTar: bas, bitTar: bit });
         // musteriId (A2 segment) + kampanyaKodu (A5) canlı hesapta da — önizleme == kayıt.
-        ['vehicleId', 'gunlukUcret', 'fiyatTuru', 'doviz', 'cikisOfisi', 'musteriId', 'kampanyaKodu'].forEach(function (n) {
+        ['vehicleId', 'gunlukUcret', 'fiyatTuru', 'doviz', 'cikisOfisi', 'musteriId', 'kampanyaKodu', 'ikinciSurucuId'].forEach(function (n) {
             var v = val(f, n);
             if (v) q.set(n, v);
         });
@@ -81,7 +81,9 @@
                     .forEach(function (el) { el.textContent = fmt(k.toplam) + ' ' + dv; });
             });
 
-            note('Sunucu motoru hesabı — kayıtta da aynı motor çalışır.');
+            var msg = 'Sunucu motoru hesabı — kayıtta da aynı motor çalışır.';
+            if (d.notlar && d.notlar.length) msg = d.notlar.join(' · ') + ' — ' + msg;
+            note(msg);
         } catch (e) {
             if (e.name !== 'AbortError') note('Hesap alınamadı.');
         }

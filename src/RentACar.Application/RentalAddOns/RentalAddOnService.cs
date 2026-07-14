@@ -27,7 +27,8 @@ public sealed class RentalAddOnService(
 
     public async Task<Guid> AddAsync(
         Guid rentalId, Guid ekHizmetTanimId, decimal miktar,
-        decimal? birimNetOverride = null, decimal? kdvOraniOverride = null, CancellationToken ct = default)
+        decimal? birimNetOverride = null, decimal? kdvOraniOverride = null,
+        bool sistem = false, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (miktar <= 0) throw new ValidationException("Miktar sıfırdan büyük olmalıdır.");
@@ -37,6 +38,10 @@ public sealed class RentalAddOnService(
 
         var tanim = await _ekHizmetRepository.FindAsync(ekHizmetTanimId, ct)
             ?? throw new ValidationException("Ek hizmet tanımı bulunamadı.");
+        // FAZ 3.A3a adversarial B4: SYS-* tanımları yalnız FeeLineService yazar — manuel/matris yolundan
+        // eklenirse sistem satırının yanına ikinci satır biner (çift ücret) → temiz red.
+        if (!sistem && tanim.Kod.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("Sistem ücret kalemi manuel eklenemez (otomatik hesaplanır).");
 
         var birimNet = birimNetOverride ?? tanim.BirimUcret;
         var rate = kdvOraniOverride ?? tanim.KdvOrani;
