@@ -20,7 +20,8 @@ public sealed record KiraHesapIstek(
     IReadOnlyList<KiraHesapEkHizmet> EkHizmetler,
     Guid? RentalId = null,
     Guid? MusteriId = null,
-    string? KampanyaKodu = null);
+    string? KampanyaKodu = null,
+    Guid? IkinciSurucuId = null);
 
 public sealed record KiraHesapEkHizmet(Guid TanimId, decimal Miktar);
 
@@ -49,7 +50,8 @@ public sealed record KiraHesapSonuc(
     decimal? Kur,
     decimal? GenelToplamTl,
     decimal? Tahsilat,
-    decimal Kalan);
+    decimal Kalan,
+    IReadOnlyList<string>? Notlar = null);
 
 /// <summary>
 /// Kira formu CANLI hesap servisi (JS fetch → GET /kiralar/hesapla → JSON). UI HİÇBİR formül taşımaz:
@@ -64,7 +66,9 @@ public sealed class KiraHesapService(
     IEkHizmetTanimRepository ekHizmetler,
     KurService kur,
     IBookingRepository bookings,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    FeeLineService feeLines,
+    RentACar.Application.Customers.ICustomerRepository musteriler)
 {
     private const int MaxEkKalem = 50; // abuse guard: tek istekte gerçekçi üst sınır
     // Taşma guard'ları (adversarial PR-B Medium): decimal.MaxValue mertebesinde miktar/ücret,
@@ -124,6 +128,23 @@ public sealed class KiraHesapService(
             var (kalemKdv, kalemGross) = KdvMath.FromNet(kalemNet, tanim.KdvOrani);
             kalemler.Add(new KiraHesapEkKalem(tanim.Id, tanim.Ad, e.Miktar, kalemNet, kalemKdv, kalemGross));
         }
+        // FAZ 3.A3a: SİSTEM ücret satırları önizlemesi — kayıtla AYNI saf hesap (FeeLineService.HesaplaSaf)
+        // + AYNI kalem matematiği (net = round(birim×gün,2); KdvMath.FromNet) → önizleme == kayıt.
+        var feeNotlar = new List<string>();
+        if (istek.VehicleId is Guid feeVid)
+        {
+            var grup = await feeLines.GrupCozAsync(feeVid, ct);
+            var dogum = istek.MusteriId is Guid mid ? (await musteriler.FindAsync(mid, ct))?.DogumTarihi : null;
+            foreach (var s in FeeLineService.HesaplaSaf(
+                grup, pr.Gun, istek.BasTar, dogum, istek.IkinciSurucuId is not null, doviz, feeNotlar))
+            {
+                var (tanimId, kdvOrani) = await feeLines.TanimBilgiAsync(s.TanimKod, ct);
+                var fNet = Math.Round(s.BirimNet * s.Gun, 2, MidpointRounding.AwayFromZero);
+                var (fKdv, fGross) = KdvMath.FromNet(fNet, kdvOrani);
+                kalemler.Add(new KiraHesapEkKalem(tanimId ?? Guid.Empty, s.Ad + " (sistem)", s.Gun, fNet, fKdv, fGross));
+            }
+        }
+
         var ekToplam = kalemler.Sum(k => k.Toplam);
         var genelToplam = pr.Tutar + ekToplam;
 
@@ -162,7 +183,8 @@ public sealed class KiraHesapService(
             FaturalananGun: pr.FaturalananGun,
             EkKalemler: kalemler, EkHizmetToplam: ekToplam,
             GenelToplam: genelToplam, Doviz: doviz, Kur: kurDeger, GenelToplamTl: genelToplamTl,
-            Tahsilat: tahsilat, Kalan: kalan);
+            Tahsilat: tahsilat, Kalan: kalan,
+            Notlar: feeNotlar.Count > 0 ? feeNotlar : null);
     }
 
     private static KiraHesapSonuc Hatali(string mesaj, string doviz) => new(

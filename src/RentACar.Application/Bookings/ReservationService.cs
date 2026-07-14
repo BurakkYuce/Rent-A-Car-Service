@@ -11,11 +11,13 @@ namespace RentACar.Application.Bookings;
 /// Rezervasyon iş mantığı + durum makinesi (Rezerv→Onaylı→KirayaCevrildi/İptal).
 /// Tenant izolasyonu/audit alt katmanda otomatik. Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class ReservationService(IBookingRepository repository, ICurrentUser currentUser, PricingService pricing)
+public sealed class ReservationService(
+    IBookingRepository repository, ICurrentUser currentUser, PricingService pricing, FeeLineService feeLines)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
+    private readonly FeeLineService _feeLines = feeLines;
 
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.Effective(_currentUser), ct);
@@ -134,7 +136,9 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
         return Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
     }
 
-    /// <summary>Tasfiye: rezervasyonu kira sözleşmesine çevirir. Yeni kira Id döner.</summary>
+    /// <summary>Tasfiye: rezervasyonu kira sözleşmesine çevirir. Yeni kira Id döner.
+    /// FAZ 3.A3a: dönüşüm sonrası sistem ücret satırları uygulanır (ApplyContractFeesAsync
+    /// İDEMPOTENT — adversarial gündemi "rez→kira çift ücret" bu yüzden imkânsız).</summary>
     public async Task<Guid> ConvertToRentalAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
@@ -144,7 +148,7 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
         if (reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
             throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon kiraya çevrilebilir.");
 
-        return await _repository.ConvertToRentalAsync(id, res => new RentalContract
+        var kiraId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
         {
             Durum = RentalStatus.Kirada,
             ReservationId = res.Id,
@@ -177,6 +181,8 @@ public sealed class ReservationService(IBookingRepository repository, ICurrentUs
             Kaynak = res.Kaynak,
             KampanyaKodu = res.KampanyaKodu
         }, ct);
+        await _feeLines.ApplyContractFeesAsync(kiraId, ct);
+        return kiraId;
     }
 
     private async Task<bool> Transition(
