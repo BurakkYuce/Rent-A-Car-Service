@@ -14,6 +14,10 @@ public interface IFaturaDonemRepository
     /// <paramref name="yeniPlanlar"/> eklenir. Kesildi/Atlandi satırlara DOKUNULMAZ (çağıran onların
     /// sıralarını yeni listeden çıkarmıştır).</summary>
     Task ReplacePlannedAsync(Guid rentalId, IReadOnlyList<FaturaDonemi> yeniPlanlar, CancellationToken ct = default);
+
+    /// <summary>B2: kesilecek tahakkuku kalmayan dönemi ATLANDI işaretler (yalnız Planlandi→Atlandi;
+    /// kalıcı iz — sonraki kesim denemesi gürültülü red).</summary>
+    Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default);
 }
 
 /// <summary>Dönem önizleme satırı (B1): plan satırı + pro-rata tahakkuk (salt hesap; B2 kesimde
