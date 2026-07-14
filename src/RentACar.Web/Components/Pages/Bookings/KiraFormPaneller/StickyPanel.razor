@@ -12,7 +12,47 @@
             <button type="submit" form="kira-iptal" class="kf-btn-danger" disabled="@(!Vm.OperasyonYetkisi)">Kira İptal</button>
         }
         <button type="button" class="kf-btn-ghost" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
-        <button type="button" class="kf-btn-ghost" disabled title="TODO: dönemsel faturalama (uzun kira)">Fatura Dönemleri</button>
+        @if (Vm.Edit && Vm.FaturaDonemleri.Count > 0)
+        {
+            @* FAZ 4.2-B3: dönem planı + satır-başı kesim (ana form DIŞI formlar). *@
+            <details>
+                <summary class="link">Fatura Dönemleri (@Vm.FaturaDonemleri.Count(d => d.Durum == RentACar.Domain.Enums.FaturaDonemDurum.Kesildi)/@Vm.FaturaDonemleri.Count kesildi)</summary>
+                <table class="grid tr-grid">
+                    <thead><tr><th>#</th><th>Aralık</th><th class="num">Tahakkuk</th><th>Durum</th><th class="num">Kesilen</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var d in Vm.FaturaDonemleri)
+                        {
+                            <tr>
+                                <td>@d.DonemSira</td>
+                                <td>@d.DonemBas.LocalDateTime.ToString("dd.MM.yy") – @d.DonemBit.LocalDateTime.ToString("dd.MM.yy")</td>
+                                <td class="num">@d.Tahakkuk.ToString("N2")</td>
+                                <td>@d.Durum</td>
+                                <td class="num">@(d.KesilenTutar?.ToString("N2") ?? "—")</td>
+                                <td>
+                                    @if (d.Durum == RentACar.Domain.Enums.FaturaDonemDurum.Planlandi)
+                                    {
+                                        <form method="post" action="/finans/donem-fatura" style="display:flex;gap:.35rem;align-items:center;"><AntiforgeryToken />
+                                            <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
+                                            <input type="hidden" name="donemSira" value="@d.DonemSira" />
+                                            <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                                            <label class="muted small"><input type="checkbox" name="tahsilat" value="true" /> tahsilat</label>
+                                            <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                                            <button type="submit" disabled="@(!Vm.FinansYetkisi)">Kes</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <p class="muted small">Tahsilat kaydı fatura döviz/kuruyla yazılır (çift-submit güvenli). Tahsilat
+                    sonrası fatura iadesi tahsilatı GERİ ALMAZ — geri ödeme manuel "Ödeme" akışıyla yapılır.</p>
+            </details>
+        }
+        else
+        {
+            <button type="button" class="kf-btn-ghost" disabled title="Uzun/aylık kirada dönem planı otomatik oluşur">Fatura Dönemleri</button>
+        }
         <span class="muted small">Durum: <strong>@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Hazır")</strong></span>
         @if (Vm.Edit)
         {

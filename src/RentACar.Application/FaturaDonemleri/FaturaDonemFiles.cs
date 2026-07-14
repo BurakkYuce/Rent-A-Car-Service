@@ -20,6 +20,51 @@ public interface IFaturaDonemRepository
     Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Dönem kes + (opsiyonel) tahsilat orkestratörü (FAZ 4.2-B3) — endpoint ve testler AYNI akıştan
+/// geçer. Tahsilat idempotency anahtarı DETERMİNİSTİK: CashService.RowKey(rentalId, donemSira) —
+/// çift-submit ikinci tahsilatı yazamaz (kısmi unique index + yutma), fatura tarafı zaten idempotent
+/// (Kesildi → mevcut InvoiceId). Tahsilat fatura DÖVİZ + KURUYLA kaydedilir (cari mutabakatı
+/// kuruş-birebir). NOT: tahsilat sonrası fatura İADE edilirse tahsilat DURUR (para alındı) —
+/// geri ödeme manuel "Ödeme" akışıyla (UI metninde).
+/// </summary>
+public sealed class DonemTahsilatService(
+    Finance.InvoiceService invoices,
+    Finance.CashService kasa,
+    Finance.IInvoiceRepository invoiceRepo)
+{
+    public async Task<Guid> KesVeTahsilEtAsync(
+        Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
+        CancellationToken ct = default)
+    {
+        var invId = await invoices.CreateDonemFaturasiAsync(rentalId, donemSira, ct: ct);
+        if (!tahsilatKaydi) return invId;
+
+        var inv = await invoiceRepo.FindAsync(invId, ct)
+            ?? throw new ValidationException("Dönem faturası okunamadı.");
+        try
+        {
+            await kasa.CollectAsync(new Finance.CashInput
+            {
+                CariId = inv.CariId,
+                RentalId = rentalId,
+                Tutar = inv.GenelToplam,
+                Doviz = inv.Currency,
+                Kur = inv.Kur,
+                Hesap = hesap,
+                Aciklama = $"Dönem {donemSira} tahsilatı ({inv.No})",
+                IslemAnahtari = Finance.CashService.RowKey(rentalId, donemSira)
+            }, ct);
+        }
+        catch (ValidationException ex) when (ex.Message.Contains("zaten kaydedilmiş"))
+        {
+            // Deterministik anahtar mükerreri = bu dönemin tahsilatı DAHA ÖNCE alınmış (çift-submit /
+            // yeniden deneme) → idempotent no-op; fatura tarafı da idempotent olduğundan akış sessiz biter.
+        }
+        return invId;
+    }
+}
+
 /// <summary>Dönem önizleme satırı (B1): plan satırı + pro-rata tahakkuk (salt hesap; B2 kesimde
 /// cap/fark mekanizması ayrıca devreye girer).</summary>
 public sealed record FaturaDonemOnizleme(

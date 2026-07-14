@@ -25,6 +25,8 @@ public sealed class KiraFormVm
     public IReadOnlyList<RentalAddOn> Kalemler { get; set; } = [];
     public IReadOnlyList<RentACar.Application.Personnel.PersonelSecim> Personeller { get; set; } = [];
     public IReadOnlyList<Invoice> Faturalar { get; set; } = [];
+    /// <summary>FAZ 4.2-B3: dönem planı + tahakkuk önizlemesi (uygun kirada; boş = plansız kira).</summary>
+    public IReadOnlyList<RentACar.Application.FaturaDonemleri.FaturaDonemOnizleme> FaturaDonemleri { get; set; } = [];
     public IReadOnlyList<Penalty> Cezalar { get; set; } = [];
     public string? TeslimAlanAd { get; set; }
     public string? DovizNot { get; set; }
