@@ -214,12 +214,13 @@ public sealed class ListExportCatalogTests
     public void DropTanimlari_projeksiyon()
     {
         var d = new DropTanim { Lokasyon = "IST", Sube = "Merkez", KarsilamaSekli = "Kapıda", CalismaSekli = "7/24",
-            OzelIletisim = "x", Aktif = true };
+            OzelIletisim = "x", Ucret = 500m, Aktif = true };
         var t = ListExportCatalog.DropTanimlari([d]);
-        Assert.Equal(6, t.Headers.Count);
+        Assert.Equal(7, t.Headers.Count);           // FAZ 3.A3b: + "Drop Ücreti (net)" kolonu
         Assert.Equal("IST", t.Rows[0][0]);
         Assert.Equal("Kapıda", t.Rows[0][2]);
-        Assert.Equal("Evet", t.Rows[0][5]);
+        Assert.Equal(500m, t.Rows[0][5]);
+        Assert.Equal("Evet", t.Rows[0][6]);
     }
 
     [Fact]

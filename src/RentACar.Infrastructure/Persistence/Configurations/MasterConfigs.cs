@@ -438,6 +438,7 @@ internal sealed class DropTanimConfig : IEntityTypeConfiguration<DropTanim>
         e.Property(x => x.KarsilamaSekli).HasMaxLength(100);
         e.Property(x => x.CalismaSekli).HasMaxLength(100);
         e.Property(x => x.OzelIletisim).HasMaxLength(200);
+        e.Property(x => x.Ucret).HasColumnType("numeric(19,4)"); // FAZ 3.A3b
         e.HasIndex(x => new { x.TenantId, x.Lokasyon, x.Sube }).IsUnique();
     }
 }

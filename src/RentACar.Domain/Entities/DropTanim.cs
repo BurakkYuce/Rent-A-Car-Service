@@ -17,6 +17,12 @@ public class DropTanim : ITenantOwned, IAuditable
     public string? KarsilamaSekli { get; set; }
     public string? CalismaSekli { get; set; }
     public string? OzelIletisim { get; set; }
+
+    /// <summary>Drop ücreti (FAZ 3.A3b) — NET ("KDV hariç", tek seferlik). Kira DonusOfisi bu satırın
+    /// Lokasyon'una eşit ve çıkış≠dönüş ofis ise SYS-DROP sistem satırı üretir; null/0 = ücret yok.
+    /// Aynı lokasyona birden çok satırda çıkış-şubesi eşleşen satır tercih edilir (deterministik).</summary>
+    public decimal? Ucret { get; set; }
+
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

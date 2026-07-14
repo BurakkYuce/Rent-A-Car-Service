@@ -23,6 +23,8 @@ public sealed class DropTanimInput
     public string? KarsilamaSekli { get; set; }
     public string? CalismaSekli { get; set; }
     public string? OzelIletisim { get; set; }
+    /// <summary>Drop ücreti — NET, tek seferlik (FAZ 3.A3b).</summary>
+    public decimal? Ucret { get; set; }
     public bool Aktif { get; set; } = true;
 }
 
@@ -39,10 +41,12 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        if (input.Ucret is < 0m) throw new ValidationException("Drop ücreti negatif olamaz.");
         var row = new DropTanim
         {
             Lokasyon = n.Lokasyon, Sube = n.Sube,
             KarsilamaSekli = n.KarsilamaSekli, CalismaSekli = n.CalismaSekli, OzelIletisim = n.OzelIletisim,
+            Ucret = input.Ucret,
             Aktif = input.Aktif
         };
         await _repository.CreateAsync(row, ct);
@@ -53,10 +57,12 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        if (input.Ucret is < 0m) throw new ValidationException("Drop ücreti negatif olamaz.");
         return await _repository.UpdateAsync(id, r =>
         {
             r.Lokasyon = n.Lokasyon; r.Sube = n.Sube;
             r.KarsilamaSekli = n.KarsilamaSekli; r.CalismaSekli = n.CalismaSekli; r.OzelIletisim = n.OzelIletisim;
+            r.Ucret = input.Ucret;
             r.Aktif = input.Aktif; r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
