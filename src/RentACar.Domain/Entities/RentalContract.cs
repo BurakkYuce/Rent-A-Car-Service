@@ -98,6 +98,9 @@ public class RentalContract : ITenantOwned, IAuditable
     // ---- Kira formu detay alanları (referans sistem parite, mega-form; TÜMÜ BİLGİ AMAÇLI — para hesabına girmez) ----
     /// <summary>Rezervasyon/satış kaynağı (ReservationSource master'dan seç-veya-yaz).</summary>
     public string? Kaynak { get; set; }
+
+    /// <summary>Promosyon/kampanya kodu (FAZ 3.A5) — create'te fiyat kodlu kuralla çözüldüyse iz.</summary>
+    public string? KampanyaKodu { get; set; }
     /// <summary>Uyarı açıklaması (sözleşme açılışında operatöre gösterilecek not).</summary>
     public string? UyariAciklama { get; set; }
     /// <summary>Özel fatura açıklaması (faturaya taşınacak serbest metin).</summary>

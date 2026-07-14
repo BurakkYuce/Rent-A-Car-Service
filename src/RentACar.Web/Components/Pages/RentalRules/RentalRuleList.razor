@@ -33,7 +33,7 @@
         <label>Kampanya mı
             <select name="kampanyaMi"><option value="false">Hayır</option><option value="true">Evet</option></select>
         </label>
-        <label>Kampanya Kodu<input name="kampanyaKodu" /></label>
+        <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" /></label>
         <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Seç veya yaz (boş = herkes)" maxlength="64" /></label>
         <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" /></label>
         <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" /></label>
@@ -82,7 +82,7 @@
                                     <option value="true" selected="@r.KampanyaMi">Evet</option>
                                 </select>
                             </label>
-                            <label>Kampanya Kodu<input name="kampanyaKodu" value="@r.KampanyaKodu" /></label>
+                            <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" value="@r.KampanyaKodu" /></label>
                             <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Boş = herkes" maxlength="64" value="@r.MusteriSegment" /></label>
                             <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@r.GecerlilikBas?.ToString("yyyy-MM-dd")" /></label>
                             <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@r.GecerlilikBit?.ToString("yyyy-MM-dd")" /></label>

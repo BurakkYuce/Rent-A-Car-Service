@@ -37,7 +37,8 @@
         if (ctrl) ctrl.abort();
         ctrl = new AbortController();
         var q = new URLSearchParams({ basTar: bas, bitTar: bit });
-        ['vehicleId', 'gunlukUcret', 'fiyatTuru', 'doviz', 'cikisOfisi'].forEach(function (n) {
+        // musteriId (A2 segment) + kampanyaKodu (A5) canlı hesapta da — önizleme == kayıt.
+        ['vehicleId', 'gunlukUcret', 'fiyatTuru', 'doviz', 'cikisOfisi', 'musteriId', 'kampanyaKodu'].forEach(function (n) {
             var v = val(f, n);
             if (v) q.set(n, v);
         });
