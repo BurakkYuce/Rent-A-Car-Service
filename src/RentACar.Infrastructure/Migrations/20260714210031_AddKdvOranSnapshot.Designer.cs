@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714210031_AddKdvOranSnapshot")]
+    partial class AddKdvOranSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2694,10 +2697,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal>("FazlaKmUcret")
                         .HasColumnType("numeric(19,4)");
 
-                    b.Property<string>("FiyatTuru")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("GecerlilikTarihi")
                         .HasColumnType("timestamp with time zone");
 
@@ -2715,9 +2714,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<decimal?>("IskontoTutar")
                         .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal?>("KdvOranSnapshot")
-                        .HasColumnType("numeric(9,4)");
 
                     b.Property<int>("KmLimit")
                         .HasColumnType("integer");
@@ -3426,10 +3422,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal>("FazlaKmUcret")
                         .HasColumnType("numeric(19,4)");
 
-                    b.Property<string>("FiyatTuru")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int>("Gun")
                         .HasColumnType("integer");
 
@@ -3451,9 +3443,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<string>("Kaynak")
                         .HasColumnType("text");
-
-                    b.Property<decimal?>("KdvOranSnapshot")
-                        .HasColumnType("numeric(9,4)");
 
                     b.Property<int>("KmLimit")
                         .HasColumnType("integer");

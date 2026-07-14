@@ -23,9 +23,9 @@ public sealed class InvoiceService(
     IEInvoiceService eInvoice,
     ICurrentUser currentUser,
     IPeriodLockGuard periodLock,
-    KurService kur)
+    KurService kur,
+    KdvVarsayilan kdvVarsayilan)
 {
-    private const decimal DefaultKdvRate = KdvMath.VarsayilanOran; // tek kaynak (fiyat KDV-modu ile aynı oran)
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
 
@@ -55,11 +55,17 @@ public sealed class InvoiceService(
         // yeniden ayrıştırır → niyet korunur).
         var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
                   || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
-        // FAZ 1.4 oran zinciri: parametre ?? kira-seviyesi özel oran ?? varsayılan. Net-mod guard'ı
-        // ZİNCİR SONUCUNA bakar (kiradan gelen özel oran da net-modda matrahı saptıramaz).
-        var rate = kdvRate ?? rental.OzelKdvOran ?? DefaultKdvRate;
-        if (rate != KdvMath.VarsayilanOran && netMod)
-            throw new ValidationException("Net fiyat modlu kirada KDV oranı değiştirilemez (fiyat %20 net üstünden hesaplandı).");
+        // FAZ 1.4→3.A6 oran zinciri: parametre ?? kira-seviyesi özel oran ?? (net-modda SNAPSHOT —
+        // gross-up hangi orandan yapıldıysa ayrıştırma da o orandan; eski kiralarda 0.20) ??
+        // TENANT VARSAYILANI ?? 0.20. Net-mod guard'ı ZİNCİR SONUCUNA bakar ve SABİT 0.20 yerine
+        // SNAPSHOT ile karşılaştırır — tenant oranı fiyatlama-fatura arasında değişse bile matrah
+        // operatör niyetinden sapmaz (A6 doğrulanan tutarlılık tehlikesi).
+        var netModOran = rental.KdvOranSnapshot ?? KdvMath.VarsayilanOran;
+        var rate = kdvRate ?? rental.OzelKdvOran
+            ?? (netMod ? netModOran : await kdvVarsayilan.OranAsync(ct));
+        if (netMod && rate != netModOran)
+            throw new ValidationException(
+                $"Net fiyat modlu kirada KDV oranı değiştirilemez (fiyat %{netModOran * 100:0.##} net üstünden hesaplandı).");
 
         // Ek hizmet kalemleri: her biri KENDİ KDV oranını korur (farklı oranlar karışmaz).
         var addOns = await addOnRepository.ListForRentalAsync(rental.Id, ct);

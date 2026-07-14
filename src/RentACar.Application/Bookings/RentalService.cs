@@ -21,7 +21,8 @@ public sealed class RentalService(
     RentACar.Application.Personnel.IPersonelRepository personelRepository,
     RentACar.Application.Customers.ICustomerRepository customerRepository,
     ITenantCache cache,
-    FeeLineService feeLines)
+    FeeLineService feeLines,
+    RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -71,6 +72,7 @@ public sealed class RentalService(
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
         var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
+        var varsayilanKdv = await kdvVarsayilan.OranAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
@@ -120,6 +122,7 @@ public sealed class RentalService(
             FiyatTuru = input.FiyatTuru,
             Doviz = input.Doviz,
             KurSnapshot = kurSnapshot,
+            KdvOranSnapshot = pr.KdvOranSnapshot, // FAZ 3.A6: net-mod gross-up oranı (fatura aynı orandan ayrıştırır)
             // Kira formu detay alanları (bilgi amaçlı; Kaynak daha önce input'ta olup MAP EDİLMİYORDU — parite fix)
             Kaynak = Lim(input.Kaynak, 64, "Kaynak"),
             KampanyaKodu = Lim(input.KampanyaKodu, 64, "Kampanya kodu"),
@@ -133,7 +136,7 @@ public sealed class RentalService(
             FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu"),
             ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı"),
             OzelKod = Lim(input.OzelKod, 64, "Özel kod"),
-            OzelKdvOran = GirisOzelKdv(input.FiyatTuru, input.OzelKdvOran), // FAZ 1.4 (net-mod çiti dahil)
+            OzelKdvOran = GirisOzelKdv(input.FiyatTuru, input.OzelKdvOran, pr.KdvOranSnapshot ?? varsayilanKdv), // FAZ 1.4+A6 (net-mod çiti gross-up oranıyla)
             DamgaVergisi = VergiDamga(input.DamgaVergisi),   // FAZ 1.4
             TalepTuru = Lim(input.TalepTuru, 64, "Talep türü"),
             GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim"),
@@ -212,6 +215,10 @@ public sealed class RentalService(
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
 
+        // FAZ 3.A6 adversarial B1: net-mod çiti güncellemede SNAPSHOT'la karşılaştırır; snapshot NULL =
+        // pre-A6 kira = gross-up KESİNLİKLE 0.20 idi → fallback FATURA ÇİTİYLE AYNI (0.20) — tenant-güncel
+        // orana düşmek, çitin kabul ettiği tek değerin faturayı kilitlemesine yol açıyordu.
+        var guncelKdvVarsayilan = mevcut.KdvOranSnapshot ?? RentACar.Application.Finance.KdvMath.VarsayilanOran;
         var ok = await _repository.UpdateRentalAsync(id, c =>
         {
             // TX içinde yeniden doğrula (ön-kontrol ile arasında durum değişmiş olabilir).
@@ -248,7 +255,7 @@ public sealed class RentalService(
             c.FirmaKodu = Lim(input.FirmaKodu, 64, "Firma kodu");
             c.ProjeAdi = Lim(input.ProjeAdi, 128, "Proje adı");
             c.OzelKod = Lim(input.OzelKod, 64, "Özel kod");
-            c.OzelKdvOran = GirisOzelKdv(c.FiyatTuru, input.OzelKdvOran); // FAZ 1.4 (net-mod çiti dahil)
+            c.OzelKdvOran = GirisOzelKdv(c.FiyatTuru, input.OzelKdvOran, guncelKdvVarsayilan); // FAZ 1.4+A6
             c.DamgaVergisi = VergiDamga(input.DamgaVergisi); // FAZ 1.4
             c.TalepTuru = Lim(input.TalepTuru, 64, "Talep türü");
             c.GeldigiBirim = Lim(input.GeldigiBirim, 64, "Geldiği birim");
@@ -323,19 +330,23 @@ public sealed class RentalService(
     /// <summary>FAZ 1.4 (adversarial D — guard'ı GİRİŞ noktasına koy dersi): NET fiyat modlu kirada
     /// varsayılan-dışı özel KDV çelişkisi girişte reddedilir — aksi halde dönüş fark-faturası kesilene
     /// dek kilitlenir (fatura-anı guard'ı savunma-derinliği olarak kalır).</summary>
-    private static decimal? GirisOzelKdv(string? fiyatTuru, decimal? ozelKdvOran)
+    private static decimal? GirisOzelKdv(string? fiyatTuru, decimal? ozelKdvOran, decimal gecerliVarsayilan)
     {
         var oran = VergiOran(ozelKdvOran);
-        OzelKdvNetModCiti(fiyatTuru, oran);
+        OzelKdvNetModCiti(fiyatTuru, oran, gecerliVarsayilan);
         return oran;
     }
 
-    private static void OzelKdvNetModCiti(string? fiyatTuru, decimal? ozelKdvOran)
+    /// <summary>FAZ 3.A6: karşılaştırma SABİT 0.20 yerine GEÇERLİ varsayılanla (create'te gross-up
+    /// oranı / update'te snapshot ?? tenant varsayılanı) — tenant oranı %10 iken %10'luk özel oran
+    /// net-modda çelişki DEĞİLDİR.</summary>
+    private static void OzelKdvNetModCiti(string? fiyatTuru, decimal? ozelKdvOran, decimal gecerliVarsayilan)
     {
         var netMod = string.Equals(fiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
                   || string.Equals(fiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
-        if (netMod && ozelKdvOran is { } o && o != RentACar.Application.Finance.KdvMath.VarsayilanOran)
-            throw new ValidationException("Net fiyat modlu kirada özel KDV oranı kullanılamaz (fiyat %20 net üstünden hesaplanır).");
+        if (netMod && ozelKdvOran is { } o && o != gecerliVarsayilan)
+            throw new ValidationException(
+                $"Net fiyat modlu kirada özel KDV oranı kullanılamaz (fiyat %{gecerliVarsayilan * 100:0.##} net üstünden hesaplanır).");
     }
 
     /// <summary>FAZ 1.4: damga vergisi negatif olamaz.</summary>

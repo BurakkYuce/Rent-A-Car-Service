@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<FleetStatusService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<Bookings.FeeLineService>(); // FAZ 3.A3a sistem ücret satırları (sürücü ücretleri)
+        services.AddScoped<Finance.KdvVarsayilan>(); // FAZ 3.A6 tenant varsayılan KDV çözücüsü
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
         services.AddScoped<RentalService>();
