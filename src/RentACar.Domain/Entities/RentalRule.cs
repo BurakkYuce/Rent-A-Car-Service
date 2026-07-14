@@ -46,6 +46,11 @@ public class RentalRule : ITenantOwned, IAuditable, IBranchScoped
     public bool KampanyaMi { get; set; }
     public string? KampanyaKodu { get; set; }
 
+    /// <summary>Müşteri segmenti kapsamı (FAZ 3.A2) — Customer.Sinif ile Trim + case-insensitive
+    /// eşleşir; null = tüm müşteriler. Segment-birebir eşleşen kural fayda kıyasından ÖNCE kazanır
+    /// ("Problemli → %0" çiti cömert genel kurala yenilmez). CariId-özel kural bilinçli YOK.</summary>
+    public string? MusteriSegment { get; set; }
+
     // Geçerlilik
     public DateTimeOffset? GecerlilikBas { get; set; }
     public DateTimeOffset? GecerlilikBit { get; set; }

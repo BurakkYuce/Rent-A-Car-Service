@@ -21,6 +21,9 @@ public sealed class RentalRuleInput
     public bool KampanyaMi { get; set; }
     public string? KampanyaKodu { get; set; }
 
+    /// <summary>Müşteri segmenti kapsamı (FAZ 3.A2; Customer.Sinif ile eşleşir, null = herkes).</summary>
+    public string? MusteriSegment { get; set; }
+
     public DateTimeOffset? GecerlilikBas { get; set; }
     public DateTimeOffset? GecerlilikBit { get; set; }
 
