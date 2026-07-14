@@ -26,4 +26,12 @@ public interface IInvoiceRepository
     /// tahsis edilir. Fatura DB-seviyesinde değişmez (trigger).
     /// </summary>
     Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
+    /// <summary>FAZ 4.2-B2: dönem faturası — fatura + satır + defter + DÖNEM SATIRI (Kesildi/InvoiceId/
+    /// KesilenTutar) TEK transaction. Advisory kira-fatura kilidi altında FATURALANAN yeniden doğrulanır
+    /// (beklenenFaturalanan sapmışsa red — base/fark bu arada commit etmiş olabilir; adversarial
+    /// B2-Kritik-1) ve dönem yalnız Planlandi ise kesilir (Kesildi/Atlandi yarış çiti;
+    /// KaynakKiraFarkSira unique index ikinci savunma).</summary>
+    Task PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
+        Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default);
 }

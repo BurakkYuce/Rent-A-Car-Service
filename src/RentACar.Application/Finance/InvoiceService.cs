@@ -24,7 +24,8 @@ public sealed class InvoiceService(
     ICurrentUser currentUser,
     IPeriodLockGuard periodLock,
     KurService kur,
-    KdvVarsayilan kdvVarsayilan)
+    KdvVarsayilan kdvVarsayilan,
+    RentACar.Application.FaturaDonemleri.IFaturaDonemRepository faturaDonemleri)
 {
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
@@ -46,6 +47,10 @@ public sealed class InvoiceService(
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var rental = await bookingRepository.FindRentalAsync(rentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
+        // Adversarial B2-Orta-2: İPTAL kiraya fatura kesilemez (kes→iptal→iade zinciri bu deliği
+        // operasyonel erişilir kılıyordu — iade sonrası iptal kiraya tam fatura yeniden kesilebiliyordu).
+        if (rental.Durum == RentalStatus.Iptal)
+            throw new ValidationException("İptal edilmiş kiraya fatura kesilemez.");
         if (rental.GenelToplam <= 0)
             throw new ValidationException("Faturalanacak tutar yok.");
 
@@ -99,6 +104,9 @@ public sealed class InvoiceService(
             // puldur; base faturada uygulanır. Operatör parametreyle açıkça verirse aynen geçer.
             if (fark <= 0m)
                 throw new ValidationException("Kira zaten tam faturalanmış (yeni ek bedel yok).");
+            // BİLİNEN SINIR (adversarial B2-B3): fark TEK satırdır ve verilen orandan ayrışır — farklı
+            // KDV oranlı add-on'lar son deltada baz orana düzleşir (brüt/cari kuruş-doğru; yalnız KDV
+            // beyan kırılımı sapar). Ayrı-satırlı fark, fark mekanizmasının yeniden tasarımı → açık iş.
             return await PostFarkFaturasiAsync(rental, fark, farkSayisi + 1, rate, vergi, ct);
         }
 
@@ -179,6 +187,93 @@ public sealed class InvoiceService(
     /// <summary>Fark faturası (PR-F1): kira zaten faturalandıktan SONRA oluşan ek bedel (dönüş/uzatma) için tek
     /// satırlık fatura. RentalId = null (kira-fatura unique index'ine çarpmasın); kira bağı KaynakKiraId üzerinden.
     /// fark = brüt (kira dövizi); net/kdv verilen orandan (dönüş bedelleri baz-oranlı). Dengeli defter yazar.</summary>
+    /// <summary>FAZ 4.2-B2 — DÖNEM FATURASI: dönem sırasına kadar olan KÜMÜLATİF tahakkukun henüz
+    /// faturalanmamış kısmını FARK MEKANİZMASI üzerinden keser (KaynakKiraId + KaynakKiraFarkSira
+    /// unique → çift-faturalama yapısal imkânsız; GetFarkStateAsync dönem faturalarını da saydığından
+    /// dönüş sonrası normal "Fatura Kes" kalan deltayı keser — kompozisyon bedava). Tutar =
+    /// min(Σ tahakkuk[1..sıra], güncel BAZ brüt) − faturalanan; kesilecek kalmadıysa dönem ATLANDI
+    /// işaretlenir + gürültülü red (erken dönüş/tam-fatura durumu). Tahakkuk YALNIZ BAZ kiradan —
+    /// add-on'lar dönüş sonrası son deltada (FX kirada birim karışmaz). Fatura Tarih = now (kapalı
+    /// döneme post edilmez); damga dönem faturasına uygulanmaz (sözleşme-başı tek pul ilkesi; dönem
+    /// akışında bilinçli hiç). İDEMPOTENT: Kesildi dönem mevcut InvoiceId döner. SIRALI kesim.</summary>
+    public async Task<Guid> CreateDonemFaturasiAsync(
+        Guid rentalId, int donemSira, decimal? kdvRate = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (kdvRate is < 0m or > 1m)
+            throw new ValidationException("KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // adversarial N1 (footgun paritesi)
+        var rental = await bookingRepository.FindRentalAsync(rentalId, ct)
+            ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
+        if (rental.Durum == RentalStatus.Iptal)
+            throw new ValidationException("İptal edilmiş kiraya dönem faturası kesilemez.");
+
+        var donemler = (await faturaDonemleri.ListForRentalAsync(rentalId, ct))
+            .OrderBy(d => d.DonemSira).ToList();
+        var donem = donemler.FirstOrDefault(d => d.DonemSira == donemSira)
+            ?? throw new ValidationException($"Dönem {donemSira} bulunamadı (kira periyodik faturalamaya uygun olmayabilir).");
+        if (donem.Durum == FaturaDonemDurum.Kesildi) return donem.InvoiceId!.Value; // idempotent
+        if (donem.Durum == FaturaDonemDurum.Atlandi)
+            throw new ValidationException($"Dönem {donemSira} atlanmış (kesilecek tahakkuk kalmamıştı).");
+        if (donemler.Any(d => d.DonemSira < donemSira && d.Durum == FaturaDonemDurum.Planlandi))
+            throw new ValidationException("Dönemler sırayla kesilir — önce önceki dönem(ler) kesilmelidir.");
+
+        // KDV zinciri + net-mod guard'ı CreateFromRentalAsync ile BİREBİR (snapshot tabanı — A6).
+        var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
+        var netModOran = rental.KdvOranSnapshot ?? KdvMath.VarsayilanOran;
+        var rate = kdvRate ?? rental.OzelKdvOran ?? (netMod ? netModOran : await kdvVarsayilan.OranAsync(ct));
+        if (netMod && rate != netModOran)
+            throw new ValidationException(
+                $"Net fiyat modlu kirada KDV oranı değiştirilemez (fiyat %{netModOran * 100:0.##} net üstünden hesaplandı).");
+
+        // Kümülatif tahakkuk — B1 SAF matematiğiyle ORTAK (önizleme/manuel/job özdeş; uzatma-ortası
+        // canlı Tutar + yenilenen plan günleriyle kalan-yöntemi kaymayı emer).
+        var gunler = donemler
+            .Select(d => Math.Max(1, (d.DonemBit.UtcDateTime.Date - d.DonemBas.UtcDateTime.Date).Days)).ToList();
+        var tahakkuklar = RentACar.Application.FaturaDonemleri.FaturaDonemPlanService.ProRataAccrual(rental.Tutar, gunler);
+        var kumulatif = donemler.Select((d, i) => (d.DonemSira, T: tahakkuklar[i]))
+            .Where(x => x.DonemSira <= donemSira).Sum(x => x.T);
+
+        var donemBaseGross = KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
+        var (faturalanan, farkSayisi) = await repository.GetFarkStateAsync(rental.Id, ct);
+        var kesilecek = KdvMath.RoundGross(Math.Min(kumulatif, donemBaseGross) - faturalanan);
+        if (kesilecek <= 0m)
+        {
+            await faturaDonemleri.AtlandiIsaretleAsync(donem.Id, ct); // kalıcı iz (cap; idempotent red)
+            throw new ValidationException($"Dönem {donemSira} için kesilecek tahakkuk kalmadı — dönem ATLANDI işaretlendi.");
+        }
+
+        var (net, kdv) = KdvMath.FromGross(kesilecek, rate);
+        var tarih = DateTimeOffset.UtcNow;
+        var doviz = KurService.NormalizeKod(rental.Doviz);
+        var oran = doviz == "TRY" ? 1m : await kur.GetRateAsync(doviz, tarih, ct: ct);
+        var invoice = new Invoice
+        {
+            Durum = InvoiceStatus.Kesildi,
+            CariId = rental.MusteriId,
+            RentalId = null,              // kira-fatura unique index'ine çarpmasın (fark deseni)
+            KaynakKiraId = rental.Id,
+            KaynakKiraFarkSira = farkSayisi + 1,
+            Tarih = tarih,
+            NetTutar = net, KdvTutar = kdv, GenelToplam = net + kdv,
+            Currency = doviz, Kur = oran
+        };
+        await _lock.EnsureOpenAsync(invoice.Tarih, ct);
+        invoice.Lines.Add(new InvoiceLine
+        {
+            InvoiceId = invoice.Id,
+            Aciklama = $"Kira {rental.SozlesmeNo} — Dönem {donemSira} ({donem.DonemBas:dd.MM.yyyy} – {donem.DonemBit:dd.MM.yyyy})",
+            Miktar = 1m, BirimNetFiyat = net, KdvOrani = rate,
+            SatirNet = net, SatirKdv = kdv, SatirToplam = net + kdv
+        });
+
+        var eResult = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, kdv, invoice.Currency), ct);
+        if (eResult.Success) { invoice.EFaturaEttn = eResult.Ettn; invoice.EFaturaGonderildi = true; }
+
+        await repository.PostDonemAsync(invoice, BuildEntries(invoice), donem.Id, kesilecek, faturalanan, ct);
+        return invoice.Id;
+    }
+
     private async Task<Guid> PostFarkFaturasiAsync(
         RentalContract rental, decimal farkGross, int sira, decimal rate, InvoiceTaxInfo? vergi, CancellationToken ct)
     {
