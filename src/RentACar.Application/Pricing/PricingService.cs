@@ -27,12 +27,13 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
-    Customers.ICustomerRepository customers)
+    Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository kaynaklar)
 {
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
     private readonly Customers.ICustomerRepository _customers = customers;
+    private readonly ReservationSources.IReservationSourceRepository _kaynaklar = kaynaklar;
 
     /// <summary>
     /// Gün + tutar döner; gerekiyorsa input.GunlukUcret'i tarife matrisinden gelen efektif ücretle
@@ -72,11 +73,16 @@ public sealed class PricingService(
                 // GÜNCEL sınıfını kullanır (sınıf sonradan değişirse yeni fiyat yeni segmentten).
                 var segment = input.MusteriId != Guid.Empty
                     ? (await _customers.FindAsync(input.MusteriId, ct))?.Sinif : null;
+                // FAZ 3.A4: Kaynak → Kanal. YALNIZ aktif ReservationSource (Kod/Ad, case-insensitive)
+                // eşleşirse geçer; eşleşmezse null (yazım hatası/spoof serbest-metin kanal-özel tarife
+                // SEÇTİREMEZ). Kanal setliyken yabancı-kanal matrisleri elenir; kanalsız istekte
+                // kanal-agnostik (base) matris tercih edilir (SelectMatrix sıralaması — mevcut davranış).
+                var kanal = await KanalCozAsync(input.Kaynak, ct);
                 var q = input.BitTar > input.BasTar
                     ? await _quoteEngine.QuoteAsync(new QuoteRequest
                         {
-                            AracGrupKod = grup, Sube = input.CikisOfisi, BasTar = input.BasTar,
-                            BitTar = input.BitTar, MusteriSegment = segment
+                            AracGrupKod = grup, Kanal = kanal, Sube = input.CikisOfisi,
+                            BasTar = input.BasTar, BitTar = input.BitTar, MusteriSegment = segment
                         }, ct)
                     : null;
                 if (q?.TarifeKodu is not null)
@@ -117,6 +123,20 @@ public sealed class PricingService(
         // BaseGross→FromGross ile net'i ayrıştırır → mod niyeti korunur). KURAL B: 3 create yolu bu facade'dan.
         var tutar = otomatik ? KdvMath.RoundGross(gun * input.GunlukUcret) : KdvModuUygula(input, gun);
         return new PricedRental(gun, tutar, null, null, null, null);
+    }
+
+    /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif
+    /// ReservationSource'larda Kod VEYA Ad ile (Trim + case-insensitive) eşleşirse Trim'li metin
+    /// döner (matris Kanal alanı aynı metinle eşleşir), eşleşmezse null — tanımsız kaynak kanal-özel
+    /// tarife seçtiremez (çit; sessiz yanlış-tarife yerine base matris).</summary>
+    private async Task<string?> KanalCozAsync(string? kaynak, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(kaynak)) return null;
+        var k = kaynak.Trim();
+        var aktifler = await _kaynaklar.ListActiveAsync(ct);
+        return aktifler.Any(s =>
+            string.Equals(s.Kod, k, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s.Ad, k, StringComparison.OrdinalIgnoreCase)) ? k : null;
     }
 
     /// <summary>FiyatTuru moduna göre brüt Tutar; GunlukUcret'i brüte normalize eder (yan etki). Modlar:
