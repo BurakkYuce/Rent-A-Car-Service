@@ -18,6 +18,9 @@ public sealed class QuoteRequest
     public IReadOnlyList<string> SigortaUrunKodlari { get; set; } = [];
     /// <summary>Müşteri segmenti (FAZ 3.A2; Customer.Sinif — kural kapsam eşleşmesi, Trim+case-insensitive).</summary>
     public string? MusteriSegment { get; set; }
+    /// <summary>Promosyon kodu (FAZ 3.A5): verilirse kural seçimi KODLU kuralla değiştirilir (REPLACE);
+    /// kod geçersiz/kapsam-dışı ise ValidationException (sessiz yutma yok).</summary>
+    public string? KampanyaKodu { get; set; }
 }
 
 /// <summary>Teklif kalemi (sigorta/ek hizmet).</summary>

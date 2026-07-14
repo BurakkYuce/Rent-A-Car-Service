@@ -28,7 +28,8 @@ public static class BookingEndpoints
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
-                    Kaynak = kaynak
+                    Kaynak = kaynak,
+                    KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
                 ApplyOdemeDerinlik(input, req.Form);
                 await svc.CreateAsync(input);
@@ -52,7 +53,8 @@ public static class BookingEndpoints
                 {
                     MusteriId = musteriId, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama,
-                    Kaynak = kaynak
+                    Kaynak = kaynak,
+                    KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
                 ApplyOdemeDerinlik(input, req.Form);
                 await svc.UpdateAsync(id, input);
@@ -172,7 +174,7 @@ public static class BookingEndpoints
         kira.MapGet("/hesapla", async (KiraHesapService svc,
             string? vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
             string? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi,
-            string? ek, string? rentalId) =>
+            string? ek, string? rentalId, string? musteriId, string? kampanyaKodu) =>
         {
             try
             {
@@ -181,6 +183,8 @@ public static class BookingEndpoints
                     BasTar: basTar, BitTar: bitTar,
                     GunlukUcret: FormParse.Dec(gunlukUcret),
                     FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
+                    // Adversarial A5-B5: önizleme == kayıt — segment (müşteri) + kampanya kodu canlı hesapta da.
+                    MusteriId: FormParse.Id(musteriId), KampanyaKodu: kampanyaKodu,
                     EkHizmetler: ParseEkSecim(ek),
                     RentalId: FormParse.Id(rentalId)));
                 return Results.Json(sonuc);
@@ -366,6 +370,7 @@ public static class BookingEndpoints
     private static void ApplyKiraDetay(BookingInput input, IFormCollection f)
     {
         input.Kaynak = FormParse.Str(f, "kaynak"); // parite fix: kira create artık kaynağı da taşır
+        input.KampanyaKodu = FormParse.Str(f, "kampanyaKodu"); // FAZ 3.A5 (yalnız Otomatik'te geçerli)
         input.UyariAciklama = FormParse.Str(f, "uyariAciklama");
         input.OzelFaturaAciklama = FormParse.Str(f, "ozelFaturaAciklama");
         input.FaturaListesindeGizle = FormBool(f, "faturaListesindeGizle");

@@ -53,6 +53,10 @@ public class Reservation : ITenantOwned, IAuditable
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; } // roadmap H2: rezervasyon kaynağı (ReservationSource kodu/adı)
 
+    /// <summary>Promosyon/kampanya kodu (FAZ 3.A5) — girildiyse fiyat kodlu kuralla çözülür (REPLACE;
+    /// kapsam tutmazsa gürültülü red). Reprice'ta yeniden doğrulanır (süresi dolan kod alanı temizletir).</summary>
+    public string? KampanyaKodu { get; set; }
+
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
     public Guid? RentalContractId { get; set; }
 

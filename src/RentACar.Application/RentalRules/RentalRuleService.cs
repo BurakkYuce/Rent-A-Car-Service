@@ -31,6 +31,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
+        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: null, ct);
 
         var row = new RentalRule();
         Apply(row, n);
@@ -45,6 +46,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
+        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: id, ct);
 
         return await _repository.UpdateAsync(id, row =>
         {
@@ -59,10 +61,23 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         return _repository.DeleteAsync(id, ct);
     }
 
+    /// <summary>FAZ 3.A5 adversarial B4: aynı KampanyaKodu iki kuralda olursa KodluKuralSec keyfi/yanlış
+    /// seçer — kod tenant içinde TEK kurala ait olmalı (case-insensitive; boş kod serbest).</summary>
+    private async Task KampanyaKoduBenzersizAsync(string? kod, Guid? excludeId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(kod)) return;
+        var hepsi = await _repository.ListAsync(ct);
+        if (hepsi.Any(r => r.Id != excludeId && !string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
+                string.Equals(r.KampanyaKodu.Trim(), kod.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new ValidationException($"'{kod}' kampanya kodu başka bir kuralda kullanılıyor (kod tek kurala ait olmalı).");
+    }
+
     private static void Validate(RentalRuleInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Kural kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Kural kodu en çok 32 karakter olabilir.");
+        if (n.KampanyaKodu is { Length: > 64 }) throw new ValidationException("Kampanya kodu en çok 64 karakter olabilir.");
+        if (n.MusteriSegment is { Length: > 64 }) throw new ValidationException("Müşteri segmenti en çok 64 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Kural adı zorunludur.");
         if (n.MinGun is < 0) throw new ValidationException("Min gün negatif olamaz.");
         if (n.MaxGun is < 0) throw new ValidationException("Max gün negatif olamaz.");
