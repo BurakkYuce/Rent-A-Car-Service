@@ -27,6 +27,25 @@ public static class FinanceEndpoints
     {
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
+        // FAZ 4.2-B3: dönem faturası kes (+opsiyonel tahsilat kaydı). Çift-submit güvenli: fatura
+        // idempotent (Kesildi→mevcut), tahsilat deterministik RowKey(rentalId, donemSira) anahtarlı.
+        grp.MapPost("/donem-fatura", async (RentACar.Application.FaturaDonemleri.DonemTahsilatService svc,
+            [FromForm] Guid rentalId, [FromForm] int donemSira, [FromForm] string? tahsilat,
+            [FromForm] string? hesap, [FromForm] string? donus) =>
+        {
+            var geri = SafeDonus(donus, "/kiralar/" + rentalId);
+            try
+            {
+                await svc.KesVeTahsilEtAsync(rentalId, donemSira,
+                    tahsilat is "true" or "on",
+                    string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase)
+                        ? LedgerAccountType.Banka : LedgerAccountType.Kasa);
+                return Results.Redirect($"{geri}?ok=1");
+            }
+            catch (ValidationException ex)
+            { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         grp.MapPost("/tahsilat", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,

@@ -145,8 +145,10 @@ public sealed class CashService(
         await _repository.PostBatchAsync(postings, ct);
     }
 
-    /// <summary>Toplu işlem anahtarından satır-bazlı deterministik idempotency anahtarı (batch ⊕ index).</summary>
-    internal static Guid RowKey(Guid batch, int index)
+    /// <summary>Toplu işlem anahtarından satır-bazlı deterministik idempotency anahtarı (batch ⊕ index).
+    /// FAZ 4.2-B3: dönem tahsilatı da (rentalId ⊕ donemSira) deterministik anahtarını buradan üretir —
+    /// çift-submit/job-tekrarı ikinci tahsilat yazamaz (kısmi unique index + yutma).</summary>
+    public static Guid RowKey(Guid batch, int index)
     {
         var b = batch.ToByteArray();
         b[0] ^= (byte)(index & 0xFF);

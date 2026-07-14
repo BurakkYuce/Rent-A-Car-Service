@@ -4,6 +4,7 @@
 @using RentACar.Application.Availability
 @using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller
 @inject RentalService Rentals
+@inject RentACar.Application.FaturaDonemleri.FaturaDonemPlanService DonemPlan
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
@@ -197,6 +198,8 @@ else
         _vm.Kaynaklar = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
         _vm.OzelKodlar = (await OzelKodlar.ListActiveAsync()).Select(k => k.Ad).ToList();
         _vm.Kurlar = await Kurlar.BugunKurlarAsync();
+        // FAZ 4.2-B3: dönem planı önizlemesi (uygun kirada; plansızda boş liste — panel gizli).
+        if (_vm.Edit) _vm.FaturaDonemleri = await DonemPlan.PreviewAsync(_vm.Rental!.Id);
         _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
         _vm.QMusteriId = Guid.TryParse(MusteriIdQ, out var qm) ? qm : null; // müsaitlik yenilemesinde seçim korunur
 
