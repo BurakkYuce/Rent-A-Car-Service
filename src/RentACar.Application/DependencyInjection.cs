@@ -90,6 +90,7 @@ public static class DependencyInjection
         services.AddScoped<Bookings.FeeLineService>(); // FAZ 3.A3a sistem ücret satırları (sürücü ücretleri)
         services.AddScoped<Finance.KdvVarsayilan>(); // FAZ 3.A6 tenant varsayılan KDV çözücüsü
         services.AddScoped<DolulukFiyat.DolulukFiyatKuralService>(); // FAZ 3.A7 doluluk çarpanı master
+        services.AddScoped<FaturaDonemleri.FaturaDonemPlanService>(); // FAZ 4.2-B1 dönem planı
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
         services.AddScoped<RentalService>();
