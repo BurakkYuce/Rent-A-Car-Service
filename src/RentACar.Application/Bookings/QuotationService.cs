@@ -55,7 +55,9 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
             GecerlilikTarihi = input.GecerlilikTarihi,
-            Aciklama = input.Aciklama
+            Aciklama = input.Aciklama,
+            FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(), // A6-B2
+            KdvOranSnapshot = pr.KdvOranSnapshot
         };
         await _repository.CreateAsync(quotation, ct);
         return quotation.Id;
@@ -92,7 +94,9 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
             KmLimit = q.KmLimit,
             FazlaKmUcret = q.FazlaKmUcret,
             YakitBirimUcret = q.YakitBirimUcret,
-            Aciklama = q.Aciklama
+            Aciklama = q.Aciklama,
+            FiyatTuru = q.FiyatTuru,           // A6-B2: net-mod niyeti zincir boyunca taşınır
+            KdvOranSnapshot = q.KdvOranSnapshot
         }, ct);
     }
 

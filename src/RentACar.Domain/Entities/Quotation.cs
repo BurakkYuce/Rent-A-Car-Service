@@ -50,6 +50,11 @@ public class Quotation : ITenantOwned, IAuditable
     /// <summary>Kabul sonrası oluşan rezervasyon.</summary>
     public Guid? ReservationId { get; set; }
 
+    /// <summary>Fiyat türü + net-mod gross-up oranı (FAZ 3.A6 adversarial B2) — teklif→rez→kira
+    /// zincirinde net-mod niyeti kaybolmasın diye persist edilir ve dönüşümlerde kopyalanır.</summary>
+    public string? FiyatTuru { get; set; }
+    public decimal? KdvOranSnapshot { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

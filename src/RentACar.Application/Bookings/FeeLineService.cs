@@ -36,12 +36,12 @@ public sealed class FeeLineService(
     RentalAddOnService addOns,
     IRentalAddOnRepository addOnRepo,
     Common.ITenantCache cache,
-    DropTanimlari.IDropTanimRepository dropTanimlar)
+    DropTanimlari.IDropTanimRepository dropTanimlar,
+    Finance.KdvVarsayilan kdvVarsayilan)
 {
     public const string GencSurucuKod = "SYS-GENC-SURUCU";
     public const string EkSurucuKod = "SYS-EK-SURUCU";
-    public const string DropKod = "SYS-DROP"; // FAZ 3.A3b
-    public const decimal VarsayilanKdv = 0.20m;
+    public const string DropKod = "SYS-DROP"; // FAZ 3.A3b (sistem tanımı KDV'si tenant varsayılanından — A6)
 
     /// <summary>Saf hesap: sistem ücret satırları (+ bilgi notları). Deftere/DB'ye dokunmaz.</summary>
     public static IReadOnlyList<SistemUcretSatiri> HesaplaSaf(
@@ -196,7 +196,7 @@ public sealed class FeeLineService(
     {
         var t = (await tanimlar.ListAsync(ct))
             .FirstOrDefault(x => string.Equals(x.Kod, kod, StringComparison.OrdinalIgnoreCase));
-        return (t?.Id, t?.KdvOrani ?? VarsayilanKdv);
+        return (t?.Id, t?.KdvOrani ?? await kdvVarsayilan.OranAsync(ct)); // A6: tanım yoksa tenant varsayılanı
     }
 
     private async Task<EkHizmetTanim> GetOrCreateTanimAsync(string kod, string ad, CancellationToken ct)
@@ -204,7 +204,7 @@ public sealed class FeeLineService(
         var t = (await tanimlar.ListAsync(ct))
             .FirstOrDefault(x => string.Equals(x.Kod, kod, StringComparison.OrdinalIgnoreCase));
         if (t is not null) return t;
-        t = new EkHizmetTanim { Kod = kod, Ad = ad, BirimUcret = 0m, KdvOrani = VarsayilanKdv, Aktif = true };
+        t = new EkHizmetTanim { Kod = kod, Ad = ad, BirimUcret = 0m, KdvOrani = await kdvVarsayilan.OranAsync(ct), Aktif = true }; // A6
         try { await tanimlar.CreateAsync(t, ct); cache.Invalidate("ekhizmet"); return t; }
         catch // eşzamanlı yaratma yarışı: (TenantId, Kod) unique — kazananı oku
         {

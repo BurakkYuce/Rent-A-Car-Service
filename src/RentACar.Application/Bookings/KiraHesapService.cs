@@ -70,7 +70,8 @@ public sealed class KiraHesapService(
     IBookingRepository bookings,
     ICurrentUser currentUser,
     FeeLineService feeLines,
-    RentACar.Application.Customers.ICustomerRepository musteriler)
+    RentACar.Application.Customers.ICustomerRepository musteriler,
+    KdvVarsayilan kdvVarsayilanServis)
 {
     private const int MaxEkKalem = 50; // abuse guard: tek istekte gerçekçi üst sınır
     // Taşma guard'ları (adversarial PR-B Medium): decimal.MaxValue mertebesinde miktar/ücret,
@@ -117,7 +118,9 @@ public sealed class KiraHesapService(
         try { pr = await pricing.PriceAsync(input, ct); }
         catch (ValidationException ex) { return Hatali(ex.Message, doviz); } // örn. Otomatik + tarife yok
 
-        var (net, kdv) = KdvMath.FromGross(pr.Tutar, KdvMath.VarsayilanOran);
+        // FAZ 3.A6: Net/KDV göstergesi tenant varsayılanıyla ayrışır (net-mod gross-up'ı da PriceAsync
+        // içinde aynı orandan) — önizleme == kayıt/fatura ayrıştırması.
+        var (net, kdv) = KdvMath.FromGross(pr.Tutar, pr.KdvOranSnapshot ?? await kdvVarsayilanServis.OranAsync(ct));
 
         // Ek kalemler — AddAsync ile bit-eş matematik (tanımdan snapshot; override yok).
         var kalemler = new List<KiraHesapEkKalem>(istek.EkHizmetler.Count);
