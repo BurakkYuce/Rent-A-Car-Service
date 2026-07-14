@@ -42,6 +42,7 @@ public static class RentalRuleEndpoints
         HediyeGun = FormParse.Int(FormParse.Str(f, "hediyeGun")),
         KampanyaMi = (FormParse.Str(f, "kampanyaMi")) is "true" or "True" or "on",
         KampanyaKodu = FormParse.Str(f, "kampanyaKodu"),
+        MusteriSegment = FormParse.Str(f, "musteriSegment"),
         GecerlilikBas = FormParse.Date(FormParse.Str(f, "gecerlilikBas")),
         GecerlilikBit = FormParse.Date(FormParse.Str(f, "gecerlilikBit")),
         SartMetni = FormParse.Str(f, "sartMetni"),

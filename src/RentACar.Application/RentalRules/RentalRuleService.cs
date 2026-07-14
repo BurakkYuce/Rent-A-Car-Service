@@ -92,6 +92,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         HediyeGun = input.HediyeGun,
         KampanyaMi = input.KampanyaMi,
         KampanyaKodu = TrimOrNull(input.KampanyaKodu),
+        MusteriSegment = TrimOrNull(input.MusteriSegment),
         GecerlilikBas = input.GecerlilikBas,
         GecerlilikBit = input.GecerlilikBit,
         SartMetni = TrimOrNull(input.SartMetni),
@@ -116,6 +117,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         row.HediyeGun = n.HediyeGun;
         row.KampanyaMi = n.KampanyaMi;
         row.KampanyaKodu = n.KampanyaKodu;
+        row.MusteriSegment = n.MusteriSegment;
         row.GecerlilikBas = n.GecerlilikBas;
         row.GecerlilikBit = n.GecerlilikBit;
         row.SartMetni = n.SartMetni;

@@ -125,6 +125,7 @@ internal sealed class RentalRuleConfig : IEntityTypeConfiguration<RentalRule>
         e.Property(x => x.Sube).HasMaxLength(64);
         e.Property(x => x.AracGrupKod).HasMaxLength(32);
         e.Property(x => x.KampanyaKodu).HasMaxLength(64);
+        e.Property(x => x.MusteriSegment).HasMaxLength(64); // FAZ 3.A2
         e.Property(x => x.SartMetni).HasMaxLength(4000);
         e.Property(x => x.Iskonto).HasColumnType("numeric(9,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
