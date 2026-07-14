@@ -26,11 +26,13 @@ namespace RentACar.Application.Pricing;
 /// (booking tek-döviz) → 0 (Otomatik ise temiz red).
 /// </summary>
 public sealed class PricingService(
-    IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards)
+    IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
+    Customers.ICustomerRepository customers)
 {
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
+    private readonly Customers.ICustomerRepository _customers = customers;
 
     /// <summary>
     /// Gün + tutar döner; gerekiyorsa input.GunlukUcret'i tarife matrisinden gelen efektif ücretle
@@ -65,9 +67,17 @@ public sealed class PricingService(
             if (!string.IsNullOrWhiteSpace(grup))
             {
                 // TEK motor çağrısı. CikisOfisi (şube) → şube-özel matris (HIGH-2).
+                // FAZ 3.A2: segment cariden ÇÖZÜLÜR (Customer.Sinif) — tetikleyici bu ortak facade'da
+                // olduğundan 3 create yolu + rezervasyon-update otomatik kapsanır; reprice CARİNİN
+                // GÜNCEL sınıfını kullanır (sınıf sonradan değişirse yeni fiyat yeni segmentten).
+                var segment = input.MusteriId != Guid.Empty
+                    ? (await _customers.FindAsync(input.MusteriId, ct))?.Sinif : null;
                 var q = input.BitTar > input.BasTar
                     ? await _quoteEngine.QuoteAsync(new QuoteRequest
-                        { AracGrupKod = grup, Sube = input.CikisOfisi, BasTar = input.BasTar, BitTar = input.BitTar }, ct)
+                        {
+                            AracGrupKod = grup, Sube = input.CikisOfisi, BasTar = input.BasTar,
+                            BitTar = input.BitTar, MusteriSegment = segment
+                        }, ct)
                     : null;
                 if (q?.TarifeKodu is not null)
                 {

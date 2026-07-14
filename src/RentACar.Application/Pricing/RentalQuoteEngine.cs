@@ -124,7 +124,7 @@ public sealed class RentalQuoteEngine(
         // 4) Kiralama kuralı → hediye gün + iskonto. KM aşım + sigorta DAHİL gerçek iskonto matrahıyla
         // (araToplam) müşteri lehine en iyi kural seçilir (M-NEW: iskonto yalnız bazdan sayılmaz).
         var kural = SelectRule(await _rentalRules.ListActiveAsync(ct), grupKod, kanal, sube, req.BasTar,
-            gun, gunlukUcret, kmAsim + sigortaToplam);
+            gun, gunlukUcret, kmAsim + sigortaToplam, req.MusteriSegment);
         var hediyeGun = Math.Min(kural?.HediyeGun ?? 0, gun);
         var iskontoOran = kural?.Iskonto ?? 0m;
         var faturalananGun = Math.Max(0, gun - hediyeGun);
@@ -242,20 +242,26 @@ public sealed class RentalQuoteEngine(
     /// kazanır — daha cömert hediye-gün kampanyası, düşük iskontolu kurala feda edilmez.
     /// KAMPANYA ÇİTİ (FAZ 3.A0 — canlı bug düzeltmesi): KampanyaKodu'lu kural KOD GİRİLMEDEN
     /// otomatik seçime GİRMEZ (kod-kapılı kural en-avantajlı seçimle sessizce uygulanıyordu);
-    /// kodla uygulama A5'in (promosyon kodu) işi. Kodsuz kampanya (KampanyaMi, kodsuz) otomatik kalır.</summary>
+    /// kodla uygulama A5'in (promosyon kodu) işi. Kodsuz kampanya (KampanyaMi, kodsuz) otomatik kalır.
+    /// SEGMENT (FAZ 3.A2): MusteriSegment'li kural yalnız o segmentteki müşteriye (Trim+case-insensitive);
+    /// null-scope herkese. SIRALAMA KRİTİK: segment-birebir eşleşme RuleBenefit'ten ÖNCE — yoksa
+    /// "Problemli → %0" kuralı cömert genel kurala asla kazanamazdı.</summary>
     private static RentalRule? SelectRule(
         IReadOnlyList<RentalRule> all, string grupKod, string? kanal, string? sube,
-        DateTimeOffset tarih, int gun, decimal gunlukUcret, decimal digerTutar)
+        DateTimeOffset tarih, int gun, decimal gunlukUcret, decimal digerTutar, string? musteriSegment = null)
         => all.Where(r =>
                 string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
                 (r.AracGrupKod == null || r.AracGrupKod == grupKod) &&
                 (r.Kanal == null || string.Equals(r.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
                 (r.Sube == null || string.Equals(r.Sube, sube, StringComparison.OrdinalIgnoreCase)) &&
+                (r.MusteriSegment == null || string.Equals(r.MusteriSegment.Trim(),
+                    musteriSegment?.Trim(), StringComparison.OrdinalIgnoreCase)) &&
                 (r.GecerlilikBas == null || r.GecerlilikBas <= tarih) &&
                 (r.GecerlilikBit == null || r.GecerlilikBit >= tarih) &&
                 (r.MinGun == null || gun >= r.MinGun) &&
                 (r.MaxGun == null || gun <= r.MaxGun))
             .OrderByDescending(r => r.AracGrupKod == grupKod ? 1 : 0)
+            .ThenByDescending(r => r.MusteriSegment != null ? 1 : 0) // segment-özgü kural fayda kıyasından ÖNCE
             .ThenByDescending(r => RuleBenefit(r, gun, gunlukUcret, digerTutar))
             .ThenBy(r => r.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
