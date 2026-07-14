@@ -48,6 +48,8 @@ internal sealed class VehicleGroupConfig : IEntityTypeConfiguration<VehicleGroup
         e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");
         e.Property(x => x.Muafiyet2).HasColumnType("numeric(19,4)");
         e.Property(x => x.AsimKmUcreti).HasColumnType("numeric(19,4)");
+        e.Property(x => x.GencSurucuUcretGunluk).HasColumnType("numeric(19,4)"); // FAZ 3.A3a
+        e.Property(x => x.EkSurucuUcretGunluk).HasColumnType("numeric(19,4)");
         e.Property(x => x.YakitFiyati).HasColumnType("numeric(19,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();

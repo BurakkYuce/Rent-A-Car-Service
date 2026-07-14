@@ -44,6 +44,8 @@ public static class VehicleGroupEndpoints
         BuyukBagaj = FormParse.Int(FormParse.Str(f, "buyukBagaj")),
         SurucuMinYas = FormParse.Int(FormParse.Str(f, "surucuMinYas")),
         GencSurucuYas = FormParse.Int(FormParse.Str(f, "gencSurucuYas")),
+        GencSurucuUcretGunluk = FormParse.Dec(FormParse.Str(f, "gencSurucuUcretGunluk")),
+        EkSurucuUcretGunluk = FormParse.Dec(FormParse.Str(f, "ekSurucuUcretGunluk")),
         EhliyetMinYil = FormParse.Int(FormParse.Str(f, "ehliyetMinYil")),
         GencEhliyetMinYil = FormParse.Int(FormParse.Str(f, "gencEhliyetMinYil")),
         Provizyon = FormParse.Dec(FormParse.Str(f, "provizyon")),

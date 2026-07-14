@@ -84,6 +84,8 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         RequireNonNegativeDec(n.Muafiyet2, "Muafiyet 2");
         RequireNonNegativeDec(n.AsimKmUcreti, "Aşım KM ücreti");
         RequireNonNegativeDec(n.YakitFiyati, "Yakıt fiyatı");
+        RequireNonNegativeDec(n.GencSurucuUcretGunluk, "Genç sürücü ücreti (net/gün)");
+        RequireNonNegativeDec(n.EkSurucuUcretGunluk, "Ek sürücü ücreti (net/gün)");
         if (n.SurucuMinYas is < 16 or > 99)
             throw new ValidationException("Sürücü min. yaş 16 ile 99 arasında olmalıdır.");
         if (n.GencSurucuYas is < 16 or > 99)
@@ -123,6 +125,8 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         BuyukBagaj = input.BuyukBagaj,
         SurucuMinYas = input.SurucuMinYas,
         GencSurucuYas = input.GencSurucuYas,
+        GencSurucuUcretGunluk = input.GencSurucuUcretGunluk,
+        EkSurucuUcretGunluk = input.EkSurucuUcretGunluk,
         EhliyetMinYil = input.EhliyetMinYil,
         GencEhliyetMinYil = input.GencEhliyetMinYil,
         Provizyon = input.Provizyon,
@@ -159,6 +163,8 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         group.BuyukBagaj = n.BuyukBagaj;
         group.SurucuMinYas = n.SurucuMinYas;
         group.GencSurucuYas = n.GencSurucuYas;
+        group.GencSurucuUcretGunluk = n.GencSurucuUcretGunluk;
+        group.EkSurucuUcretGunluk = n.EkSurucuUcretGunluk;
         group.EhliyetMinYil = n.EhliyetMinYil;
         group.GencEhliyetMinYil = n.GencEhliyetMinYil;
         group.Provizyon = n.Provizyon;

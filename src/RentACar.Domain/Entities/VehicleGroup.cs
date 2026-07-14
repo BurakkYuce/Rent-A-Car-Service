@@ -42,6 +42,13 @@ public class VehicleGroup : ITenantOwned, IAuditable
     public int? SurucuMinYas { get; set; }
     /// <summary>Genç sürücü eşik yaşı (altı = genç sürücü ek kuralı).</summary>
     public int? GencSurucuYas { get; set; }
+
+    /// <summary>Genç sürücü ücreti (FAZ 3.A3a) — NET/gün ("KDV hariç/gün"; add-on konvansiyonu).
+    /// GencSurucuYas eşiğinin ALTINDAKİ sürücüde sistem RentalAddOn satırı üretir; null/0 = ücret yok.</summary>
+    public decimal? GencSurucuUcretGunluk { get; set; }
+    /// <summary>Ek (2.) sürücü ücreti (FAZ 3.A3a) — NET/gün; kira İkinciSurucuId taşıyorsa sistem satırı.</summary>
+    public decimal? EkSurucuUcretGunluk { get; set; }
+
     public int? EhliyetMinYil { get; set; }
     /// <summary>Genç sürücü için min ehliyet yılı (canlı "Genç Ehliyet Yılı").</summary>
     public int? GencEhliyetMinYil { get; set; }

@@ -20,7 +20,8 @@ public sealed class RentalService(
     RentACar.Application.Kur.KurService kurService,
     RentACar.Application.Personnel.IPersonelRepository personelRepository,
     RentACar.Application.Customers.ICustomerRepository customerRepository,
-    ITenantCache cache)
+    ITenantCache cache,
+    FeeLineService feeLines)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -151,6 +152,9 @@ public sealed class RentalService(
             AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)")
         };
         await _repository.CreateRentalAsync(contract, ct);
+        // FAZ 3.A3a: sistem ücret satırları (genç/ek sürücü) — RentalAddOn olarak (KURAL A: BaseGross'a
+        // dokunmaz; GenelToplam add-on mekanizmasıyla güncellenir). FX kirada sessizce atlanır.
+        await feeLines.ApplyContractFeesAsync(contract.Id, ct);
         return contract.Id;
     }
 
@@ -198,7 +202,7 @@ public sealed class RentalService(
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
 
-        return await _repository.UpdateRentalAsync(id, c =>
+        var ok = await _repository.UpdateRentalAsync(id, c =>
         {
             // TX içinde yeniden doğrula (ön-kontrol ile arasında durum değişmiş olabilir).
             BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
@@ -258,6 +262,10 @@ public sealed class RentalService(
             c.AksLastikDonus = Lim(input.AksLastikDonus, 64, "Lastik durumu (dönüş)");
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        // FAZ 3.A3a adversarial B2: 2. sürücü sonradan eklendi/kaldırıldıysa sistem ücret satırları
+        // sözleşmenin GÜNCEL hâline eşitlenir (yalnız Kirada + faturalanmamışken; içeride kontrol).
+        if (ok) await feeLines.SyncContractFeesAsync(id, ct);
+        return ok;
     }
 
     /// <summary>
@@ -447,7 +455,7 @@ public sealed class RentalService(
         if (await _repository.HasOverlappingActiveRentalAsync(c.VehicleId, c.BasTar, yeniBitTar, id, ct))
             throw new AvailabilityConflictException();
 
-        return await _repository.UpdateRentalAsync(id, x =>
+        var uzatildi = await _repository.UpdateRentalAsync(id, x =>
         {
             if (x.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
@@ -469,6 +477,10 @@ public sealed class RentalService(
             x.HediyeGun = null; x.FaturalananGun = null; x.IskontoTutar = null; x.HaftaSonuFark = null;
             x.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        // FAZ 3.A3a adversarial B3: ücretler NET/GÜN tanımlı — uzatmada sistem satırları yeni güne
+        // yeniden ölçeklenir (yalnız faturalanmamışken; faturalanmışsa dokunulmaz — defter snapshot'ı).
+        if (uzatildi) await feeLines.SyncContractFeesAsync(id, ct);
+        return uzatildi;
     }
 
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
