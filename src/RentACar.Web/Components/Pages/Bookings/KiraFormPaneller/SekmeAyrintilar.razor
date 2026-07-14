@@ -36,11 +36,26 @@
                 <label>Son Kullanma<input autocomplete="off" disabled title="PCI: saklanmaz" /></label>
                 <label>Güvenlik Kodu (CVV)<input autocomplete="off" disabled title="CVV ASLA saklanmaz" /></label>
             </div>
-            <p class="muted small">PCI kuralı: kart verisi ve CVV sisteme kaydedilmez; provizyon POS üzerinden alınır (entegrasyon stub).</p>
-            <div style="display:flex;gap:.5rem;">
-                <button type="button" disabled title="TODO: POS provizyon (hold)">Provizyon Al</button>
-                <button type="button" disabled title="TODO: POS provizyon kapama (capture/release)">Provizyon Kapat</button>
-            </div>
+            <p class="muted small">PCI kuralı: kart verisi ve CVV sisteme kaydedilmez; kayıt MANUELDİR (POS entegrasyonu stub — FAZ 4.1).</p>
+            @if (Vm.Edit)
+            {
+                @* Butonlar ana formun DIŞINDAKİ formlara form= ile bağlanır (iç içe form yasak — mega-form deseni). *@
+                <p class="muted small">Provizyon Durumu: <strong>@Vm.Rental!.ProvizyonDurum</strong>
+                    @if (Vm.Rental!.ProvizyonKapamaTarih is { } pkt)
+                    { <span> — kapama @pkt.LocalDateTime.ToString("dd.MM.yyyy HH:mm"), tutar @(Vm.Rental!.ProvizyonKapamaTutar?.ToString("N2") ?? "—")</span> }
+                </p>
+                <div style="display:flex;gap:.5rem;">
+                    <button type="submit" form="kf-prov-al" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Yok)">Provizyon Al (manuel)</button>
+                    <button type="submit" form="kf-prov-kapat" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Alindi)">Provizyon Kapat</button>
+                </div>
+            }
+            else
+            {
+                <div style="display:flex;gap:.5rem;">
+                    <button type="button" disabled title="Önce kirayı kaydedin — provizyon işlemleri kayıtlı sözleşmede">Provizyon Al</button>
+                    <button type="button" disabled title="Önce kirayı kaydedin">Provizyon Kapat</button>
+                </div>
+            }
         </div>
         <div class="card">
             <strong>Provizyon / Uçuş Referansları</strong>

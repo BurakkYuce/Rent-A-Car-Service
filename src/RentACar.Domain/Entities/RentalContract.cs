@@ -112,6 +112,14 @@ public class RentalContract : ITenantOwned, IAuditable
     /// <summary>Provizyon (ön otorizasyon) referans no — bilgi; hold/capture yaşam döngüsü POS entegrasyonuyla.</summary>
     public string? ProvizyonNo { get; set; }
     public DateTimeOffset? ProvizyonTarih { get; set; }
+
+    /// <summary>Manuel provizyon yaşam döngüsü (FAZ 4.1): Yok→Alindi→(Kapandi|IadeEdildi).
+    /// POS'suz kayıt (IPosService çağrılmaz; kart alanları PCI gereği kalıcı disabled);
+    /// deftere YAZMAZ — bilgi/iz (gerçek tahsilat ayrı akış).</summary>
+    public ProvizyonDurum ProvizyonDurum { get; set; } = ProvizyonDurum.Yok;
+    public DateTimeOffset? ProvizyonKapamaTarih { get; set; }
+    /// <summary>Kapamada çekilen tutar (iade edilmişse 0; bilgi).</summary>
+    public decimal? ProvizyonKapamaTutar { get; set; }
     public string? OnayKodu { get; set; }
     public string? FirmaKodu { get; set; }
     public string? ProjeAdi { get; set; }
