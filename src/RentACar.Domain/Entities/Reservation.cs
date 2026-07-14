@@ -57,6 +57,13 @@ public class Reservation : ITenantOwned, IAuditable
     /// kapsam tutmazsa gürültülü red). Reprice'ta yeniden doğrulanır (süresi dolan kod alanı temizletir).</summary>
     public string? KampanyaKodu { get; set; }
 
+    /// <summary>Fiyat türü (FAZ 3.A6 adversarial B2): net-mod niyeti dönüşümde kiraya taşınsın diye
+    /// PERSIST edilir (önceden yalnız fiyatlamada kullanılıp düşürülüyordu → kira brüt-mod muamelesi
+    /// görür, KDV matrahı tenant oranı değişince sessizce sapardı).</summary>
+    public string? FiyatTuru { get; set; }
+    /// <summary>NET modda gross-up ANINDA kullanılan KDV oranı — dönüşümde kiraya kopyalanır (A6-B2).</summary>
+    public decimal? KdvOranSnapshot { get; set; }
+
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
     public Guid? RentalContractId { get; set; }
 

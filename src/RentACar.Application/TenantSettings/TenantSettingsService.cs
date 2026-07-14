@@ -76,6 +76,8 @@ public sealed class TenantSettingsService(
             // roadmap M1 — görünüm/operasyon (düz) + SMTP (host/port/user düz, şifre Enc)
             s.LogoUrl = Trim(m.LogoUrl);
             s.VarsayilanDoviz = string.IsNullOrWhiteSpace(m.VarsayilanDoviz) ? null : m.VarsayilanDoviz.Trim().ToUpperInvariant();
+            if (m.VarsayilanKdvOrani is < 0m or > 1m)
+                throw new ValidationException("Varsayılan KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // A6
             s.VarsayilanKdvOrani = m.VarsayilanKdvOrani;
             s.MinKiraGun = m.MinKiraGun;
             s.MaxKiraGun = m.MaxKiraGun;
