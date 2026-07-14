@@ -174,7 +174,7 @@ public static class BookingEndpoints
         kira.MapGet("/hesapla", async (KiraHesapService svc,
             string? vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
             string? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi,
-            string? ek, string? rentalId, string? musteriId, string? kampanyaKodu) =>
+            string? ek, string? rentalId, string? musteriId, string? kampanyaKodu, string? ikinciSurucuId) =>
         {
             try
             {
@@ -185,6 +185,7 @@ public static class BookingEndpoints
                     FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
                     // Adversarial A5-B5: önizleme == kayıt — segment (müşteri) + kampanya kodu canlı hesapta da.
                     MusteriId: FormParse.Id(musteriId), KampanyaKodu: kampanyaKodu,
+                    IkinciSurucuId: FormParse.Id(ikinciSurucuId), // FAZ 3.A3a ek sürücü ücreti önizlemesi
                     EkHizmetler: ParseEkSecim(ek),
                     RentalId: FormParse.Id(rentalId)));
                 return Results.Json(sonuc);

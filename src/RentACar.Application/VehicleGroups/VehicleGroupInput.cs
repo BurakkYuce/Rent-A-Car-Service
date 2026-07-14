@@ -20,6 +20,10 @@ public sealed class VehicleGroupInput
 
     public int? SurucuMinYas { get; set; }
     public int? GencSurucuYas { get; set; }
+    /// <summary>Genç sürücü ücreti — NET/gün (FAZ 3.A3a).</summary>
+    public decimal? GencSurucuUcretGunluk { get; set; }
+    /// <summary>Ek sürücü ücreti — NET/gün (FAZ 3.A3a).</summary>
+    public decimal? EkSurucuUcretGunluk { get; set; }
     public int? EhliyetMinYil { get; set; }
     public int? GencEhliyetMinYil { get; set; }
     public decimal? Provizyon { get; set; }
