@@ -21,7 +21,9 @@ public sealed record KiraHesapIstek(
     Guid? RentalId = null,
     Guid? MusteriId = null,
     string? KampanyaKodu = null,
-    Guid? IkinciSurucuId = null);
+    Guid? IkinciSurucuId = null,
+    string? DonusOfisi = null,
+    decimal? DropUcreti = null);
 
 public sealed record KiraHesapEkHizmet(Guid TanimId, decimal Miktar);
 
@@ -135,8 +137,9 @@ public sealed class KiraHesapService(
         {
             var grup = await feeLines.GrupCozAsync(feeVid, ct);
             var dogum = istek.MusteriId is Guid mid ? (await musteriler.FindAsync(mid, ct))?.DogumTarihi : null;
+            var drop = await feeLines.DropUcretCozAsync(istek.CikisOfisi, istek.DonusOfisi, istek.DropUcreti, ct);
             foreach (var s in FeeLineService.HesaplaSaf(
-                grup, pr.Gun, istek.BasTar, dogum, istek.IkinciSurucuId is not null, doviz, feeNotlar))
+                grup, pr.Gun, istek.BasTar, dogum, istek.IkinciSurucuId is not null, doviz, feeNotlar, drop))
             {
                 var (tanimId, kdvOrani) = await feeLines.TanimBilgiAsync(s.TanimKod, ct);
                 var fNet = Math.Round(s.BirimNet * s.Gun, 2, MidpointRounding.AwayFromZero);

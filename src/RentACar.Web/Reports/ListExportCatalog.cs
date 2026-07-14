@@ -143,10 +143,10 @@ public static class ListExportCatalog
 
     public static ExportTable DropTanimlari(IReadOnlyList<DropTanim> d) => new(
         "Drop Tanımları",
-        ["Lokasyon", "Şube", "Karşılama Şekli", "Çalışma Şekli", "Özel İletişim", "Aktif"],
+        ["Lokasyon", "Şube", "Karşılama Şekli", "Çalışma Şekli", "Özel İletişim", "Drop Ücreti (net)", "Aktif"],
         d.Select(x => new object?[]
         {
-            x.Lokasyon, x.Sube, x.KarsilamaSekli, x.CalismaSekli, x.OzelIletisim, x.Aktif ? "Evet" : "Hayır"
+            x.Lokasyon, x.Sube, x.KarsilamaSekli, x.CalismaSekli, x.OzelIletisim, x.Ucret, x.Aktif ? "Evet" : "Hayır"
         }).ToList());
 
     /// <summary>Personel — HASSAS PII (TC + maaş). <paramref name="decrypt"/> cipher'ları çözer (ISecretProtector);

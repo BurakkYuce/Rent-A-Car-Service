@@ -7,8 +7,11 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// roadmap A2 — Kira/rez ödeme-derinlik alanları (Provizyon/Depozito/Komisyon/Drop/SonraÖde). BAĞIMSIZ
-/// ORACLE: alanlar roundtrip olur; KRİTİK invariant — deftere/bakiyeye YANSIMAZ (GenelToplam/Bakiye
-/// yalnız gün×ücret); rezervasyon→kira çevrimi alanları taşır.
+/// ORACLE: alanlar roundtrip olur; Provizyon/Depozito/Komisyon/SonraÖde deftere/bakiyeye YANSIMAZ
+/// (bilgi alanları). DAVRANIŞ DEĞİŞİKLİĞİ (FAZ 3.A3b): DropUcreti artık MANUEL DROP OVERRIDE'ıdır —
+/// NET tutar, SYS-DROP sistem add-on satırı üretir ve GenelToplam'a girer (Tutar/BaseGross DEĞİŞMEZ;
+/// KURAL A). 150 NET → 180 brüt → GenelToplam = 400 + 180 = 580. Rezervasyon→kira çevrimi alanları
+/// taşır; kirada satır çevrimde oluşur (rezervasyonda add-on yok).
 /// </summary>
 [Collection("postgres")]
 public sealed class OdemeDerinlikTests(PostgresFixture fx)
@@ -42,10 +45,11 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
         Assert.Equal(200m, c.KomisyonTutar);
         Assert.Equal(150m, c.DropUcreti);
         Assert.Equal(40m, c.SonraOdeOran);
-        // KRİTİK: provizyon/depozito vb. bakiyeye/toplama YANSIMAZ — yalnız gün×ücret.
+        // Provizyon/depozito/komisyon/sonra-öde bakiyeye YANSIMAZ; Tutar (baz) değişmez (KURAL A).
         Assert.Equal(400m, c.Tutar);
-        Assert.Equal(400m, c.GenelToplam);
-        Assert.Equal(400m, c.Bakiye);
+        // FAZ 3.A3b: DropUcreti manuel override — SYS-DROP satırı 150 NET → 180 brüt GenelToplam'a girer.
+        Assert.Equal(580m, c.GenelToplam);
+        Assert.Equal(580m, c.Bakiye);
     }
 
     [Fact]
@@ -61,16 +65,17 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
         var r = await res.GetAsync(resId);
         Assert.Equal(2000m, r!.Provizyon);
         Assert.Equal(40m, r.SonraOdeOran);
-        Assert.Equal(400m, r.Tutar); // ödeme-derinlik tutarı etkilemez
+        Assert.Equal(400m, r.Tutar); // rezervasyonda ücret satırı YOK (yalnız kirada)
 
-        // Rezervasyon → kira: alanlar taşınır.
+        // Rezervasyon → kira: alanlar taşınır; drop override satırı ÇEVRİMDE oluşur (FAZ 3.A3b).
         var rentalId = await res.ConvertToRentalAsync(resId);
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(rentalId);
         Assert.Equal(2000m, c!.Provizyon);
         Assert.Equal(750m, c.Depozito);
         Assert.Equal(12.5m, c.KomisyonOran);
         Assert.Equal(150m, c.DropUcreti);
-        Assert.Equal(400m, c.GenelToplam); // çevrimde de bakiyeye yansımaz
+        Assert.Equal(400m, c.Tutar);       // baz taşınır (KURAL A)
+        Assert.Equal(580m, c.GenelToplam); // + SYS-DROP 180 brüt (150 NET, elle)
     }
 
     [Fact]

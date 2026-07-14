@@ -193,7 +193,17 @@ public sealed class RentalService(
             if (!string.Equals(cikisOfisi ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal)
                 || !string.Equals(donusOfisi ?? "", mevcut.DonusOfisi ?? "", StringComparison.Ordinal))
                 throw new ValidationException("Tamamlanmış kirada ofisler değiştirilemez.");
+            // A3b-B3: DropUcreti artık PARA-ETKİLİ manuel override — tamamlanmış kirada değişirse
+            // alan/satır ıraksar (satır senkronu yalnız Kirada çalışır) → dondur.
+            if (input.DropUcreti != mevcut.DropUcreti)
+                throw new ValidationException("Tamamlanmış kirada drop ücreti değiştirilemez.");
         }
+        // A3b-B3: FATURALANMIŞ kirada da dondur — satır senkronu defter snapshot'ına dokunmaz;
+        // alan değişip satır değişmezse sözleşme belgesi ile tahsilat sessizce ıraksardı.
+        else if (input.DropUcreti != mevcut.DropUcreti && await _addOnRepository.IsRentalInvoicedAsync(id, ct))
+            throw new ValidationException("Faturalanmış kirada drop ücreti değiştirilemez (ücret satırı defter snapshot'ında).");
+        if (input.DropUcreti is < 0m)
+            throw new ValidationException("Drop ücreti negatif olamaz."); // A3b-B4 (update yolu)
         else if (input.IkinciSurucuId is Guid ikinci && ikinci != mevcut.IkinciSurucuId)
         {
             if (ikinci == mevcut.MusteriId)
