@@ -22,7 +22,8 @@ public sealed class RentalService(
     RentACar.Application.Customers.ICustomerRepository customerRepository,
     ITenantCache cache,
     FeeLineService feeLines,
-    RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan)
+    RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan,
+    RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -158,6 +159,8 @@ public sealed class RentalService(
         // FAZ 3.A3a: sistem ücret satırları (genç/ek sürücü) — RentalAddOn olarak (KURAL A: BaseGross'a
         // dokunmaz; GenelToplam add-on mekanizmasıyla güncellenir). FX kirada sessizce atlanır.
         await feeLines.ApplyContractFeesAsync(contract.Id, ct);
+        // FAZ 4.2-B1: uygun (uzun/aylık) kirada fatura dönem planı kurulur (parasız; idempotent).
+        await donemPlan.EnsurePlanAsync(contract.Id, ct);
         return contract.Id;
     }
 
@@ -542,6 +545,8 @@ public sealed class RentalService(
         // FAZ 3.A3a adversarial B3: ücretler NET/GÜN tanımlı — uzatmada sistem satırları yeni güne
         // yeniden ölçeklenir (yalnız faturalanmamışken; faturalanmışsa dokunulmaz — defter snapshot'ı).
         if (uzatildi) await feeLines.SyncContractFeesAsync(id, ct);
+        // FAZ 4.2-B1: uzatma dönem planını büyütür (Kesildi/Atlandi korunur; yalnız Planlandi yenilenir).
+        if (uzatildi) await donemPlan.EnsurePlanAsync(id, ct);
         return uzatildi;
     }
 
