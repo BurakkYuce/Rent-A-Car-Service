@@ -21,6 +21,9 @@ public sealed class QuoteRequest
     /// <summary>Promosyon kodu (FAZ 3.A5): verilirse kural seçimi KODLU kuralla değiştirilir (REPLACE);
     /// kod geçersiz/kapsam-dışı ise ValidationException (sessiz yutma yok).</summary>
     public string? KampanyaKodu { get; set; }
+    /// <summary>Doluluk çarpanı uygula (FAZ 3.A7). Rezervasyon-UPDATE reprice'ında false —
+    /// müşteriye verilen fiyat sonradan surge ile sıçramasın.</summary>
+    public bool DolulukUygula { get; set; } = true;
 }
 
 /// <summary>Teklif kalemi (sigorta/ek hizmet).</summary>

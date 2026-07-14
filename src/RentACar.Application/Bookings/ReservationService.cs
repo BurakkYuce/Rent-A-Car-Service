@@ -34,7 +34,7 @@ public sealed class ReservationService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
-        var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
+        var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
@@ -90,7 +90,20 @@ public sealed class ReservationService(
         if (input.BasTar != existing.BasTar)
             TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
 
-        var pr = await _pricing.PriceAsync(input, ct);
+        // FAZ 3.A7 adversarial B4: FİYAT-ETKİLEYEN girdiler değişmedikçe REPRICE ATLANIR — no-op/not
+        // düzenlemesi kabul edilmiş fiyatı (surge dahil) SESSİZCE düşüremez/yükseltemez. Girdiler
+        // değiştiyse (tarih/araç/müşteri/ücret/mod/kod/kaynak/ofis) yeni koşullarla TAM reprice —
+        // surge dahil (yeni fiyatlama zaten meşru; eski "surge'süz reprice" yaklaşımı her düzenlemede
+        // fiyatı tabana indiriyordu).
+        var fiyatDegisti =
+            existing.BasTar != input.BasTar || existing.BitTar != input.BitTar
+            || existing.VehicleId != input.VehicleId || existing.MusteriId != input.MusteriId
+            || existing.GunlukUcret != input.GunlukUcret
+            || !string.Equals(existing.FiyatTuru ?? "", input.FiyatTuru?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(existing.KampanyaKodu ?? "", input.KampanyaKodu?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(existing.Kaynak ?? "", input.Kaynak?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(existing.CikisOfisi ?? "", input.CikisOfisi ?? "", StringComparison.Ordinal);
+        var pr = fiyatDegisti ? await _pricing.PriceAsync(input, ct: ct) : null;
 
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
@@ -106,10 +119,14 @@ public sealed class ReservationService(
             r.BitTar = input.BitTar;
             r.CikisOfisi = input.CikisOfisi;
             r.DonusOfisi = input.DonusOfisi;
-            r.Gun = pr.Gun;
-            r.GunlukUcret = input.GunlukUcret;
-            r.Tutar = pr.Tutar;
-            r.HediyeGun = pr.HediyeGun; r.FaturalananGun = pr.FaturalananGun; r.IskontoTutar = pr.IskontoTutar; r.HaftaSonuFark = pr.HaftaSonuFark;
+            if (pr is not null) // fiyat-etkileyen girdi değişti → yeni fiyat; aksi halde mevcut korunur
+            {
+                r.Gun = pr.Gun;
+                r.GunlukUcret = input.GunlukUcret;
+                r.Tutar = pr.Tutar;
+                r.HediyeGun = pr.HediyeGun; r.FaturalananGun = pr.FaturalananGun; r.IskontoTutar = pr.IskontoTutar; r.HaftaSonuFark = pr.HaftaSonuFark;
+                r.KdvOranSnapshot = pr.KdvOranSnapshot;
+            }
             r.KmLimit = input.KmLimit;
             r.FazlaKmUcret = input.FazlaKmUcret;
             r.YakitBirimUcret = input.YakitBirimUcret;
@@ -123,7 +140,6 @@ public sealed class ReservationService(
             r.Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim();
             r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
             r.FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(); // A6-B2
-            r.KdvOranSnapshot = pr.KdvOranSnapshot;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }

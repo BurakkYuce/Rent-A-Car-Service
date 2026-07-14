@@ -71,7 +71,7 @@ public sealed class RentalService(
             if (await customerRepository.FindAsync(ikinci, ct) is null)
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
-        var pr = await _pricing.PriceAsync(input, ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
+        var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
         var varsayilanKdv = await kdvVarsayilan.OranAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
