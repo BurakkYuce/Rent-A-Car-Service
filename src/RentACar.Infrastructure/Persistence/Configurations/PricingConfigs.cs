@@ -81,6 +81,8 @@ internal sealed class RateMatrixConfig : IEntityTypeConfiguration<RateMatrix>
         e.Property(x => x.Gun5).HasColumnType("numeric(19,4)");
         e.Property(x => x.Gun6).HasColumnType("numeric(19,4)");
         e.Property(x => x.Gun7).HasColumnType("numeric(19,4)");
+        e.Property(x => x.GunHaftalik).HasColumnType("numeric(19,4)"); // FAZ 3.A1 uzun-dönem kademeleri
+        e.Property(x => x.GunAylik).HasColumnType("numeric(19,4)");
         e.Property(x => x.MaxEsneklik).HasColumnType("numeric(9,4)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }

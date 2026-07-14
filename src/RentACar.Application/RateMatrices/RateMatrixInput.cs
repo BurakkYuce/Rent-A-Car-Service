@@ -26,6 +26,10 @@ public sealed class RateMatrixInput
     public decimal? Gun6 { get; set; }
     public decimal? Gun7 { get; set; }
 
+    /// <summary>Uzun-dönem kademeleri (FAZ 3.A1): 8-29 gün haftalık / 30+ gün aylık günlük fiyat.</summary>
+    public decimal? GunHaftalik { get; set; }
+    public decimal? GunAylik { get; set; }
+
     public decimal? MaxEsneklik { get; set; }
 
     public TarifeOnayDurumu OnayDurumu { get; set; } = TarifeOnayDurumu.Bekliyor;

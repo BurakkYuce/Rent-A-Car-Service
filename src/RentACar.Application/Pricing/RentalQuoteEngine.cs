@@ -186,18 +186,43 @@ public sealed class RentalQuoteEngine(
             .ThenBy(m => m.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
 
-    /// <summary>Gün-kademesi fiyatı: Gün N (N=clamp(gün,1,7)). O kademe boşsa EN YAKIN dolu kademe
-    /// (M1: önce aşağı, sonra yukarı) — yarım-dolu matriste sessiz sıfır baz oluşmaz.</summary>
+    /// <summary>Gün-kademesi fiyatı. UZUN DÖNEM (FAZ 3.A1): 30+ gün → GunAylik (tanımsızsa GunHaftalik'e
+    /// düşer), 8-29 gün → GunHaftalik; uzun-dönem kademesi hiç tanımsızsa bugünkü Gun7-clamp davranışı
+    /// + NOT (geriye uyum). 1-7 gün: Gün N (N=clamp); o kademe boşsa EN YAKIN dolu kademe (M1: önce
+    /// aşağı, sonra yukarı) — yarım-dolu matriste sessiz sıfır baz oluşmaz.
+    /// SEKTÖR GERÇEĞİ (A1 adversarial): kademe sınırının hemen altında TOPLAM ters dönebilir
+    /// (29×haftalık &gt; 30×aylık) → "uzatmak daha ucuz" BİLGİ notu; otomatik düzeltme YOK (operatör kararı).</summary>
     private static decimal ResolveTierRate(RateMatrix m, int gun, List<string> notlar)
     {
-        var tiers = new[] { m.Gun1, m.Gun2, m.Gun3, m.Gun4, m.Gun5, m.Gun6, m.Gun7 };
-        var tier = Math.Clamp(gun, 1, 7);
-        for (var t = tier; t >= 1; t--)
-            if (tiers[t - 1] is { } v) return v;
-        for (var t = tier + 1; t <= 7; t++)
-            if (tiers[t - 1] is { } v) return v;
-        notlar.Add($"Tarife '{m.Kod}' için gün-kademesi fiyatı tanımlı değil; günlük ücret 0.");
-        return 0m;
+        decimal secilen;
+        if (gun >= 30 && (m.GunAylik ?? m.GunHaftalik) is { } uzun)
+            secilen = uzun;
+        else if (gun is >= 8 and < 30 && m.GunHaftalik is { } haftalik)
+            secilen = haftalik;
+        else
+        {
+            if (gun >= 8)
+                notlar.Add($"Tarife '{m.Kod}' uzun-dönem kademesi (haftalık/aylık) tanımsız; Gün-7 kademesi uygulandı.");
+            var tiers = new[] { m.Gun1, m.Gun2, m.Gun3, m.Gun4, m.Gun5, m.Gun6, m.Gun7 };
+            var tier = Math.Clamp(gun, 1, 7);
+            decimal? bulunan = null;
+            for (var t = tier; t >= 1 && bulunan is null; t--) bulunan = tiers[t - 1];
+            for (var t = tier + 1; t <= 7 && bulunan is null; t++) bulunan = tiers[t - 1];
+            if (bulunan is null)
+            {
+                notlar.Add($"Tarife '{m.Kod}' için gün-kademesi fiyatı tanımlı değil; günlük ücret 0.");
+                return 0m;
+            }
+            secilen = bulunan.Value;
+        }
+
+        // Ters-dönme bilgisi: bir üst kademe SINIRINA uzatmak toplamda ucuzluyorsa not düş.
+        if (gun is >= 8 and < 30 && m.GunAylik is { } ay && 30m * ay < gun * secilen)
+            notlar.Add($"Bilgi: 30 güne uzatmak toplamda daha ucuz olur (30×{ay:N2}={30m * ay:N2} < {gun}×{secilen:N2}={gun * secilen:N2}).");
+        else if (gun < 8 && m.GunHaftalik is { } hf && 8m * hf < gun * secilen)
+            notlar.Add($"Bilgi: 8 güne uzatmak toplamda daha ucuz olur (8×{hf:N2}={8m * hf:N2} < {gun}×{secilen:N2}={gun * secilen:N2}).");
+
+        return secilen;
     }
 
     /// <summary>[bas, bas+gun) aralığındaki Cumartesi/Pazar gün sayısı (hafta sonu farkı için, roadmap G3).</summary>
