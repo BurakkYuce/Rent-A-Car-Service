@@ -121,6 +121,7 @@ public sealed class RentalService(
             KurSnapshot = kurSnapshot,
             // Kira formu detay alanları (bilgi amaçlı; Kaynak daha önce input'ta olup MAP EDİLMİYORDU — parite fix)
             Kaynak = Lim(input.Kaynak, 64, "Kaynak"),
+            KampanyaKodu = Lim(input.KampanyaKodu, 64, "Kampanya kodu"),
             UyariAciklama = Lim(input.UyariAciklama, 512, "Uyarı açıklama"),
             OzelFaturaAciklama = Lim(input.OzelFaturaAciklama, 512, "Özel fatura açıklaması"),
             FaturaListesindeGizle = input.FaturaListesindeGizle,

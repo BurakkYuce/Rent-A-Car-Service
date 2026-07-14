@@ -32,6 +32,7 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.Property(x => x.DropUcreti).HasColumnType("numeric(19,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
         e.Property(x => x.Aciklama).HasMaxLength(1024);
+        e.Property(x => x.KampanyaKodu).HasMaxLength(64); // FAZ 3.A5
         e.HasIndex(x => new { x.TenantId, x.ReservationNo }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
     }
@@ -100,6 +101,7 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.Aciklama).HasMaxLength(1024);
         // Kira formu detay alanları (mega-form; bilgi amaçlı — additive)
         e.Property(x => x.Kaynak).HasMaxLength(64);
+        e.Property(x => x.KampanyaKodu).HasMaxLength(64); // FAZ 3.A5
         e.Property(x => x.UyariAciklama).HasMaxLength(512);
         e.Property(x => x.OzelFaturaAciklama).HasMaxLength(512);
         e.Property(x => x.UcusNo).HasMaxLength(32);
