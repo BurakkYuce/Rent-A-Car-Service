@@ -20,6 +20,8 @@ public static class BookingMath
             throw new ValidationException("Bitiş tarihi başlangıçtan sonra olmalıdır.");
         if (input.GunlukUcret < 0)
             throw new ValidationException("Günlük ücret negatif olamaz.");
+        if (input.DropUcreti is < 0m)
+            throw new ValidationException("Drop ücreti negatif olamaz."); // A3b-B4: crafted POST guard'ı
     }
 
     public static (int Gun, decimal Tutar) Compute(BookingInput input)

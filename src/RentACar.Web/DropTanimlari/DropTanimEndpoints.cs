@@ -14,9 +14,10 @@ public static class DropTanimEndpoints
         var grp = app.MapGroup("/drop-tanimlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (DropTanimService svc, [FromForm] string lokasyon, [FromForm] string sube,
-            [FromForm] string? karsilamaSekli, [FromForm] string? calismaSekli, [FromForm] string? ozelIletisim) =>
+            [FromForm] string? karsilamaSekli, [FromForm] string? calismaSekli, [FromForm] string? ozelIletisim,
+            [FromForm] string? ucret) =>
             await Run(() => svc.CreateAsync(new DropTanimInput
-            { Lokasyon = lokasyon, Sube = sube, KarsilamaSekli = karsilamaSekli, CalismaSekli = calismaSekli, OzelIletisim = ozelIletisim, Aktif = true })));
+            { Lokasyon = lokasyon, Sube = sube, KarsilamaSekli = karsilamaSekli, CalismaSekli = calismaSekli, OzelIletisim = ozelIletisim, Ucret = FormParse.Dec(ucret), Aktif = true })));
 
         grp.MapPost("/delete", async (DropTanimService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id)));
         return app;
