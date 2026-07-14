@@ -27,13 +27,15 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
-    Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository kaynaklar)
+    Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository kaynaklar,
+    Finance.KdvVarsayilan kdvVarsayilan)
 {
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
     private readonly Customers.ICustomerRepository _customers = customers;
     private readonly ReservationSources.IReservationSourceRepository _kaynaklar = kaynaklar;
+    private readonly Finance.KdvVarsayilan _kdvVarsayilan = kdvVarsayilan;
 
     /// <summary>
     /// Gün + tutar döner; gerekiyorsa input.GunlukUcret'i tarife matrisinden gelen efektif ücretle
@@ -51,7 +53,8 @@ public sealed class PricingService(
     /// iskonto = TEMİZ baz brüt. Bileşenler Tutar'a AYRICA katılmaz (çift-sayım yok); RentalTotals.BaseGross +
     /// ReturnMath zaten yalnız Tutar'ı okur → tutarlı.</summary>
     public sealed record PricedRental(
-        int Gun, decimal Tutar, int? HediyeGun, decimal? IskontoTutar, decimal? HaftaSonuFark, int? FaturalananGun);
+        int Gun, decimal Tutar, int? HediyeGun, decimal? IskontoTutar, decimal? HaftaSonuFark, int? FaturalananGun,
+        decimal? KdvOranSnapshot = null);
 
     public async Task<PricedRental> PriceAsync(BookingInput input, CancellationToken ct = default)
     {
@@ -134,8 +137,14 @@ public sealed class PricingService(
         // KDV MODU (yalnız Otomatik DEĞİLKEN — Otomatik motor/RateCard brütü zaten çözdü). GunlukUcret DAİMA
         // brüte (KDV-dahil) normalize edilir → ExtendAsync (gün × GunlukUcret) tutarlı; Tutar hep brüt (fatura
         // BaseGross→FromGross ile net'i ayrıştırır → mod niyeti korunur). KURAL B: 3 create yolu bu facade'dan.
-        var tutar = otomatik ? KdvMath.RoundGross(gun * input.GunlukUcret) : KdvModuUygula(input, gun);
-        return new PricedRental(gun, tutar, null, null, null, null);
+        // FAZ 3.A6: gross-up oranı TENANT VARSAYILANI (?? 0.20); NET modlarda kullanılan oran SNAPSHOT
+        // olarak döner (fatura ayrıştırması + net-mod guard'ı aynı orandan — oran sonradan değişse bile).
+        var varsayilanOran = await _kdvVarsayilan.OranAsync(ct);
+        var netMod = string.Equals(input.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(input.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
+        var tutar = otomatik ? KdvMath.RoundGross(gun * input.GunlukUcret) : KdvModuUygula(input, gun, varsayilanOran);
+        return new PricedRental(gun, tutar, null, null, null, null,
+            KdvOranSnapshot: !otomatik && netMod ? varsayilanOran : null);
     }
 
     /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif
@@ -160,10 +169,9 @@ public sealed class PricingService(
     /// DEFTERE girmez (fatura/cari Tutar'ı okur), yalnız uzatmada türetilen günlük + ekran. Yan etki: GunlukUcret
     /// mutasyonu net modlarda idempotent DEĞİL (aynı input'u iki kez fiyatlarsa çift grossup — adversarial Bulgu-2);
     /// mevcut çağıranlar tek kez fiyatlar (rez/teklif update formu FiyatTuru göndermez → default brüt dalı).</summary>
-    private static decimal KdvModuUygula(BookingInput input, int gun)
+    private static decimal KdvModuUygula(BookingInput input, int gun, decimal oran)
     {
         var mod = (input.FiyatTuru ?? string.Empty).Trim();
-        var oran = KdvMath.VarsayilanOran;
         bool Es(string x) => string.Equals(mod, x, StringComparison.OrdinalIgnoreCase);
 
         if (Es("Günlük")) // NET günlük ücret → brüt

@@ -157,6 +157,12 @@ public class RentalContract : ITenantOwned, IAuditable
     /// yakalanır). Retroaktif değişmez (snapshot).</summary>
     public decimal KurSnapshot { get; set; } = 1m;
 
+    /// <summary>NET fiyat modunda (Günlük/Toplam) gross-up ANINDA kullanılan KDV oranı (FAZ 3.A6).
+    /// Fatura ayrıştırması ve net-mod guard'ı BU orandan okur — tenant varsayılanı fiyatlama ile
+    /// fatura arasında değişse bile matrah operatör niyetinden sapmaz. Null = eski kira (0.20
+    /// gross-up'lıydı) veya brüt mod (snapshot gerekmez).</summary>
+    public decimal? KdvOranSnapshot { get; set; }
+
     /// <summary>Kira-seviyesi ÖZEL KDV oranı (kesir 0..1) — fatura kesiminde varsayılan oran
     /// (FAZ 1.4; zincir: kdvRate ?? OzelKdvOran ?? 0.20). Sözleşme Tutar'ını DEĞİŞTİRMEZ; NET fiyat
     /// modlarında fatura kesimi mevcut guard'la reddedilir (matrah niyeti korunur).</summary>

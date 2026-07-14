@@ -55,7 +55,8 @@ public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
     public decimal? GunHaftalik { get; set; }
     public decimal? GunAylik { get; set; }
 
-    /// <summary>Karşılaştırma sistemi (rakip) dinamik indirim oranı % (canlı Max_Esneklik).</summary>
+    /// <summary>Karşılaştırma sistemi (rakip) dinamik indirim oranı % (canlı Max_Esneklik).
+    /// A6 KARARI: fiyat GİRDİSİ DEĞİLDİR (motor okumaz) — salt-görünüm rakip-kıyas notu; kolon parite için kalır.</summary>
     public decimal? MaxEsneklik { get; set; }
 
     // Onay iş akışı

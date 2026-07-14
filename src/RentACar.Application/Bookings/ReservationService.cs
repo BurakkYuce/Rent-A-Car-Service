@@ -64,7 +64,9 @@ public sealed class ReservationService(
             SonraOdeOran = input.SonraOdeOran,
             Aciklama = input.Aciklama,
             Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim(),
-            KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim()
+            KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim(),
+            FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(), // A6-B2
+            KdvOranSnapshot = pr.KdvOranSnapshot
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
@@ -120,6 +122,8 @@ public sealed class ReservationService(
             r.Aciklama = input.Aciklama;
             r.Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim();
             r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
+            r.FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(); // A6-B2
+            r.KdvOranSnapshot = pr.KdvOranSnapshot;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -179,7 +183,11 @@ public sealed class ReservationService(
             // (müşteriye verilen fiyat dönüşümde değişmez). Kod + kaynak İZ olarak kopyalanır
             // (adversarial A5-B3: iz kopyalanmayınca indirimli tutarın gerekçesi denetimde kayboluyordu).
             Kaynak = res.Kaynak,
-            KampanyaKodu = res.KampanyaKodu
+            KampanyaKodu = res.KampanyaKodu,
+            // A6-B2: net-mod niyeti + gross-up oranı kiraya taşınır — fatura SNAPSHOT'tan ayrışır,
+            // tenant oranı rez-create ile fatura arasında değişse bile matrah niyetten sapmaz.
+            FiyatTuru = res.FiyatTuru,
+            KdvOranSnapshot = res.KdvOranSnapshot
         }, ct);
         await _feeLines.ApplyContractFeesAsync(kiraId, ct);
         return kiraId;
