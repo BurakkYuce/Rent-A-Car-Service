@@ -285,6 +285,47 @@ public sealed class RentalService(
         return ok;
     }
 
+    /// <summary>FAZ 4.1 — MANUEL provizyon alma (Yok→Alindi). POS'suz kayıt: IPosService ÇAĞRILMAZ,
+    /// kart verisi sisteme girmez (PCI). Deftere YAZMAZ — bilgi/iz; gerçek tahsilat ayrı akış.
+    /// Fiyat sekmesindeki Provizyon tutarı girilmeden alınamaz (neyin bloke edildiği belli olsun).</summary>
+    public async Task<bool> ProvizyonAlAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        return await _repository.UpdateRentalAsync(id, c =>
+        {
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            if (c.Durum == RentalStatus.Iptal)
+                throw new ValidationException("İptal edilmiş kirada provizyon işlemi yapılamaz.");
+            if (c.ProvizyonDurum != ProvizyonDurum.Yok)
+                throw new ValidationException($"Provizyon zaten '{c.ProvizyonDurum}' durumunda (yalnız Yok → Alındı).");
+            if (c.Provizyon is not > 0m)
+                throw new ValidationException("Önce Fiyat sekmesinde provizyon (bloke) tutarı girilmelidir.");
+            c.ProvizyonDurum = ProvizyonDurum.Alindi;
+            c.ProvizyonTarih ??= DateTimeOffset.UtcNow;
+            c.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>FAZ 4.1 — provizyon kapama (Alindi→Kapandi) veya serbest bırakma (iade=true →
+    /// IadeEdildi, kapama tutarı 0). Kapama tutarı verilmezse bloke tutarın tamamı bilgi olarak yazılır.</summary>
+    public async Task<bool> ProvizyonKapatAsync(
+        Guid id, decimal? kapamaTutar = null, bool iade = false, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (kapamaTutar is < 0m)
+            throw new ValidationException("Kapama tutarı negatif olamaz.");
+        return await _repository.UpdateRentalAsync(id, c =>
+        {
+            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            if (c.ProvizyonDurum != ProvizyonDurum.Alindi)
+                throw new ValidationException($"Yalnız 'Alındı' durumundaki provizyon kapatılabilir (mevcut: {c.ProvizyonDurum}).");
+            c.ProvizyonDurum = iade ? ProvizyonDurum.IadeEdildi : ProvizyonDurum.Kapandi;
+            c.ProvizyonKapamaTarih = DateTimeOffset.UtcNow;
+            c.ProvizyonKapamaTutar = iade ? 0m : (kapamaTutar ?? c.Provizyon);
+            c.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
     /// <summary>
     /// Dönüş CANLI ÖNİZLEMESİ (mega-form Dönüş sekmesi; GET /kiralar/donus-hesapla). GERÇEK motor
     /// (ReturnMath.Compute) + ek hizmet brütü — PERSIST ETMEZ, durum değiştirmez. ReturnAsync ile aynı
