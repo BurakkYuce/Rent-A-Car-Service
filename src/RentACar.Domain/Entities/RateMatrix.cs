@@ -49,6 +49,12 @@ public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
     public decimal? Gun6 { get; set; }
     public decimal? Gun7 { get; set; }
 
+    /// <summary>Uzun-dönem kademeleri (FAZ 3.A1) — additive: 8-29 gün için HAFTALIK-kademe günlüğü,
+    /// 30+ gün için AYLIK-kademe günlüğü. Null = kademe tanımsız → bugünkü Gun7-clamp davranışı
+    /// (geriye uyum; AddColumn = sıfır backfill). Bracket tablosu DEĞİL — onay akışı/RLS/UI satır-bazlı.</summary>
+    public decimal? GunHaftalik { get; set; }
+    public decimal? GunAylik { get; set; }
+
     /// <summary>Karşılaştırma sistemi (rakip) dinamik indirim oranı % (canlı Max_Esneklik).</summary>
     public decimal? MaxEsneklik { get; set; }
 
