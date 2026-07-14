@@ -77,7 +77,11 @@ else
                 <option value="true" selected="@_c.Pasif">Evet</option>
             </select>
         </label>
-        <label>Sınıf<input name="sinif" value="@_c.Sinif" placeholder="Düşük/Orta/Yüksek/VIP…" /></label>
+        <label>Sınıf<input name="sinif" list="dl-cus-sinif" autocomplete="off" value="@_c.Sinif" placeholder="Seç veya yaz" /></label>
+        <datalist id="dl-cus-sinif">
+            <option value="Düşük" /><option value="Orta" /><option value="Yüksek" />
+            <option value="VIP" /><option value="Personel" /><option value="Problemli" />
+        </datalist>
         <label>Mail İzin
             <select name="mailIzin">
                 <option value="" selected="@(_c.MailIzin == null)">—</option>

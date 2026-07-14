@@ -34,6 +34,7 @@
             <select name="kampanyaMi"><option value="false">Hayır</option><option value="true">Evet</option></select>
         </label>
         <label>Kampanya Kodu<input name="kampanyaKodu" /></label>
+        <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Seç veya yaz (boş = herkes)" maxlength="64" /></label>
         <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" /></label>
         <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" /></label>
         <label>Şart Metni<input name="sartMetni" placeholder="Rez/sözleşme şartları" /></label>
@@ -82,6 +83,7 @@
                                 </select>
                             </label>
                             <label>Kampanya Kodu<input name="kampanyaKodu" value="@r.KampanyaKodu" /></label>
+                            <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Boş = herkes" maxlength="64" value="@r.MusteriSegment" /></label>
                             <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@r.GecerlilikBas?.ToString("yyyy-MM-dd")" /></label>
                             <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@r.GecerlilikBit?.ToString("yyyy-MM-dd")" /></label>
                             <label>Şart Metni<input name="sartMetni" value="@r.SartMetni" /></label>
@@ -103,6 +105,13 @@
         }
     </tbody>
 </table>
+
+
+@* FAZ 3.A2: segment ComboBox önerileri (seç-veya-yaz; canlı referans sistem sınıf seti) *@
+<datalist id="dl-rr-segment">
+    <option value="Düşük" /><option value="Orta" /><option value="Yüksek" />
+    <option value="VIP" /><option value="Personel" /><option value="Problemli" />
+</datalist>
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }

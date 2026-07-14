@@ -16,6 +16,8 @@ public sealed class QuoteRequest
     public int? TahminiKm { get; set; }
     /// <summary>Seçilen sigorta/ek hizmet ürün kodları.</summary>
     public IReadOnlyList<string> SigortaUrunKodlari { get; set; } = [];
+    /// <summary>Müşteri segmenti (FAZ 3.A2; Customer.Sinif — kural kapsam eşleşmesi, Trim+case-insensitive).</summary>
+    public string? MusteriSegment { get; set; }
 }
 
 /// <summary>Teklif kalemi (sigorta/ek hizmet).</summary>
