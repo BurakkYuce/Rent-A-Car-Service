@@ -67,6 +67,20 @@ internal sealed class QuotationConfig : IEntityTypeConfiguration<Quotation>
     }
 }
 
+// ---- FaturaDonemi (FAZ 4.2-B1 — periyodik fatura dönem planı; Kesildi satır Invoice'a bağlı) ----
+internal sealed class FaturaDonemiConfig : IEntityTypeConfiguration<FaturaDonemi>
+{
+    public void Configure(EntityTypeBuilder<FaturaDonemi> e)
+    {
+        e.ToTable("FaturaDonemleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.KesilenTutar).HasColumnType("numeric(19,4)");
+        e.HasIndex(x => new { x.TenantId, x.RentalId, x.DonemSira }).IsUnique();
+    }
+}
+
 // ---- RentalContract (tenant-owned) ----
 internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalContract>
 {
