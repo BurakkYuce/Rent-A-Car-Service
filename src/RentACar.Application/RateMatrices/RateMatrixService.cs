@@ -77,6 +77,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         Pos(n.Gun1, "Gün 1 fiyatı"); Pos(n.Gun2, "Gün 2 fiyatı"); Pos(n.Gun3, "Gün 3 fiyatı");
         Pos(n.Gun4, "Gün 4 fiyatı"); Pos(n.Gun5, "Gün 5 fiyatı"); Pos(n.Gun6, "Gün 6 fiyatı");
         Pos(n.Gun7, "Gün 7 fiyatı");
+        Pos(n.GunHaftalik, "Haftalık kademe (8-29 gün) fiyatı"); Pos(n.GunAylik, "Aylık kademe (30+ gün) fiyatı");
         if (n.MaxEsneklik is < 0m or > 100m)
             throw new ValidationException("Esneklik (indirim) oranı 0 ile 100 arasında olmalıdır (%).");
         if (n.BasTar is { } b && n.BitTar is { } t && t < b)
@@ -102,6 +103,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         BitTar = input.BitTar,
         Gun1 = input.Gun1, Gun2 = input.Gun2, Gun3 = input.Gun3, Gun4 = input.Gun4,
         Gun5 = input.Gun5, Gun6 = input.Gun6, Gun7 = input.Gun7,
+        GunHaftalik = input.GunHaftalik, GunAylik = input.GunAylik,
         MaxEsneklik = input.MaxEsneklik,
         OnayDurumu = input.OnayDurumu,
         Onaylayan = TrimOrNull(input.Onaylayan),
@@ -125,6 +127,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         row.BitTar = n.BitTar;
         row.Gun1 = n.Gun1; row.Gun2 = n.Gun2; row.Gun3 = n.Gun3; row.Gun4 = n.Gun4;
         row.Gun5 = n.Gun5; row.Gun6 = n.Gun6; row.Gun7 = n.Gun7;
+        row.GunHaftalik = n.GunHaftalik; row.GunAylik = n.GunAylik;
         row.MaxEsneklik = n.MaxEsneklik;
         row.OnayDurumu = n.OnayDurumu;
         row.Onaylayan = n.Onaylayan;
