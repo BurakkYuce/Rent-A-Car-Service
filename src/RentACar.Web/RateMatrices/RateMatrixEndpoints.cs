@@ -47,6 +47,8 @@ public static class RateMatrixEndpoints
         Gun5 = FormParse.Dec(FormParse.Str(f, "gun5")),
         Gun6 = FormParse.Dec(FormParse.Str(f, "gun6")),
         Gun7 = FormParse.Dec(FormParse.Str(f, "gun7")),
+        GunHaftalik = FormParse.Dec(FormParse.Str(f, "gunHaftalik")),
+        GunAylik = FormParse.Dec(FormParse.Str(f, "gunAylik")),
         MaxEsneklik = FormParse.Dec(FormParse.Str(f, "maxEsneklik")),
         OnayDurumu = ParseEnum<TarifeOnayDurumu>(FormParse.Str(f, "onayDurumu")) ?? TarifeOnayDurumu.Bekliyor,
         Onaylayan = FormParse.Str(f, "onaylayan"),
