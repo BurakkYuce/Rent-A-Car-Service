@@ -115,11 +115,38 @@
         <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.AcikBakiye.ToString("N0")</div><div class="s-label">Açık Bakiye</div></div></div>
         <div class="stat"><span class="s-ic"></span><div><div class="s-num">@_dash.BugunTahsilatTutar.ToString("N0")</div><div class="s-label">Bugün Tahsilat (@_dash.BugunTahsilatAdet)</div></div></div>
     </div>
+
+    @* FAZ 6.2 — filo KPI şeridi (2.3 HAVUZ metrikleri: araç-bazlıların ortalaması değil, Σ havuz oranı;
+       ömür-boyu semantik) + son 6 ay gelir mini-trendi (ay-pencereli defter geliri, iade netli). *@
+    <h2 class="dash-h2">Filo KPI (ömür-boyu) <a class="muted small" href="/raporlar/filo-analiz">filo analiz →</a></h2>
+    <div class="stat-row">
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.DolulukYuzde is { } d ? $"%{d:N1}" : "—")</div><div class="s-label">Filo Doluluk</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.RevPacd is { } rp ? rp.ToString("N0") : "—")</div><div class="s-label">RevPACD (gelir/sahiplik-gün)</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.Adr is { } adr ? adr.ToString("N0") : "—")</div><div class="s-label">ADR (gelir/kiralanan gün)</div></div></div>
+    </div>
+    @if (_trend.Count > 0)
+    {
+        var maxGelir = _trend.Max(t => t.Gelir);
+        <div class="dash-trend" style="display:flex;gap:.6rem;align-items:flex-end;height:72px;max-width:560px;margin:.5rem 0 1rem;">
+            @foreach (var t in _trend)
+            {
+                var h = maxGelir > 0 ? (int)Math.Round(t.Gelir / maxGelir * 100) : 0;
+                <div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%;">
+                    <div title="@t.Gelir.ToString("N0")" style="height:@(Math.Max(h, 2))%;background:#f59e0b;border-radius:3px 3px 0 0;"></div>
+                    <div class="muted small">@t.AyBas.ToString("MM.yy")</div>
+                </div>
+            }
+        </div>
+    }
 </AuthorizeView>
 
 @code {
     [SupplyParameterFromQuery(Name = "df")] public string? Df { get; set; } // dönüşler filtresi
     [SupplyParameterFromQuery(Name = "cf")] public string? Cf { get; set; } // çıkışlar filtresi
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private RentACar.Application.Reporting.FiloHavuzKpiDto? _havuz;
+    private IReadOnlyList<RentACar.Application.Reporting.AylikGelirNokta> _trend = [];
 
     private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0);
     private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
@@ -191,5 +218,14 @@
         _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
         _yakin = warnings.Count(w => w.Bucket != VadeBucket.Gecmis);
         _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.SikayetDurum.Acik);
+
+        // FAZ 6.2 — filo KPI + gelir trendi yalnız mali yetkili rollere YÜKLENİR (görünürlük zaten
+        // AuthorizeView'da; operatörde ağır filo-analiz sorgusu hiç koşmasın).
+        var user = AuthState is null ? null : (await AuthState).User;
+        if (user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe")))
+        {
+            _havuz = (await Reports.GetFiloAnalizAsync()).HavuzKpi;
+            _trend = await Reports.GetAylikGelirTrendAsync(6);
+        }
     }
 }
