@@ -127,6 +127,7 @@ public sealed class RentalService(
             // Kira formu detay alanları (bilgi amaçlı; Kaynak daha önce input'ta olup MAP EDİLMİYORDU — parite fix)
             Kaynak = Lim(input.Kaynak, 64, "Kaynak"),
             KampanyaKodu = Lim(input.KampanyaKodu, 64, "Kampanya kodu"),
+            DonemselFaturalama = input.DonemselFaturalama, // FAZ 4.2-B4 (job kapısı; kira-başına opt-in)
             UyariAciklama = Lim(input.UyariAciklama, 512, "Uyarı açıklama"),
             OzelFaturaAciklama = Lim(input.OzelFaturaAciklama, 512, "Özel fatura açıklaması"),
             FaturaListesindeGizle = input.FaturaListesindeGizle,
@@ -241,6 +242,7 @@ public sealed class RentalService(
             c.Aciklama = Lim(input.Aciklama, 1024, "Açıklama");
             c.Kaynak = Lim(input.Kaynak, 64, "Kaynak");
             c.KiralamaTuru = Lim(input.KiralamaTuru, 64, "Kiralama türü");
+            c.DonemselFaturalama = input.DonemselFaturalama; // FAZ 4.2-B4
             c.FaturalamaTipi = Lim(input.FaturalamaTipi, 64, "Faturalama tipi");
             c.Provizyon = input.Provizyon;
             c.Depozito = input.Depozito;

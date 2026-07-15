@@ -24,6 +24,8 @@ public sealed class TenantSettingsModel
     public string? LogoUrl { get; set; }
     public string? VarsayilanDoviz { get; set; }
     public decimal? VarsayilanKdvOrani { get; set; }
+    public bool DonemselFaturalamaJob { get; set; }   // FAZ 4.2-B4
+    public bool DonemselOtomatikTahsilat { get; set; } // FAZ 4.2-B4
     public int? MinKiraGun { get; set; }
     public int? MaxKiraGun { get; set; }
     public bool? RezOnayZorunlu { get; set; }

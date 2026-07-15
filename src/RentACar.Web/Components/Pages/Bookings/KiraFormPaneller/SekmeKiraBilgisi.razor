@@ -37,6 +37,12 @@
                     @foreach (var o in KiraFormVm.KiralamaTurleri) { <option selected="@Vm.Sel(c => c.KiralamaTuru, o)">@o</option> }
                 </select>
             </label>
+            @* FAZ 4.2-B4: job kapısı — kira-başına opt-in (tenant ayarındaki job açıksa vadesi gelen
+               dönemleri otomatik keser; manuel kesim bu bayraktan bağımsız). *@
+            <label class="check" style="align-self:end;">
+                <input type="checkbox" name="donemselFaturalama" value="true"
+                       checked="@(Vm.Edit && Vm.Rental!.DonemselFaturalama)" /> Dönemsel faturalama (job)
+            </label>
             <label>Faturalama Tipi
                 <select name="faturalamaTipi">
                     <option value="">—</option>

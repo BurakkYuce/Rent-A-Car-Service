@@ -219,6 +219,7 @@ public static class BookingEndpoints
                     Aciklama = FormParse.Str(f, "aciklama"),
                     Kaynak = FormParse.Str(f, "kaynak"),
                     KiralamaTuru = FormParse.Str(f, "kiralamaTuru"),
+                    DonemselFaturalama = f["donemselFaturalama"].ToString() is "true" or "on", // FAZ 4.2-B4
                     FaturalamaTipi = FormParse.Str(f, "faturalamaTipi"),
                     KmLimit = FormParse.Int(f["kmLimit"].ToString()) ?? 0,
                     FazlaKmUcret = FormParse.Dec(f["fazlaKmUcret"].ToString()) ?? 0m,
@@ -470,6 +471,7 @@ public static class BookingEndpoints
         input.SonraOdeOran = FormParse.Dec(f["sonraOdeOran"].ToString());
         // referans sistem parite metadata (additive)
         input.KiralamaTuru = Nz(f["kiralamaTuru"].ToString());
+        input.DonemselFaturalama = f["donemselFaturalama"].ToString() is "true" or "on"; // FAZ 4.2-B4
         input.FaturalamaTipi = Nz(f["faturalamaTipi"].ToString());
         input.FiyatTuru = Nz(f["fiyatTuru"].ToString());
         input.Doviz = Nz(f["doviz"].ToString());
