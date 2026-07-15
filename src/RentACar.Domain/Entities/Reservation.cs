@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// Tasfiye ile kira sözleşmesine dönüşür. (PR #3: fiyat manuel günlük ücret; fiyat
 /// motoru ertelendi.)
 /// </summary>
-public class Reservation : ITenantOwned, IAuditable
+public class Reservation : ITenantOwned, IAuditable, IOfficeScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -25,6 +25,10 @@ public class Reservation : ITenantOwned, IAuditable
     public DateTimeOffset BitTar { get; set; }
 
     public string? CikisOfisi { get; set; }
+    /// <summary>Türetilmiş çıkış-şube FK'sı (FAZ 5-C4; CikisOfisi→Location→SubeId; interceptor doldurur).</summary>
+    public Guid? CikisSubeId { get; set; }
+    string? RentACar.Domain.Common.IOfficeScoped.OfisAdi => CikisOfisi;
+    Guid? RentACar.Domain.Common.IOfficeScoped.OfisSubeFk { get => CikisSubeId; set => CikisSubeId = value; }
     public string? DonusOfisi { get; set; }
 
     public int Gun { get; set; }

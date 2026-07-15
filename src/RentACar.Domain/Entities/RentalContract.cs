@@ -9,7 +9,7 @@ namespace RentACar.Domain.Entities;
 /// constraint ile engellenir (double-booking koruması). Teslim (Çıkış KM/yakıt) ve
 /// dönüş (Dönüş KM/yakıt/uzatma) alanları PR #4'te doldurulur.
 /// </summary>
-public class RentalContract : ITenantOwned, IAuditable
+public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -29,6 +29,10 @@ public class RentalContract : ITenantOwned, IAuditable
     public DateTimeOffset BitTar { get; set; }
 
     public string? CikisOfisi { get; set; }
+    /// <summary>Türetilmiş çıkış-şube FK'sı (FAZ 5-C4; CikisOfisi→Location→SubeId; interceptor doldurur).</summary>
+    public Guid? CikisSubeId { get; set; }
+    string? RentACar.Domain.Common.IOfficeScoped.OfisAdi => CikisOfisi;
+    Guid? RentACar.Domain.Common.IOfficeScoped.OfisSubeFk { get => CikisSubeId; set => CikisSubeId = value; }
     public string? DonusOfisi { get; set; }
 
     // Aşım ücret parametreleri (oluştururken/teslimde girilir; 0 = ücretsiz/sınırsız).

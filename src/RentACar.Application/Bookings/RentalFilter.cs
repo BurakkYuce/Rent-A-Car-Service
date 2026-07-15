@@ -14,5 +14,7 @@ public sealed class RentalFilter
     public DateTimeOffset? BaslangicMax { get; set; }
     /// <summary>Çıkış veya dönüş ofisi eşleşmesi.</summary>
     public string? Ofis { get; set; }
-    public string? Sube { get; set; }
+    public string? Sube { get; set; }         // UI ofis filtresi (kullanıcı seçimi)
+    /// <summary>Rol bazlı şube KAPSAMI (C4; servis ayarlar) — türetilmiş CikisSubeId + ofis metni.</summary>
+    public Authorization.BranchScope.BranchFilter Kapsam { get; set; }
 }

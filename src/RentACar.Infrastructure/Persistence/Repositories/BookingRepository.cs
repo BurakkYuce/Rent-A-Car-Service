@@ -17,11 +17,17 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---- Rezervasyon ----
 
-    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(string? sube = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Reservations.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(r => r.CikisOfisi == sube);
+        // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
+        if (!kapsam.Unrestricted)
+        {
+            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            q = q.Where(r => (kid != null && r.CikisSubeId == kid)
+                          || (kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad));
+        }
         return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
 
@@ -57,11 +63,17 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---- Kira ----
 
-    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(string? sube = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Rentals.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(r => r.CikisOfisi == sube);
+        // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
+        if (!kapsam.Unrestricted)
+        {
+            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            q = q.Where(r => (kid != null && r.CikisSubeId == kid)
+                          || (kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad));
+        }
         return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
 
@@ -77,6 +89,13 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
         var q = db.Rentals.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(filter.Sube)) q = q.Where(r => r.CikisOfisi == filter.Sube);
+        // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
+        if (!filter.Kapsam.Unrestricted)
+        {
+            var kkid = filter.Kapsam.SubeId; var kkad = filter.Kapsam.SubeAd;
+            q = q.Where(r => (kkid != null && r.CikisSubeId == kkid)
+                          || (kkad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kkad));
+        }
         if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
         if (filter.BaslangicMin is { } min) q = q.Where(r => r.BasTar >= min);
         if (filter.BaslangicMax is { } max) q = q.Where(r => r.BasTar <= max);

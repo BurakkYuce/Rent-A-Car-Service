@@ -56,6 +56,24 @@ public static class BranchBackfill
                     """;
                 total += await db.Database.ExecuteSqlRawAsync(sql, ct);
             }
+
+            // FAZ 5-C4: booking belgelerinde türetilmiş çıkış-şube FK'sı — CikisOfisi → Location.Ad
+            // (exact lower eşleşme; aynı adda Kod sırası) → Location.SubeId. İdempotent (yalnız NULL doldurur).
+            foreach (var table in new[] { "Rentals", "Reservations", "Quotations" })
+            {
+                var sql = $"""
+                    UPDATE "{table}" x SET "CikisSubeId" = (
+                        SELECT l."SubeId" FROM "Locations" l
+                        WHERE l."TenantId" = '{t}' AND lower(btrim(l."Ad")) = lower(btrim(x."CikisOfisi"))
+                            AND l."SubeId" IS NOT NULL
+                        ORDER BY l."Kod" LIMIT 1)
+                    WHERE x."TenantId" = '{t}' AND x."CikisSubeId" IS NULL AND x."CikisOfisi" IS NOT NULL
+                        AND btrim(x."CikisOfisi") <> ''
+                        AND EXISTS (SELECT 1 FROM "Locations" l2 WHERE l2."TenantId" = '{t}'
+                            AND lower(btrim(l2."Ad")) = lower(btrim(x."CikisOfisi")) AND l2."SubeId" IS NOT NULL);
+                    """;
+                total += await db.Database.ExecuteSqlRawAsync(sql, ct);
+            }
         }
         if (total > 0) log?.LogInformation("Şube-FK backfill: {Count} satır dolduruldu (F1).", total);
         return total;

@@ -57,6 +57,7 @@ public static class DependencyInjection
         // Interceptor'lar: bağlantı-tenant (scoped, ITenantContext okur) + şube-FK çözücü + audit (singleton).
         services.AddScoped<TenantConnectionInterceptor>();
         services.AddSingleton<BranchFkInterceptor>();
+        services.AddSingleton<OfficeBranchInterceptor>(); // FAZ 5-C4
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
         // Şifreleme (roadmap D1): hassas tenant kimliklerini at-rest şifrele. Key-ring KALICI
@@ -83,6 +84,7 @@ public static class DependencyInjection
             builder.AddInterceptors(
                 sp.GetRequiredService<TenantConnectionInterceptor>(),
                 sp.GetRequiredService<BranchFkInterceptor>(), // audit'ten ÖNCE: çözülen SubeFk denetime yansısın
+                sp.GetRequiredService<OfficeBranchInterceptor>(), // FAZ 5-C4: ofis→şube FK
                 sp.GetRequiredService<AuditSaveChangesInterceptor>());
             return builder.Options;
         });
