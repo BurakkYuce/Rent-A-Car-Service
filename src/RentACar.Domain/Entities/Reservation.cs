@@ -37,6 +37,16 @@ public class Reservation : ITenantOwned, IAuditable
     public decimal? IskontoTutar { get; set; }
     public decimal? HaftaSonuFark { get; set; }
 
+    // FAZ 4.5 — OTA/web kanal bileşen fiyatları (bilgi; kanal entegrasyonu/REST doldurur; deftere yansımaz).
+    public decimal? OtaKiraBedeli { get; set; }
+    public decimal? OtaDropBedeli { get; set; }
+    public decimal? OtaBebekKoltugu { get; set; }
+    public decimal? OtaNavigasyon { get; set; }
+    public decimal? OtaLcf { get; set; }
+    public decimal? OtaCdw { get; set; }
+    public decimal? OtaScdw { get; set; }
+    public decimal? OtaEkSurucu { get; set; }
+
     // Anlaşılan aşım koşulları (kiraya çevrilirken sözleşmeye taşınır).
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }

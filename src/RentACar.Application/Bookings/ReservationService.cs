@@ -66,7 +66,12 @@ public sealed class ReservationService(
             Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim(),
             KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim(),
             FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(), // A6-B2
-            KdvOranSnapshot = pr.KdvOranSnapshot
+            KdvOranSnapshot = pr.KdvOranSnapshot,
+            // FAZ 4.5 — OTA bileşen fiyatları (bilgi; REST/kanal doldurur)
+            OtaKiraBedeli = input.OtaKiraBedeli, OtaDropBedeli = input.OtaDropBedeli,
+            OtaBebekKoltugu = input.OtaBebekKoltugu, OtaNavigasyon = input.OtaNavigasyon,
+            OtaLcf = input.OtaLcf, OtaCdw = input.OtaCdw, OtaScdw = input.OtaScdw,
+            OtaEkSurucu = input.OtaEkSurucu
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
@@ -138,6 +143,11 @@ public sealed class ReservationService(
             r.SonraOdeOran = input.SonraOdeOran;
             r.Aciklama = input.Aciklama;
             r.Kaynak = string.IsNullOrWhiteSpace(input.Kaynak) ? null : input.Kaynak.Trim();
+            // FAZ 4.5 — OTA alanları (bilgi; reprice'tan bağımsız güncellenir)
+            r.OtaKiraBedeli = input.OtaKiraBedeli; r.OtaDropBedeli = input.OtaDropBedeli;
+            r.OtaBebekKoltugu = input.OtaBebekKoltugu; r.OtaNavigasyon = input.OtaNavigasyon;
+            r.OtaLcf = input.OtaLcf; r.OtaCdw = input.OtaCdw; r.OtaScdw = input.OtaScdw;
+            r.OtaEkSurucu = input.OtaEkSurucu;
             r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
             r.FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(); // A6-B2
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;

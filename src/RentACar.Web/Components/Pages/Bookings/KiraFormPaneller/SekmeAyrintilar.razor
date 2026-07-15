@@ -139,12 +139,19 @@
     @* 6. Web Api Bilgisi (OTA kanalı — görsel-tam, veri kaynağı TODO) *@
     <div data-panel-group="alt" data-panel="webapi" hidden>
         <div class="grid-form">
-            @foreach (var alan in new[] { "Kira Bedeli", "Drop Bedeli", "Bebek Koltuğu", "Navigasyon", "LCF", "CDW", "SCDW", "Ek Sürücü" })
+            @{ var rez = Vm.KaynakRezervasyon; }
+            @foreach (var (ad, deger) in new (string, decimal?)[]
             {
-                <label>@alan<input readonly value="—" title="Web/OTA rezervasyonundan dolar; ofis kirasında boş (kanal entegrasyonu TODO)" /></label>
+                ("Kira Bedeli", rez?.OtaKiraBedeli), ("Drop Bedeli", rez?.OtaDropBedeli),
+                ("Bebek Koltuğu", rez?.OtaBebekKoltugu), ("Navigasyon", rez?.OtaNavigasyon),
+                ("LCF", rez?.OtaLcf), ("CDW", rez?.OtaCdw), ("SCDW", rez?.OtaScdw), ("Ek Sürücü", rez?.OtaEkSurucu)
+            })
+            {
+                <label>@ad<input readonly value="@(deger?.ToString("N2") ?? "—")"
+                    title="Kaynak rezervasyonun OTA bileşen fiyatı (bilgi); manuel kirada boş" /></label>
             }
         </div>
-        <p class="muted small">Online kanal (OTA/web) rezervasyon bileşen fiyatları — kanal entegrasyonu açılınca dolar.</p>
+        <p class="muted small">Online kanal (OTA/web) rezervasyon bileşen fiyatları — REST/kanal doldurur; ofis kirasında "—".</p>
     </div>
 
     @* 7. Aksesuar (S1 — çıkış "önce" burada; dönüş "sonra" edit modunda aktifleşir) *@

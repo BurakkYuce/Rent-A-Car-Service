@@ -64,6 +64,16 @@ public sealed class BookingInput
     public int? OpsiyonGun { get; set; }
     /// <summary>Risk limiti aşımı onayı (yalnız Yönetici/Admin işaretleyebilir — guard'da doğrulanır).</summary>
     public bool RiskOnay { get; set; }
+
+    // FAZ 4.5 — OTA bileşen fiyatları (yalnız REZERVASYON yolu kullanır; kira create yok sayar).
+    public decimal? OtaKiraBedeli { get; set; }
+    public decimal? OtaDropBedeli { get; set; }
+    public decimal? OtaBebekKoltugu { get; set; }
+    public decimal? OtaNavigasyon { get; set; }
+    public decimal? OtaLcf { get; set; }
+    public decimal? OtaCdw { get; set; }
+    public decimal? OtaScdw { get; set; }
+    public decimal? OtaEkSurucu { get; set; }
     public bool? KabisCikis { get; set; }
     public bool? KabisDonus { get; set; }
     public bool? OtomatikUzat { get; set; }

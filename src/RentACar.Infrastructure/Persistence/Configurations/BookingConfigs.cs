@@ -28,6 +28,15 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
         e.Property(x => x.Depozito).HasColumnType("numeric(19,4)");
         e.Property(x => x.KomisyonOran).HasColumnType("numeric(9,4)");
+        // FAZ 4.5 — OTA bileşen fiyatları (bilgi)
+        e.Property(x => x.OtaKiraBedeli).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaDropBedeli).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaBebekKoltugu).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaNavigasyon).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaLcf).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaCdw).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaScdw).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OtaEkSurucu).HasColumnType("numeric(19,4)");
         e.Property(x => x.KomisyonTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.DropUcreti).HasColumnType("numeric(19,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
