@@ -122,13 +122,13 @@ else
     <form id="kira-ekhizmet" method="post" action="/kiralar/ekhizmet-ekle"><AntiforgeryToken /><input type="hidden" name="rentalId" value="@Id" /></form>
     @foreach (var a in _vm.Kalemler)
     {
-        <form id="ekhizmet-sil-@a.Id" method="post" action="/kiralar/ekhizmet-sil" onsubmit="return confirm('Ek hizmet silinsin mi?')">
+        <form id="ekhizmet-sil-@a.Id" method="post" action="/kiralar/ekhizmet-sil" data-confirm="Ek hizmet silinsin mi?">
             <AntiforgeryToken /><input type="hidden" name="addOnId" value="@a.Id" /><input type="hidden" name="rentalId" value="@Id" />
         </form>
     }
     @if (_vm.Kirada)
     {
-        <form id="kira-iptal" method="post" action="/kiralar/cancel" onsubmit="return confirm('Kira iptal edilsin mi?')">
+        <form id="kira-iptal" method="post" action="/kiralar/cancel" data-confirm="Kira iptal edilsin mi?">
             <AntiforgeryToken /><input type="hidden" name="id" value="@Id" />
         </form>
     }

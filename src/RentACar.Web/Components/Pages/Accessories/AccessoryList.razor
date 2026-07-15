@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/aksesuarlar/delete" onsubmit="return confirm('Aksesuar silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/aksesuarlar/delete" data-confirm="Aksesuar silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

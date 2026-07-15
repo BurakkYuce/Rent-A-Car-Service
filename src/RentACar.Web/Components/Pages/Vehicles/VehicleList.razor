@@ -242,7 +242,7 @@ else
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
                         <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
                     </AuthorizeView>
-                    <form method="post" action="/vehicles/delete" onsubmit="return confirm('Silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@v.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

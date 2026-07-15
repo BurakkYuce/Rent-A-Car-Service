@@ -43,7 +43,7 @@
                 <td>@t.CreatedAtUtc.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>
                     <form method="post" action="/platform/tenants/toggle" style="margin:0"
-                          onsubmit="return confirm('@(t.Code) @(t.IsActive ? "kapatılsın" : "açılsın") mı?')"><AntiforgeryToken />
+                          data-confirm="@(t.Code) @(t.IsActive ? "kapatılsın" : "açılsın") mı?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
                         <input type="hidden" name="active" value="@((!t.IsActive).ToString().ToLowerInvariant())" />
                         <button type="submit" class="link @(t.IsActive ? "danger" : "")">@(t.IsActive ? "Kapat" : "Aç")</button>

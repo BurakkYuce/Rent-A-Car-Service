@@ -19,14 +19,14 @@ else
         (uygulama→takvim, tek yön). Apple/Outlook takviminde de çalışır. Google birkaç saatte bir günceller.
     </p>
     <div class="feed-url">
-        <input readonly value="@_url" onclick="this.select()" aria-label="Takvim bağlantısı" />
+        <input readonly value="@_url" data-select-all aria-label="Takvim bağlantısı" />
     </div>
     <p class="muted small">
         Bu bağlantı <b>kişiye özeldir ve müşteri adı / plaka bilgisi içerir</b> — kimseyle paylaşma. Yanlışlıkla
         sızarsa aşağıdan <b>Yenile</b> ile eski bağlantıyı iptal et.
     </p>
     @if (Yeni == "1") { <p class="ok">Yeni bağlantı üretildi — eski bağlantı artık çalışmaz.</p> }
-    <form method="post" action="/takvim/yenile" onsubmit="return confirm('Eski bağlantı iptal olacak. Devam?')">
+    <form method="post" action="/takvim/yenile" data-confirm="Eski bağlantı iptal olacak. Devam?">
         <AntiforgeryToken />
         <button type="submit" class="link danger">Bağlantıyı Yenile (eskisini iptal et)</button>
     </form>

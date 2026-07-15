@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/departmanlar/delete" onsubmit="return confirm('Departman silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/departmanlar/delete" data-confirm="Departman silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@d.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

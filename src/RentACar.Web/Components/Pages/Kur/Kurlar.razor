@@ -108,7 +108,7 @@
                 <td>@(s.BitTar?.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
                 <td class="row-actions">
-                    <form method="post" action="/kurlar/sabit/sil" onsubmit="return confirm('Silinsin mi?')"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button class="link danger">Sil</button></form>
+                    <form method="post" action="/kurlar/sabit/sil" data-confirm="Silinsin mi?"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button class="link danger">Sil</button></form>
                 </td>
             </tr>
         }
