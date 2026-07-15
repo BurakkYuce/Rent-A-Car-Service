@@ -16,4 +16,6 @@ public interface ICurrentUser
 
     /// <summary>Atanmış şube (Sube metni). Rol bazlı şube kapsamı için; boş = tüm şubeler.</summary>
     string? AssignedBranch { get; }
+    /// <summary>Atanmış şube FK'sı (FAZ 5-C1 çift-yazım; C2'de yetki FK-farkındalı olur). Eski oturum/claim'siz → null.</summary>
+    Guid? AssignedBranchId { get; }
 }

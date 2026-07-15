@@ -29,6 +29,7 @@ public static class AuthEndpoints
                 new(ClaimTypes.Name, result.User.UserName),
                 new(ClaimTypes.Role, result.User.Rol.ToString()),
                 new(IdentityClaims.AssignedBranch, result.User.AtanmisSube ?? ""),
+                new(IdentityClaims.AssignedBranchId, result.User.AtanmisSubeId?.ToString() ?? ""), // FAZ 5-C1
                 new(IdentityClaims.UserId, result.User.Id.ToString()),
                 new(IdentityClaims.TenantId, result.Tenant.Id.ToString()),
                 new(IdentityClaims.TenantCode, result.Tenant.Code),
