@@ -73,16 +73,41 @@ systemd unit (`/etc/systemd/system/racar-web.service`): `EnvironmentFile=/etc/ra
 `ExecStart=/usr/bin/dotnet /opt/racar/web/RentACar.Web.dll`, `Environment=ASPNETCORE_URLS=http://127.0.0.1:5220`,
 `User=<appuser>`, `Restart=always`. Sonra `systemctl enable --now racar-web`.
 
-## 5. Reverse proxy (Caddy) — HTTPS + gerçek istemci IP
-Caddy otomatik Let's Encrypt TLS verir. `/etc/caddy/Caddyfile`:
+**Kaynak-tüketim sertleştirme (kod değil — `Kestrel` section'ından bind):** `appsettings.Production.json`'a
+`Kestrel:Limits:MaxConcurrentConnections`, `MaxRequestBodySize`, `RequestHeadersTimeout` ekleyerek istek uçlarını
+sınırla (rate-limit yalnız login'de olduğundan bu, veri uçlarına kaba bir DoS tamponu sağlar). Gerçek TLS/HTTP kabaca
+Caddy'de (§5 `request_body max_size`); Kestrel iç-ağda dinlediği için bu ikisi tamamlayıcı.
+
+## 5. Reverse proxy (Caddy) — HTTPS + güvenlik başlıkları + gerçek istemci IP
+Caddy otomatik Let's Encrypt TLS verir. Güvenlik yanıt başlıklarını **uygulama yazmıyor** → burada eklenir
+(kod değişikliği gerektirmez). `/etc/caddy/Caddyfile`:
 ```
 rentpro.example.com {
     reverse_proxy 127.0.0.1:5220
+
+    # Güvenlik yanıt başlıkları (in-app middleware YOK — proxy'de eklenir)
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"          # DENY DEĞİL: DENY same-origin'i de bloklar → PDF-yazdır gizli iframe'ini kırar
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"   # preload SONRA (geri alması zor; hstspreload.org başvurusuz inert)
+        -Server                               # sunucu parmak izini gizle
+    }
+
+    # Kaba gövde limiti (DoS sertleştirme; plugin gerekmez)
+    request_body { max_size 2MB }
 }
 ```
-- Uygulama `UseForwardedHeaders` ile **KnownProxies=loopback** varsayar → proxy AYNI makinede (127.0.0.1) olmalı ki
-  login rate-limiter gerçek istemci IP'sini görsün (uzaktan sahte `X-Forwarded-For` reddedilir). Proxy ayrı makinedeyse
-  `KnownProxies`/`KnownNetworks` ayarını genişletmek gerekir.
+- **CSP bilerek YOK:** uygulamada **52 inline event handler** (`onsubmit="return confirm(...)"` vb.) var → `script-src 'self'`
+  hepsini (tüm sil/iptal onayları) kırar; kod-free CSP zorunlu `'unsafe-inline'` ister → XSS koruması zayıf. Anlamlı CSP =
+  inline handler'ları harici JS'e taşımak (KOD işi, ayrı görev). Gözlem istenirse `Content-Security-Policy-Report-Only`
+  eklenebilir ama report-endpoint yok → manuel smoke ile test et (PDF-yazdır iframe, sil/iptal onayları, mega-form fetch'leri).
+- **Cookie Secure (KRİTİK — sessiz başarısızlık noktası):** uygulama `UseForwardedHeaders` ile **KnownProxies=loopback**
+  varsayar. Caddy AYNI makinede (127.0.0.1) ise `X-Forwarded-Proto` okunur → cookie Secure + rate-limiter gerçek IP'yi görür.
+  Caddy AYRI makine/container ise header DÜŞER → **şema http kalır → cookie Secure OLMAZ.** O durumda
+  `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (env; KnownProxies/Networks temizler) — **yalnız Kestrel dışarı kapalı/iç-ağdaysa güvenli**
+  (aksi halde sahte forwarded header'a güvenilir). DevTools kontrolü (§9) sonucu yakalar.
 - `sudo systemctl reload caddy`.
 
 ## 6. Opsiyonel entegrasyonlar (config VARSA aktif, yoksa no-op stub)
@@ -107,7 +132,15 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 
 ## 9. Go-live sonrası güvenlik kontrolü (hızlı)
 - [ ] `racar_app` NOBYPASSRLS (`\du`).
-- [ ] `ASPNETCORE_ENVIRONMENT=Production` (antiforgery açık, guard'lar aktif).
+- [ ] **Env teyidi (EN KRİTİK):** `ASPNETCORE_ENVIRONMENT=Production` — antiforgery + HSTS ikisi de `!IsDevelopment()`'e
+      kapılı, env yanlışsa **ikisi birden sessizce kapanır.** Kanıt testi: prod URL'ine **token'sız POST** at →
+      **400** dönmeli (`curl -si -X POST https://<domain>/kiralar/create -d x=1` → 400 Bad Request). 200/302 → env yanlış.
+- [ ] **Güvenlik başlıkları:** `curl -sI https://<domain>/` → `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`,
+      `referrer-policy`, `permissions-policy`, `strict-transport-security: max-age=31536000; includeSubDomains`; `server` başlığı YOK.
+      **securityheaders.com** ile A hedefle (CSP olmadığı için A+ değil — bilinçli).
+- [ ] **Cookie:** DevTools → Application → Cookies → `.AspNetCore.Cookies` satırında **Secure ✓ / HttpOnly ✓ / SameSite=Lax**.
+      Secure değilse → §5 forwarded-headers tuzağı (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`).
+- [ ] **UI bozulmadı:** PDF-yazdır (gizli iframe) + bir sil/iptal onayı hâlâ çalışıyor (SAMEORIGIN başlığı framing'i kırmadı).
 - [ ] Secret'lar repo'da/appsettings.json'da DEĞİL (env/Production.json git-ignore).
 - [ ] Rol şifreleri dev-varsayılanından değişti.
 - [ ] TLS zorunlu (Caddy HTTPS), `/health` dışı uçlar auth-gated.
