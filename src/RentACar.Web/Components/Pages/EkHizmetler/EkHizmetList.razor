@@ -58,7 +58,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/ek-hizmetler/delete" onsubmit="return confirm('Ek hizmet silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/ek-hizmetler/delete" data-confirm="Ek hizmet silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@e.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/musteri-gruplari/delete" onsubmit="return confirm('Müşteri grubu silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/musteri-gruplari/delete" data-confirm="Müşteri grubu silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@g.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

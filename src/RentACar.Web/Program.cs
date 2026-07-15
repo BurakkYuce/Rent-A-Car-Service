@@ -129,9 +129,26 @@ builder.Services.Configure<RequestLocalizationOptions>(o =>
 
 // ---- Kimlik / yetki (cookie, 2 aşamalı login) ----
 builder.Services.AddHttpContextAccessor();
+// Kestrel "Server: Kestrel" başlığını gizle (parmak izi azaltma).
+builder.WebHost.ConfigureKestrel(o => o.AddServerHeader = false);
+// HSTS sertleştirme (in-app UseHsts bunu okur): 1 yıl + subdomain'ler. preload YOK (geri alması zor;
+// hstspreload.org başvurusuz inert; tüm tenant subdomain'leri HTTPS olmalı → sonra).
+builder.Services.AddHsts(o =>
+{
+    o.MaxAge = TimeSpan.FromDays(365);
+    o.IncludeSubDomains = true;
+});
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        // Cookie sertleştirme: HttpOnly + SameSite=Lax açıkça; Secure PROD'da zorunlu (dev http://localhost
+        // login'i kırılmasın diye SameAsRequest). Özel ad → framework parmak izini (.AspNetCore.Cookies) gizler.
+        options.Cookie.Name = "racar.session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
@@ -265,6 +282,37 @@ app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — Radzen t
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+});
+
+// ---- Güvenlik yanıt başlıkları (defense-in-depth: Caddy'den bağımsız, HER yanıtta) ----
+// CSP script-src 'self' (inline event handler'lar harici JS'e taşındı → rc-ui.js). style-src 'unsafe-inline'
+// bilinçli pragmatik: inline style attr'ları/blokları kalıyor (XSS riski script'e göre düşük; tümünü ayıklamak
+// devasa iş). connect-src 'self' → Blazor/Radzen interaktif SignalR (same-origin ws) çalışır. frame-ancestors
+// 'self' + X-Frame SAMEORIGIN → PDF-yazdır gizli iframe'i (same-origin) çalışır. object-src 'none'.
+app.Use(async (ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["X-Frame-Options"] = "SAMEORIGIN";
+    h["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    h["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()";
+    h["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        // script-src 'self' + Blazor'ın <ImportMap> inline script'inin SABİT hash'i ('unsafe-inline' YOK →
+        // saldırganın enjekte ettiği inline script çalışmaz). Importmap içeriği yalnız çerçeve/Radzen
+        // modül fingerprint'lerini içerir (benim JS'im klasik <script src>, importmap'te değil) → hash
+        // yalnız .NET/Radzen sürüm yükseltmesinde değişir. Değişirse tarayıcı konsolu yeni hash'i verir
+        // (deploy-checklist §9). Debug/Release aynı (fingerprint = dosya-içeriği hash'i).
+        "script-src 'self' 'sha256-8zf5ygGQcJlYy4pHen2mV6MUXZZiZU5JXKOBV8HRY08='; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; " +
+        "font-src 'self'; " +
+        "connect-src 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'";
+    await next();
 });
 app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol, durum, süre
 {

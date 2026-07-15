@@ -69,7 +69,7 @@
 
 @if (_edit is not null)
 {
-    <form method="post" action="/hukuk/delete" onsubmit="return confirm('Dosya silinsin mi?');"><AntiforgeryToken />
+    <form method="post" action="/hukuk/delete" data-confirm="Dosya silinsin mi?"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_edit.Id" />
         <button type="submit" class="btn-danger">Sil</button>
     </form>

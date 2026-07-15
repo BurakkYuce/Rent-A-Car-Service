@@ -68,7 +68,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/lokasyonlar/delete" onsubmit="return confirm('Ofis silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/lokasyonlar/delete" data-confirm="Ofis silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@l.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

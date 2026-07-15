@@ -55,7 +55,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/ceza-turleri/delete" onsubmit="return confirm('Ceza türü silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/ceza-turleri/delete" data-confirm="Ceza türü silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

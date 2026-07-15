@@ -78,7 +78,7 @@ else
                     <td>
                         @if (e.SourceType is "Tahsilat" or "Odeme")
                         {
-                            <form method="post" action="/finans/tahsilat/ters" onsubmit="return confirm('Ters kayıt alınsın mı?')"><AntiforgeryToken />
+                            <form method="post" action="/finans/tahsilat/ters" data-confirm="Ters kayıt alınsın mı?"><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@e.SourceId" />
                                 <input type="hidden" name="cariId" value="@_customer.Id" />
                                 <button type="submit" class="link danger">Ters Kayıt</button>

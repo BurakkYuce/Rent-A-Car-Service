@@ -73,7 +73,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/subeler/delete" onsubmit="return confirm('Şube silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/subeler/delete" data-confirm="Şube silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>
