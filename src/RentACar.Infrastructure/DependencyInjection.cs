@@ -167,6 +167,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.DolulukFiyat.IDolulukFiyatKuralRepository, Persistence.Repositories.DolulukFiyatKuralRepository>(); // FAZ 3.A7
         services.AddScoped<RentACar.Application.DolulukFiyat.IOccupancyProvider, Persistence.Repositories.OccupancyProvider>();
         services.AddScoped<RentACar.Application.FaturaDonemleri.IFaturaDonemRepository, Persistence.Repositories.FaturaDonemRepository>(); // FAZ 4.2-B1
+        services.AddScoped<RentACar.Application.DisHizmetler.IDisHizmetRepository, Persistence.Repositories.DisHizmetRepository>(); // FAZ 4.3
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
