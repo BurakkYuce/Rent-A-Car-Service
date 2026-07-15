@@ -204,6 +204,72 @@
         });
     }
 
+    // ---- Müsait araç: AJAX ile getir (sayfa YENİLENMEZ → girilen müşteri/tarih/fiyat/2.sürücü KAYBOLMAZ) ----
+    // Eski davranış: #musait-form GET → /kiralar/yeni tam sayfa reload (yalnız musteriId korunuyordu).
+    // Yeni: fetch JSON → vehicleId select + dl-kf-arac datalist yerinde güncellenir; tarihler BOŞSA doldurulur.
+    function bindMusaitAjax() {
+        var btn = document.querySelector('[data-musait-getir]');
+        var form = document.getElementById('kira-form');
+        if (!btn || !form || btn._kfBound) return;
+        btn._kfBound = true;
+        btn.addEventListener('click', async function (e) {
+            e.preventDefault(); // GET reload YERİNE fetch (no-JS'te bu satır çalışmaz → form submit fallback)
+            var vfrom = document.querySelector('[name="vfrom"]');
+            var vto = document.querySelector('[name="vto"]');
+            var vgrup = document.querySelector('[name="vgrup"]');
+            var not = document.querySelector('[data-musait-not]');
+            var temizle = document.querySelector('[data-musait-temizle]');
+            function de(t, cls) { if (not) { not.innerHTML = t; not.className = (cls || 'muted') + ' small'; } }
+            var qs = new URLSearchParams();
+            if (vfrom && vfrom.value) qs.set('vfrom', vfrom.value);
+            if (vto && vto.value) qs.set('vto', vto.value);
+            if (vgrup && vgrup.value) qs.set('vgrup', vgrup.value);
+            de('Müsait araçlar getiriliyor…');
+            btn.disabled = true;
+            try {
+                var r = await fetch('/kiralar/musait-arac?' + qs.toString(), { headers: { 'Accept': 'application/json' } });
+                var d = await r.json();
+                if (!d.ok) { de(d.hata || 'Getirilemedi.', 'error'); return; }
+                // vehicleId select yeniden kur (önceki seçim hâlâ müsaitse KORU)
+                var sel = form.querySelector('select[name="vehicleId"]');
+                var onceki = sel ? sel.value : '';
+                if (sel) {
+                    sel.innerHTML = '<option value="">—</option>';
+                    d.araclar.forEach(function (a) {
+                        var o = document.createElement('option'); o.value = a.id; o.textContent = a.secim; sel.appendChild(o);
+                    });
+                    if (d.araclar.some(function (a) { return a.id === onceki; })) sel.value = onceki;
+                }
+                // dl-kf-arac datalist yeniden kur (Hızlı Giriş plaka araması + araç bilgi kartı data-*'ları)
+                var dl = document.getElementById('dl-kf-arac');
+                if (dl) {
+                    dl.innerHTML = '';
+                    d.araclar.forEach(function (a) {
+                        var o = document.createElement('option');
+                        o.value = a.goruntu;
+                        ['id', 'marka', 'tip', 'yil', 'vites', 'yakit', 'grup', 'segment', 'km', 'sube'].forEach(function (k) {
+                            o.setAttribute('data-' + k, a[k] != null ? a[k] : '');
+                        });
+                        dl.appendChild(o);
+                    });
+                }
+                // Tarihleri kira alanlarına geçir — yalnız BOŞSA (kullanıcının girdiğini EZME; eski server
+                // davranışı koşulsuz basıyordu, bu daha az yıkıcı). basTar/bitTar hem kanonik hem ayna.
+                [['basTar', vfrom], ['bitTar', vto]].forEach(function (pair) {
+                    var canon = form.querySelector('[name="' + pair[0] + '"]');
+                    if (canon && !canon.value && pair[1] && pair[1].value) {
+                        setVal(canon, pair[1].value + 'T09:00');
+                        canon.dispatchEvent(new Event('input', { bubbles: true })); // ayna + fiyat fetch tetiklensin
+                    }
+                });
+                if (temizle) temizle.style.display = '';
+                de('Seçili aralıkta <strong>' + d.sayi + '</strong> araç müsait — araç listesi güncellendi, tarihler kira alanlarına geçti (girdiğiniz veriler korundu).', 'ok');
+            } catch (e2) {
+                de('Getirilemedi (bağlantı hatası).', 'error');
+            } finally { btn.disabled = false; }
+        });
+    }
+
     // ---- Müsaitlik GET yenilemesinde müşteri seçimini koru (hidden musteriId → query → preselect) ----
     function bindMusaitKoru() {
         var mf = document.getElementById('musait-form');
@@ -214,6 +280,25 @@
             var sel = form.querySelector('select[name="musteriId"]');
             var h = mf.querySelector('input[name="musteriId"]');
             if (sel && h) h.value = sel.value;
+        });
+    }
+
+    // ---- Müşteri sekmesinden "yeni müşteri" bloğuna atla (blok Hızlı Giriş'te — formda bir kez) ----
+    function bindJumpYeniMusteri() {
+        document.querySelectorAll('[data-jump-yeni-musteri]').forEach(function (b) {
+            if (b._kfBound) return;
+            b._kfBound = true;
+            b.addEventListener('click', function () {
+                var strip = document.querySelector('[data-tabs="sekme"]');
+                if (strip) activate(strip, 'hizli', true);
+                var blk = document.getElementById('yeni-musteri-blok');
+                if (blk) {
+                    blk.open = true;
+                    blk.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    var ad = blk.querySelector('input[name="yeniAd"]');
+                    if (ad) setTimeout(function () { try { ad.focus(); } catch (_) { } }, 0);
+                }
+            });
         });
     }
 
@@ -275,6 +360,8 @@
         bindLookups();
         bindDateRange();
         bindYeniMusteri();
+        bindJumpYeniMusteri();
+        bindMusaitAjax();
         bindMusaitKoru();
         bindPdfYazdir();
         bindPaylas();

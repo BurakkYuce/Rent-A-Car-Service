@@ -203,6 +203,41 @@ public static class BookingEndpoints
             }
         });
 
+        // MÜSAİT ARAÇ (kira formu Araç sekmesi; JS fetch — SAYFA YENİLENMEZ → operatörün girdiği müşteri/
+        // tarih/fiyat/2.sürücü vb. KAYBOLMAZ). Eskiden #musait-form GET ile /kiralar/yeni'ye gidip tüm sayfayı
+        // yeniliyordu (yalnız musteriId query'yle korunuyordu). Artık müsait araç listesi JSON döner; JS
+        // vehicleId select'ini + dl-kf-arac datalist'ini yerinde günceller. No-JS için GET fallback korunur.
+        // GET → antiforgery'ye takılmaz; RequirePermission grup mirasıyla korunur (AvailabilityService yetkisiz).
+        kira.MapGet("/musait-arac", async (RentACar.Application.Availability.AvailabilityService availability,
+            string? vfrom, string? vto, string? vgrup) =>
+        {
+            try
+            {
+                var vf = DateTimeOffset.TryParse(vfrom, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+                var vt = DateTimeOffset.TryParse(vto, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero) : (DateTimeOffset?)null;
+                if (vf is not { } vff || vt is not { } vtt || vtt <= vff)
+                    return Results.Json(new { ok = false, hata = "Geçerli bir müsaitlik aralığı girin (bitiş > başlangıç)." });
+
+                var araclar = await availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(vgrup) ? null : vgrup);
+                return Results.Json(new
+                {
+                    ok = true,
+                    sayi = araclar.Count,
+                    araclar = araclar.Select(v => new
+                    {
+                        id = v.Id,
+                        // datalist görüntüsü (KiraFormVm.AracGoruntu ile birebir — id-çözümü eşleşmesi bozulmasın)
+                        goruntu = Components.Pages.Bookings.KiraFormPaneller.KiraFormVm.AracGoruntu(v),
+                        secim = $"{v.Plaka} — {v.Marka} {v.Tip}", // vehicleId select option metni (SekmeArac ile aynı)
+                        marka = v.Marka ?? "", tip = v.Tip ?? "", yil = v.ModelYili?.ToString() ?? "",
+                        vites = v.Vites?.ToString() ?? "", yakit = v.Yakit.ToString(),
+                        grup = v.Grup ?? "", segment = v.Segment ?? "", km = v.Km.ToString(), sube = v.Sube ?? ""
+                    })
+                });
+            }
+            catch (ValidationException ex) { return Results.Json(new { ok = false, hata = ex.Message }); }
+        });
+
         // Açık kira alan güncelleme (mega-form "Kaydet" — edit modu). Whitelist RentalUpdateInput tipiyle
         // zorlanır (para/tarih alanları tipte YOK). Redirect'te #sekme fragment'i korunur (tab kaybolmaz).
         kira.MapPost("/update", async (RentalService svc, HttpRequest req, [FromForm] Guid id) =>
