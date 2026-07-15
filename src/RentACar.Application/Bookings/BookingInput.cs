@@ -59,6 +59,11 @@ public sealed class BookingInput
     public string? OzelSoforBilgisi { get; set; }
     public string? EkKosullar { get; set; }
     public int? ManuelFindexPuan { get; set; }
+    /// <summary>Kira-seviyesi opsiyon (FAZ 4.4; bilgi).</summary>
+    public decimal? OpsiyonNet { get; set; }
+    public int? OpsiyonGun { get; set; }
+    /// <summary>Risk limiti aşımı onayı (yalnız Yönetici/Admin işaretleyebilir — guard'da doğrulanır).</summary>
+    public bool RiskOnay { get; set; }
     public bool? KabisCikis { get; set; }
     public bool? KabisDonus { get; set; }
     public bool? OtomatikUzat { get; set; }

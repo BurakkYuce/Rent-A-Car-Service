@@ -54,7 +54,7 @@
             <label>Şube<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="sube">@(Vm.Edit ? (SeciliArac?.Sube ?? "—") : "—")</span></label>
             <label>Rez. Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: araçta ayrı rezervasyon grubu alanı yok — Grup kullanılıyor">—</span></label>
             <label>Araç Yeri<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: fiziksel araç-yeri alanı yok — Şube kullanılıyor">—</span></label>
-            <label>Doluluk Hesap<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: doluluk-bazlı dinamik fiyat çarpanı (fiyat motoru v2)">—</span></label>
+            <label>Doluluk Hesap<span class="kf-ro" title="Aracın ömür-boyu doluluk yüzdesi (karneden; dinamik fiyat çarpanı tarife kuralıyla — FAZ 3.A7)">@(Vm.AracDolulukYuzde is { } dol ? dol.ToString("N2") + "%" : "—")</span></label>
         </div>
     </div>
     <div class="card">

@@ -249,6 +249,8 @@ public static class BookingEndpoints
                     OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi"),
                     EkKosullar = FormParse.Str(f, "ekKosullar"),
                     ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString()),
+                    OpsiyonNet = FormParse.Dec(f["opsiyonNet"].ToString()),   // FAZ 4.4
+                    OpsiyonGun = FormParse.Int(f["opsiyonGun"].ToString()),   // FAZ 4.4
                     KabisCikis = FormBool(f, "kabisCikis"),
                     KabisDonus = FormBool(f, "kabisDonus"),
                     OtomatikUzat = FormBool(f, "otomatikUzat"),
@@ -413,6 +415,9 @@ public static class BookingEndpoints
         input.OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi");
         input.EkKosullar = FormParse.Str(f, "ekKosullar");
         input.ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString());
+        input.OpsiyonNet = FormParse.Dec(f["opsiyonNet"].ToString());   // FAZ 4.4
+        input.OpsiyonGun = FormParse.Int(f["opsiyonGun"].ToString());   // FAZ 4.4
+        input.RiskOnay = FormBool(f, "riskOnay") == true;               // FAZ 4.4 (rol doğrulaması serviste)
         input.KabisCikis = FormBool(f, "kabisCikis");
         input.KabisDonus = FormBool(f, "kabisDonus");
         input.OtomatikUzat = FormBool(f, "otomatikUzat");

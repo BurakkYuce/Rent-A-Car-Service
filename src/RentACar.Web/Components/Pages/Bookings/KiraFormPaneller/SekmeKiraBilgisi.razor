@@ -82,7 +82,10 @@
     <div class="card">
         <strong>Vade / Opsiyon / Takip</strong>
         <div class="grid-form">
-            <label>Opsiyon (Net + Gün)<input value="cari karttan / ileride" readonly title="TODO: kira-seviyesi opsiyon alanı" /></label>
+            <label>Opsiyon Net<input name="opsiyonNet" type="number" step="0.01" min="0"
+                value="@Vm.D(c => c.OpsiyonNet)" title="Kira-seviyesi opsiyon tutarı (bilgi — deftere yansımaz)" /></label>
+            <label>Opsiyon Gün<input name="opsiyonGun" type="number" min="0"
+                value="@Vm.I(c => c.OpsiyonGun)" title="Opsiyon gün sayısı (bilgi)" /></label>
             <label>Vade / Fatura Dönemi<input value="cari karttan okunur" readonly title="Customer.VadeGun / FaturaDonemi" /></label>
             <label>Fatura Profili<input value="—" readonly title="TODO: e-Fatura profili (entegrasyon stub)" /></label>
             @if (Vm.Edit)
