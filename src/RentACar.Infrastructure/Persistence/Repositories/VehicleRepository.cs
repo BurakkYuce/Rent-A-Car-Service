@@ -30,6 +30,13 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         var q = db.Vehicles.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(filter.Sube)) q = q.Where(v => v.Sube == filter.Sube);
+        // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
+        if (!filter.Kapsam.Unrestricted)
+        {
+            var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
+            q = q.Where(v => (kid != null && v.SubeId == kid)
+                          || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+        }
         if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
         if (!string.IsNullOrWhiteSpace(filter.Grup)) q = q.Where(v => v.Grup == filter.Grup);
         if (!string.IsNullOrWhiteSpace(filter.Query))
