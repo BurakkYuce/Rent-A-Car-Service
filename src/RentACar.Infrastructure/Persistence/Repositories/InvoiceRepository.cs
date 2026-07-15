@@ -68,31 +68,9 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
 
     /// <summary>Fark-state (iade-netli faturalanan brüt + fark sayısı) — GetFarkStateAsync ile
     /// posting TX-içi yeniden doğrulaması (adversarial B2-Kritik-1) AYNI sorgudan geçer (tek kopya).</summary>
-    private static async Task<(decimal FaturalananBrut, int FarkSayisi)> FarkStateHesaplaAsync(
+    private static Task<(decimal FaturalananBrut, int FarkSayisi)> FarkStateHesaplaAsync(
         AppDbContext db, Guid rentalId, CancellationToken ct)
-    {
-        // Kira faturaları: base (RentalId) + fark (KaynakKiraId); iptal + iade-faturasının KENDİSİ hariç.
-        var kiraFaturalari = await db.Invoices.AsNoTracking()
-            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId) && i.Durum != InvoiceStatus.Iptal && !i.IadeMi)
-            .Select(i => new { i.Id, i.GenelToplam })
-            .ToListAsync(ct);
-        var gross = kiraFaturalari.Sum(x => x.GenelToplam);
-        // İade netleme (adversarial High-2/3): bu kira faturalarına kesilmiş iade brütünü düş (iade
-        // GenelToplam pozitif ama defteri TERS döndürür → net faturalanan = base − iade).
-        var iadeGross = 0m;
-        if (gross != 0m)
-        {
-            var ids = kiraFaturalari.Select(x => x.Id).ToList();
-            iadeGross = await db.Invoices.AsNoTracking()
-                .Where(i => i.IadeMi && i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value) && i.Durum != InvoiceStatus.Iptal)
-                .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
-        }
-        // Fark sayısı (iade edilmiş fark faturanın kendisi de KaynakKiraId'yi korur → sayaçta kalır →
-        // yeniden kesim yeni sıra alır, adversarial V6).
-        var farkSayisi = await db.Invoices.AsNoTracking()
-            .CountAsync(i => i.KaynakKiraId == rentalId && i.Durum != InvoiceStatus.Iptal, ct);
-        return (gross - iadeGross, farkSayisi);
-    }
+        => OrtakSorgular.FarkStateAsync(db, rentalId, ct); // tek kopya (job üreticisiyle ortak)
 
     /// <summary>Kira-fatura advisory kilidi (adversarial B2-Kritik-1): base/fark/dönem posting'leri
     /// aynı kira üzerinde SERİLEŞİR — iki farklı unique-index'e yazan yollar (base: (TenantId,RentalId);

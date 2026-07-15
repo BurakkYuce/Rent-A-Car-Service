@@ -12,6 +12,31 @@ namespace RentACar.Infrastructure.Persistence;
 /// </summary>
 public static class OrtakSorgular
 {
+    /// <summary>Kira fatura fark-state'i (iade-netli faturalanan brüt + fark sayısı) — InvoiceRepository
+    /// (manuel B2 yolu) ve DonemFaturaUretici (job B4) AYNI sorgudan geçer (tek kopya).</summary>
+    public static async Task<(decimal FaturalananBrut, int FarkSayisi)> FarkStateAsync(
+        AppDbContext db, Guid rentalId, CancellationToken ct = default)
+    {
+        var kiraFaturalari = await db.Invoices.AsNoTracking()
+            .Where(i => (i.RentalId == rentalId || i.KaynakKiraId == rentalId)
+                && i.Durum != Domain.Enums.InvoiceStatus.Iptal && !i.IadeMi)
+            .Select(i => new { i.Id, i.GenelToplam })
+            .ToListAsync(ct);
+        var gross = kiraFaturalari.Sum(x => x.GenelToplam);
+        var iadeGross = 0m;
+        if (gross != 0m)
+        {
+            var ids = kiraFaturalari.Select(x => x.Id).ToList();
+            iadeGross = await db.Invoices.AsNoTracking()
+                .Where(i => i.IadeMi && i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value)
+                    && i.Durum != Domain.Enums.InvoiceStatus.Iptal)
+                .SumAsync(i => (decimal?)i.GenelToplam, ct) ?? 0m;
+        }
+        var farkSayisi = await db.Invoices.AsNoTracking()
+            .CountAsync(i => i.KaynakKiraId == rentalId && i.Durum != Domain.Enums.InvoiceStatus.Iptal, ct);
+        return (gross - iadeGross, farkSayisi);
+    }
+
     /// <summary>Vade kaynakları birleşimi: sigorta (Kasko/Trafik) + ödenmemiş MTV + muayene.
     /// Vade panosu (RegulationRepository) ve bildirim job'ı (VadeBildirimUretici) AYNI listeyi kullanır.</summary>
     public static async Task<IReadOnlyList<VadeSource>> VadeKaynaklariAsync(AppDbContext db, CancellationToken ct = default)
