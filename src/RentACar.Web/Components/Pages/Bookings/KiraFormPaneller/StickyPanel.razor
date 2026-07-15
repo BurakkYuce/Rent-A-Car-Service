@@ -302,7 +302,20 @@
                     }
                 </tbody>
             </table>
-            <p class="small"><a class="link" href="/cezalar">Ceza ekle / yansıt (Cezalar ekranı)</a> — HGS geçişleri plaka+cari bazında yansıtılır (kira-bazlı liste TODO, entegrasyon stub).</p>
+            @* FAZ 4.4: kira dönemi HGS geçiş listesi (salt-okunur; stub boş → not). *@
+            <table class="grid tr-grid">
+                <thead><tr><th>Geçiş Zamanı</th><th>Gişe</th><th class="num">Tutar</th></tr></thead>
+                <tbody>
+                    @if (Vm.HgsGecisleri.Count == 0)
+                    { <tr><td colspan="3" class="muted">Kira döneminde HGS geçişi yok (entegrasyon stub — gerçek adaptör bağlanınca dolar).</td></tr> }
+                    @foreach (var g in Vm.HgsGecisleri)
+                    {
+                        <tr><td>@g.Zaman.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td><td>@g.Gecis</td>
+                            <td class="num">@g.Tutar.ToString("N2")</td></tr>
+                    }
+                </tbody>
+            </table>
+            <p class="small"><a class="link" href="/cezalar">Ceza ekle / yansıt (Cezalar ekranı)</a> — HGS yansıtması plaka+cari bazında /cezalar ekranından yapılır.</p>
         }
         else
         {

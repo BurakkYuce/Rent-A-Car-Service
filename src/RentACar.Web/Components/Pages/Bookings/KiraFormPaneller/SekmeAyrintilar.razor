@@ -106,7 +106,7 @@
             <label>Manuel Findeks<input data-mirror="manuelFindexPuan" type="number" min="0" /></label>
             <label>Müşteri Araç<input disabled title="TODO: müşteri kendi aracı (ikame senaryosu) alanı" /></label>
             <label>Araç Detayı<input disabled title="TODO" /></label>
-            <label>Doluluk Hesap<input readonly value="—" title="TODO: doluluk-bazlı fiyat çarpanı" /></label>
+            <label>Doluluk Hesap<input readonly value="@(Vm.AracDolulukYuzde is { } dol ? dol.ToString("N2") + "%" : "—")" title="Aracın ömür-boyu doluluk yüzdesi (karneden)" /></label>
             <label>Kefil<input data-mirror="kefilBilgisi" /></label>
         </div>
     </div>

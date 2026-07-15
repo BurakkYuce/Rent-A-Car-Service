@@ -147,6 +147,14 @@ public sealed class PdfExportService
                             "By signing the lessee accepts the Lessor's Standard Lease terms and the points stated on the reverse.").FontSize(7);
                     });
 
+                    // ========== EK KOŞULLAR (FAZ 4.4 — kira-özel şartlar; varsa basılır) ==========
+                    if (!string.IsNullOrWhiteSpace(s.EkKosullar))
+                        col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Padding(4).Column(ek =>
+                        {
+                            ek.Item().Text("EK KOŞULLAR / ADDITIONAL TERMS").FontSize(7.5f).Bold();
+                            ek.Item().Text(s.EkKosullar!).FontSize(7);
+                        });
+
                     // ========== 3 İMZA BLOĞU ==========
                     col.Item().Row(r =>
                     {

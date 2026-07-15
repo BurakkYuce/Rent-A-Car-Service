@@ -41,5 +41,6 @@ public static class OrnekSozlesme
         HediyeGun: null, FaturalananGun: 3, IskontoTutar: null, HaftaSonuFark: null,
         EkHizmetToplam: 150m, GenelToplam: 3000m, Tahsilat: 0m, Bakiye: 3000m, Doviz: "TL",
         Depozito: 2000m, DropUcreti: 0m,
-        EkHizmetler: [new SozlesmeEkHizmet("Ek Sürücü (örnek)", 150m)]);
+        EkHizmetler: [new SozlesmeEkHizmet("Ek Sürücü (örnek)", 150m)],
+        EkKosullar: "Örnek ek koşul: araç yurt dışına çıkarılamaz; araçta sigara içilmesi hâlinde temizlik bedeli yansıtılır.");
 }
