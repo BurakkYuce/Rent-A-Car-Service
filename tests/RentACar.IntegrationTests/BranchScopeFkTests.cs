@@ -6,10 +6,10 @@ using RentACar.Domain.Enums;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// FAZ 5-C2 — BranchScope FK-farkındalı geçiş kuralı (saf birim; DB gerekmez).
-/// KURAL: Unrestricted geç; (iki FK dolu ∧ eşit) geç — YENİDEN-ADLANDIRMA KURTARMASI (bugün kilitlenirdi);
-/// metin Ordinal-eşit geç (mevcut davranış — FK'sız kayıt/claim'siz eski oturum); aksi RED.
-/// Bilinçli genişletme: FK-uyuşmaz ∧ metin-eşit GEÇER (metin doğruluk-kaynağı; C5'in koşullu işi daraltır).
+/// FAZ 5-C2/C5 — BranchScope FK-farkındalı geçiş kuralı (saf birim; DB gerekmez).
+/// KURAL (C5 son hali): Unrestricted geç; iki FK de doluysa FK eşitliği TEK BAŞINA karar verir
+/// (yeniden-adlandırma kurtarması kalır; FK-uyuşmaz∧metin-eşit SIZINTISI [F2] kapalı);
+/// FK'lardan biri boşsa metin Ordinal-eşit geç (FK'sız kayıt/claim'siz eski oturum — KALICI); aksi RED.
 /// </summary>
 public sealed class BranchScopeFkTests
 {
@@ -52,11 +52,13 @@ public sealed class BranchScopeFkTests
     }
 
     [Fact]
-    public void Fk_uyusmaz_metin_esit_bilincli_genisletmeyle_gecer()
+    public void Fk_uyusmaz_metin_esit_artik_red_f2_kapali()
     {
-        // Yalnız yeniden-adlandırma/elle-SQL ile oluşabilir (interceptor FK'yı aynı metinden türetir).
+        // C5 daraltması: iki FK de doluyken metin OR'u düşer — yeniden-adlandırma çakışması
+        // (B2'ye B1'in eski adı verilir) artık çapraz-şube sızdırmaz. C2'de bilinçli genişletmeyle
+        // GEÇİYORDU (dokümante F2); ön koşul (FK-uyuşmaz∧metin-eşleşir sayacı 0) doğrulanıp kapatıldı.
         var op = new Kimlik { AssignedBranch = "Merkez", AssignedBranchId = B1 };
-        BranchScope.RequireInScope(op, B2, "Merkez"); // metin doğruluk-kaynağı → geç (C5 daraltacak)
+        Assert.Throws<ValidationException>(() => BranchScope.RequireInScope(op, B2, "Merkez"));
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
         {
             var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
             q = q.Where(v => (kid != null && v.SubeId == kid)
-                          || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+                          || ((kid == null || v.SubeId == null) && kad != null && v.Sube != null && v.Sube.Trim() == kad)); // C5
         }
         if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
         if (filter.FiloDurum is { } f) q = q.Where(v => v.FiloDurum == f);
