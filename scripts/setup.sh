@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Ephemeral cloud container'da oturum başına ortam hazırlığı (idempotent).
-# Sıcak çalıştırmalarda tamamlanmış adımları atlar.
+# Sıcak çalıştırmalarda tamamlanmış adımları atlar (restore CACHE'li — bkz. adım 2).
 # Hiçbir adım oturumu düşürmez: opsiyonel adımlar başarısız olsa da exit 0.
+#
+# ÇALIŞTIRMA: SessionStart hook'u bunu ASYNC başlatır (.claude/settings.json:
+#   `nohup ... &`) → oturum açılışı BEKLEMEZ. Çıktı: /tmp/racar-setup.log (tail ile izle).
+#   Sıcak makinede restore cache-isabetiyle ~1-2sn'de biter; taze/soğuk ortamda arka planda
+#   tam hazırlık sürer (ilk `dotnet build` zaten talep-anı restore yapar → boşluk kapanır).
 #
 # PostgreSQL sağlama stratejisi (ortama göre):
 #   - Bu kapalı-ağ ortamında Docker Hub blob host'u (cloudfront.docker.com) egress
@@ -27,10 +32,30 @@ else
   log "dotnet mevcut: $(dotnet --version 2>/dev/null)"
 fi
 
-# 2) Bağımlılıklar + ef aracı.
+# 2) Bağımlılıklar + ef aracı — CACHE'li.
+# Asıl yavaşlık burasıydı: NuGet global paket cache'i olsa da `dotnet restore` graph çözümü
+# sıcak makinede bile ~20sn sürüyor ve HER oturumda koşuluyordu. Artık manifest'lerin
+# (Directory.Packages.props + RentACar.slnx + dotnet-tools.json + tüm *.csproj) içerik hash'i
+# değişmediyse restore ATLANIR. İşaret: .git/ altında (her klon için ayrı, git izlemez;
+# taze klonda işaret yok → tam restore koşar). cksum = POSIX, hem macOS hem Linux'ta var.
 if command -v dotnet >/dev/null 2>&1; then
-  dotnet tool restore >/dev/null 2>&1 || log "UYARI: dotnet tool restore başarısız"
-  dotnet restore RentACar.slnx >/dev/null 2>&1 || log "UYARI: dotnet restore başarısız"
+  marker=".git/racar-restore.marker"
+  want=$( { cat Directory.Packages.props RentACar.slnx .config/dotnet-tools.json 2>/dev/null
+            find . -name '*.csproj' -not -path '*/bin/*' -not -path '*/obj/*' \
+                 -not -path '*/.git/*' -not -path '*/.claude/*' -print0 2>/dev/null \
+              | sort -z | xargs -0 cat 2>/dev/null
+          } | cksum 2>/dev/null | tr ' ' '_' )
+  if [ -n "$want" ] && [ -f "$marker" ] && [ "$(cat "$marker" 2>/dev/null)" = "$want" ]; then
+    log "restore atlandı (manifest değişmedi — cache isabet)"
+  else
+    dotnet tool restore >/dev/null 2>&1 || log "UYARI: dotnet tool restore başarısız"
+    if dotnet restore RentACar.slnx >/dev/null 2>&1; then
+      [ -n "$want" ] && printf '%s\n' "$want" > "$marker" 2>/dev/null || true
+      log "restore tamam (cache güncellendi)"
+    else
+      log "UYARI: dotnet restore başarısız"
+    fi
+  fi
 fi
 
 # 3) PostgreSQL (testler + manuel smoke için).
