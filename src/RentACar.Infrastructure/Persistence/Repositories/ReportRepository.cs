@@ -398,14 +398,15 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        // Gider (Debit) — AccountRef = araç (null = araca bağlanmamış genel gider). Base = Amount×Rate.
+        // Gider — HER İKİ yön (FAZ 4.3: dış hizmet iptali TERS KAYITLA Alacak Gider yazar → SignedBase
+        // ile netleşir; gelir tarafıyla simetrik). AccountRef = araç (null = genel gider). Base = Amount×Rate.
         var gq = db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit);
+            .Where(e => e.AccountType == LedgerAccountType.Gider);
         if (from is { } gf) gq = gq.Where(e => e.EntryDateUtc >= gf);
         if (to is { } gt) gq = gq.Where(e => e.EntryDateUtc <= gt);
-        var giderRaw = await gq.Select(e => new { e.AccountRef, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
+        var giderRaw = await gq.Select(e => new { e.AccountRef, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
         var giderByVeh = giderRaw.GroupBy(x => x.AccountRef ?? Guid.Empty)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.A * x.R));
+            .ToDictionary(g => g.Key, g => g.Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R));
 
         // Gelir — HER İKİ yön (iade faturası Borç Gelir yazar → SignedBase ile netleşir).
         // SourceId(Fatura/FaturaIade) → Kira → Araç ile atfedilir; atfedilemeyen → Guid.Empty.
@@ -454,6 +455,12 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(d => new { d.Id, VehicleId = rentalToVeh.TryGetValue(d.RentalId, out var iv) ? (Guid?)iv : null })
             .Where(x => x.VehicleId != null)
             .ToDictionary(x => x.Id, x => x.VehicleId!.Value);
+        // Dış hizmet komisyon geliri (FAZ 4.3): kayıt → kira → araç.
+        var disHizmetToVeh = (await db.DisHizmetAlimlari.AsNoTracking()
+                .Select(d => new { d.Id, d.RentalId }).ToListAsync(ct))
+            .Select(d => new { d.Id, VehicleId = rentalToVeh.TryGetValue(d.RentalId, out var dv) ? (Guid?)dv : null })
+            .Where(x => x.VehicleId != null)
+            .ToDictionary(x => x.Id, x => x.VehicleId!.Value);
 
         var gelirByVeh = new Dictionary<Guid, decimal>();
         foreach (var e in gelirRaw)
@@ -474,6 +481,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                     veh = srv; break;
                 case "DepozitoIrat" when iratToVeh.TryGetValue(e.SourceId, out var irv):
                     veh = irv; break;
+                case "DisHizmet" when disHizmetToVeh.TryGetValue(e.SourceId, out var dhv): // FAZ 4.3
+                    veh = dhv; break;
             }
             // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
             var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
@@ -516,11 +525,14 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // (SigortaOdeme→poliçe Tip; Gider→Expense.Tip). Base = Amount×Rate (bellekte).
         // Tüm geçmiş çekilir; dönem penceresi BELLEKTE uygulanır — KPI için ömür-boyu toplamlar
         // aynı sorgudan türetilir (adversarial F2: KPI parası dönem filtresinden sızmasın).
-        var giderRawTum = await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gider
-                        && e.Direction == LedgerDirection.Debit && e.AccountRef == vehicleId)
-            .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, A = e.Amount.Amount, R = e.Amount.Rate })
-            .ToListAsync(ct);
+        var giderRawTum = (await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gider && e.AccountRef == vehicleId)
+            .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct))
+            // SIGNED base (FAZ 4.3): ters kayıt (Alacak Gider) negatif — iptal karneden de netleşir.
+            .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId,
+                A = (e.Direction == LedgerDirection.Debit ? 1m : -1m) * e.A, R = e.R })
+            .ToList();
         var giderRaw = giderRawTum
             .Where(e => (from is not { } gf || e.EntryDateUtc >= gf) && (to is not { } gt || e.EntryDateUtc <= gt))
             .ToList();
@@ -535,6 +547,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         string GiderKategori(string sourceType, Guid sourceId) => sourceType switch
         {
             "MtvOdeme" => "MTV",
+            "DisHizmet" => "Dış Hizmet",
             "MuayeneOdeme" => "Muayene",
             "SigortaOdeme" => sigortaTip.TryGetValue(sourceId, out var t) && t == InsuranceType.Kasko
                 ? "Kasko" : "Sigorta (Trafik)",
@@ -599,6 +612,10 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Where(d => d.RentalId != null && rentalIds.Contains(d.RentalId.Value)).ToListAsync(ct);
         var iratIds = iratlar.Select(d => d.Id).ToHashSet();
 
+        // Dış hizmet alımları (FAZ 4.3): komisyon geliri bu aracın kiralarına bağlı kayıtlardan.
+        var disHizmetIds = (await db.DisHizmetAlimlari.AsNoTracking()
+            .Where(d => rentalIds.Contains(d.RentalId)).Select(d => d.Id).ToListAsync(ct)).ToHashSet();
+
         var gelirRawTum = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.AccountType == LedgerAccountType.Gelir)
             .Select(e => new { e.EntryDateUtc, e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
@@ -614,6 +631,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             "Ceza" when cezaIds.Contains(sid) => "Ceza Yansıtma",
             "ServisYansitma" when servisIds.Contains(sid) => "Servis Yansıtma",
             "DepozitoIrat" when iratIds.Contains(sid) => "Depozito İradı",
+            "DisHizmet" when disHizmetIds.Contains(sid) => "Dış Hizmet Komisyonu", // FAZ 4.3
             _ => null // başka araca/kaynağa ait ya da atanamayan → karnede yok
         };
         var gelirler = gelirRaw
@@ -710,13 +728,13 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             {
                 var ids = grupAraclar.Select(g => (Guid?)g.Id).ToList();
                 var grupGider = (await db.AccountLedgerEntries.AsNoTracking()
-                        .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit
+                        .Where(e => e.AccountType == LedgerAccountType.Gider
                                     && e.AccountRef != null && ids.Contains(e.AccountRef)
                                     && e.EntryDateUtc >= son12Bas)
-                        .Select(e => new { e.AccountRef, A = e.Amount.Amount, R = e.Amount.Rate })
+                        .Select(e => new { e.AccountRef, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
                         .ToListAsync(ct))
                     .GroupBy(x => x.AccountRef!.Value)
-                    .ToDictionary(g => g.Key, g => g.Sum(x => x.A * x.R));
+                    .ToDictionary(g => g.Key, g => g.Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R));
                 var oranlar = grupAraclar
                     .Select(g => grupGider.GetValueOrDefault(g.Id) / g.IkinciElDeger!.Value).ToList();
                 grupOrt = oranlar.Count > 0 ? oranlar.Average() : null;
@@ -773,15 +791,15 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var son12Bas = simdiUtc.AddMonths(-12);
         var onceki12Bas = simdiUtc.AddMonths(-24);
         var giderPencereRaw = await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gider && e.Direction == LedgerDirection.Debit
+            .Where(e => e.AccountType == LedgerAccountType.Gider
                         && e.AccountRef != null && e.EntryDateUtc >= onceki12Bas)
-            .Select(e => new { e.AccountRef, e.EntryDateUtc, A = e.Amount.Amount, R = e.Amount.Rate })
+            .Select(e => new { e.AccountRef, e.EntryDateUtc, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
             .ToListAsync(ct);
         var tutSat = giderPencereRaw
             .GroupBy(x => x.AccountRef!.Value)
             .ToDictionary(g => g.Key, g => (
-                G12: g.Where(x => x.EntryDateUtc >= son12Bas).Sum(x => x.A * x.R),
-                GOnceki: g.Where(x => x.EntryDateUtc < son12Bas).Sum(x => x.A * x.R)));
+                G12: g.Where(x => x.EntryDateUtc >= son12Bas).Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R),
+                GOnceki: g.Where(x => x.EntryDateUtc < son12Bas).Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R)));
         var kmByVeh = kiralar.Where(k => k.CikisKm != null && k.DonusKm != null)
             .GroupBy(k => k.VehicleId)
             .ToDictionary(g => g.Key, g => (

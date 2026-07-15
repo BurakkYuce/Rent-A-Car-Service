@@ -27,6 +27,42 @@ public static class FinanceEndpoints
     {
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
+        // FAZ 4.3: B2B dış hizmet alımı — TAM DEFTERLİ (gider araçta + komisyon geliri); ters kayıtla iptal.
+        grp.MapPost("/dis-hizmet", async (RentACar.Application.DisHizmetler.DisHizmetService svc, HttpRequest req,
+            [FromForm] Guid rentalId, [FromForm] Guid cariId, [FromForm] string alinanHizmet,
+            [FromForm] string? hizmetBedeli, [FromForm] string? komisyonOran, [FromForm] string? doviz,
+            [FromForm] string? kur, [FromForm] string? aciklama, [FromForm] Guid islemAnahtari,
+            [FromForm] string? donus) =>
+        {
+            var geri = SafeDonus(donus, "/kiralar/" + rentalId);
+            try
+            {
+                await svc.CreateAsync(new RentACar.Application.DisHizmetler.DisHizmetInput
+                {
+                    RentalId = rentalId, FaturaKesilecekCariId = cariId,
+                    AlinanHizmet = alinanHizmet,
+                    HizmetBedeli = FormParse.Dec(hizmetBedeli) ?? 0m,
+                    TedarikciKomisyonOran = FormParse.Dec(komisyonOran) ?? 0m,
+                    HizmetAlinanFirma = FormParse.Str(req.Form, "hizmetAlinanFirma"),
+                    KomisyonFaturaNo = FormParse.Str(req.Form, "komisyonFaturaNo"),
+                    Doviz = doviz, Kur = FormParse.Dec(kur), Aciklama = aciklama,
+                    IslemAnahtari = islemAnahtari
+                });
+                return Results.Redirect($"{geri}?ok=1");
+            }
+            catch (ValidationException ex)
+            { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        grp.MapPost("/dis-hizmet-iptal", async (RentACar.Application.DisHizmetler.DisHizmetService svc,
+            [FromForm] Guid id, [FromForm] string? donus) =>
+        {
+            var geri = SafeDonus(donus, "/kiralar");
+            try { await svc.IptalEtAsync(id); return Results.Redirect($"{geri}?ok=1"); }
+            catch (ValidationException ex)
+            { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         // FAZ 4.2-B3: dönem faturası kes (+opsiyonel tahsilat kaydı). Çift-submit güvenli: fatura
         // idempotent (Kesildi→mevcut), tahsilat deterministik RowKey(rentalId, donemSira) anahtarlı.
         grp.MapPost("/donem-fatura", async (RentACar.Application.FaturaDonemleri.DonemTahsilatService svc,
