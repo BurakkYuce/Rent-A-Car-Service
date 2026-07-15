@@ -29,6 +29,7 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options)
             new(ApiClaims.TenantId, login.Tenant.Id.ToString()),
             new(ApiClaims.TenantCode, login.Tenant.Code),
             new(ApiClaims.AssignedBranch, login.User.AtanmisSube ?? string.Empty),
+            new(ApiClaims.AssignedBranchId, login.User.AtanmisSubeId?.ToString() ?? string.Empty), // FAZ 5-C1
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_o.Key));
