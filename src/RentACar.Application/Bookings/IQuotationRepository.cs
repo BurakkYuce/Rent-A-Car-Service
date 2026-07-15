@@ -5,7 +5,7 @@ namespace RentACar.Application.Bookings;
 public interface IQuotationRepository
 {
     /// <summary>Teklifler (liste). Şube kapsamı (çıkış ofisi) ile sınırlanabilir.</summary>
-    Task<IReadOnlyList<Quotation>> ListAsync(string? sube = null, CancellationToken ct = default);
+    Task<IReadOnlyList<Quotation>> ListAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
 
     Task<Quotation?> FindAsync(Guid id, CancellationToken ct = default);
 

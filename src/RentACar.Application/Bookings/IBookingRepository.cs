@@ -10,7 +10,7 @@ public interface IBookingRepository
 {
     // Rezervasyon
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
-    Task<IReadOnlyList<Reservation>> ListReservationsAsync(string? sube = null, CancellationToken ct = default);
+    Task<IReadOnlyList<Reservation>> ListReservationsAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
     Task<Reservation?> FindReservationAsync(Guid id, CancellationToken ct = default);
     /// <summary>ReservationNo'yu boşluksuz tahsis edip ekler (transaction).</summary>
     Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default);
@@ -18,7 +18,7 @@ public interface IBookingRepository
 
     // Kira
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
-    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(string? sube = null, CancellationToken ct = default);
+    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
     /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu birleşimi (salt-okunur projeksiyon).</summary>
     Task<IReadOnlyList<RentalRow>> SearchRentalRowsAsync(RentalFilter filter, CancellationToken ct = default);
     Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default);

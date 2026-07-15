@@ -19,7 +19,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
     private readonly PricingService _pricing = pricing;
 
     public Task<IReadOnlyList<Quotation>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct);
+        => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
 
     public Task<Quotation?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
