@@ -15,11 +15,17 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Expense>> ListAsync(string? sube, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Expense>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Expenses.AsNoTracking();
-        if (sube is not null) q = q.Where(x => x.Sube == sube); // şube-kapsamı (metin; diğer listelerle birebir)
+        // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
+        if (!kapsam.Unrestricted)
+        {
+            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            q = q.Where(x => (kid != null && x.SubeId == kid)
+                          || (kad != null && x.Sube != null && x.Sube.Trim() == kad));
+        }
         return await q.OrderByDescending(x => x.Tarih).ToListAsync(ct);
     }
 

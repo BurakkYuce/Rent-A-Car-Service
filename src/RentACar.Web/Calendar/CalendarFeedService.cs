@@ -34,9 +34,8 @@ public sealed class CalendarFeedService(IConfiguration config)
             if (!tenantActive) return null; // kapatılmış tenant'ın feed'i de durur
             tenantId = user.TenantId;
             kullanici = user.DisplayName;
-            // BranchScope.Effective ile aynı kural (ICurrentUser yok → elle): Operatör + atanmış şube → sınırla.
-            sube = user.Rol == UserRole.Operator && !string.IsNullOrWhiteSpace(user.AtanmisSube)
-                ? user.AtanmisSube!.Trim() : null;
+            // C3: el-klonu kaldırıldı — kural TEK yerde (BranchScope.EffectiveText).
+            sube = RentACar.Application.Authorization.BranchScope.EffectiveText(user.Rol, user.AtanmisSube);
         }
 
         // 2) tenant verisi — SystemTenantContext (EF filter) + set_config GUC (RLS). Çift izolasyon.

@@ -28,15 +28,15 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public async Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
     {
         var all = await _cache.GetOrCreateAsync(CacheKey, () => _repository.ListAsync(null, ct), ct);
-        var scope = BranchScope.Effective(_currentUser);
-        return scope is null ? all : all.Where(v => v.Sube == scope).ToList();
+        var kapsam = BranchScope.EffectiveFilter(_currentUser); // C3: FK-farkındalı (rename kurtarması)
+        return kapsam.Unrestricted ? all
+            : all.Where(v => BranchScope.InScope(kapsam, v.SubeId, v.Sube)).ToList();
     }
 
     /// <summary>Liste ekranı: arama/filtre + sayfalama. Rol bazlı şube kapsamı zorlanır.</summary>
     public Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default)
     {
-        var scope = BranchScope.Effective(_currentUser);
-        if (scope is not null) filter.Sube = scope; // operatör kendi şubesi dışına çıkamaz
+        filter.Kapsam = BranchScope.EffectiveFilter(_currentUser); // C3: UI Sube filtresinden BAĞIMSIZ kapsam
         if (filter.Page < 1) filter.Page = 1;
         if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
         return _repository.SearchAsync(filter, ct);
@@ -45,7 +45,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public async Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var v = await _repository.FindAsync(id, ct);
-        if (v is not null) BranchScope.RequireInScope(_currentUser, v.Sube); // adversarial M3
+        if (v is not null) BranchScope.RequireInScope(_currentUser, v.SubeId, v.Sube); // adversarial M3 + C3 FK
         return v;
     }
 
@@ -99,7 +99,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
         var subeId = await ResolveSubeAsync(input.Sube, ct);
         var ok = await _repository.UpdateAsync(id, v =>
         {
-            BranchScope.RequireInScope(_currentUser, v.Sube); // adversarial M3 (mevcut şube — reassign ÖNCESİ)
+            BranchScope.RequireInScope(_currentUser, v.SubeId, v.Sube); // adversarial M3 + C3 FK (reassign ÖNCESİ)
             v.Plaka = plaka;
             v.Marka = Trim(input.Marka);
             v.Tip = Trim(input.Tip);
@@ -127,7 +127,8 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
-        BranchScope.RequireInScope(_currentUser, (await _repository.FindAsync(id, ct))?.Sube); // adversarial M3
+        var vDel = await _repository.FindAsync(id, ct);
+        BranchScope.RequireInScope(_currentUser, vDel?.SubeId, vDel?.Sube); // adversarial M3 + C3 FK
         var ok = await _repository.DeleteAsync(id, ct);
         _cache.Invalidate(CacheKey);
         return ok;
@@ -138,7 +139,8 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     public async Task ManuelKmGirAsync(Guid id, int km, DateTimeOffset? tarih = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        BranchScope.RequireInScope(_currentUser, (await _repository.FindAsync(id, ct))?.Sube);
+        var vTek = await _repository.FindAsync(id, ct);
+        BranchScope.RequireInScope(_currentUser, vTek?.SubeId, vTek?.Sube); // C3 FK
         if (km < 0) throw new ValidationException("KM negatif olamaz.");
         var t = tarih ?? DateTimeOffset.UtcNow;
         if (t > DateTimeOffset.UtcNow.AddMinutes(5))

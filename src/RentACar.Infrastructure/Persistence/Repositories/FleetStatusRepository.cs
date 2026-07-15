@@ -19,6 +19,13 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
 
         var q = db.Vehicles.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(filter.Sube)) q = q.Where(v => v.Sube == filter.Sube);
+        // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
+        if (!filter.Kapsam.Unrestricted)
+        {
+            var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
+            q = q.Where(v => (kid != null && v.SubeId == kid)
+                          || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+        }
         if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
         if (filter.FiloDurum is { } f) q = q.Where(v => v.FiloDurum == f);
         if (filter.Vites is { } vt) q = q.Where(v => v.Vites == vt);

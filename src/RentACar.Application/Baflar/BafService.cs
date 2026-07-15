@@ -15,7 +15,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<Baf>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct); // adversarial: şube-kapsam (Expense sınıfı kaçak)
+        => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C3 (Baf FK'sız → metin dalı)
 
     public async Task<Baf?> GetAsync(Guid id, CancellationToken ct = default)
     {

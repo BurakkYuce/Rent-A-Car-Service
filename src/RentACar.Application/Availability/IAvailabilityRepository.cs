@@ -9,6 +9,7 @@ namespace RentACar.Application.Availability;
 /// </summary>
 public interface IAvailabilityRepository
 {
-    Task<IReadOnlyList<Vehicle>> GetAvailableAsync(
-        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube, CancellationToken ct = default);
+    Task<IReadOnlyList<Vehicle>> GetAvailableAsync( // C3: kapsam FK-farkındalı, UI sube ayrı param
+        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube,
+        Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
 }

@@ -22,10 +22,16 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
     public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(BranchScope.Effective(_currentUser), ct); // operatör yalnız kendi şubesi
+        => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C3: FK-farkındalı kapsam
 
-    public Task<Expense?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindAsync(id, ct);
+    public async Task<Expense?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var e = await _repository.FindAsync(id, ct);
+        // C3 adversarial F1: liste kapsamlıyken tekil-ID probe'u açıktı (M3 sınıfı; bugün çağıran yüzey
+        // yok — gelecekteki gider-detay ucu için parite guard'ı).
+        if (e is not null) BranchScope.RequireInScope(_currentUser, e.SubeId, e.Sube);
+        return e;
+    }
 
     public async Task<Guid> CreateAsync(ExpenseInput input, CancellationToken ct = default)
     {

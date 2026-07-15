@@ -13,7 +13,9 @@ public sealed class FleetStatusFilter
     public string? Marka { get; set; }
     public Vites? Vites { get; set; }
     public FuelType? Yakit { get; set; }
-    public string? Sube { get; set; }
+    public string? Sube { get; set; }         // UI şube filtresi (kullanıcı seçimi)
+    /// <summary>Rol bazlı şube KAPSAMI (C3; servis ayarlar) — UI filtresinden bağımsız zorlanır.</summary>
+    public Authorization.BranchScope.BranchFilter Kapsam { get; set; }
     /// <summary>true → yalnız kirada; false → yalnız kirada olmayan; null → tümü.</summary>
     public bool? KiradaMi { get; set; }
 }
