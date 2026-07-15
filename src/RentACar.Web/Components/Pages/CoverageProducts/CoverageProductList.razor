@@ -94,7 +94,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/sigorta-urunleri/delete" onsubmit="return confirm('Ürün silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/sigorta-urunleri/delete" data-confirm="Ürün silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

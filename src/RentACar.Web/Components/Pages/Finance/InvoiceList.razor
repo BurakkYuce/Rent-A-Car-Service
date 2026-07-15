@@ -33,7 +33,7 @@
                     @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
                     {
                         <form method="post" action="/finans/fatura-iade" style="display:inline"
-                              onsubmit="return confirm('@i.No faturası iade edilsin mi? (ters kayıt: gelir/KDV/cari geri alınır)');">
+                              data-confirm="@i.No faturası iade edilsin mi? (ters kayıt: gelir/KDV/cari geri alınır)">
                             <AntiforgeryToken />
                             <input type="hidden" name="kaynakFaturaId" value="@i.Id" />
                             <button type="submit" class="btn-danger">İade</button>

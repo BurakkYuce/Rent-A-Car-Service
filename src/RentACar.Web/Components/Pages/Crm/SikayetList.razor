@@ -58,7 +58,7 @@
 
 @if (_edit is not null)
 {
-    <form method="post" action="/sikayetler/delete" onsubmit="return confirm('Silinsin mi?');"><AntiforgeryToken />
+    <form method="post" action="/sikayetler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
         <input type="hidden" name="id" value="@_edit.Id" /><button type="submit" class="btn-danger">Sil</button>
     </form>
 }

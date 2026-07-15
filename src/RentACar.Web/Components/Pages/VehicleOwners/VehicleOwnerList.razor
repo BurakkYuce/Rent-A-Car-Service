@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/arac-sahipleri/delete" onsubmit="return confirm('Araç sahibi silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/arac-sahipleri/delete" data-confirm="Araç sahibi silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@o.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

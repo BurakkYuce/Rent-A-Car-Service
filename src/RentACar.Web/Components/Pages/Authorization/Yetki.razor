@@ -32,7 +32,7 @@
                 <td>@s.AllowedRolesCsv</td>
                 <td>@(s.Aktif ? "Evet" : "Hayır")</td>
                 <td>
-                    <form method="post" action="/yetki/sil" onsubmit="return confirm('Override kaldırılsın mı?');">
+                    <form method="post" action="/yetki/sil" data-confirm="Override kaldırılsın mı?">
                         <input type="hidden" name="ekranKodu" value="@s.EkranKodu" />
                         <button type="submit" class="btn-danger">Sil</button>
                     </form>
@@ -59,7 +59,7 @@
 <h2>Rol Yetki Kopyala (şablon)</h2>
 <p class="muted small">Kaynak rolün erişebildiği TÜM ekran override'larına hedef rolü ekler (yalnız ekleme;
     kimsenin erişimi kaldırılmaz). Yeni bir rolü hızlı yetkilendirmek için.</p>
-<form method="post" action="/yetki/kopyala" class="grid-form" onsubmit="return confirm('Kaynak rolün ekran erişimi hedefe kopyalansın mı?');">
+<form method="post" action="/yetki/kopyala" class="grid-form" data-confirm="Kaynak rolün ekran erişimi hedefe kopyalansın mı?">
     <label>Kaynak Rol
         <select name="kaynak" required>
             @foreach (var r in Enum.GetValues<UserRole>()) { <option value="@r">@r</option> }

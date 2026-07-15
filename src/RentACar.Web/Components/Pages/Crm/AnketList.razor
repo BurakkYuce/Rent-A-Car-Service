@@ -26,7 +26,7 @@
                 <td>@a.Yorum</td>
                 <td>@a.Kaynak</td>
                 <td>
-                    <form method="post" action="/anketler/delete" onsubmit="return confirm('Silinsin mi?');"><AntiforgeryToken />
+                    <form method="post" action="/anketler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" /><button type="submit" class="btn-danger">Sil</button>
                     </form>
                 </td>
