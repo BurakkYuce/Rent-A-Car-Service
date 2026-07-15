@@ -17,6 +17,7 @@
 @inject RentACar.Application.Kur.KurService Kurlar
 @inject ReportService Raporlar
 @inject RentACar.Application.Integrations.IHgsService Hgs
+@inject ReservationService Rezervasyonlar
 @inject RentACar.Application.RentalAddOns.RentalAddOnService AddOns
 @inject InvoiceService Faturalar
 @inject PenaltyService Cezalar
@@ -212,6 +213,9 @@ else
             var karne = await Raporlar.GetAracKarneAsync(_vm.Rental!.VehicleId);
             _vm.AracDolulukYuzde = karne?.Kpi.DolulukYuzde;
         }
+        // FAZ 4.5: kaynak rezervasyon (OTA kutuları) — manuel kirada null → "—".
+        if (_vm.Edit && _vm.Rental!.ReservationId is Guid rezId)
+            _vm.KaynakRezervasyon = await Rezervasyonlar.GetAsync(rezId);
         if (_vm.Edit)
         {
             var plaka = (await Vehicles.ListAsync()).FirstOrDefault(v => v.Id == _vm.Rental!.VehicleId)?.Plaka;

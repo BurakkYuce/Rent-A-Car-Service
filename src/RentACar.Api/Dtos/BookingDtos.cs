@@ -18,12 +18,23 @@ public sealed class BookingRequest
     public decimal FazlaKmUcret { get; set; }
     public decimal YakitBirimUcret { get; set; }
     public string? Aciklama { get; set; }
+    // FAZ 4.5 — OTA bileşen fiyatları (opsiyonel; kanal/istemci doldurur)
+    public decimal? OtaKiraBedeli { get; set; }
+    public decimal? OtaDropBedeli { get; set; }
+    public decimal? OtaBebekKoltugu { get; set; }
+    public decimal? OtaNavigasyon { get; set; }
+    public decimal? OtaLcf { get; set; }
+    public decimal? OtaCdw { get; set; }
+    public decimal? OtaScdw { get; set; }
+    public decimal? OtaEkSurucu { get; set; }
 
     public BookingInput ToInput() => new()
     {
         MusteriId = MusteriId, VehicleId = VehicleId, BasTar = BasTar, BitTar = BitTar,
         GunlukUcret = GunlukUcret, CikisOfisi = CikisOfisi, DonusOfisi = DonusOfisi,
-        KmLimit = KmLimit, FazlaKmUcret = FazlaKmUcret, YakitBirimUcret = YakitBirimUcret, Aciklama = Aciklama
+        KmLimit = KmLimit, FazlaKmUcret = FazlaKmUcret, YakitBirimUcret = YakitBirimUcret, Aciklama = Aciklama,
+        OtaKiraBedeli = OtaKiraBedeli, OtaDropBedeli = OtaDropBedeli, OtaBebekKoltugu = OtaBebekKoltugu,
+        OtaNavigasyon = OtaNavigasyon, OtaLcf = OtaLcf, OtaCdw = OtaCdw, OtaScdw = OtaScdw, OtaEkSurucu = OtaEkSurucu
     };
 }
 
