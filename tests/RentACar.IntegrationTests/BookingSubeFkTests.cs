@@ -3,7 +3,9 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
+using RentACar.Application.EkHizmetler;
 using RentACar.Application.Locations;
+using RentACar.Application.RentalAddOns;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
@@ -142,5 +144,73 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         var rezler = await op.ServiceProvider.GetRequiredService<ReservationService>().ListAsync();
         var tek = Assert.Single(rezler);                                   // yalnız Havalimanı (B1)
         Assert.Equal(b1, tek.CikisSubeId);
+    }
+
+    [Fact]
+    public async Task Ek_hizmet_kalemleri_sube_kapsamli()
+    {
+        // C4 adversarial Bulgu 1 (önceden var olan Medium — probe'un kalıcı hali): ek hizmet ekleme/silme
+        // kapsam-guard'sız TEK booking-mutasyon yüzeyiydi; operatör GÖREMEDİĞİ çapraz-şube kiranın
+        // parasını değiştirebiliyordu. Kapanış: red. Kendi şubesinin diğer ofisi guard'larla aynı kural.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid b1, kiraH, kiraA, tanim, yabanciKalem;
+        using (var seed = host.ScopeFor(tenant))
+        {
+            var sp = seed.ServiceProvider;
+            (b1, _, kiraH, kiraA, _) = await KurAsync(sp);
+            tanim = await sp.GetRequiredService<EkHizmetTanimService>()
+                .CreateAsync(new EkHizmetTanimInput { Kod = "BEBEK", Ad = "Bebek Koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
+            yabanciKalem = await sp.GetRequiredService<RentalAddOnService>().AddAsync(kiraA, tanim, 1m);
+        }
+
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
+            assignedBranch: "Merkez", assignedBranchId: b1);
+        var kalemler = op.ServiceProvider.GetRequiredService<RentalAddOnService>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => kalemler.AddAsync(kiraA, tanim, 1m));    // çapraz-şube ekleme RED
+        await Assert.ThrowsAsync<ValidationException>(() => kalemler.RemoveAsync(yabanciKalem));     // çapraz-şube silme RED
+
+        var kalem = await kalemler.AddAsync(kiraH, tanim, 2m);             // B1'in diğer ofisi → GEÇER
+        Assert.True(await kalemler.RemoveAsync(kalem));
+    }
+
+    [Fact]
+    public async Task Teklif_tekil_islemleri_kapsamli()
+    {
+        // C4 adversarial Bulgu 2 (önceden var olan Low, Expense-F1 sınıfı): liste kapsamlıyken tekil
+        // oku/gönder/kabul guard'sızdı — Id-probe çapraz-şube teklifi işletirdi. Kapanış + genişletme paritesi.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid b1, tekA, tekH;
+        using (var seed = host.ScopeFor(tenant))
+        {
+            var sp = seed.ServiceProvider;
+            (b1, _, _, _, _) = await KurAsync(sp);
+            var cari = await sp.GetRequiredService<CustomerService>()
+                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Teklif", Soyad = "Cari" });
+            var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 TF 01" });
+            var teklifler = sp.GetRequiredService<QuotationService>();
+            var bas = DateTimeOffset.UtcNow.AddDays(3);
+            async Task<Guid> Teklif(string ofis, int ofset) => await teklifler.CreateAsync(new QuotationInput
+            {
+                MusteriId = cari, VehicleId = arac, CikisOfisi = ofis,
+                BasTar = bas.AddDays(ofset * 5), BitTar = bas.AddDays(ofset * 5 + 2), GunlukUcret = 100m
+            });
+            tekA = await Teklif("Ankara Ofis", 0);
+            tekH = await Teklif("Havalimanı", 1);
+        }
+
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
+            assignedBranch: "Merkez", assignedBranchId: b1);
+        var svc = op.ServiceProvider.GetRequiredService<QuotationService>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GetAsync(tekA));     // Id-probe RED
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SendAsync(tekA));    // durum geçişi RED
+        await Assert.ThrowsAsync<ValidationException>(() => svc.AcceptAsync(tekA));  // kabul RED
+
+        // Kendi şubesinin diğer ofisi ("Havalimanı"→B1): kabul GEÇER, doğan rezervasyon kapsamda.
+        var rezId = await svc.AcceptAsync(tekH);
+        Assert.NotNull(await op.ServiceProvider.GetRequiredService<ReservationService>().GetAsync(rezId));
     }
 }
