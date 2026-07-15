@@ -418,6 +418,24 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             bankaGiris, bankaCikis, bankaGiris - bankaCikis);
     }
 
+    /// <summary>Home mini-trend (FAZ 6.2): son n ayın ay-pencereli GELİR toplamı (GetGelirGiderAsync ile
+    /// aynı netleme — iade düşer). Ay çıpası UTC ayın 1'i; pencere [ayBas, sonrakiAyBas) — GetLedgerRows
+    /// üst-ucu DAHİL olduğundan bitiş AddTicks(-1) ile verilir (sınır kaydı iki aya sayılmaz).</summary>
+    public async Task<IReadOnlyList<AylikGelirNokta>> GetAylikGelirTrendAsync(
+        int aySayisi = 6, DateTimeOffset? simdi = null, CancellationToken ct = default)
+    {
+        var s = simdi ?? DateTimeOffset.UtcNow;
+        var buAy = new DateTimeOffset(s.Year, s.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        var sonuc = new List<AylikGelirNokta>(aySayisi);
+        for (int i = aySayisi - 1; i >= 0; i--)
+        {
+            var ayBas = buAy.AddMonths(-i);
+            var gg = await GetGelirGiderAsync(ayBas, ayBas.AddMonths(1).AddTicks(-1), ct);
+            sonuc.Add(new AylikGelirNokta(ayBas, gg.GelirToplam));
+        }
+        return sonuc;
+    }
+
     /// <summary>Dönem gelir-gider özeti + KDV + net kâr + SourceType kırılımı.</summary>
     public async Task<GelirGiderDto> GetGelirGiderAsync(
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)

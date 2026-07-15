@@ -10,7 +10,9 @@ namespace RentACar.Web.Jobs;
 /// günlük operasyon özeti WhatsApp gönderir (saat kapılı, idempotent). Dış e-posta YOK; WhatsApp config-gated
 /// (yoksa stub no-op). racar_app bağlantısı + tenant-loop + GUC (backfill deseni; owner DEĞİL).
 /// </summary>
-public sealed class VadeBildirimJob(IConfiguration config, IWhatsAppService whatsapp, ILogger<VadeBildirimJob> log) : BackgroundService
+public sealed class VadeBildirimJob(
+    IConfiguration config, IWhatsAppService whatsapp,
+    RentACar.Application.Reporting.TutSatEsikleri tutSatEsik, ILogger<VadeBildirimJob> log) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
     private static readonly TimeZoneInfo Tz = ResolveTz();
@@ -61,6 +63,8 @@ public sealed class VadeBildirimJob(IConfiguration config, IWhatsAppService what
                 {
                     await TenantGuc.OpenAsync(db, tenantId, ct); // raw-context GUC açılışı (tek doğru yol)
                     toplam += await VadeBildirimUretici.RunAsync(db, tenantId, now, ct);
+                    // FAZ 6.2: bakım-km (≤1000 kalan) + tut/sat (≥2 sinyal) bildirimleri — aynı kapsamlı db.
+                    toplam += await FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct);
                 } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
 
                 // Günlük operasyon özeti WhatsApp (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).

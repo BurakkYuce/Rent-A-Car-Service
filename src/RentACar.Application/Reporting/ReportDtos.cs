@@ -314,5 +314,17 @@ public sealed record TutSatEsikleri(decimal DegerOrani = 0.45m, decimal SinifKat
 /// <summary>Tut/Sat sinyal sonucu: 0-3 kural tetiklendi + gerekçe metinleri (karne kartı / filo kolonu).</summary>
 public sealed record TutSatSinyalDto(int Sinyal, IReadOnlyList<string> Gerekceler);
 
+// ---------- FAZ 6.2 — dashboard/bildirim derinliği ----------
+
+/// <summary>Tut/Sat ham paketinin araç meta satırı (grup ortalaması + sinyal hesabı girdisi).</summary>
+public sealed record TutSatAracRow(Guid Id, string Plaka, string? Grup, decimal? IkinciElDeger);
+
+/// <summary>Filo tut/sat hamı + araç metası — FiloAnaliz raw'ı ile FiloBildirimUretici'nin TEK
+/// doğruluk kaynağı (OrtakSorgular.TutSatHamAsync; O12a vade-birleşimi deseni).</summary>
+public sealed record TutSatHamPaket(IReadOnlyList<FiloTutSatRow> Ham, IReadOnlyList<TutSatAracRow> Araclar);
+
+/// <summary>Aylık gelir trend noktası (Home mini-trend). AyBas = ayın 1'i UTC.</summary>
+public sealed record AylikGelirNokta(DateTimeOffset AyBas, decimal Gelir);
+
 /// <summary>Filo tut/sat hamı: araç-başına son-12-ay / önceki-12-ay gider (defter, base) ve km.</summary>
 public sealed record FiloTutSatRow(Guid VehicleId, decimal Gider12, decimal GiderOnceki12, int Km12, int KmOnceki12);
