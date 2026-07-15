@@ -44,6 +44,7 @@ public sealed class PdfExportService
                     StringComparison.OrdinalIgnoreCase) ? "TL" : (s.Doviz ?? "TL");
                 string DT(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("dd.MM.yyyy") : "";
                 string Sa(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("HH:mm") : "";
+                static string Dots(int n) => new('.', n);
 
                 // ---- ÜST BAŞLIK ----
                 p.Header().Row(r =>
@@ -106,22 +107,30 @@ public sealed class PdfExportService
                             void Row(string al, string? av, string ml, string? mv) { Lb(al); Vl(av); Lb(ml); Vl(mv); }
                             string M(decimal? d) => d is { } x ? $"{x:N2} {pb}" : "";
 
+                            // Referans (YÜCE RENT) satır SIRASI birebir: araç sol / mali sağ. Marka-Model ve
+                            // Çıkış-Dönüş-Yapılan Km AYRI satır; mali kolon hedef sırasıyla (Gün Sayısı→Hazırlayan).
+                            // Değeri olmayan alanlar (Fazla Saat/Kasko/Ödeme Şekli/Hasarlı/Rez/Dosya) hedefte de boş.
                             Row("Kiralandığı Yer", $"{s.CikisOfisi ?? ""} {DT(s.BasTar)} {Sa(s.BasTar)}".Trim(), "Gün Sayısı", s.Gun.ToString());
                             Row("Döneceği Tarih", $"{DT(s.BitTar)} {Sa(s.BitTar)}".Trim(), "Fazla Saat", null);
-                            Row("Döndüğü Yer", s.DonusOfisi, "Drop", M(s.DropUcreti));
+                            Row("Döndüğü Yer", $"{s.DonusOfisi ?? ""} {DT(s.GercekDonusTar)} {Sa(s.GercekDonusTar)}".Trim(), "Drop", M(s.DropUcreti));
                             Row("Plaka", s.Plaka, "Kasko", null);
-                            Row("Marka / Model", $"{s.Marka} {s.Tip}{(s.ModelYili is null ? "" : $" ({s.ModelYili})")}", "Depozit", M(s.Depozito));
-                            Row("Araç Grup", s.Grup, "Ödeme Şekli", null);
-                            Row("Çıkış / Dönüş Km", $"{s.CikisKm?.ToString() ?? ""} / {s.DonusKm?.ToString() ?? ""}", "KM Limit / Aşım", $"{(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())} / {s.FazlaKmUcret:N2}");
-                            Row("Yapılan Km", s.KullanilanKm?.ToString(), "Tahsilat", M(s.Tahsilat));
-                            Row("Hasarlı Araç", null, "Kalan", M(s.Bakiye));
-                            Row("Rez Kaynağı", null, "Hazırlayan", s.TeslimAlanAd);
-                            Row("Dosya No", null, "G. TOPLAM", M(s.GenelToplam));
+                            Row("Marka", s.Marka, "Depozit", M(s.Depozito));
+                            Row("Model", $"{s.Tip}{(s.ModelYili is null ? "" : $" ({s.ModelYili})")}".Trim(), "Ödeme Şekli", null);
+                            Row("Çıkış Km", s.CikisKm?.ToString(), "Tahsilat", M(s.Tahsilat));
+                            Row("Dönüş Km", s.DonusKm?.ToString(), "Kalan", M(s.Bakiye));
+                            Row("Yapılan Km", s.KullanilanKm?.ToString(), "G. TOPLAM", M(s.GenelToplam));
+                            Row("Araç Grup", s.Grup, "Hazırlayan", s.TeslimAlanAd);
+                            Row("Hasarlı Araç", null, "", null);
+                            Row("Rez Kaynağı", null, "", null);
+                            Row("Dosya No", null, "", null);
                         });
                     });
 
                     // ========== AÇIKLAMA (tam genişlik) ==========
+                    // Operatörün serbest metni ÖNCE (hedef paritesi: MUAFİYET/AŞIM KM/TOTAL KM gibi kritik
+                    // notlar bu banttadır) — eskiden hiç basılmıyordu; sonra hesaplanmış ek bilgiler.
                     var acik = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(s.Aciklama)) acik.Add(s.Aciklama.Trim());
                     if (s.KmHediye is int kh && kh > 0) acik.Add($"KM Hediye: {kh}");
                     if (s.BitisSebebi is not null) acik.Add($"Bitiş Sebebi: {s.BitisSebebi}");
                     if (s.HediyeGun is int hg && hg > 0) acik.Add($"Hediye {hg} gün (faturalanan {s.FaturalananGun})");
@@ -131,7 +140,7 @@ public sealed class PdfExportService
                     col.Item().BorderHorizontal(0.75f).BorderColor(Line).Background(LabelBg).MinHeight(26).PaddingHorizontal(4).PaddingVertical(3)
                         .Text($"Açıklama : {(acik.Count == 0 ? "" : string.Join("  ·  ", acik))}").FontSize(8);
                     col.Item().Border(0.75f).BorderColor(Line).PaddingHorizontal(4).PaddingVertical(2)
-                        .Text($"Günlük {s.GunlukUcret:N2}   ·   Kira {s.Tutar:N2}   ·   Fazla KM {s.FazlaKmBedeli:N2}   ·   Yakıt {s.YakitBedeli:N2}   ·   Uzatma {s.UzatmaBedeli:N2}   ·   Ek Hizmet {s.EkHizmetToplam:N2}   ({pb})").FontSize(8);
+                        .Text($"Günlük {s.GunlukUcret:N2}   ·   Kira {s.Tutar:N2}   ·   KM Limit {(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())} / Aşım {s.FazlaKmUcret:N2}   ·   Fazla KM {s.FazlaKmBedeli:N2}   ·   Yakıt {s.YakitBedeli:N2}   ·   Uzatma {s.UzatmaBedeli:N2}   ·   Ek Hizmet {s.EkHizmetToplam:N2}   ({pb})").FontSize(8);
 
                     // ========== ÇİFT EKSPERTİZ (orijinal araç şeması görseli — çıkış+dönüş tek karede) ==========
                     col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Image(EkspertizSema).FitWidth();
@@ -155,20 +164,31 @@ public sealed class PdfExportService
                             ek.Item().Text(s.EkKosullar!).FontSize(7);
                         });
 
-                    // ========== 3 İMZA BLOĞU ==========
-                    col.Item().Row(r =>
+                    // ========== KREDİ KARTI + KART SAHİBİ + İMZA (referans YÜCE RENT birebir) ==========
+                    // Elle doldurulan BOŞ alanlar — PCI: kart verisi sistemde TUTULMAZ, sözleşmede fizikî alınır.
+                    col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Row(r =>
                     {
-                        void Imza(IContainer box, string rol, string? ad)
-                            => box.Border(0.75f).BorderColor(Line).Padding(5).Column(c =>
-                            {
-                                c.Item().Text(rol).FontSize(7.5f).Bold();
-                                c.Item().Text(ad ?? "").FontSize(8);
-                                c.Item().Height(26);
-                                c.Item().Text("İMZA - SİGNATURE").FontSize(7.5f).Bold();
-                            });
-                        r.RelativeItem().Element(b => Imza(b, "ARACI TESLİM EDEN / DELIVERED BY", s.TeslimAlanAd));
-                        r.RelativeItem().Element(b => Imza(b, "1. SÜRÜCÜ / 1st DRIVER", s.MusteriAd));
-                        r.RelativeItem().Element(b => Imza(b, "2. SÜRÜCÜ / 2nd DRIVER", s.IkinciSurucuAd));
+                        r.RelativeItem(1.15f).Padding(5).Column(c =>
+                        {
+                            c.Item().PaddingBottom(5).Text($"Kart No : {Dots(24)}").FontSize(7.5f);
+                            c.Item().PaddingBottom(5).Text($"CVV No : {Dots(24)}").FontSize(7.5f);
+                            c.Item().PaddingBottom(5).Text($"Banka / Cinsi : {Dots(20)}").FontSize(7.5f);
+                            c.Item().Text($"Son Kullanma Tarihi : {Dots(15)}").FontSize(7.5f);
+                        });
+                        r.RelativeItem(1f).BorderLeft(0.75f).BorderColor(Line).Padding(5).Column(c =>
+                        {
+                            c.Item().PaddingBottom(3).Text("Kart Sahibinin").FontSize(7.5f).Bold();
+                            c.Item().PaddingBottom(5).Text($"Adı Soyadı : {Dots(16)}").FontSize(7.5f);
+                            c.Item().PaddingBottom(5).Text($"Telefonu : {Dots(16)}").FontSize(7.5f);
+                            c.Item().Text($"İmza : {Dots(18)}").FontSize(7.5f);
+                        });
+                        r.RelativeItem(1f).BorderLeft(0.75f).BorderColor(Line).Padding(5).Column(c =>
+                        {
+                            c.Item().Text("AD SOYAD - NAME SURNAME").FontSize(7.5f).Bold();
+                            c.Item().PaddingTop(2).Text(s.MusteriAd).FontSize(8);
+                            c.Item().Height(22);
+                            c.Item().Text("İMZA - SİGNATURE").FontSize(7.5f).Bold();
+                        });
                     });
                 });
             });
