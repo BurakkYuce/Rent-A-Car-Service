@@ -137,6 +137,7 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.AssistFirma).HasMaxLength(128);
         e.Property(x => x.OzelSoforBilgisi).HasMaxLength(512);
         e.Property(x => x.EkKosullar).HasMaxLength(2048);
+        e.Property(x => x.OpsiyonNet).HasColumnType("numeric(19,4)"); // FAZ 4.4
         e.Property(x => x.AksLastikCikis).HasMaxLength(64);
         e.Property(x => x.AksLastikDonus).HasMaxLength(64);
         e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();

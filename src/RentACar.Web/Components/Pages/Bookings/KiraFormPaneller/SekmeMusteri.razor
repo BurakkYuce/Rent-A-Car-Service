@@ -77,8 +77,15 @@
         <strong>Risk / Kefil</strong>
         <div class="grid-form">
             <label>Manuel Findeks Puanı<input name="manuelFindexPuan" type="number" min="0" step="1" value="@Vm.I(c => c.ManuelFindexPuan)" /></label>
-            <label>Risk İzinli<input readonly value="Normal" title="TODO: Risk_Izin akışı (Customer.RiskLimiti/KaraListe bugün cari kartında)" /></label>
-            <label>Risk Limiti (cariden)<input readonly value="@MusteriAlan(c => c.RiskLimiti.ToString("N2"))" /></label>
+            <label>Risk Limiti (cariden)<input readonly value="@MusteriAlan(c => c.RiskLimiti.ToString("N2"))"
+                title="Limit tanımlıysa (>0) ve cari borç bakiyesi limiti aşıyorsa kira açılışı Yönetici onayı ister (FAZ 4.4)." /></label>
+            <AuthorizeView Roles="Admin,Yonetici" Context="riskCtx">
+                <label title="Risk limiti aşımında kira açılış onayı — yalnız Yönetici/Admin (servis rolü ayrıca doğrular)">
+                    Risk Onayı (limit aşımı)
+                    <span><input type="hidden" name="riskOnay" value="false" />
+                    <input type="checkbox" name="riskOnay" value="true" checked="@(Vm.Edit && Vm.Rental!.RiskOnay)" /></span>
+                </label>
+            </AuthorizeView>
             <label style="grid-column:1/-1;">Kefil Bilgisi<input name="kefilBilgisi" maxlength="512" value="@Vm.S(c => c.KefilBilgisi)" /></label>
         </div>
         <p class="muted small">Findeks entegrasyonu yok — puan manuel girilir ve sözleşmede saklanır.</p>

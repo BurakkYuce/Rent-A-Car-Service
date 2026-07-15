@@ -15,6 +15,8 @@
 @inject ReservationSourceService Kaynaklar
 @inject CustomCodeService OzelKodlar
 @inject RentACar.Application.Kur.KurService Kurlar
+@inject ReportService Raporlar
+@inject RentACar.Application.Integrations.IHgsService Hgs
 @inject RentACar.Application.RentalAddOns.RentalAddOnService AddOns
 @inject InvoiceService Faturalar
 @inject PenaltyService Cezalar
@@ -203,6 +205,20 @@ else
         if (_vm.Edit) _vm.FaturaDonemleri = await DonemPlan.PreviewAsync(_vm.Rental!.Id);
         // FAZ 4.3: dış hizmet grid'i.
         if (_vm.Edit) _vm.DisHizmetler = await DisHizmetler.ListForRentalAsync(_vm.Rental!.Id);
+        // FAZ 4.4: doluluk kutusu (karne KPI'sı — finans yetkisi olan rolde; karne sayfası da aynı rollerle)
+        // + kira dönemi HGS geçişleri (stub boş döner; entegrasyon gelince dolar).
+        if (_vm.Edit && _vm.FinansYetkisi)
+        {
+            var karne = await Raporlar.GetAracKarneAsync(_vm.Rental!.VehicleId);
+            _vm.AracDolulukYuzde = karne?.Kpi.DolulukYuzde;
+        }
+        if (_vm.Edit)
+        {
+            var plaka = (await Vehicles.ListAsync()).FirstOrDefault(v => v.Id == _vm.Rental!.VehicleId)?.Plaka;
+            if (!string.IsNullOrWhiteSpace(plaka))
+                _vm.HgsGecisleri = await Hgs.GetCrossingsAsync(
+                    plaka!, _vm.Rental!.BasTar, _vm.Rental!.GercekDonusTar ?? _vm.Rental!.BitTar);
+        }
         _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
         _vm.QMusteriId = Guid.TryParse(MusteriIdQ, out var qm) ? qm : null; // müsaitlik yenilemesinde seçim korunur
 
