@@ -20,6 +20,7 @@ public sealed class CircuitTenantContext : ITenantContext, ICurrentUser
     public string? UserName { get; private set; }
     public UserRole? Role { get; private set; }
     public string? AssignedBranch { get; private set; }
+    public Guid? AssignedBranchId { get; private set; } // FAZ 5-C1
 
     /// <summary>Kimlik circuit'te dolduruldu mu (RLS-in-circuit teşhisi için).</summary>
     public bool IsSet { get; private set; }
@@ -33,6 +34,8 @@ public sealed class CircuitTenantContext : ITenantContext, ICurrentUser
         Role = Enum.TryParse<UserRole>(user.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : null;
         var branch = user.FindFirst(IdentityClaims.AssignedBranch)?.Value;
         AssignedBranch = string.IsNullOrWhiteSpace(branch) ? null : branch;
+        AssignedBranchId = Guid.TryParse(user.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var bid)
+            ? bid : null; // FAZ 5-C1 (eski oturum claim'siz → null, hatasız)
         IsSet = true;
     }
 }

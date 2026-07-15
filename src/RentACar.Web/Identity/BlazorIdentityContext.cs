@@ -12,6 +12,7 @@ public static class IdentityClaims
     public const string TenantCode = "tenant_code";
     public const string UserId = "user_id";
     public const string AssignedBranch = "assigned_sube";
+    public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
     // Rol, standart ClaimTypes.Role olarak yazılır → [Authorize(Roles="Admin")] doğrudan çalışır.
 }
 
@@ -46,6 +47,9 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
             return string.IsNullOrWhiteSpace(v) ? null : v;
         }
     }
+
+    public Guid? AssignedBranchId
+        => Guid.TryParse(User.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g : null;
 }
 
 /// <summary>
@@ -87,6 +91,10 @@ public sealed class HybridIdentity(IHttpContextAccessor accessor, CircuitTenantC
             return string.IsNullOrWhiteSpace(v) ? circuit.AssignedBranch : v;
         }
     }
+
+    public Guid? AssignedBranchId
+        => (Guid.TryParse(U?.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g : (Guid?)null)
+           ?? circuit.AssignedBranchId;
 }
 
 /// <summary>

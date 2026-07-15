@@ -14,6 +14,7 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
     public string? UserName { get; set; }
     public UserRole? Role { get; set; }
     public string? AssignedBranch { get; set; }
+    public Guid? AssignedBranchId { get; set; } // FAZ 5-C1 (testler C2+ ile FK-kapsamı da kurar)
 }
 
 /// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>
