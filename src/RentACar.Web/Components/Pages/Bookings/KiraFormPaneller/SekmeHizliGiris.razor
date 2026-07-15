@@ -21,7 +21,15 @@
                     <label>Durum<input value="@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Yeni")" readonly /></label>
                     <label>Sözleşme No<input value="@(Vm.Edit ? Vm.Rental!.SozlesmeNo : "kayıtta verilir (boşluksuz sıra)")" readonly /></label>
                 </div>
-                <p class="muted small">Kayıtlı değilse: Müşteri sekmesinden tek adımda yeni müşteri girilir. Analiz: cari ekstre kayıttan sonra açılır.</p>
+                @if (!Vm.Edit)
+                {
+                    @* Yeni müşteri: kayıtlı değilse buradan tek adımda ekle (paylaşılan blok — formda bir kez). *@
+                    <YeniMusteriBlok />
+                }
+                else
+                {
+                    <p class="muted small">Analiz: cari ekstre kayıttan sonra açılır.</p>
+                }
             </div>
             @* B. Tarih / lokasyon *@
             <div class="card">
