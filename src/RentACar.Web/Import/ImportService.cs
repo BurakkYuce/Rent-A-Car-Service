@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
+using RentACar.Application.RateMatrices;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 
@@ -15,10 +16,11 @@ public sealed record ImportResult(int Eklenen, int Atlanan, int Hatali, IReadOnl
 /// + blind-index; DÜZ metin DB'ye GİRMEZ. Benzersizlik (plaka / TC-hash) servis katmanında zorlanır → tekrarlar
 /// atlanır. Uç ManageUsers-gate'li (PII toplu-yazımı). Başlık eşleme esnek (Türkçe-katlı + alias'lar).
 /// </summary>
-public sealed class ImportService(VehicleService vehicles, CustomerService customers)
+public sealed class ImportService(VehicleService vehicles, CustomerService customers, RateMatrixService rateMatrices)
 {
     private readonly VehicleService _vehicles = vehicles;
     private readonly CustomerService _customers = customers;
+    private readonly RateMatrixService _rateMatrices = rateMatrices;
 
     // ---------- Ayrıştırma ----------
     public static IReadOnlyList<Dictionary<string, string>> Parse(Stream stream, string fileName)
@@ -208,6 +210,96 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             catch (ValidationException ex) { hatalar.Add($"{etiket}: {ex.Message}"); }
         }
         return new ImportResult(eklenen, atlanan, hatalar.Count, Trunc(hatalar));
+    }
+
+    // ---------- Tarife matrisi (FAZ 6.1 — xml_fiyat_aktar karşılığı) ----------
+    /// <summary>Toplu tarife içe-aktarımı. GÜVENLİK ÇİTİ: satırlar DAİMA OnayDurumu=Bekliyor girer —
+    /// dosyadaki onay kolonları YOK SAYILIR; onay akışı (Tarife Matrisi ekranı) atlanamaz, toplu import
+    /// onaysız fiyatı CANLIYA çıkaramaz (motor yalnız Onaylı seçer). Kod tekrarı (mevcut/dosya-içi)
+    /// atlanır; bozuk satır (kodsuz, negatif/sayı-olmayan fiyat, bozuk tarih) satır-hata raporuna düşer,
+    /// diğerleri girer (atomik değil — /ice-aktar deseniyle tutarlı).</summary>
+    public async Task<ImportResult> ImportTarifelerAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+    {
+        int eklenen = 0, atlanan = 0;
+        var hatalar = new List<string>();
+        var mevcutKodlar = new HashSet<string>(
+            (await _rateMatrices.ListAsync(ct)).Select(m => m.Kod), StringComparer.Ordinal);
+
+        int sira = 1;
+        foreach (var r in rows)
+        {
+            sira++; // başlık 1. satır → veri 2'den başlar (hata mesajında dosya satırı)
+            var kodHam = Get(r, "Kod", "Tarife Kodu", "Kodu");
+            var etiket = kodHam ?? $"(satır {sira})";
+            try
+            {
+                if (string.IsNullOrWhiteSpace(kodHam))
+                    throw new ValidationException("Tarife kodu zorunludur.");
+                var kod = kodHam.Trim().ToUpperInvariant();
+                if (!mevcutKodlar.Add(kod)) { atlanan++; continue; } // mevcut VEYA dosya-içi tekrar
+
+                await _rateMatrices.CreateAsync(new RateMatrixInput
+                {
+                    Kod = kod,
+                    Ad = Get(r, "Ad", "Adı", "Tarife Adı") ?? kod,
+                    Aciklama = Get(r, "Açıklama"),
+                    Kanal = Get(r, "Kanal"),
+                    Sube = Get(r, "Şube"),
+                    Lokasyon = Get(r, "Lokasyon", "Ofis"),
+                    AracGrupKod = Get(r, "Grup", "Araç Grubu", "Grubu", "Araç Grup Kod"),
+                    ParaBirimi = Get(r, "Para Birimi", "Döviz", "ParaBirimi"),
+                    BasTar = ParseDate(Get(r, "Başlangıç", "Başlangıç Tarihi", "BasTar", "Geçerlilik Başlangıç")),
+                    BitTar = ParseDate(Get(r, "Bitiş", "Bitiş Tarihi", "BitTar", "Geçerlilik Bitiş")),
+                    Gun1 = ParseDec(Get(r, "Gün 1", "Gun1")), Gun2 = ParseDec(Get(r, "Gün 2", "Gun2")),
+                    Gun3 = ParseDec(Get(r, "Gün 3", "Gun3")), Gun4 = ParseDec(Get(r, "Gün 4", "Gun4")),
+                    Gun5 = ParseDec(Get(r, "Gün 5", "Gun5")), Gun6 = ParseDec(Get(r, "Gün 6", "Gun6")),
+                    Gun7 = ParseDec(Get(r, "Gün 7", "Gun7")),
+                    GunHaftalik = ParseDec(Get(r, "Haftalık", "Gün Haftalık", "Haftalık (8-29)")),
+                    GunAylik = ParseDec(Get(r, "Aylık", "Gün Aylık", "Aylık (30+)")),
+                    // Onay alanları BİLİNÇLİ sabit (dosyadan okunmaz) — çit yukarıdaki özet.
+                    OnayDurumu = TarifeOnayDurumu.Bekliyor,
+                    Onaylayan = null, OnayZaman = null, Aktif = true
+                }, ct);
+                eklenen++;
+            }
+            catch (ValidationException ex)
+            {
+                mevcutKodlar.Remove(kodHam?.Trim().ToUpperInvariant() ?? "");
+                hatalar.Add($"{etiket}: {ex.Message}");
+            }
+        }
+        return new ImportResult(eklenen, atlanan, hatalar.Count, Trunc(hatalar));
+    }
+
+    /// <summary>TR/EN sayı: "1.250,50" ve "1250.50" ikisi de çalışır (son ayraç ondalık; TCMB
+    /// InvariantCulture dersi). Boş → null; sayı-olmayan dolu değer → ValidationException (sessiz yutma yok).</summary>
+    private static decimal? ParseDec(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim().Replace(" ", "");
+        int nokta = t.LastIndexOf('.'), virgul = t.LastIndexOf(',');
+        if (nokta >= 0 && virgul >= 0)
+        {
+            var binlik = nokta > virgul ? "," : ".";
+            t = t.Replace(binlik, "");
+            t = t.Replace(',', '.');
+        }
+        else if (virgul >= 0) t = t.Replace(',', '.');
+        return decimal.TryParse(t, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v
+            : throw new ValidationException($"'{s}' sayı olarak okunamadı.");
+    }
+
+    /// <summary>Tarih: "2026-01-15" / "15.01.2026" / "15/01/2026" (gün-hassas, UTC). Bozuk dolu değer → hata.</summary>
+    private static DateTimeOffset? ParseDate(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        string[] fmt = ["yyyy-MM-dd", "dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy", "d/M/yyyy"];
+        return DateTime.TryParseExact(s.Trim(), fmt, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d)
+            ? new DateTimeOffset(d, TimeSpan.Zero)
+            : throw new ValidationException($"'{s}' tarih olarak okunamadı (bekleneni: 2026-01-15 veya 15.01.2026).");
     }
 
     private static IReadOnlyList<string> Trunc(List<string> h)

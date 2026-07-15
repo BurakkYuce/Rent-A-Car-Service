@@ -20,7 +20,8 @@ public sealed class ImportTests(PostgresFixture fx)
         => ImportService.Parse(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "x.csv");
 
     private static ImportService Svc(IServiceProvider sp)
-        => new(sp.GetRequiredService<VehicleService>(), sp.GetRequiredService<CustomerService>());
+        => new(sp.GetRequiredService<VehicleService>(), sp.GetRequiredService<CustomerService>(),
+               sp.GetRequiredService<RentACar.Application.RateMatrices.RateMatrixService>());
 
     [Fact]
     public async Task Arac_import_ekler_ve_ayni_plakayi_atlar()
