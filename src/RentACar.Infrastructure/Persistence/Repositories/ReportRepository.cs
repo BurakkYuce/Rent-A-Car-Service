@@ -146,44 +146,10 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
     public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(CancellationToken ct = default)
     {
+        // FAZ 6.2: birleşim OrtakSorgular'a taşındı — rapor sayfası ve FiloBildirimUretici (bakım-km
+        // bildirimi) AYNI tanımı kullanır (O12a deseni; iki kopya sessizce ayrışmasın).
         await using var db = await _factory.CreateDbContextAsync(ct);
-
-        // Kaynak 1: servis kaydındaki elle hedef — her araç için en yüksek SonrakiBakimKm.
-        var bakim = (await db.ServiceRecords.AsNoTracking()
-            .Where(r => r.SonrakiBakimKm != null)
-            .GroupBy(r => r.VehicleId)
-            .Select(g => new { VehicleId = g.Key, Sonraki = g.Max(r => r.SonrakiBakimKm!.Value) })
-            .ToListAsync(ct)).ToDictionary(b => b.VehicleId, b => b.Sonraki);
-
-        // Kaynak 2 (otomatik): Vehicle.SonBakimKm + ServisTanim.BakimKm (AracTipi ↔ Vehicle.Tip,
-        // case-insensitive; birden çok tanım eşleşirse EN KÜÇÜK aralık = en erken uyarı).
-        var tanimlar = (await db.ServisTanimlari.AsNoTracking()
-                .Where(t => t.Aktif && t.BakimKm > 0).Select(t => new { t.AracTipi, t.BakimKm }).ToListAsync(ct))
-            .GroupBy(t => t.AracTipi.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Min(t => t.BakimKm), StringComparer.OrdinalIgnoreCase);
-
-        var araclar = await db.Vehicles.AsNoTracking()
-            .Select(v => new { v.Id, v.Plaka, v.Km, v.Tip, v.SonBakimKm }).ToListAsync(ct);
-
-        // Araç bazında birleştir: iki kaynaktan MIN(KalanKm) (çift satır YOK — adversarial inceleme 4);
-        // hiçbir kaynağı olmayan araç "tanım yok" satırı (SonrakiBakimKm=null) — sessiz gizleme yok.
-        return araclar.Select(v =>
-            {
-                int? servisHedef = bakim.TryGetValue(v.Id, out var s) ? s : null;
-                int? otoHedef = v.SonBakimKm is int son && v.Tip is { } tip
-                    && tanimlar.TryGetValue(tip.Trim(), out var aralik) ? son + aralik : null;
-
-                var (hedef, kaynak) = (servisHedef, otoHedef) switch
-                {
-                    (int sv, int ot) => sv - v.Km <= ot - v.Km ? (sv, "Servis") : (ot, "Tanım"),
-                    (int sv, null) => (sv, "Servis"),
-                    (null, int ot) => (ot, "Tanım"),
-                    _ => ((int?)null, (string?)null)
-                };
-                return new PeriyodikServisRow(v.Id, v.Plaka, v.Km, hedef, hedef - v.Km, kaynak);
-            })
-            .OrderBy(r => r.KalanKm ?? int.MaxValue)
-            .ToList();
+        return await OrtakSorgular.PeriyodikServisAsync(db, ct);
     }
 
     public async Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
@@ -786,31 +752,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(r => new FiloKiraRow(r.VehicleId, r.BasTar, r.GercekDonusTar ?? r.BitTar, r.CikisKm, r.DonusKm))
             .ToListAsync(ct);
 
-        // FAZ 2.2 Tut/Sat hamı: TEK ledger taramasıyla araç-başına son-12 / önceki-12 gider + km pencereleri.
-        var simdiUtc = DateTimeOffset.UtcNow;
-        var son12Bas = simdiUtc.AddMonths(-12);
-        var onceki12Bas = simdiUtc.AddMonths(-24);
-        var giderPencereRaw = await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gider
-                        && e.AccountRef != null && e.EntryDateUtc >= onceki12Bas)
-            .Select(e => new { e.AccountRef, e.EntryDateUtc, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
-            .ToListAsync(ct);
-        var tutSat = giderPencereRaw
-            .GroupBy(x => x.AccountRef!.Value)
-            .ToDictionary(g => g.Key, g => (
-                G12: g.Where(x => x.EntryDateUtc >= son12Bas).Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R),
-                GOnceki: g.Where(x => x.EntryDateUtc < son12Bas).Sum(x => (x.Direction == LedgerDirection.Debit ? 1m : -1m) * x.A * x.R)));
-        var kmByVeh = kiralar.Where(k => k.CikisKm != null && k.DonusKm != null)
-            .GroupBy(k => k.VehicleId)
-            .ToDictionary(g => g.Key, g => (
-                Km12: g.Where(k => k.Bit >= son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value),
-                KmOnceki: g.Where(k => k.Bit >= onceki12Bas && k.Bit < son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value)));
-        var tutSatHam = araclar.Select(a =>
-        {
-            var g = tutSat.GetValueOrDefault(a.Id);
-            var km = kmByVeh.GetValueOrDefault(a.Id);
-            return new FiloTutSatRow(a.Id, g.G12, g.GOnceki, km.Km12, km.KmOnceki);
-        }).ToList();
+        // FAZ 2.2 Tut/Sat hamı — FAZ 6.2: OrtakSorgular'a taşındı (FiloBildirimUretici ile TEK kaynak;
+        // pencereleme iki yerde yazılıp sessizce ayrışmasın). Karne kartı == filo kolonu parite testi kilit.
+        var tutSatHam = (await OrtakSorgular.TutSatHamAsync(db, DateTimeOffset.UtcNow, ct)).Ham;
 
         return new FiloAnalizRawDto(pencere, omur, araclar, kiralar, tutSatHam);
     }

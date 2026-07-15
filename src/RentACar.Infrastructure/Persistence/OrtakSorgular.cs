@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Regulation;
+using RentACar.Application.Reporting;
 using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence;
@@ -70,4 +71,91 @@ public static class OrtakSorgular
     /// <summary>Filo durum listesi (Durum sayımı tüketicide). Filo doluluk raporu ve WhatsApp özeti aynı kaynağı kullanır.</summary>
     public static Task<List<VehicleStatus>> VehicleDurumlariAsync(AppDbContext db, CancellationToken ct = default)
         => db.Vehicles.AsNoTracking().Select(v => v.Durum).ToListAsync(ct);
+
+    /// <summary>FAZ 6.2 — Tut/Sat hamı: FiloAnaliz raw'ı (ReportRepository) ve FiloBildirimUretici AYNI
+    /// sorgudan geçer (pencereleme iki yerde yazılıp sessizce ayrışmasın). Pencereler: son-12 =
+    /// [now−12ay, ∞), önceki-12 = [now−24ay, now−12ay). Gider = defter (AccountType=Gider,
+    /// AccountRef=araç, yön-imzalı Σ base); km = İptal-dışı, çıkış+dönüş km'li kiralar
+    /// (efektif bitiş GercekDonus ?? BitTar).</summary>
+    public static async Task<TutSatHamPaket> TutSatHamAsync(
+        AppDbContext db, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var son12Bas = now.AddMonths(-12);
+        var onceki12Bas = now.AddMonths(-24);
+
+        var araclar = (await db.Vehicles.AsNoTracking()
+                .Select(v => new { v.Id, v.Plaka, v.Grup, v.IkinciElDeger }).ToListAsync(ct))
+            .Select(v => new TutSatAracRow(v.Id, v.Plaka, v.Grup, v.IkinciElDeger)).ToList();
+
+        var giderRaw = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Gider
+                        && e.AccountRef != null && e.EntryDateUtc >= onceki12Bas)
+            .Select(e => new { e.AccountRef, e.EntryDateUtc, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct);
+        var gider = giderRaw
+            .GroupBy(x => x.AccountRef!.Value)
+            .ToDictionary(g => g.Key, g => (
+                G12: g.Where(x => x.EntryDateUtc >= son12Bas)
+                    .Sum(x => (x.Direction == RentACar.Domain.Entities.LedgerDirection.Debit ? 1m : -1m) * x.A * x.R),
+                GOnceki: g.Where(x => x.EntryDateUtc < son12Bas)
+                    .Sum(x => (x.Direction == RentACar.Domain.Entities.LedgerDirection.Debit ? 1m : -1m) * x.A * x.R)));
+
+        var kmByVeh = (await db.Rentals.AsNoTracking()
+                .Where(r => r.Durum != RentalStatus.Iptal && r.CikisKm != null && r.DonusKm != null)
+                .Select(r => new { r.VehicleId, Bit = r.GercekDonusTar ?? r.BitTar, r.CikisKm, r.DonusKm })
+                .ToListAsync(ct))
+            .GroupBy(k => k.VehicleId)
+            .ToDictionary(g => g.Key, g => (
+                Km12: g.Where(k => k.Bit >= son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value),
+                KmOnceki: g.Where(k => k.Bit >= onceki12Bas && k.Bit < son12Bas).Sum(k => k.DonusKm!.Value - k.CikisKm!.Value)));
+
+        var ham = araclar.Select(a =>
+        {
+            var g = gider.GetValueOrDefault(a.Id);
+            var km = kmByVeh.GetValueOrDefault(a.Id);
+            return new FiloTutSatRow(a.Id, g.G12, g.GOnceki, km.Km12, km.KmOnceki);
+        }).ToList();
+        return new TutSatHamPaket(ham, araclar);
+    }
+
+    /// <summary>FAZ 6.2 — periyodik bakım kalan-km satırları: rapor sayfası (ReportRepository) ve
+    /// FiloBildirimUretici AYNI birleşimden geçer. İKİ kaynaktan MIN(KalanKm) (çift satır yok):
+    /// (1) servis kaydındaki elle hedef (MAX SonrakiBakimKm); (2) Vehicle.SonBakimKm + ServisTanim.BakimKm
+    /// (AracTipi↔Tip case-insensitive; çok tanımda EN KÜÇÜK aralık = en erken uyarı). Kaynağı olmayan
+    /// araç "tanım yok" satırı (hedef null) — sessiz gizleme yok.</summary>
+    public static async Task<IReadOnlyList<PeriyodikServisRow>> PeriyodikServisAsync(
+        AppDbContext db, CancellationToken ct = default)
+    {
+        var bakim = (await db.ServiceRecords.AsNoTracking()
+            .Where(r => r.SonrakiBakimKm != null)
+            .GroupBy(r => r.VehicleId)
+            .Select(g => new { VehicleId = g.Key, Sonraki = g.Max(r => r.SonrakiBakimKm!.Value) })
+            .ToListAsync(ct)).ToDictionary(b => b.VehicleId, b => b.Sonraki);
+
+        var tanimlar = (await db.ServisTanimlari.AsNoTracking()
+                .Where(t => t.Aktif && t.BakimKm > 0).Select(t => new { t.AracTipi, t.BakimKm }).ToListAsync(ct))
+            .GroupBy(t => t.AracTipi.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Min(t => t.BakimKm), StringComparer.OrdinalIgnoreCase);
+
+        var araclar = await db.Vehicles.AsNoTracking()
+            .Select(v => new { v.Id, v.Plaka, v.Km, v.Tip, v.SonBakimKm }).ToListAsync(ct);
+
+        return araclar.Select(v =>
+            {
+                int? servisHedef = bakim.TryGetValue(v.Id, out var s) ? s : null;
+                int? otoHedef = v.SonBakimKm is int son && v.Tip is { } tip
+                    && tanimlar.TryGetValue(tip.Trim(), out var aralik) ? son + aralik : null;
+
+                var (hedef, kaynak) = (servisHedef, otoHedef) switch
+                {
+                    (int sv, int ot) => sv - v.Km <= ot - v.Km ? (sv, "Servis") : (ot, "Tanım"),
+                    (int sv, null) => (sv, "Servis"),
+                    (null, int ot) => (ot, "Tanım"),
+                    _ => ((int?)null, (string?)null)
+                };
+                return new PeriyodikServisRow(v.Id, v.Plaka, v.Km, hedef, hedef - v.Km, kaynak);
+            })
+            .OrderBy(r => r.KalanKm ?? int.MaxValue)
+            .ToList();
+    }
 }
