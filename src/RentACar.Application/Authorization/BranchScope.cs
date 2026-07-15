@@ -39,13 +39,24 @@ public static class BranchScope
     /// yalnız şube-yeniden-adlandırma/elle-SQL ile oluşabilir (interceptor FK'yı aynı metinden türetir).</summary>
     public static void RequireInScope(ICurrentUser user, Guid? kayitSubeId, string? kayitSubeOfis)
     {
-        var scope = EffectiveFilter(user);
-        if (scope.Unrestricted) return;
-        if (scope.SubeId is Guid claimFk && kayitSubeId is Guid kayitFk && claimFk == kayitFk) return;
-        if (scope.SubeAd is not null &&
-            string.Equals(scope.SubeAd, kayitSubeOfis?.Trim(), StringComparison.Ordinal)) return;
-        throw new ValidationException("Bu kayıt şube kapsamınız dışında.");
+        if (!InScope(EffectiveFilter(user), kayitSubeId, kayitSubeOfis))
+            throw new ValidationException("Bu kayıt şube kapsamınız dışında.");
     }
+
+    /// <summary>TEK kural (C3): guard, bellek-içi liste filtresi ve SQL şablonu hep bundan türetilir.
+    /// FK-eşit VEYA metin-eşit (Ordinal — mevcut davranış). Unrestricted → daima true.</summary>
+    public static bool InScope(BranchFilter f, Guid? kayitSubeId, string? kayitMetin)
+    {
+        if (f.Unrestricted) return true;
+        if (f.SubeId is Guid cid && kayitSubeId is Guid kid && cid == kid) return true;
+        return f.SubeAd is not null &&
+               string.Equals(f.SubeAd, kayitMetin?.Trim(), StringComparison.Ordinal);
+    }
+
+    /// <summary>Ham User alanlarından metin kapsamı (ICS feed gibi ICurrentUser'sız yollar için —
+    /// CalendarFeedService'teki el-klonunu kaldırır; kural TEK yerde).</summary>
+    public static string? EffectiveText(UserRole? rol, string? atanmisSube)
+        => rol == UserRole.Operator && !string.IsNullOrWhiteSpace(atanmisSube) ? atanmisSube!.Trim() : null;
 
     /// <summary>Eski 1-arg overload — mevcut çağrı yerleri C3/C4'te FK'lı overload'a taşınana dek delege.</summary>
     public static void RequireInScope(ICurrentUser user, string? kayitSubeOfis)
