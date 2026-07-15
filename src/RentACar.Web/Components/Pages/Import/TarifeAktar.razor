@@ -1,0 +1,60 @@
+@page "/tarife-aktar"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Tarife İçe Aktar — RentPro</PageTitle>
+
+<div class="page-head"><h1>Tarife İçe Aktar (Toplu Fiyat)</h1></div>
+
+<p class="muted small">CSV/Excel dosyasından <strong>tarife matrisi</strong> satırlarını toplu yükler
+    (referans sistem "xml_fiyat_aktar" karşılığı). Tüm satırlar <strong>Beklemede</strong> girer — fiyat motoru
+    onaylanmamış tarifeyi <strong>kullanmaz</strong>; onay <a href="/tarife-matris">Tarife Matrisi</a>
+    ekranından verilir. Kod tekrarı (mevcut ya da dosya içi) atlanır; bozuk satırlar rapor edilir,
+    diğerleri girer. Yalnız Admin.</p>
+
+@if (Eklenen is not null || Mesaj is not null)
+{
+    <div class="summary-strip" style="margin:1rem 0;">
+        @if (Mesaj is not null)
+        {
+            <div class="cell"><div class="s-v">@Mesaj</div></div>
+        }
+        else
+        {
+            <div class="cell"><div class="s-k">Tarife</div><div class="s-v">içe-aktarım</div></div>
+            <div class="cell"><div class="s-k">Eklenen (Beklemede)</div><div class="s-v">@Eklenen</div></div>
+            <div class="cell"><div class="s-k">Atlanan (tekrar)</div><div class="s-v">@Atlanan</div></div>
+            <div class="cell"><div class="s-k">Hatalı</div><div class="s-v">@(Hatali ?? 0)</div></div>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Hatalar))
+    {
+        <div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
+            <strong>Satır hataları (ilk 5):</strong>
+            <ul style="margin:.25rem 0 0 1rem;">
+                @foreach (var h in Hatalar.Split('|'))
+                {
+                    <li class="small">@h</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+<section style="max-width:560px;">
+    <form method="post" action="/tarife-aktar/yukle" enctype="multipart/form-data"><AntiforgeryToken />
+        <input type="file" name="dosya" accept=".xlsx,.xls,.csv" required />
+        <button type="submit">Tarifeleri Aktar</button>
+    </form>
+    <p class="muted small" style="margin-top:.75rem;">Tanınan sütunlar (esnek eşleme): <strong>Kod</strong> (zorunlu),
+        Ad, Kanal, Grup/Araç Grubu, Şube, Lokasyon, Başlangıç, Bitiş (2026-01-15 veya 15.01.2026),
+        Gün 1..Gün 7, Haftalık (8-29 gün), Aylık (30+), Para Birimi, Açıklama.
+        Sayılar "1.250,50" veya "1250.50" biçiminde olabilir. Dosyadaki onay kolonları yok sayılır.</p>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "eklenen")] public int? Eklenen { get; set; }
+    [SupplyParameterFromQuery(Name = "atlanan")] public int? Atlanan { get; set; }
+    [SupplyParameterFromQuery(Name = "hatali")] public int? Hatali { get; set; }
+    [SupplyParameterFromQuery(Name = "hatalar")] public string? Hatalar { get; set; }
+    [SupplyParameterFromQuery(Name = "mesaj")] public string? Mesaj { get; set; }
+}
