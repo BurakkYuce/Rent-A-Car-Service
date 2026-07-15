@@ -80,7 +80,7 @@ public sealed class DisHizmetService(
 
         var rental = await bookings.FindRentalAsync(input.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
-        Authorization.BranchScope.RequireInScope(currentUser, rental.CikisOfisi);
+        Authorization.BranchScope.RequireInScope(currentUser, rental.CikisSubeId, rental.CikisOfisi);
         if (rental.Durum == RentalStatus.Iptal)
             throw new ValidationException("İptal edilmiş kiraya dış hizmet kaydı girilemez.");
         if (await cariler.FindAsync(input.FaturaKesilecekCariId, ct) is null)
@@ -127,7 +127,7 @@ public sealed class DisHizmetService(
             throw new ValidationException("Kayıt zaten iptal edilmiş.");
         var rental = await bookings.FindRentalAsync(kayit.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
-        Authorization.BranchScope.RequireInScope(currentUser, rental.CikisOfisi);
+        Authorization.BranchScope.RequireInScope(currentUser, rental.CikisSubeId, rental.CikisOfisi);
         await periodLock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // ters kayıt bugüne yazılır
         await repository.IptalAsync(id, Entries(kayit, rental.VehicleId, flip: true, tarih: DateTimeOffset.UtcNow), ct);
     }

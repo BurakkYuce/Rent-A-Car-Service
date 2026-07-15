@@ -10,6 +10,9 @@ public interface ILocationRepository
     /// <summary>Yalnız aktif ofisler (form açılır listesi kaynağı).</summary>
     Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default);
 
+    /// <summary>Ada göre TEK lokasyon (C4): exact case-insensitive; aynı adda Kod sırası deterministik.</summary>
+    Task<Location?> FindByAdAsync(string ad, CancellationToken ct = default);
+
     Task<Location?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Tenant içinde aynı kod (büyük/küçük harf duyarsız) başka kayıtta var mı?</summary>

@@ -13,6 +13,10 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
     public void Configure(EntityTypeBuilder<Reservation> e)
     {
         e.ToTable("Reservations");
+        // FAZ 5-C4: türetilmiş çıkış-şube FK'sı (composite tenant-FK; PlatformConfigs User deseni).
+        e.HasIndex(x => new { x.TenantId, x.CikisSubeId });
+        e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.CikisSubeId })
+            .HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.ReservationNo).IsRequired().HasMaxLength(32);
@@ -55,6 +59,10 @@ internal sealed class QuotationConfig : IEntityTypeConfiguration<Quotation>
     public void Configure(EntityTypeBuilder<Quotation> e)
     {
         e.ToTable("Quotations");
+        // FAZ 5-C4: türetilmiş çıkış-şube FK'sı (composite tenant-FK; PlatformConfigs User deseni).
+        e.HasIndex(x => new { x.TenantId, x.CikisSubeId });
+        e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.CikisSubeId })
+            .HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.No).IsRequired().HasMaxLength(32);
@@ -96,6 +104,10 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
     public void Configure(EntityTypeBuilder<RentalContract> e)
     {
         e.ToTable("Rentals");
+        // FAZ 5-C4: türetilmiş çıkış-şube FK'sı (composite tenant-FK; PlatformConfigs User deseni).
+        e.HasIndex(x => new { x.TenantId, x.CikisSubeId });
+        e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.CikisSubeId })
+            .HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.SozlesmeNo).IsRequired().HasMaxLength(32);
