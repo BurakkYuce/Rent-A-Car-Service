@@ -79,11 +79,12 @@
                                 <a href="/regulasyon">Sigorta / MTV / Muayene</a>
                             </div>
                         </details>
-                        <details class="nav-group" open="@Acik("/tarifeler","/tarife-matris","/sigorta-urunleri","/kira-kurallari","/broker-yasaklari","/fiyat-hesapla","/maliyet-hesapla","/ek-hizmetler")">
+                        <details class="nav-group" open="@Acik("/tarifeler","/tarife-matris","/tarife-aktar","/sigorta-urunleri","/kira-kurallari","/broker-yasaklari","/fiyat-hesapla","/maliyet-hesapla","/ek-hizmetler")">
                             <summary><span class="ic"></span> Fiyat & Tarife <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/tarifeler">Tarifeler</a>
                                 <a href="/tarife-matris">Tarife Matrisi</a>
+                                <AuthorizeView Roles="Admin" Context="taCtx"><a href="/tarife-aktar">Tarife İçe Aktar</a></AuthorizeView>
                                 <a href="/sigorta-urunleri">Sigorta Ürünleri</a>
                                 <a href="/kira-kurallari">Kiralama Kuralları</a>
                                 <a href="/broker-yasaklari">Broker Yasakları</a>
