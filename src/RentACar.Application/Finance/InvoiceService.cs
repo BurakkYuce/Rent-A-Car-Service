@@ -450,8 +450,9 @@ public sealed class InvoiceService(
         ];
     }
 
-    /// <summary>Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv). DENGELİ.</summary>
-    private static List<AccountLedgerEntry> BuildEntries(Invoice inv)
+    /// <summary>Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv). DENGELİ. FAZ 4.2-B4:
+    /// DonemFaturaUretici (job) fatura defterini de BU kümeden üretir (tek kopya).</summary>
+    public static List<AccountLedgerEntry> BuildEntries(Invoice inv)
     {
         AccountLedgerEntry Entry(LedgerAccountType type, Guid? reff, LedgerDirection dir, decimal amount) => new()
         {

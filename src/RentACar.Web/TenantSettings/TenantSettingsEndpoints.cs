@@ -38,6 +38,8 @@ public static class TenantSettingsEndpoints
                 MinKiraGun = FormParse.Int(f["minKiraGun"].ToString()),
                 MaxKiraGun = FormParse.Int(f["maxKiraGun"].ToString()),
                 RezOnayZorunlu = f["rezOnayZorunlu"].ToString() is "true" or "on",
+                DonemselFaturalamaJob = f["donemselFaturalamaJob"].ToString() is "true" or "on", // FAZ 4.2-B4
+                DonemselOtomatikTahsilat = f["donemselOtomatikTahsilat"].ToString() is "true" or "on",
                 SmtpHost = f["smtpHost"].ToString(),
                 SmtpPort = FormParse.Int(f["smtpPort"].ToString()),
                 SmtpKullanici = f["smtpKullanici"].ToString(),

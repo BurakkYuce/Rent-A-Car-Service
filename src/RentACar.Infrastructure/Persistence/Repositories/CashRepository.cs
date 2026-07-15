@@ -52,7 +52,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
 
     /// <summary>Kira Tahsilat/Bakiye'yi ATOMİK SQL ile günceller (O1 fix: eşzamanlı tahsilatta kayıp yok;
     /// SET sağ tarafı ESKİ satır değerini okur → += yarışsız). Aynı transaction içinde çağrılır; RLS geçerli.</summary>
-    private static async Task ApplyRentalDeltaAsync(AppDbContext db, CashTransaction tx, CancellationToken ct)
+    // FAZ 4.2-B4: DonemFaturaUretici (job) kira Tahsilat/Bakiye deltasını da BU metottan uygular (tek kopya).
+    internal static async Task ApplyRentalDeltaAsync(AppDbContext db, CashTransaction tx, CancellationToken ct)
     {
         if (tx.RentalId is not Guid rentalId) return;
         var rental = await db.Rentals.AsNoTracking()

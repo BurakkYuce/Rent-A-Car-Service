@@ -54,6 +54,13 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// <summary>Günlük operasyon özeti WhatsApp'tan gönderilsin mi.</summary>
     public bool WhatsAppGunlukOzet { get; set; }
 
+    /// <summary>FAZ 4.2-B4: dönemsel faturalama job'ı bu tenant'ta çalışsın mı (default KAPALI —
+    /// manuel-önce ilkesi; kira-başına ayrıca DonemselFaturalama bayrağı gerekir).</summary>
+    public bool DonemselFaturalamaJob { get; set; }
+    /// <summary>FAZ 4.2-B4: job kesilen dönem faturasına Kasa tahsilat kaydı da yazsın mı (default
+    /// KAPALI — parasız tahsilat kaydı kasa gerçekliğini yalanlar; yalnız gerçek oto-ödeme akışında aç).</summary>
+    public bool DonemselOtomatikTahsilat { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

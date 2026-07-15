@@ -264,8 +264,9 @@ public sealed class CashService(
         return reversal.Id;
     }
 
-    /// <summary>İşlemin doğal (veya çevrilmiş) dengeli defter kümesi.</summary>
-    private static List<AccountLedgerEntry> Natural(CashTransaction tx, Guid? sourceIdOverride = null, bool flip = false)
+    /// <summary>İşlemin doğal (veya çevrilmiş) dengeli defter kümesi. FAZ 4.2-B4: DonemFaturaUretici
+    /// (job) oto-tahsilat kayıtlarını da BU kümeden üretir — manuel/job defter şekli özdeş (tek kopya).</summary>
+    public static List<AccountLedgerEntry> Natural(CashTransaction tx, Guid? sourceIdOverride = null, bool flip = false)
     {
         // Tahsilat: Hesap Borç, Cari Alacak. Ödeme: Hesap Alacak, Cari Borç.
         var hesapDir = tx.Tip == CashTransactionType.Tahsilat ? LedgerDirection.Debit : LedgerDirection.Credit;
