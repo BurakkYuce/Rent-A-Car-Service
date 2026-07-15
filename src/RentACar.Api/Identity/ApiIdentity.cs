@@ -11,6 +11,7 @@ public static class ApiClaims
     public const string TenantCode = "tenant_code";
     public const string UserId = "user_id";
     public const string AssignedBranch = "assigned_sube";
+    public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
     // Rol standart ClaimTypes.Role; ad standart ClaimTypes.Name.
 }
 
@@ -45,4 +46,7 @@ public sealed class ApiIdentity(IHttpContextAccessor accessor) : ITenantContext,
             return string.IsNullOrWhiteSpace(v) ? null : v;
         }
     }
+
+    public Guid? AssignedBranchId
+        => Guid.TryParse(User.FindFirst(ApiClaims.AssignedBranchId)?.Value, out var g) ? g : null; // FAZ 5-C1
 }

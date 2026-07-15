@@ -18,6 +18,7 @@ public sealed class NullCurrentUser : ICurrentUser
     public string? UserName => null;
     public UserRole? Role => null;
     public string? AssignedBranch => null;
+    public Guid? AssignedBranchId => null; // FAZ 5-C1
 }
 
 /// <summary>
@@ -32,4 +33,5 @@ public sealed class SystemTenantContext : ITenantContext, ICurrentUser
     public string? UserName => "sistem";
     public UserRole? Role => null;
     public string? AssignedBranch => null;
+    public Guid? AssignedBranchId => null; // FAZ 5-C1
 }
