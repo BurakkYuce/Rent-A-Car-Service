@@ -26,7 +26,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             q = q.Where(r => (kid != null && r.CikisSubeId == kid)
-                          || (kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad));
+                          || ((kid == null || r.CikisSubeId == null) && kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad)); // C5
         }
         return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
@@ -72,7 +72,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             q = q.Where(r => (kid != null && r.CikisSubeId == kid)
-                          || (kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad));
+                          || ((kid == null || r.CikisSubeId == null) && kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad)); // C5
         }
         return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
@@ -94,7 +94,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             var kkid = filter.Kapsam.SubeId; var kkad = filter.Kapsam.SubeAd;
             q = q.Where(r => (kkid != null && r.CikisSubeId == kkid)
-                          || (kkad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kkad));
+                          || ((kkid == null || r.CikisSubeId == null) && kkad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kkad)); // C5
         }
         if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
         if (filter.BaslangicMin is { } min) q = q.Where(r => r.BasTar >= min);

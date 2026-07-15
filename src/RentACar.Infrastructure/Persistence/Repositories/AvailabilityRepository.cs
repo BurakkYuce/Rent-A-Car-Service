@@ -32,7 +32,7 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             pool = pool.Where(v => (kid != null && v.SubeId == kid)
-                                || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+                                || ((kid == null || v.SubeId == null) && kad != null && v.Sube != null && v.Sube.Trim() == kad)); // C5
         }
 
         var busyByRental = db.Rentals.AsNoTracking()

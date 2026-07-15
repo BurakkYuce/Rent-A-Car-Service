@@ -12,7 +12,8 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// FAZ 5-C3 — liste yüzeyleri FK-farkındalı kapsama geçti (tek kural: BranchScope.InScope —
-/// FK-eşit VEYA metin-eşit). DEĞER-KANITI: şube YENİDEN ADLANDIRILINCA metin-filtre operatörü
+/// C5 son hali: iki FK dolu → FK tek başına; aksi halde metin-eşit). DEĞER-KANITI: şube YENİDEN
+/// ADLANDIRILINCA metin-filtre operatörü
 /// kilitlerdi (0 satır); FK dalı doğru seti verir. Eşlenmemiş-metin şube (Branch master'da yok)
 /// salt-metin yoluyla AYNEN çalışır (kilitlenme-önleyici). UI şube filtresi kapsamdan BAĞIMSIZ.
 /// </summary>
@@ -110,6 +111,40 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         // C3 kapsam notu — Baf FK'lanana dek rename Baf listesini etkiler; metin-claim güncellenince düzelir).
         var baflar = await op.ServiceProvider.GetRequiredService<BafService>().ListAsync();
         Assert.Empty(baflar);
+    }
+
+    [Fact]
+    public async Task Rename_cakismasi_sizintisi_c5_ile_kapali()
+    {
+        // C5 değer-kanıtı (dokümante F2 kapanışı): B1 eski adını B2 devralınca ("Merkez"), o adla doğan
+        // B2 kaydı metin-eşleşmeyle B1 operatörüne SIZARDI (C2-C4 bilinçli genişletmesi). C5: iki FK de
+        // doluyken FK TEK BAŞINA karar verir → sızıntı biter; FK'sız kayıtta metin yolu aynen kalır.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid b1, sizanArac;
+        using (var seed = host.ScopeFor(tenant))
+        {
+            var sp = seed.ServiceProvider;
+            var branches = sp.GetRequiredService<BranchService>();
+            b1 = await branches.CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
+            var b2 = await branches.CreateAsync(new BranchInput { Kod = "ANK", Ad = "Ankara" });
+            var veh = sp.GetRequiredService<VehicleService>();
+            await veh.CreateAsync(new VehicleInput { Plaka = "34 RC 01", Sube = "Merkez" });  // FK=B1
+            // Çakışma: B1 adını bırakır, B2 devralır; ardından o adla B2'ye kayıt doğar (FK=B2, metin "Merkez").
+            await branches.UpdateAsync(b1, new BranchInput { Kod = "MRK", Ad = "Eski Merkez" });
+            await branches.UpdateAsync(b2, new BranchInput { Kod = "ANK", Ad = "Merkez" });
+            sizanArac = await veh.CreateAsync(new VehicleInput { Plaka = "06 RC 02", Sube = "Merkez" });
+        }
+
+        // Eski oturumlu B1 operatörü (claim metni hâlâ "Merkez", FK=B1).
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
+            assignedBranch: "Merkez", assignedBranchId: b1);
+        var svc = op.ServiceProvider.GetRequiredService<VehicleService>();
+
+        var liste = await svc.ListAsync();
+        var tek = Assert.Single(liste);                            // C5 öncesi 2 dönerdi (B2 aracı sızardı)
+        Assert.Equal("34RC01", tek.Plaka);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
     }
 
     [Fact]
