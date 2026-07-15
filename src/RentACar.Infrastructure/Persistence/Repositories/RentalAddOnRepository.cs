@@ -24,6 +24,12 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             .ToListAsync(ct);
     }
 
+    public async Task<RentalAddOn?> FindAsync(Guid addOnId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
+    }
+
     public async Task<bool> IsRentalInvoicedAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

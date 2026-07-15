@@ -176,7 +176,7 @@ public sealed class KiraHesapService(
             var c = await bookings.FindRentalAsync(rid, ct);
             if (c is not null)
             {
-                BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+                BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
                 tahsilat = c.Tahsilat;
             }
         }

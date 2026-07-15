@@ -24,7 +24,8 @@ public sealed class RentalService(
     FeeLineService feeLines,
     RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan,
     RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan,
-    RentACar.Application.Finance.ICashRepository cashRepository)
+    RentACar.Application.Finance.ICashRepository cashRepository,
+    RentACar.Application.Locations.ILocationRepository locationRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -42,20 +43,19 @@ public sealed class RentalService(
     }
 
     public Task<IReadOnlyList<RentalContract>> ListAsync(CancellationToken ct = default)
-        => _repository.ListRentalsAsync(BranchScope.Effective(_currentUser), ct);
+        => _repository.ListRentalsAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
 
     /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu. Rol bazlı şube kapsamı zorlanır.</summary>
     public Task<IReadOnlyList<RentalRow>> SearchAsync(RentalFilter filter, CancellationToken ct = default)
     {
-        var scope = BranchScope.Effective(_currentUser);
-        if (scope is not null) filter.Sube = scope; // operatör kendi şubesi dışına çıkamaz
+        filter.Kapsam = BranchScope.EffectiveFilter(_currentUser); // C4: FK-farkındalı (UI Sube ayrı)
         return _repository.SearchRentalRowsAsync(filter, ct);
     }
 
     public async Task<RentalContract?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var r = await _repository.FindRentalAsync(id, ct);
-        if (r is not null) BranchScope.RequireInScope(_currentUser, r.CikisOfisi); // adversarial M3
+        if (r is not null) BranchScope.RequireInScope(_currentUser, r.CikisSubeId, r.CikisOfisi); // adversarial M3
         return r;
     }
 
@@ -198,14 +198,20 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var mevcut = await _repository.FindRentalAsync(id, ct);
         if (mevcut is null) return false;
-        BranchScope.RequireInScope(_currentUser, mevcut.CikisOfisi);
+        BranchScope.RequireInScope(_currentUser, mevcut.CikisSubeId, mevcut.CikisOfisi);
         if (mevcut.Durum == RentalStatus.Iptal)
             throw new ValidationException("İptal edilmiş kira güncellenemez.");
 
         var cikisOfisi = Lim(input.CikisOfisi, 64, "Çıkış ofisi");
         var donusOfisi = Lim(input.DonusOfisi, 64, "Dönüş ofisi");
         if (!string.Equals(cikisOfisi ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal))
-            BranchScope.RequireInScope(_currentUser, cikisOfisi); // kira kapsam DIŞINA taşınamaz
+        {
+            // C4: HEDEF ofisin türetilmiş şubesiyle kontrol — operatör kirayı kendi ŞUBESİNİN başka
+            // ofisine taşıyabilir (widening, testli); kapsam DIŞI şubenin ofisine taşıyamaz.
+            var hedefSubeId = string.IsNullOrWhiteSpace(cikisOfisi)
+                ? null : (await locationRepository.FindByAdAsync(cikisOfisi!, ct))?.SubeId;
+            BranchScope.RequireInScope(_currentUser, hedefSubeId, cikisOfisi);
+        }
         if (input.KmLimit < 0)
             throw new ValidationException("KM limit negatif olamaz.");
         if (input.FazlaKmUcret < 0m || input.YakitBirimUcret < 0m)
@@ -247,7 +253,7 @@ public sealed class RentalService(
         var ok = await _repository.UpdateRentalAsync(id, c =>
         {
             // TX içinde yeniden doğrula (ön-kontrol ile arasında durum değişmiş olabilir).
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
             if (c.Durum == RentalStatus.Iptal)
                 throw new ValidationException("İptal edilmiş kira güncellenemez.");
             if (c.Durum == RentalStatus.Kirada)
@@ -321,7 +327,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         return await _repository.UpdateRentalAsync(id, c =>
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
             if (c.Durum == RentalStatus.Iptal)
                 throw new ValidationException("İptal edilmiş kirada provizyon işlemi yapılamaz.");
             if (c.ProvizyonDurum != ProvizyonDurum.Yok)
@@ -344,7 +350,7 @@ public sealed class RentalService(
             throw new ValidationException("Kapama tutarı negatif olamaz.");
         return await _repository.UpdateRentalAsync(id, c =>
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi);
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
             if (c.ProvizyonDurum != ProvizyonDurum.Alindi)
                 throw new ValidationException($"Yalnız 'Alındı' durumundaki provizyon kapatılabilir (mevcut: {c.ProvizyonDurum}).");
             c.ProvizyonDurum = iade ? ProvizyonDurum.IadeEdildi : ProvizyonDurum.Kapandi;
@@ -366,7 +372,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var c = await _repository.FindRentalAsync(id, ct);
         if (c is null) return KiraDonusOnizleme.Hatali("Kira bulunamadı.");
-        BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // kapsam: sızıntı yok (GetAsync ile aynı)
+        BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // kapsam: sızıntı yok (GetAsync ile aynı)
 
         if (c.Durum != RentalStatus.Kirada) return KiraDonusOnizleme.Hatali("Yalnız aktif (Kirada) sözleşmede dönüş hesaplanır.");
         if (c.CikisKm is null) return KiraDonusOnizleme.Hatali("Önce teslim (çıkış KM) girilmelidir.");
@@ -445,7 +451,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede teslim yapılır.");
             if (c.CikisKm is not null)
@@ -484,7 +490,7 @@ public sealed class RentalService(
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
         return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException("Yalnız aktif (Kirada) sözleşmede dönüş yapılır.");
             if (c.CikisKm is null)
@@ -535,7 +541,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var c = await _repository.FindRentalAsync(id, ct);
         if (c is null) return false;
-        BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
+        BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
         if (c.Durum != RentalStatus.Kirada)
             throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
         if (yeniBitTar <= c.BitTar)
@@ -580,7 +586,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisOfisi); // adversarial M3
+            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
             c.Durum = RentalStatus.Iptal;

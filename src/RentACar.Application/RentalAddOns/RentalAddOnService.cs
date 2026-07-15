@@ -16,10 +16,12 @@ namespace RentACar.Application.RentalAddOns;
 public sealed class RentalAddOnService(
     IRentalAddOnRepository repository,
     IEkHizmetTanimRepository ekHizmetRepository,
+    Bookings.IBookingRepository bookingRepository,
     ICurrentUser currentUser)
 {
     private readonly IRentalAddOnRepository _repository = repository;
     private readonly IEkHizmetTanimRepository _ekHizmetRepository = ekHizmetRepository;
+    private readonly Bookings.IBookingRepository _bookings = bookingRepository;
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<RentalAddOn>> ListAsync(Guid rentalId, CancellationToken ct = default)
@@ -31,6 +33,13 @@ public sealed class RentalAddOnService(
         bool sistem = false, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // FAZ 5-C4 adversarial bulgusu (önceden var olan açık): ek hizmet, şube-kapsam guard'sız TEK
+        // booking-mutasyon yüzeyiydi — operatör GÖREMEDİĞİ çapraz-şube kiranın GenelToplam/Bakiye'sini
+        // değiştirebiliyordu. Kural diğer kira guard'larıyla birebir: (CikisSubeId, CikisOfisi).
+        // sistem=true atlanır: FeeLineService create/reprice içinden çağırır — create tarihsel olarak
+        // kapsam-guard'sız, reprice yollarıysa üstte zaten guard'lı (çift sorguya gerek yok).
+        if (!sistem && await _bookings.FindRentalAsync(rentalId, ct) is { } kira)
+            BranchScope.RequireInScope(_currentUser, kira.CikisSubeId, kira.CikisOfisi);
         if (miktar <= 0) throw new ValidationException("Miktar sıfırdan büyük olmalıdır.");
         // Taşma guard'ı (adversarial PR-B): devasa miktar round(birim×miktar)'da OverflowException → 500
         // üretiyordu; canlı-hesap ucuyla simetrik gerçekçi üst sınır.
@@ -74,6 +83,11 @@ public sealed class RentalAddOnService(
     public async Task<bool> RemoveAsync(Guid addOnId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // Şube-kapsam guard'ı (bkz. AddAsync) — silme de web'e açık mutasyon yüzeyi.
+        var addOn = await _repository.FindAsync(addOnId, ct);
+        if (addOn is null) return false;
+        if (await _bookings.FindRentalAsync(addOn.RentalId, ct) is { } kira)
+            BranchScope.RequireInScope(_currentUser, kira.CikisSubeId, kira.CikisOfisi);
         return await _repository.RemoveAsync(addOnId, ct);
     }
 }

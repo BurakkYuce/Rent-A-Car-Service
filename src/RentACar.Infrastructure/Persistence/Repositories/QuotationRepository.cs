@@ -15,11 +15,17 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Quotation>> ListAsync(string? sube = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Quotation>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Quotations.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(x => x.CikisOfisi == sube);
+        // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
+        if (!kapsam.Unrestricted)
+        {
+            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            q = q.Where(x => (kid != null && x.CikisSubeId == kid)
+                          || (kad != null && x.CikisOfisi != null && x.CikisOfisi.Trim() == kad));
+        }
         return await q.OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
     }
 

@@ -20,6 +20,17 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Locations.AsNoTracking().OrderBy(l => l.Kod).ToListAsync(ct);
     }
 
+    public async Task<Location?> FindByAdAsync(string ad, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // BranchRepository.FindByAdAsync ile birebir desen (exact lower eşleşme + Kod sırası — C4).
+        var norm = ad.Trim().ToLowerInvariant();
+        return await db.Locations.AsNoTracking()
+            .Where(l => l.Ad.ToLower() == norm)
+            .OrderBy(l => l.Kod)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
