@@ -9,13 +9,16 @@
             <input form="musait-form" name="vfrom" type="date" value="@Vm.Vfrom" title="Müsaitlik başlangıç" />
             <input form="musait-form" name="vto" type="date" value="@Vm.Vto" title="Müsaitlik bitiş" />
             <input form="musait-form" name="vgrup" value="@Vm.Vgrup" placeholder="Grup (ops.)" />
-            <button form="musait-form" type="submit">Müsait Araçları Getir</button>
-            @if (Vm.MusaitMod) { <a href="/kiralar/yeni" class="link">Tümünü göster</a> }
+            @* type=submit + form= → No-JS fallback (GET reload); JS bunu yakalar (preventDefault) ve
+               AJAX ile araç listesini yerinde günceller → girilen veri KAYBOLMAZ. *@
+            <button form="musait-form" type="submit" data-musait-getir>Müsait Araçları Getir</button>
+            <a href="/kiralar/yeni" class="link" data-musait-temizle style="@(Vm.MusaitMod ? "" : "display:none;")">Tümünü göster</a>
         </div>
-        @if (Vm.MusaitMod)
-        {
-            <p class="muted small">Seçili aralıkta <strong>@Vm.Vehicles.Count</strong> araç müsait — araç listesi filtrelendi, tarihler kira alanlarına geçti.</p>
-        }
+        @* JS yolunda buraya "N araç müsait" mesajı yazılır (sayfa yenilenmediği için server MusaitMod'a
+           güvenmeyiz); no-JS fallback yenilemesinde server mesajı gösterir. *@
+        <p class="muted small" data-musait-not>
+            @if (Vm.MusaitMod) { <text>Seçili aralıkta <strong>@Vm.Vehicles.Count</strong> araç müsait — araç listesi filtrelendi, tarihler kira alanlarına geçti.</text> }
+        </p>
     </div>
     }
     <div class="card">
