@@ -53,7 +53,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/gider-turleri/delete" onsubmit="return confirm('Gider türü silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/gider-turleri/delete" data-confirm="Gider türü silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@c.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

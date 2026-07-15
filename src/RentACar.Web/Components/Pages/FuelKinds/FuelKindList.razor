@@ -51,7 +51,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/yakit-turleri/delete" onsubmit="return confirm('Yakıt türü silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/yakit-turleri/delete" data-confirm="Yakıt türü silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@k.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

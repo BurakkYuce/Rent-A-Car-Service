@@ -78,31 +78,21 @@ systemd unit (`/etc/systemd/system/racar-web.service`): `EnvironmentFile=/etc/ra
 sınırla (rate-limit yalnız login'de olduğundan bu, veri uçlarına kaba bir DoS tamponu sağlar). Gerçek TLS/HTTP kabaca
 Caddy'de (§5 `request_body max_size`); Kestrel iç-ağda dinlediği için bu ikisi tamamlayıcı.
 
-## 5. Reverse proxy (Caddy) — HTTPS + güvenlik başlıkları + gerçek istemci IP
-Caddy otomatik Let's Encrypt TLS verir. Güvenlik yanıt başlıklarını **uygulama yazmıyor** → burada eklenir
-(kod değişikliği gerektirmez). `/etc/caddy/Caddyfile`:
+## 5. Reverse proxy (Caddy) — HTTPS + gerçek istemci IP
+Caddy otomatik Let's Encrypt TLS verir. **Güvenlik başlıkları + CSP + cookie sertleştirme + HSTS artık UYGULAMADA**
+(Program.cs middleware + AddCookie + AddHsts — defense-in-depth, proxy'den bağımsız). Caddyfile sade:
 ```
 rentpro.example.com {
     reverse_proxy 127.0.0.1:5220
-
-    # Güvenlik yanıt başlıkları (in-app middleware YOK — proxy'de eklenir)
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"          # DENY DEĞİL: DENY same-origin'i de bloklar → PDF-yazdır gizli iframe'ini kırar
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"   # preload SONRA (geri alması zor; hstspreload.org başvurusuz inert)
-        -Server                               # sunucu parmak izini gizle
-    }
-
-    # Kaba gövde limiti (DoS sertleştirme; plugin gerekmez)
-    request_body { max_size 2MB }
+    request_body { max_size 2MB }   # kaba gövde limiti (DoS; plugin gerekmez) — Kestrel:Limits ile tamamlayıcı
 }
 ```
-- **CSP bilerek YOK:** uygulamada **52 inline event handler** (`onsubmit="return confirm(...)"` vb.) var → `script-src 'self'`
-  hepsini (tüm sil/iptal onayları) kırar; kod-free CSP zorunlu `'unsafe-inline'` ister → XSS koruması zayıf. Anlamlı CSP =
-  inline handler'ları harici JS'e taşımak (KOD işi, ayrı görev). Gözlem istenirse `Content-Security-Policy-Report-Only`
-  eklenebilir ama report-endpoint yok → manuel smoke ile test et (PDF-yazdır iframe, sil/iptal onayları, mega-form fetch'leri).
+- **CSP (uygulamada, katı):** `script-src 'self'` — `'unsafe-inline'` YOK. 52 inline event handler harici JS'e taşındı
+  (`data-confirm`/`data-select-all` → `wwwroot/js/rc-ui.js`). Blazor'ın `<ImportMap>` inline script'i tek istisnadır,
+  SABİT SHA-256 hash'iyle izin verilir (`script-src 'self' 'sha256-…'`). **BAKIM:** importmap içeriği yalnız .NET/Radzen
+  sürüm yükseltmesinde değişir → değişirse tarayıcı konsolu yeni hash'i verir; `Program.cs`'teki hash'i güncelle
+  (aksi halde importmap bloklanır — interaktif reconnect etkilenir). `style-src 'unsafe-inline'` bilinçli (inline style
+  attr'ları; XSS riski script'e göre düşük). `frame-ancestors 'self'` + `X-Frame-Options SAMEORIGIN` → PDF-yazdır iframe çalışır.
 - **Cookie Secure (KRİTİK — sessiz başarısızlık noktası):** uygulama `UseForwardedHeaders` ile **KnownProxies=loopback**
   varsayar. Caddy AYNI makinede (127.0.0.1) ise `X-Forwarded-Proto` okunur → cookie Secure + rate-limiter gerçek IP'yi görür.
   Caddy AYRI makine/container ise header DÜŞER → **şema http kalır → cookie Secure OLMAZ.** O durumda
@@ -135,12 +125,14 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 - [ ] **Env teyidi (EN KRİTİK):** `ASPNETCORE_ENVIRONMENT=Production` — antiforgery + HSTS ikisi de `!IsDevelopment()`'e
       kapılı, env yanlışsa **ikisi birden sessizce kapanır.** Kanıt testi: prod URL'ine **token'sız POST** at →
       **400** dönmeli (`curl -si -X POST https://<domain>/kiralar/create -d x=1` → 400 Bad Request). 200/302 → env yanlış.
-- [ ] **Güvenlik başlıkları:** `curl -sI https://<domain>/` → `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`,
-      `referrer-policy`, `permissions-policy`, `strict-transport-security: max-age=31536000; includeSubDomains`; `server` başlığı YOK.
-      **securityheaders.com** ile A hedefle (CSP olmadığı için A+ değil — bilinçli).
-- [ ] **Cookie:** DevTools → Application → Cookies → `.AspNetCore.Cookies` satırında **Secure ✓ / HttpOnly ✓ / SameSite=Lax**.
+- [ ] **Güvenlik başlıkları (uygulamadan):** `curl -sI https://<domain>/` → `content-security-policy` (script-src 'self' …),
+      `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`, `referrer-policy`, `permissions-policy`,
+      `strict-transport-security: max-age=31536000; includeSubDomains`; `server` başlığı YOK. **securityheaders.com** ile A+ hedefle.
+- [ ] **CSP / importmap hash:** DevTools konsolunda CSP ihlali OLMAMALI. Radzen/.NET yükseltmesi yaptıysan importmap
+      hash'i değişmiş olabilir → konsol "Executing inline script violates … 'sha256-…'" derse yeni hash'i `Program.cs` CSP'sine yaz.
+- [ ] **Cookie:** DevTools → Application → Cookies → `racar.session` satırında **Secure ✓ / HttpOnly ✓ / SameSite=Lax**.
       Secure değilse → §5 forwarded-headers tuzağı (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`).
-- [ ] **UI bozulmadı:** PDF-yazdır (gizli iframe) + bir sil/iptal onayı hâlâ çalışıyor (SAMEORIGIN başlığı framing'i kırmadı).
+- [ ] **UI bozulmadı:** PDF-yazdır (gizli iframe) + bir sil/iptal onayı (data-confirm dialogu) hâlâ çalışıyor.
 - [ ] Secret'lar repo'da/appsettings.json'da DEĞİL (env/Production.json git-ignore).
 - [ ] Rol şifreleri dev-varsayılanından değişti.
 - [ ] TLS zorunlu (Caddy HTTPS), `/health` dışı uçlar auth-gated.

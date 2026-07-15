@@ -96,7 +96,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/kira-kurallari/delete" onsubmit="return confirm('Kural silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/kira-kurallari/delete" data-confirm="Kural silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

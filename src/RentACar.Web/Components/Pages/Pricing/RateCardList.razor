@@ -80,7 +80,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/tarifeler/delete" onsubmit="return confirm('Tarife silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/tarifeler/delete" data-confirm="Tarife silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

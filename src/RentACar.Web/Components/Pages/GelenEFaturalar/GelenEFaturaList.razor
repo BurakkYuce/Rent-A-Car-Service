@@ -79,7 +79,7 @@
                     }
                     else if (r.Durum == GelenEFaturaDurum.Onaylandi)
                     {
-                        <form method="post" action="/gelen-efatura/isle" onsubmit="return confirm('Fatura işlensin mi?')" style="display:inline"><AntiforgeryToken />
+                        <form method="post" action="/gelen-efatura/isle" data-confirm="Fatura işlensin mi?" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
                             <button type="submit" class="link">İşle</button>
                         </form>

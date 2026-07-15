@@ -124,7 +124,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/arac-gruplari/delete" onsubmit="return confirm('Araç grubu silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/arac-gruplari/delete" data-confirm="Araç grubu silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@g.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

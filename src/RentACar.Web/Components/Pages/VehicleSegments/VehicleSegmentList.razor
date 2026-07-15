@@ -54,7 +54,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/segmentler/delete" onsubmit="return confirm('Segment silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/segmentler/delete" data-confirm="Segment silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>

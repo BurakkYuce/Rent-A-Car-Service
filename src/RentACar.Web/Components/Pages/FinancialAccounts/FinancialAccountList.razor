@@ -69,7 +69,7 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
-                    <form method="post" action="/hesaplar/delete" onsubmit="return confirm('Hesap silinsin mi?')"><AntiforgeryToken />
+                    <form method="post" action="/hesaplar/delete" data-confirm="Hesap silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" />
                         <button type="submit" class="link danger">Sil</button>
                     </form>
