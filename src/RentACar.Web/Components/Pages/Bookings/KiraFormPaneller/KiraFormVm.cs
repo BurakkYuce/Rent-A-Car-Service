@@ -50,6 +50,8 @@ public sealed class KiraFormVm
     public decimal? AracDolulukYuzde { get; set; }
     /// <summary>FAZ 4.4: kira dönemindeki HGS geçişleri (IHgsService — stub boş döner; entegrasyon bekleniyor).</summary>
     public IReadOnlyList<RentACar.Application.Integrations.TollCrossing> HgsGecisleri { get; set; } = [];
+    /// <summary>FAZ 4.5: kiranın kaynak rezervasyonu (varsa) — Web Api OTA kutuları buradan okur.</summary>
+    public Reservation? KaynakRezervasyon { get; set; }
     public bool B(Func<RentalContract, bool?> f) => Edit && f(Rental!) == true;
     /// <summary>Select option seçili mi (edit prefill).</summary>
     public bool Sel(Func<RentalContract, string?> f, string option) => Edit && f(Rental!) == option;
