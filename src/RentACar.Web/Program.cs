@@ -225,6 +225,7 @@ if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(Environmen
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // scheduler: vade→bildirim (kimliksiz)
+builder.Services.AddHostedService<RentACar.Web.Jobs.DonemFaturaJob>(); // FAZ 4.2-B4: dönemsel fatura job'ı (ayar-kapılı)
 builder.Services.AddHttpClient(); // TCMB kur çekimi
 builder.Services.AddSingleton<RentACar.Web.Kur.TcmbKurService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
 builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbKurJob>(); // scheduler: TCMB günlük kur (kimliksiz)

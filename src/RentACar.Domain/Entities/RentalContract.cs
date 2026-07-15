@@ -165,6 +165,10 @@ public class RentalContract : ITenantOwned, IAuditable
     /// yakalanır). Retroaktif değişmez (snapshot).</summary>
     public decimal KurSnapshot { get; set; } = 1m;
 
+    /// <summary>Dönemsel faturalama JOB kapısı (FAZ 4.2-B4): true + tenant ayarı açık + Kirada +
+    /// DonemBit geçmiş → job dönem faturasını otomatik keser. Manuel kesim bu bayraktan bağımsız.</summary>
+    public bool DonemselFaturalama { get; set; }
+
     /// <summary>NET fiyat modunda (Günlük/Toplam) gross-up ANINDA kullanılan KDV oranı (FAZ 3.A6).
     /// Fatura ayrıştırması ve net-mod guard'ı BU orandan okur — tenant varsayılanı fiyatlama ile
     /// fatura arasında değişse bile matrah operatör niyetinden sapmaz. Null = eski kira (0.20

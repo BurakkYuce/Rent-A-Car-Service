@@ -39,6 +39,8 @@ public sealed class TenantSettingsService(
             LogoUrl = s.LogoUrl,
             VarsayilanDoviz = s.VarsayilanDoviz,
             VarsayilanKdvOrani = s.VarsayilanKdvOrani,
+            DonemselFaturalamaJob = s.DonemselFaturalamaJob,
+            DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
             MaxKiraGun = s.MaxKiraGun,
             RezOnayZorunlu = s.RezOnayZorunlu,
@@ -79,6 +81,8 @@ public sealed class TenantSettingsService(
             if (m.VarsayilanKdvOrani is < 0m or > 1m)
                 throw new ValidationException("Varsayılan KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // A6
             s.VarsayilanKdvOrani = m.VarsayilanKdvOrani;
+            s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
+            s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;
             s.MaxKiraGun = m.MaxKiraGun;
             s.RezOnayZorunlu = m.RezOnayZorunlu;

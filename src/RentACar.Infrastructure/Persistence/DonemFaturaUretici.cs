@@ -1,0 +1,211 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
+using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.Finance;
+using RentACar.Domain.Common;
+using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
+
+namespace RentACar.Infrastructure.Persistence;
+
+/// <summary>
+/// Dönemsel fatura JOB üreticisi (FAZ 4.2-B4; VadeBildirimUretici kimlik deseni — servis/PermissionGuard
+/// yüzeyi genişletilmez, doğrudan-context + açık TenantId damgası). Kesim koşulu: dönem Planlandi ∧
+/// DonemBit ≤ now ∧ kira Kirada ∧ RentalContract.DonemselFaturalama ∧ tenant ayarı DonemselFaturalamaJob.
+/// PARA MATEMATİĞİ MANUEL YOLLA ÖZDEŞ (tek kopya): tahakkuk FaturaDonemPlanService.ProRataAccrual,
+/// fatura defteri InvoiceService.BuildEntries, tahsilat defteri CashService.Natural + CashRepository
+/// .ApplyRentalDeltaAsync, idempotency anahtarı CashService.RowKey(rentalId, donemSira). Kesim fark
+/// formatında (KaynakKiraId + sıra unique) + advisory kira-fatura kilidi + TX-içi faturalanan yeniden
+/// doğrulaması (B2 ile aynı savunmalar). FX kirası ATLANIR + loglanır (kur çözümü servis işi — manuel
+/// kesilir); kilitli muhasebe dönemi tenant'ı atlatır (log). Oto-tahsilat yalnız DonemselOtomatikTahsilat
+/// açıkken (default kapalı — kasa gerçekliği).
+/// </summary>
+public static class DonemFaturaUretici
+{
+    public sealed record Sonuc(int Kesilen, int Tahsilat, IReadOnlyList<string> Atlananlar);
+
+    public static async Task<Sonuc> RunAsync(AppDbContext db, Guid tenantId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var atlananlar = new List<string>();
+        var ayar = await db.TenantSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (ayar is not { DonemselFaturalamaJob: true }) return new Sonuc(0, 0, atlananlar);
+
+        // Muhasebe dönem kilidi: fatura Tarih=now — kapalıysa TÜM tenant atlanır (oracle).
+        var kilit = await db.DonemKilitleri.AsNoTracking()
+            .OrderByDescending(k => k.KapanisTarihi).FirstOrDefaultAsync(ct);
+        if (kilit?.KapanisTarihi is { } kapanis && now.UtcDateTime.Date <= kapanis.UtcDateTime.Date)
+        {
+            atlananlar.Add($"tenant {tenantId}: muhasebe dönemi {kapanis:yyyy-MM-dd} tarihine dek kilitli");
+            return new Sonuc(0, 0, atlananlar);
+        }
+
+        var tenantKdv = ayar.VarsayilanKdvOrani is >= 0m and <= 1m ? ayar.VarsayilanKdvOrani.Value : KdvMath.VarsayilanOran;
+
+        // Adaylar: vadesi gelmiş Planlandi dönemler × job'a açık Kirada kiralar.
+        var adaylar = await (
+            from d in db.FaturaDonemleri.AsNoTracking()
+            join r in db.Rentals.AsNoTracking() on d.RentalId equals r.Id
+            where d.Durum == FaturaDonemDurum.Planlandi && d.DonemBit <= now
+                  && r.Durum == RentalStatus.Kirada && r.DonemselFaturalama
+            orderby d.RentalId, d.DonemSira
+            select new { Donem = d, Rental = r }).ToListAsync(ct);
+
+        var kesilen = 0; var tahsilatSayisi = 0;
+        foreach (var a in adaylar)
+        {
+            // FX kirası: kur çözümü servis katmanının işi (KurCozucu) — job atlar, manuel kesilir.
+            if (RentACar.Application.Kur.KurService.NormalizeKod(a.Rental.Doviz) != "TRY")
+            {
+                atlananlar.Add($"kira {a.Rental.SozlesmeNo} dönem {a.Donem.DonemSira}: FX ({a.Rental.Doviz}) — manuel kesim");
+                continue;
+            }
+            try
+            {
+                var ok = await DonemKesAsync(db, tenantId, a.Rental.Id, a.Donem.Id, a.Donem.DonemSira, tenantKdv, now,
+                    ayar.DonemselOtomatikTahsilat, ct);
+                if (ok.kesildi) kesilen++;
+                if (ok.tahsilat) tahsilatSayisi++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                atlananlar.Add($"kira {a.Rental.SozlesmeNo} dönem {a.Donem.DonemSira}: {ex.Message}");
+            }
+        }
+        return new Sonuc(kesilen, tahsilatSayisi, atlananlar);
+    }
+
+    private static async Task<(bool kesildi, bool tahsilat)> DonemKesAsync(
+        AppDbContext db, Guid tenantId, Guid rentalId, Guid donemId, int donemSira,
+        decimal tenantKdv, DateTimeOffset now, bool otomatikTahsilat, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            await KilitAsync(db, tenantId, rentalId, ct); // B2 advisory kilidiyle AYNI anahtar
+
+            // Adversarial B4-Yüksek-1: RunAsync tüm adaylarda AYNI context'i kullanır — önceki aday
+            // TX'inde track edilen FaturaDonemi, EF identity-resolution yüzünden BAYAT Durum döndürüp
+            // Planlandi çitini deliyordu (kesilmiş dönem Atlandi'ye yazılıyordu). Kilit alındıktan
+            // sonra tracker temizlenir → tüm okumalar taze DB durumundan.
+            db.ChangeTracker.Clear();
+
+            var rental = await db.Rentals.AsNoTracking().FirstAsync(r => r.Id == rentalId, ct);
+            var donemler = await db.FaturaDonemleri
+                .Where(d => d.RentalId == rentalId).OrderBy(d => d.DonemSira).ToListAsync(ct);
+            var donem = donemler.First(d => d.Id == donemId);
+            if (donem.Durum != FaturaDonemDurum.Planlandi) { await tx.RollbackAsync(ct); return (false, false); }
+            if (donemler.Any(d => d.DonemSira < donemSira && d.Durum == FaturaDonemDurum.Planlandi))
+            { await tx.RollbackAsync(ct); return (false, false); } // sıralı kesim — önceki dönem gelecekte
+
+            // KDV zinciri manuel yolla (CreateDonemFaturasiAsync) BİREBİR.
+            var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
+            var rate = rental.OzelKdvOran ?? (netMod ? rental.KdvOranSnapshot ?? KdvMath.VarsayilanOran : tenantKdv);
+
+            // Kümülatif tahakkuk + cap — B1/B2 SAF matematiği (tek kopya).
+            var gunler = donemler
+                .Select(d => Math.Max(1, (d.DonemBit.UtcDateTime.Date - d.DonemBas.UtcDateTime.Date).Days)).ToList();
+            var tahakkuklar = FaturaDonemPlanService.ProRataAccrual(rental.Tutar, gunler);
+            var kumulatif = donemler.Select((d, i) => (d.DonemSira, T: tahakkuklar[i]))
+                .Where(x => x.DonemSira <= donemSira).Sum(x => x.T);
+            var baseGross = KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
+            var (faturalanan, farkSayisi) = await OrtakSorgular.FarkStateAsync(db, rentalId, ct);
+            var kesilecek = KdvMath.RoundGross(Math.Min(kumulatif, baseGross) - faturalanan);
+            if (kesilecek <= 0m)
+            {
+                // Savunma derinliği (B4-1): faturası olan dönem ASLA Atlandi'ye yazılmaz (çelişkili iz).
+                if (donem.InvoiceId is not null) { await tx.RollbackAsync(ct); return (false, false); }
+                donem.Durum = FaturaDonemDurum.Atlandi; // cap — kalıcı iz (manuel yolla aynı)
+                donem.UpdatedAtUtc = now;
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return (false, false);
+            }
+
+            var (net, kdv) = KdvMath.FromGross(kesilecek, rate);
+            var invoice = new Invoice
+            {
+                TenantId = tenantId, // interceptor'sız job yolu → açık damga
+                Durum = InvoiceStatus.Kesildi,
+                CariId = rental.MusteriId,
+                RentalId = null, KaynakKiraId = rentalId, KaynakKiraFarkSira = farkSayisi + 1,
+                Tarih = now, NetTutar = net, KdvTutar = kdv, GenelToplam = net + kdv,
+                Currency = "TRY", Kur = 1m
+            };
+            // NOT: e-Fatura stub'ı job yolunda çağrılmaz (kimliksiz bağlam; stub zaten no-op) —
+            // gerçek GİB entegrasyonu geldiğinde job faturaları ayrı gönderim kuyruğuna alınmalı.
+            var no = await SequenceAllocator.NextAsync(db, tenantId, "InvoiceNo", ct);
+            invoice.No = $"FT-{no:D6}";
+            invoice.Lines.Add(new InvoiceLine
+            {
+                TenantId = tenantId, InvoiceId = invoice.Id,
+                Aciklama = $"Kira {rental.SozlesmeNo} — Dönem {donemSira} ({donem.DonemBas:dd.MM.yyyy} – {donem.DonemBit:dd.MM.yyyy}) [job]",
+                Miktar = 1m, BirimNetFiyat = net, KdvOrani = rate, SatirNet = net, SatirKdv = kdv, SatirToplam = net + kdv
+            });
+            var entries = InvoiceService.BuildEntries(invoice); // manuel yolla AYNI defter kümesi
+            foreach (var e in entries) { e.TenantId = tenantId; e.Description = $"Fatura {invoice.No}"; }
+
+            donem.Durum = FaturaDonemDurum.Kesildi;
+            donem.InvoiceId = invoice.Id;
+            donem.KesilenTutar = kesilecek;
+            donem.UpdatedAtUtc = now;
+
+            db.Invoices.Add(invoice);
+            db.AccountLedgerEntries.AddRange(entries);
+
+            // Oto-tahsilat (ayar açıksa): manuel B3 ile AYNI deterministik anahtar + AYNI defter kümesi.
+            var tahsilatYazildi = false;
+            if (otomatikTahsilat)
+            {
+                var ctx = new CashTransaction
+                {
+                    TenantId = tenantId,
+                    Tip = CashTransactionType.Tahsilat,
+                    CariId = rental.MusteriId, RentalId = rentalId,
+                    Tarih = now, Amount = new Money(kesilecek, "TRY", 1m),
+                    KarsiHesap = LedgerAccountType.Kasa,
+                    Aciklama = $"Dönem {donemSira} tahsilatı ({invoice.No}) [job]",
+                    IslemAnahtari = CashService.RowKey(rentalId, donemSira)
+                };
+                var cashNo = await SequenceAllocator.NextAsync(db, tenantId, "CashNo", ct);
+                ctx.No = $"TH-{cashNo:D6}";
+                var cashEntries = CashService.Natural(ctx);
+                foreach (var e in cashEntries) e.TenantId = tenantId;
+                db.CashTransactions.Add(ctx);
+                db.AccountLedgerEntries.AddRange(cashEntries);
+                await Repositories.CashRepository.ApplyRentalDeltaAsync(db, ctx, ct);
+                tahsilatYazildi = true;
+            }
+
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return (true, tahsilatYazildi);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Eşzamanlı manuel kesim / replika yarışı — sıra veya tahsilat anahtarı çakıştı → idempotent no-op.
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            return (false, false);
+        }
+        catch
+        {
+            db.ChangeTracker.Clear();
+            throw;
+        }
+    }
+
+    private static async Task KilitAsync(AppDbContext db, Guid tenantId, Guid rentalId, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "k";
+        p.Value = $"fatura:{tenantId}:{rentalId}"; // B2 kilidiyle AYNI anahtar biçimi
+        cmd.Parameters.Add(p);
+        await cmd.ExecuteScalarAsync(ct);
+    }
+}

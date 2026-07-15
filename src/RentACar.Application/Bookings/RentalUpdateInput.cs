@@ -16,6 +16,8 @@ public sealed class RentalUpdateInput
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; }
     public string? KiralamaTuru { get; set; }
+    /// <summary>Dönemsel faturalama job kapısı (FAZ 4.2-B4) — Kirada değiştirilebilir (operasyonel bayrak).</summary>
+    public bool DonemselFaturalama { get; set; }
     public string? FaturalamaTipi { get; set; }
 
     // Aşım parametreleri (yalnız Kirada değiştirilebilir — dönüşte ReturnMath bunlarla hesaplar)

@@ -43,6 +43,8 @@
         <label>Min Kira Gün<input name="minKiraGun" type="number" min="0" value="@_m.MinKiraGun" /></label>
         <label>Max Kira Gün<input name="maxKiraGun" type="number" min="0" value="@_m.MaxKiraGun" /></label>
         <label class="check"><input type="checkbox" name="rezOnayZorunlu" value="true" checked="@(_m.RezOnayZorunlu == true)" /> Rezervasyon onayı zorunlu</label>
+        <label class="check"><input type="checkbox" name="donemselFaturalamaJob" value="true" checked="@_m.DonemselFaturalamaJob" /> Dönemsel faturalama job'ı (uzun/aylık kirada vadesi gelen dönemleri otomatik keser)</label>
+        <label class="check"><input type="checkbox" name="donemselOtomatikTahsilat" value="true" checked="@_m.DonemselOtomatikTahsilat" /> Job kesiminde otomatik Kasa tahsilatı (yalnız gerçek oto-ödeme akışında açın — kasa gerçekliği)</label>
     </fieldset>
 
     <fieldset>
