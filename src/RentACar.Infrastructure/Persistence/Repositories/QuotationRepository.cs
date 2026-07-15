@@ -24,7 +24,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             q = q.Where(x => (kid != null && x.CikisSubeId == kid)
-                          || (kad != null && x.CikisOfisi != null && x.CikisOfisi.Trim() == kad));
+                          || ((kid == null || x.CikisSubeId == null) && kad != null && x.CikisOfisi != null && x.CikisOfisi.Trim() == kad)); // C5
         }
         return await q.OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
     }

@@ -24,7 +24,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             q = q.Where(x => (kid != null && x.SubeId == kid)
-                          || (kad != null && x.Sube != null && x.Sube.Trim() == kad));
+                          || ((kid == null || x.SubeId == null) && kad != null && x.Sube != null && x.Sube.Trim() == kad)); // C5
         }
         return await q.OrderByDescending(x => x.Tarih).ToListAsync(ct);
     }

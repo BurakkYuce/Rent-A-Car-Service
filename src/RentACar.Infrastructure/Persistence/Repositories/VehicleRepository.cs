@@ -35,7 +35,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         {
             var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
             q = q.Where(v => (kid != null && v.SubeId == kid)
-                          || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+                          || ((kid == null || v.SubeId == null) && kad != null && v.Sube != null && v.Sube.Trim() == kad)); // C5
         }
         if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
         if (!string.IsNullOrWhiteSpace(filter.Grup)) q = q.Where(v => v.Grup == filter.Grup);

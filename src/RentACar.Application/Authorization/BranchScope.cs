@@ -7,10 +7,10 @@ namespace RentACar.Application.Authorization;
 /// <summary>
 /// Rol bazlı şube kapsamı. Operatör YALNIZ atanmış şubesinin kayıtlarını görür; Admin/Yönetici/
 /// Muhasebe ve şubesi atanmamış kullanıcılar tüm şubeleri görür.
-/// FAZ 5-C2: kapsam artık FK-FARKINDALI — kilitlenme-önleyici GENİŞLETME: iki taraf da FK taşıyorsa
-/// FK eşitliği YA DA metin eşitliği yeter (şube yeniden adlandırılınca metin kırılır, FK kurtarır;
-/// FK'sız kayıt/eski oturum metin yoluyla aynen çalışır). Metin doğruluk-kaynağı kalır (interceptor
-/// tasarımı); FK'nın metni tek başına EZMESİ C5'in koşullu işi.
+/// FAZ 5-C2: kapsam FK-FARKINDALI. FAZ 5-C5 (daraltma): iki taraf da FK taşıyorsa FK TEK BAŞINA
+/// karar verir — metin OR'u o vaka için düşer (F2 kapanışı: yeniden-adlandırma çakışmasında
+/// metin-eşleşme sızıntısı biter). FK'sız kayıt / claim'siz eski oturum için metin yolu KALICI son
+/// durumdur (interceptor tasarımı gereği — eşlenmemiş serbest-metin şube hep olabilir).
 /// </summary>
 public static class BranchScope
 {
@@ -32,11 +32,10 @@ public static class BranchScope
     /// <summary>Eski metin-tabanlı filtre — C3'e dek liste çağrıları bunu kullanır (delege; davranış aynı).</summary>
     public static string? Effective(ICurrentUser user) => EffectiveFilter(user).SubeAd;
 
-    /// <summary>Tekil kayıt şube-kapsamı guard'ı (adversarial M3 + C2 FK-farkındalı).
-    /// Geçiş kuralı: Unrestricted → serbest; (iki FK de dolu ∧ eşit) → geç (yeniden-adlandırma kurtarması);
-    /// metin Ordinal-eşit → geç (mevcut davranış — FK'sız kayıt/claim'siz oturum); aksi red.
-    /// NOT (bilinçli genişletme): FK-uyuşmaz ∧ metin-eşit de GEÇER — metin doğruluk-kaynağı; bu kombinasyon
-    /// yalnız şube-yeniden-adlandırma/elle-SQL ile oluşabilir (interceptor FK'yı aynı metinden türetir).</summary>
+    /// <summary>Tekil kayıt şube-kapsamı guard'ı (adversarial M3 + C2 FK-farkındalı + C5 daraltma).
+    /// Geçiş kuralı: Unrestricted → serbest; iki FK de doluysa FK eşitliği TEK BAŞINA karar verir
+    /// (yeniden-adlandırma kurtarması kalır, FK-uyuşmaz∧metin-eşit sızıntısı [F2] kapanır);
+    /// FK'lardan biri boşsa metin Ordinal-eşit → geç (FK'sız kayıt/claim'siz oturum); aksi red.</summary>
     public static void RequireInScope(ICurrentUser user, Guid? kayitSubeId, string? kayitSubeOfis)
     {
         if (!InScope(EffectiveFilter(user), kayitSubeId, kayitSubeOfis))
@@ -44,11 +43,13 @@ public static class BranchScope
     }
 
     /// <summary>TEK kural (C3): guard, bellek-içi liste filtresi ve SQL şablonu hep bundan türetilir.
-    /// FK-eşit VEYA metin-eşit (Ordinal — mevcut davranış). Unrestricted → daima true.</summary>
+    /// C5: iki FK de dolu → FK eşitliği tek başına; aksi halde metin-eşit (Ordinal). Unrestricted → true.
+    /// Ön koşul ampirik doğrulandı (2026-07-15, dev DB): FK-uyuşmaz∧metin-eşleşir sayacı 0
+    /// (interceptor/backfill FK'yı AYNI metinden türettiğinden yapısal; yalnız rename-çakışması üretir).</summary>
     public static bool InScope(BranchFilter f, Guid? kayitSubeId, string? kayitMetin)
     {
         if (f.Unrestricted) return true;
-        if (f.SubeId is Guid cid && kayitSubeId is Guid kid && cid == kid) return true;
+        if (f.SubeId is Guid cid && kayitSubeId is Guid kid) return cid == kid;
         return f.SubeAd is not null &&
                string.Equals(f.SubeAd, kayitMetin?.Trim(), StringComparison.Ordinal);
     }
