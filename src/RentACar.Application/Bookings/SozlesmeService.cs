@@ -40,7 +40,8 @@ public sealed record SozlesmeView(
     int? HediyeGun, int? FaturalananGun, decimal? IskontoTutar, decimal? HaftaSonuFark,
     decimal EkHizmetToplam, decimal GenelToplam, decimal Tahsilat, decimal Bakiye, string? Doviz,
     decimal? Depozito, decimal? DropUcreti,   // sözleşme sağ sütunu (bilgi; deftere yansımaz)
-    IReadOnlyList<SozlesmeEkHizmet> EkHizmetler);
+    IReadOnlyList<SozlesmeEkHizmet> EkHizmetler,
+    string? EkKosullar = null); // FAZ 4.4: kira-özel ek koşullar (varsa sözleşme çıktısına basılır)
 
 /// <summary>Sözleşme view-model kurucusu (salt-okur; defter/durum değiştirmez).</summary>
 public sealed class SozlesmeService(
@@ -87,6 +88,7 @@ public sealed class SozlesmeService(
             c.HediyeGun, c.FaturalananGun, c.IskontoTutar, c.HaftaSonuFark,
             ekler.Sum(a => a.Toplam), c.GenelToplam, c.Tahsilat, c.Bakiye, c.Doviz,
             c.Depozito, c.DropUcreti,
-            ekler.Select(a => new SozlesmeEkHizmet(a.Ad, a.Toplam)).ToList());
+            ekler.Select(a => new SozlesmeEkHizmet(a.Ad, a.Toplam)).ToList(),
+            c.EkKosullar);
     }
 }

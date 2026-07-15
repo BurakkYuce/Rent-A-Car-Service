@@ -55,6 +55,9 @@ public sealed class RentalUpdateInput
     public string? OzelSoforBilgisi { get; set; }
     public string? EkKosullar { get; set; }
     public int? ManuelFindexPuan { get; set; }
+    /// <summary>Kira-seviyesi opsiyon (FAZ 4.4; bilgi alanı — whitelist'te para/tarih yok ilkesi korunur).</summary>
+    public decimal? OpsiyonNet { get; set; }
+    public int? OpsiyonGun { get; set; }
     public bool? KabisCikis { get; set; }
     public bool? KabisDonus { get; set; }
     public bool? OtomatikUzat { get; set; }

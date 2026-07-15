@@ -45,6 +45,11 @@ public sealed class KiraFormVm
     public string D(Func<RentalContract, decimal?> f)
         => Edit && f(Rental!) is decimal d ? d.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
     public string I(Func<RentalContract, int?> f) => Edit && f(Rental!) is int i ? i.ToString() : "";
+
+    /// <summary>FAZ 4.4: aracın ömür-boyu doluluk yüzdesi (karne KPI'sından; edit+FinansYetkisi'nde dolar).</summary>
+    public decimal? AracDolulukYuzde { get; set; }
+    /// <summary>FAZ 4.4: kira dönemindeki HGS geçişleri (IHgsService — stub boş döner; entegrasyon bekleniyor).</summary>
+    public IReadOnlyList<RentACar.Application.Integrations.TollCrossing> HgsGecisleri { get; set; } = [];
     public bool B(Func<RentalContract, bool?> f) => Edit && f(Rental!) == true;
     /// <summary>Select option seçili mi (edit prefill).</summary>
     public bool Sel(Func<RentalContract, string?> f, string option) => Edit && f(Rental!) == option;

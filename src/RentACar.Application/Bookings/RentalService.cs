@@ -23,7 +23,8 @@ public sealed class RentalService(
     ITenantCache cache,
     FeeLineService feeLines,
     RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan,
-    RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan)
+    RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan,
+    RentACar.Application.Finance.ICashRepository cashRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -72,6 +73,23 @@ public sealed class RentalService(
             if (await customerRepository.FindAsync(ikinci, ct) is null)
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
+        // FAZ 4.4 RİSK GUARD'ı (giriş noktasında — tarih-politikası dersi): cari RiskLimiti tanımlıysa
+        // (>0) ve mevcut borç bakiyesi limiti AŞIYORSA kira ancak Yönetici/Admin RiskOnay'ıyla açılır.
+        // Onay kutusunu Operatör işaretleyemez (rol doğrulaması burada — UI'daki gizleme yeterli değil).
+        var musteri = await customerRepository.FindAsync(input.MusteriId, ct);
+        if (musteri is { RiskLimiti: > 0m })
+        {
+            var bakiye = await cashRepository.GetCariBalanceAsync(input.MusteriId, ct);
+            if (bakiye > musteri.RiskLimiti)
+            {
+                if (!input.RiskOnay)
+                    throw new ValidationException(
+                        $"Risk limiti aşıldı (bakiye {bakiye:N2} > limit {musteri.RiskLimiti:N2}) — Yönetici onayı gerekir.");
+                if (_currentUser.Role is not (UserRole.Admin or UserRole.Yonetici))
+                    throw new ValidationException("Risk onayı yalnız Yönetici/Admin tarafından verilebilir.");
+            }
+        }
+
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
         var varsayilanKdv = await kdvVarsayilan.OranAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
@@ -146,6 +164,9 @@ public sealed class RentalService(
             AssistFirma = Lim(input.AssistFirma, 128, "Assist firma"),
             OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi"),
             EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar"),
+            OpsiyonNet = input.OpsiyonNet,
+            OpsiyonGun = input.OpsiyonGun,
+            RiskOnay = input.RiskOnay,
             ManuelFindexPuan = ValidFindex(input.ManuelFindexPuan),
             KabisCikis = input.KabisCikis,
             KabisDonus = input.KabisDonus,
@@ -268,6 +289,8 @@ public sealed class RentalService(
             c.AssistFirma = Lim(input.AssistFirma, 128, "Assist firma");
             c.OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi");
             c.EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar");
+            c.OpsiyonNet = input.OpsiyonNet;
+            c.OpsiyonGun = input.OpsiyonGun;
             c.ManuelFindexPuan = ValidFindex(input.ManuelFindexPuan);
             c.KabisCikis = input.KabisCikis;
             c.KabisDonus = input.KabisDonus;
