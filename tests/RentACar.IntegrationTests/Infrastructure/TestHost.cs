@@ -52,7 +52,7 @@ public sealed class TestHost : IDisposable
     /// </summary>
     public IServiceScope ScopeFor(
         Guid? tenantId, Guid? userId = null, string? userName = "tester",
-        UserRole? role = UserRole.Admin, string? assignedBranch = null)
+        UserRole? role = UserRole.Admin, string? assignedBranch = null, Guid? assignedBranchId = null)
     {
         var scope = _provider.CreateScope();
         var id = scope.ServiceProvider.GetRequiredService<TestIdentity>();
@@ -61,6 +61,7 @@ public sealed class TestHost : IDisposable
         id.UserName = userName;
         id.Role = role;
         id.AssignedBranch = assignedBranch;
+        id.AssignedBranchId = assignedBranchId; // FAZ 5-C2
         return scope;
     }
 
