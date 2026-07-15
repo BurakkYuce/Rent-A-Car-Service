@@ -21,8 +21,14 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
     public Task<IReadOnlyList<Quotation>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
 
-    public Task<Quotation?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindAsync(id, ct);
+    public async Task<Quotation?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        // C4 adversarial (önceden var olan açık, Expense-F1 sınıfı): liste kapsamlıyken tekil kayıt
+        // guard'sızdı — Id-probe çapraz-şube teklifi sızdırır/işletirdi. Kural: (CikisSubeId, CikisOfisi).
+        var q = await _repository.FindAsync(id, ct);
+        if (q is not null) BranchScope.RequireInScope(_currentUser, q.CikisSubeId, q.CikisOfisi);
+        return q;
+    }
 
     public async Task<Guid> CreateAsync(QuotationInput input, CancellationToken ct = default)
     {
@@ -75,6 +81,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var quotation = await _repository.FindAsync(id, ct)
             ?? throw new ValidationException("Teklif bulunamadı.");
+        BranchScope.RequireInScope(_currentUser, quotation.CikisSubeId, quotation.CikisOfisi); // C4: tekil-guard paritesi
         if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
             throw new ValidationException("Yalnız Taslak/Gönderildi teklif kabul edilebilir.");
 
@@ -106,6 +113,7 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         return await _repository.UpdateAsync(id, q =>
         {
+            BranchScope.RequireInScope(_currentUser, q.CikisSubeId, q.CikisOfisi); // C4: tekil-guard paritesi
             if (Array.IndexOf(allowedFrom, q.Durum) < 0)
                 throw new ValidationException($"Teklif '{q.Durum}' durumundan '{to}' durumuna geçemez.");
             q.Durum = to;
