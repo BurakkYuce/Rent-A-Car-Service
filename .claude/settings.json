@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/setup.sh"
+            "command": "bash -c 'nohup bash scripts/setup.sh >/tmp/racar-setup.log 2>&1 </dev/null &'"
           }
         ]
       }
