@@ -247,3 +247,32 @@ internal sealed class DepozitoIratConfig : IEntityTypeConfiguration<DepozitoIrat
         e.HasIndex(x => new { x.TenantId, x.RentalId }); // karne/karlilik atıf sorgusu
     }
 }
+
+// ---- DisHizmetAlimi (FAZ 4.3 — B2B dış hizmet; MALİ İZ: değişmez, düzeltme ters kayıtla) ----
+internal sealed class DisHizmetAlimiConfig : IEntityTypeConfiguration<DisHizmetAlimi>
+{
+    public void Configure(EntityTypeBuilder<DisHizmetAlimi> e)
+    {
+        e.ToTable("DisHizmetAlimlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.No).IsRequired().HasMaxLength(32);
+        e.Property(x => x.AlinanHizmet).IsRequired().HasMaxLength(256);
+        e.Property(x => x.HizmetAlinanFirma).HasMaxLength(256);
+        e.Property(x => x.HizmetBedeli).HasColumnType("numeric(19,4)");
+        e.Property(x => x.TedarikciKomisyonOran).HasColumnType("numeric(9,4)");
+        e.Property(x => x.BayiKomisyonOran).HasColumnType("numeric(9,4)");
+        e.Property(x => x.VerilecekKomisyonTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KomisyonFaturaNo).HasMaxLength(64);
+        e.Property(x => x.BayiFaturaNo).HasMaxLength(64);
+        e.Property(x => x.IndirimTuru).HasMaxLength(64);
+        e.Property(x => x.Currency).HasMaxLength(3);
+        e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.RentalId });
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari }).IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL"); // çift-submit çiti (kısmi unique)
+    }
+}

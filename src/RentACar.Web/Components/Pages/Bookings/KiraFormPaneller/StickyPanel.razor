@@ -53,6 +53,57 @@
         {
             <button type="button" class="kf-btn-ghost" disabled title="Uzun/aylık kirada dönem planı otomatik oluşur">Fatura Dönemleri</button>
         }
+        @if (Vm.Edit)
+        {
+            @* FAZ 4.3: B2B dış hizmet alımı grid'i — tam defterli (gider araçta + komisyon geliri). *@
+            <details>
+                <summary class="link">Dış Hizmet Alımları (@Vm.DisHizmetler.Count(d => d.Durum == RentACar.Domain.Entities.DisHizmetDurum.Kayitli))</summary>
+                <table class="grid tr-grid">
+                    <thead><tr><th>No</th><th>Hizmet</th><th class="num">Bedel</th><th class="num">Kom.%</th><th>Durum</th><th></th></tr></thead>
+                    <tbody>
+                        @if (Vm.DisHizmetler.Count == 0) { <tr><td colspan="6" class="muted">Kayıt yok.</td></tr> }
+                        @foreach (var d in Vm.DisHizmetler)
+                        {
+                            <tr>
+                                <td>@d.No</td><td>@d.AlinanHizmet</td>
+                                <td class="num">@d.HizmetBedeli.ToString("N2") @d.Currency</td>
+                                <td class="num">@d.TedarikciKomisyonOran.ToString("N2")</td>
+                                <td>@d.Durum</td>
+                                <td>
+                                    @if (d.Durum == RentACar.Domain.Entities.DisHizmetDurum.Kayitli)
+                                    {
+                                        <form method="post" action="/finans/dis-hizmet-iptal" style="display:inline"><AntiforgeryToken />
+                                            <input type="hidden" name="id" value="@d.Id" />
+                                            <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                                            <button type="submit" class="link danger" disabled="@(!Vm.FinansYetkisi)">İptal (ters kayıt)</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <form method="post" action="/finans/dis-hizmet" class="grid-form"><AntiforgeryToken />
+                    <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
+                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                    <label>Tedarikçi Cari
+                        <select name="cariId" required>
+                            @foreach (var c in Vm.Customers) { <option value="@c.Id">@c.DisplayName</option> }
+                        </select>
+                    </label>
+                    <label>Alınan Hizmet<input name="alinanHizmet" maxlength="256" required /></label>
+                    <label>Firma<input name="hizmetAlinanFirma" maxlength="256" /></label>
+                    <label>Bedel<input name="hizmetBedeli" type="number" step="0.01" min="0.01" required /></label>
+                    <label>Tedarikçi Kom. %<input name="komisyonOran" type="number" step="0.01" min="0" max="100" /></label>
+                    <label>Döviz<input name="doviz" maxlength="8" placeholder="TRY" /></label>
+                    <label>Kur (boş = otomatik)<input name="kur" type="number" step="0.000001" min="0" /></label>
+                    <label>Komisyon Fatura No<input name="komisyonFaturaNo" maxlength="64" /></label>
+                    <label>Açıklama<input name="aciklama" maxlength="512" /></label>
+                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Dış Hizmet Kaydet</button></label>
+                </form>
+            </details>
+        }
         <span class="muted small">Durum: <strong>@(Vm.Edit ? Vm.Rental!.Durum.ToString() : "Hazır")</strong></span>
         @if (Vm.Edit)
         {
