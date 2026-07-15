@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<DolulukFiyat.DolulukFiyatKuralService>(); // FAZ 3.A7 doluluk çarpanı master
         services.AddScoped<FaturaDonemleri.FaturaDonemPlanService>(); // FAZ 4.2-B1 dönem planı
         services.AddScoped<FaturaDonemleri.DonemTahsilatService>(); // FAZ 4.2-B3 kes+tahsilat orkestratörü
+        services.AddScoped<DisHizmetler.DisHizmetService>(); // FAZ 4.3 B2B dış hizmet alımı
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();
         services.AddScoped<RentalService>();
