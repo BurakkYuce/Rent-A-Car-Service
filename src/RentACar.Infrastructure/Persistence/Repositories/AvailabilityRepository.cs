@@ -15,7 +15,8 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<Vehicle>> GetAvailableAsync(
-        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube, CancellationToken ct = default)
+        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube,
+        RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -26,6 +27,13 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
             .Where(v => v.Durum == VehicleStatus.Musait || v.Durum == VehicleStatus.Kirada);
         if (!string.IsNullOrWhiteSpace(grup)) pool = pool.Where(v => v.Grup == grup);
         if (!string.IsNullOrWhiteSpace(sube)) pool = pool.Where(v => v.Sube == sube);
+        // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
+        if (!kapsam.Unrestricted)
+        {
+            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            pool = pool.Where(v => (kid != null && v.SubeId == kid)
+                                || (kad != null && v.Sube != null && v.Sube.Trim() == kad));
+        }
 
         var busyByRental = db.Rentals.AsNoTracking()
             .Where(r => r.Durum == RentalStatus.Kirada && r.BasTar < to && from < r.BitTar)

@@ -14,8 +14,7 @@ public sealed class FleetStatusService(IFleetStatusRepository repository, ICurre
 
     public Task<IReadOnlyList<FleetStatusRow>> QueryAsync(FleetStatusFilter filter, CancellationToken ct = default)
     {
-        var scope = BranchScope.Effective(_currentUser);
-        if (scope is not null) filter.Sube = scope; // operatör kendi şubesi dışına çıkamaz
+        filter.Kapsam = BranchScope.EffectiveFilter(_currentUser); // C3: FK-farkındalı kapsam
         return _repository.QueryAsync(filter, ct);
     }
 }

@@ -20,11 +20,14 @@ public sealed class AvailabilityService(IAvailabilityRepository repository, ICur
     {
         if (to <= from) throw new ValidationException("Bitiş tarihi başlangıçtan sonra olmalıdır.");
 
-        // Operatör için şube kapsamı zorunlu kılınır; aksi halde kullanıcının seçtiği şube (varsa).
-        var scope = BranchScope.Effective(_currentUser);
-        var effectiveSube = scope ?? (string.IsNullOrWhiteSpace(sube) ? null : sube.Trim());
+        // C3: kapsam FK-farkındalı zorlanır. MEVCUT SEMANTİK korunur: kapsamlı operatörün UI şube
+        // seçimi YOK SAYILIR (kendi şubesi gösterilir — kesişim değil; AvailabilityTests kilitli davranış).
+        var kapsam = BranchScope.EffectiveFilter(_currentUser);
+        var effectiveSube = kapsam.Unrestricted
+            ? (string.IsNullOrWhiteSpace(sube) ? null : sube.Trim())
+            : null;
         var effectiveGrup = string.IsNullOrWhiteSpace(grup) ? null : grup.Trim();
 
-        return await _repository.GetAvailableAsync(from, to, effectiveGrup, effectiveSube, ct);
+        return await _repository.GetAvailableAsync(from, to, effectiveGrup, effectiveSube, kapsam, ct);
     }
 }
