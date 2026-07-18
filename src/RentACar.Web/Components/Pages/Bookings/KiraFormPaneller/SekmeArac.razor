@@ -46,17 +46,17 @@
     <div class="card">
         <strong>Araç Bilgisi (seçimden dolar)</strong>
         <div class="grid-form">
-            <label>Tipi<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="tip">@(Vm.Edit ? (SeciliArac?.Tip ?? "—") : "—")</span></label>
-            <label>Marka<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="marka">@(Vm.Edit ? (SeciliArac?.Marka ?? "—") : "—")</span></label>
-            <label>Yılı<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yil">@(Vm.Edit ? (SeciliArac?.ModelYili?.ToString() ?? "—") : "—")</span></label>
-            <label>Vites<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="vites">@(Vm.Edit ? (SeciliArac?.Vites?.ToString() ?? "—") : "—")</span></label>
-            <label>Yakıt Türü<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yakit">@(Vm.Edit ? (SeciliArac?.Yakit.ToString() ?? "—") : "—")</span></label>
-            <label>Araç Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="grup">@(Vm.Edit ? (SeciliArac?.Grup ?? "—") : "—")</span></label>
-            <label>Segment<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="segment">@(Vm.Edit ? (SeciliArac?.Segment ?? "—") : "—")</span></label>
-            <label>Güncel Km<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="km">@(Vm.Edit ? (SeciliArac?.Km.ToString() ?? "—") : "—")</span></label>
-            <label>Şube<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="sube">@(Vm.Edit ? (SeciliArac?.Sube ?? "—") : "—")</span></label>
-            <label>Rez. Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: araçta ayrı rezervasyon grubu alanı yok — Grup kullanılıyor">—</span></label>
-            <label>Araç Yeri<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" title="TODO: fiziksel araç-yeri alanı yok — Şube kullanılıyor">—</span></label>
+            <label>Tipi<span class="kf-ro kf-robox" data-veh="tip">@(Vm.Edit ? (SeciliArac?.Tip ?? "—") : "—")</span></label>
+            <label>Marka<span class="kf-ro kf-robox" data-veh="marka">@(Vm.Edit ? (SeciliArac?.Marka ?? "—") : "—")</span></label>
+            <label>Yılı<span class="kf-ro kf-robox" data-veh="yil">@(Vm.Edit ? (SeciliArac?.ModelYili?.ToString() ?? "—") : "—")</span></label>
+            <label>Vites<span class="kf-ro kf-robox" data-veh="vites">@(Vm.Edit ? (SeciliArac?.Vites?.ToString() ?? "—") : "—")</span></label>
+            <label>Yakıt Türü<span class="kf-ro kf-robox" data-veh="yakit">@(Vm.Edit ? (SeciliArac?.Yakit.ToString() ?? "—") : "—")</span></label>
+            <label>Araç Grubu<span class="kf-ro kf-robox" data-veh="grup">@(Vm.Edit ? (SeciliArac?.Grup ?? "—") : "—")</span></label>
+            <label>Segment<span class="kf-ro kf-robox" data-veh="segment">@(Vm.Edit ? (SeciliArac?.Segment ?? "—") : "—")</span></label>
+            <label>Güncel Km<span class="kf-ro num kf-robox" data-veh="km">@(Vm.Edit ? (SeciliArac?.Km.ToString() ?? "—") : "—")</span></label>
+            <label>Şube<span class="kf-ro kf-robox" data-veh="sube">@(Vm.Edit ? (SeciliArac?.Sube ?? "—") : "—")</span></label>
+            <label>Rez. Grubu<span class="kf-ro kf-robox" title="TODO: araçta ayrı rezervasyon grubu alanı yok — Grup kullanılıyor">—</span></label>
+            <label>Araç Yeri<span class="kf-ro kf-robox" title="TODO: fiziksel araç-yeri alanı yok — Şube kullanılıyor">—</span></label>
             <label>Doluluk Hesap<span class="kf-ro" title="Aracın ömür-boyu doluluk yüzdesi (karneden; dinamik fiyat çarpanı tarife kuralıyla — FAZ 3.A7)">@(Vm.AracDolulukYuzde is { } dol ? dol.ToString("N2") + "%" : "—")</span></label>
         </div>
     </div>
