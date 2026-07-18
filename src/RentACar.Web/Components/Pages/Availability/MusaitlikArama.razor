@@ -27,6 +27,7 @@
 @if (_searched)
 {
     <p class="muted">@From – @To arası @_list.Count müsait araç.</p>
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th><th class="num">Günlük</th><th class="num">Toplam</th><th>Döviz</th><th></th></tr></thead>
         <tbody>
@@ -50,6 +51,7 @@
             }
         </tbody>
     </table>
+    </div>
 }
 
 @code {

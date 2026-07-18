@@ -19,6 +19,7 @@
     <button type="submit">Göster</button>
 </form>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Sözleşme</th><th>Plaka</th><th class="num">Çıkış</th><th class="num">Dönüş</th><th class="num">Katedilen</th><th class="num">Limit</th><th class="num">Fazla KM</th><th class="num">Fazla Bedel</th></tr></thead>
     <tbody>
@@ -41,6 +42,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }

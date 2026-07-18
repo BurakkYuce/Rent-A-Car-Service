@@ -15,6 +15,7 @@
 Kaynak: <strong>Servis</strong> = servis kaydında elle girilen hedef; <strong>Tanım</strong> = Son Bakım KM + araç tipinin periyodik
 aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listelenir (gizlenmez).</p>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Plaka</th><th class="num">Güncel KM</th><th class="num">Sonraki Bakım KM</th><th class="num">Kalan KM</th><th>Kaynak</th><th></th></tr></thead>
     <tbody>
@@ -35,6 +36,7 @@ aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listeleni
         }
     </tbody>
 </table>
+</div>
 
 @code {
     private IReadOnlyList<PeriyodikServisRow> _rows = [];
