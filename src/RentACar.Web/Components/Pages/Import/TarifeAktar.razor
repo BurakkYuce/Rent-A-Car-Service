@@ -40,10 +40,10 @@
     }
 }
 
-<section style="max-width:560px;">
+<section class="import-card" style="max-width:560px;">
     <form method="post" action="/tarife-aktar/yukle" enctype="multipart/form-data"><AntiforgeryToken />
         <input type="file" name="dosya" accept=".xlsx,.xls,.csv" required />
-        <button type="submit">Tarifeleri Aktar</button>
+        <button type="submit" class="btn-primary">Tarifeleri Aktar</button>
     </form>
     <p class="muted small" style="margin-top:.75rem;">Tanınan sütunlar (esnek eşleme): <strong>Kod</strong> (zorunlu),
         Ad, Kanal, Grup/Araç Grubu, Şube, Lokasyon, Başlangıç, Bitiş (2026-01-15 veya 15.01.2026),
