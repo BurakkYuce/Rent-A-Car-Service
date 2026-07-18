@@ -298,12 +298,11 @@ app.Use(async (ctx, next) =>
     h["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()";
     h["Content-Security-Policy"] =
         "default-src 'self'; " +
-        // script-src 'self' + Blazor'ın <ImportMap> inline script'inin SABİT hash'i ('unsafe-inline' YOK →
-        // saldırganın enjekte ettiği inline script çalışmaz). Importmap içeriği yalnız çerçeve/Radzen
-        // modül fingerprint'lerini içerir (benim JS'im klasik <script src>, importmap'te değil) → hash
-        // yalnız .NET/Radzen sürüm yükseltmesinde değişir. Değişirse tarayıcı konsolu yeni hash'i verir
-        // (deploy-checklist §9). Debug/Release aynı (fingerprint = dosya-içeriği hash'i).
-        "script-src 'self' 'sha256-8zf5ygGQcJlYy4pHen2mV6MUXZZiZU5JXKOBV8HRY08='; " +
+        // script-src 'self' — HİÇBİR inline script yok (event handler'lar rc-ui.js'e taşındı; Blazor'ın
+        // <ImportMap> inline script'i App.razor'dan kaldırıldı — tam statik SSR'de gereksizdi ve importmap
+        // fingerprint'i her asset değişiminde dönüp hash'i bozuyordu). 'unsafe-inline' YOK, hash YOK → temiz
+        // ve kırılgan-değil (asset/CSS değişimleri artık CSP'yi bozmaz).
+        "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; " +
         "font-src 'self'; " +
