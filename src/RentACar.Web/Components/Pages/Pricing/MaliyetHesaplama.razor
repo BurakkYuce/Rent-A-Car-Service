@@ -36,6 +36,7 @@
         <div class="card"><div class="card-num">@s.TeklifAylikNet.ToString("N2")</div><div class="card-label">Teklif (aylık net)</div></div>
         <div class="card"><div class="card-num">@s.TeklifKdvli.ToString("N2")</div><div class="card-label">Teklif (KDV dahil toplam)</div></div>
     </div>
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <tbody>
             <tr><td>Kalıntı Değer</td><td class="num">@s.ResidualDeger.ToString("N2")</td></tr>
@@ -49,6 +50,7 @@
             <tr><td>Teklif (net)</td><td class="num">@s.TeklifNet.ToString("N2")</td></tr>
         </tbody>
     </table>
+    </div>
 }
 
 @code {

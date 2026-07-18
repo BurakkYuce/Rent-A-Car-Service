@@ -27,6 +27,7 @@
     </form>
 </details>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>No</th><th>Banka</th><th class="num">Kredi</th><th class="num">Aylık Taksit</th><th class="num">Ödenen/Toplam</th><th class="num">Kalan Bakiye</th><th>Durum</th><th></th></tr></thead>
     <tbody>
@@ -63,6 +64,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
