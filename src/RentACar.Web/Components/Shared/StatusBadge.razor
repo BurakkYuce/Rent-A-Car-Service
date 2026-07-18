@@ -1,19 +1,20 @@
 @using RentACar.Domain.Enums
 
-@* Araç durumu rozeti — TEK merkezî durum→renk eşlemesi (her ekranda aynı). *@
-<RadzenBadge BadgeStyle="@Map(Durum)" Text="@Metin(Durum)" Variant="Variant.Filled" Shade="Shade.Default" />
+@* Araç durumu rozeti — TEK merkezî durum→renk eşlemesi (her ekranda aynı). Radzen'den arındırıldı:
+   saf CSS .status-pill (renkli nokta + METİN → a11y: yalnız renge dayanmaz). Statik SSR uyumlu. *@
+<span class="status-pill @Cls(Durum)">@Metin(Durum)</span>
 
 @code {
     [Parameter, EditorRequired] public VehicleStatus Durum { get; set; }
 
-    /// <summary>Durum → Radzen BadgeStyle (kirada/boş/servis/rezervasyon her yerde aynı renk).</summary>
-    public static BadgeStyle Map(VehicleStatus s) => s switch
+    /// <summary>Durum → pill varyant sınıfı (kirada/boş/servis/satıldı her yerde aynı renk).</summary>
+    public static string Cls(VehicleStatus s) => s switch
     {
-        VehicleStatus.Musait => BadgeStyle.Success,    // boşta / kiraya hazır
-        VehicleStatus.Kirada => BadgeStyle.Info,       // kirada
-        VehicleStatus.Serviste => BadgeStyle.Warning,  // serviste
-        VehicleStatus.Satildi => BadgeStyle.Dark,      // satıldı
-        _ => BadgeStyle.Light                           // pasif vd.
+        VehicleStatus.Musait => "sp-success",   // boşta / kiraya hazır
+        VehicleStatus.Kirada => "sp-info",      // kirada
+        VehicleStatus.Serviste => "sp-warn",    // serviste
+        VehicleStatus.Satildi => "sp-dim",      // satıldı
+        _ => "sp-muted"                          // pasif vd.
     };
 
     private static string Metin(VehicleStatus s) => s.ToString();

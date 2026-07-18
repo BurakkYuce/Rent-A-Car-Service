@@ -32,7 +32,7 @@ else
         <span>Segment: <strong>@(h.Segment ?? "—")</strong></span>
         <span>Şube: <strong>@(h.Sube ?? "—")</strong></span>
         <span>Sahibi: <strong>@(h.AracSahibi ?? "—")</strong></span>
-        <span>Durum: <strong>@h.Durum</strong></span>
+        <span>Durum: <StatusBadge Durum="@h.Durum" /></span>
         <span>KM: <strong>@h.Km.ToString("N0")</strong></span>
     </div>
     <div class="kv-inline">
