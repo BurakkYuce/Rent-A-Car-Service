@@ -447,6 +447,28 @@ h1, h2, h3 { letter-spacing: -0.012em; }
     background: var(--tr-accent); color: #fff; border: none; border-radius: .4rem; padding: .5rem 1rem;
     cursor: pointer; font: inherit; font-weight: 600; }
 .btn-primary:hover { filter: brightness(1.05); }
+
+/* Tablo-içi SINIFSIZ aksiyon butonları (Onayla/Reddet/Okundu/Tamamla/Taksit Öde...) — eskiden
+   tarayıcı-varsayılanı (ham gri) görünüyordu; kompakt nötr tasarım butonuna çekildi. `:not([class])`
+   ile hedef daralt → tablo-içi `.link` (Düzenle/Detay) ve diğer sınıflı butonlara DOKUNMAZ. */
+.grid td button:not([class]), .grid th button:not([class]) {
+    font: inherit; font-size: .82rem; padding: .28rem .62rem; cursor: pointer; white-space: nowrap;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); font-weight: 500;
+    transition: border-color .12s, color .12s, background .12s; }
+.grid td button:not([class]):hover, .grid th button:not([class]):hover {
+    border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+.grid td button:not([class]):disabled, .grid th button:not([class]):disabled { opacity: .5; cursor: not-allowed; }
+
+/* Dosya yükleme girişi (içe-aktarım ekranları) — ham tarayıcı görünümü yerine tasarım-nötr.
+   Hiçbir yerde stillenmiyordu → çakışmasız global taban. */
+input[type=file] { font: inherit; font-size: .85rem; color: var(--text-muted); max-width: 100%; }
+input[type=file]::file-selector-button {
+    font: inherit; padding: .42rem .8rem; margin-right: .65rem; cursor: pointer;
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); font-weight: 500; transition: border-color .12s, color .12s; }
+input[type=file]::file-selector-button:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
 .badge-unread { background: #ff5b5b; color: #fff; font-size: .68rem; font-weight: 700; border-radius: 1rem;
     padding: .05rem .4rem; min-width: 1.1rem; text-align: center; margin-left: auto; }
 
@@ -598,3 +620,10 @@ span.flatpickr-weekday { font-weight: 600; }
    Değerler eski inline stillerle BİREBİR aynı → görsel değişiklik yok. */
 .kf-robox  { display: block; padding: .35rem .5rem; border-radius: 4px; }      /* .kf-ro ayna kutusu (araç bilgi aynası) */
 .kf-inline { display: flex; gap: .4rem; align-items: center; }                /* satır-içi label+checkbox (ör. "Kdv Muafiyeti Var") */
+
+/* İçe-aktarım ekranları (İce/Tarife Aktar) — eskiden ham <section>/<form> + tarayıcı-varsayılan
+   file input/buton görünüyordu; kart + dikey aralıklı form + tasarım butonuna çekildi. */
+.import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); margin: var(--space-4) 0; }
+.import-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); }
+.import-card > h2:first-child { margin-top: 0; }
+.import-card form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin: var(--space-3) 0; }
