@@ -36,7 +36,7 @@ public sealed class PlatformAdminTests(PostgresFixture fx)
             }).Build();
         var svc = new PlatformAdminService(config, new AspNetPasswordHasher(), statusCache,
             NullLogger<PlatformAdminService>.Instance);
-        var login = new LoginService(factory, new PasswordHasher<User>());
+        var login = new LoginService(factory, new PasswordHasher<User>(), NullLogger<LoginService>.Instance);
         return (svc, login);
     }
 
