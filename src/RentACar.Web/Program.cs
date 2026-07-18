@@ -224,6 +224,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<PlatformAdminService>();
 builder.Services.AddScoped<TenantStatusCache>();
 builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
+builder.Services.AddScoped<PlatformIsolationMiddleware>(); // platform admin → tenant sayfası ayrımı
 
 // iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
 builder.Services.AddScoped<CalendarFeedService>();
@@ -328,6 +329,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
+app.UseMiddleware<PlatformIsolationMiddleware>(); // platform operatörü tenant UI'ına giremez (konsola yönlendir)
 app.UseAntiforgery();
 
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
