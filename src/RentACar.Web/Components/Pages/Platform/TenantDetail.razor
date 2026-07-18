@@ -1,0 +1,97 @@
+@page "/platform/tenants/{Id:guid}"
+@attribute [Authorize(Policy = "PlatformAdmin")]
+@layout PlatformLayout
+@inject PlatformAdminService Platform
+
+<PageTitle>Tenant Detayı — Platform</PageTitle>
+
+@if (_d is null)
+{
+    <div class="page-head"><h1>Tenant Detayı</h1></div>
+    <p class="error">Tenant bulunamadı.</p>
+    <p><a class="link" href="/platform/tenants">← Konsola dön</a></p>
+}
+else
+{
+    <div class="page-head">
+        <h1>@_d.Name <span class="mono muted">(@_d.Code)</span></h1>
+        <div class="actions"><a href="/platform/tenants">← Konsol</a></div>
+    </div>
+
+    @if (Ok == "1") { <p class="ok">İşlem tamamlandı.</p> }
+    @if (Hata == "onay") { <p class="error">Onay kodu uyuşmadı — firma KAPATILMADI. Kapatmak için firma kodunu aynen yazın.</p> }
+    else if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+    <p>
+        @* rozet önceliği: Kapalı damgası IsActive'den bağımsız kazanır *@
+        <span class="status-pill @(_d.Durum switch { "Kapalı" => "sp-danger", "Aktif" => "sp-success", _ => "sp-warn" })">@_d.Durum</span>
+        @if (_d.KapanisTarihiUtc is { } kt) { <span class="muted small"> — kapanış: @kt.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</span> }
+        <span class="muted small"> · oluşturma: @_d.CreatedAtUtc.LocalDateTime.ToString("dd.MM.yyyy")</span>
+        @if (_d.UpdatedAtUtc is { } ut) { <span class="muted small"> · güncelleme: @ut.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</span> }
+    </p>
+
+    @* ---- Metrikler (owner cross-tenant sayımları) ---- *@
+    <div class="cards">
+        <div class="card"><div class="card-num">@_d.UserCount</div><div class="card-label">Kullanıcı</div></div>
+        <div class="card"><div class="card-num">@_d.AracSayisi</div><div class="card-label">Araç</div></div>
+        <div class="card"><div class="card-num">@_d.AktifKira / @_d.ToplamKira</div><div class="card-label">Aktif / Toplam Kira</div></div>
+        <div class="card"><div class="card-num">@_d.Gelir30Gun.ToString("N0")</div><div class="card-label">Son 30 Gün Gelir ₺ (defter)</div></div>
+    </div>
+    <p class="muted small">Son giriş: <strong>@(_d.SonGiris?.LocalDateTime.ToString("dd.MM.yyyy HH:mm") ?? "—")</strong></p>
+
+    @* ---- Bilgi / iletişim düzenleme ---- *@
+    <h2>Firma Bilgileri</h2>
+    <form method="post" action="/platform/tenants/update" class="grid-form"><AntiforgeryToken />
+        <input type="hidden" name="id" value="@_d.Id" />
+        <label>Firma Adı<input name="name" required maxlength="256" value="@_d.Name" /></label>
+        <label>Yetkili Adı<input name="yetkiliAd" maxlength="128" value="@_d.YetkiliAd" /></label>
+        <label>E-posta<input name="eposta" type="email" maxlength="256" value="@_d.Eposta" /></label>
+        <label>Telefon<input name="telefon" maxlength="32" value="@_d.Telefon" /></label>
+        <label>Plan<input name="plan" maxlength="64" value="@_d.Plan" placeholder="Deneme / Standart / Pro" list="plan-list" /></label>
+        <datalist id="plan-list"><option>Deneme</option><option>Standart</option><option>Pro</option></datalist>
+        <label class="u-col-full">Platform Notu<textarea name="notlar" rows="3" maxlength="2000">@_d.Notlar</textarea></label>
+        <button type="submit">Kaydet</button>
+    </form>
+    <p class="muted small">Firma kodu (<code>@_d.Code</code>) login anahtarıdır — değiştirilemez.</p>
+
+    @* ---- Tehlike bölgesi ---- *@
+    <h2>Erişim Yönetimi</h2>
+    <div class="import-card">
+        @if (_d.KapanisTarihiUtc is null)
+        {
+            <form method="post" action="/platform/tenants/toggle" class="tahsil-mini"
+                  data-confirm="@_d.Code @(_d.IsActive ? "pasifleştirilsin" : "aktifleştirilsin") mi?"><AntiforgeryToken />
+                <input type="hidden" name="id" value="@_d.Id" />
+                <input type="hidden" name="active" value="@((!_d.IsActive).ToString().ToLowerInvariant())" />
+                <button type="submit" class="@(_d.IsActive ? "kf-btn-danger" : "kf-btn")">@(_d.IsActive ? "Pasifleştir" : "Aktifleştir")</button>
+                <span class="muted small">Geçici askıya alma — tek tıkla geri açılır; oturumlar anında düşer.</span>
+            </form>
+            <hr />
+            <form method="post" action="/platform/tenants/close" class="tahsil-mini"><AntiforgeryToken />
+                <input type="hidden" name="id" value="@_d.Id" />
+                <input name="onayKod" required placeholder="Onay için firma kodunu yazın" autocomplete="off" />
+                <button type="submit" class="kf-btn-danger">Firmayı Kapat</button>
+                <span class="muted small">Kapalı = damgalı ayrı durum; giriş engellenir, VERİ SİLİNMEZ. Onay: firma kodunu (@_d.Code) aynen yazın.</span>
+            </form>
+        }
+        else
+        {
+            <form method="post" action="/platform/tenants/reopen" class="tahsil-mini"
+                  data-confirm="@_d.Code yeniden açılsın mı?"><AntiforgeryToken />
+                <input type="hidden" name="id" value="@_d.Id" />
+                <button type="submit" class="kf-btn">Yeniden Aç</button>
+                <span class="muted small">Kapanış damgası temizlenir, erişim geri gelir — veri hiç silinmemişti.</span>
+            </form>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private PlatformTenantDetay? _d;
+
+    protected override async Task OnInitializedAsync() => _d = await Platform.GetTenantAsync(Id);
+}

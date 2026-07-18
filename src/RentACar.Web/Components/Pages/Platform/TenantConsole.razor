@@ -24,31 +24,38 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Kod</th><th>Ad</th><th>Durum</th><th class="num">Kullanıcı</th><th>Oluşturma</th><th>İşlem</th></tr>
+        <tr><th>Kod</th><th>Ad</th><th>Durum</th><th class="num">Kullanıcı</th><th class="num">Araç</th>
+            <th class="num">Aktif Kira</th><th>Son Giriş</th><th>Oluşturma</th><th>İşlem</th></tr>
     </thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Tenant yok.</td></tr>
+            <tr><td colspan="9" class="muted">Tenant yok.</td></tr>
         }
         @foreach (var t in _rows)
         {
             <tr>
-                <td class="mono">@t.Code</td>
+                <td class="mono"><a href="/platform/tenants/@t.Id">@t.Code</a></td>
                 <td>@t.Name</td>
-                <td>
-                    @if (t.IsActive) { <span class="badge">Açık</span> }
-                    else { <span class="badge danger">Kapalı</span> }
+                <td>@* rozet önceliği: Kapalı (damga) IsActive'den bağımsız kazanır *@
+                    <span class="status-pill @(t.Durum switch { "Kapalı" => "sp-danger", "Aktif" => "sp-success", _ => "sp-warn" })">@t.Durum</span>
                 </td>
                 <td class="num">@t.UserCount</td>
+                <td class="num">@t.AracSayisi</td>
+                <td class="num">@t.AktifKira</td>
+                <td>@(t.SonGiris?.LocalDateTime.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
                 <td>@t.CreatedAtUtc.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>
-                    <form method="post" action="/platform/tenants/toggle" style="margin:0"
-                          data-confirm="@(t.Code) @(t.IsActive ? "kapatılsın" : "açılsın") mı?"><AntiforgeryToken />
-                        <input type="hidden" name="id" value="@t.Id" />
-                        <input type="hidden" name="active" value="@((!t.IsActive).ToString().ToLowerInvariant())" />
-                        <button type="submit" class="link @(t.IsActive ? "danger" : "")">@(t.IsActive ? "Kapat" : "Aç")</button>
-                    </form>
+                <td class="row-actions">
+                    <a class="link" href="/platform/tenants/@t.Id">Detay</a>
+                    @if (t.KapanisTarihiUtc is null)
+                    {
+                        <form method="post" action="/platform/tenants/toggle" style="margin:0;display:inline"
+                              data-confirm="@(t.Code) @(t.IsActive ? "pasifleştirilsin" : "aktifleştirilsin") mi?"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <input type="hidden" name="active" value="@((!t.IsActive).ToString().ToLowerInvariant())" />
+                            <button type="submit" class="link @(t.IsActive ? "danger" : "")">@(t.IsActive ? "Pasifleştir" : "Aktifleştir")</button>
+                        </form>
+                    }
                 </td>
             </tr>
         }
