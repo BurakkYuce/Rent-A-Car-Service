@@ -11,6 +11,7 @@
     <p class="error">@Hata</p>
 }
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Dosya No</th><th>Tür</th><th>Avukat</th><th class="num">Tutar</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
     <tbody>
@@ -32,6 +33,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>@(_edit is null ? "Yeni Dosya" : $"Düzenle: {_edit.DosyaNo}")</h2>
 <form method="post" action="@(_edit is null ? "/hukuk/create" : "/hukuk/update")" class="grid-form"><AntiforgeryToken />

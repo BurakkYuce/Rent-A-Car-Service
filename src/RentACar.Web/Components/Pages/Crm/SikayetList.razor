@@ -11,6 +11,7 @@
     <p class="error">@Hata</p>
 }
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Tarih</th><th>Konu</th><th>Durum</th><th>Çözüm</th><th></th></tr></thead>
     <tbody>
@@ -30,6 +31,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>@(_edit is null ? "Yeni Şikayet" : "Düzenle")</h2>
 <form method="post" action="@(_edit is null ? "/sikayetler/create" : "/sikayetler/update")" class="grid-form"><AntiforgeryToken />

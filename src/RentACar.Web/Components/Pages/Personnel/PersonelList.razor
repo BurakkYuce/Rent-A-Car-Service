@@ -14,6 +14,7 @@
     <p class="error">@Hata</p>
 }
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Şube</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
     <tbody>
@@ -34,6 +35,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>@(_edit is null ? "Yeni Personel" : $"Düzenle: {_edit.Kod}")</h2>
 <form method="post" action="@(_edit is null ? "/personel/create" : "/personel/update")" class="grid-form"><AntiforgeryToken />

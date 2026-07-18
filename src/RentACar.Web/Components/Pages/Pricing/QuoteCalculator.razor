@@ -44,6 +44,7 @@
 {
     <div class="card">
         <h2>Teklif Sonucu — @Grup</h2>
+        <div class="table-scroll">
         <table class="grid tr-grid">
             <tbody>
                 <tr><td>Gün</td><td class="num">@Gun</td></tr>
@@ -58,6 +59,7 @@
                 <tr><td>Muafiyet</td><td class="num">@Muaf</td></tr>
             </tbody>
         </table>
+        </div>
         @if (!string.IsNullOrWhiteSpace(Notlar))
         {
             <p class="muted small">Notlar: @Notlar</p>
