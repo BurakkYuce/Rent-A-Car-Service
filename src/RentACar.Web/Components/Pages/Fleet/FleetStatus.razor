@@ -55,6 +55,7 @@
 
 <p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada</p>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
         <tr>
@@ -84,6 +85,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }

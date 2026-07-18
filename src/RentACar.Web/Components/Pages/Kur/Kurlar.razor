@@ -24,6 +24,7 @@
     }
 </div>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
         <tr><th>Kod</th><th>Ad</th><th>Birim</th><th class="num">Alış</th><th class="num">Satış</th><th>Sabit (tenant)</th></tr>
@@ -47,6 +48,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>Mini Çevirici</h2>
 <div class="filter-panel">
@@ -90,6 +92,7 @@
     </form>
 </details>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
         <tr><th>Kod</th><th class="num">Sabit Kur</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th></th></tr>
@@ -114,6 +117,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
