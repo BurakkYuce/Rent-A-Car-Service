@@ -575,3 +575,20 @@ span.flatpickr-weekday { font-weight: 600; }
 .kf-panel .report-cols > div { min-width: 0; }
 .kf-fin-panel .grid-form { grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); }
 .kf-fin-panel .grid-form input, .kf-fin-panel .grid-form select { min-width: 0; width: 100%; }
+
+/* ============================================================================
+   FAZ E — paylaşılan yerleşim utility'leri (inline-style azaltma + drift önleme).
+   Amaç: ekranlarda tekrar eden statik inline style'ları (grid-column:1/-1, flex satır,
+   width:auto, dar margin) TEK sınıfa taşımak; ölçekli boşluk token'larıyla tutarlılık.
+   .table-scroll: geniş liste/rapor tablolarını yatay kaydırılabilir sarmalar — düz .grid
+   `overflow:hidden` olduğu için geniş tablolar (ör. 20+ sütunlu araç listesi) dar ekranda
+   KIRPILIYORDU; wrapper ile kırpma yerine kaydırma olur (mobil/tablet kullanılabilirlik).
+   ============================================================================ */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.u-col-full   { grid-column: 1 / -1; }                                        /* grid-form tam-satır alanı */
+.u-w-auto     { width: auto; }                                                /* içeriğe göre daralan alan */
+.u-row        { display: flex; gap: var(--space-2); }                         /* yatay dizi (8px) */
+.u-row-sm     { display: flex; gap: var(--space-1); align-items: center; }    /* sıkışık yatay+ortalı (4px) */
+.u-row-wrap   { display: flex; gap: var(--space-4); flex-wrap: wrap; }        /* sarabilen yatay dizi (16px) */
+.u-mt-1 { margin-top: var(--space-1); }
+.u-mt-2 { margin-top: var(--space-2); }
