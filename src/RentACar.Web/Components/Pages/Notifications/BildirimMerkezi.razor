@@ -24,6 +24,7 @@ else
             <button type="submit">Tümünü okundu işaretle</button>
         </form>
     }
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Mesaj</th><th>Oluşturma</th><th>Durum</th><th></th></tr></thead>
         <tbody>
@@ -47,6 +48,7 @@ else
             }
         </tbody>
     </table>
+    </div>
 }
 
 <div class="cards">
@@ -75,6 +77,7 @@ else
 }
 else
 {
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Bitiş</th><th class="num">Kalan Gün</th><th>Durum</th></tr></thead>
         <tbody>
@@ -89,6 +92,7 @@ else
             }
         </tbody>
     </table>
+    </div>
 }
 
 <h2>Açık Şikayetler</h2>
@@ -98,6 +102,7 @@ else
 }
 else
 {
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Konu</th><th>Tarih</th></tr></thead>
         <tbody>
@@ -107,6 +112,7 @@ else
             }
         </tbody>
     </table>
+    </div>
     <p><a href="/sikayetler">Şikayetler →</a></p>
 }
 

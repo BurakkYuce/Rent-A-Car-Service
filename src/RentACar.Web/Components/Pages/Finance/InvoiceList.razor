@@ -9,6 +9,7 @@
 @if (Ok == "1") { <p class="ok">İşlem tamam.</p> }
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Döviz</th><th>Tür</th><th>Durum</th><th></th></tr></thead>
     <tbody>
@@ -44,6 +45,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>Manuel Fatura</h2>
 <p class="muted small">Kiradan bağımsız serbest fatura (Borç Cari / Alacak Gelir+KDV, dengeli; dönem kilidine tabi).</p>

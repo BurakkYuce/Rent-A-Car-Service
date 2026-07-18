@@ -45,6 +45,7 @@
 
 <p class="muted small">@_rows.Count sözleşme • @_rows.Count(r => r.Durum == RentalStatus.Kirada) kirada • @_rows.Count(r => !r.Faturali) faturasız</p>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
         <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th>Fatura</th><th></th></tr>
@@ -77,6 +78,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
