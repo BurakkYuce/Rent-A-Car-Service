@@ -1,21 +1,26 @@
-@* Dashboard Dönüşler/Çıkışlar tablosu. *@
+@* Dashboard Dönüşler/Çıkışlar tablosu. Href verilen satırda Plaka linke dönüşür; Islem fragment'ı
+   verilirse (yalnız Dönüşler + finans-yetkili) 5. "İşlem" kolonu render edilir. *@
 <div class="dc-table-wrap">
     <table class="dc-table">
         <thead>
-            <tr><th>Tarih / Saat</th><th>Ad Soyad</th><th>Plaka</th><th>Şube</th></tr>
+            <tr><th>Tarih / Saat</th><th>Ad Soyad</th><th>Plaka</th><th>Şube</th>@if (Islem is not null) { <th>İşlem</th> }</tr>
         </thead>
         <tbody>
             @if (Rows.Count == 0)
             {
-                <tr><td colspan="4" class="muted">@Empty</td></tr>
+                <tr><td colspan="@(Islem is null ? 4 : 5)" class="muted">@Empty</td></tr>
             }
             @foreach (var r in Rows)
             {
                 <tr>
                     <td>@r.Tar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                     <td>@r.Ad</td>
-                    <td class="mono">@r.Plaka</td>
+                    <td class="mono">
+                        @if (r.Href is not null) { <a href="@r.Href">@r.Plaka</a> }
+                        else { @r.Plaka }
+                    </td>
                     <td>@r.Sube</td>
+                    @if (Islem is not null) { <td class="row-actions">@Islem(r)</td> }
                 </tr>
             }
         </tbody>
@@ -25,4 +30,5 @@
 @code {
     [Parameter] public IReadOnlyList<DcRow> Rows { get; set; } = [];
     [Parameter] public string Empty { get; set; } = "Kayıt yok.";
+    [Parameter] public RenderFragment<DcRow>? Islem { get; set; }
 }
