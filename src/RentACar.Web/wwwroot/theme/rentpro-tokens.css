@@ -1,36 +1,80 @@
 /* ============================================================================
-   RentPro back-office teması — Slate/Amber (kiremit). TEK MERKEZİ override dosyası.
-   Radzen material-base.css'ten SONRA yüklenir; yalnız --rz-* değişkenlerini ezer.
-   Jenerik indigo/mor'dan bilinçli uzak: nötr slate taban + tek sıcak amber accent.
+   RentPro tasarım sistemi — TEK anlamsal token kaynağı (Data-Dense Dashboard).
+   Slate/Amber marka: nötr slate taban + sıcak amber accent + veri-mavisi.
+   Radzen material-base.css'ten SONRA, app.css'ten ÖNCE yüklenir; app.css ve tüm
+   bileşenler bu token'ları tüketir. Legacy köprüler (--rz-* / --app-* / app.css'teki
+   --tr-* ve --brand) hep buraya bağlanır → tek kaynak, hex kopyası/drift yok.
    ============================================================================ */
 :root {
-    /* Birincil = amber/kiremit accent (aksiyon, aktif, vurgu) */
-    --rz-primary: #d97706;          /* amber-600 */
-    --rz-primary-light: #f59e0b;    /* amber-500 */
-    --rz-primary-dark: #c2410c;     /* kiremit (orange-700) */
-    --rz-primary-lighter: #fef3e2;
-    --rz-on-primary: #ffffff;
-    --rz-secondary: #475569;        /* slate-600 */
+    /* --- Anlamsal renk rolleri --- */
+    --color-primary: #d97706;          /* amber-600 — aksiyon/aktif/vurgu (marka) */
+    --color-primary-hover: #b45309;    /* amber-700 */
+    --color-primary-soft: #fef3e2;     /* amber-50 zemin */
+    --on-primary: #ffffff;
+    --color-data: #1e40af;             /* blue-800 — veri/link/info accent */
+    --color-data-soft: #eff4ff;
+
+    /* Yüzeyler + metin (slate) */
+    --bg: #f8fafc;                     /* gövde arka plan (slate-50) */
+    --surface: #ffffff;                /* kart/panel */
+    --surface-2: #f1f5f9;              /* muted panel/zebra (slate-100) */
+    --text: #1e293b;                   /* slate-800 ana metin */
+    --text-muted: #64748b;             /* slate-500 ikincil */
+    --text-dim: #94a3b8;               /* slate-400 en soluk */
+    --border: #e2e8f0;                 /* slate-200 */
+    --border-strong: #cbd5e1;          /* slate-300 */
+
+    /* Kabuk (koyu slate sidebar / başlık şeridi) */
+    --shell: #334155;                  /* slate-700 */
+    --shell-2: #1e293b;                /* slate-800 */
+    --shell-tx: #cbd5e1;               /* slate-300 */
+    --shell-tx-dim: #94a3b8;           /* slate-400 */
+
+    /* Durum (her biri TEK — 3 farklı kırmızı yerine) */
+    --success: #15803d;                /* green-700 */
+    --warn: #b45309;                   /* amber-700 (metin/kenar için koyu) */
+    --danger: #b91c1c;                 /* red-700 */
+    --info: #1e40af;                   /* = --color-data */
+
+    /* Boşluk ölçeği (Data-Dense: 4→64px) */
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+    /* Köşe yarıçapı */
+    --radius-sm: 4px; --radius: 8px; --radius-lg: 12px; --radius-pill: 999px;
+
+    /* Tipografi ölçeği (taban 15px korunur) */
+    --text-xs: .75rem;  --text-sm: .8125rem; --text-base: .9375rem;
+    --text-md: 1rem;    --text-lg: 1.15rem;  --text-xl: 1.5rem;   --text-2xl: 2rem;
+
+    /* Odak halkası (klavye erişilebilirlik — FAZ B) */
+    --focus-ring: 0 0 0 3px rgba(217, 119, 6, .35);           /* açık zemin: amber */
+    --focus-ring-onshell: 0 0 0 3px rgba(255, 255, 255, .55); /* koyu kabuk: beyaz */
+
+    /* Dataviz kategorik palet (WCAG'lı; renk-only değil, metinle birlikte kullanılır) */
+    --dv-1: #d97706; --dv-2: #1e40af; --dv-3: #15803d;
+    --dv-4: #7c3aed; --dv-5: #0891b2; --dv-6: #64748b;
+    --dv-pos: #15803d; --dv-neg: #b91c1c;
+
+    /* --- Radzen köprüsü (--rz-*) → semantik token'lara bağlı --- */
+    --rz-primary: var(--color-primary);
+    --rz-primary-light: #f59e0b;
+    --rz-primary-dark: #c2410c;
+    --rz-primary-lighter: var(--color-primary-soft);
+    --rz-on-primary: var(--on-primary);
+    --rz-secondary: #475569;
     --rz-on-secondary: #ffffff;
+    --rz-success: var(--success);
+    --rz-danger: var(--danger);
+    --rz-warning: var(--color-primary);
+    --rz-info: var(--info);
+    --rz-border-radius: var(--radius);
+    --rz-text-color: var(--text);
+    --rz-body-background-color: var(--bg);
 
-    /* Durum renkleri (StatusBadge + bildirim) */
-    --rz-success: #15803d;          /* green-700 */
-    --rz-danger: #b91c1c;           /* red-700 */
-    --rz-warning: #d97706;          /* amber-600 */
-    --rz-info: #475569;             /* slate-600 */
-
-    /* Yapı */
-    --rz-border-radius: 8px;
-    --rz-text-color: #1e293b;       /* slate-800 */
-    --rz-body-background-color: #f8fafc;
-
-    /* Uygulama kabuğu (Radzen dışı; app.css bunları kullanır) */
-    --app-shell: #334155;           /* slate-700 sidebar */
-    --app-shell-2: #1e293b;         /* slate-800 (marka/başlık) */
-    --app-shell-tx: #cbd5e1;        /* slate-300 sidebar metin */
-    --app-shell-tx-dim: #94a3b8;    /* slate-400 */
-    --app-bg: #f8fafc;              /* gövde arka plan */
-    --app-line: #e2e8f0;            /* slate-200 çizgi */
-    --app-ink: #1e293b;             /* ana metin */
-    --app-accent: #d97706;          /* amber accent (app.css için) */
+    /* --- Legacy app kabuk köprüsü (--app-*) → semantik token'lara bağlı --- */
+    --app-shell: var(--shell);       --app-shell-2: var(--shell-2);
+    --app-shell-tx: var(--shell-tx); --app-shell-tx-dim: var(--shell-tx-dim);
+    --app-bg: var(--bg);             --app-line: var(--border);
+    --app-ink: var(--text);          --app-accent: var(--color-primary);
 }
