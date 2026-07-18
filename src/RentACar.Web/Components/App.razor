@@ -13,7 +13,9 @@
     <link rel="stylesheet" href="@Assets["theme/rentpro-tokens.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["RentACar.Web.styles.css"]" />
-    <ImportMap />
+    @* <ImportMap /> kaldırıldı: uygulama tam statik SSR (0 @rendermode); importmap yalnız ES-module
+       import'ları için gerekliydi ve içeriği fingerprint değiştikçe değişip CSP script-src hash'ini
+       her CSS PR'ında bozuyordu. Kaldırınca inline script kalmaz → CSP script-src 'self' hash'siz temiz. *@
     <HeadOutlet />
 </head>
 

@@ -22,4 +22,38 @@
             el.select();
         }
     }, true);
+
+    // Tema (açık/koyu) — data-theme + localStorage. CSP-uyumlu (inline handler yok).
+    // Sistem-koyu kullanıcılar CSS @media ile ANINDA koyu görür (JS'siz, FOUC yok); yalnız
+    // sisteminden FARKLI mod seçen kullanıcı yüklemede kısa bir yanıp-sönme görebilir (kabul).
+    var THEME_KEY = 'racar-theme';
+    function applyTheme(t) {
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+        else document.documentElement.removeAttribute('data-theme');
+        var lbl = document.querySelector('[data-theme-toggle] [data-theme-label]');
+        if (lbl) {
+            var dark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                (!document.documentElement.getAttribute('data-theme') &&
+                    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            lbl.textContent = dark ? 'Açık' : 'Koyu';
+        }
+    }
+    try { applyTheme(localStorage.getItem(THEME_KEY)); } catch (_) { }
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+        if (!btn) return;
+        e.preventDefault();
+        var cur = document.documentElement.getAttribute('data-theme');
+        var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var effective = cur || (sysDark ? 'dark' : 'light');
+        var next = effective === 'dark' ? 'light' : 'dark';
+        try { localStorage.setItem(THEME_KEY, next); } catch (_) { }
+        applyTheme(next);
+    }, true);
+    function hookTheme() {
+        if (window.Blazor && window.Blazor.addEventListener) {
+            window.Blazor.addEventListener('enhancedload', function () { applyTheme(localStorage.getItem(THEME_KEY)); });
+        } else setTimeout(hookTheme, 200);
+    }
+    hookTheme();
 })();
