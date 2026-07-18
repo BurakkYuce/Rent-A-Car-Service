@@ -326,5 +326,9 @@ public sealed record TutSatHamPaket(IReadOnlyList<FiloTutSatRow> Ham, IReadOnlyL
 /// <summary>Aylık gelir trend noktası (Home mini-trend). AyBas = ayın 1'i UTC.</summary>
 public sealed record AylikGelirNokta(DateTimeOffset AyBas, decimal Gelir);
 
+/// <summary>Aylık gelir+gider+net trend noktası (Finans Analiz 12-ay grafiği). AyBas = ayın 1'i UTC;
+/// değerler GetGelirGiderAsync ay-penceresi toplamları (iade netlenmiş, base TL).</summary>
+public sealed record AylikGelirGiderNokta(DateTimeOffset AyBas, decimal Gelir, decimal Gider, decimal NetKar);
+
 /// <summary>Filo tut/sat hamı: araç-başına son-12-ay / önceki-12-ay gider (defter, base) ve km.</summary>
 public sealed record FiloTutSatRow(Guid VehicleId, decimal Gider12, decimal GiderOnceki12, int Km12, int KmOnceki12);
