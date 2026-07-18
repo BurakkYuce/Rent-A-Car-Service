@@ -132,7 +132,7 @@
             {
                 var h = maxGelir > 0 ? (int)Math.Round(t.Gelir / maxGelir * 100) : 0;
                 <div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%;">
-                    <div title="@t.Gelir.ToString("N0")" style="height:@(Math.Max(h, 2))%;background:#f59e0b;border-radius:3px 3px 0 0;"></div>
+                    <div title="@t.Gelir.ToString("N0")" style="height:@(Math.Max(h, 2))%;background:var(--dv-1);border-radius:3px 3px 0 0;"></div>
                     <div class="muted small">@t.AyBas.ToString("MM.yy")</div>
                 </div>
             }
