@@ -100,7 +100,7 @@
                     <label>Kur (boş = otomatik)<input name="kur" type="number" step="0.000001" min="0" /></label>
                     <label>Komisyon Fatura No<input name="komisyonFaturaNo" maxlength="64" /></label>
                     <label>Açıklama<input name="aciklama" maxlength="512" /></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Dış Hizmet Kaydet</button></label>
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Dış Hizmet Kaydet</button></label>
                 </form>
             </details>
         }
@@ -134,7 +134,7 @@
                     <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
                     <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş: TRY=1, dövizde sabit kur/TCMB otomatik" /></label>
                     <label>Ödemeyi Yapan / Not<input name="aciklama" placeholder="Kart/havale — ödeyen" /></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Kart/Havale Tahsilatı (Banka)</button></label>
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Kart/Havale Tahsilatı (Banka)</button></label>
                 </form>
                 <form method="post" action="/finans/odeme" class="grid-form"><AntiforgeryToken />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
@@ -143,7 +143,7 @@
                     <input type="hidden" name="hesap" value="Banka" />
                     <label>Giden Havale Tutarı<input name="tutar" type="number" step="0.01" min="0.01" /></label>
                     <label>Açıklama<input name="aciklama" placeholder="İade/giden havale" /></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
                 </form>
             </div>
             @* FAZ 4.1: manuel provizyon yaşam döngüsü — POS'suz kayıt (deftere yazmaz). Bu formlar ana
@@ -158,7 +158,7 @@
                     <label>Kapama Tutarı<input name="kapamaTutar" type="number" step="0.01" min="0"
                         placeholder="Boş = bloke tutarın tamamı" value="@Vm.Rental!.Provizyon" /></label>
                     <label><input type="checkbox" name="iade" value="true" /> Çekim yok — serbest bırak (iade)</label>
-                    <label style="align-self:end;"><button type="submit"
+                    <label class="u-self-end"><button type="submit"
                         disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Alindi)">Provizyonu Kapat</button></label>
                     <p class="muted small">Bilgi kaydıdır — deftere/bakiyeye yazmaz; gerçek tahsilat yukarıdaki akışlardan.</p>
                 </form>
@@ -182,7 +182,7 @@
                     <label>Tutar<input name="tutar" type="number" step="0.01" value="@Vm.Rental!.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
                     <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
                     <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş: TRY=1, dövizde sabit kur/TCMB otomatik" /></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Nakit Tahsilat (Kasa)</button></label>
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Nakit Tahsilat (Kasa)</button></label>
                 </form>
                 <form method="post" action="/depozito/al" class="grid-form"><AntiforgeryToken />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
@@ -190,7 +190,7 @@
                     <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
                     <label>Depozito Tutarı<input name="tutar" type="number" step="0.01" min="0.01" value="@(Vm.Rental!.Depozito is { } dep ? dep.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")" /></label>
                     <label>Hesap<select name="hesap"><option>Kasa</option><option>Banka</option></select></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Depozito Al</button></label>
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Depozito Al</button></label>
                 </form>
                 <form method="post" action="/depozito/irat" class="grid-form"><AntiforgeryToken />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
@@ -200,7 +200,7 @@
                     <label>İrat Tutarı<input name="tutar" type="number" step="0.01" min="0.01"
                         title="İade edilmeyen depozito GELİR yazılır; bu kiranın aracına atfedilir" /></label>
                     <label>Açıklama<input name="aciklama" placeholder="ör. hasar kesintisi" /></label>
-                    <label style="align-self:end;"><button type="submit" disabled="@(!Vm.FinansYetkisi)"
+                    <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)"
                         title="Borç Depozito / Alacak Gelir — tutulan depozitoyu aşamaz">Depozito İrat</button></label>
                 </form>
             </div>

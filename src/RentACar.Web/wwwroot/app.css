@@ -570,11 +570,11 @@ span.flatpickr-weekday { font-weight: 600; }
 /* Mega-form: dar kolonlarda (report-cols yarısı) 4-sabit-kolonlu grid-form TAŞIYORDU (Fiyat kartı sağdan
    kesiliyordu) → panel içinde akışkan kolonlar + input'lar küçülebilir; yatay taşma biter. */
 .kf-panel .grid-form { grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); }
-.kf-panel .grid-form input, .kf-panel .grid-form select, .kf-panel .grid-form textarea { min-width: 0; width: 100%; }
+.kf-panel .grid-form input:not([type=checkbox]):not([type=radio]), .kf-panel .grid-form select, .kf-panel .grid-form textarea { min-width: 0; width: 100%; }
 .kf-panel .report-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .kf-panel .report-cols > div { min-width: 0; }
 .kf-fin-panel .grid-form { grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); }
-.kf-fin-panel .grid-form input, .kf-fin-panel .grid-form select { min-width: 0; width: 100%; }
+.kf-fin-panel .grid-form input:not([type=checkbox]):not([type=radio]), .kf-fin-panel .grid-form select { min-width: 0; width: 100%; }
 
 /* ============================================================================
    FAZ E — paylaşılan yerleşim utility'leri (inline-style azaltma + drift önleme).
@@ -592,3 +592,9 @@ span.flatpickr-weekday { font-weight: 600; }
 .u-row-wrap   { display: flex; gap: var(--space-4); flex-wrap: wrap; }        /* sarabilen yatay dizi (16px) */
 .u-mt-1 { margin-top: var(--space-1); }
 .u-mt-2 { margin-top: var(--space-2); }
+.u-self-end { align-self: end; }                                              /* grid-form içinde alta hizalı buton hücresi */
+
+/* Kira mega-formu tekrar-eden inline stilleri (piksel-özdeş sınıflar; inline azaltma).
+   Değerler eski inline stillerle BİREBİR aynı → görsel değişiklik yok. */
+.kf-robox  { display: block; padding: .35rem .5rem; border-radius: 4px; }      /* .kf-ro ayna kutusu (araç bilgi aynası) */
+.kf-inline { display: flex; gap: .4rem; align-items: center; }                /* satır-içi label+checkbox (ör. "Kdv Muafiyeti Var") */
