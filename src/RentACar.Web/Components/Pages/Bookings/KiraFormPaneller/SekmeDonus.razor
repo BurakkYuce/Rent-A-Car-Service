@@ -32,7 +32,7 @@
                         @foreach (var p in Vm.Personeller) { <option value="@p.Id">@p.Ad @p.Soyad</option> }
                     </select>
                 </label>
-                <label style="align-self:end;"><button type="submit" form="kira-donus" disabled="@(!Vm.OperasyonYetkisi)">Dönüşü Tamamla</button></label>
+                <label class="u-self-end"><button type="submit" form="kira-donus" disabled="@(!Vm.OperasyonYetkisi)">Dönüşü Tamamla</button></label>
             </div>
             @* Canlı önizleme — GERÇEK motor (ReturnMath), persist yok *@
             <div class="kf-hesap" style="margin-top:.5rem;">
@@ -60,7 +60,7 @@
             <p class="muted small">Bitiş tarihini ileri iter; ek gün × günlük ücret bakiyeye eklenir (geç-dönüş bedelinden ayrı; defter etkilenmez).</p>
             <div class="grid-form">
                 <label>Yeni Bitiş<input form="kira-uzat" name="yeniBitTar" type="datetime-local" value="@Vm.Rental!.BitTar.AddDays(1).UtcDateTime.ToString("yyyy-MM-ddTHH:mm")" required /></label>
-                <label style="align-self:end;"><button type="submit" form="kira-uzat" disabled="@(!Vm.OperasyonYetkisi)">Uzat</button></label>
+                <label class="u-self-end"><button type="submit" form="kira-uzat" disabled="@(!Vm.OperasyonYetkisi)">Uzat</button></label>
             </div>
         </div>
     }

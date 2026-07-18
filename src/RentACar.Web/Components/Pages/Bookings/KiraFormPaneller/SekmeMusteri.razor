@@ -67,7 +67,7 @@
                     <input type="checkbox" name="riskOnay" value="true" checked="@(Vm.Edit && Vm.Rental!.RiskOnay)" /></span>
                 </label>
             </AuthorizeView>
-            <label style="grid-column:1/-1;">Kefil Bilgisi<input name="kefilBilgisi" maxlength="512" value="@Vm.S(c => c.KefilBilgisi)" /></label>
+            <label class="u-col-full">Kefil Bilgisi<input name="kefilBilgisi" maxlength="512" value="@Vm.S(c => c.KefilBilgisi)" /></label>
         </div>
         <p class="muted small">Findeks entegrasyonu yok — puan manuel girilir ve sözleşmede saklanır.</p>
     </div>

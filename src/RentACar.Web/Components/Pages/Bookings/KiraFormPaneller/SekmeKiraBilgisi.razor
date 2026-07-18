@@ -39,7 +39,7 @@
             </label>
             @* FAZ 4.2-B4: job kapısı — kira-başına opt-in (tenant ayarındaki job açıksa vadesi gelen
                dönemleri otomatik keser; manuel kesim bu bayraktan bağımsız). *@
-            <label class="check" style="align-self:end;">
+            <label class="check u-self-end">
                 <input type="checkbox" name="donemselFaturalama" value="true"
                        checked="@(Vm.Edit && Vm.Rental!.DonemselFaturalama)" /> Dönemsel faturalama (job)
             </label>
@@ -90,28 +90,28 @@
             <label>Fatura Profili<input value="—" readonly title="TODO: e-Fatura profili (entegrasyon stub)" /></label>
             @if (Vm.Edit)
             {
-                <label>Hediye Gün<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;">@(Vm.Rental!.HediyeGun?.ToString() ?? "—")</span></label>
+                <label>Hediye Gün<span class="kf-ro kf-robox">@(Vm.Rental!.HediyeGun?.ToString() ?? "—")</span></label>
             }
             else
             {
-                <label>Hediye Gün / Motor Dökümü<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="dokum">—</span></label>
+                <label>Hediye Gün / Motor Dökümü<span class="kf-ro kf-robox" data-fp="dokum">—</span></label>
             }
-            <label style="display:flex;gap:.4rem;align-items:center;">
+            <label class="kf-inline">
                 <input type="hidden" name="otomatikUzat" value="false" />
-                <input type="checkbox" name="otomatikUzat" value="true" style="width:auto;" checked="@Vm.B(c => c.OtomatikUzat)" /> Otomatik Uzat
+                <input type="checkbox" name="otomatikUzat" value="true" class="u-w-auto" checked="@Vm.B(c => c.OtomatikUzat)" /> Otomatik Uzat
             </label>
         </div>
     </div>
     <div class="card">
         <strong>KABİS</strong>
         <div class="grid-form">
-            <label style="display:flex;gap:.4rem;align-items:center;">
+            <label class="kf-inline">
                 <input type="hidden" name="kabisCikis" value="false" />
-                <input type="checkbox" name="kabisCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.KabisCikis)" /> Kabis Çıkış Yapıldı
+                <input type="checkbox" name="kabisCikis" value="true" class="u-w-auto" checked="@Vm.B(c => c.KabisCikis)" /> Kabis Çıkış Yapıldı
             </label>
-            <label style="display:flex;gap:.4rem;align-items:center;">
+            <label class="kf-inline">
                 <input type="hidden" name="kabisDonus" value="false" />
-                <input type="checkbox" name="kabisDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.KabisDonus)" /> Kabis Dönüş Yapıldı
+                <input type="checkbox" name="kabisDonus" value="true" class="u-w-auto" checked="@Vm.B(c => c.KabisDonus)" /> Kabis Dönüş Yapıldı
             </label>
         </div>
         <p class="muted small">KABİS bildirimi entegrasyonu stub — işaretler operatör takibi için saklanır.</p>
@@ -124,7 +124,7 @@
             <div class="grid-form">
                 <label>Çıkış Km<input form="kira-teslim" name="cikisKm" type="number" min="0" value="0" required /></label>
                 <label>Çıkış Yakıt (0-12)<input form="kira-teslim" name="cikisYakit" type="number" min="0" max="12" value="8" required /></label>
-                <label style="align-self:end;"><button type="submit" form="kira-teslim" disabled="@(!Vm.OperasyonYetkisi)">Teslim Et</button></label>
+                <label class="u-self-end"><button type="submit" form="kira-teslim" disabled="@(!Vm.OperasyonYetkisi)">Teslim Et</button></label>
             </div>
             <p class="muted small">Araç odometresi aynı işlemde güncellenir; araç durumu Kirada olur.</p>
         }
