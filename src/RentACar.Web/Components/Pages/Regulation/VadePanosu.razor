@@ -13,6 +13,7 @@
     <button type="submit">Filtrele</button>
 </form>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
         <tr><th>Araç</th><th>Tür</th><th>Bitiş</th><th>Kalan Gün</th><th>Durum</th></tr>
@@ -34,6 +35,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "plaka")] public string? PlakaFiltre { get; set; }

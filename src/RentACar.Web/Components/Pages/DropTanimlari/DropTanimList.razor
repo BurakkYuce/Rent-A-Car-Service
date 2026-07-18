@@ -21,6 +21,7 @@
     <button type="submit">Ekle</button>
 </form>
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Lokasyon</th><th>Şube</th><th>Karşılama</th><th>Çalışma</th><th>İletişim</th><th class="num">Drop Ücreti (net)</th><th></th></tr></thead>
     <tbody>
@@ -35,6 +36,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }

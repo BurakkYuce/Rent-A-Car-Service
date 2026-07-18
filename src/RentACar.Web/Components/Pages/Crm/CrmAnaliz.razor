@@ -8,6 +8,7 @@
 <p class="muted small">Salt-okur agrega: müşteri kira/ciro segmenti + personel BAF (araç tahsis) çalışma sayısı.</p>
 
 <h2>Müşteri Segment</h2>
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Müşteri</th><th class="num">Kira Sayısı</th><th class="num">Toplam Ciro</th><th>Son İşlem</th><th>Segment</th></tr></thead>
     <tbody>
@@ -24,8 +25,10 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>Personel Çalışma (BAF)</h2>
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Personel</th><th class="num">Tahsis Sayısı</th></tr></thead>
     <tbody>
@@ -36,6 +39,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     private IReadOnlyList<MusteriSegmentRow> _segment = [];
