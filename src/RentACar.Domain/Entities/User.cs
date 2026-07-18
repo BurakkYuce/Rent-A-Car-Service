@@ -25,6 +25,10 @@ public class User : IBranchScoped
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Son başarılı giriş (platform konsolu "son aktivite" metriği). Login'de korumalı yazılır
+    /// (try/catch — metrik yazımı login'i asla düşürmez). Users platform tablosu: RLS yok, app UPDATE grant'li.</summary>
+    public DateTimeOffset? LastLoginAtUtc { get; set; }
+
     /// <summary>Sabit rol (yetki). Yeni kullanıcılar varsayılan en düşük yetki: Operator.</summary>
     public UserRole Rol { get; set; } = UserRole.Operator;
 

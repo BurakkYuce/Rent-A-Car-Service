@@ -18,6 +18,12 @@ internal sealed class TenantConfig : IEntityTypeConfiguration<Tenant>
         e.Property(x => x.Code).IsRequired().HasMaxLength(64);
         e.HasIndex(x => x.Code).IsUnique();
         e.Property(x => x.Name).IsRequired().HasMaxLength(256);
+        // Konsol v2 bilgi alanları (bilgi amaçlı; Kapanis semantiği Tenant.cs'te).
+        e.Property(x => x.YetkiliAd).HasMaxLength(128);
+        e.Property(x => x.Eposta).HasMaxLength(256);
+        e.Property(x => x.Telefon).HasMaxLength(32);
+        e.Property(x => x.Notlar).HasMaxLength(2000);
+        e.Property(x => x.Plan).HasMaxLength(64);
     }
 }
 
