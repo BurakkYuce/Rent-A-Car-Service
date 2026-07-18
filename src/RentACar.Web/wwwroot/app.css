@@ -169,6 +169,19 @@ details.model-grup:not(.nav-group):not(.new-vehicle) > summary:not(.link) {
 /* Açık/koyu tema toggle butonu (topbar) */
 .theme-toggle { border: 1px solid var(--border); border-radius: var(--radius-pill); padding: .2rem .7rem; font-size: .8rem; cursor: pointer; background: var(--surface); color: var(--text-muted); }
 .theme-toggle:hover { border-color: var(--border-strong); color: var(--text); }
+
+/* Durum rozeti (renkli nokta + METİN — a11y: yalnız renkle değil metinle de ayrışır).
+   Zemin soft, metin/nokta koyu durum rengi; light+dark uyumlu (color-mix ile yüzeye harmanlanır). */
+.status-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .1rem .5rem;
+    border-radius: var(--radius-pill); font-size: .78rem; font-weight: 600; line-height: 1.5;
+    border: 1px solid transparent; white-space: nowrap; }
+.status-pill::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.sp-success { color: var(--success); background: color-mix(in srgb, var(--success) 12%, var(--surface)); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.sp-info    { color: var(--color-data); background: color-mix(in srgb, var(--color-data) 12%, var(--surface)); border-color: color-mix(in srgb, var(--color-data) 30%, transparent); }
+.sp-warn    { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.sp-danger  { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.sp-dim     { color: var(--text-dim); background: var(--surface-2); border-color: var(--border); }
+.sp-muted   { color: var(--text-muted); background: var(--surface-2); border-color: var(--border); }
 /* Tarih/saat: takvim ikonu tema-uyumlu + tıklanır */
 input[type=date]::-webkit-calendar-picker-indicator,
 input[type=datetime-local]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .5; padding-left: .25rem; }
