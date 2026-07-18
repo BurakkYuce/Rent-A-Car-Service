@@ -31,6 +31,7 @@
 </div>
 
 <h2>Cari Bakiyeleri</h2>
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Cari</th><th>Bakiye</th><th></th></tr></thead>
     <tbody>
@@ -48,8 +49,10 @@
         }
     </tbody>
 </table>
+</div>
 
 <h2>Borç Yaşlandırma <span class="muted">(brüt — tahsilat mahsubu yok)</span></h2>
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Cari</th><th>0-30 gün</th><th>31-60</th><th>61-90</th><th>90+</th><th>Toplam</th></tr></thead>
     <tbody>
@@ -70,6 +73,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     private IReadOnlyList<CariBalanceDto> _balances = [];

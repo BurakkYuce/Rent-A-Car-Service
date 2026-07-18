@@ -98,6 +98,7 @@ else
 
     @* Yıllık P&L *@
     <h2>Yıllık Kâr/Zarar</h2>
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Yıl</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
         <tbody>
@@ -111,11 +112,13 @@ else
         <tfoot><tr><th>TOPLAM</th><th class="num">@_d.ToplamGelir.ToString("N2")</th>
             <th class="num">@_d.ToplamGider.ToString("N2")</th><th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr></tfoot>
     </table>
+    </div>
 
     @* Kırılımlar *@
     <div class="report-cols">
         <div>
             <h2>Gelir Kaynakları</h2>
+            <div class="table-scroll">
             <table class="grid tr-grid">
                 <thead><tr><th>Kaynak</th><th class="num">Tutar</th><th class="num">% Gelir</th></tr></thead>
                 <tbody>
@@ -126,9 +129,11 @@ else
                     }
                 </tbody>
             </table>
+            </div>
         </div>
         <div>
             <h2>Gider Kategorileri</h2>
+            <div class="table-scroll">
             <table class="grid tr-grid">
                 <thead><tr><th>Kategori</th><th class="num">Tutar</th><th class="num">% Gelir</th></tr></thead>
                 <tbody>
@@ -139,6 +144,7 @@ else
                     }
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 
@@ -193,6 +199,7 @@ else
 
     @* FAZ 2.1: Yaklaşan vadeler (sigorta/kasko/MTV/muayene) + bakım-km *@
     <h2>Yaklaşan Vadeler</h2>
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Bitiş / Hedef</th><th class="num">Kalan</th><th>Durum</th></tr></thead>
         <tbody>
@@ -222,9 +229,11 @@ else
             }
         </tbody>
     </table>
+    </div>
 
     @* Olay zaman çizelgesi *@
     <h2>Olay Geçmişi — Neyi Ne Zaman</h2>
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th class="num">Tutar</th><th>Defter</th></tr></thead>
         <tbody>
@@ -241,6 +250,7 @@ else
             }
         </tbody>
     </table>
+    </div>
     <p class="muted small">Olay tutarları kaynak belgeden (brüt/belge para birimi) BİLGİ amaçlıdır ve P&amp;L'e
         toplanmaz — P&amp;L yalnız çift-taraflı defterden türetilir. "bilgi" satırları (ör. servis maliyeti)
         deftere yazılmayan operasyonel kayıtlardır; gerçek gider ayrıca Gider dilimi olarak girilir.</p>
