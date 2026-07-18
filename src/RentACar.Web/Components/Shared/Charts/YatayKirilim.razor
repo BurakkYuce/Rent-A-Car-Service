@@ -1,0 +1,34 @@
+@* Kategori kırılımı — YATAY çubuklar (donut değil: negatif dilim [iade netleme] doğal gösterilir,
+   Türkçe uzun etiket + print sağlam, arc matematiği yok). HTML div-bar: gerçek metin → a11y doğal.
+   Genişlik = |değer| / max|değer|; negatifler kırmızı (dv-neg) işaretli. *@
+<div class="kirilim">
+    @if (!string.IsNullOrEmpty(Baslik)) { <h3 class="kirilim-baslik">@Baslik</h3> }
+    @if (Dilimler.Count == 0)
+    {
+        <p class="muted small">@Bos</p>
+    }
+    @{ var maxAbs = Dilimler.Count == 0 ? 1m : Math.Max(1e-9m, Dilimler.Max(d => Math.Abs(d.Deger))); }
+    @{ var toplam = Dilimler.Sum(d => d.Deger); }
+    @foreach (var d in Dilimler)
+    {
+        var yuzde = toplam != 0m ? d.Deger / toplam * 100m : 0m;
+        <div class="kirilim-satir" title="@d.Etiket: @Fmt(d.Deger)">
+            <span class="kirilim-etiket">@d.Etiket</span>
+            <span class="kirilim-track">
+                <span class="kirilim-bar @(d.Deger < 0m ? "neg" : $"dv-b{d.RenkIndeks}")"
+                      style="width:@((Math.Abs(d.Deger) / maxAbs * 100m).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span>
+            </span>
+            <span class="kirilim-deger @(d.Deger < 0m ? "neg" : "")">@Fmt(d.Deger)
+                <span class="muted">%@yuzde.ToString("0.#")</span></span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SvgDilim> Dilimler { get; set; } = [];
+    [Parameter] public string? Baslik { get; set; }
+    [Parameter] public string Bos { get; set; } = "Kayıt yok.";
+    [Parameter] public Func<decimal, string>? Format { get; set; }
+
+    private string Fmt(decimal v) => Format?.Invoke(v) ?? v.ToString("N0");
+}

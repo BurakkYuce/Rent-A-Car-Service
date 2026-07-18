@@ -628,6 +628,51 @@ span.flatpickr-weekday { font-weight: 600; }
 .kf-robox  { display: block; padding: .35rem .5rem; border-radius: 4px; }      /* .kf-ro ayna kutusu (araç bilgi aynası) */
 .kf-inline { display: flex; gap: .4rem; align-items: center; }                /* satır-içi label+checkbox (ör. "Kdv Muafiyeti Var") */
 
+/* ============================================================================
+   FİNANS ANALİZ GRAFİKLERİ — sunucu-çizimi SVG (CSP 'self': JS'siz) + yatay kırılım.
+   Renkler dataviz token'larından (--dv-1..6) → dark mode otomatik uyar.
+   ============================================================================ */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.dv-f1 { fill: var(--dv-1); } .dv-f2 { fill: var(--dv-2); } .dv-f3 { fill: var(--dv-3); }
+.dv-f4 { fill: var(--dv-4); } .dv-f5 { fill: var(--dv-5); } .dv-f6 { fill: var(--dv-6); }
+.dv-s1 { stroke: var(--dv-1); } .dv-s2 { stroke: var(--dv-2); } .dv-s3 { stroke: var(--dv-3); }
+.dv-s4 { stroke: var(--dv-4); } .dv-s5 { stroke: var(--dv-5); } .dv-s6 { stroke: var(--dv-6); }
+.dv-a1 { fill: var(--dv-1); opacity: .16; } .dv-a2 { fill: var(--dv-2); opacity: .16; }
+.dv-a3 { fill: var(--dv-3); opacity: .16; } .dv-a4 { fill: var(--dv-4); opacity: .16; }
+.dv-a5 { fill: var(--dv-5); opacity: .16; } .dv-a6 { fill: var(--dv-6); opacity: .16; }
+.dv-b1 { background: var(--dv-1); } .dv-b2 { background: var(--dv-2); } .dv-b3 { background: var(--dv-3); }
+.dv-b4 { background: var(--dv-4); } .dv-b5 { background: var(--dv-5); } .dv-b6 { background: var(--dv-6); }
+
+.svg-chart { margin: 0; }
+.svg-chart svg { width: 100%; height: auto; display: block; }
+.svg-chart figcaption { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin-bottom: .4rem; }
+.ch-grid { stroke: var(--border); stroke-width: 1; }
+.ch-axis { stroke: var(--border-strong); stroke-width: 1; }
+.ch-ytick, .ch-xtick { font-size: 10px; fill: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ch-line { stroke-width: 2; }
+.ch-nokta-etiket { font-size: 10px; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ch-legend { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: .4rem; font-size: .78rem; color: var(--text-muted); }
+.ch-leg { display: inline-flex; align-items: center; gap: .35rem; }
+.ch-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.ch-swatch-line { height: 3px; border-radius: 2px; }
+
+.analiz-blok { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+
+/* Yatay kırılım çubukları (kategori dağılımı — negatif iade sola/kırmızı) */
+.kirilim-baslik { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin: 0 0 .5rem; }
+.kirilim-satir { display: grid; grid-template-columns: minmax(90px, 9rem) 1fr minmax(80px, auto);
+    gap: var(--space-2); align-items: center; padding: .22rem 0; font-size: .85rem; }
+.kirilim-etiket { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kirilim-track { background: var(--surface-2); border-radius: var(--radius-pill); height: 12px; overflow: hidden; }
+.kirilim-bar { display: block; height: 100%; border-radius: var(--radius-pill); min-width: 2px; }
+.kirilim-bar.neg { background: var(--dv-neg); }
+.kirilim-deger { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.kirilim-deger.neg { color: var(--danger); }
+.kirilim-deger .muted { font-size: .72rem; margin-left: .25rem; }
+
 /* İçe-aktarım ekranları (İce/Tarife Aktar) — eskiden ham <section>/<form> + tarayıcı-varsayılan
    file input/buton görünüyordu; kart + dikey aralıklı form + tasarım butonuna çekildi. */
 .import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); margin: var(--space-4) 0; }
