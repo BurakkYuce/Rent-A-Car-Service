@@ -65,6 +65,7 @@
 </div>
 }
 
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Plaka</th><th>Grup</th><th>Segment</th><th>Şube</th>
         <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
@@ -105,8 +106,10 @@
         <th class="num">@_d.ToplamGider.ToString("N2")</th>
         <th class="num">@_d.ToplamNetKar.ToString("N2")</th><th colspan="7"></th></tr></tfoot>
 </table>
+</div>
 
 <h2>Yaş Kohortu <span class="muted small">(alım tarihine göre — km-maliyet eğrisi)</span></h2>
+<div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Kova</th><th class="num">Araç</th><th class="num">Ort. Km Maliyet</th><th class="num">Ort. Doluluk %</th></tr></thead>
     <tbody>
@@ -119,6 +122,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }

@@ -53,6 +53,7 @@
 
 @if (IsOzet)
 {
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
         <tbody>
@@ -78,9 +79,11 @@
                 <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th></tr>
         </tfoot>
     </table>
+    </div>
 }
 else
 {
+    <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
         <tbody>
@@ -108,6 +111,7 @@ else
                 <th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr>
         </tfoot>
     </table>
+    </div>
 }
 
 @code {
