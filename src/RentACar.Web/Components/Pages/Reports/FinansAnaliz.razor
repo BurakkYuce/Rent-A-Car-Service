@@ -1,0 +1,132 @@
+@page "/raporlar/finans-analiz"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+@using RentACar.Web.Components.Shared.Charts
+
+<PageTitle>Finans Analiz — RentPro</PageTitle>
+
+<div class="page-head"><h1>Finans Analiz</h1></div>
+
+<p class="muted small">Görsel finansal özet — tüm sayılar defterden (base TL, iade netlenmiş).
+    12-ay trend ve 30-gün doluluk sabit pencere; kırılım/yaşlandırma/mutabakat aşağıdaki tarih filtresine uyar
+    (boş = tüm zaman).</p>
+
+@* 12-AY TREND — Gelir/Gider çubuk + Net Kâr çizgi (36 çubuk mobilde okunmaz → 24 çubuk + çizgi) *@
+<div class="analiz-blok">
+    <SvgBarChart Baslik="Son 12 Ay — Gelir / Gider / Net Kâr (₺)"
+                 Etiketler="_ayEtiketleri"
+                 Seriler="_aySerileri"
+                 CizgiSeri="_netKarSerisi"
+                 Format="@(v => v.ToString("N0"))" />
+</div>
+
+<form method="get" class="grid-form">
+    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+    <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <button type="submit">Göster</button>
+</form>
+
+<div class="report-cols">
+    <div class="analiz-blok">
+        <YatayKirilim Baslik="Gelir Kırılımı (₺)" Dilimler="_gelirDilim" Bos="Gelir yok."
+                      Format="@(v => v.ToString("N0"))" />
+    </div>
+    <div class="analiz-blok">
+        <YatayKirilim Baslik="Gider Kırılımı (₺)" Dilimler="_giderDilim" Bos="Gider yok."
+                      Format="@(v => v.ToString("N0"))" />
+    </div>
+</div>
+
+<div class="report-cols">
+    <div class="analiz-blok">
+        <YatayKirilim Baslik="Cari Yaşlandırma — vadesi geçen alacak (₺)" Dilimler="_agingDilim" Bos="Alacak yok."
+                      Format="@(v => v.ToString("N0"))" />
+    </div>
+    <div class="analiz-blok">
+        <YatayKirilim Baslik="Fatura vs Tahsilat (₺)" Dilimler="_mutabakat" Bos="Kayıt yok."
+                      Format="@(v => v.ToString("N0"))" />
+        <p class="muted small">Fark (açık bakiye): <strong class="@(_fark > 0 ? "neg" : "pos")">@_fark.ToString("N2") ₺</strong>
+            — pozitif = faturalanmış ama tahsil edilmemiş.</p>
+    </div>
+</div>
+
+<div class="analiz-blok">
+    <SvgLineArea Baslik="Son 30 Gün — Filo Doluluk (%)"
+                 Etiketler="_dolulukGunler" Degerler="_dolulukYuzde" RenkIndeks="2"
+                 Format="@(v => "%" + v.ToString("0.#"))" />
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+
+    private List<string> _ayEtiketleri = [];
+    private List<SvgSeri> _aySerileri = [];
+    private SvgSeri? _netKarSerisi;
+    private List<SvgDilim> _gelirDilim = [], _giderDilim = [], _agingDilim = [], _mutabakat = [];
+    private decimal _fark;
+    private List<string> _dolulukGunler = [];
+    private List<decimal> _dolulukYuzde = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 12-ay trend (sabit pencere — filtreden bağımsız).
+        var trend = await Reports.GetAylikGelirGiderTrendAsync(12);
+        _ayEtiketleri = trend.Select(t => t.AyBas.ToString("MM.yy")).ToList();
+        _aySerileri =
+        [
+            new SvgSeri("Gelir", trend.Select(t => t.Gelir).ToList(), 1),   // dv-1 amber
+            new SvgSeri("Gider", trend.Select(t => t.Gider).ToList(), 6),   // dv-6 gri
+        ];
+        _netKarSerisi = new SvgSeri("Net Kâr", trend.Select(t => t.NetKar).ToList(), 2); // dv-2 mavi çizgi
+
+        // Dönem analizi (tarih filtresi — GelirGider ile aynı yorum: boş = tüm zaman).
+        var from = ParseDate(From);
+        var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
+        var gg = await Reports.GetGelirGiderAsync(from, to);
+        _gelirDilim = gg.GelirKirilim.Select((k, i) => new SvgDilim(KaynakAd(k.SourceType), k.Tutar, RenkSira(i))).ToList();
+        _giderDilim = gg.GiderKirilim.Select((k, i) => new SvgDilim(KaynakAd(k.SourceType), k.Tutar, RenkSira(i))).ToList();
+
+        // Yaşlandırma: kova toplamları (tüm cariler; asOf = filtre bitişi ya da şimdi).
+        var aging = await Reports.GetAgingAsync(to ?? DateTimeOffset.UtcNow);
+        _agingDilim =
+        [
+            new SvgDilim("0–30 gün", aging.Sum(a => a.B0_30), 3),
+            new SvgDilim("31–60 gün", aging.Sum(a => a.B31_60), 1),
+            new SvgDilim("61–90 gün", aging.Sum(a => a.B61_90), 5),
+            new SvgDilim("90+ gün", aging.Sum(a => a.B90Plus), 6),
+        ];
+
+        // Fatura vs tahsilat mutabakatı.
+        var tf = await Reports.GetTahsilatFaturaAsync(from, to);
+        _mutabakat =
+        [
+            new SvgDilim($"Fatura ({tf.FaturaAdet})", tf.FaturaToplam, 2),
+            new SvgDilim($"Tahsilat ({tf.TahsilatAdet})", tf.TahsilatToplam, 3),
+        ];
+        _fark = tf.Fark;
+
+        // Son 30 gün doluluk (günlük tarihsel seri).
+        var bugun = DateTimeOffset.UtcNow.Date;
+        var takip = await Reports.GetAracDurumTakipAsync(
+            new DateTimeOffset(bugun.AddDays(-29), TimeSpan.Zero), new DateTimeOffset(bugun, TimeSpan.Zero));
+        _dolulukGunler = takip.Select(g => g.Gun.ToString("dd.MM")).ToList();
+        _dolulukYuzde = takip.Select(g => g.ToplamArac == 0 ? 0m : Math.Round(100m * g.Dolu / g.ToplamArac, 1)).ToList();
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? d : null;
+
+    /// <summary>Kırılım satır rengi — dataviz paletinde sırayla döner (1..6).</summary>
+    private static int RenkSira(int i) => (i % 6) + 1;
+
+    private static string KaynakAd(string sourceType) => sourceType switch
+    {
+        "Fatura" => "Fatura",
+        "AracSatis" => "Araç Satış",
+        "Ceza" => "Ceza Yansıtma",
+        "Hgs" => "HGS Yansıtma",
+        "Gider" => "Gider",
+        _ => sourceType
+    };
+}

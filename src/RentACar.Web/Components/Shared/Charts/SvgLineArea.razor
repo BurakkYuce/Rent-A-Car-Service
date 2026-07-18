@@ -1,0 +1,84 @@
+@using System.Globalization
+
+@* Günlük seri çizgi+alan grafiği (ör. son 30 gün doluluk %). Sunucu-çizimi SVG, JS'siz, token-renkli.
+   İlk/son + min/max noktaları etiketli; ekran-okuyucuya gizli tablo. *@
+<figure class="svg-chart">
+    @if (!string.IsNullOrEmpty(Baslik)) { <figcaption>@Baslik</figcaption> }
+    <svg viewBox="0 0 @W @H" role="img" aria-label="@(Baslik ?? "Çizgi grafik")" preserveAspectRatio="xMidYMid meet">
+        @if (Degerler.Count >= 2)
+        {
+            <line x1="@PadL" y1="@S(Y(Min))" x2="@(W - PadR)" y2="@S(Y(Min))" class="ch-axis" />
+            <polygon points="@AlanNoktalar()" class="ch-area dv-a@(RenkIndeks)" />
+            <polyline points="@CizgiNoktalar()" class="ch-line dv-s@(RenkIndeks)" fill="none" />
+            @foreach (var (i, sinif) in Vurgular())
+            {
+                <circle cx="@S(X(i))" cy="@S(Y(Degerler[i]))" r="3" class="dv-f@(RenkIndeks)">
+                    <title>@Etiketler[i]: @Fmt(Degerler[i])</title>
+                </circle>
+                @SvgText(X(i), Y(Degerler[i]) - 7, "ch-nokta-etiket", sinif, Fmt(Degerler[i]))
+            }
+            @SvgText(PadL, H - 4, "ch-xtick", "start", Etiketler[0])
+            @SvgText(W - PadR, H - 4, "ch-xtick", "end", Etiketler[^1])
+        }
+        else
+        {
+            @SvgText(W / 2.0, H / 2.0, "ch-xtick", "middle", "Yeterli veri yok.")
+        }
+    </svg>
+    <table class="sr-only">
+        <caption>@Baslik</caption>
+        <thead><tr><th>Gün</th><th>Değer</th></tr></thead>
+        <tbody>
+            @for (int i = 0; i < Etiketler.Count; i++)
+            {
+                <tr><td>@Etiketler[i]</td><td>@Fmt(i < Degerler.Count ? Degerler[i] : 0m)</td></tr>
+            }
+        </tbody>
+    </table>
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Etiketler { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<decimal> Degerler { get; set; } = [];
+    [Parameter] public int RenkIndeks { get; set; } = 2;
+    [Parameter] public string? Baslik { get; set; }
+    [Parameter] public Func<decimal, string>? Format { get; set; }
+
+    private const int W = 720, H = 150, PadL = 10, PadR = 10, PadT = 22, PadB = 18;
+
+    private string Fmt(decimal v) => Format?.Invoke(v) ?? v.ToString("N0");
+
+    private decimal Min => Math.Min(0m, Degerler.DefaultIfEmpty(0m).Min());
+    private decimal Max { get { var m = Degerler.DefaultIfEmpty(0m).Max(); return m <= Min ? Min + 1m : m; } }
+
+    private double X(int i) => PadL + (double)i / Math.Max(1, Degerler.Count - 1) * (W - PadL - PadR);
+    private double Y(decimal v) => (H - PadB) - (double)((v - Min) / (Max - Min)) * (H - PadB - PadT);
+
+    private string CizgiNoktalar() => string.Join(" ",
+        Enumerable.Range(0, Degerler.Count).Select(i => $"{S(X(i))},{S(Y(Degerler[i]))}"));
+
+    private string AlanNoktalar()
+        => $"{S(X(0))},{S(Y(Min))} {CizgiNoktalar()} {S(X(Degerler.Count - 1))},{S(Y(Min))}";
+
+    /// <summary>Vurgu noktaları: min + max (ilk/son eksen etiketleriyle zaten var). Çakışırsa tek.</summary>
+    private IEnumerable<(int, string)> Vurgular()
+    {
+        if (Degerler.Count == 0) yield break;
+        int iMax = 0, iMin = 0;
+        for (int i = 1; i < Degerler.Count; i++)
+        {
+            if (Degerler[i] > Degerler[iMax]) iMax = i;
+            if (Degerler[i] < Degerler[iMin]) iMin = i;
+        }
+        yield return (iMax, Anchor(iMax));
+        if (iMin != iMax) yield return (iMin, Anchor(iMin));
+    }
+
+    private string Anchor(int i) => i == 0 ? "start" : i == Degerler.Count - 1 ? "end" : "middle";
+
+    private static string S(double v) => v.ToString("0.##", CultureInfo.InvariantCulture); // SVG invariant ister
+
+    // Razor'da <text> özel anahtar-etiket (RZ1023) → MarkupString ile basılır; içerik HtmlEncode'lu.
+    private static MarkupString SvgText(double x, double y, string cls, string anchor, string icerik)
+        => (MarkupString)$"<text x=\"{S(x)}\" y=\"{S(y)}\" class=\"{cls}\" text-anchor=\"{anchor}\">{System.Net.WebUtility.HtmlEncode(icerik)}</text>";
+}
