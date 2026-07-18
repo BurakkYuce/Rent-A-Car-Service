@@ -87,12 +87,11 @@ rentpro.example.com {
     request_body { max_size 2MB }   # kaba gövde limiti (DoS; plugin gerekmez) — Kestrel:Limits ile tamamlayıcı
 }
 ```
-- **CSP (uygulamada, katı):** `script-src 'self'` — `'unsafe-inline'` YOK. 52 inline event handler harici JS'e taşındı
-  (`data-confirm`/`data-select-all` → `wwwroot/js/rc-ui.js`). Blazor'ın `<ImportMap>` inline script'i tek istisnadır,
-  SABİT SHA-256 hash'iyle izin verilir (`script-src 'self' 'sha256-…'`). **BAKIM:** importmap içeriği yalnız .NET/Radzen
-  sürüm yükseltmesinde değişir → değişirse tarayıcı konsolu yeni hash'i verir; `Program.cs`'teki hash'i güncelle
-  (aksi halde importmap bloklanır — interaktif reconnect etkilenir). `style-src 'unsafe-inline'` bilinçli (inline style
-  attr'ları; XSS riski script'e göre düşük). `frame-ancestors 'self'` + `X-Frame-Options SAMEORIGIN` → PDF-yazdır iframe çalışır.
+- **CSP (uygulamada, katı):** `script-src 'self'` — `'unsafe-inline'` YOK, hash YOK. 52 inline event handler harici
+  JS'e taşındı (`data-confirm`/`data-select-all` → `wwwroot/js/rc-ui.js`). Blazor'ın `<ImportMap>` inline script'i
+  App.razor'dan **kaldırıldı** (tam statik SSR'de gereksizdi ve fingerprint'i her asset/CSS değişiminde dönüp CSP
+  hash'ini bozuyordu) → artık hiç inline script yok, CSP asset değişimlerinde kırılmaz. `style-src 'unsafe-inline'`
+  bilinçli (inline style attr'ları; XSS riski script'e göre düşük). `frame-ancestors 'self'` + `X-Frame-Options SAMEORIGIN` → PDF-yazdır iframe çalışır.
 - **Cookie Secure (KRİTİK — sessiz başarısızlık noktası):** uygulama `UseForwardedHeaders` ile **KnownProxies=loopback**
   varsayar. Caddy AYNI makinede (127.0.0.1) ise `X-Forwarded-Proto` okunur → cookie Secure + rate-limiter gerçek IP'yi görür.
   Caddy AYRI makine/container ise header DÜŞER → **şema http kalır → cookie Secure OLMAZ.** O durumda
@@ -128,8 +127,7 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 - [ ] **Güvenlik başlıkları (uygulamadan):** `curl -sI https://<domain>/` → `content-security-policy` (script-src 'self' …),
       `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`, `referrer-policy`, `permissions-policy`,
       `strict-transport-security: max-age=31536000; includeSubDomains`; `server` başlığı YOK. **securityheaders.com** ile A+ hedefle.
-- [ ] **CSP / importmap hash:** DevTools konsolunda CSP ihlali OLMAMALI. Radzen/.NET yükseltmesi yaptıysan importmap
-      hash'i değişmiş olabilir → konsol "Executing inline script violates … 'sha256-…'" derse yeni hash'i `Program.cs` CSP'sine yaz.
+- [ ] **CSP:** DevTools konsolunda CSP ihlali OLMAMALI (`script-src 'self'` — inline script yok, hash-bakımı gerekmiyor).
 - [ ] **Cookie:** DevTools → Application → Cookies → `racar.session` satırında **Secure ✓ / HttpOnly ✓ / SameSite=Lax**.
       Secure değilse → §5 forwarded-headers tuzağı (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`).
 - [ ] **UI bozulmadı:** PDF-yazdır (gizli iframe) + bir sil/iptal onayı (data-confirm dialogu) hâlâ çalışıyor.

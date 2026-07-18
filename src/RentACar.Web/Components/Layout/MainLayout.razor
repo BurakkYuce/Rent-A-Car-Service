@@ -214,6 +214,9 @@
                         @context.User.Identity?.Name
                         <span class="muted">@context.User.FindFirst("tenant_code")?.Value</span>
                     </span>
+                    <button type="button" class="link theme-toggle" data-theme-toggle aria-label="Tema değiştir" title="Açık/Koyu tema geçişi">
+                        <span data-theme-label>Koyu</span>
+                    </button>
                     <form method="post" action="/auth/logout" class="logout-form"><AntiforgeryToken />
                         <button type="submit" class="link">Çıkış</button>
                     </form>
