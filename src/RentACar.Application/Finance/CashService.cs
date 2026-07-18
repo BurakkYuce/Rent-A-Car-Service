@@ -40,6 +40,12 @@ public sealed class CashService(
     public Task<IReadOnlyList<AccountLedgerEntry>> GetStatementAsync(Guid cariId, CancellationToken ct = default)
         => _repository.GetCariStatementAsync(cariId, ct);
 
+    /// <summary>Kira başına işlem SAYISI (ters kayıt dahil, monoton) — deterministik tahsilat
+    /// anahtarının zamansal bileşeni. Kayıtsız kira sözlükte yok → TryGetValue→0.</summary>
+    public Task<Dictionary<Guid, int>> GetRentalIslemSayilariAsync(
+        IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default)
+        => _repository.GetRentalIslemSayilariAsync(rentalIds, ct);
+
     /// <summary>Tahsilat (cash in): Borç Hesap / Alacak Cari.</summary>
     public Task<Guid> CollectAsync(CashInput input, CancellationToken ct = default)
         => PostCashAsync(input, CashTransactionType.Tahsilat, ct);

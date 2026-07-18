@@ -400,6 +400,13 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .dc-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
 .dc-table th { text-align: left; padding: .45rem .7rem; background: var(--tr-bg, #f1f5f9); color: var(--tr-muted, #64748b); font-weight: 600; font-size: .72rem; }
 .dc-table td { padding: .45rem .7rem; border-top: 1px solid var(--tr-border, #eef2f7); }
+/* Satır-içi hızlı tahsilat mini-formu (pano Dönüşler + kira listesi) — kompakt kontroller */
+.dc-tutar { width: 6.5rem; }
+.tahsil-mini input, .tahsil-mini select, .dc-table .row-actions input, .dc-table .row-actions select {
+    padding: .28rem .45rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font: inherit; font-size: .8rem; background: var(--surface); color: var(--text); }
+.tahsil-mini { display: inline-flex; gap: var(--space-1); align-items: center; }
+.tahsil-mini .kf-btn, .dc-table .row-actions .kf-btn { padding: .3rem .6rem; font-size: .8rem; }
 .dc-table .mono { font-family: ui-monospace, monospace; }
 .dash-h2 { margin: 1.2rem 0 .6rem; font-size: 1.05rem; }
 

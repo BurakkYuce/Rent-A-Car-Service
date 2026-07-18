@@ -121,6 +121,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             Id = r.Id,
             SozlesmeNo = r.SozlesmeNo,
+            MusteriId = r.MusteriId,
+            Doviz = r.Doviz,
             MusteriAd = custNames.GetValueOrDefault(r.MusteriId, "—"),
             Plaka = plakalar.GetValueOrDefault(r.VehicleId, "—"),
             BasTar = r.BasTar,
