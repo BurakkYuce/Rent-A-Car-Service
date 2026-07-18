@@ -423,15 +423,23 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     /// üst-ucu DAHİL olduğundan bitiş AddTicks(-1) ile verilir (sınır kaydı iki aya sayılmaz).</summary>
     public async Task<IReadOnlyList<AylikGelirNokta>> GetAylikGelirTrendAsync(
         int aySayisi = 6, DateTimeOffset? simdi = null, CancellationToken ct = default)
+        => (await GetAylikGelirGiderTrendAsync(aySayisi, simdi, ct))
+            .Select(n => new AylikGelirNokta(n.AyBas, n.Gelir)).ToList(); // tek döngü — tam sürüme delege
+
+    /// <summary>Finans Analiz 12-ay grafiği: son n ayın ay-pencereli GELİR + GİDER + NET KÂR toplamları
+    /// (GetGelirGiderAsync ile aynı netleme — iade düşer). Ay çıpası/pencere GetAylikGelirTrendAsync
+    /// ile birebir aynı (UTC ayın 1'i; bitiş AddTicks(-1) — sınır kaydı iki aya sayılmaz).</summary>
+    public async Task<IReadOnlyList<AylikGelirGiderNokta>> GetAylikGelirGiderTrendAsync(
+        int aySayisi = 12, DateTimeOffset? simdi = null, CancellationToken ct = default)
     {
         var s = simdi ?? DateTimeOffset.UtcNow;
         var buAy = new DateTimeOffset(s.Year, s.Month, 1, 0, 0, 0, TimeSpan.Zero);
-        var sonuc = new List<AylikGelirNokta>(aySayisi);
+        var sonuc = new List<AylikGelirGiderNokta>(aySayisi);
         for (int i = aySayisi - 1; i >= 0; i--)
         {
             var ayBas = buAy.AddMonths(-i);
             var gg = await GetGelirGiderAsync(ayBas, ayBas.AddMonths(1).AddTicks(-1), ct);
-            sonuc.Add(new AylikGelirNokta(ayBas, gg.GelirToplam));
+            sonuc.Add(new AylikGelirGiderNokta(ayBas, gg.GelirToplam, gg.GiderToplam, gg.NetKar));
         }
         return sonuc;
     }
