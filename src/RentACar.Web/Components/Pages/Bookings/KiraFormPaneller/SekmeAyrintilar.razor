@@ -16,12 +16,12 @@
     @* 1. Açıklama (S1) *@
     <div data-panel-group="alt" data-panel="aciklama">
         <div class="grid-form">
-            <label style="grid-column:1/-1;">Açıklama<textarea name="aciklama" rows="3" maxlength="1024">@Vm.S(c => c.Aciklama)</textarea></label>
-            <label style="grid-column:1/-1;">Uyarı Açıklama (sözleşme açılışında operatöre gösterilir)<textarea name="uyariAciklama" rows="2" maxlength="512">@Vm.S(c => c.UyariAciklama)</textarea></label>
-            <label style="grid-column:1/-1;">Özel Fatura Açıklaması<textarea name="ozelFaturaAciklama" rows="2" maxlength="512">@Vm.S(c => c.OzelFaturaAciklama)</textarea></label>
-            <label style="display:flex;gap:.4rem;align-items:center;">
+            <label class="u-col-full">Açıklama<textarea name="aciklama" rows="3" maxlength="1024">@Vm.S(c => c.Aciklama)</textarea></label>
+            <label class="u-col-full">Uyarı Açıklama (sözleşme açılışında operatöre gösterilir)<textarea name="uyariAciklama" rows="2" maxlength="512">@Vm.S(c => c.UyariAciklama)</textarea></label>
+            <label class="u-col-full">Özel Fatura Açıklaması<textarea name="ozelFaturaAciklama" rows="2" maxlength="512">@Vm.S(c => c.OzelFaturaAciklama)</textarea></label>
+            <label class="kf-inline">
                 <input type="hidden" name="faturaListesindeGizle" value="false" />
-                <input type="checkbox" name="faturaListesindeGizle" value="true" style="width:auto;" checked="@Vm.B(c => c.FaturaListesindeGizle)" /> Fatura Listesinde Gösterme
+                <input type="checkbox" name="faturaListesindeGizle" value="true" class="u-w-auto" checked="@Vm.B(c => c.FaturaListesindeGizle)" /> Fatura Listesinde Gösterme
             </label>
         </div>
     </div>
@@ -93,7 +93,7 @@
             </div>
         </div>
         <div class="grid-form">
-            <label style="grid-column:1/-1;">Özel Şoför Bilgisi<input name="ozelSoforBilgisi" maxlength="512" value="@Vm.S(c => c.OzelSoforBilgisi)" /></label>
+            <label class="u-col-full">Özel Şoför Bilgisi<input name="ozelSoforBilgisi" maxlength="512" value="@Vm.S(c => c.OzelSoforBilgisi)" /></label>
         </div>
     </div>
 
@@ -129,7 +129,7 @@
                 <label>Vereceğimiz Komisyon (tutar)<input disabled type="number" /></label>
                 <label>Komisyon Fatura No<input disabled /></label>
                 <label>Bayi Fatura No<input disabled /></label>
-                <label style="display:flex;gap:.4rem;align-items:center;"><input type="checkbox" disabled style="width:auto;" /> Kdv Muafiyeti Var</label>
+                <label class="kf-inline"><input type="checkbox" disabled class="u-w-auto" /> Kdv Muafiyeti Var</label>
                 <label>İndirim Türü<select disabled><option>—</option></select></label>
             </div>
             <p class="muted small">Komisyon/dış-tedarik defter eşlemesi ileri faz (FX+komisyon birim tutarlılığına dikkat — K2 dersi).</p>
@@ -161,50 +161,50 @@
             <tbody>
                 <tr>
                     <td>Yedek Anahtar</td>
-                    <td><input type="hidden" name="aksYedekAnahtarCikis" value="false" /><input type="checkbox" name="aksYedekAnahtarCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.AksYedekAnahtarCikis)" /></td>
+                    <td><input type="hidden" name="aksYedekAnahtarCikis" value="false" /><input type="checkbox" name="aksYedekAnahtarCikis" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksYedekAnahtarCikis)" /></td>
                     <td>@if (Vm.Edit)
                         {
-                            <input type="hidden" name="aksYedekAnahtarDonus" value="false" /><input type="checkbox" name="aksYedekAnahtarDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.AksYedekAnahtarDonus)" />
+                            <input type="hidden" name="aksYedekAnahtarDonus" value="false" /><input type="checkbox" name="aksYedekAnahtarDonus" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksYedekAnahtarDonus)" />
                         }
                         else
                         {
-                            <input type="checkbox" disabled style="width:auto;" title="dönüşte işaretlenir" />
+                            <input type="checkbox" disabled class="u-w-auto" title="dönüşte işaretlenir" />
                         }</td>
                 </tr>
                 <tr>
                     <td>Stepne</td>
-                    <td><input type="hidden" name="aksStepneCikis" value="false" /><input type="checkbox" name="aksStepneCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.AksStepneCikis)" /></td>
+                    <td><input type="hidden" name="aksStepneCikis" value="false" /><input type="checkbox" name="aksStepneCikis" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksStepneCikis)" /></td>
                     <td>@if (Vm.Edit)
                         {
-                            <input type="hidden" name="aksStepneDonus" value="false" /><input type="checkbox" name="aksStepneDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.AksStepneDonus)" />
+                            <input type="hidden" name="aksStepneDonus" value="false" /><input type="checkbox" name="aksStepneDonus" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksStepneDonus)" />
                         }
                         else
                         {
-                            <input type="checkbox" disabled style="width:auto;" title="dönüşte işaretlenir" />
+                            <input type="checkbox" disabled class="u-w-auto" title="dönüşte işaretlenir" />
                         }</td>
                 </tr>
                 <tr>
                     <td>Zincir</td>
-                    <td><input type="hidden" name="aksZincirCikis" value="false" /><input type="checkbox" name="aksZincirCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.AksZincirCikis)" /></td>
+                    <td><input type="hidden" name="aksZincirCikis" value="false" /><input type="checkbox" name="aksZincirCikis" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksZincirCikis)" /></td>
                     <td>@if (Vm.Edit)
                         {
-                            <input type="hidden" name="aksZincirDonus" value="false" /><input type="checkbox" name="aksZincirDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.AksZincirDonus)" />
+                            <input type="hidden" name="aksZincirDonus" value="false" /><input type="checkbox" name="aksZincirDonus" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksZincirDonus)" />
                         }
                         else
                         {
-                            <input type="checkbox" disabled style="width:auto;" title="dönüşte işaretlenir" />
+                            <input type="checkbox" disabled class="u-w-auto" title="dönüşte işaretlenir" />
                         }</td>
                 </tr>
                 <tr>
                     <td>İlk Yardım Çantası</td>
-                    <td><input type="hidden" name="aksIlkYardimCikis" value="false" /><input type="checkbox" name="aksIlkYardimCikis" value="true" style="width:auto;" checked="@Vm.B(c => c.AksIlkYardimCikis)" /></td>
+                    <td><input type="hidden" name="aksIlkYardimCikis" value="false" /><input type="checkbox" name="aksIlkYardimCikis" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksIlkYardimCikis)" /></td>
                     <td>@if (Vm.Edit)
                         {
-                            <input type="hidden" name="aksIlkYardimDonus" value="false" /><input type="checkbox" name="aksIlkYardimDonus" value="true" style="width:auto;" checked="@Vm.B(c => c.AksIlkYardimDonus)" />
+                            <input type="hidden" name="aksIlkYardimDonus" value="false" /><input type="checkbox" name="aksIlkYardimDonus" value="true" class="u-w-auto" checked="@Vm.B(c => c.AksIlkYardimDonus)" />
                         }
                         else
                         {
-                            <input type="checkbox" disabled style="width:auto;" title="dönüşte işaretlenir" />
+                            <input type="checkbox" disabled class="u-w-auto" title="dönüşte işaretlenir" />
                         }</td>
                 </tr>
                 <tr>
@@ -227,7 +227,7 @@
     @* 8. Ek Koşullar (S1 — sözleşme özel şartları) *@
     <div data-panel-group="alt" data-panel="ekkosullar" hidden>
         <div class="grid-form">
-            <label style="grid-column:1/-1;">Ek Koşullar / Sözleşme Özel Şartları
+            <label class="u-col-full">Ek Koşullar / Sözleşme Özel Şartları
                 <textarea name="ekKosullar" rows="6" maxlength="2048" placeholder="Örn: Sigara içilmez; şehir dışı çıkış bildirime tabidir...">@Vm.S(c => c.EkKosullar)</textarea>
             </label>
         </div>

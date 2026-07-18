@@ -10,11 +10,11 @@
                 <div class="grid-form">
                     @if (Vm.Edit)
                     {
-                        <label style="grid-column:1/-1;">Müşteri<input readonly value="@(Vm.Customers.FirstOrDefault(c => c.Id == Vm.Rental!.MusteriId)?.DisplayName ?? "—")" /></label>
+                        <label class="u-col-full">Müşteri<input readonly value="@(Vm.Customers.FirstOrDefault(c => c.Id == Vm.Rental!.MusteriId)?.DisplayName ?? "—")" /></label>
                     }
                     else
                     {
-                        <label style="grid-column:1/-1;">Müşteri Ara (yazdıkça öner — listeden seç)
+                        <label class="u-col-full">Müşteri Ara (yazdıkça öner — listeden seç)
                             <input list="dl-kf-musteri" data-lookup-target="musteriId" placeholder="Ad / ünvan yaz..." autocomplete="off" value="@Vm.QMusteriGoruntu" />
                         </label>
                     }
@@ -45,7 +45,7 @@
                         <label>Başlangıç<input type="datetime-local" data-mirror="basTar" /></label>
                         <label>Bitiş (beklenen)<input type="datetime-local" data-mirror="bitTar" /></label>
                     }
-                    <label>Gün<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-fp="gun">@(Vm.Edit ? Vm.Rental!.Gun.ToString() : "—")</span></label>
+                    <label>Gün<span class="kf-ro num kf-robox" data-fp="gun">@(Vm.Edit ? Vm.Rental!.Gun.ToString() : "—")</span></label>
                     <label>Çıkış Ofisi
                         <select data-mirror="cikisOfisi">
                             <option value="">—</option>
@@ -67,20 +67,20 @@
                 <div class="grid-form">
                     @if (Vm.Edit)
                     {
-                        <label style="grid-column:1/-1;">Araç<input readonly value="@(Vm.Vehicles.FirstOrDefault(v => v.Id == Vm.Rental!.VehicleId)?.Plaka ?? "—")" /></label>
+                        <label class="u-col-full">Araç<input readonly value="@(Vm.Vehicles.FirstOrDefault(v => v.Id == Vm.Rental!.VehicleId)?.Plaka ?? "—")" /></label>
                     }
                     else
                     {
-                        <label style="grid-column:1/-1;">Araç Ara (plaka yaz — müsaitlik penceresi Araç sekmesinde)
+                        <label class="u-col-full">Araç Ara (plaka yaz — müsaitlik penceresi Araç sekmesinde)
                             <input list="dl-kf-arac" data-lookup-target="vehicleId" placeholder="Plaka yaz..." autocomplete="off" />
                         </label>
                     }
-                    <label>Marka<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="marka">—</span></label>
-                    <label>Tip<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="tip">—</span></label>
-                    <label>Vites<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="vites">—</span></label>
-                    <label>Yakıt<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="yakit">—</span></label>
-                    <label>Araç Grubu<span class="kf-ro" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="grup">—</span></label>
-                    <label>Güncel Km<span class="kf-ro num" style="display:block;padding:.35rem .5rem;border-radius:4px;" data-veh="km">—</span></label>
+                    <label>Marka<span class="kf-ro kf-robox" data-veh="marka">—</span></label>
+                    <label>Tip<span class="kf-ro kf-robox" data-veh="tip">—</span></label>
+                    <label>Vites<span class="kf-ro kf-robox" data-veh="vites">—</span></label>
+                    <label>Yakıt<span class="kf-ro kf-robox" data-veh="yakit">—</span></label>
+                    <label>Araç Grubu<span class="kf-ro kf-robox" data-veh="grup">—</span></label>
+                    <label>Güncel Km<span class="kf-ro num kf-robox" data-veh="km">—</span></label>
                 </div>
                 <p class="muted small">Çıkış Km / yakıt seviyesi teslim anında girilir (kayıttan sonra, Kira Bilgisi &gt; Teslimat).</p>
             </div>
