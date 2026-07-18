@@ -48,4 +48,10 @@ public interface ICashRepository
 
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
     Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default);
+
+    /// <summary>Kira başına kasa/banka işlem SAYISI (ters kayıtlar DAHİL → monoton artan sayaç).
+    /// Deterministik tahsilat idempotency anahtarının zamansal bileşeni: yalnız (kira, bakiye)
+    /// snapshot'ı aylık kirada aynı değere geri dönüp meşru tahsilatı kilitler; sayaç bunu kırar.
+    /// Kayıtsız kira sözlükte YER ALMAZ — tüketici TryGetValue→0 kullanmalı.</summary>
+    Task<Dictionary<Guid, int>> GetRentalIslemSayilariAsync(IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default);
 }

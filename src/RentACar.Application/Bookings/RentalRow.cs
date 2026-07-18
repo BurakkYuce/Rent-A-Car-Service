@@ -7,7 +7,9 @@ public sealed class RentalRow
 {
     public Guid Id { get; init; }
     public string SozlesmeNo { get; init; } = string.Empty;
+    public Guid MusteriId { get; init; }          // hızlı tahsilat formu (cariId) için
     public string MusteriAd { get; init; } = string.Empty;
+    public string? Doviz { get; init; }           // kira dövizi — tahsilat kira dövizinde olmalı (K2)
     public string Plaka { get; init; } = string.Empty;
     public DateTimeOffset BasTar { get; init; }
     public DateTimeOffset BitTar { get; init; }

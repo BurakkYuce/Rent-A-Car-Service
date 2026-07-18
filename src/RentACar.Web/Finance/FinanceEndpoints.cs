@@ -23,6 +23,11 @@ public static class FinanceEndpoints
            && !(donus.Length > 1 && (donus[1] == '/' || donus[1] == '\\'))
             ? donus : fallback;
 
+    /// <summary>Hata mesajını dönüş URL'ine doğru ayırıcıyla ekler: donus zaten querystring içeriyorsa
+    /// (ör. pano "/?df=gec") '?hata=' İKİNCİ '?' üretip mesajı önceki parametreye yutturuyordu → '&'.</summary>
+    internal static string HataUrl(string url, string mesaj)
+        => $"{url}{(url.Contains('?') ? '&' : '?')}hata={Uri.EscapeDataString(mesaj)}";
+
     public static IEndpointRouteBuilder MapFinanceEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
@@ -100,7 +105,7 @@ public static class FinanceEndpoints
             catch (ValidationException ex)
             {
                 var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
-                return Results.Redirect($"{url}?hata={Uri.EscapeDataString(ex.Message)}");
+                return Results.Redirect(HataUrl(url, ex.Message)); // donus querystring'liyse '&' (çift-? düzeltmesi)
             }
         });
 
@@ -122,7 +127,7 @@ public static class FinanceEndpoints
             catch (ValidationException ex)
             {
                 var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
-                return Results.Redirect($"{url}?hata={Uri.EscapeDataString(ex.Message)}");
+                return Results.Redirect(HataUrl(url, ex.Message)); // donus querystring'liyse '&' (çift-? düzeltmesi)
             }
         });
 

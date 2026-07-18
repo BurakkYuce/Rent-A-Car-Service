@@ -8,6 +8,7 @@
 @inject DashboardService Dashboard
 @inject RentACar.Application.Reporting.ReportService Reports
 @inject RentACar.Application.Crm.SikayetService Sikayet
+@inject RentACar.Application.Finance.CashService Cash
 
 <PageTitle>Panel — RentPro</PageTitle>
 @* Statik SSR panosu: sayfa 120 sn'de bir otomatik yenilenir → boştaki araç/rezervasyon sayaçları güncel kalır. *@
@@ -70,6 +71,10 @@
 </div>
 
 @* Dönüşler / Çıkışlar — gün-filtreli (TürevRent parite) *@
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p> @* hızlı tahsilat hatası (ör. çift gönderim) — endpoint ?hata= ile döner *@
+}
 <div class="donus-cikis">
     <div class="dc-panel">
         <div class="dc-head">
@@ -80,7 +85,37 @@
                 <a class="@(Df == "yarin" ? "on" : "")" href="/?df=yarin&cf=@Cf">Yarın <b>@_donusYarin.Count</b></a>
             </span>
         </div>
-        <DcTable Rows="DonusList" Empty="Kayıt yok." />
+        @if (_finansYetkili)
+        {
+            <DcTable Rows="DonusList" Empty="Kayıt yok.">
+                <Islem>
+                    @if (context is { RentalId: not null, CariId: not null, Bakiye: > 0m })
+                    {
+                        @* Hızlı tahsilat — mevcut /finans/tahsilat ucu (FinanceWrite). Tutar=Bakiye ön-dolu
+                           (düzenlenebilir; aşan tutar cari alacak olarak kabul edilir). Döviz kira dövizi
+                           (K2: repo uyuşmazlığı reddeder); kur GÖNDERİLMEZ → KurCozucu günü çözer.
+                           islemAnahtari deterministik (rentalId+bakiye+işlem-sayısı) → çift-submit/stale-tab
+                           DB kısmi-unique-index'te zarif bloklanır, sonraki ay sayaç artar → yeni anahtar. *@
+                        <form method="post" action="/finans/tahsilat" class="tahsil-mini"><AntiforgeryToken />
+                            <input type="hidden" name="cariId" value="@context.CariId" />
+                            <input type="hidden" name="rentalId" value="@context.RentalId" />
+                            <input type="hidden" name="doviz" value="@RentACar.Application.Kur.KurService.NormalizeKod(context.Doviz)" />
+                            <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(context.RentalId.Value, context.Bakiye, context.IslemSayisi)" />
+                            <input type="hidden" name="donus" value="/?df=@Df&cf=@Cf" />
+                            <input type="hidden" name="aciklama" value="Hızlı tahsilat (pano) — @context.Plaka" />
+                            <input name="tutar" type="number" step="0.01" min="0.01" value="@context.Bakiye.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                                   required class="u-w-auto dc-tutar" title="Dönüş öncesi planlanan bakiye — geç dönüş/yakıt/km farkı Dönüş'te kapanır" />
+                            <select name="hesap" title="Tahsilat hesabı"><option>Kasa</option><option>Banka</option></select>
+                            <button type="submit" class="kf-btn">Tahsil Et</button>
+                        </form>
+                    }
+                </Islem>
+            </DcTable>
+        }
+        else
+        {
+            <DcTable Rows="DonusList" Empty="Kayıt yok." />
+        }
     </div>
     <div class="dc-panel">
         <div class="dc-head">
@@ -143,6 +178,7 @@
 @code {
     [SupplyParameterFromQuery(Name = "df")] public string? Df { get; set; } // dönüşler filtresi
     [SupplyParameterFromQuery(Name = "cf")] public string? Cf { get; set; } // çıkışlar filtresi
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; } // hızlı tahsilat hata mesajı
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private RentACar.Application.Reporting.FiloHavuzKpiDto? _havuz;
@@ -155,6 +191,7 @@
 
     private List<DcRow> _donusGec = [], _donusBugun = [], _donusYarin = [];
     private List<DcRow> _cikisGec = [], _cikisBugun = [], _cikisYarin = [];
+    private bool _finansYetkili; // Dönüşler satırında hızlı-tahsilat formu görünürlüğü (FinanceWrite rolleri)
 
     private List<DcRow> DonusList => Df switch { "gec" => _donusGec, "yarin" => _donusYarin, _ => _donusBugun };
     private List<DcRow> CikisList => Cf switch { "gec" => _cikisGec, "yarin" => _cikisYarin, _ => _cikisBugun };
@@ -177,12 +214,19 @@
 
         var bugun = DateTimeOffset.Now.Date;
 
-        // Dönüşler: aktif kiralar (dönmemiş), planlanan dönüş tarihine göre.
+        // Dönüşler: aktif kiralar (dönmemiş), planlanan dönüş tarihine göre. Satırlar kira formuna
+        // (#sekme=donus — rc-kira-tabs.js hash'ten açar) linklenir; finans-yetkili rollere hızlı
+        // tahsilat formu için kimlik/bakiye/döviz + işlem SAYISI (deterministik anahtar bileşeni,
+        // TahsilatAnahtar açıklaması) taşınır.
         var acikKira = rentals.Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar is null).ToList();
+        var islemSayilari = await Cash.GetRentalIslemSayilariAsync(acikKira.Select(r => r.Id).ToList());
         List<DcRow> DonusRows(Func<DateTime, bool> pred) => acikKira
             .Where(r => pred(r.BitTar.LocalDateTime.Date))
             .OrderBy(r => r.BitTar)
-            .Select(r => new DcRow(r.BitTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.DonusOfisi ?? ""))
+            .Select(r => new DcRow(r.BitTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.DonusOfisi ?? "",
+                Href: $"/kiralar/{r.Id}#sekme=donus", RentalId: r.Id, CariId: r.MusteriId,
+                Bakiye: r.Bakiye, Doviz: r.Doviz,
+                IslemSayisi: islemSayilari.TryGetValue(r.Id, out var s) ? s : 0)) // kayıtsız kira dict'te yok → 0
             .ToList();
         _donusGec = DonusRows(d => d < bugun);
         _donusBugun = DonusRows(d => d == bugun);
@@ -222,7 +266,8 @@
         // FAZ 6.2 — filo KPI + gelir trendi yalnız mali yetkili rollere YÜKLENİR (görünürlük zaten
         // AuthorizeView'da; operatörde ağır filo-analiz sorgusu hiç koşmasın).
         var user = AuthState is null ? null : (await AuthState).User;
-        if (user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe")))
+        _finansYetkili = user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe"));
+        if (_finansYetkili)
         {
             _havuz = (await Reports.GetFiloAnalizAsync()).HavuzKpi;
             _trend = await Reports.GetAylikGelirTrendAsync(6);

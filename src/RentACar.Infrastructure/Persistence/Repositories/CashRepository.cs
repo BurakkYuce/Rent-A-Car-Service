@@ -259,4 +259,18 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             .OrderBy(e => e.EntryDateUtc)
             .ToListAsync(ct);
     }
+
+    public async Task<Dictionary<Guid, int>> GetRentalIslemSayilariAsync(
+        IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default)
+    {
+        if (rentalIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // Ters kayıtlar DAHİL sayılır: sayaç monoton artar → ters-kayıt-sonrası yeniden-tahsilat
+        // yeni anahtar üretir (Tahsilat-toplamı eski değere dönebilirdi — o yüzden toplam değil SAYI).
+        return await db.CashTransactions.AsNoTracking()
+            .Where(t => t.RentalId != null && rentalIds.Contains(t.RentalId.Value))
+            .GroupBy(t => t.RentalId!.Value)
+            .Select(g => new { g.Key, Adet = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Adet, ct);
+    }
 }
