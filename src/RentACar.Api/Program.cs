@@ -26,7 +26,8 @@ builder.Services.AddSerilog(lc => lc
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File(
+    // Dosya sink JSON: tenant_id/user/request_id birinci-sınıf alan (ileride ingest kolay).
+    .WriteTo.File(new Serilog.Formatting.Compact.CompactJsonFormatter(),
         builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-api-.log",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14));
@@ -140,6 +141,10 @@ builder.Services.AddRateLimiter(o =>
 
 builder.Services.AddOpenApi();
 
+builder.Services.AddScoped<RentACar.Api.Observability.ApiRequestEnrichment.Middleware>();
+builder.Services.AddHealthChecks()
+    .AddCheck<RentACar.Api.Observability.ApiDbHealthCheck>("db", tags: ["ready"]);
+
 var app = builder.Build();
 
 // Reverse-proxy (Caddy/nginx aynı makinede) arkasında gerçek istemci IP'si — rate limit doğru IP'yi görsün.
@@ -148,7 +153,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
-app.UseSerilogRequestLogging(); // istek başına tek satır: metot, yol, durum, süre
+app.UseSerilogRequestLogging(o => // istek başına tek satır + tenant/user/req-id korelasyonu
+    o.EnrichDiagnosticContext = RentACar.Api.Observability.ApiRequestEnrichment.Enrich);
 app.UseRateLimiter();
 
 // Tutarlı JSON hata zarfı (en dış katman).
@@ -158,6 +164,7 @@ app.MapOpenApi(); // OpenAPI dokümanı: /openapi/v1.json
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RentACar.Api.Observability.ApiRequestEnrichment.Middleware>(); // log: tenant/user/req-id
 
 app.MapAuthApi();
 app.MapVehiclesApi();
@@ -169,20 +176,18 @@ app.MapFinanceApi();
 app.MapEkHizmetlerApi();
 app.MapModulesApi();
 
-// Sağlık (readiness): DB bağlanabiliyor mu? Anonim (ops ping'i).
-app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
+// Sağlık — liveness/readiness (MS deseni). Anonim (ops ping'i).
+var apiReady = new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    try
-    {
-        await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.Database.CanConnectAsync(ct)
-            ? Results.Ok(new { status = "healthy" })
-            : Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-    catch
-    {
-        return Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-}).AllowAnonymous().WithTags("Health");
+    Predicate = c => c.Tags.Contains("ready"),
+    ResponseWriter = RentACar.Api.Observability.ApiHealthResponse.Write, // {status:healthy/unhealthy} sözleşmesi
+};
+app.MapHealthChecks("/health/live", new()
+{
+    Predicate = _ => false,
+    ResponseWriter = RentACar.Api.Observability.ApiHealthResponse.Write,
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready", apiReady).AllowAnonymous();
+app.MapHealthChecks("/health", apiReady).AllowAnonymous(); // geriye-uyum
 
 app.Run();
