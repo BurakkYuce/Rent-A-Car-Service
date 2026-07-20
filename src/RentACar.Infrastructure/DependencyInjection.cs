@@ -170,6 +170,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.DropTanimlari.IDropTanimRepository, Persistence.Repositories.DropTanimRepository>(); // roadmap N2
         services.AddScoped<RentACar.Application.DolulukFiyat.IDolulukFiyatKuralRepository, Persistence.Repositories.DolulukFiyatKuralRepository>(); // FAZ 3.A7
         services.AddScoped<RentACar.Application.DolulukFiyat.IOccupancyProvider, Persistence.Repositories.OccupancyProvider>();
+        services.AddScoped<RentACar.Application.BelgeSablon.IBelgeSablonRepository, Persistence.Repositories.BelgeSablonRepository>(); // marka-özel PDF metin şablonu
         services.AddScoped<RentACar.Application.FaturaDonemleri.IFaturaDonemRepository, Persistence.Repositories.FaturaDonemRepository>(); // FAZ 4.2-B1
         services.AddScoped<RentACar.Application.DisHizmetler.IDisHizmetRepository, Persistence.Repositories.DisHizmetRepository>(); // FAZ 4.3
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();

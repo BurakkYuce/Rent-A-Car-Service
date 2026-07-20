@@ -186,13 +186,14 @@
 
                     @* ---- Sistem (yalnız Admin) ---- *@
                     <AuthorizeView Roles="Admin" Context="adminCtx">
-                        <details class="nav-group" open="@Acik("/subeler","/kullanicilar","/personel","/ayarlar","/yetki","/denetim","/ice-aktar")">
+                        <details class="nav-group" open="@Acik("/subeler","/kullanicilar","/personel","/ayarlar","/belge-sablonlari","/yetki","/denetim","/ice-aktar")">
                             <summary><span class="ic"></span> Sistem <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/subeler">Şubeler</a>
                                 <a href="/kullanicilar">Kullanıcılar</a>
                                 <a href="/personel">Personel</a>
                                 <a href="/ayarlar">Ayarlar</a>
+                                <a href="/belge-sablonlari">Belge Şablonları</a>
                                 <a href="/yetki">Ekran Yetkileri</a>
                                 <a href="/denetim">Denetim</a>
                                 <a href="/ice-aktar">Veri İçe Aktar</a>

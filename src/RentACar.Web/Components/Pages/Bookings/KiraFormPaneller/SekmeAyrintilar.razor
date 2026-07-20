@@ -227,13 +227,25 @@
     @* 8. Ek Koşullar (S1 — sözleşme özel şartları) *@
     <div data-panel-group="alt" data-panel="ekkosullar" hidden>
         <div class="grid-form">
+            <label class="u-col-full">Belge Şablonu (sözleşme PDF metinleri)
+                <select name="belgeSablonId">
+                    <option value="">Varsayılan</option>
+                    @foreach (var s in Sablonlar)
+                    {
+                        <option value="@s.Id" selected="@(Vm.Rental?.BelgeSablonId == s.Id)">@s.Ad@(!s.Aktif ? " (pasif)" : s.VarsayilanMi ? " (varsayılan)" : "")</option>
+                    }
+                </select>
+            </label>
             <label class="u-col-full">Ek Koşullar / Sözleşme Özel Şartları
                 <textarea name="ekKosullar" rows="6" maxlength="2048" placeholder="Örn: Sigara içilmez; şehir dışı çıkış bildirime tabidir...">@Vm.S(c => c.EkKosullar)</textarea>
             </label>
         </div>
-        <p class="muted small">Yazdırılan sözleşmeye eklenmesi TODO (sözleşme PDF şablonu).</p>
+        <p class="muted small">Belge şablonu: başlık/hukuki metin/alt bilgi <a href="/belge-sablonlari">Belge Şablonları</a>'ndan tanımlanır;
+            "Varsayılan" seçilirse tenant varsayılan şablonu (o da yoksa sistem metni) basılır. Buradaki ek koşul metni,
+            şablonun ek-koşul varsayılanını ezer.</p>
     </div>
 </section>
 @code {
     [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter] public IReadOnlyList<RentACar.Domain.Entities.BelgeSablon> Sablonlar { get; set; } = [];
 }
