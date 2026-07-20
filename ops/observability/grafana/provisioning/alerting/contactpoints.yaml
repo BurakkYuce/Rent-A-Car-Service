@@ -1,0 +1,17 @@
+apiVersion: 1
+
+# Alarm contact-point'i: uygulamanın /internal/alert webhook'una POST (Bearer anahtarlı).
+# Uç alarmı KENDİ loglarımıza (Warning → Loki/dosya) yazar + best-effort WhatsApp forward eder.
+# Anahtar RACAR_ALERT_TOKEN env'inden (docker-compose Grafana'ya geçirir; uygulama Observability:AlertToken).
+contactPoints:
+  - orgId: 1
+    name: racar-webhook
+    receivers:
+      - uid: racar_webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: ${RACAR_ALERT_URL}
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: ${RACAR_ALERT_TOKEN}

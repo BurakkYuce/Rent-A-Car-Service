@@ -104,6 +104,18 @@ rentpro.example.com {
   devreye girer; yoksa stub no-op. (SMS/HGS/POS/e-Fatura stub — kimlik gelince bağlanır.)
 - **TCMB kur:** otomatik (config'siz çalışır; günlük çeker).
 
+## 6.1 Gözlemlenebilirlik (opsiyonel, config-gated) — bkz. [observability.md](observability.md)
+Telemetri (metrik/trace/log OTLP push) **yalnız `OTEL_EXPORTER_OTLP_ENDPOINT` set ise** akar; UNSET ise hiç
+exporter kurulmaz (dev/CI/telemetri istemeyen prod etkilenmez). Backend yığını `ops/observability/` altında
+tek docker-compose (OTel Collector + Prometheus + Loki + Tempo + Grafana).
+- Kurmak istiyorsan: `cd ops/observability && cp .env.example .env` (GRAFANA_ADMIN_PASSWORD + ALERT_TOKEN doldur) →
+  `docker compose -f docker-compose.observability.yml up -d`; sonra uygulamayı `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317`
+  ve `Observability__AlertToken=<.env ALERT_TOKEN>` env'leriyle başlat (systemd EnvironmentFile'a ekle).
+- **Güvenlik (ZORUNLU):** Prometheus/Loki/Tempo/Collector yalnız `127.0.0.1`/iç-docker ağına bağlanır (host portu YOK).
+  DIŞARI **yalnız Grafana** açılır → Caddy + auth arkasına al; admin şifresi env'den, anonim erişim/kayıt KAPALI.
+- **Alarm ucu:** `Observability:AlertToken` set ise `/internal/alert` açılır (Bearer/`X-Alert-Token` anahtarlı,
+  makine-uç); anahtar yoksa uç 404 (kapalı). `.env`'i **commit ETME** (git-ignore'lu).
+
 ## 7. İlk açılış doğrulaması
 1. `systemctl status racar-web` → çalışıyor (guard reddi varsa log'da net mesaj: hangi anahtar eksik).
 2. `curl -fsS http://127.0.0.1:5220/health` → 200.
@@ -136,6 +148,8 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 - [ ] TLS zorunlu (Caddy HTTPS), `/health` dışı uçlar auth-gated.
 - [ ] Yedekleme cron çalışıyor + restore denendi.
 - [ ] Firewall: yalnız 80/443 dışarı; PostgreSQL (5432) yalnız localhost.
+- [ ] **Observability (kurulmuşsa):** `ss -ltnp` → Prometheus/Loki/Tempo/Collector yalnız `127.0.0.1`; Grafana
+      dışarıdan yalnız Caddy-auth arkasından erişilir (default admin/admin DEĞİL). `.env` repo'da değil.
 
 ---
 

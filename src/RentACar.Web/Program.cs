@@ -94,18 +94,28 @@ if (args is ["--platform-hash", var bootstrapPw, ..])
 var builder = WebApplication.CreateBuilder(args);
 
 // ---- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (14 gün saklama) ----
-builder.Services.AddSerilog(lc => lc
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    // Dosya sink JSON (CompactJsonFormatter): tenant_id/user/request_id property'leri birinci-sınıf alan
-    // olur → ileride Loki/Seq'e tail/ingest trivial; konsol dev'de okunur metin kalır.
-    .WriteTo.File(new Serilog.Formatting.Compact.CompactJsonFormatter(),
-        builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-web-.log",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14));
+var otlpEndpointWeb = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+builder.Services.AddSerilog(lc =>
+{
+    lc.MinimumLevel.Information()
+      .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+      .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+      .Enrich.FromLogContext()
+      .WriteTo.Console()
+      // Dosya sink JSON (CompactJsonFormatter): tenant_id/user/request_id birinci-sınıf alan.
+      .WriteTo.File(new Serilog.Formatting.Compact.CompactJsonFormatter(),
+          builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-web-.log",
+          rollingInterval: RollingInterval.Day,
+          retainedFileCountLimit: 14);
+    // OTLP log sink — config-gated: endpoint set ise loglar Collector'a (→ Loki). Trace-id ile korele.
+    if (!string.IsNullOrWhiteSpace(otlpEndpointWeb))
+        lc.WriteTo.OpenTelemetry(o =>
+        {
+            o.Endpoint = otlpEndpointWeb;
+            o.Protocol = Serilog.Sinks.OpenTelemetry.OtlpProtocol.Grpc;
+            o.ResourceAttributes = new Dictionary<string, object> { ["service.name"] = "rentacar-web" };
+        });
+});
 
 // ---- Bağlantılar: Default = racar_app (RLS uygulanan runtime), Migrator = racar_owner (DDL/seed) ----
 var appConn = builder.Configuration.GetConnectionString("Default")
@@ -372,6 +382,38 @@ app.MapHealthChecks("/health/live", new()
 }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", healthReady).AllowAnonymous();
 app.MapHealthChecks("/health", healthReady).AllowAnonymous(); // geriye-uyum
+
+// Grafana Alerting köprüsü: alarmı KENDİ loglarımıza (Warning → Loki/dosya) yazar + best-effort WhatsApp.
+// Gizli-anahtar kapılı (config Observability:AlertToken yoksa uç KAPALI — açık uç bırakma). Makine POST'u
+// → anonim + antiforgery muaf; anonim olduğundan TenantActive/PlatformIsolation zaten dokunmaz.
+app.MapPost("/internal/alert", async (HttpContext ctx, IConfiguration cfg, IServiceProvider sp, ILoggerFactory lf) =>
+{
+    // Makine-uç (Grafana webhook): HTML hata-sayfası re-execute'ini KAPAT → çağıran ham durum kodunu görsün.
+    // Aksi halde boş-gövdeli 401/404, StatusCodePagesWithReExecute("/not-found") ile POST /not-found'a
+    // yeniden çalışıp antiforgery'e takılıyor ve istemciye 400 "incorrect Content-type" dönüyor (handler 401 verse de).
+    var scp = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodePagesFeature>();
+    if (scp is not null) scp.Enabled = false;
+
+    var configured = cfg["Observability:AlertToken"];
+    if (string.IsNullOrWhiteSpace(configured)) return Results.NotFound();
+    var token = RentACar.Web.Observability.AlertWebhook.ExtractToken(
+        ctx.Request.Headers["X-Alert-Token"].ToString(), ctx.Request.Headers.Authorization.ToString());
+    if (!RentACar.Web.Observability.AlertWebhook.Authorized(token, configured))
+        return Results.Unauthorized();
+
+    string body;
+    using (var reader = new StreamReader(ctx.Request.Body)) body = await reader.ReadToEndAsync();
+    var summary = RentACar.Web.Observability.AlertWebhook.Summarize(body);
+    lf.CreateLogger("OpsAlert").LogWarning("OPS ALERT: {Summary}", summary);
+
+    var wa = sp.GetService<RentACar.Application.Integrations.IWhatsAppService>();
+    var phone = cfg["Twilio:AlertPhone"];
+    if (wa is not null && !string.IsNullOrWhiteSpace(phone) && !string.IsNullOrWhiteSpace(cfg["Twilio:Templates:ops_alert"]))
+        try { await wa.SendTemplateAsync(phone, "ops_alert", new Dictionary<string, string> { ["1"] = summary }); }
+        catch { /* alarm forward hatası alarmı düşürmez */ }
+
+    return Results.Ok();
+}).AllowAnonymous().DisableAntiforgery();
 
 app.MapStaticAssets();
 app.MapAuthEndpoints();

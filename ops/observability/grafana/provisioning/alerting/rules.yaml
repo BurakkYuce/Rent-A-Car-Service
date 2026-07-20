@@ -1,0 +1,61 @@
+apiVersion: 1
+
+# Örnek alarm kuralları (operatör Grafana → Alerting'de doğrulasın/eşikleri ayarlasın; geçersiz kural
+# Grafana'yı ÇÖKERTMEZ, loglanır ve atlanır). Tümü racar-webhook policy'sine düşer.
+groups:
+  - orgId: 1
+    name: racar-rules
+    folder: RentACar
+    interval: 1m
+    rules:
+      # 5 dk pencerede 5xx oranı %5 üstünde → 5 dk sürerse uyar.
+      - uid: racar_5xx
+        title: Yüksek 5xx oranı
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Alerting
+        labels: { severity: warning }
+        annotations: { summary: "5xx hata oranı %5 üstünde (son 5 dk)" }
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: '100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count[5m])), 1)'
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+
+      # Son 10 dk'da herhangi bir arka plan job hatası.
+      - uid: racar_job_fail
+        title: Arka plan job hatası
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Alerting
+        labels: { severity: warning }
+        annotations: { summary: "Bir arka plan job son 10 dk'da hata verdi (job etiketine bak)" }
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: 'sum(increase(racar_job_fail_total[10m]))'
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
