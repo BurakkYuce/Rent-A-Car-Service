@@ -44,13 +44,38 @@ public static class ListExportCatalog
             x.VergiDairesi, x.Gsm2, x.Adres, x.Sinif, x.MusteriTemsilcisi, E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
         }).ToList());
 
-    public static ExportTable Faturalar(IReadOnlyList<Invoice> f) => new(
+    public static ExportTable Faturalar(IReadOnlyList<Invoice> f, Func<Guid, string?> cariAd) => new(
         "Faturalar",
-        ["No", "Tarih", "Net", "KDV", "Toplam", "Durum"],
+        // İlk 6 kolon geriye-uyum için SABİT; kalanlar (parite derinliği) sona eklendi.
+        ["No", "Tarih", "Net", "KDV", "Toplam", "Durum",
+         "Cari", "Vade", "Para", "Kur", "Tür", "Damga Vergisi", "e-Fatura"],
         f.Select(x => new object?[]
         {
-            x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString()
+            x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
+            cariAd(x.CariId), D(x.VadeTarihi), x.Currency, x.Kur, FaturaTuru(x), x.DamgaVergisi,
+            x.EFaturaGonderildi ? (x.EFaturaEttn ?? "Gönderildi") : ""
         }).ToList());
+
+    /// <summary>Fatura türü etiketi (iade/manuel/kira/fark/serbest).</summary>
+    private static string FaturaTuru(Invoice x) =>
+        x.IadeMi ? "İade" : x.ManuelMi ? "Manuel"
+        : x.KaynakKiraId != null ? "Kira Fark" : x.RentalId != null ? "Kira" : "Serbest";
+
+    /// <summary>Cari ekstre (hesap ekstresi) — bir carinin defter satırları + yürüyen bakiye (base para).
+    /// Cari bakiye = Σ (Borç +, Alacak −); pozitif = müşteri borçlu.</summary>
+    public static ExportTable CariEkstre(IReadOnlyList<AccountLedgerEntry> lines)
+    {
+        var rows = new List<object?[]>();
+        decimal bakiye = 0m;
+        foreach (var e in lines.OrderBy(x => x.EntryDateUtc).ThenBy(x => x.SourceType))
+        {
+            var borc = e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase : 0m;
+            var alacak = e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase : 0m;
+            bakiye += borc - alacak;
+            rows.Add(new object?[] { e.EntryDateUtc.ToString("yyyy-MM-dd"), e.SourceType, e.Description, borc, alacak, bakiye });
+        }
+        return new ExportTable("Cari Ekstre", ["Tarih", "Kaynak", "Açıklama", "Borç", "Alacak", "Bakiye"], rows);
+    }
 
     public static ExportTable Cezalar(IReadOnlyList<Penalty> c) => new(
         "Cezalar",
