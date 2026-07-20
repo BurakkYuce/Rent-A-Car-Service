@@ -19,7 +19,7 @@ public sealed class PdfExportTests
         var s = new RentACar.Application.Bookings.SozlesmeView(
             FirmaUnvan: "Test Rent A Car", FirmaAdres: "Antalya", FirmaTel: "0242 000 00 00",
             FirmaMobilTel: "0554 000 00 00", FirmaMarka: "TEST RENT",
-            FirmaVergiDairesi: "Kurumlar", FirmaVergiNo: "1234567890",
+            FirmaVergiDairesi: "Kurumlar", FirmaVergiNo: "1234567890", FirmaLogo: TinyPng,
             SozlesmeNo: "RZ-000123", Durum: "Tamamlandi",
             BasTar: new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero),
             BitTar: new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.Zero), Gun: 4,
@@ -75,7 +75,7 @@ public sealed class PdfExportTests
     }
 
     [Fact]
-    public void Invoice_pdf_is_valid_and_nonempty()
+    public void Invoice_pdf_markali_gecerli()
     {
         var inv = new Invoice
         {
@@ -83,10 +83,32 @@ public sealed class PdfExportTests
             Tarih = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
             NetTutar = 333.33m, KdvTutar = 66.67m, GenelToplam = 400m, Currency = "TRY"
         };
-        inv.Lines.Add(new InvoiceLine { Aciklama = "Araç kirası", Miktar = 1m, SatirToplam = 400m });
+        inv.Lines.Add(new InvoiceLine { Aciklama = "Araç kirası", Miktar = 1m, KdvOrani = 0.20m, SatirToplam = 400m });
 
-        var pdf = new PdfExportService().Invoice(inv);
+        // PR-C: markalı fatura (logo + firma) + cari adı.
+        var marka = new PdfMarka(TinyPng, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
+        var pdf = new PdfExportService().Invoice(inv, marka, "Deneme Müşteri");
         Assert.True(pdf.Length > 500);
         Assert.True(IsPdf(pdf));
     }
+
+    [Fact]
+    public void TahsilatMakbuzu_pdf_gecerli()
+    {
+        var tx = new CashTransaction
+        {
+            No = "TH-000012", Tip = RentACar.Domain.Enums.CashTransactionType.Tahsilat,
+            Tarih = new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero),
+            Amount = new RentACar.Domain.Common.Money(1500m, "TRY", 1m),
+            KarsiHesap = RentACar.Domain.Enums.LedgerAccountType.Kasa, Aciklama = "Kira tahsilatı"
+        };
+        var marka = new PdfMarka(null, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
+        var pdf = new PdfExportService().TahsilatMakbuzu(tx, marka, "Deneme Müşteri");
+        Assert.True(pdf.Length > 500);
+        Assert.True(IsPdf(pdf));
+    }
+
+    // 1x1 saydam PNG (logo render yolunu doğrular — geçerli görsel byte'ları).
+    private static readonly byte[] TinyPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
 }
