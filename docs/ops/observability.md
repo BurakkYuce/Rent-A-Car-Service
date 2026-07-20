@@ -54,6 +54,18 @@ Prometheus 15 gün · Loki 14 gün (dosya-log ile hizalı) · Tempo 7 gün. Tek-
   (`Twilio:AlertPhone` + `Twilio:Templates:ops_alert` config'liyse). **Eşikleri Grafana UI'da doğrula/ayarla.**
   E-posta/Slack istiyorsan Grafana contact-point'lerine kendi kanalını ekle.
 
+## Grafana'sız kritik alarm (uygulama-içi watchdog)
+Gözlem yığını (Grafana/Collector) ÇÖKSE bile çalışan hafif backstop: `OpsWatchdogJob` (BackgroundService).
+Aynı `Twilio:AlertPhone` + `ops_alert` şablonuna gönderir (webhook'la AYNI hedef). İki sinyal:
+- **TCMB kur bayat:** en yeni kur kaydı `OpsWatchdog:KurBayatGun` (varsayılan **5**) günden eskiyse → dövizli
+  para hesapları bayat kur kullanıyor demektir. Eşik 5g bilinçli: TCMB yalnız iş günü yayınlar; Cuma kuru
+  Pazartesi ~3.5g, uzun tatil ~4.5g eskir (NORMAL) → yanlış-pozitif yok, gerçek çekim arızası yakalanır.
+- **Tekrarlayan job hatası:** mevcut `racar_job_fail_total` sayacını süreç-içi `MeterListener` ile dinler
+  (job'lara dokunmaz); bir job `OpsWatchdog:JobHataEsik` (varsayılan **2**) yeni hata biriktirince uyarır.
+
+Config-gated: `Twilio:AlertPhone` + `Twilio:Templates:ops_alert` yoksa (veya `OpsWatchdog:Enabled=false`) PASİF.
+Ayarlar: `OpsWatchdog:IntervalHours` (varsayılan 1). Kur uyarısı İstanbul-günü başına bir kez; job uyarısı delta-tabanlı.
+
 ## Trace ↔ log korelasyonu
 Loki logundaki `trace_id` → Tempo trace'ine tıkla-geç; Tempo span'inden `service.name` ile Loki loguna dön
 (datasources.yaml'da provision). Log+trace `request_id`/`trace_id` ile aynı isteği gösterir.
