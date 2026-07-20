@@ -1,0 +1,121 @@
+using RentACar.Application.Authorization;
+using RentACar.Application.Common;
+using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
+
+namespace RentACar.Application.BelgeSablon;
+
+using Entity = RentACar.Domain.Entities.BelgeSablon;
+
+public interface IBelgeSablonRepository
+{
+    Task<IReadOnlyList<Entity>> ListAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Entity>> ListByTuruAsync(BelgeTuru turu, bool yalnizAktif, CancellationToken ct = default);
+    Task<Entity?> FindAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Belge türünün varsayılan (VarsayilanMi + Aktif) şablonu; yoksa null.</summary>
+    Task<Entity?> FindDefaultAsync(BelgeTuru turu, CancellationToken ct = default);
+    Task<bool> AdExistsAsync(BelgeTuru turu, string ad, Guid? excludeId = null, CancellationToken ct = default);
+    Task CreateAsync(Entity row, CancellationToken ct = default);
+    Task<bool> UpdateAsync(Guid id, Action<Entity> apply, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Türdeki DİĞER şablonların VarsayilanMi bayrağını temizler (tür başına tek varsayılan kuralı).</summary>
+    Task ClearDefaultAsync(BelgeTuru turu, Guid exceptId, CancellationToken ct = default);
+}
+
+/// <summary>Belge şablonu giriş modeli (admin formu).</summary>
+public sealed class BelgeSablonInput
+{
+    public BelgeTuru BelgeTuru { get; set; }
+    public string Ad { get; set; } = string.Empty;
+    public bool VarsayilanMi { get; set; }
+    public bool Aktif { get; set; } = true;
+    public string? BelgeBasligi { get; set; }
+    public string? HukukiMetinSol { get; set; }
+    public string? HukukiMetinSag { get; set; }
+    public string? EkKosullarVarsayilan { get; set; }
+    public string? AltBilgi { get; set; }
+}
+
+/// <summary>
+/// Belge şablonu master iş mantığı. Yazma ManageUsers (Ayarlar hassasiyeti — belge metni marka kimliği).
+/// Tür içinde Ad benzersiz; tür başına en çok bir VarsayilanMi (create/update sonrası diğerleri temizlenir).
+/// Yazdırma anındaki OKUMA bu servisi DEĞİL, BelgeSablonCozumleyici'yi kullanır (operatör yetkisiyle çalışır).
+/// </summary>
+public sealed class BelgeSablonService(IBelgeSablonRepository repository, ICurrentUser currentUser)
+{
+    public Task<IReadOnlyList<Entity>> ListAsync(CancellationToken ct = default)
+        => repository.ListAsync(ct);
+
+    public Task<IReadOnlyList<Entity>> ListByTuruAsync(BelgeTuru turu, CancellationToken ct = default)
+        => repository.ListByTuruAsync(turu, yalnizAktif: false, ct);
+
+    public async Task<Guid> CreateAsync(BelgeSablonInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        var n = Normalize(input);
+        Validate(n);
+        if (await repository.AdExistsAsync(n.BelgeTuru, n.Ad, null, ct))
+            throw new ValidationException($"'{n.Ad}' adlı şablon bu belge türünde zaten var.");
+        var row = new Entity();
+        Apply(row, n);
+        await repository.CreateAsync(row, ct);
+        if (row.VarsayilanMi) await repository.ClearDefaultAsync(row.BelgeTuru, row.Id, ct);
+        return row.Id;
+    }
+
+    public async Task<bool> UpdateAsync(Guid id, BelgeSablonInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        var n = Normalize(input);
+        Validate(n);
+        if (await repository.AdExistsAsync(n.BelgeTuru, n.Ad, id, ct))
+            throw new ValidationException($"'{n.Ad}' adlı şablon bu belge türünde zaten var.");
+        var ok = await repository.UpdateAsync(id, r => { Apply(r, n); r.UpdatedAtUtc = DateTimeOffset.UtcNow; }, ct);
+        if (ok && n.VarsayilanMi) await repository.ClearDefaultAsync(n.BelgeTuru, id, ct);
+        return ok;
+    }
+
+    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        return repository.DeleteAsync(id, ct);
+    }
+
+    private static void Validate(BelgeSablonInput n)
+    {
+        if (!Enum.IsDefined(n.BelgeTuru)) throw new ValidationException("Geçersiz belge türü.");
+        if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Şablon adı zorunludur.");
+        if (n.Ad.Length > 128) throw new ValidationException("Şablon adı en çok 128 karakter olabilir.");
+        if ((n.BelgeBasligi?.Length ?? 0) > 256) throw new ValidationException("Belge başlığı en çok 256 karakter olabilir.");
+        if ((n.HukukiMetinSol?.Length ?? 0) > 4000 || (n.HukukiMetinSag?.Length ?? 0) > 4000
+            || (n.EkKosullarVarsayilan?.Length ?? 0) > 4000)
+            throw new ValidationException("Metin bölümü en çok 4000 karakter olabilir.");
+        if ((n.AltBilgi?.Length ?? 0) > 512) throw new ValidationException("Alt bilgi en çok 512 karakter olabilir.");
+    }
+
+    private static BelgeSablonInput Normalize(BelgeSablonInput i) => new()
+    {
+        BelgeTuru = i.BelgeTuru,
+        Ad = (i.Ad ?? string.Empty).Trim(),
+        VarsayilanMi = i.VarsayilanMi,
+        Aktif = i.Aktif,
+        BelgeBasligi = Bos(i.BelgeBasligi),
+        HukukiMetinSol = Bos(i.HukukiMetinSol),
+        HukukiMetinSag = Bos(i.HukukiMetinSag),
+        EkKosullarVarsayilan = Bos(i.EkKosullarVarsayilan),
+        AltBilgi = Bos(i.AltBilgi)
+    };
+
+    // Boş/whitespace bölüm → null (null = "bu bölümde varsayılanı bas" semantiği).
+    private static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private static void Apply(Entity r, BelgeSablonInput n)
+    {
+        r.BelgeTuru = n.BelgeTuru; r.Ad = n.Ad; r.VarsayilanMi = n.VarsayilanMi; r.Aktif = n.Aktif;
+        r.BelgeBasligi = n.BelgeBasligi;
+        r.HukukiMetinSol = n.HukukiMetinSol;
+        r.HukukiMetinSag = n.HukukiMetinSag;
+        r.EkKosullarVarsayilan = n.EkKosullarVarsayilan;
+        r.AltBilgi = n.AltBilgi;
+    }
+}
