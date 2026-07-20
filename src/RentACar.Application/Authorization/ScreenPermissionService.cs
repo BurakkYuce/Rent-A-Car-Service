@@ -1,3 +1,4 @@
+using System.Text.Json;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Enums;
@@ -5,15 +6,17 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.Authorization;
 
 /// <summary>
-/// Ekran yetki override yönetimi + çözümü (roadmap E3). Override CRUD'u yetki yönetimidir → ManageUsers
-/// (yalnız Admin). Çözüm (<see cref="EnsureScreenAccessAsync"/>/<see cref="IsScreenAllowedAsync"/>) ekranların
-/// OPT-IN çağırdığı katman: matris floor'u korur, override varsa deny-by-default sıkılaştırır. PermissionGuard
+/// Ekran yetki override yönetimi + çözümü (roadmap E3) + yetki-grubu/şablon (PR-D). Override CRUD'u yetki
+/// yönetimidir → ManageUsers (yalnız Admin). Çözüm (<see cref="EnsureScreenAccessAsync"/>/<see cref="IsScreenAllowedAsync"/>)
+/// ekranların OPT-IN çağırdığı katman: matris floor'u korur, override varsa deny-by-default sıkılaştırır. PermissionGuard
 /// (mevcut floor) DEĞİŞMEZ — bu additive bir katman.
 /// </summary>
-public sealed class ScreenPermissionService(IScreenPermissionRepository repository, ICurrentUser currentUser)
+public sealed class ScreenPermissionService(
+    IScreenPermissionRepository repository, ICurrentUser currentUser, IYetkiGrupRepository grupRepository)
 {
     private readonly IScreenPermissionRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IYetkiGrupRepository _grup = grupRepository;
 
     // ---- Yönetim (ManageUsers) ----
     public async Task<IReadOnlyList<Domain.Entities.ScreenPermission>> ListAsync(CancellationToken ct = default)
@@ -67,6 +70,60 @@ public sealed class ScreenPermissionService(IScreenPermissionRepository reposito
             sayac++;
         }
         return sayac;
+    }
+
+    // ---- Yetki grubu / şablon (PR-D, ManageUsers): ekran-izni profillerini kaydet/uygula/sil ----
+
+    /// <summary>Tenant'ın kayıtlı yetki-grubu şablonları.</summary>
+    public async Task<IReadOnlyList<Domain.Entities.YetkiGrup>> ListGruplarAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        return await _grup.ListAsync(ct);
+    }
+
+    /// <summary>Mevcut ekran-izni yapılandırmasını (tüm ScreenPermission'lar) isimli bir şablon olarak kaydet
+    /// (anlık görüntü). Aynı adla varsa üzerine yazılır. Sonra <see cref="UygulaGrupAsync"/> ile geri yüklenir.</summary>
+    public async Task SnapshotGrupAsync(string ad, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        if (Normalize(ad).Length == 0) throw new ValidationException("Şablon adı zorunludur.");
+        var kalemler = (await _repository.ListAsync(ct))
+            .Select(s => new YetkiGrupKalem(s.EkranKodu, ParseRoles(s.AllowedRolesCsv).Select(r => r.ToString()).ToArray()))
+            .ToList();
+        var json = JsonSerializer.Serialize(kalemler);
+        await _grup.UpsertAsync(ad.Trim(), g =>
+        {
+            g.Ad = ad.Trim();
+            g.KalemlerJson = json;
+            g.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>Şablonu UYGULA: kalemlerini ScreenPermission override'larına yazar (bulk SetAsync). GÜVENLİK:
+    /// yalnız ekran-override'ı yazar — rol-matrisi floor'u DEĞİŞMEZ; uygulanan kısıt PermissionResolver'da yine
+    /// floor'la kesişir (grant floor'u AŞAMAZ). Uygulanan kalem sayısını döner.</summary>
+    public async Task<int> UygulaGrupAsync(string ad, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        var g = await _grup.FindByAdAsync(ad.Trim(), ct)
+            ?? throw new ValidationException($"Şablon bulunamadı: {ad}.");
+        var kalemler = JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [];
+        var sayac = 0;
+        foreach (var k in kalemler)
+        {
+            var roller = k.Roller
+                .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var ur) && Enum.IsDefined(ur) ? (UserRole?)ur : null)
+                .Where(r => r is not null).Select(r => r!.Value).ToArray();
+            await SetAsync(k.Ekran, roller, ct: ct); // ManageUsers guard + Normalize; override yazar (floor'u değiştirmez)
+            sayac++;
+        }
+        return sayac;
+    }
+
+    public async Task<bool> SilGrupAsync(string ad, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        return await _grup.DeleteAsync(ad.Trim(), ct);
     }
 
     // ---- Çözüm (opt-in ekran gating; yetki gerektirmez — çağıran ekranın guard'ı) ----

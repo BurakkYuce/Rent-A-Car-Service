@@ -115,6 +115,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
     public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();
+    public DbSet<YetkiGrup> YetkiGruplari => Set<YetkiGrup>(); // PR-D — ekran-izni şablonu
     public DbSet<VehicleKmLog> KmLoglari => Set<VehicleKmLog>(); // FAZ 2.5 — km zaman serisi
     public DbSet<DolulukFiyatKural> DolulukFiyatKurallari => Set<DolulukFiyatKural>(); // FAZ 3.A7
     public DbSet<FaturaDonemi> FaturaDonemleri => Set<FaturaDonemi>(); // FAZ 4.2-B1

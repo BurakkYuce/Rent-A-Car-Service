@@ -54,6 +54,25 @@ public static class YetkiEndpoints
             }
         });
 
+        // PR-D: yetki grubu / şablon — mevcut ekran-izni yapılandırmasını isimli profil olarak kaydet/uygula/sil.
+        grp.MapPost("/grup/kaydet", async (ScreenPermissionService svc, HttpRequest req) =>
+        {
+            try { await svc.SnapshotGrupAsync(req.Form["ad"].ToString()); return Results.Redirect("/yetki?ok=1"); }
+            catch (ValidationException ex) { return Results.Redirect($"/yetki?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        grp.MapPost("/grup/uygula", async (ScreenPermissionService svc, HttpRequest req) =>
+        {
+            try { var n = await svc.UygulaGrupAsync(req.Form["ad"].ToString()); return Results.Redirect($"/yetki?ok={n}"); }
+            catch (ValidationException ex) { return Results.Redirect($"/yetki?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        grp.MapPost("/grup/sil", async (ScreenPermissionService svc, HttpRequest req) =>
+        {
+            await svc.SilGrupAsync(req.Form["ad"].ToString());
+            return Results.Redirect("/yetki?ok=1");
+        });
+
         return app;
     }
 }
