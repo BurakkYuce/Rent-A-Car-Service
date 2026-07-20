@@ -75,16 +75,46 @@ public sealed class ListExportCatalogTests
     }
 
     [Fact]
-    public void Faturalar_satir_sayisi_ve_basliklar()
+    public void Faturalar_zengin_basliklar_ve_tur()
     {
-        var f = new Invoice { No = "FT-000001", Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
-            NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m, Durum = InvoiceStatus.Kesildi };
-        var t = ListExportCatalog.Faturalar([f]);
+        var cariId = Guid.NewGuid();
+        var f = new Invoice
+        {
+            No = "FT-000001", Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m, Durum = InvoiceStatus.Kesildi,
+            CariId = cariId, Currency = "EUR", Kur = 35m, ManuelMi = true,
+            VadeTarihi = new DateTimeOffset(2026, 2, 15, 0, 0, 0, TimeSpan.Zero), DamgaVergisi = 1.14m
+        };
+        var t = ListExportCatalog.Faturalar([f], id => id == cariId ? "ACME A.Ş." : null);
 
-        Assert.Equal(6, t.Headers.Count);
-        Assert.Equal("FT-000001", t.Rows[0][0]);
-        Assert.Equal("2026-01-15", t.Rows[0][1]);
-        Assert.Equal(120m, t.Rows[0][4]);
+        Assert.Equal(13, t.Headers.Count);           // ilk 6 sabit + 7 derinlik
+        Assert.Equal("FT-000001", t.Rows[0][0]);     // No (geriye-uyum)
+        Assert.Equal(120m, t.Rows[0][4]);            // Toplam (geriye-uyum)
+        Assert.Equal("ACME A.Ş.", t.Rows[0][6]);     // Cari
+        Assert.Equal("2026-02-15", t.Rows[0][7]);    // Vade
+        Assert.Equal("EUR", t.Rows[0][8]);           // Para
+        Assert.Equal("Manuel", t.Rows[0][10]);       // Tür
+    }
+
+    [Fact]
+    public void CariEkstre_yuruyen_bakiye()
+    {
+        // Bağımsız oracle: Borç 300 → bakiye 300; sonra Alacak 100 → bakiye 300−100 = 200.
+        var lines = new List<AccountLedgerEntry>
+        {
+            new() { EntryDateUtc = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), Direction = LedgerDirection.Debit,
+                    Amount = new Money(300m, "TRY", 1m), SourceType = "Fatura", Description = "FT-1" },
+            new() { EntryDateUtc = new(2026, 1, 5, 0, 0, 0, TimeSpan.Zero), Direction = LedgerDirection.Credit,
+                    Amount = new Money(100m, "TRY", 1m), SourceType = "Tahsilat", Description = "Tahsilat" },
+        };
+        var t = ListExportCatalog.CariEkstre(lines);
+
+        Assert.Equal(["Tarih", "Kaynak", "Açıklama", "Borç", "Alacak", "Bakiye"], t.Headers);
+        Assert.Equal(2, t.Rows.Count);
+        Assert.Equal(300m, t.Rows[0][3]);  // Borç
+        Assert.Equal(300m, t.Rows[0][5]);  // yürüyen bakiye
+        Assert.Equal(100m, t.Rows[1][4]);  // Alacak
+        Assert.Equal(200m, t.Rows[1][5]);  // 300 − 100
     }
 
     [Fact]

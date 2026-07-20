@@ -30,19 +30,27 @@ public static class ListExportEndpoints
     {
         var grp = app.MapGroup("/listeler/export").RequirePermission(Permission.ViewReports);
 
-        grp.MapGet("/{liste}", async (string liste, string? format,
+        grp.MapGet("/{liste}", async (string liste, string? format, HttpRequest req,
             VehicleService vs, CustomerService cs, InvoiceService inv,
             PenaltyService ps, ExpenseService es, CashService cash,
             VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
             RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop,
             FiloKiralamaService fks, VadeService vade, ReportExportService ex, PdfExportService pdf) =>
         {
+            // Cari ekstre parametreli (cariId) → switch dışında; carinin defter satır-detayı + yürüyen bakiye.
+            if (liste == "cari-ekstre")
+            {
+                var cariId = FormParse.Id(req.Query["cariId"].ToString());
+                if (cariId is null) return Results.BadRequest("cariId gerekli.");
+                return ExportFile(ListExportCatalog.CariEkstre(await cash.GetStatementAsync(cariId.Value)), format, ex, pdf, "cari-ekstre");
+            }
+
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
             ExportTable? t = liste switch
             {
                 "araclar" => ListExportCatalog.Araclar(await vs.ListAsync()),
                 "cariler" => ListExportCatalog.Cariler(await cs.ListAsync()),
-                "faturalar" => ListExportCatalog.Faturalar(await inv.ListAsync()),
+                "faturalar" => ListExportCatalog.Faturalar(await inv.ListAsync(), MusteriResolver(await cs.ListAsync())),
                 "cezalar" => ListExportCatalog.Cezalar(await ps.ListAsync()),
                 "giderler" => ListExportCatalog.Giderler(await es.ListAsync()),
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
