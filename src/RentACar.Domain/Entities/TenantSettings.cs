@@ -33,6 +33,8 @@ public class TenantSettings : ITenantOwned, IAuditable
 
     // ---- Görünüm + operasyon kuralları + SMTP (roadmap M1; additive, nullable) ----
     public string? LogoUrl { get; set; }
+    /// <summary>Firma logosu (PDF sözleşme/fatura/makbuz başlığında; PR-C). Ayarlar'dan yüklenir (PNG/JPG).</summary>
+    public byte[]? LogoBytes { get; set; }
     /// <summary>Varsayılan döviz (3 harf).</summary>
     public string? VarsayilanDoviz { get; set; }
     /// <summary>Varsayılan KDV oranı (0..1).</summary>

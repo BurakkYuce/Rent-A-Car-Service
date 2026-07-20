@@ -37,6 +37,8 @@ public sealed class TenantSettingsService(
             PosApiKey = secrets.Unprotect(s.PosApiKeyEnc),
             // roadmap M1
             LogoUrl = s.LogoUrl,
+            LogoBytes = s.LogoBytes, // PR-C
+
             VarsayilanDoviz = s.VarsayilanDoviz,
             VarsayilanKdvOrani = s.VarsayilanKdvOrani,
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
@@ -94,6 +96,16 @@ public sealed class TenantSettingsService(
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }, ct);
+    }
+
+    /// <summary>PR-C: PDF firma logosunu ayarla/kaldır (Ayarlar upload). null → logoyu sil. En fazla 1 MB.</summary>
+    public async Task SetLogoAsync(byte[]? bytes, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        if (bytes is { Length: > 1_048_576 })
+            throw new ValidationException("Logo en fazla 1 MB olabilir.");
+        await repository.UpsertAsync(s => s.LogoBytes = bytes is { Length: > 0 } ? bytes : null, ct);
     }
 
     public Task<IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim>> ListWhatsAppGonderimAsync(int n = 7, CancellationToken ct = default)

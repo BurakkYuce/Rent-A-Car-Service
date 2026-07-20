@@ -51,6 +51,8 @@ public sealed class PdfExportService
                 {
                     r.RelativeItem().Column(c =>
                     {
+                        if (s.FirmaLogo is { Length: > 0 } logo)
+                            c.Item().PaddingBottom(3).Height(38).AlignLeft().Image(logo).FitHeight(); // PR-C firma logosu
                         c.Item().Text("ARAÇ TESLİM BELGESİ / RENTAL AGREEMENT").FontSize(11).Bold();
                         if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
                         if (s.FirmaMobilTel is not null) c.Item().Text($"MOBİL TEL : {s.FirmaMobilTel}").FontSize(8).SemiBold();
@@ -243,26 +245,85 @@ public sealed class PdfExportService
         _ => c.ToString() ?? ""
     };
 
-    public byte[] Invoice(Invoice inv) =>
+    // PR-C: markalı fatura (firma başlığı + logo TenantSettings'ten; hard-coded "Fatura"/"RentPro" kaldırıldı).
+    public byte[] Invoice(Invoice inv, PdfMarka marka, string? cariAd) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
             {
                 p.Size(PageSizes.A4);
                 p.Margin(40);
-                p.Header().Text("Fatura").FontSize(18).SemiBold();
+                p.DefaultTextStyle(t => t.FontSize(9).FontColor("#111827"));
+                p.Header().Element(h => MarkaBaslik(h, marka, inv.IadeMi ? "İADE FATURASI" : "FATURA", inv.No,
+                    $"Tarih: {inv.Tarih:dd.MM.yyyy}" + (inv.VadeTarihi is { } v ? $"  ·  Vade: {v:dd.MM.yyyy}" : "")));
                 p.Content().PaddingVertical(12).Column(col =>
                 {
-                    col.Spacing(6);
-                    col.Item().Text($"Fatura No: {inv.No}");
-                    col.Item().Text($"Tarih: {inv.Tarih:yyyy-MM-dd}");
+                    col.Spacing(5);
+                    if (!string.IsNullOrWhiteSpace(cariAd)) col.Item().Text($"Sayın: {cariAd}").SemiBold();
                     col.Item().PaddingTop(6).Text("Kalemler").SemiBold();
                     foreach (var l in inv.Lines)
-                        col.Item().Text($"  • {l.Aciklama}  ×{l.Miktar:N2}  = {l.SatirToplam:N2}");
-                    col.Item().PaddingTop(6).Text($"Net: {inv.NetTutar:N2}    KDV: {inv.KdvTutar:N2}");
-                    col.Item().Text($"Genel Toplam: {inv.GenelToplam:N2} {inv.Currency}").SemiBold();
+                        col.Item().Text($"  • {l.Aciklama}   ×{l.Miktar:N2}   (KDV %{l.KdvOrani * 100:N0})   = {l.SatirToplam:N2}");
+                    col.Item().PaddingTop(8).AlignRight().Text($"Net: {inv.NetTutar:N2}     KDV: {inv.KdvTutar:N2}");
+                    col.Item().AlignRight().Text($"Genel Toplam: {inv.GenelToplam:N2} {inv.Currency}").FontSize(12).Bold();
                 });
-                p.Footer().AlignCenter().Text($"RentPro — {inv.No}").FontSize(9);
+                p.Footer().AlignCenter().Text($"{marka.Marka ?? marka.Unvan ?? ""} — {inv.No}").FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
+
+    // PR-C: yeni belge türü — tahsilat/ödeme makbuzu (CashTransaction'dan; markalı).
+    public byte[] TahsilatMakbuzu(CashTransaction tx, PdfMarka marka, string? cariAd) =>
+        Document.Create(doc =>
+        {
+            doc.Page(p =>
+            {
+                p.Size(PageSizes.A5.Landscape());
+                p.Margin(30);
+                p.DefaultTextStyle(t => t.FontSize(10).FontColor("#111827"));
+                var makbuzTip = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "TAHSİLAT MAKBUZU" : "ÖDEME MAKBUZU";
+                p.Header().Element(h => MarkaBaslik(h, marka, makbuzTip, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
+                p.Content().PaddingVertical(16).Column(col =>
+                {
+                    col.Spacing(8);
+                    var yon = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "alınmıştır" : "ödenmiştir";
+                    col.Item().Text($"Sayın {cariAd ?? "-"},").SemiBold();
+                    col.Item().Text($"Aşağıdaki tutar {tx.KarsiHesap} hesabından {yon}.");
+                    col.Item().PaddingTop(6).Border(0.75f).BorderColor(Line).Padding(8).Row(r =>
+                    {
+                        r.RelativeItem().Text("Tutar").SemiBold();
+                        r.ConstantItem(180).AlignRight().Text($"{tx.Amount.Amount:N2} {tx.Amount.Currency}").FontSize(14).Bold();
+                    });
+                    if (!string.IsNullOrWhiteSpace(tx.Aciklama)) col.Item().Text($"Açıklama: {tx.Aciklama}").FontSize(9);
+                    col.Item().PaddingTop(24).Row(r =>
+                    {
+                        r.RelativeItem().AlignCenter().Text("Teslim Eden").FontSize(9);
+                        r.RelativeItem().AlignCenter().Text("Teslim Alan").FontSize(9);
+                    });
+                });
+                p.Footer().AlignCenter().Text($"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}").FontSize(8).FontColor(Line);
+            });
+        }).GeneratePdf();
+
+    /// <summary>Ortak markalı başlık (logo + firma solda; belge adı + no + tarih sağda). Invoice + Makbuz kullanır.</summary>
+    private static void MarkaBaslik(IContainer h, PdfMarka m, string baslik, string no, string? sagAlt) =>
+        h.Row(r =>
+        {
+            r.RelativeItem().Column(c =>
+            {
+                if (m.Logo is { Length: > 0 } logo) c.Item().PaddingBottom(3).Height(40).AlignLeft().Image(logo).FitHeight();
+                c.Item().Text((m.Marka ?? m.Unvan ?? "").ToUpperInvariant()).FontSize(13).Bold();
+                if (m.Unvan is not null && m.Marka is not null) c.Item().Text(m.Unvan).FontSize(8);
+                if (m.Adres is not null) c.Item().Text(m.Adres).FontSize(8);
+                if (m.Tel is not null) c.Item().Text($"Tel: {m.Tel}").FontSize(8);
+                if (m.VergiNo is not null) c.Item().Text($"{m.VergiDairesi} VD. {m.VergiNo}").FontSize(8);
+            });
+            r.ConstantItem(180).Column(c =>
+            {
+                c.Item().AlignRight().Text(baslik).FontSize(16).Bold();
+                c.Item().AlignRight().Text(no).FontSize(12).SemiBold();
+                if (sagAlt is not null) c.Item().AlignRight().Text(sagAlt).FontSize(9);
+            });
+        });
 }
+
+/// <summary>PDF başlığı için firma marka bilgisi (TenantSettings'ten; PR-C). Logo opsiyonel byte[] (PNG/JPG).</summary>
+public sealed record PdfMarka(byte[]? Logo, string? Unvan, string? Marka, string? Adres, string? Tel, string? VergiDairesi, string? VergiNo);

@@ -87,6 +87,25 @@
     <button type="submit">Kaydet</button>
 </form>
 
+<fieldset>
+    <legend>PDF Logo (sözleşme / fatura / makbuz başlığı)</legend>
+    @if (_m.LogoBytes is { Length: > 0 })
+    {
+        <p class="ok">Logo yüklü (@(_m.LogoBytes.Length / 1024) KB). PDF çıktılarının başlığında görünür.</p>
+    }
+    else
+    {
+        <p class="muted">Logo yüklü değil.</p>
+    }
+    <form method="post" action="/ayarlar/logo" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
+        <label>Logo dosyası (PNG/JPG, ≤1 MB)<input name="logo" type="file" accept="image/png,image/jpeg" required /></label>
+        <button type="submit">Logoyu Yükle</button>
+    </form>
+    <form method="post" action="/ayarlar/logo-sil"><AntiforgeryToken />
+        <button type="submit" class="btn-secondary">Logoyu Kaldır</button>
+    </form>
+</fieldset>
+
 @code {
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
