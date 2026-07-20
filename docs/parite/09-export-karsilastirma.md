@@ -3,6 +3,15 @@
 > Salt-okunur canlı tarama (2026-07-08, 6 paralel agent, curl+çerez). Yalnız **yapı**: ekran adı + buton varlığı +
 > grid sütun başlıkları. Müşteri verisi taranmadı/kaydedilmedi. Ham HTML repo-dışı (`/tmp`, `~/Desktop/turev-deneme`).
 
+> **GÜNCELLEME (2026-07-20, PR-B):** Aşağıdaki tablo BAYAT — "EKSİK export" denenlerin çoğu tarama tarihinden sonra
+> bağlandı. Repo GERÇEĞİ: liste export'ları ~17 + rapor export'ları ~22 + personel (PII-gate) = ~40 uç bağlı
+> (araclar, cariler, faturalar, cezalar, giderler, nakit-islemler, arac-satislari/-siparisleri/-kredileri, baflar,
+> kiralar, rezervasyonlar, lokasyonlar, drop, filo-kiralama, vade + tüm raporlar). **Banka işlem/defter** zaten
+> `/raporlar/export/kasa-banka` (hesap-seçmeli yürüyen bakiye) ile karşılanıyor. PR-B ile eklendi: **cari ekstre**
+> (`/listeler/export/cari-ekstre?cariId=` — satır-detay + yürüyen bakiye) + **fatura sütun-derinliği** (6→13:
+> +cari/vade/para/kur/tür/damga/e-fatura). **Hâlâ gerçekten eksik:** HGS geçiş listesi (ham veri `IHgsService`
+> STUB — kimlik gelince) ve müşteri CRM/ciro (Application servisi henüz yok) → kimlik/servis-derinliği bekliyor.
+
 ## Özet
 - **TürevRent'te Excel export: ~65 ekran** (152 sayfanın liste/rapor olanları; form/master/takvim/grafik'te export yok).
 - **RentACar'da export: 3 liste + ~20 rapor = ~23** (`/listeler/export/{araclar,cariler,faturalar}` + `/raporlar/export/*`).

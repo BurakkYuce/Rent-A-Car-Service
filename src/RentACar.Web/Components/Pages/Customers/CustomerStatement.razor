@@ -12,7 +12,7 @@
 }
 else
 {
-    <div class="page-head"><h1>Ekstre — @_customer.DisplayName</h1><div class="actions"></div></div>
+    <div class="page-head"><h1>Ekstre — @_customer.DisplayName</h1><div class="actions"><a href="/listeler/export/cari-ekstre?cariId=@Id">Excel</a> · <a href="/listeler/export/cari-ekstre?cariId=@Id&format=csv">CSV</a> · <a href="/listeler/export/cari-ekstre?cariId=@Id&format=pdf">PDF</a></div></div>
     <p>Bakiye: <strong class="@(_balance > 0 ? "neg" : "pos")">@_balance.ToString("N2") ₺</strong>
         <span class="muted">(pozitif = müşteri borçlu)</span></p>
 
