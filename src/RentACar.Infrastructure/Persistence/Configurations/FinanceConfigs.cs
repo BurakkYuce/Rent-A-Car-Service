@@ -74,6 +74,9 @@ internal sealed class AccountLedgerEntryConfig : IEntityTypeConfiguration<Accoun
         e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_ServisYansitma_Idem")
             .IsUnique()
             .HasFilter("\"SourceType\" = 'ServisYansitma'");
+        // NOT (PR-A): Dönem kapanış fişi için idempotency index YOK — kapanış tenant başına pg_advisory_xact_lock
+        // ile SERİLEŞTİRİLİR (DonemKapanisRepository) ve güncel-bakiye-sıfırlama intrinsik idempotenttir; SourceId
+        // taze GUID (meşru yeniden-kapatma engellenmesin — adversarial BULGU 2/3 düzeltmesi).
     }
 }
 

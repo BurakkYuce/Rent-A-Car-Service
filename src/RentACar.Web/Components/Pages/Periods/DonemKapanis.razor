@@ -1,13 +1,14 @@
 @page "/donem-kapanis"
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject DonemKilidiService Donem
+@inject RentACar.Application.Reporting.ReportService Rapor
 
 <PageTitle>Dönem Kapanışı — RentPro</PageTitle>
 
 <div class="page-head"><h1>Dönem Kapanışı</h1><div class="actions"></div></div>
 @if (Ok == "1")
 {
-    <p class="ok">Dönem kilidi güncellendi.</p>
+    <p class="ok">Dönem kapatıldı / kilit güncellendi.</p>
 }
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -16,11 +17,54 @@
 
 <p>Mevcut kilit: <strong>@(_closing?.ToString("yyyy-MM-dd") ?? "yok (tüm dönemler açık)")</strong></p>
 <p class="muted small">Kapanış tarihi ve <strong>öncesine</strong> tahsilat/ödeme/virman/cari-virman/ters kayıt/
-    fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest.</p>
+    fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest. "Dönemi Kapat" ayrıca
+    <strong>kapanış fişi</strong> keser: Gelir/Gider hesaplarını sıfırlayıp net dönem sonucunu
+    <em>Dönem Sonucu</em> hesabına taşır (KDV/Kasa/Banka/Cari bilanço hesapları dokunulmaz).</p>
+
+<h2>Güncel Mizan (bugüne kadar)</h2>
+@if (_mizan is { Count: > 0 })
+{
+    <div class="table-scroll">
+    <table class="grid">
+        <thead><tr><th>Hesap</th><th class="num">Borç</th><th class="num">Alacak</th><th class="num">Bakiye</th></tr></thead>
+        <tbody>
+        @foreach (var m in _mizan)
+        {
+            <tr>
+                <td>@m.Ad</td>
+                <td class="num">@m.Borc.ToString("N2")</td>
+                <td class="num">@m.Alacak.ToString("N2")</td>
+                <td class="num">@m.Bakiye.ToString("N2")</td>
+            </tr>
+        }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td><strong>Toplam</strong></td>
+                <td class="num"><strong>@_mizan.Sum(x => x.Borc).ToString("N2")</strong></td>
+                <td class="num"><strong>@_mizan.Sum(x => x.Alacak).ToString("N2")</strong></td>
+                <td class="num"><strong>@_mizan.Sum(x => x.Bakiye).ToString("N2")</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+    </div>
+    <p class="muted small">Bakiye toplamı 0 olmalı (çift-taraflı defter dengesi).</p>
+}
+else
+{
+    <p class="muted">Defter boş.</p>
+}
+
+@if (_onizleme is { } o)
+{
+    <p>Şu an kapatılacak (güncel Gelir/Gider bakiyesi): <strong>Gelir @o.Gelir.ToString("N2")</strong> −
+        <strong>Gider @o.Gider.ToString("N2")</strong> = <strong>Dönem Sonucu @o.DonemSonucu.ToString("N2")</strong>
+        (@(o.DonemSonucu >= 0 ? "kâr" : "zarar")).</p>
+}
 
 <form method="post" action="/donem-kapanis/kilitle" class="grid-form"><AntiforgeryToken />
     <label>Kapanış Tarihi<input name="kapanisTarihi" type="date" required /></label>
-    <button type="submit">Dönemi Kapat</button>
+    <button type="submit">Dönemi Kapat (fiş + kilit)</button>
 </form>
 
 <form method="post" action="/donem-kapanis/ac"><AntiforgeryToken />
@@ -32,5 +76,18 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private DateTimeOffset? _closing;
-    protected override async Task OnInitializedAsync() => _closing = await Donem.GetClosingDateAsync();
+    private IReadOnlyList<RentACar.Application.Reporting.MizanSatirDto>? _mizan;
+    private RentACar.Application.Periods.DonemKapanisOnizleme? _onizleme;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _closing = await Donem.GetClosingDateAsync();
+        _mizan = await Rapor.GetMizanAsync();
+        // Önizleme GÜNCEL mizan bakiyesinden (kapanışın gerçekten sıfırlayacağı tutar): Gelir Alacak bakiyesi
+        // (negatif) → gelir = −bakiye; Gider Borç bakiyesi (pozitif) → gider = bakiye.
+        decimal Bakiye(LedgerAccountType t) => _mizan.FirstOrDefault(m => m.Tip == t)?.Bakiye ?? 0m;
+        var gelir = -Bakiye(LedgerAccountType.Gelir);
+        var gider = Bakiye(LedgerAccountType.Gider);
+        _onizleme = new RentACar.Application.Periods.DonemKapanisOnizleme(gelir, gider, gelir - gider);
+    }
 }
