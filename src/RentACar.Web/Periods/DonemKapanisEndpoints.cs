@@ -12,13 +12,14 @@ public static class DonemKapanisEndpoints
     {
         var grp = app.MapGroup("/donem-kapanis").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/kilitle", async (DonemKilidiService svc, HttpRequest req) =>
+        // PR-A: "Dönemi Kapat" artık TEK akış — kapanış fişini post et (Gelir/Gider→DonemSonucu) + dönemi kilitle.
+        grp.MapPost("/kilitle", async (DonemKapanisFisiService kapanis, HttpRequest req) =>
         {
             try
             {
                 var tarih = FormParse.Date(req.Form["kapanisTarihi"].ToString())
                     ?? throw new ValidationException("Kapanış tarihi gerekli.");
-                await svc.LockAsync(tarih);
+                await kapanis.KapatAsync(tarih);
                 return Results.Redirect("/donem-kapanis?ok=1");
             }
             catch (ValidationException ex)
