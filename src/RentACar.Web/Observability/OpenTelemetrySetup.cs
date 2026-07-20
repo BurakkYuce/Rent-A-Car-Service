@@ -8,8 +8,10 @@ namespace RentACar.Web.Observability;
 /// OpenTelemetry metrik + trace kurulumu (host-yerel — ASP.NET Core tipleri Application'a giremez).
 /// Auto: ASP.NET Core (RED), HttpClient (outbound + W3C traceparent), Npgsql (DB span/metrik), Runtime (GC).
 /// İş metrikleri Meter "RentACar" (Application.Observability.RacarMetrics).
-/// EXPORTER config-gated: yalnız OTEL_EXPORTER_OTLP_ENDPOINT set ise OTLP eklenir → endpoint yoksa
-/// exporter hiç kurulmaz (dev/test/CI'de connection-refused gürültüsü ve yük yok).
+/// TAMAMEN config-gated: OTEL_EXPORTER_OTLP_ENDPOINT set DEĞİLSE hiç OTel kurulmaz → instrumentation da
+/// yok, exporter da yok → backend'siz kurulumda TAM SIFIR telemetri maliyeti (per-istek Activity üretilmez).
+/// NOT: bu kapı iş sayaçlarını (RacarMetrics BCL Meter.Add — dinleyicisizken ucuz no-op) ve OpsWatchdog'u
+/// (kendi MeterListener'ıyla doğrudan Meter'a bağlı, OTel'den bağımsız) ETKİLEMEZ.
 /// KARDİNALİTE: tenant/user metrikte YOK (yalnız log/trace).
 /// </summary>
 public static class OpenTelemetrySetup
@@ -17,7 +19,8 @@ public static class OpenTelemetrySetup
     public static IServiceCollection AddRacarObservability(
         this IServiceCollection services, IConfiguration config, string serviceName)
     {
-        var hasOtlp = !string.IsNullOrWhiteSpace(config["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        // Backend (OTLP endpoint) yoksa OTel'i HİÇ kurma → sıfır maliyet. Endpoint gelince tam kurulur.
+        if (string.IsNullOrWhiteSpace(config["OTEL_EXPORTER_OTLP_ENDPOINT"])) return services;
 
         services.AddOpenTelemetry()
             .ConfigureResource(r => r.AddService(serviceName, serviceVersion: "1.0.0"))
@@ -27,15 +30,15 @@ public static class OpenTelemetrySetup
                  .AddHttpClientInstrumentation()
                  .AddRuntimeInstrumentation()
                  .AddMeter("RentACar")   // iş metrikleri (login/tahsilat/ledger/ratelimit/job)
-                 .AddMeter("Npgsql");     // DB havuz/komut metrikleri
-                if (hasOtlp) m.AddOtlpExporter();
+                 .AddMeter("Npgsql")      // DB havuz/komut metrikleri
+                 .AddOtlpExporter();
             })
             .WithTracing(t =>
             {
                 t.AddAspNetCoreInstrumentation(o => o.Filter = ctx => !IsNoise(ctx.Request.Path))
                  .AddHttpClientInstrumentation()
-                 .AddSource("Npgsql");    // Npgsql ActivitySource
-                if (hasOtlp) t.AddOtlpExporter();
+                 .AddSource("Npgsql")     // Npgsql ActivitySource
+                 .AddOtlpExporter();
             });
         return services;
     }
