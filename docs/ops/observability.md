@@ -23,8 +23,10 @@ yanında OTel-Collector + Prometheus + Loki + Tempo + Grafana toplar/gösterir/a
   (`racar_login_total`, `racar_tahsilat_total`, `racar_ledger_idempotent_reject_total`,
   `racar_ratelimit_reject_total`, `racar_job_fail_total`). **KARDİNALİTE:** tenant/kullanıcı yalnız log/trace,
   metrik etiketi DEĞİL.
-- **Exporter config-gated:** `OTEL_EXPORTER_OTLP_ENDPOINT` set ise OTLP metrik+trace+log akar; UNSET ise
-  hiç exporter kurulmaz (dev/test/CI etkilenmez). Prod'da: `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317`.
+- **Tamamen config-gated (sıfır maliyet):** `OTEL_EXPORTER_OTLP_ENDPOINT` set ise OTLP metrik+trace+log akar;
+  UNSET ise **OTel hiç kurulmaz** — instrumentation da yok, exporter da yok → backend'siz kurulumda per-istek
+  Activity bile üretilmez (TAM sıfır telemetri maliyeti). İş sayaçları (BCL Meter, dinleyicisiz no-op) ve
+  OpsWatchdog (kendi MeterListener'ı) bundan ETKİLENMEZ. Prod'da: `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317`.
 - **Alarm anahtarı:** `Observability:AlertToken` (env `Observability__AlertToken`) — Grafana webhook'unun
   `.env` `ALERT_TOKEN`'ıyla AYNI olmalı.
 
