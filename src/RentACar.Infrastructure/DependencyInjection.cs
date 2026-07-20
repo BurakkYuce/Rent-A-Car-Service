@@ -147,6 +147,8 @@ public static class DependencyInjection
             Persistence.Repositories.DonemKapanisRepository>(); // PR-A atomik/serileştirilmiş kapanış fişi
         services.AddScoped<RentACar.Application.Authorization.IScreenPermissionRepository,
             Persistence.Repositories.ScreenPermissionRepository>();
+        services.AddScoped<RentACar.Application.Authorization.IYetkiGrupRepository,
+            Persistence.Repositories.YetkiGrupRepository>(); // PR-D — ekran-izni şablonu
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<RentACar.Application.RentalAddOns.IRentalAddOnRepository, RentalAddOnRepository>();
