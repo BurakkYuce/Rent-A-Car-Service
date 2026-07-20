@@ -12,27 +12,26 @@ using Serilog.Context;
 
 namespace RentACar.Api.Observability;
 
-/// <summary>API OpenTelemetry kurulumu (Web ile aynı desen; config-gated OTLP). İş metrikleri paylaşılan
+/// <summary>API OpenTelemetry kurulumu (Web ile aynı desen). TAMAMEN config-gated: OTEL_EXPORTER_OTLP_ENDPOINT
+/// yoksa hiç OTel kurulmaz → backend'siz kurulumda tam sıfır telemetri maliyeti. İş metrikleri paylaşılan
 /// Meter "RentACar" (Application) — login vb. Infra'dan emit edilir, API host'unda toplanır.</summary>
 public static class ApiObservabilitySetup
 {
     public static IServiceCollection AddRacarObservability(
         this IServiceCollection services, IConfiguration config, string serviceName)
     {
-        var hasOtlp = !string.IsNullOrWhiteSpace(config["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        if (string.IsNullOrWhiteSpace(config["OTEL_EXPORTER_OTLP_ENDPOINT"])) return services; // backend yok → sıfır maliyet
         services.AddOpenTelemetry()
             .ConfigureResource(r => r.AddService(serviceName, serviceVersion: "1.0.0"))
             .WithMetrics(m =>
             {
                 m.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddRuntimeInstrumentation()
-                 .AddMeter("RentACar").AddMeter("Npgsql");
-                if (hasOtlp) m.AddOtlpExporter();
+                 .AddMeter("RentACar").AddMeter("Npgsql").AddOtlpExporter();
             })
             .WithTracing(t =>
             {
                 t.AddAspNetCoreInstrumentation(o => o.Filter = ctx => !(ctx.Request.Path.Value ?? "").StartsWith("/health", StringComparison.OrdinalIgnoreCase))
-                 .AddHttpClientInstrumentation().AddSource("Npgsql");
-                if (hasOtlp) t.AddOtlpExporter();
+                 .AddHttpClientInstrumentation().AddSource("Npgsql").AddOtlpExporter();
             });
         return services;
     }
