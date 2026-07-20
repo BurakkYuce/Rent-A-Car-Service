@@ -2,12 +2,41 @@ using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using RentACar.Api.Identity;
 using RentACar.Infrastructure.Persistence;
 using Serilog;
 using Serilog.Context;
 
 namespace RentACar.Api.Observability;
+
+/// <summary>API OpenTelemetry kurulumu (Web ile aynı desen; config-gated OTLP). İş metrikleri paylaşılan
+/// Meter "RentACar" (Application) — login vb. Infra'dan emit edilir, API host'unda toplanır.</summary>
+public static class ApiObservabilitySetup
+{
+    public static IServiceCollection AddRacarObservability(
+        this IServiceCollection services, IConfiguration config, string serviceName)
+    {
+        var hasOtlp = !string.IsNullOrWhiteSpace(config["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService(serviceName, serviceVersion: "1.0.0"))
+            .WithMetrics(m =>
+            {
+                m.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddRuntimeInstrumentation()
+                 .AddMeter("RentACar").AddMeter("Npgsql");
+                if (hasOtlp) m.AddOtlpExporter();
+            })
+            .WithTracing(t =>
+            {
+                t.AddAspNetCoreInstrumentation(o => o.Filter = ctx => !(ctx.Request.Path.Value ?? "").StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+                 .AddHttpClientInstrumentation().AddSource("Npgsql");
+                if (hasOtlp) t.AddOtlpExporter();
+            });
+        return services;
+    }
+}
 
 /// <summary>API istek-kapsamlı log zenginleştirme (Web ile aynı claim değerleri: tenant_id/user).
 /// (a) middleware LogContext ile istek-içi tüm logları; (b) Enrich, request-completion olayını.

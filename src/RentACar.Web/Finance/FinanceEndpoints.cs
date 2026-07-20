@@ -104,6 +104,7 @@ public static class FinanceEndpoints
             }
             catch (ValidationException ex)
             {
+                RentACar.Application.Observability.RacarMetrics.TahsilatFail(); // metrik: tahsilat reddi (döviz/kilit/idempotent…)
                 var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
                 return Results.Redirect(HataUrl(url, ex.Message)); // donus querystring'liyse '&' (çift-? düzeltmesi)
             }

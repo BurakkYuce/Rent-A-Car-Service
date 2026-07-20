@@ -33,7 +33,7 @@ public sealed class VadeBildirimJob(
         {
             try { await RunOnceAsync(ct); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; } // shutdown: hata değil (F3)
-            catch (Exception ex) { log.LogError(ex, "Vade bildirim taraması başarısız."); }
+            catch (Exception ex) { log.LogError(ex, "Vade bildirim taraması başarısız."); RentACar.Application.Observability.RacarMetrics.JobFailed("vade-bildirim"); }
             try { await Task.Delay(Interval, ct); }
             catch (OperationCanceledException) { break; }
         }

@@ -144,6 +144,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<RentACar.Api.Observability.ApiRequestEnrichment.Middleware>();
 builder.Services.AddHealthChecks()
     .AddCheck<RentACar.Api.Observability.ApiDbHealthCheck>("db", tags: ["ready"]);
+RentACar.Api.Observability.ApiObservabilitySetup.AddRacarObservability(builder.Services, builder.Configuration, "rentacar-api");
 
 var app = builder.Build();
 
