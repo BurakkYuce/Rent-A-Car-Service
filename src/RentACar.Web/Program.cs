@@ -16,6 +16,7 @@ using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
 using RentACar.Web.Components;
+using RentACar.Web.Observability;
 using RentACar.Web.Calendar;
 using RentACar.Web.Import;
 using RentACar.Web.Kur;
@@ -187,6 +188,7 @@ builder.Services.AddRateLimiter(o =>
     // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
     o.OnRejected = (ctx, _) =>
     {
+        RentACar.Application.Observability.RacarMetrics.RateLimitRejected("login"); // metrik: rate-limit reddi
         var target = ctx.HttpContext.Request.Path.StartsWithSegments("/platform")
             ? "/platform/login?hata=limit" : "/login?hata=limit";
         ctx.HttpContext.Response.Redirect(target);
@@ -234,6 +236,9 @@ builder.Services.AddHealthChecks()
     .AddCheck<RentACar.Web.Observability.DbConnectHealthCheck>("db", tags: ["ready"])
     .AddCheck<RentACar.Web.Observability.MigratorConnectHealthCheck>("migrator", tags: ["ready"])
     .AddCheck<RentACar.Web.Observability.KeyringHealthCheck>("keyring", tags: ["ready"]);
+
+// OpenTelemetry metrik + trace (OTLP exporter config-gated: OTEL_EXPORTER_OTLP_ENDPOINT set ise).
+builder.Services.AddRacarObservability(builder.Configuration, "rentacar-web");
 
 // iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
 builder.Services.AddScoped<CalendarFeedService>();

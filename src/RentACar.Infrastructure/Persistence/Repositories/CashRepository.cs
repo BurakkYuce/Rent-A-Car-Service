@@ -98,6 +98,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 // Kısmi unique index çakışması: ya aynı işlemin ikinci ters kaydı ya da aynı IslemAnahtari ile
                 // çift-submit (adversarial M5) → her iki halde idempotent reddet.
                 await dbTx.RollbackAsync(ct);
+                RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected(); // metrik: idempotent red
                 throw new ValidationException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
             }
         }, ct);

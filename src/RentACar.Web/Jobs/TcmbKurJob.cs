@@ -20,7 +20,7 @@ public sealed class TcmbKurJob(TcmbKurService svc, ILogger<TcmbKurJob> log) : Ba
         {
             try { await svc.RefreshAsync(ct: ct); } // periyodik (6s); throttle'ı doğal geçer
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; } // shutdown: hata değil
-            catch (Exception ex) { log.LogError(ex, "TCMB kur taraması başarısız."); }
+            catch (Exception ex) { log.LogError(ex, "TCMB kur taraması başarısız."); RentACar.Application.Observability.RacarMetrics.JobFailed("tcmb-kur"); }
             try { await Task.Delay(Interval, ct); }
             catch (OperationCanceledException) { break; }
         }
