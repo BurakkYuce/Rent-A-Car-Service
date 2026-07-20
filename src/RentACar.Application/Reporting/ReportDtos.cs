@@ -38,6 +38,10 @@ public sealed record AgingRowDto(
 /// <summary>SourceType kırılım kalemi (gelir/gider drill-down).</summary>
 public sealed record GelirGiderKalemDto(string SourceType, decimal Tutar);
 
+/// <summary>Dönem-sonu özet mizan satırı (PR-A): hesap-tipi bazında Σ Borç / Σ Alacak / net bakiye (base para).
+/// Bakiye = Borç − Alacak (Debit +, Credit −); tüm satırların bakiye toplamı 0 olmalı (defter dengesi).</summary>
+public sealed record MizanSatirDto(LedgerAccountType Tip, string Ad, decimal Borc, decimal Alacak, decimal Bakiye);
+
 /// <summary>Filo durum dağılımı + aktif kira (operasyonel rapor).</summary>
 public sealed record FleetUtilizationDto(
     int Toplam, int Musait, int Kirada, int Serviste, int Pasif, int Satildi, int AktifKira);

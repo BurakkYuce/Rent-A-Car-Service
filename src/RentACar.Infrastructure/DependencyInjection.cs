@@ -143,6 +143,8 @@ public static class DependencyInjection
             Persistence.Repositories.SearchRepository>();
         services.AddScoped<RentACar.Application.Periods.IDonemKilidiRepository,
             Persistence.Repositories.DonemKilidiRepository>();
+        services.AddScoped<RentACar.Application.Periods.IDonemKapanisRepository,
+            Persistence.Repositories.DonemKapanisRepository>(); // PR-A atomik/serileştirilmiş kapanış fişi
         services.AddScoped<RentACar.Application.Authorization.IScreenPermissionRepository,
             Persistence.Repositories.ScreenPermissionRepository>();
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();

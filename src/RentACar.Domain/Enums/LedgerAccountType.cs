@@ -9,5 +9,6 @@ public enum LedgerAccountType
     Gelir = 3,  // gelir (satış)
     Kdv = 4,    // KDV
     Gider = 5,  // gider (masraf)
-    Depozito = 6 // müşteri depozito/emanet yükümlülüğü (AccountRef = CariId) — roadmap I3
+    Depozito = 6, // müşteri depozito/emanet yükümlülüğü (AccountRef = CariId) — roadmap I3
+    DonemSonucu = 7 // dönem kâr/zararı (kapanış fişi Gelir/Gider'i buraya kapatır; özkaynak benzeri) — PR-A close-lite
 }
