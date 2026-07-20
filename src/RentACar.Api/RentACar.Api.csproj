@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Formatting.Compact" />
     <!-- dotnet ef CLI'nin API'yi startup project olarak kullanabilmesi için -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>
