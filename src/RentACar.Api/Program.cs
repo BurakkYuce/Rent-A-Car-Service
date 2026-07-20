@@ -30,7 +30,16 @@ builder.Services.AddSerilog(lc => lc
     .WriteTo.File(new Serilog.Formatting.Compact.CompactJsonFormatter(),
         builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-api-.log",
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14));
+        retainedFileCountLimit: 14)
+    // OTLP log sink — config-gated (endpoint set ise → Collector → Loki).
+    .WriteTo.Conditional(
+        _ => !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]),
+        w => w.OpenTelemetry(o =>
+        {
+            o.Endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+            o.Protocol = Serilog.Sinks.OpenTelemetry.OtlpProtocol.Grpc;
+            o.ResourceAttributes = new Dictionary<string, object> { ["service.name"] = "rentacar-api" };
+        })));
 
 var appConn = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default eksik.");

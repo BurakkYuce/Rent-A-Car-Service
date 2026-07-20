@@ -1,0 +1,47 @@
+# OTel Collector — birleşik giriş: uygulama OTLP (metrik+trace+log) push eder; her sinyal ilgili
+# backend'e yönlenir. Metrik → Prometheus (collector /metrics'i scrape eder); log → Loki (OTLP native);
+# trace → Tempo (OTLP).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+  memory_limiter:
+    check_interval: 2s
+    limit_mib: 200
+    spike_limit_mib: 50
+
+exporters:
+  # Metrikler: Prometheus bu endpoint'i (collector:8889) scrape eder.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true            # resource attribute'ları (service.name…) etikete taşı
+  # Loglar: Loki 3.x native OTLP alıcısı.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+  # Trace'ler: Tempo OTLP gRPC.
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/loki]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
