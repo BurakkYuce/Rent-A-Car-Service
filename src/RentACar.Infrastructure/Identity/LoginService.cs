@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using RentACar.Application.Observability;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
 
@@ -31,14 +32,15 @@ public sealed class LoginService(
         // CloseAsync ikisini birlikte set eder ama tek bayrağa güvenmeyiz (DB anomalisi/elle müdahale).
         var tenant = await db.Tenants.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Code == companyCode && t.IsActive && t.KapanisTarihiUtc == null, ct);
-        if (tenant is null) return null;
+        if (tenant is null) { RacarMetrics.LoginFail(); return null; }
 
         var user = await db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.TenantId == tenant.Id && u.UserName == userName && u.IsActive, ct);
-        if (user is null) return null;
+        if (user is null) { RacarMetrics.LoginFail(); return null; }
 
         var verify = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        if (verify == PasswordVerificationResult.Failed) return null;
+        if (verify == PasswordVerificationResult.Failed) { RacarMetrics.LoginFail(); return null; }
+        RacarMetrics.LoginSuccess();
 
         // Son giriş metriği (platform konsolu) — korumalı: metrik yazımı login'i ASLA düşürmez.
         // Users RLS'i KOMUT-BAZLI: users_select GUC-boşken açık (login bu yüzden çalışır) ama
