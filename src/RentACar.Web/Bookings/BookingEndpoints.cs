@@ -283,6 +283,7 @@ public static class BookingEndpoints
                     AssistFirma = FormParse.Str(f, "assistFirma"),
                     OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi"),
                     EkKosullar = FormParse.Str(f, "ekKosullar"),
+                    BelgeSablonId = FormParse.Id(f["belgeSablonId"].ToString()),
                     ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString()),
                     OpsiyonNet = FormParse.Dec(f["opsiyonNet"].ToString()),   // FAZ 4.4
                     OpsiyonGun = FormParse.Int(f["opsiyonGun"].ToString()),   // FAZ 4.4
@@ -449,6 +450,7 @@ public static class BookingEndpoints
         input.AssistFirma = FormParse.Str(f, "assistFirma");
         input.OzelSoforBilgisi = FormParse.Str(f, "ozelSoforBilgisi");
         input.EkKosullar = FormParse.Str(f, "ekKosullar");
+        input.BelgeSablonId = FormParse.Id(f["belgeSablonId"].ToString());
         input.ManuelFindexPuan = FormParse.Int(f["manuelFindexPuan"].ToString());
         input.OpsiyonNet = FormParse.Dec(f["opsiyonNet"].ToString());   // FAZ 4.4
         input.OpsiyonGun = FormParse.Int(f["opsiyonGun"].ToString());   // FAZ 4.4

@@ -164,6 +164,7 @@ public sealed class RentalService(
             AssistFirma = Lim(input.AssistFirma, 128, "Assist firma"),
             OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi"),
             EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar"),
+            BelgeSablonId = input.BelgeSablonId,
             OpsiyonNet = input.OpsiyonNet,
             OpsiyonGun = input.OpsiyonGun,
             RiskOnay = input.RiskOnay,
@@ -295,6 +296,7 @@ public sealed class RentalService(
             c.AssistFirma = Lim(input.AssistFirma, 128, "Assist firma");
             c.OzelSoforBilgisi = Lim(input.OzelSoforBilgisi, 512, "Özel şoför bilgisi");
             c.EkKosullar = Lim(input.EkKosullar, 2048, "Ek koşullar");
+            c.BelgeSablonId = input.BelgeSablonId; // bilgi/sunum alanı (Kirada/Tamamlandi serbest)
             c.OpsiyonNet = input.OpsiyonNet;
             c.OpsiyonGun = input.OpsiyonGun;
             c.ManuelFindexPuan = ValidFindex(input.ManuelFindexPuan);

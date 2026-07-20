@@ -1,8 +1,10 @@
 using RentACar.Application.Authorization;
+using RentACar.Application.BelgeSablon;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Finance;
 using RentACar.Application.TenantSettings;
+using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -43,12 +45,13 @@ public static class PdfEndpoints
 
         var finans = app.MapGroup("/faturalar").RequirePermission(Permission.FinanceWrite);
         finans.MapGet("/{id:guid}/pdf", async (Guid id, InvoiceService svc, CustomerService cs,
-            TenantSettingsService ts, PdfExportService pdf, string? indir, CancellationToken ct) =>
+            TenantSettingsService ts, BelgeSablonCozumleyici sablon, PdfExportService pdf, string? indir, CancellationToken ct) =>
         {
             var inv = await svc.GetAsync(id, ct);
             if (inv is null) return Results.NotFound();
             var cari = await cs.GetAsync(inv.CariId, ct);
-            var bytes = pdf.Invoice(inv, await MarkaAsync(ts, ct), cari?.DisplayName);
+            var bytes = pdf.Invoice(inv, await MarkaAsync(ts, ct), cari?.DisplayName,
+                await sablon.VarsayilanAsync(BelgeTuru.Fatura, ct));
             return indir == "1"
                 ? Results.File(bytes, "application/pdf", $"{inv.No}.pdf")
                 : Results.File(bytes, "application/pdf");
@@ -57,12 +60,13 @@ public static class PdfEndpoints
         // PR-C: tahsilat/ödeme makbuzu PDF (CashTransaction'dan; markalı).
         app.MapGroup("/kasa").RequirePermission(Permission.FinanceWrite)
             .MapGet("/makbuz/{id:guid}/pdf", async (Guid id, CashService cash, CustomerService cs,
-                TenantSettingsService ts, PdfExportService pdf, string? indir, CancellationToken ct) =>
+                TenantSettingsService ts, BelgeSablonCozumleyici sablon, PdfExportService pdf, string? indir, CancellationToken ct) =>
             {
                 var tx = await cash.GetAsync(id, ct);
                 if (tx is null) return Results.NotFound();
                 var cari = await cs.GetAsync(tx.CariId, ct);
-                var bytes = pdf.TahsilatMakbuzu(tx, await MarkaAsync(ts, ct), cari?.DisplayName);
+                var bytes = pdf.TahsilatMakbuzu(tx, await MarkaAsync(ts, ct), cari?.DisplayName,
+                    await sablon.VarsayilanAsync(BelgeTuru.Makbuz, ct));
                 return indir == "1"
                     ? Results.File(bytes, "application/pdf", $"makbuz-{tx.No}.pdf")
                     : Results.File(bytes, "application/pdf");

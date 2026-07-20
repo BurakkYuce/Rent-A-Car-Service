@@ -54,6 +54,8 @@ public sealed class RentalUpdateInput
     public string? AssistFirma { get; set; }
     public string? OzelSoforBilgisi { get; set; }
     public string? EkKosullar { get; set; }
+    /// <summary>Sözleşme PDF belge şablonu (BelgeSablon; bilgi/sunum alanı — deftere/para yansımaz).</summary>
+    public Guid? BelgeSablonId { get; set; }
     public int? ManuelFindexPuan { get; set; }
     /// <summary>Kira-seviyesi opsiyon (FAZ 4.4; bilgi alanı — whitelist'te para/tarih yok ilkesi korunur).</summary>
     public decimal? OpsiyonNet { get; set; }

@@ -136,6 +136,9 @@ public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
     public string? OzelSoforBilgisi { get; set; }
     /// <summary>Ek koşullar / sözleşme özel şartları (yazdırılan sözleşmeye eklenebilir).</summary>
     public string? EkKosullar { get; set; }
+    /// <summary>Sözleşme PDF'inde basılacak belge şablonu (BelgeSablon; KiraSozlesmesi türü). Null →
+    /// tenant varsayılan şablonu, o da yoksa koddaki sabit metin. Bilgi/sunum alanı — deftere yansımaz.</summary>
+    public Guid? BelgeSablonId { get; set; }
     /// <summary>Kira-seviyesi opsiyon (FAZ 4.4; bilgi — deftere yansımaz): net tutar + gün.</summary>
     public decimal? OpsiyonNet { get; set; }
     public int? OpsiyonGun { get; set; }
