@@ -48,6 +48,7 @@
   <!-- Gözlemlenebilirlik (P0-2): yapılandırılmış log — konsol + günlük dönen dosya (Web+Api). -->
   <ItemGroup>
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Formatting.Compact" Version="3.0.0" />
   </ItemGroup>
 
   <!-- Back-office interaktif grid temeli (MIT): ağır liste ekranları için Radzen DataGrid (server-side). -->

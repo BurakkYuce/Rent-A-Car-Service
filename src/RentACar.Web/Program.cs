@@ -99,7 +99,9 @@ builder.Services.AddSerilog(lc => lc
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File(
+    // Dosya sink JSON (CompactJsonFormatter): tenant_id/user/request_id property'leri birinci-sınıf alan
+    // olur → ileride Loki/Seq'e tail/ingest trivial; konsol dev'de okunur metin kalır.
+    .WriteTo.File(new Serilog.Formatting.Compact.CompactJsonFormatter(),
         builder.Configuration["Logging:FilePath"] ?? "logs/rentacar-web-.log",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14));
@@ -225,6 +227,13 @@ builder.Services.AddScoped<PlatformAdminService>();
 builder.Services.AddScoped<TenantStatusCache>();
 builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
 builder.Services.AddScoped<PlatformIsolationMiddleware>(); // platform admin → tenant sayfası ayrımı
+builder.Services.AddScoped<RentACar.Web.Observability.RequestEnrichment.Middleware>(); // log: tenant/user/req-id
+
+// Readiness health-check'leri (tag "ready"): DB (CanConnect) + Migrator + DataProtection keyring.
+builder.Services.AddHealthChecks()
+    .AddCheck<RentACar.Web.Observability.DbConnectHealthCheck>("db", tags: ["ready"])
+    .AddCheck<RentACar.Web.Observability.MigratorConnectHealthCheck>("migrator", tags: ["ready"])
+    .AddCheck<RentACar.Web.Observability.KeyringHealthCheck>("keyring", tags: ["ready"]);
 
 // iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
 builder.Services.AddScoped<CalendarFeedService>();
@@ -314,7 +323,7 @@ app.Use(async (ctx, next) =>
         "object-src 'none'";
     await next();
 });
-app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol, durum, süre
+app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol, durum, süre + tenant/user/req-id
 {
     // Takvim feed URL'i TOKEN içerir → request log'a DÜŞMESİN (log erişimi olan feed'e erişmesin, adversarial).
     // Verbose, Information min-level'ın altında → düşürülür; hata yine Error'da loglanır.
@@ -322,11 +331,15 @@ app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol
         ex is not null ? LogEventLevel.Error
         : http.Request.Path.StartsWithSegments("/feed/calendar") ? LogEventLevel.Verbose
         : LogEventLevel.Information;
+    // Çok-kiracılı korelasyon: tamamlanma-olayına tenant_id/user/request_id ekle (User bu noktada dolu).
+    options.EnrichDiagnosticContext = RentACar.Web.Observability.RequestEnrichment.Enrich;
 });
 app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+// Log zenginleştirme (auth SONRASI — claim'ler dolu): sonraki tüm istek-içi loglar tenant/user/req-id taşır.
+app.UseMiddleware<RentACar.Web.Observability.RequestEnrichment.Middleware>();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
 app.UseMiddleware<PlatformIsolationMiddleware>(); // platform operatörü tenant UI'ına giremez (konsola yönlendir)
@@ -338,21 +351,22 @@ app.UseAntiforgery();
 // Önceden IsProduction()'dı → Staging (gerçek veri taşıyabilir) CSRF'e AÇIK kalıyordu. Dev-off/prod-on korunur.
 RentACar.Web.Identity.FormSecurity.EnforceAntiforgery = !app.Environment.IsDevelopment();
 
-// Sağlık (readiness, P0-2): DB'ye app rolüyle bağlanılabiliyor mu? Anonim (uptime monitörü/proxy ping'i).
-app.MapGet("/health", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
+// Sağlık — liveness/readiness ayrımı (MS deseni). Anonim (uptime monitörü/proxy ping'i).
+//  • /health/live  → süreç ayakta mı (bağımlılık kontrolü YOK; orchestrator restart sinyali).
+//  • /health/ready → trafik almaya hazır mı: DB (CanConnect) + Migrator + keyring (tag "ready").
+//  • /health       → geriye-uyum: readiness'e alias.
+var healthReady = new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    try
-    {
-        await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.Database.CanConnectAsync(ct)
-            ? Results.Ok(new { status = "healthy" })
-            : Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-    catch
-    {
-        return Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+    Predicate = c => c.Tags.Contains("ready"),
+    ResponseWriter = RentACar.Web.Observability.HealthResponse.Write, // {status:healthy/unhealthy} sözleşmesi
+};
+app.MapHealthChecks("/health/live", new()
+{
+    Predicate = _ => false,
+    ResponseWriter = RentACar.Web.Observability.HealthResponse.Write,
 }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", healthReady).AllowAnonymous();
+app.MapHealthChecks("/health", healthReady).AllowAnonymous(); // geriye-uyum
 
 app.MapStaticAssets();
 app.MapAuthEndpoints();
