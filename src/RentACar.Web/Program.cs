@@ -81,6 +81,7 @@ using RentACar.Web.HesapKodlari;
 using RentACar.Web.ServisTanimlari;
 using RentACar.Web.DropTanimlari;
 using RentACar.Web.DolulukFiyat;
+using RentACar.Web.BelgeSablon;
 using RentACar.Web.Vehicles;
 
 // Bootstrap yardımcısı: `dotnet run --project src/RentACar.Web -- --platform-hash '<parola>'` →
@@ -442,6 +443,7 @@ app.MapHesapKoduEndpoints(); // roadmap N1
 app.MapServisTanimEndpoints(); // roadmap N1
 app.MapDropTanimEndpoints(); // roadmap N2
 app.MapDolulukFiyatEndpoints(); // FAZ 3.A7
+app.MapBelgeSablonEndpoints(); // marka-özel PDF metin şablonları
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();

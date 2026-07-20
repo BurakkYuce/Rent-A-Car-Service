@@ -1,3 +1,4 @@
+using RentACar.Application.BelgeSablon;
 using RentACar.Application.Customers;
 using RentACar.Application.Personnel;
 using RentACar.Application.RentalAddOns;
@@ -41,7 +42,10 @@ public sealed record SozlesmeView(
     decimal EkHizmetToplam, decimal GenelToplam, decimal Tahsilat, decimal Bakiye, string? Doviz,
     decimal? Depozito, decimal? DropUcreti,   // sözleşme sağ sütunu (bilgi; deftere yansımaz)
     IReadOnlyList<SozlesmeEkHizmet> EkHizmetler,
-    string? EkKosullar = null); // FAZ 4.4: kira-özel ek koşullar (varsa sözleşme çıktısına basılır)
+    string? EkKosullar = null, // FAZ 4.4: kira-özel ek koşullar (varsa sözleşme çıktısına basılır)
+    // Marka-özel belge şablonu bölümleri (BelgeSablon; null → renderer koddaki varsayılanı basar).
+    string? SablonBaslik = null, string? SablonHukukiSol = null, string? SablonHukukiSag = null,
+    string? SablonAltBilgi = null);
 
 /// <summary>Sözleşme view-model kurucusu (salt-okur; defter/durum değiştirmez).</summary>
 public sealed class SozlesmeService(
@@ -50,7 +54,8 @@ public sealed class SozlesmeService(
     IVehicleRepository vehicles,
     IPersonelRepository personeller,
     IRentalAddOnRepository addOns,
-    TenantSettingsService settings)
+    TenantSettingsService settings,
+    BelgeSablonCozumleyici belgeSablon)
 {
     public async Task<SozlesmeView?> GetAsync(Guid rentalId, CancellationToken ct = default)
     {
@@ -61,6 +66,9 @@ public sealed class SozlesmeService(
         var arac = await vehicles.FindAsync(c.VehicleId, ct);
         var ekler = await addOns.ListForRentalAsync(rentalId, ct);
         var ayar = await settings.GetAsync(ct);
+        var sablon = await belgeSablon.KiraAsync(c.BelgeSablonId, ct); // marka-özel metin bölümleri
+        // Ek koşullar: kira-özel metin varsa o, yoksa şablon varsayılanı (kısmi override).
+        var ekKosullar = string.IsNullOrWhiteSpace(c.EkKosullar) ? sablon.EkKosullarVarsayilan : c.EkKosullar;
 
         string? teslimAlan = null;
         if (c.TeslimAlanPersonelId is Guid pid && await personeller.FindAsync(pid, ct) is { } p)
@@ -89,6 +97,7 @@ public sealed class SozlesmeService(
             ekler.Sum(a => a.Toplam), c.GenelToplam, c.Tahsilat, c.Bakiye, c.Doviz,
             c.Depozito, c.DropUcreti,
             ekler.Select(a => new SozlesmeEkHizmet(a.Ad, a.Toplam)).ToList(),
-            c.EkKosullar);
+            ekKosullar,
+            sablon.Baslik, sablon.HukukiMetinSol, sablon.HukukiMetinSag, sablon.AltBilgi);
     }
 }

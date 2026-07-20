@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.BelgeSablon;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Personnel;
@@ -59,6 +60,37 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         // Para dökümü sözleşmedekiyle birebir: fazla = 400−300−50=50 × 2 = 100; toplam 300+100=400.
         Assert.Equal(100m, s.FazlaKmBedeli);
         Assert.Equal(400m, s.GenelToplam);
+    }
+
+    [Fact]
+    public async Task Sozlesme_view_belge_sablonu_metinlerini_ve_ek_kosul_fallback_tasir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+
+        // Bağımsız oracle: metinleri BURADA kuruyoruz; SozlesmeView aynen taşımalı.
+        var sablonId = await sp.GetRequiredService<BelgeSablonService>().CreateAsync(new BelgeSablonInput
+        {
+            BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Test",
+            BelgeBasligi = "TEST-BASLIK", HukukiMetinSol = "TEST-SOL", EkKosullarVarsayilan = "SABLON-EK-KOSUL"
+        });
+
+        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        { Tip = CariType.Bireysel, Ad = "A", Soyad = "B", CepTel = "05320000001" });
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "07 AA 001", Marka = "Fiat", Tip = "Egea", Km = 100 });
+
+        var rentals = sp.GetRequiredService<RentalService>();
+        var rental = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m, BelgeSablonId = sablonId });
+
+        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(rental);
+        Assert.NotNull(s);
+        Assert.Equal("TEST-BASLIK", s!.SablonBaslik);
+        Assert.Equal("TEST-SOL", s.SablonHukukiSol);
+        Assert.Null(s.SablonHukukiSag);                 // şablonda boş → renderer koddaki sabiti basar
+        Assert.Equal("SABLON-EK-KOSUL", s.EkKosullar);  // kira-özel ek koşul yok → şablon varsayılanına düşer
     }
 
     [Fact]

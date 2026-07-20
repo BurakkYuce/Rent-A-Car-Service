@@ -1,6 +1,7 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using RentACar.Application.BelgeSablon;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -46,6 +47,15 @@ public sealed class PdfExportService
                 string Sa(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("HH:mm") : "";
                 static string Dots(int n) => new('.', n);
 
+                // Marka-özel şablon metinleri: token'lar ({BelgeNo}/{Tarih}/{Firma*}) burada konur.
+                // Şablon bölümü null → koddaki varsayılan (BelgeSablonVarsayilan) → şablonsuz çıktı aynı.
+                var tk = new Dictionary<string, string?>
+                {
+                    ["FirmaUnvan"] = s.FirmaUnvan, ["FirmaMarka"] = s.FirmaMarka, ["FirmaVergiNo"] = s.FirmaVergiNo,
+                    ["BelgeNo"] = s.SozlesmeNo, ["Tarih"] = s.BasTar.LocalDateTime.ToString("dd.MM.yyyy")
+                };
+                string Metin(string? sablon, string varsayilan) => SablonToken.Uygula(sablon ?? varsayilan, tk) ?? varsayilan;
+
                 // ---- ÜST BAŞLIK ----
                 p.Header().Row(r =>
                 {
@@ -53,7 +63,7 @@ public sealed class PdfExportService
                     {
                         if (s.FirmaLogo is { Length: > 0 } logo)
                             c.Item().PaddingBottom(3).Height(38).AlignLeft().Image(logo).FitHeight(); // PR-C firma logosu
-                        c.Item().Text("ARAÇ TESLİM BELGESİ / RENTAL AGREEMENT").FontSize(11).Bold();
+                        c.Item().Text(Metin(s.SablonBaslik, BelgeSablonVarsayilan.SozlesmeBaslik)).FontSize(11).Bold();
                         if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
                         if (s.FirmaMobilTel is not null) c.Item().Text($"MOBİL TEL : {s.FirmaMobilTel}").FontSize(8).SemiBold();
                         if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(8).SemiBold();
@@ -150,12 +160,10 @@ public sealed class PdfExportService
                     // ========== HUKUKİ METİN (iki dilli) ==========
                     col.Item().PaddingTop(2).Row(r =>
                     {
-                        r.RelativeItem().Border(0.75f).BorderColor(Line).Padding(4).Text(
-                            "By signing, the tenant has inspected the vehicle's damages and is responsible for the new damages.\n" +
-                            "Kiracı imza etmekle: Aracın hasarlarını incelemiş, yeni oluşacak hasarlardan sorumlu olduğunu kabul eder.").FontSize(7);
-                        r.RelativeItem().BorderVertical(0.75f).BorderRight(0.75f).BorderColor(Line).Padding(4).Text(
-                            "Kiracı imza etmekle: Kiralayanın Standart Kiralama Koşullarını ve sözleşmenin arka yüzündeki hususları tam anlamıyla kabul ettiğini beyan eder.\n" +
-                            "By signing the lessee accepts the Lessor's Standard Lease terms and the points stated on the reverse.").FontSize(7);
+                        r.RelativeItem().Border(0.75f).BorderColor(Line).Padding(4)
+                            .Text(Metin(s.SablonHukukiSol, BelgeSablonVarsayilan.SozlesmeHukukiSol)).FontSize(7);
+                        r.RelativeItem().BorderVertical(0.75f).BorderRight(0.75f).BorderColor(Line).Padding(4)
+                            .Text(Metin(s.SablonHukukiSag, BelgeSablonVarsayilan.SozlesmeHukukiSag)).FontSize(7);
                     });
 
                     // ========== EK KOŞULLAR (FAZ 4.4 — kira-özel şartlar; varsa basılır) ==========
@@ -193,6 +201,10 @@ public sealed class PdfExportService
                         });
                     });
                 });
+
+                // Marka-özel alt bilgi (şablonda tanımlıysa; yoksa footer basılmaz — mevcut düzen korunur).
+                if (!string.IsNullOrWhiteSpace(s.SablonAltBilgi))
+                    p.Footer().PaddingTop(4).AlignCenter().Text(Metin(s.SablonAltBilgi, "")).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
 
@@ -246,7 +258,8 @@ public sealed class PdfExportService
     };
 
     // PR-C: markalı fatura (firma başlığı + logo TenantSettings'ten; hard-coded "Fatura"/"RentPro" kaldırıldı).
-    public byte[] Invoice(Invoice inv, PdfMarka marka, string? cariAd) =>
+    // Marka-özel şablon (opsiyonel): başlık + alt bilgi override (null → koddaki varsayılan; çıktı aynı).
+    public byte[] Invoice(Invoice inv, PdfMarka marka, string? cariAd, SablonMetin? sablon = null) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
@@ -254,7 +267,12 @@ public sealed class PdfExportService
                 p.Size(PageSizes.A4);
                 p.Margin(40);
                 p.DefaultTextStyle(t => t.FontSize(9).FontColor("#111827"));
-                p.Header().Element(h => MarkaBaslik(h, marka, inv.IadeMi ? "İADE FATURASI" : "FATURA", inv.No,
+                var tk = MarkaTokenlari(marka, inv.No, $"{inv.Tarih:dd.MM.yyyy}");
+                var baslik = SablonToken.Uygula(sablon?.Baslik, tk)
+                    ?? (inv.IadeMi ? "İADE FATURASI" : BelgeSablonVarsayilan.FaturaBaslik);
+                var altBilgi = SablonToken.Uygula(sablon?.AltBilgi, tk)
+                    ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {inv.No}";
+                p.Header().Element(h => MarkaBaslik(h, marka, baslik, inv.No,
                     $"Tarih: {inv.Tarih:dd.MM.yyyy}" + (inv.VadeTarihi is { } v ? $"  ·  Vade: {v:dd.MM.yyyy}" : "")));
                 p.Content().PaddingVertical(12).Column(col =>
                 {
@@ -266,12 +284,13 @@ public sealed class PdfExportService
                     col.Item().PaddingTop(8).AlignRight().Text($"Net: {inv.NetTutar:N2}     KDV: {inv.KdvTutar:N2}");
                     col.Item().AlignRight().Text($"Genel Toplam: {inv.GenelToplam:N2} {inv.Currency}").FontSize(12).Bold();
                 });
-                p.Footer().AlignCenter().Text($"{marka.Marka ?? marka.Unvan ?? ""} — {inv.No}").FontSize(8).FontColor(Line);
+                p.Footer().AlignCenter().Text(altBilgi).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
 
     // PR-C: yeni belge türü — tahsilat/ödeme makbuzu (CashTransaction'dan; markalı).
-    public byte[] TahsilatMakbuzu(CashTransaction tx, PdfMarka marka, string? cariAd) =>
+    // Marka-özel şablon (opsiyonel): başlık + alt bilgi override (Tahsilat/Ödeme ayrımı, şablon başlık boşsa korunur).
+    public byte[] TahsilatMakbuzu(CashTransaction tx, PdfMarka marka, string? cariAd, SablonMetin? sablon = null) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
@@ -280,7 +299,10 @@ public sealed class PdfExportService
                 p.Margin(30);
                 p.DefaultTextStyle(t => t.FontSize(10).FontColor("#111827"));
                 var makbuzTip = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "TAHSİLAT MAKBUZU" : "ÖDEME MAKBUZU";
-                p.Header().Element(h => MarkaBaslik(h, marka, makbuzTip, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
+                var tk = MarkaTokenlari(marka, tx.No, $"{tx.Tarih:dd.MM.yyyy}");
+                var baslik = SablonToken.Uygula(sablon?.Baslik, tk) ?? makbuzTip;
+                var altBilgi = SablonToken.Uygula(sablon?.AltBilgi, tk) ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}";
+                p.Header().Element(h => MarkaBaslik(h, marka, baslik, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
                 p.Content().PaddingVertical(16).Column(col =>
                 {
                     col.Spacing(8);
@@ -299,9 +321,16 @@ public sealed class PdfExportService
                         r.RelativeItem().AlignCenter().Text("Teslim Alan").FontSize(9);
                     });
                 });
-                p.Footer().AlignCenter().Text($"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}").FontSize(8).FontColor(Line);
+                p.Footer().AlignCenter().Text(altBilgi).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
+
+    /// <summary>Fatura/makbuz şablon token sözlüğü ({FirmaUnvan}/{FirmaMarka}/{FirmaVergiNo}/{BelgeNo}/{Tarih}).</summary>
+    private static Dictionary<string, string?> MarkaTokenlari(PdfMarka m, string belgeNo, string tarih) => new()
+    {
+        ["FirmaUnvan"] = m.Unvan, ["FirmaMarka"] = m.Marka, ["FirmaVergiNo"] = m.VergiNo,
+        ["BelgeNo"] = belgeNo, ["Tarih"] = tarih
+    };
 
     /// <summary>Ortak markalı başlık (logo + firma solda; belge adı + no + tarih sağda). Invoice + Makbuz kullanır.</summary>
     private static void MarkaBaslik(IContainer h, PdfMarka m, string baslik, string no, string? sagAlt) =>

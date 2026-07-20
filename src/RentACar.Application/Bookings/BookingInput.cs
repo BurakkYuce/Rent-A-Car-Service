@@ -58,6 +58,8 @@ public sealed class BookingInput
     public string? AssistFirma { get; set; }
     public string? OzelSoforBilgisi { get; set; }
     public string? EkKosullar { get; set; }
+    /// <summary>Sözleşme PDF belge şablonu (BelgeSablon; bilgi/sunum — deftere yansımaz).</summary>
+    public Guid? BelgeSablonId { get; set; }
     public int? ManuelFindexPuan { get; set; }
     /// <summary>Kira-seviyesi opsiyon (FAZ 4.4; bilgi).</summary>
     public decimal? OpsiyonNet { get; set; }

@@ -16,6 +16,8 @@ public sealed class KiraFormVm
     public IReadOnlyList<string> Kaynaklar { get; set; } = [];
     public IReadOnlyList<string> OzelKodlar { get; set; } = [];
     public IReadOnlyList<KurKaydi> Kurlar { get; set; } = [];
+    /// <summary>Kira sözleşmesi belge şablonları (Ek Koşullar sekmesindeki seçim dropdown'ı).</summary>
+    public IReadOnlyList<RentACar.Domain.Entities.BelgeSablon> Sablonlar { get; set; } = [];
 
     /// <summary>Edit modu (PR-D): mevcut sözleşme; create'te null.</summary>
     public RentalContract? Rental { get; set; }
