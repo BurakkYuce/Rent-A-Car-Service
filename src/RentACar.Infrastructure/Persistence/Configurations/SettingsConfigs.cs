@@ -87,3 +87,17 @@ internal sealed class ScreenPermissionConfig : IEntityTypeConfiguration<ScreenPe
         e.HasIndex(x => new { x.TenantId, x.EkranKodu }).IsUnique();
     }
 }
+
+// ---- YetkiGrup / ekran-izni şablonu (tenant-owned, PR-D) ----
+internal sealed class YetkiGrupConfig : IEntityTypeConfiguration<YetkiGrup>
+{
+    public void Configure(EntityTypeBuilder<YetkiGrup> e)
+    {
+        e.ToTable("YetkiGruplari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.KalemlerJson).IsRequired().HasMaxLength(8000);
+        e.HasIndex(x => new { x.TenantId, x.Ad }).IsUnique();
+    }
+}
