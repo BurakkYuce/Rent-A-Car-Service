@@ -23,7 +23,7 @@ public sealed class DonemFaturaJob(IConfiguration config, ILogger<DonemFaturaJob
         {
             try { await RunOnceAsync(ct); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-            catch (Exception ex) { log.LogError(ex, "Dönem faturası job koşusu başarısız."); }
+            catch (Exception ex) { log.LogError(ex, "Dönem faturası job koşusu başarısız."); RentACar.Application.Observability.RacarMetrics.JobFailed("donem-fatura"); }
             try { await Task.Delay(Interval, ct); }
             catch (OperationCanceledException) { break; }
         }

@@ -81,6 +81,7 @@ public sealed class CashService(
         var entries = Natural(tx);
         // Kira bağlıysa Tahsilat/Bakiye repo'da tx'ten türetilir (yön + kira dövizi, atomik — K2/O1).
         await _repository.PostAsync(tx, entries, ct);
+        if (tip == CashTransactionType.Tahsilat) RentACar.Application.Observability.RacarMetrics.TahsilatOk(); // metrik
         return tx.Id;
     }
 
