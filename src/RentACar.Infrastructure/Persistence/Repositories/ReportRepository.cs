@@ -367,7 +367,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // Gider — HER İKİ yön (FAZ 4.3: dış hizmet iptali TERS KAYITLA Alacak Gider yazar → SignedBase
         // ile netleşir; gelir tarafıyla simetrik). AccountRef = araç (null = genel gider). Base = Amount×Rate.
         var gq = db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gider);
+            // PR-A: dönem kapanış fişi Gider'i sıfırlayan iç virman (AccountRef=null → "(Atanmamış)"a düşerdi) → HARİÇ.
+            .Where(e => e.AccountType == LedgerAccountType.Gider && e.SourceType != "DonemKapanis");
         if (from is { } gf) gq = gq.Where(e => e.EntryDateUtc >= gf);
         if (to is { } gt) gq = gq.Where(e => e.EntryDateUtc <= gt);
         var giderRaw = await gq.Select(e => new { e.AccountRef, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
@@ -377,7 +378,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // Gelir — HER İKİ yön (iade faturası Borç Gelir yazar → SignedBase ile netleşir).
         // SourceId(Fatura/FaturaIade) → Kira → Araç ile atfedilir; atfedilemeyen → Guid.Empty.
         var lq = db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Gelir);
+            // PR-A: dönem kapanış fişi Gelir'i sıfırlayan iç virman (kaynak atfı yok → "(Atanmamış)") → HARİÇ.
+            .Where(e => e.AccountType == LedgerAccountType.Gelir && e.SourceType != "DonemKapanis");
         if (from is { } ef) lq = lq.Where(e => e.EntryDateUtc >= ef);
         if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
         var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);

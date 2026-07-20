@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<Search.SearchService>();
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
+        services.AddScoped<Periods.DonemKapanisFisiService>(); // PR-A close-lite kapanış fişi
         services.AddScoped<Dashboard.DashboardService>();
         services.AddScoped<Authorization.ScreenPermissionService>();
         services.AddScoped<FleetStatusService>();

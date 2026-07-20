@@ -448,8 +448,10 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     public async Task<GelirGiderDto> GetGelirGiderAsync(
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
     {
-        var rows = await _repository.GetLedgerRowsAsync(
-            [LedgerAccountType.Gelir, LedgerAccountType.Gider, LedgerAccountType.Kdv], from, to, ct);
+        var rows = (await _repository.GetLedgerRowsAsync(
+            [LedgerAccountType.Gelir, LedgerAccountType.Gider, LedgerAccountType.Kdv], from, to, ct))
+            // PR-A: dönem kapanış fişi Gelir/Gider'i sıfırlayan İÇ virmandır (gerçek gelir/gider değil) → P&L'den HARİÇ.
+            .Where(r => r.SourceType != "DonemKapanis").ToList();
 
         // İade faturası TERS kayıt yazar (Borç Gelir / Borç KDV) → gelir ve tahsil edilen KDV netleşir.
         var gelirCredit = rows.Where(r => r.AccountType == LedgerAccountType.Gelir && r.Direction == LedgerDirection.Credit).ToList();
@@ -481,6 +483,43 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
 
         return new GelirGiderDto(gelir, gider, kdvTahsil, kdvInd, gelir - gider, gelirKirilim, giderKirilim);
     }
+
+    /// <summary>Dönem-sonu özet mizan (PR-A): <paramref name="asOf"/> tarihine (dahil) kadar hesap-tipi bazında
+    /// Σ Borç / Σ Alacak / net bakiye. TÜM tipler (kapanış fişi dahil — mizan gerçek defter durumunu yansıtır:
+    /// kapanış öncesi Gelir/Gider dolu + DonemSonucu 0; kapanış sonrası Gelir/Gider 0 + DonemSonucu = net kâr).
+    /// Bakiye toplamı 0 olmalı (defter her zaman dengeli).</summary>
+    public async Task<IReadOnlyList<MizanSatirDto>> GetMizanAsync(DateTimeOffset? asOf = null, CancellationToken ct = default)
+    {
+        var tipler = new[]
+        {
+            LedgerAccountType.Cari, LedgerAccountType.Kasa, LedgerAccountType.Banka, LedgerAccountType.Gelir,
+            LedgerAccountType.Kdv, LedgerAccountType.Gider, LedgerAccountType.Depozito, LedgerAccountType.DonemSonucu
+        };
+        var rows = await _repository.GetLedgerRowsAsync(tipler, null, asOf, ct);
+        return tipler
+            .Select(t =>
+            {
+                var borc = rows.Where(r => r.AccountType == t && r.Direction == LedgerDirection.Debit).Sum(r => r.Base);
+                var alacak = rows.Where(r => r.AccountType == t && r.Direction == LedgerDirection.Credit).Sum(r => r.Base);
+                return new MizanSatirDto(t, HesapAdi(t), borc, alacak, borc - alacak);
+            })
+            .Where(m => m.Borc != 0 || m.Alacak != 0) // hareketsiz hesabı gizle
+            .ToList();
+    }
+
+    /// <summary>Hesap türü Türkçe etiketi (mizan/rapor gösterimi).</summary>
+    public static string HesapAdi(LedgerAccountType t) => t switch
+    {
+        LedgerAccountType.Cari => "Cari (müşteri/tedarikçi)",
+        LedgerAccountType.Kasa => "Kasa",
+        LedgerAccountType.Banka => "Banka",
+        LedgerAccountType.Gelir => "Gelir",
+        LedgerAccountType.Kdv => "KDV",
+        LedgerAccountType.Gider => "Gider",
+        LedgerAccountType.Depozito => "Depozito",
+        LedgerAccountType.DonemSonucu => "Dönem Sonucu (kâr/zarar)",
+        _ => t.ToString()
+    };
 
     /// <summary>
     /// Günlük faaliyet raporu: verilen günün ([gün 00:00, ertesi gün − tick]) operasyonel
