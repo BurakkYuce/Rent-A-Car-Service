@@ -115,6 +115,8 @@ tek docker-compose (OTel Collector + Prometheus + Loki + Tempo + Grafana).
   DIŞARI **yalnız Grafana** açılır → Caddy + auth arkasına al; admin şifresi env'den, anonim erişim/kayıt KAPALI.
 - **Alarm ucu:** `Observability:AlertToken` set ise `/internal/alert` açılır (Bearer/`X-Alert-Token` anahtarlı,
   makine-uç); anahtar yoksa uç 404 (kapalı). `.env`'i **commit ETME** (git-ignore'lu).
+- **Grafana'sız watchdog:** `Twilio:AlertPhone` + `Twilio:Templates:ops_alert` set ise `OpsWatchdogJob` aktif —
+  Grafana çökse bile TCMB kur bayatlığı + tekrarlayan job hatasını doğrudan WhatsApp'a bildirir (config yoksa PASİF).
 
 ## 7. İlk açılış doğrulaması
 1. `systemctl status racar-web` → çalışıyor (guard reddi varsa log'da net mesaj: hangi anahtar eksik).
