@@ -51,7 +51,7 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Cari</th><th>Tutar</th><th>Açıklama</th></tr>
+        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Cari</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
     </thead>
     <tbody>
         @if (_txns.Count == 0)
@@ -77,6 +77,7 @@
                 </td>
                 <td>@t.Amount.Amount.ToString("N2") @t.Amount.Currency</td>
                 <td>@t.Aciklama</td>
+                <td><a href="/kasa/makbuz/@t.Id/pdf" target="_blank" rel="noopener">PDF</a></td>
             </tr>
         }
     </tbody>

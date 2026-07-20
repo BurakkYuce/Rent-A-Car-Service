@@ -22,6 +22,7 @@ public sealed class TenantSettingsModel
 
     // Görünüm + operasyon kuralları + SMTP (roadmap M1)
     public string? LogoUrl { get; set; }
+    public byte[]? LogoBytes { get; set; } // PR-C: PDF başlığı için firma logosu (Ayarlar'dan yüklenir)
     public string? VarsayilanDoviz { get; set; }
     public decimal? VarsayilanKdvOrani { get; set; }
     public bool DonemselFaturalamaJob { get; set; }   // FAZ 4.2-B4

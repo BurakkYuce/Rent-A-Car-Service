@@ -14,7 +14,7 @@ public static class OrnekSozlesme
         // Firma başlığı (RentPro markası)
         FirmaUnvan: "RentPro Araç Kiralama A.Ş.", FirmaAdres: "Örnek Mah. Kiralama Cad. No:1, İstanbul",
         FirmaTel: "0212 000 00 00", FirmaMobilTel: "0555 000 00 00", FirmaMarka: "RentPro",
-        FirmaVergiDairesi: "Örnek V.D.", FirmaVergiNo: "1234567890",
+        FirmaVergiDairesi: "Örnek V.D.", FirmaVergiNo: "1234567890", FirmaLogo: null,
         // Sözleşme
         SozlesmeNo: "ORNEK-0001", Durum: "Örnek",
         BasTar: new DateTimeOffset(2026, 1, 10, 9, 0, 0, TimeSpan.Zero),
