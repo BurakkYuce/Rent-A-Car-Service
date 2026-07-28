@@ -14,10 +14,14 @@ var appConn = builder.Configuration.GetConnectionString("Default")
 // SignalR circuit/bellek maliyeti bindirmemek bilinçli bir tercih; formlar minimal-API'ye POST eder). ----
 builder.Services.AddRazorComponents();
 
-// ---- İstek-scoped tenant bağlamı (PR-2'nin host-çözümleme middleware'i doldurur). ----
+// ---- İstek-scoped tenant bağlamı (host-çözümleme middleware'i doldurur). ----
 builder.Services.AddScoped<PublicTenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<PublicTenantContext>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<PublicTenantContext>());
+
+// ---- PR-2: host→tenant çözümleme (Found değilse 404 — asla varsayılan tenant'a düşmez). ----
+builder.Services.AddScoped<PublicTenantResolver>();
+builder.Services.AddScoped<TenantHostResolutionMiddleware>();
 
 // PII blind-index anahtarı — bu proje v1'de PII şifreli alan okumaz/yazmaz, ama Infrastructure paylaşımlı
 // katman olduğu için Web/Api ile AYNI üretim guard'ı (dev dışı ortamda zorunlu) tutarlılık için uygulanır.
@@ -34,6 +38,7 @@ var app = builder.Build();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+app.UseMiddleware<TenantHostResolutionMiddleware>();
 
 app.MapHealthChecks("/health/live");
 

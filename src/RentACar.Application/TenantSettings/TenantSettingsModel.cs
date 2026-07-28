@@ -39,4 +39,8 @@ public sealed class TenantSettingsModel
     // WhatsApp günlük operasyon özeti
     public string? WhatsAppNumarasi { get; set; }
     public bool? WhatsAppGunlukOzet { get; set; }
+
+    // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
+    public bool PublicSiteEnabled { get; set; }
+    public string? PublicSiteHost { get; set; }
 }

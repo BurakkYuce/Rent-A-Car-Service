@@ -70,6 +70,13 @@ public static class TenantSettingsEndpoints
             return Results.Redirect("/ayarlar?ok=1");
         });
 
+        // PR-2: "Sitemi Aç" — subdomain host'u (idempotent) oluşturur + public-site'ı aktifleştirir.
+        grp.MapPost("/site-ac", async (TenantSettingsService svc) =>
+        {
+            await svc.OpenPublicSiteAsync();
+            return Results.Redirect("/ayarlar?ok=1");
+        });
+
         return app;
     }
 

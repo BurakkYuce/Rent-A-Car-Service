@@ -11,7 +11,8 @@ namespace RentACar.Application.TenantSettings;
 /// Sır alanı yazmada BOŞ ise mevcut korunur (her kayıtta sır yeniden girilmesin).
 /// </summary>
 public sealed class TenantSettingsService(
-    ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens)
+    ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
+    ITenantDomainRepository domains, ITenantContext tenant)
 {
     public async Task<TenantSettingsModel> GetAsync(CancellationToken ct = default)
     {
@@ -52,9 +53,25 @@ public sealed class TenantSettingsService(
             SmtpSifre = secrets.Unprotect(s.SmtpSifreEnc),
             SmtpSsl = s.SmtpSsl,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
-            WhatsAppGunlukOzet = s.WhatsAppGunlukOzet
+            WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
+            // PR-2: public-site
+            PublicSiteEnabled = s.PublicSiteEnabled,
+            PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct)
         };
     }
+
+    /// <summary>PR-2: "Sitemi Aç" — subdomain host'unu (idempotent) oluşturur + siteyi aktifleştirir.
+    /// Çağıranın kendi çerez-scoped ITenantContext'i altında çalışır (owner-bypass YOK).</summary>
+    public async Task OpenPublicSiteAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await domains.EnsureSubdomainAsync(TenantId, ct);
+        await repository.UpsertAsync(s => s.PublicSiteEnabled = true, ct);
+    }
+
+    private Guid TenantId => tenant.TenantId
+        ?? throw new ValidationException("Tenant bağlamı yok — işlem yapılamaz.");
 
     public async Task SaveAsync(TenantSettingsModel m, CancellationToken ct = default)
     {
