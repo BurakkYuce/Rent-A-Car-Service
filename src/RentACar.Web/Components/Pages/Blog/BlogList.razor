@@ -1,0 +1,115 @@
+@page "/blog-yonetim"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@inject BlogService Blog
+
+<PageTitle>Blog — RentPro</PageTitle>
+
+<div class="page-head"><h1>Blog Yazıları</h1><div class="actions"></div></div>
+<p class="muted small">Halka açık sitenizde (<code>/blog</code>) yayınlanan yazılar. <strong>Taslak</strong>
+    yazılar sitede GÖRÜNMEZ. İçerik düz metin olarak saklanır — boş satırla ayırdığınız her blok ayrı bir
+    paragraf olarak basılır (HTML/script yazılamaz, güvenlik gereği kaçışlanır). Yazı bir kez yayınlandıktan
+    sonra <strong>adresi (slug) değiştirilemez</strong> — mevcut linkler ve arama motoru kayıtları kırılmasın.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<details class="new-vehicle" open="@(_list.Count == 0)">
+    <summary>+ Yeni Yazı</summary>
+    <form method="post" action="/blog-yonetim/create" class="grid-form"><AntiforgeryToken />
+        <label>Başlık<input name="baslik" required maxlength="200" /></label>
+        <label>Adres (boş bırakılırsa başlıktan üretilir)<input name="slug" maxlength="200" placeholder="ornek-yazi-adresi" /></label>
+        <label>Özet (liste kartında görünür)<input name="ozet" maxlength="500" /></label>
+        <label>Durum
+            <select name="durum">
+                <option value="Taslak" selected>Taslak</option>
+                <option value="Yayinda">Yayında</option>
+            </select>
+        </label>
+        <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000"></textarea></label>
+        <button type="submit">Oluştur</button>
+    </form>
+</details>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead><tr><th>Başlık</th><th>Adres</th><th>Durum</th><th>Yayın</th><th>Kapak</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Henüz yazı yok.</td></tr>
+        }
+        @foreach (var p in _list)
+        {
+            <tr>
+                <td>@p.Baslik</td>
+                <td class="mono">@p.Slug</td>
+                <td>@(p.Durum == BlogPostDurum.Yayinda ? "Yayında" : "Taslak")</td>
+                <td>@(p.YayinTarihi?.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td>@(p.KapakVar ? "Var" : "—")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/blog-yonetim/update" class="grid-form"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <label>Başlık<input name="baslik" value="@p.Baslik" required maxlength="200" /></label>
+                            @if (p.YayinTarihi is null)
+                            {
+                                <label>Adres<input name="slug" value="@p.Slug" maxlength="200" /></label>
+                            }
+                            else
+                            {
+                                <label>Adres (yayınlandı — sabit)<input value="@p.Slug" readonly disabled /></label>
+                            }
+                            <label>Özet<input name="ozet" value="@p.Ozet" maxlength="500" /></label>
+                            <label>Durum
+                                <select name="durum">
+                                    <option value="Taslak" selected="@(p.Durum == BlogPostDurum.Taslak)">Taslak</option>
+                                    <option value="Yayinda" selected="@(p.Durum == BlogPostDurum.Yayinda)">Yayında</option>
+                                </select>
+                            </label>
+                            <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_icerikler.GetValueOrDefault(p.Id)</textarea></label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                        <form method="post" action="/blog-yonetim/@p.Id/kapak" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
+                            <label>Kapak görseli (PNG/JPEG/WebP, ≤2 MB)<input name="kapak" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
+                            <button type="submit">Kapağı Yükle</button>
+                        </form>
+                        @if (p.KapakVar)
+                        {
+                            <img src="/blog-yonetim/@p.Id/kapak" alt="Kapak" style="max-width:200px" />
+                            <form method="post" action="/blog-yonetim/@p.Id/kapak-sil"><AntiforgeryToken />
+                                <button type="submit" class="link">Kapağı Kaldır</button>
+                            </form>
+                        }
+                    </details>
+                    <form method="post" action="/blog-yonetim/delete" data-confirm="Yazı silinsin mi?"><AntiforgeryToken />
+                        <input type="hidden" name="id" value="@p.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<BlogListItem> _list = [];
+    // Liste projeksiyonu İçerik taşımaz (blob/uzun metin listeye girmesin) — düzenleme formu için ayrı çekilir.
+    private Dictionary<Guid, string> _icerikler = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Blog.ListAllAsync();
+        _icerikler = [];
+        foreach (var p in _list)
+        {
+            var full = await Blog.GetAsync(p.Id);
+            if (full is not null) _icerikler[p.Id] = full.Icerik;
+        }
+    }
+}

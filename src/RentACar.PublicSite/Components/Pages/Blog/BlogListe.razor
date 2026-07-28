@@ -1,0 +1,57 @@
+@page "/blog"
+@using RentACar.Application.Blog
+@using RentACar.Application.Fleet
+@inject BlogService Blog
+@inject FleetShowcaseService Showcase
+
+<PageTitle>Blog — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <a class="back-link" href="/">← Ana sayfa</a>
+    <h1>Blog</h1>
+
+    @if (_posts is { Count: > 0 })
+    {
+        <div class="grid">
+            @foreach (var p in _posts)
+            {
+                <a class="card" href="@($"/blog/{p.Slug}")">
+                    @if (p.KapakVar)
+                    {
+                        <img class="card-img" src="@($"/blog-kapak/{p.Id}")" alt="@p.Baslik" />
+                    }
+                    else
+                    {
+                        <div class="card-img-placeholder">✎</div>
+                    }
+                    <div class="card-body">
+                        <h3>@p.Baslik</h3>
+                        @if (!string.IsNullOrWhiteSpace(p.Ozet))
+                        {
+                            <p>@p.Ozet</p>
+                        }
+                        @if (p.YayinTarihi is { } t)
+                        {
+                            <div class="chips"><span class="chip">@t.ToString("dd.MM.yyyy")</span></div>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="empty-state">Henüz yazı yayınlanmamış.</p>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<BlogListItem>? _posts;
+    private FleetBranding? _branding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _posts = await Blog.ListPublishedAsync();
+    }
+}

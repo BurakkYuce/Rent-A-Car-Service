@@ -64,6 +64,7 @@ app.MapHealthChecks("/health/live");
 
 app.MapVehiclePhotoEndpoints(); // PR-4
 app.MapDomainVerificationEndpoints(); // PR-5: Caddy on_demand_tls ask
+app.MapBlogEndpoints(); // PR-6: blog kapak serve
 
 app.MapRazorComponents<App>();
 
