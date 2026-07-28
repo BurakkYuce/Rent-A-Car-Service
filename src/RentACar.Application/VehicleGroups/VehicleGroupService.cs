@@ -1,9 +1,15 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Vehicles;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Application.VehicleGroups;
+
+/// <summary>Bilinen hiçbir aktif `VehicleGroup.Ad`'a (Türkçe-duyarlı normalize dahil) eşleşmeyen,
+/// filodaki DISTINCT `Vehicle.Grup` serbest-metin değeri (PR-4.5 tanılama — bkz. FleetShowcaseService
+/// doc-yorumu: case-fold bunu çözmez, bu ayrıksı bir veri-kalitesi sinyalidir).</summary>
+public sealed record UnmatchedGrupValue(string Grup, int AracSayisi);
 
 /// <summary>
 /// Araç grubu master iş mantığı: doğrulama + kod benzersizliği + CRUD. Yazma operasyonel
@@ -11,7 +17,7 @@ namespace RentACar.Application.VehicleGroups;
 /// (<see cref="ListActiveAsync"/>) yetkisizdir (araç kayıt formu çağırır). Tenant izolasyonu/audit
 /// alt katmanda otomatik.
 /// </summary>
-public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICurrentUser currentUser)
+public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICurrentUser currentUser, VehicleService vehicles)
 {
     private readonly IVehicleGroupRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -22,6 +28,23 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
     /// <summary>Form açılır listesi kaynağı (yalnız aktif). Yetki gerektirmez.</summary>
     public Task<IReadOnlyList<VehicleGroup>> ListActiveAsync(CancellationToken ct = default)
         => _repository.ListActiveAsync(ct);
+
+    /// <summary>PR-4.5 tanılama — engelleyici değil, yalnız görünürlük. Yetki gerektirmez (okuma).</summary>
+    public async Task<IReadOnlyList<UnmatchedGrupValue>> ListUnmatchedGrupValuesAsync(CancellationToken ct = default)
+    {
+        var activeAdlar = (await ListActiveAsync(ct)).Select(g => g.Ad).ToList();
+        var grupDegerleri = (await vehicles.ListAsync(ct))
+            .Select(v => v.Grup)
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Select(g => g!);
+
+        return grupDegerleri
+            .Where(g => !activeAdlar.Any(ad => TurkishText.EqualsIgnoreTurkishCase(ad, g)))
+            .GroupBy(g => g, StringComparer.Ordinal)
+            .Select(grp => new UnmatchedGrupValue(grp.Key, grp.Count()))
+            .OrderByDescending(x => x.AracSayisi)
+            .ToList();
+    }
 
     public Task<VehicleGroup?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);

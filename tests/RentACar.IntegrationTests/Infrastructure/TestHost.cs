@@ -15,6 +15,10 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
     public UserRole? Role { get; set; }
     public string? AssignedBranch { get; set; }
     public Guid? AssignedBranchId { get; set; } // FAZ 5-C1 (testler C2+ ile FK-kapsamı da kurar)
+
+    /// <summary>PR-4.5: varsayılan false — mevcut default-deny testleri (TenantIsolationTests) etkilenmez.
+    /// Yalnız PublicTenantContext'in ThrowIfTenantMissing=true davranışını taklit eden testler set eder.</summary>
+    public bool ThrowIfTenantMissing { get; set; }
 }
 
 /// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>
