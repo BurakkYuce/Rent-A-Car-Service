@@ -36,6 +36,17 @@ public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> facto
 
             await AdvisoryLockAsync(db, ct); // tenant başına kapanışı serileştir (oku-yaz-kilit yarışı yok)
 
+            // "Zaten kapalı" guard'ı KİLİDİN İÇİNDE (adversarial V3-b bulgusu — ÇİFT SAYIM düzeltmesi):
+            // servis katmanındaki aynı kontrol kilidin DIŞINDA olduğu için eşzamanlı iki kapanışta İKİSİ de
+            // geçebiliyordu. Sonrasında GEÇ tarihli kapanış önce commit ederse, ERKEN tarihli olan bakiyeyi
+            // `EntryDateUtc <= kendi kapanışAnı` ile okur → geç tarihli kapanış fişini GÖREMEZ (tarihi ileride)
+            // → aynı geliri İKİNCİ kez kapatır (Gelir +1000, DonemSonucu −2000, iki DonemSonucu fişi).
+            // Bakiye-delta savunması yalnız İLERİ tarih sırasında çalışır; geriye kapanışı burada reddediyoruz.
+            var kilit = await db.DonemKilitleri.FirstOrDefaultAsync(ct);
+            if (kilit?.KapanisTarihi is { } mevcut && kapanisTarihi.Date <= mevcut.Date)
+                throw new ValidationException(
+                    $"Dönem zaten {mevcut:yyyy-MM-dd} tarihine kapalı. Yeniden kapatmak için önce kilidi kaldırın.");
+
             // Güncel Gelir/Gider SignedBase bakiyeleri (önceki kapanışlar DAHİL → delta). Base = Amount×Rate.
             var rows = await db.AccountLedgerEntries.AsNoTracking()
                 .Where(e => (e.AccountType == LedgerAccountType.Gelir || e.AccountType == LedgerAccountType.Gider)
@@ -76,8 +87,7 @@ public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> facto
                 throw new ValidationException("Dönem kapanış fişi dengesiz kuruldu.");
             db.AccountLedgerEntries.AddRange(entries);
 
-            // Dönemi kilitle — AYNI transaction (fiş + kilit atomik). Tek satır/tenant (upsert).
-            var kilit = await db.DonemKilitleri.FirstOrDefaultAsync(ct);
+            // Dönemi kilitle — AYNI transaction (fiş + kilit atomik). Tek satır/tenant (upsert; yukarıda okundu).
             if (kilit is null) { kilit = new DonemKilidi(); db.DonemKilitleri.Add(kilit); }
             kilit.KapanisTarihi = kapanisTarihi;
             kilit.UpdatedAtUtc = DateTimeOffset.UtcNow;

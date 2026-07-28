@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
@@ -357,6 +358,44 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));           // ileri tarih delta'yı toplar
         Assert.Equal(-1500m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // 1000 + 500
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
+    }
+
+    /// <summary>V3-c (REGRESYON KİLİDİ — V3-b'nin yakaladığı GERÇEK para hatasının düzeltmesi):
+    /// GEÇ tarihli kapanış ÖNCE commit edip ARDINDAN erken tarihli kapanış gelirse, erken kapanış
+    /// bakiyeyi kendi (daha erken) kesim anına göre okuduğu için geç kapanışın fişini GÖREMEZ ve aynı
+    /// geliri İKİNCİ kez kapatırdı (Gelir +1000, DonemSonucu −2000, iki DonemSonucu fişi). Bu senaryo
+    /// V3-b'de eşzamanlılık sırasına bağlı olarak ~%10-20 tekrar ediyordu ("flaky" görünen gerçek bug).
+    /// Düzeltme: "zaten kapalı" guard'ı advisory KİLİDİN İÇİNDE (repo). Burada YARIŞ YOK — sıralı çağrı
+    /// ile deterministik kanıt.</summary>
+    [Fact]
+    public async Task Probe_V3c_gec_tarihten_sonra_erken_tarihe_kapatma_reddedilir_cift_saymaz()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        using (var seed = host.ScopeFor(tenant))
+        {
+            await seed.ServiceProvider.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
+            { CariId = await Cari(seed.ServiceProvider), NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
+        }
+
+        using var scope = host.ScopeFor(tenant);
+        // Servis ön-kontrolünü (kilidin DIŞINDA) BİLEREK atlayıp doğrudan repo'yu çağırıyoruz — eşzamanlı
+        // yarışta iki çağrının da ön-kontrolden geçtiği durumun birebir aynısı.
+        var repo = scope.ServiceProvider.GetRequiredService<IDonemKapanisRepository>();
+        await repo.KapatAsync(Kapanis); // önce GEÇ tarih (30 Haziran)
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => repo.KapatAsync(new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero))); // sonra ERKEN tarih → RED
+
+        var mizan = await scope.ServiceProvider.GetRequiredService<ReportService>().GetMizanAsync();
+        Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));           // ÇİFT SAYIM YOK (bug'da +1000 idi)
+        Assert.Equal(-1000m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // bug'da −2000 idi
+        Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
+
+        await using var db = await Factory(scope).CreateDbContextAsync();
+        var dsCount = await db.AccountLedgerEntries.AsNoTracking()
+            .CountAsync(e => e.SourceType == "DonemKapanis" && e.AccountType == LedgerAccountType.DonemSonucu);
+        Assert.Equal(1, dsCount); // bug'da 2 idi
     }
 
     private static Task<Guid> Cari(IServiceProvider sp)
