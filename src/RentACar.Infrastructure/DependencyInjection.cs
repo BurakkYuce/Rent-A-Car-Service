@@ -93,6 +93,8 @@ public static class DependencyInjection
         services.AddScoped<IDbContextFactory<AppDbContext>, ScopedAppDbContextFactory>();
 
         services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<RentACar.Application.Vehicles.IVehiclePhotoRepository,
+            Persistence.Repositories.VehiclePhotoRepository>(); // PR-3
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<RentACar.Application.Notifications.IBildirimRepository, BildirimRepository>();
