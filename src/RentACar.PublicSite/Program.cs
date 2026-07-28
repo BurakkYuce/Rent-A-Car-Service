@@ -19,8 +19,15 @@ builder.Services.AddScoped<PublicTenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<PublicTenantContext>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<PublicTenantContext>());
 
-// ---- PR-2: host→tenant çözümleme (Found değilse 404 — asla varsayılan tenant'a düşmez). ----
-builder.Services.AddScoped<PublicTenantResolver>();
+// ---- PR-2/PR-3.5: host→tenant çözümleme (Found değilse 404 — asla varsayılan tenant'a düşmez).
+// Singleton ŞART: CachedPublicTenantResolver kendi MemoryCache'ini istekler arası TAŞIMALI — Scoped
+// olsaydı her istekte sıfırdan cache kurulur, cache hiç işe yaramazdı. PublicTenantResolver da
+// stateless (DI-dışı ham context kurar) — Singleton'a aday, scoped'a gerek yok. AddMemoryCache()
+// GEREKMEZ — CachedPublicTenantResolver kendi dedike MemoryCache'ini kendi içinde `new`'ler
+// (paylaşımlı IMemoryCache'e SizeLimit koymanın diğer tüketicileri etkileme riski var — bkz. sınıfın kendi yorumu). ----
+builder.Services.AddSingleton<PublicTenantResolver>();
+builder.Services.AddSingleton<IPublicTenantResolver>(sp =>
+    new CachedPublicTenantResolver(sp.GetRequiredService<PublicTenantResolver>()));
 builder.Services.AddScoped<TenantHostResolutionMiddleware>();
 
 // PII blind-index anahtarı — bu proje v1'de PII şifreli alan okumaz/yazmaz, ama Infrastructure paylaşımlı

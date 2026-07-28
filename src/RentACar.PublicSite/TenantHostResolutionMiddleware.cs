@@ -1,13 +1,13 @@
 namespace RentACar.PublicSite;
 
 /// <summary>
-/// PR-2: ince sarmalayıcı — <see cref="PublicTenantResolver"/> ile Host header'ını tenant'a çözer,
-/// `Found` DEĞİLSE 404 (asla varsayılan/başka bir tenant'a düşmez — hem bilinmeyen host hem kapalı
-/// tenant hem kapalı site aynı sonucu verir, hangisi olduğu dışarıya sızdırılmaz). `Found` ise istek
-/// scope'undaki <see cref="PublicTenantContext"/> doldurulur; geri kalan DI akışı (IDbContextFactory
-/// üzerinden) TenantConnectionInterceptor ile normal şekilde RLS GUC'unu ayarlar.
+/// PR-2: ince sarmalayıcı — <see cref="IPublicTenantResolver"/> (PR-3.5'ten beri `CachedPublicTenantResolver`)
+/// ile Host header'ını tenant'a çözer, `Found` DEĞİLSE 404 (asla varsayılan/başka bir tenant'a düşmez —
+/// hem bilinmeyen host hem kapalı tenant hem kapalı site aynı sonucu verir, hangisi olduğu dışarıya
+/// sızdırılmaz). `Found` ise istek scope'undaki <see cref="PublicTenantContext"/> doldurulur; geri kalan
+/// DI akışı (IDbContextFactory üzerinden) TenantConnectionInterceptor ile normal şekilde RLS GUC'unu ayarlar.
 /// </summary>
-public sealed class TenantHostResolutionMiddleware(PublicTenantResolver resolver) : IMiddleware
+public sealed class TenantHostResolutionMiddleware(IPublicTenantResolver resolver) : IMiddleware
 {
     public async Task InvokeAsync(HttpContext ctx, RequestDelegate next)
     {

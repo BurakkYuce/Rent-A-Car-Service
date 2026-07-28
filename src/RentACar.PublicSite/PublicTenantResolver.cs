@@ -8,6 +8,13 @@ public enum PublicTenantResolution { NotFound, TenantInactive, SiteDisabled, Fou
 
 public sealed record PublicTenantResult(PublicTenantResolution Kind, Guid? TenantId = null);
 
+/// <summary>PR-2/PR-3.5: host→tenant çözümleme sözleşmesi — ayrı arayüz, <see cref="CachedPublicTenantResolver"/>
+/// decorator'ının (ve testlerin sayaçlı sahtelerinin) etrafını sarabilmesi için.</summary>
+public interface IPublicTenantResolver
+{
+    Task<PublicTenantResult> ResolveAsync(string host, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Host→tenant çözümleme (PR-2). HTTP/middleware'den BAĞIMSIZ düz servis — <see cref="TenantHostResolutionMiddleware"/>
 /// ince bir sarmalayıcıdır (test edilebilirlik: CalendarFeedService.cs deseni, doğrudan çağrılabilir).
@@ -18,7 +25,7 @@ public sealed record PublicTenantResult(PublicTenantResolution Kind, Guid? Tenan
 /// SystemTenantContext + TenantGuc.OpenAsync ile AYRI bir context üzerinden okunur (TenantGuc.cs'in kendi
 /// uyarısı: sıralama şart, aksi halde RLS sessizce 0 satır döner).
 /// </summary>
-public sealed class PublicTenantResolver(IConfiguration config)
+public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantResolver
 {
     public async Task<PublicTenantResult> ResolveAsync(string host, CancellationToken ct = default)
     {
