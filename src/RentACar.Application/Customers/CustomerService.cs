@@ -182,15 +182,13 @@ public sealed class CustomerService(
         PasaportNo = Trim(input.PasaportNo),
         FaturaDonemi = Trim(input.FaturaDonemi),
         TevkifatOrani = input.TevkifatOrani,
-        Yetkili1Ad = Trim(input.Yetkili1Ad),
-        Yetkili1Tel = Trim(input.Yetkili1Tel),
-        Yetkili1Mail = Trim(input.Yetkili1Mail),
-        Yetkili2Ad = Trim(input.Yetkili2Ad),
-        Yetkili2Tel = Trim(input.Yetkili2Tel),
-        Yetkili2Mail = Trim(input.Yetkili2Mail),
-        Yetkili3Ad = Trim(input.Yetkili3Ad),
-        Yetkili3Tel = Trim(input.Yetkili3Tel),
-        Yetkili3Mail = Trim(input.Yetkili3Mail),
+        // PR-E: yetkili kişiler — AdSoyad'ı boş olan satır atlanır (form değişken satır gönderir).
+        Kisiler = (input.Kisiler ?? [])
+            .Where(k => !string.IsNullOrWhiteSpace(k.AdSoyad))
+            .Select(k => new CustomerContactInput
+            {
+                AdSoyad = Trim(k.AdSoyad), Telefon = Trim(k.Telefon), Mail = Trim(k.Mail), Gorev = Trim(k.Gorev)
+            }).ToList(),
         // roadmap K4
         KvkkOnay = input.KvkkOnay,
         KvkkOnayTarih = input.KvkkOnayTarih,
@@ -254,15 +252,14 @@ public sealed class CustomerService(
         c.PasaportNoEnc = _secrets.Protect(n.PasaportNo);
         c.FaturaDonemi = n.FaturaDonemi;
         c.TevkifatOrani = n.TevkifatOrani;
-        c.Yetkili1Ad = n.Yetkili1Ad;
-        c.Yetkili1Tel = n.Yetkili1Tel;
-        c.Yetkili1Mail = n.Yetkili1Mail;
-        c.Yetkili2Ad = n.Yetkili2Ad;
-        c.Yetkili2Tel = n.Yetkili2Tel;
-        c.Yetkili2Mail = n.Yetkili2Mail;
-        c.Yetkili3Ad = n.Yetkili3Ad;
-        c.Yetkili3Tel = n.Yetkili3Tel;
-        c.Yetkili3Mail = n.Yetkili3Mail;
+        // PR-E: yetkili kişiler child — clear+add (update'te EF farkı: kaldırılanlar cascade silinir, yeniler eklenir;
+        // flat Yetkili1-3 kolonları DEPRECATED, artık YAZILMAZ). Repo UpdateAsync Include(Kisiler) ile yükler.
+        c.Kisiler.Clear();
+        for (var i = 0; i < n.Kisiler.Count; i++)
+        {
+            var k = n.Kisiler[i];
+            c.Kisiler.Add(new CustomerContact { Sira = i, AdSoyad = k.AdSoyad!, Telefon = k.Telefon, Mail = k.Mail, Gorev = k.Gorev });
+        }
         // roadmap K4
         c.KvkkOnay = n.KvkkOnay;
         c.KvkkOnayTarih = n.KvkkOnayTarih;

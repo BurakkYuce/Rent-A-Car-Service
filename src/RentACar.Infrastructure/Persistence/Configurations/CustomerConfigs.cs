@@ -72,6 +72,8 @@ internal sealed class CustomerConfig : IEntityTypeConfiguration<Customer>
         e.HasIndex(x => new { x.TenantId, x.TcKimlikHash })
             .IsUnique()
             .HasFilter("\"TcKimlikHash\" IS NOT NULL");
+        // PR-E: kurumsal yetkili kişileri child (cascade — Customer silinince düşer; ServiceRecord/ServiceLine deseni).
+        e.HasMany(x => x.Kisiler).WithOne().HasForeignKey(k => k.MusteriId).OnDelete(DeleteBehavior.Cascade);
         e.HasIndex(x => new { x.TenantId, x.VergiNo })
             .IsUnique()
             .HasFilter("\"VergiNo\" IS NOT NULL");
@@ -80,6 +82,22 @@ internal sealed class CustomerConfig : IEntityTypeConfiguration<Customer>
 
 // ---- Personel (tenant-owned; master, roadmap C1) ----
 // PII (*Enc) ŞİFRELİ cipher saklar (servis ISecretProtector ile); kolon düz metin değildir.
+// ---- CustomerContact / Kurumsal cari yetkili kişisi (tenant-owned child, PR-E) ----
+internal sealed class CustomerContactConfig : IEntityTypeConfiguration<CustomerContact>
+{
+    public void Configure(EntityTypeBuilder<CustomerContact> e)
+    {
+        e.ToTable("CariYetkiliKisiler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.AdSoyad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Telefon).HasMaxLength(32);
+        e.Property(x => x.Mail).HasMaxLength(256);
+        e.Property(x => x.Gorev).HasMaxLength(64);
+        e.HasIndex(x => new { x.TenantId, x.MusteriId });
+    }
+}
+
 internal sealed class PersonelConfig : IEntityTypeConfiguration<Personel>
 {
     public void Configure(EntityTypeBuilder<Personel> e)

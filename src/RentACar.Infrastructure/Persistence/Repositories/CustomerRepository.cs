@@ -118,7 +118,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
     public async Task<Customer?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var c = await db.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        var c = await db.Customers.AsNoTracking()
+            .Include(x => x.Kisiler.OrderBy(k => k.Sira)) // PR-E: yetkili kişiler (edit formu doldurur), sıralı
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
         return c is null ? null : Decrypt(c);
     }
 
@@ -155,7 +157,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
     public async Task<bool> UpdateAsync(Guid id, Action<Customer> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
+        var customer = await db.Customers
+            .Include(c => c.Kisiler.OrderBy(k => k.Sira)) // PR-E: mevcut child'lar yüklü olmalı ki clear+add EF farkı doğru cascade etsin
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
         if (customer is null) return false;
 
         apply(customer);
