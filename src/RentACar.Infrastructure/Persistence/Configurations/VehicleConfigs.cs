@@ -189,3 +189,22 @@ internal sealed class VehicleKmLogConfig : IEntityTypeConfiguration<VehicleKmLog
         e.HasIndex(x => new { x.TenantId, x.VehicleId, x.Tarih });
     }
 }
+
+// ---- VehiclePhoto (PR-3 — halka açık site araç galerisi) ----
+internal sealed class VehiclePhotoConfig : IEntityTypeConfiguration<VehiclePhoto>
+{
+    public void Configure(EntityTypeBuilder<VehiclePhoto> e)
+    {
+        e.ToTable("VehiclePhotos");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.ContentType).IsRequired().HasMaxLength(32);
+        // Nav'sız FK — UserConfig'in Branch FK'sı gibi. CustomerContact'tan FARKLI: vehicle silinince
+        // fotoğraflar da cascade düşsün (yetim bytea kalmasın) — VehicleRepository.DeleteAsync gerçek
+        // hard-delete, soft-delete YOK, cascade güvenle çalışır.
+        e.HasOne<Vehicle>().WithMany().HasForeignKey(x => x.VehicleId).OnDelete(DeleteBehavior.Cascade);
+        // BİLİNÇLİ NON-UNIQUE: MoveAsync iki satırın Sira'sını TAKAS eder (iki ayrı UPDATE) — unique
+        // olsaydı ilk UPDATE'ten sonra iki satır aynı Sira'yı taşır, constraint patlardı.
+        e.HasIndex(x => new { x.TenantId, x.VehicleId, x.Sira });
+    }
+}

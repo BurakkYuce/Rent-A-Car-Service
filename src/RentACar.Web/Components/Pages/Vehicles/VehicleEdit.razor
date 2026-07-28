@@ -8,6 +8,7 @@
 @inject VehicleSegmentService Segmentler
 @inject VehicleTypeService AracTipleri
 @inject NavigationManager Nav
+@inject VehiclePhotoService Fotograflar
 
 <PageTitle>Araç Düzenle — RentPro</PageTitle>
 
@@ -123,6 +124,40 @@ else
         <button type="submit">Güncelle</button>
         <a href="/vehicles" class="link">İptal</a>
     </form>
+
+    <fieldset>
+        <legend>Fotoğraflar</legend>
+        <p class="muted small">Fotoğraf işlemleri anında kaydedilir (ana formdaki Kaydet'i beklemez). En fazla 20 fotoğraf, ≤2 MB, PNG/JPEG/WebP.</p>
+        <p class="muted small">@_photos.Count/20 fotoğraf</p>
+        <div class="photo-grid">
+            @for (var i = 0; i < _photos.Count; i++)
+            {
+                var p = _photos[i];
+                <div class="photo-cell">
+                    <img src="/vehicles/@Id/photos/@p.Id/thumb" alt="Araç fotoğrafı" />
+                    @if (i == 0)
+                    {
+                        <span class="badge">Kapak</span>
+                    }
+                    <div class="photo-actions">
+                        <form method="post" action="/vehicles/@Id/photos/@p.Id/yukari"><AntiforgeryToken />
+                            <button type="submit" disabled="@(i == 0)">↑</button>
+                        </form>
+                        <form method="post" action="/vehicles/@Id/photos/@p.Id/asagi"><AntiforgeryToken />
+                            <button type="submit" disabled="@(i == _photos.Count - 1)">↓</button>
+                        </form>
+                        <form method="post" action="/vehicles/@Id/photos/@p.Id/sil"><AntiforgeryToken />
+                            <button type="submit" class="btn-secondary">Sil</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+        <form method="post" action="/vehicles/@Id/photos" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
+            <label>Fotoğraf yükle (PNG/JPEG/WebP, ≤2 MB)<input name="foto" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
+            <button type="submit">Yükle</button>
+        </form>
+    </fieldset>
 }
 
 @code {
@@ -132,6 +167,7 @@ else
     public string? Hata { get; set; }
 
     private Vehicle? _vehicle;
+    private IReadOnlyList<VehiclePhotoMeta> _photos = [];
     private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [], _yilOpts = [];
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i (VehicleList ile aynı desen).
@@ -142,6 +178,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _vehicle = await Vehicles.GetAsync(Id);
+        if (_vehicle is not null) _photos = await Fotograflar.ListMetaAsync(Id);
         var markalar = await Markalar.ListActiveAsync();
         var gruplar = await AracGruplari.ListActiveAsync();
         var subeler = await Subeler.ListActiveAsync();
