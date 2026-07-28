@@ -145,15 +145,20 @@ else
                 { <option value="@o" selected="@(_c.TevkifatDurum == o)">@o</option> }
             </select>
         </label>
-        <label>Yetkili 1 Ad<input name="yetkili1Ad" value="@_c.Yetkili1Ad" /></label>
-        <label>Yetkili 1 Tel<input name="yetkili1Tel" value="@_c.Yetkili1Tel" /></label>
-        <label>Yetkili 1 Mail<input name="yetkili1Mail" type="email" value="@_c.Yetkili1Mail" /></label>
-        <label>Yetkili 2 Ad<input name="yetkili2Ad" value="@_c.Yetkili2Ad" /></label>
-        <label>Yetkili 2 Tel<input name="yetkili2Tel" value="@_c.Yetkili2Tel" /></label>
-        <label>Yetkili 2 Mail<input name="yetkili2Mail" type="email" value="@_c.Yetkili2Mail" /></label>
-        <label>Yetkili 3 Ad<input name="yetkili3Ad" value="@_c.Yetkili3Ad" /></label>
-        <label>Yetkili 3 Tel<input name="yetkili3Tel" value="@_c.Yetkili3Tel" /></label>
-        <label>Yetkili 3 Mail<input name="yetkili3Mail" type="email" value="@_c.Yetkili3Mail" /></label>
+        <div class="full">
+            <p class="muted small">Yetkili Kişiler (kurumsal) — değişken sayıda. Boş satırlar atlanır; daha fazlası için kaydedip tekrar düzenleyin.</p>
+            @{ var kisiSayisi = Math.Max(_c.Kisiler.Count + 3, 3); }
+            @for (var i = 0; i < kisiSayisi; i++)
+            {
+                var k = i < _c.Kisiler.Count ? _c.Kisiler[i] : null;
+                <div class="grid-form">
+                    <label>Ad Soyad<input name="kisi[@i].adSoyad" value="@k?.AdSoyad" /></label>
+                    <label>Görev<input name="kisi[@i].gorev" value="@k?.Gorev" /></label>
+                    <label>Telefon<input name="kisi[@i].telefon" value="@k?.Telefon" /></label>
+                    <label>E-posta<input name="kisi[@i].mail" type="email" value="@k?.Mail" /></label>
+                </div>
+            }
+        </div>
         <label>KVKK Onay
             <select name="kvkkOnay">
                 <option value="" selected="@(_c.KvkkOnay is null)">—</option>

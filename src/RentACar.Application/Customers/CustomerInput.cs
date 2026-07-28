@@ -2,6 +2,15 @@ using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Customers;
 
+/// <summary>Kurumsal cari yetkili kişisi girişi (PR-E). AdSoyad zorunlu; boş satır (AdSoyad'sız) atlanır.</summary>
+public sealed class CustomerContactInput
+{
+    public string? AdSoyad { get; set; }
+    public string? Telefon { get; set; }
+    public string? Mail { get; set; }
+    public string? Gorev { get; set; }
+}
+
 /// <summary>Cari oluştur/düzenle giriş modeli (Blazor formu da buna bağlanır).</summary>
 public sealed class CustomerInput
 {
@@ -39,15 +48,9 @@ public sealed class CustomerInput
     public string? PasaportNo { get; set; }
     public string? FaturaDonemi { get; set; }
     public decimal? TevkifatOrani { get; set; }
-    public string? Yetkili1Ad { get; set; }
-    public string? Yetkili1Tel { get; set; }
-    public string? Yetkili1Mail { get; set; }
-    public string? Yetkili2Ad { get; set; }
-    public string? Yetkili2Tel { get; set; }
-    public string? Yetkili2Mail { get; set; }
-    public string? Yetkili3Ad { get; set; }
-    public string? Yetkili3Tel { get; set; }
-    public string? Yetkili3Mail { get; set; }
+
+    /// <summary>PR-E: kurumsal yetkili kişiler (DEĞİŞKEN sayı; Yetkili1-3 flat kolonların yerine).</summary>
+    public List<CustomerContactInput> Kisiler { get; set; } = [];
 
     public string? EhliyetNo { get; set; }
     public string? EhliyetSinifi { get; set; }

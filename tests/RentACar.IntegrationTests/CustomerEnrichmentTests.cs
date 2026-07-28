@@ -27,9 +27,12 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
             Sinif = "VIP", MailIzin = true, SmsIzin = false, TelefonIzin = true,
             DogumTarihi = dogum, BabaAdi = "Ahmet", AnaAdi = "Fatma", PasaportNo = "U1234567",
             FaturaDonemi = "Aylık", TevkifatOrani = 20.00m,
-            Yetkili1Ad = "Ali Veli", Yetkili1Tel = "5551112233", Yetkili1Mail = "ali@yuce.com",
-            Yetkili2Ad = "Veli Ali", Yetkili2Tel = "5324445566", Yetkili2Mail = "veli@yuce.com",
-            Yetkili3Ad = "Can Can", Yetkili3Tel = "5061112233", Yetkili3Mail = "can@yuce.com"
+            Kisiler =
+            [
+                new CustomerContactInput { AdSoyad = "Ali Veli", Telefon = "5551112233", Mail = "ali@yuce.com" },
+                new CustomerContactInput { AdSoyad = "Veli Ali", Telefon = "5324445566", Mail = "veli@yuce.com" },
+                new CustomerContactInput { AdSoyad = "Can Can", Telefon = "5061112233", Mail = "can@yuce.com" }
+            ]
         });
 
         var c = await svc.GetAsync(id);
@@ -44,9 +47,44 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         Assert.Equal("U1234567", c.PasaportNo);
         Assert.Equal("Aylık", c.FaturaDonemi);
         Assert.Equal(20.00m, c.TevkifatOrani);
-        Assert.Equal("Ali Veli", c.Yetkili1Ad);
-        Assert.Equal("veli@yuce.com", c.Yetkili2Mail);
-        Assert.Equal("5061112233", c.Yetkili3Tel);
+        Assert.Equal(3, c.Kisiler.Count);
+        Assert.Equal("Ali Veli", c.Kisiler[0].AdSoyad);
+        Assert.Equal("veli@yuce.com", c.Kisiler[1].Mail);
+        Assert.Equal("5061112233", c.Kisiler[2].Telefon);
+    }
+
+    [Fact]
+    public async Task Kisiler_bos_satir_atlanir_ve_update_temizleyip_yeniden_yazar()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+
+        var id = await svc.CreateAsync(new CustomerInput
+        {
+            Tip = CariType.Kurumsal, Unvan = "Kişi A.Ş.",
+            Kisiler =
+            [
+                new CustomerContactInput { AdSoyad = "Boş Satır Test", Gorev = "Müdür" },
+                new CustomerContactInput { AdSoyad = "   " } // boşluk-only AdSoyad — atlanmalı
+            ]
+        });
+
+        var c1 = await svc.GetAsync(id);
+        Assert.Single(c1!.Kisiler);
+        Assert.Equal("Boş Satır Test", c1.Kisiler[0].AdSoyad);
+        Assert.Equal("Müdür", c1.Kisiler[0].Gorev);
+
+        await svc.UpdateAsync(id, new CustomerInput
+        {
+            Tip = CariType.Kurumsal, Unvan = "Kişi A.Ş.",
+            Kisiler = [new CustomerContactInput { AdSoyad = "Yeni Kişi", Telefon = "5001112233" }]
+        });
+
+        var c2 = await svc.GetAsync(id);
+        Assert.Single(c2!.Kisiler);
+        Assert.Equal("Yeni Kişi", c2.Kisiler[0].AdSoyad);
+        Assert.Equal("5001112233", c2.Kisiler[0].Telefon);
     }
 
     [Fact]
