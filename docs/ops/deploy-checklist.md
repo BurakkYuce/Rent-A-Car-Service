@@ -78,15 +78,74 @@ systemd unit (`/etc/systemd/system/racar-web.service`): `EnvironmentFile=/etc/ra
 sınırla (rate-limit yalnız login'de olduğundan bu, veri uçlarına kaba bir DoS tamponu sağlar). Gerçek TLS/HTTP kabaca
 Caddy'de (§5 `request_body max_size`); Kestrel iç-ağda dinlediği için bu ikisi tamamlayıcı.
 
+## 4.1 Uygulama — `RentACar.PublicSite` (halka açık site, PR-1..5)
+```bash
+dotnet publish src/RentACar.PublicSite -c Release -o /opt/racar/publicsite
+```
+systemd unit (`/etc/systemd/system/racar-publicsite.service`): `ExecStart=/usr/bin/dotnet
+/opt/racar/publicsite/RentACar.PublicSite.dll`, `Environment=ASPNETCORE_URLS=http://127.0.0.1:5230`,
+`User=<appuser>`, `Restart=always`. `systemctl enable --now racar-publicsite`.
+
+**KRİTİK — port 5230 YALNIZ `127.0.0.1`'e bind (dışarı AÇILMAZ):** PR-5'ten itibaren tenant çözümleme VE
+`PendingVerification→Active` otomatik-flip (özel domain doğrulaması) TAMAMEN gelen isteğin Host header'ına
+güveniyor. Port dışarıya açık olsaydı biri Caddy'yi tamamen atlayıp `curl -H "Host: kurban-domaini.com"
+http://sunucu-ip:5230/` ile bir domain'in doğrulama durumunu prob edebilir/tetikleyebilirdi — `ASPNETCORE_URLS`
+yukarıdaki gibi `127.0.0.1:5230` (0.0.0.0 DEĞİL) olduğu sürece bu erişilemez, ama deploy sonrası
+`sudo ss -tlnp | grep 5230` ile DOĞRULA.
+
 ## 5. Reverse proxy (Caddy) — HTTPS + gerçek istemci IP
 Caddy otomatik Let's Encrypt TLS verir. **Güvenlik başlıkları + CSP + cookie sertleştirme + HSTS artık UYGULAMADA**
-(Program.cs middleware + AddCookie + AddHsts — defense-in-depth, proxy'den bağımsız). Caddyfile sade:
+(Program.cs middleware + AddCookie + AddHsts — defense-in-depth, proxy'den bağımsız). ERP/Api için Caddyfile sade:
 ```
 rentpro.example.com {
     reverse_proxy 127.0.0.1:5220
     request_body { max_size 2MB }   # kaba gövde limiti (DoS; plugin gerekmez) — Kestrel:Limits ile tamamlayıcı
 }
 ```
+
+## 5.1 Reverse proxy (Caddy) — `RentACar.PublicSite` için `on_demand_tls` (PR-5, İKİ AYRI blok ŞART)
+**Neden ayrı blok:** "Sitemi Aç" (Ayarlar ekranı) bir tenant için `{kod}.rentpro.com` alt-domainini ANINDA bir
+DB satırı olarak yazar — ama Caddy'nin YUKARIDAKİ statik bloğu yalnız İÇİNDE YAZILI hostname'e (`rentpro.example.com`)
+sertifika çıkarır. Yeni bir alt-domain/özel-domain için Caddy'nin cert'i YOKTUR — `on_demand_tls` (istek anında
+sertifika iste) bu boşluğu kapatır. **TÜM host'ları TEK bloğa (`https://` catch-all + `on_demand`) toplamak
+YANLIŞ** — ask-endpoint yalnız `TenantDomains`'i tanır, ERP'nin (`rentpro.example.com`) kendi host'u orada YOK;
+tek blok olsaydı ERP'nin isteği de ask'a düşer, 404 alır, Caddy ERP'nin sertifikasını ÇIKARAMAZ/YENİLEYEMEZ. Bu
+yüzden ERP/Api §5'teki statik bloğunda AYNEN kalır, PublicSite AYRI bir catch-all blokta:
+```
+# Global options — TEK YERDE
+{
+    on_demand_tls {
+        ask http://127.0.0.1:5230/dogrulama/ask
+    }
+}
+
+# rentpro.example.com { ... }  ← §5'teki ERP bloğu DEĞİŞMEDEN burada kalır
+
+# Public Site — subdomain + özel domain, on_demand YALNIZ BURADA devreye girer
+https:// {
+    tls {
+        on_demand
+    }
+    reverse_proxy 127.0.0.1:5230
+    request_body { max_size 2MB }
+}
+```
+
+**Söylenmemiş ön koşullar (deploy ÖNCESİ doğrula):**
+- **Wildcard DNS**: `*.rentpro.com` için sunucunun IP'sine bir **A kaydı** DNS sağlayıcısında ÖNCEDEN kurulu
+  olmalı (cert'ten önce çözünürlük şart) — yoksa hiçbir yeni tenant subdomain'i asla açılmaz.
+- **Let's Encrypt kotası**: kayıtlı-domain başına haftalık ~50 yeni sertifika sınırı (yenilemeler MUAF).
+  `on_demand_tls`'te her yeni tenant/subdomain AYRI bir sertifika demek — haftada 50'den fazla yeni tenant
+  açılışı bu kotayı doldurabilir. Şu an gerçekçi değil, ama BİLİNÇLİ kabul edilen bir sınır (izlenmeli).
+- **İlk ziyaret gecikmesi**: yeni bir subdomain'e ilk HTTPS isteği ACME handshake'i (birkaç saniye) bekler.
+  Uygulama "Sitemi Aç" akışının SONUNDA yeni subdomain'e kendi kendine tek bir "ısınma" isteği atarak bu
+  gecikmeyi admin görmeden eritir.
+- **Kabul edilen davranış**: ask-endpoint sertifika YENİLEMELERİNDE de sorulur — bir tenant `PublicSiteEnabled`'ı
+  kapatsa bile `TenantDomains` satırı DURDUKÇA sertifika yenilenmeye devam eder (site kapalıyken bile domain'in
+  "bizim" olduğu gerçeği değişmiyor — bilinçli kabul, ayrı bir temizlik işi DEĞİL).
+
+**Rollback:** Sorun çıkarsa yalnız `https:// { ... }` catch-all bloğu Caddyfile'dan kaldırılıp `caddy reload`
+yapılır — public site geçici olarak erişilemez hale gelir ama ERP/Api (AYRI blok sayesinde) ETKİLENMEZ.
 - **CSP (uygulamada, katı):** `script-src 'self'` — `'unsafe-inline'` YOK, hash YOK. 52 inline event handler harici
   JS'e taşındı (`data-confirm`/`data-select-all` → `wwwroot/js/rc-ui.js`). Blazor'ın `<ImportMap>` inline script'i
   App.razor'dan **kaldırıldı** (tam statik SSR'de gereksizdi ve fingerprint'i her asset/CSS değişiminde dönüp CSP
