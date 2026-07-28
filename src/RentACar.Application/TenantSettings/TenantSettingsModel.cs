@@ -43,4 +43,10 @@ public sealed class TenantSettingsModel
     // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
     public bool PublicSiteEnabled { get; set; }
     public string? PublicSiteHost { get; set; }
+
+    /// <summary>PR-5: tenant'ın TÜM domain kayıtları (subdomain + özel) — Ayarlar ekranında durum
+    /// rozetiyle (Aktif/Doğrulama Bekliyor/Başarısız) listelenir. Yalnız GÖRÜNTÜLEME.</summary>
+    public IReadOnlyList<TenantDomainRow> CustomDomains { get; set; } = [];
 }
+
+public sealed record TenantDomainRow(string Host, string Kind, string Durum);

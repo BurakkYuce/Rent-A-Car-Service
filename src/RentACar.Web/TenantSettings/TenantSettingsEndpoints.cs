@@ -81,6 +81,21 @@ public static class TenantSettingsEndpoints
             return Results.Redirect("/ayarlar?ok=1");
         });
 
+        // PR-5: özel domain ekle — Pending sınırı/host-çakışması ValidationException'a çevrilir, PRG'ye uygun.
+        grp.MapPost("/domain-ekle", async (HttpRequest req, TenantSettingsService svc) =>
+        {
+            var host = req.Form["host"].ToString();
+            try
+            {
+                await svc.AddCustomDomainAsync(host);
+                return Results.Redirect("/ayarlar?ok=1");
+            }
+            catch (RentACar.Application.Common.ValidationException ex)
+            {
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(ex.Message));
+            }
+        });
+
         return app;
     }
 }

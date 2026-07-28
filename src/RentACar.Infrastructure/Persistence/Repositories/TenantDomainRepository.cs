@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using RentACar.Application.Common;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Entities;
 
@@ -39,5 +41,70 @@ public sealed class TenantDomainRepository(IDbContextFactory<AppDbContext> facto
             .OrderBy(d => d.Kind) // Subdomain(0) önce
             .Select(d => d.Host)
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<TenantDomain> AddCustomAsync(Guid tenantId, string host, CancellationToken ct = default)
+    {
+        host = host.Trim().ToLowerInvariant();
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var existing = await db.TenantDomains.FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Host == host, ct);
+        if (existing is not null) return existing; // idempotent — aynı host tekrar eklenirse no-op
+
+        var openPending = await db.TenantDomains.AsNoTracking().CountAsync(d =>
+            d.TenantId == tenantId && d.Kind == TenantDomainKind.Custom && d.Status == TenantDomainStatus.PendingVerification, ct);
+        if (openPending >= 2)
+            throw new ValidationException("Aynı anda en fazla 2 doğrulama bekleyen özel domain ekleyebilirsiniz.");
+
+        var domain = new TenantDomain
+        {
+            TenantId = tenantId,
+            Host = host,
+            Kind = TenantDomainKind.Custom,
+            Status = TenantDomainStatus.PendingVerification,
+        };
+        db.TenantDomains.Add(domain);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{host}' alan adı zaten başka bir hesapta kayıtlı.");
+        }
+        return domain;
+    }
+
+    public async Task<bool> ExistsAsync(string host, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var h = host.Trim().ToLowerInvariant();
+        return await db.TenantDomains.AsNoTracking().AnyAsync(d => d.Host == h, ct);
+    }
+
+    public async Task MarkVerifiedAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await db.TenantDomains.Where(d => d.Id == id && d.Status == TenantDomainStatus.PendingVerification)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Status, TenantDomainStatus.Active)
+                .SetProperty(d => d.VerifiedAtUtc, DateTimeOffset.UtcNow), ct);
+    }
+
+    public async Task<IReadOnlyList<TenantDomain>> ListAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.TenantDomains.AsNoTracking()
+            .Where(d => d.TenantId == tenantId)
+            .OrderBy(d => d.Kind).ThenBy(d => d.CreatedAtUtc)
+            .ToListAsync(ct);
+    }
+
+    public async Task<int> ExpireOldPendingCustomDomainsAsync(DateTimeOffset olderThan, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.TenantDomains
+            .Where(d => d.Status == TenantDomainStatus.PendingVerification && d.CreatedAtUtc < olderThan)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, TenantDomainStatus.Failed), ct);
     }
 }
