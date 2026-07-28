@@ -1,0 +1,54 @@
+@page "/blog/{Slug}"
+@using RentACar.Application.Blog
+@using RentACar.Application.Fleet
+@inject BlogService Blog
+@inject FleetShowcaseService Showcase
+
+<PageTitle>@(_post?.Baslik ?? "Yazı") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <a class="back-link" href="/blog">← Blog</a>
+
+    @if (_post is null)
+    {
+        <p class="empty-state">Yazı bulunamadı.</p>
+    }
+    else
+    {
+        <h1>@_post.Baslik</h1>
+        @if (_post.YayinTarihi is { } t)
+        {
+            <div class="chips"><span class="chip">@t.ToString("dd.MM.yyyy")</span></div>
+        }
+        @if (_post.KapakVar)
+        {
+            <img class="card-img" src="@($"/blog-kapak/{_post.Id}")" alt="@_post.Baslik" style="border-radius:var(--r); margin:var(--s3) 0;" />
+        }
+        <article class="blog-icerik">
+            @* MarkupString KULLANILMAZ — @p normal bir Razor ifadesi olduğu için otomatik HTML-encode edilir;
+               içerik düz metin saklandığından XSS risk sınıfı tasarım gereği ortadan kalkar. *@
+            @foreach (var p in Paragraflar(_post.Icerik))
+            {
+                <p>@p</p>
+            }
+        </article>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+
+    private BlogDetail? _post;
+    private FleetBranding? _branding;
+
+    /// <summary>Boş satırla ayrılmış blokları paragraflara böler (satır sonları korunmaz — düz metin).</summary>
+    private static IEnumerable<string> Paragraflar(string icerik) => icerik
+        .Replace("\r\n", "\n")
+        .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _post = await Blog.GetPublishedBySlugAsync(Slug);
+    }
+}

@@ -1,6 +1,8 @@
 @page "/"
+@using RentACar.Application.Blog
 @using RentACar.Application.Fleet
 @inject FleetShowcaseService Showcase
+@inject BlogService Blog
 
 <PageTitle>@(_branding?.Marka ?? "RentPro")</PageTitle>
 
@@ -12,6 +14,10 @@
             <p class="contact">
                 @string.Join(" · ", new[] { b.Adres, b.Tel, b.Email }.Where(x => !string.IsNullOrWhiteSpace(x)))
             </p>
+        }
+        @if (_blogVar)
+        {
+            <p><a href="/blog">Blog →</a></p>
         }
     </header>
 
@@ -69,10 +75,12 @@
 @code {
     private IReadOnlyList<FleetShowcaseCard>? _cards;
     private FleetBranding? _branding;
+    private bool _blogVar; // PR-6: yayınlanmış yazı yoksa link basılmaz (boş sayfaya götürmesin)
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
+        _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
     }
 }
