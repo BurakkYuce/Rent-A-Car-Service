@@ -9,6 +9,10 @@
 {
     <p class="ok">Ayarlar kaydedildi.</p>
 }
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
 
 <form method="post" action="/ayarlar/kaydet" class="grid-form"><AntiforgeryToken />
     <fieldset>
@@ -121,10 +125,41 @@
             <button type="submit">Sitemi Aç</button>
         </form>
     }
+
+    @if (_m.CustomDomains.Count > 0)
+    {
+        <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead><tr><th>Host</th><th>Tür</th><th>Durum</th></tr></thead>
+            <tbody>
+                @foreach (var d in _m.CustomDomains)
+                {
+                    <tr>
+                        <td class="mono">@d.Host</td>
+                        <td>@(d.Kind == "Custom" ? "Özel Domain" : "Alt Domain")</td>
+                        <td>@d.Durum</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+
+    <details class="ozel-domain-ekle">
+        <summary class="link">+ Özel Alan Adı Ekle</summary>
+        <p class="muted small">Kendi alan adınızı (ör. <code>kirala.firmaniz.com</code>) sitenize bağlayabilirsiniz.
+            Eklemeden önce DNS'te bu alan adının A kaydını sunucumuzun IP adresine yönlendirin — doğrulama
+            otomatiktir, ilk ziyaretle birlikte tamamlanır (ayrı bir kod/TXT kaydı girmenize gerek yoktur).</p>
+        <form method="post" action="/ayarlar/domain-ekle" class="grid-form"><AntiforgeryToken />
+            <label>Alan Adı<input name="host" required placeholder="kirala.firmaniz.com" /></label>
+            <button type="submit">Ekle</button>
+        </form>
+    </details>
 </fieldset>
 
 @code {
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private TenantSettingsModel _m = new();
     private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];

@@ -33,6 +33,9 @@ public sealed class TenantHostResolutionMiddleware(IPublicTenantResolver resolve
         var p = path.Value ?? "";
         return p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
+            // PR-5: Caddy on_demand_tls ask-endpoint'i — İSTEĞİN KENDİ Host header'ı (Caddy'nin ask isteği,
+            // sorulan domain DEĞİL, query string'de) tenant çözümlemesine hiç GİRMEMELİ, platform-seviyesi bir uç.
+            || p.StartsWith("/dogrulama", StringComparison.OrdinalIgnoreCase)
             || Path.HasExtension(p);
     }
 }
