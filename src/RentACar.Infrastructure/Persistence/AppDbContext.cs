@@ -79,6 +79,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<BrokerYasak> BrokerYasaklar => Set<BrokerYasak>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerContact> CariYetkiliKisiler => Set<CustomerContact>(); // PR-E — kurumsal yetkili kişiler
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<RentalContract> Rentals => Set<RentalContract>();

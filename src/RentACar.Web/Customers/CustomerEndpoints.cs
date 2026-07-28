@@ -93,15 +93,7 @@ public static class CustomerEndpoints
         PasaportNo = FormParse.Str(f, "pasaportNo"),
         FaturaDonemi = FormParse.Str(f, "faturaDonemi"),
         TevkifatOrani = FormParse.Dec(FormParse.Str(f, "tevkifatOrani")),
-        Yetkili1Ad = FormParse.Str(f, "yetkili1Ad"),
-        Yetkili1Tel = FormParse.Str(f, "yetkili1Tel"),
-        Yetkili1Mail = FormParse.Str(f, "yetkili1Mail"),
-        Yetkili2Ad = FormParse.Str(f, "yetkili2Ad"),
-        Yetkili2Tel = FormParse.Str(f, "yetkili2Tel"),
-        Yetkili2Mail = FormParse.Str(f, "yetkili2Mail"),
-        Yetkili3Ad = FormParse.Str(f, "yetkili3Ad"),
-        Yetkili3Tel = FormParse.Str(f, "yetkili3Tel"),
-        Yetkili3Mail = FormParse.Str(f, "yetkili3Mail"),
+        Kisiler = ParseKisiler(f), // PR-E: değişken sayıda yetkili kişi (kisi[i].*)
         // roadmap K4 — KVKK + ek adres/banka/fatura adresi
         KvkkOnay = BoolN(f, "kvkkOnay"),
         KvkkOnayTarih = FormParse.Date(FormParse.Str(f, "kvkkOnayTarih")),
@@ -114,6 +106,26 @@ public static class CustomerEndpoints
 
 
     /// <summary>Checkbox: "true"/"on" işaretli → true; yoksa/boş → false.</summary>
+    /// <summary>PR-E: değişken sayıda yetkili kişi — kisi[i].adSoyad/telefon/mail/gorev. AdSoyad'sız satır atlanır
+    /// (seyrek indeksler için continue). Üst sınır 30 (kaba DoS koruması).</summary>
+    private static List<CustomerContactInput> ParseKisiler(IFormCollection f)
+    {
+        var list = new List<CustomerContactInput>();
+        for (var i = 0; i < 30; i++)
+        {
+            var ad = FormParse.Str(f, $"kisi[{i}].adSoyad");
+            if (string.IsNullOrWhiteSpace(ad)) continue;
+            list.Add(new CustomerContactInput
+            {
+                AdSoyad = ad,
+                Telefon = FormParse.Str(f, $"kisi[{i}].telefon"),
+                Mail = FormParse.Str(f, $"kisi[{i}].mail"),
+                Gorev = FormParse.Str(f, $"kisi[{i}].gorev")
+            });
+        }
+        return list;
+    }
+
     private static bool BoolReq(IFormCollection f, string key)
     {
         var v = FormParse.Str(f, key);

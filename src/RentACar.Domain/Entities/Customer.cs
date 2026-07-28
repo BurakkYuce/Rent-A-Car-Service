@@ -87,6 +87,10 @@ public class Customer : ITenantOwned, IAuditable
     public string? Yetkili3Tel { get; set; }
     public string? Yetkili3Mail { get; set; }
 
+    /// <summary>Kurumsal cari yetkili kişileri (PR-E): DEĞİŞKEN sayıda child (Yetkili1-3 flat kolonlarının
+    /// yerine; flat'ler DEPRECATED — uygulama yazmaz, göç bir kez taşıdı). İletişim bilgisi (PII değil).</summary>
+    public List<CustomerContact> Kisiler { get; set; } = [];
+
     // Ehliyet
     /// <summary>ESKİ düz-metin ehliyet kolonu — uygulama yazmaz; backfill şifreleyip null'lar.</summary>
     public string? EhliyetNo { get; set; }
