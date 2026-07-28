@@ -95,6 +95,8 @@ public static class DependencyInjection
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<RentACar.Application.Vehicles.IVehiclePhotoRepository,
             Persistence.Repositories.VehiclePhotoRepository>(); // PR-3
+        services.AddScoped<RentACar.Application.Fleet.IPublicBrandingRepository,
+            Persistence.Repositories.PublicBrandingRepository>(); // PR-4
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<RentACar.Application.Notifications.IBildirimRepository, BildirimRepository>();

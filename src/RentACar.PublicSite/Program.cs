@@ -49,6 +49,8 @@ app.UseMiddleware<TenantHostResolutionMiddleware>();
 
 app.MapHealthChecks("/health/live");
 
+app.MapVehiclePhotoEndpoints(); // PR-4
+
 app.MapRazorComponents<App>();
 
 app.Run();

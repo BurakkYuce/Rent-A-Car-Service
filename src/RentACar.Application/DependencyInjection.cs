@@ -39,6 +39,7 @@ public static class DependencyInjection
     {
         services.AddScoped<VehicleService>();
         services.AddScoped<VehiclePhotoService>(); // PR-3
+        services.AddScoped<RentACar.Application.Fleet.FleetShowcaseService>(); // PR-4
         services.AddScoped<CustomerService>();
         services.AddScoped<BranchService>();
         services.AddScoped<RateCardService>();

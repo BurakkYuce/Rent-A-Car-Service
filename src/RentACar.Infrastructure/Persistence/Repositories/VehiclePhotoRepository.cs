@@ -27,6 +27,12 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
             .FirstOrDefaultAsync(p => p.VehicleId == vehicleId && p.Id == photoId, ct);
     }
 
+    public async Task<VehiclePhoto?> FindByIdAsync(Guid photoId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.VehiclePhotos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == photoId, ct);
+    }
+
     public async Task<int> CountAsync(Guid vehicleId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
