@@ -66,6 +66,7 @@ using RentACar.Web.ServiceRecords;
 using RentACar.Web.TenantSettings;
 using RentACar.Web.Personnel;
 using RentACar.Web.Legal;
+using RentACar.Web.Blog;
 using RentACar.Web.Crm;
 using RentACar.Web.Periods;
 using RentACar.Web.Authorization;
@@ -483,6 +484,7 @@ app.MapTenantSettingsEndpoints();
 app.MapPersonelEndpoints();
 app.MapHukukEndpoints();
 app.MapCrmEndpoints();
+app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
 app.MapBildirimEndpoints();
