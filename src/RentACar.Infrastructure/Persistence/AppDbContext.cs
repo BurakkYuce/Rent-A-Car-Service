@@ -41,6 +41,7 @@ public sealed class AppDbContext : DbContext
     // Platform tabloları (RLS yok)
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<TenantDomain> TenantDomains => Set<TenantDomain>(); // PR-0: public site host→tenant (platform, RLS yok)
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();

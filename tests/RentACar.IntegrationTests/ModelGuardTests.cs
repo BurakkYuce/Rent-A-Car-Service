@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 /// (OnModelCreating). Bu test, o döngünün kapsamını modelden bağımsız oracle ile doğrular:
 /// ITenantOwned olan HER entity'de tenant query filter'ı VAR olmalı (biri bile atlanırsa
 /// sessiz çapraz-tenant sızıntı riski), ITenantOwned OLMAYAN platform entity'lerinde
-/// (Tenant / User / KurKaydi) filter OLMAMALI.
+/// (Tenant / TenantDomain / User / KurKaydi) filter OLMAMALI.
 /// </summary>
 [Collection("postgres")]
 public sealed class ModelGuardTests(PostgresFixture fx)
@@ -57,7 +57,7 @@ public sealed class ModelGuardTests(PostgresFixture fx)
             .OrderBy(t => t.Name)
             .ToList();
 
-        Type[] beklenenPlatform = [typeof(KurKaydi), typeof(Tenant), typeof(User)];
+        Type[] beklenenPlatform = [typeof(KurKaydi), typeof(Tenant), typeof(TenantDomain), typeof(User)];
         Assert.Equal(beklenenPlatform, filtresizler);
 
         // Platform entity'leri ITenantOwned DEĞİL (merkezi döngü onlara dokunmaz).
