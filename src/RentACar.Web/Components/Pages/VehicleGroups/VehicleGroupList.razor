@@ -19,7 +19,7 @@
 @if (_unmatched.Count > 0)
 {
     <details class="unmatched-grup">
-        <summary class="link">⚠ Hiçbir gruba eşleşmeyen @_unmatched.Count araç grup değeri (tanılama)</summary>
+        <summary class="link">⚠ Hiçbir gruba eşleşmeyen @(_unmatched.Count) araç grup değeri (tanılama)</summary>
         <p class="muted small">Filodaki bu <code>Grup</code> serbest-metin değerleri aşağıdaki tanımlı hiçbir
             araç grubu adına eşleşmiyor (Türkçe büyük/küçük harf farkları dahil karşılaştırıldı) — araçlar
             vitrine/aramaya girmiyor olabilir. Engelleyici değildir, yalnız veri-kalitesi görünürlüğü.</p>

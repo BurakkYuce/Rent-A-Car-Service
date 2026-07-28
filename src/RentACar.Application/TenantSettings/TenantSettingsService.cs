@@ -56,7 +56,11 @@ public sealed class TenantSettingsService(
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
             // PR-2: public-site
             PublicSiteEnabled = s.PublicSiteEnabled,
-            PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct)
+            PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct),
+            // PR-5: tüm domain kayıtları (durum rozeti için)
+            CustomDomains = (await domains.ListAsync(TenantId, ct))
+                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), DurumMetni(d.Status)))
+                .ToList()
         };
     }
 
@@ -69,6 +73,25 @@ public sealed class TenantSettingsService(
         await domains.EnsureSubdomainAsync(TenantId, ct);
         await repository.UpsertAsync(s => s.PublicSiteEnabled = true, ct);
     }
+
+    /// <summary>PR-5: özel domain ekler — `PendingVerification` ile başlar, Caddy `on_demand_tls`'in
+    /// ilk gerçek isteği başarıyla çözdüğü an kendi kendini `Active`'e doğrular (bkz. PublicTenantResolver).</summary>
+    public async Task AddCustomDomainAsync(string host, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        if (string.IsNullOrWhiteSpace(host))
+            throw new ValidationException("Alan adı zorunludur.");
+        await domains.AddCustomAsync(TenantId, host, ct);
+    }
+
+    private static string DurumMetni(RentACar.Domain.Entities.TenantDomainStatus status) => status switch
+    {
+        RentACar.Domain.Entities.TenantDomainStatus.Active => "Aktif",
+        RentACar.Domain.Entities.TenantDomainStatus.PendingVerification => "Doğrulama Bekliyor",
+        RentACar.Domain.Entities.TenantDomainStatus.Failed => "Başarısız",
+        _ => status.ToString()
+    };
 
     private Guid TenantId => tenant.TenantId
         ?? throw new ValidationException("Tenant bağlamı yok — işlem yapılamaz.");
