@@ -1,0 +1,114 @@
+@page "/musaitlik"
+@using RentACar.Application.Branches
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+@inject BranchService Subeler
+
+<PageTitle>Müsaitlik ve Fiyat — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <a class="back-link" href="/">← Ana sayfa</a>
+    <h1>Müsaitlik ve Fiyat Sorgula</h1>
+
+    @if (!string.IsNullOrEmpty(_hata))
+    {
+        <p class="empty-state">@_hata</p>
+    }
+
+    @* MusaitlikArama.razor'ın GET-querystring deseni — JS yok, paylaşılabilir/geri-tuşuna dost URL. *@
+    <form method="get" class="arama-form">
+        <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
+        <label>İade<input name="bit" type="date" value="@Bit" required /></label>
+        <label>Şube
+            <select name="sube">
+                <option value="">Tümü</option>
+                @foreach (var s in _subeler)
+                {
+                    <option value="@s" selected="@(s == Sube)">@s</option>
+                }
+            </select>
+        </label>
+        <button type="submit">Ara</button>
+    </form>
+
+    @if (_arandi)
+    {
+        @if (_sonuclar is { Count: > 0 })
+        {
+            <p class="muted-note">@_sonuclar[0].Gun günlük kiralama için @_sonuclar.Count araç grubu müsait.</p>
+            <div class="grid">
+                @foreach (var r in _sonuclar)
+                {
+                    <div class="card">
+                        @if (r.CoverPhotoId is { } photoId)
+                        {
+                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@r.Ad" />
+                        }
+                        else
+                        {
+                            <div class="card-img-placeholder">🚗</div>
+                        }
+                        <div class="card-body">
+                            <h3>@r.Ad</h3>
+                            <div class="fiyat">
+                                <span class="fiyat-buyuk">@Para(r.GunlukUcretKdvDahil, r.ParaBirimi)<span class="fiyat-birim">/gün</span></span>
+                                <span class="fiyat-kucuk">KDV dahil · KDV hariç @Para(r.GunlukUcretKdvHaric, r.ParaBirimi)</span>
+                                <span class="fiyat-toplam">@r.Gun gün toplam <strong>@Para(r.ToplamKdvDahil, r.ParaBirimi)</strong></span>
+                            </div>
+                            <div class="chips">
+                                @if (!string.IsNullOrWhiteSpace(r.KasaTuru)) { <span class="chip">@r.KasaTuru</span> }
+                                @if (r.KoltukSayisi is { } k) { <span class="chip">@k koltuk</span> }
+                                @if (r.KapiSayisi is { } kp) { <span class="chip">@kp kapı</span> }
+                                @if (r.BagajSayisi is { } b) { <span class="chip">@b bagaj</span> }
+                            </div>
+                            <div class="kart-aksiyon">
+                                <a href="@($"/araclar/{r.GroupId}")">Detay</a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="empty-state">Seçtiğiniz tarihlerde müsait araç bulunamadı.</p>
+        }
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+
+    private FleetBranding? _branding;
+    private IReadOnlyList<string> _subeler = [];
+    private IReadOnlyList<PublicAvailabilityResult>? _sonuclar;
+    private bool _arandi;
+    private string? _hata;
+
+    private static string Para(decimal tutar, string birim)
+        => birim == "TRY" ? $"₺{tutar:N2}" : $"{tutar:N2} {birim}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+
+        var bas = ParseDate(Bas);
+        var bit = ParseDate(Bit);
+        if (bas is null || bit is null) return; // ilk açılış: arama yok
+
+        _arandi = true;
+        try
+        {
+            _sonuclar = await Showcase.SearchAvailabilityAsync(bas.Value, bit.Value,
+                string.IsNullOrWhiteSpace(Sube) ? null : Sube);
+        }
+        catch (ValidationException ex) { _hata = ex.Message; _arandi = false; }
+    }
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
