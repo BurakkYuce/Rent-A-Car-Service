@@ -59,7 +59,11 @@ public static class TenantSettingsEndpoints
             using var ms = new MemoryStream();
             await logo.CopyToAsync(ms);
             var bytes = ms.ToArray();
-            if (!GorselMi(bytes)) return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Yalnız PNG/JPG yüklenebilir."));
+            // PR-3: paylaşılan ImageValidation — logo yalnız Png/Jpeg kabul eder (WebP'ye GENİŞLETİLMEDİ,
+            // QuestPDF'in WebP decode desteği doğrulanamadı; VehiclePhotoService'in allow-list'i ayrı).
+            var kind = RentACar.Application.Common.ImageValidation.Detect(bytes);
+            if (kind is not (RentACar.Application.Common.ImageKind.Png or RentACar.Application.Common.ImageKind.Jpeg))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Yalnız PNG/JPG yüklenebilir."));
             await svc.SetLogoAsync(bytes);
             return Results.Redirect("/ayarlar?ok=1");
         });
@@ -79,9 +83,4 @@ public static class TenantSettingsEndpoints
 
         return app;
     }
-
-    /// <summary>PNG (89 50 4E 47) veya JPEG (FF D8 FF) magic-bytes — bozuk/uygunsuz dosya PDF'i çökertmesin.</summary>
-    private static bool GorselMi(byte[] b) =>
-        (b.Length >= 4 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) ||
-        (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF);
 }

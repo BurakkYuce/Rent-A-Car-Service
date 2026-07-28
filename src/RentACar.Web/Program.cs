@@ -424,6 +424,7 @@ app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin pol
 app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
 app.MapKurEndpoints();            // TCMB yenile + sabit kur CRUD
 app.MapVehicleEndpoints();
+app.MapVehiclePhotoEndpoints(); // PR-3
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapRentalAddOnEndpoints();

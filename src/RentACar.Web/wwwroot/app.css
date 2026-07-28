@@ -678,4 +678,13 @@ span.flatpickr-weekday { font-weight: 600; }
 .import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); margin: var(--space-4) 0; }
 .import-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); }
 .import-card > h2:first-child { margin-top: 0; }
+
+/* Araç fotoğraf galerisi (PR-3). */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; margin: .75rem 0; }
+.photo-cell { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: .5rem; padding: .5rem; text-align: center; }
+.photo-cell img { width: 100%; height: 100px; object-fit: cover; border-radius: .35rem; }
+.photo-cell .badge { position: absolute; top: .35rem; left: .35rem; }
+.photo-actions { display: flex; gap: .25rem; justify-content: center; margin-top: .4rem; }
+.photo-actions form { margin: 0; }
+.photo-actions button { padding: .2rem .5rem; }
 .import-card form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin: var(--space-3) 0; }
