@@ -1,6 +1,8 @@
+using RentACar.Application.Common;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Common;
+using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Fleet;
 
@@ -27,14 +29,9 @@ public sealed class FleetShowcaseService(
 {
     public async Task<IReadOnlyList<FleetShowcaseCard>> ListShowcaseGroupsAsync(CancellationToken ct = default)
     {
-        var activeGroups = (await groups.ListActiveAsync(ct)).OrderBy(g => g.WebSira).ToList();
-        var eligible = (await vehicles.ListAsync(ct)).Where(v => !v.WebRezKapat).ToLookup(v => v.Grup);
-
         var cards = new List<FleetShowcaseCard>();
-        foreach (var g in activeGroups)
+        foreach (var (g, candidate) in await GetEligibleCandidatesByGroupAsync(ct))
         {
-            var candidate = eligible[g.Ad].FirstOrDefault();
-            if (candidate is null) continue; // uygun aracı olmayan grup vitrine GİRMEZ
             var meta = await photos.ListMetaAsync(candidate.Id, ct); // zaten Sira sıralı
             cards.Add(new FleetShowcaseCard(g.Id, g.Ad, g.Aciklama, g.KasaTuru, g.KoltukSayisi, g.KapiSayisi, g.BagajSayisi,
                 meta.Count > 0 ? meta[0].Id : null));
@@ -46,7 +43,9 @@ public sealed class FleetShowcaseService(
     {
         var group = (await groups.ListActiveAsync(ct)).FirstOrDefault(g => g.Id == groupId);
         if (group is null) return null;
-        var candidates = (await vehicles.ListAsync(ct)).Where(v => !v.WebRezKapat && v.Grup == group.Ad).ToList();
+        var candidates = (await vehicles.ListAsync(ct))
+            .Where(v => !v.WebRezKapat && TurkishText.EqualsIgnoreTurkishCase(v.Grup, group.Ad))
+            .ToList();
 
         var photoIds = new List<Guid>();
         foreach (var v in candidates)
@@ -57,4 +56,24 @@ public sealed class FleetShowcaseService(
 
     public Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
         => branding.GetAsync(tenant.TenantIdOrThrow(), ct);
+
+    /// <summary>PR-4.5: aktif grup → o gruba uygun (WebRezKapat=false) TEMSİLCİ araç eşleşmesi —
+    /// `Vehicle.Grup` serbest metin olduğu için `TurkishText.EqualsIgnoreTurkishCase` ile eşleştirilir
+    /// (ordinal/`OrdinalIgnoreCase` DEĞİL — İ/I/ı'da sessizce kaçırır, bkz. TurkishText doc-yorumu).
+    /// Aynı `Ad`'a sahip birden fazla aktif grup varsa HER İKİSİ de (WebSira sıralı) bağımsız değerlendirilir
+    /// — `ToDictionary(g => g.Ad)` KULLANILMAZ (tekil olmayan anahtarda çöker); roadmap PR-7'nin
+    /// `SearchAvailabilityAsync`'i de AYNI helper'ı kullanır.</summary>
+    private async Task<IReadOnlyList<(VehicleGroup Group, Vehicle Candidate)>> GetEligibleCandidatesByGroupAsync(CancellationToken ct)
+    {
+        var activeGroups = (await groups.ListActiveAsync(ct)).OrderBy(g => g.WebSira).ToList();
+        var eligibleVehicles = (await vehicles.ListAsync(ct)).Where(v => !v.WebRezKapat).ToList();
+
+        var result = new List<(VehicleGroup, Vehicle)>();
+        foreach (var g in activeGroups)
+        {
+            var candidate = eligibleVehicles.FirstOrDefault(v => TurkishText.EqualsIgnoreTurkishCase(v.Grup, g.Ad));
+            if (candidate is not null) result.Add((g, candidate));
+        }
+        return result;
+    }
 }
