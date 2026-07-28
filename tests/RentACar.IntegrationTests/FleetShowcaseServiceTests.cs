@@ -224,4 +224,45 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
             Assert.Equal("AcmeBrand", branding.Marka);
         }
     }
+
+    [Fact]
+    public async Task Turkce_case_farkli_grup_adi_yine_de_eslesir()
+    {
+        // PR-4.5: Vehicle.Grup="dizel" (küçük) / VehicleGroup.Ad="DİZEL" (Türkçe büyük İ) — OrdinalIgnoreCase
+        // bunu KAÇIRIR (İ/i eşleşmez), TurkishText.EqualsIgnoreTurkishCase eşleştirmeli.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantId = Guid.NewGuid();
+        await CreateGroupAsync(host, tenantId, "DİZEL", webSira: 0);
+        await CreateVehicleAsync(host, tenantId, "dizel");
+
+        using var scope = host.ScopeFor(tenantId, role: null);
+        var svc = scope.ServiceProvider.GetRequiredService<FleetShowcaseService>();
+        var cards = await svc.ListShowcaseGroupsAsync();
+
+        Assert.Single(cards);
+        Assert.Equal("DİZEL", cards[0].Ad);
+    }
+
+    [Fact]
+    public async Task Ayni_ada_sahip_iki_aktif_grup_cokmeden_ikisi_de_degerlendirilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantId = Guid.NewGuid();
+        await CreateGroupAsync(host, tenantId, "Orta", webSira: 0); // Kod benzersiz (=Ad), Ad ise DEĞİL
+        Guid g2;
+        using (var scope = host.ScopeFor(tenantId))
+        {
+            var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+            g2 = await groups.CreateAsync(new VehicleGroupInput { Kod = "ORTA2", Ad = "Orta", WebSira = 1 });
+        }
+        await CreateVehicleAsync(host, tenantId, "Orta");
+
+        using var scope2 = host.ScopeFor(tenantId, role: null);
+        var svc = scope2.ServiceProvider.GetRequiredService<FleetShowcaseService>();
+        var cards = await svc.ListShowcaseGroupsAsync(); // ToDictionary(g => g.Ad) olsaydı burada ArgumentException fırlardı
+
+        Assert.Equal(2, cards.Count);
+        Assert.All(cards, c => Assert.Equal("Orta", c.Ad));
+        Assert.Contains(cards, c => c.GroupId == g2);
+    }
 }

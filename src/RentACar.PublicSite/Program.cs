@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure;
@@ -42,6 +43,14 @@ builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+// Reverse-proxy (Caddy, aynı makinede) arkasında gerçek istemci IP'si — roadmap PR-8'in rate-limit'i
+// doğru IP'yi görsün diye ŞİMDİDEN kurulur (PR-4.5). Varsayılan KnownProxies=loopback: uzak istemciden
+// gelen sahte X-Forwarded-For'a güvenilmez — Web/Api ile AYNI desen (Program.cs'lerinde doğrulandı).
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+});
 
 app.UseStaticFiles();
 app.UseAntiforgery();

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.VehicleGroups;
+using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 
@@ -118,5 +119,26 @@ public sealed class VehicleGroupTests(PostgresFixture fx)
         // Aynı kod farklı tenant'ta serbest.
         await svc2.CreateAsync(new VehicleGroupInput { Kod = "T1", Ad = "Tenant2" });
         Assert.Single(await svc2.ListAsync());
+    }
+
+    [Fact]
+    public async Task ListUnmatchedGrupValuesAsync_case_farkli_eslesmeyi_kacirmaz_gercek_sapmayi_raporlar()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantId = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenantId);
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
+
+        await groups.CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomi" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34UM0001", Durum = VehicleStatus.Musait, Grup = "ekonomi" }); // case-farklı ama eşleşir
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34UM0002", Durum = VehicleStatus.Musait, Grup = "FİAT-EGEA-MANUEL-DİZEL" }); // gerçek sapma
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34UM0003", Durum = VehicleStatus.Musait, Grup = "FİAT-EGEA-MANUEL-DİZEL" }); // aynı sapma, 2. araç
+
+        var unmatched = await groups.ListUnmatchedGrupValuesAsync();
+
+        Assert.Single(unmatched);
+        Assert.Equal("FİAT-EGEA-MANUEL-DİZEL", unmatched[0].Grup);
+        Assert.Equal(2, unmatched[0].AracSayisi);
     }
 }
