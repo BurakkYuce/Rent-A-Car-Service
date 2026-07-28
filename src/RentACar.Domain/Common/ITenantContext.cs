@@ -16,4 +16,13 @@ public interface ITenantContext
     Guid TenantIdOrThrow() => HasTenant
         ? TenantId!.Value
         : throw new InvalidOperationException("Aktif tenant yok (ITenantContext çözümlenmedi).");
+
+    /// <summary>
+    /// Varsayılan false: TenantId boşken RLS'in mevcut default-deny davranışı (GUC boş → 0 satır,
+    /// bkz. TenantIsolationTests.Unset_tenant_sees_no_rows_default_deny) DEĞİŞMEZ. Yalnız istek-scoped
+    /// bağlamlar (ör. PublicTenantContext) — middleware'in TenantId'yi HER ZAMAN dolu bırakması gerektiği,
+    /// boş kalmasının yalnızca bir bug olabileceği yerlerde — true override eder: TenantConnectionInterceptor
+    /// o zaman sessiz boş sonuç yerine gürültülü hata fırlatır.
+    /// </summary>
+    bool ThrowIfTenantMissing => false;
 }

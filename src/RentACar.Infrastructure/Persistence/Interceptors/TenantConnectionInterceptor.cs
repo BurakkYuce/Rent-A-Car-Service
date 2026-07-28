@@ -35,9 +35,15 @@ public sealed class TenantConnectionInterceptor(ITenantContext tenantContext) : 
     private string TenantValue()
     {
         var tenant = _tenantContext.TenantId;
-        return tenant.HasValue && tenant.Value != Guid.Empty
-            ? tenant.Value.ToString()
-            : string.Empty; // default-deny
+        if (tenant.HasValue && tenant.Value != Guid.Empty) return tenant.Value.ToString();
+
+        if (_tenantContext.ThrowIfTenantMissing)
+            throw new InvalidOperationException(
+                "Tenant bağlamı boş (ITenantContext.TenantId == null) ama bu bağlam ThrowIfTenantMissing=true " +
+                "işaretli — sessiz default-deny yerine gürültülü hata (ör. host-çözümleme middleware'i bir " +
+                "bug yüzünden tenant'ı doldurmamış olabilir).");
+
+        return string.Empty; // default-deny — bkz. ITenantContext.ThrowIfTenantMissing doc-yorumu
     }
 
     private void ApplyTenant(DbConnection connection)

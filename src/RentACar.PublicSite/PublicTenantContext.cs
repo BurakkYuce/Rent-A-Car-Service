@@ -17,4 +17,9 @@ public sealed class PublicTenantContext : ITenantContext, ICurrentUser
     public UserRole? Role => null;
     public string? AssignedBranch => null;
     public Guid? AssignedBranchId => null;
+
+    /// <summary>PR-4.5: TenantHostResolutionMiddleware ya `Found` olup TenantId'yi doldurur ya da
+    /// `next()`'i hiç çağırmadan 404 döner — bu yüzden aşağı akışta TenantId'nin boş olması YALNIZ
+    /// bir bug ihtimali, meşru bir senaryo değil. Sessiz default-deny yerine gürültülü hata istenir.</summary>
+    public bool ThrowIfTenantMissing => true;
 }

@@ -16,6 +16,25 @@
     <p class="error">@Hata</p>
 }
 
+@if (_unmatched.Count > 0)
+{
+    <details class="unmatched-grup">
+        <summary class="link">⚠ Hiçbir gruba eşleşmeyen @_unmatched.Count araç grup değeri (tanılama)</summary>
+        <p class="muted small">Filodaki bu <code>Grup</code> serbest-metin değerleri aşağıdaki tanımlı hiçbir
+            araç grubu adına eşleşmiyor (Türkçe büyük/küçük harf farkları dahil karşılaştırıldı) — araçlar
+            vitrine/aramaya girmiyor olabilir. Engelleyici değildir, yalnız veri-kalitesi görünürlüğü.</p>
+        <table class="grid tr-grid">
+            <thead><tr><th>Grup değeri</th><th>Araç sayısı</th></tr></thead>
+            <tbody>
+                @foreach (var u in _unmatched)
+                {
+                    <tr><td class="mono">@u.Grup</td><td class="num">@u.AracSayisi</td></tr>
+                }
+            </tbody>
+        </table>
+    </details>
+}
+
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Araç Grubu</summary>
     <form method="post" action="/arac-gruplari/create" class="grid-form"><AntiforgeryToken />
@@ -141,6 +160,7 @@
 
     private IReadOnlyList<VehicleGroup> _list = [];
     private List<string> _markaOpts = [], _segmentOpts = [];
+    private IReadOnlyList<UnmatchedGrupValue> _unmatched = [];
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -153,5 +173,6 @@
         var markalar = await Markalar.ListActiveAsync();
         _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
         _segmentOpts = Opts(_list.Select(g => g.Segment));
+        _unmatched = await AracGruplari.ListUnmatchedGrupValuesAsync();
     }
 }
