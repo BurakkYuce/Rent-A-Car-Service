@@ -1,0 +1,16 @@
+@page "/"
+@inject PublicTenantContext Tenant
+
+<PageTitle>RentPro — Site</PageTitle>
+
+<h1>Merhaba</h1>
+<p>
+    @if (Tenant.TenantId is { } id)
+    {
+        <text>Tenant: @id</text>
+    }
+    else
+    {
+        <text>Tenant henüz çözümlenmedi (host-çözümleme middleware'i PR-2'de eklenecek).</text>
+    }
+</p>
