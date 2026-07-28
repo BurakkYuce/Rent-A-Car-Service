@@ -63,6 +63,10 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// KAPALI — parasız tahsilat kaydı kasa gerçekliğini yalanlar; yalnız gerçek oto-ödeme akışında aç).</summary>
     public bool DonemselOtomatikTahsilat { get; set; }
 
+    /// <summary>PR-0: tenant'ın halka açık pazarlama/rezervasyon sitesi (RentACar.PublicSite) aktif mi.
+    /// "Sitemi Aç" ile true olur; kapatılan/pasif tenant'ta host çözümlenmiş olsa bile site 404 döner.</summary>
+    public bool PublicSiteEnabled { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

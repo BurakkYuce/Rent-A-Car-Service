@@ -1,4 +1,4 @@
-// Platform tablolari (RLS YOK; Tenants/Users). Tenant filtresi UYGULANMAZ.
+// Platform tablolari (RLS YOK; Tenants/Users/TenantDomains). Tenant filtresi UYGULANMAZ.
 // NOT: HasQueryFilter BURAYA YAZILMAZ — AppDbContext.OnModelCreating'deki merkezi
 // dongu tum ITenantOwned entity'lere tenant filtresini otomatik uygular.
 using Microsoft.EntityFrameworkCore;
@@ -45,5 +45,22 @@ internal sealed class UserConfig : IEntityTypeConfiguration<User>
         e.HasIndex(x => new { x.TenantId, x.UserName }).IsUnique();
         e.Property(x => x.CalendarToken).HasMaxLength(64);
         e.HasIndex(x => x.CalendarToken).IsUnique(); // token→user çözümü (null'lar Postgres'te çakışmaz)
+    }
+}
+
+// ---- TenantDomain (platform; public site host→tenant eşlemesi, PR-0) ----
+internal sealed class TenantDomainConfig : IEntityTypeConfiguration<TenantDomain>
+{
+    public void Configure(EntityTypeBuilder<TenantDomain> e)
+    {
+        e.ToTable("TenantDomains");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Host).IsRequired().HasMaxLength(256);
+        e.HasIndex(x => x.Host).IsUnique();
+        e.Property(x => x.Kind).HasConversion<int>();
+        e.Property(x => x.Status).HasConversion<int>();
+        e.Property(x => x.VerificationToken).HasMaxLength(128);
+        e.HasIndex(x => x.TenantId);
     }
 }
