@@ -1,16 +1,78 @@
 @page "/"
-@inject PublicTenantContext Tenant
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
 
-<PageTitle>RentPro — Site</PageTitle>
+<PageTitle>@(_branding?.Marka ?? "RentPro")</PageTitle>
 
-<h1>Merhaba</h1>
-<p>
-    @if (Tenant.TenantId is { } id)
+<div class="container">
+    <header class="site-header">
+        <h1>@(_branding?.Marka ?? "RentPro")</h1>
+        @if (_branding is { } b && (b.Adres is not null || b.Tel is not null || b.Email is not null))
+        {
+            <p class="contact">
+                @string.Join(" · ", new[] { b.Adres, b.Tel, b.Email }.Where(x => !string.IsNullOrWhiteSpace(x)))
+            </p>
+        }
+    </header>
+
+    <h2 class="section-title">Filomuz</h2>
+
+    @if (_cards is { Count: > 0 })
     {
-        <text>Tenant: @id</text>
+        <div class="grid">
+            @foreach (var c in _cards)
+            {
+                <a class="card" href="@($"/araclar/{c.GroupId}")">
+                    @if (c.CoverPhotoId is { } photoId)
+                    {
+                        <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@c.Ad" />
+                    }
+                    else
+                    {
+                        <div class="card-img-placeholder">🚗</div>
+                    }
+                    <div class="card-body">
+                        <h3>@c.Ad</h3>
+                        @if (!string.IsNullOrWhiteSpace(c.Aciklama))
+                        {
+                            <p>@c.Aciklama</p>
+                        }
+                        <div class="chips">
+                            @if (!string.IsNullOrWhiteSpace(c.KasaTuru))
+                            {
+                                <span class="chip">@c.KasaTuru</span>
+                            }
+                            @if (c.KoltukSayisi is { } koltuk)
+                            {
+                                <span class="chip">@koltuk koltuk</span>
+                            }
+                            @if (c.KapiSayisi is { } kapi)
+                            {
+                                <span class="chip">@kapi kapı</span>
+                            }
+                            @if (c.BagajSayisi is { } bagaj)
+                            {
+                                <span class="chip">@bagaj bagaj</span>
+                            }
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
     }
     else
     {
-        <text>Tenant henüz çözümlenmedi (host-çözümleme middleware'i PR-2'de eklenecek).</text>
+        <p class="empty-state">Şu anda vitrine eklenmiş bir araç bulunmuyor.</p>
     }
-</p>
+</div>
+
+@code {
+    private IReadOnlyList<FleetShowcaseCard>? _cards;
+    private FleetBranding? _branding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _cards = await Showcase.ListShowcaseGroupsAsync();
+    }
+}

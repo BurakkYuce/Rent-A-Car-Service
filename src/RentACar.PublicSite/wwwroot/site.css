@@ -1,0 +1,132 @@
+:root{
+  --ink:#16150f; --ink-soft:#6b6459; --bg:#faf8f4; --card:#fff;
+  --line:#e6e1d8; --accent:#1a5c4a;
+  --s1:.5rem; --s2:1rem; --s3:1.5rem; --s4:2.5rem; --s5:4rem;
+  --t0:clamp(1rem,.95rem + .2vw,1.0625rem);
+  --t1:clamp(1.25rem,1.1rem + .5vw,1.5rem);
+  --t2:clamp(1.75rem,1.4rem + 1.4vw,2.5rem);
+  --r:12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--t0);
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s3) var(--s2) var(--s5);
+}
+
+a { color: var(--accent); }
+
+.site-header {
+  padding: var(--s4) 0 var(--s3);
+}
+
+.site-header h1 {
+  font-size: var(--t2);
+  margin: 0 0 var(--s1);
+}
+
+.site-header .contact {
+  color: var(--ink-soft);
+  font-size: var(--t0);
+}
+
+.section-title {
+  font-size: var(--t1);
+  margin: var(--s4) 0 var(--s2);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--s3);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--ink);
+  display: block;
+}
+
+img.card-img, .card-img-placeholder {
+  aspect-ratio: 3/2;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--r) var(--r) 0 0;
+}
+
+.card-img-placeholder {
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--line);
+  font-size: 2.5rem;
+}
+
+.card-body {
+  padding: var(--s2);
+}
+
+.card-body h3 {
+  margin: 0 0 var(--s1);
+  font-size: var(--t1);
+}
+
+.card-body p {
+  margin: 0 0 var(--s2);
+  color: var(--ink-soft);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.chip {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .2rem .6rem;
+  font-size: .85em;
+  color: var(--ink-soft);
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s2);
+}
+
+.photo-grid a {
+  border-radius: var(--r);
+  overflow: hidden;
+  display: block;
+}
+
+.empty-state {
+  color: var(--ink-soft);
+  padding: var(--s4) 0;
+  text-align: center;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: var(--s3);
+}

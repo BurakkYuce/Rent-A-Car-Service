@@ -13,6 +13,10 @@ public interface IVehiclePhotoRepository
 
     Task<VehiclePhoto?> FindAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default);
 
+    /// <summary>PR-4: yalnız Id ile arama — VehicleId GEREKMEZ, izolasyon tamamen RLS'e dayanır (public-site
+    /// serve uçları için; photoId tahmin edilse bile GUC başka tenant'a set edilemeyeceğinden satır dönmez).</summary>
+    Task<VehiclePhoto?> FindByIdAsync(Guid photoId, CancellationToken ct = default);
+
     Task<int> CountAsync(Guid vehicleId, CancellationToken ct = default);
 
     /// <summary><paramref name="photo"/>.Sira YOK SAYILIR — mevcut max+1 repo içinde hesaplanır (boş

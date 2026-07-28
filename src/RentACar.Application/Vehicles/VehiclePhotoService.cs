@@ -39,6 +39,24 @@ public sealed class VehiclePhotoService(
         return p is null ? null : new VehiclePhotoContent(p.Bytes, p.ContentType);
     }
 
+    /// <summary>PR-4: public-site serve ucu — VehicleId/BranchScope YOK (public ziyaretçi Operatör değil,
+    /// RLS zaten TEK gerçek sınır). İç RentACar.Web tarafı bunu KULLANMAZ, `GetBytesAsync` aynen kalır.</summary>
+    public async Task<VehiclePhotoContent?> GetPublicAsync(Guid photoId, CancellationToken ct = default)
+    {
+        var p = await repository.FindByIdAsync(photoId, ct);
+        return p is null ? null : new VehiclePhotoContent(p.Bytes, p.ContentType);
+    }
+
+    /// <summary>PR-4: public-site thumb serve ucu — <see cref="GetPublicAsync"/> ile aynı guard'sız desen.</summary>
+    public async Task<VehiclePhotoContent?> GetPublicThumbAsync(Guid photoId, CancellationToken ct = default)
+    {
+        var p = await repository.FindByIdAsync(photoId, ct);
+        if (p is null) return null;
+        return p.ThumbBytes is { Length: > 0 }
+            ? new VehiclePhotoContent(p.ThumbBytes, "image/jpeg")
+            : new VehiclePhotoContent(p.Bytes, p.ContentType);
+    }
+
     /// <summary>ThumbBytes yoksa (üretim başarısız olmuştu) tam boya düşer — serve ucu her zaman bir şey döner.</summary>
     public async Task<VehiclePhotoContent?> GetThumbAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default)
     {
