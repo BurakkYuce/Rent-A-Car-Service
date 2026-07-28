@@ -15,10 +15,13 @@
                 @string.Join(" · ", new[] { b.Adres, b.Tel, b.Email }.Where(x => !string.IsNullOrWhiteSpace(x)))
             </p>
         }
-        @if (_blogVar)
-        {
-            <p><a href="/blog">Blog →</a></p>
-        }
+        <p class="ust-linkler">
+            <a href="/musaitlik">Müsaitlik ve fiyat sorgula →</a>
+            @if (_blogVar)
+            {
+                <a href="/blog">Blog →</a>
+            }
+        </p>
     </header>
 
     <h2 class="section-title">Filomuz</h2>

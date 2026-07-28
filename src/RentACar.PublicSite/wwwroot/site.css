@@ -130,3 +130,85 @@ img.card-img, .card-img-placeholder {
   display: inline-block;
   margin-bottom: var(--s3);
 }
+
+/* ---- PR-7: müsaitlik arama formu + fiyat kartı ---- */
+.arama-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: flex-end;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.arama-form label {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  font-size: .9em;
+  color: var(--ink-soft);
+}
+
+.arama-form input, .arama-form select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .45rem .6rem;
+}
+
+.arama-form button {
+  font: inherit;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: .55rem 1.2rem;
+  cursor: pointer;
+}
+
+.muted-note {
+  color: var(--ink-soft);
+  margin-bottom: var(--s2);
+}
+
+.fiyat {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  margin-bottom: var(--s2);
+}
+
+.fiyat-buyuk {
+  font-size: var(--t1);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fiyat-birim {
+  font-size: .7em;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.fiyat-kucuk, .fiyat-toplam {
+  font-size: .85em;
+  color: var(--ink-soft);
+}
+
+.kart-aksiyon {
+  margin-top: var(--s2);
+  display: flex;
+  gap: var(--s2);
+}
+
+.ust-linkler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
