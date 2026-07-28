@@ -106,6 +106,22 @@
     </form>
 </fieldset>
 
+<fieldset>
+    <legend>Halka Açık Site</legend>
+    @if (_m.PublicSiteEnabled)
+    {
+        <p class="ok">Site açık — <a href="https://@_m.PublicSiteHost" target="_blank">@_m.PublicSiteHost</a></p>
+    }
+    else
+    {
+        <p class="muted">Site henüz açık değil. Açtığınızda araç filonuz + iletişim bilgileriniz
+            <code>{firma-kodu}.rentpro.com</code> adresinde anında yayına alınır — ekstra kurulum/deploy gerekmez.</p>
+        <form method="post" action="/ayarlar/site-ac"><AntiforgeryToken />
+            <button type="submit">Sitemi Aç</button>
+        </form>
+    }
+</fieldset>
+
 @code {
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
