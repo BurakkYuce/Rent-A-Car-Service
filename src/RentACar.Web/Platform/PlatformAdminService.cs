@@ -20,10 +20,14 @@ public sealed record PlatformTenantDetay(
     Guid Id, string Code, string Name, bool IsActive, DateTimeOffset? KapanisTarihiUtc,
     DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc,
     string? YetkiliAd, string? Eposta, string? Telefon, string? Notlar, string? Plan,
-    int UserCount, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun)
+    int UserCount, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun,
+    bool PublicSiteEnabled, IReadOnlyList<PlatformTenantDomain> Domainler)
 {
     public string Durum => KapanisTarihiUtc is not null ? "Kapalı" : IsActive ? "Aktif" : "Pasif";
 }
+
+/// <summary>PR-9: platform konsolunda salt-okunur host satırı (halka açık site görünürlüğü).</summary>
+public sealed record PlatformTenantDomain(string Host, string Tur, string Durum);
 
 /// <summary>
 /// Platform süper-admin veri katmanı — YALNIZ platform tablolarına (<c>Tenants</c>/<c>Users</c>) dokunur.
@@ -114,9 +118,30 @@ public sealed class PlatformAdminService(
             return (arac, toplam, aktif, gelir);
         }, ct);
 
+        // PR-9 halka açık site görünürlüğü: TenantDomains PLATFORM tablosu (RLS yok) → owner doğrudan okur.
+        // TenantSettings ise FORCE-RLS ardında → tenant-GUC'lu tx gerekir (yukarıdaki desen).
+        var domainler = await db.TenantDomains.AsNoTracking()
+            .Where(d => d.TenantId == tenantId)
+            .OrderBy(d => d.Kind).ThenBy(d => d.CreatedAtUtc)
+            .Select(d => new { d.Host, d.Kind, d.Status })
+            .ToListAsync(ct);
+        var siteAcik = await TenantKapsaminda(db, tenantId, async () =>
+            await db.TenantSettings.AsNoTracking().IgnoreQueryFilters()
+                .Where(x => x.TenantId == tenantId).Select(x => x.PublicSiteEnabled).FirstOrDefaultAsync(ct), ct);
+
         return new PlatformTenantDetay(t.Id, t.Code, t.Name, t.IsActive, t.KapanisTarihiUtc,
             t.CreatedAtUtc, t.UpdatedAtUtc, t.YetkiliAd, t.Eposta, t.Telefon, t.Notlar, t.Plan,
-            userCount, aracSayisi, aktifKira, toplamKira, sonGiris, gelir30);
+            userCount, aracSayisi, aktifKira, toplamKira, sonGiris, gelir30,
+            siteAcik,
+            domainler.Select(d => new PlatformTenantDomain(d.Host,
+                d.Kind == TenantDomainKind.Custom ? "Özel Domain" : "Alt Domain",
+                d.Status switch
+                {
+                    TenantDomainStatus.Active => "Aktif",
+                    TenantDomainStatus.PendingVerification => "Doğrulama Bekliyor",
+                    TenantDomainStatus.Failed => "Başarısız",
+                    _ => d.Status.ToString()
+                })).ToList());
     }
 
     /// <summary>Bilgi alanlarını günceller. Code DEĞİŞMEZ (login anahtarı). Kolon sınırları burada

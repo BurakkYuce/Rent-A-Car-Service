@@ -31,6 +31,12 @@ public sealed class TenantHostResolutionMiddleware(IPublicTenantResolver resolve
     private static bool ShouldSkip(PathString path)
     {
         var p = path.Value ?? "";
+        // PR-9: uzantılı ama DİNAMİK (tenant-bağımlı) uçlar — `Path.HasExtension` bunları statik dosya
+        // sanıp atlardı, tenant çözümlenmeden `TenantIdOrThrow` patlardı (canlı duman testinde yakalandı).
+        if (p.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase)
+            || p.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         return p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             // PR-5: Caddy on_demand_tls ask-endpoint'i — İSTEĞİN KENDİ Host header'ı (Caddy'nin ask isteği,
