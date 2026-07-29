@@ -84,6 +84,31 @@ else
             </form>
         }
     </div>
+
+    @* ---- PR-9: halka açık site görünürlüğü (SALT-OKUNUR). Site açma/kapama tenant'ın kendi
+       "Sitemi Aç" self-servisinde kalır — platform admin'in zorla kapatması AYRI bir özellik. ---- *@
+    <h2>Halka Açık Site</h2>
+    <div class="kf-panel">
+        <p>@(_d.PublicSiteEnabled ? "Site AÇIK" : "Site kapalı")</p>
+        @if (_d.Domainler.Count > 0)
+        {
+            <div class="table-scroll">
+            <table class="grid tr-grid">
+                <thead><tr><th>Host</th><th>Tür</th><th>Durum</th></tr></thead>
+                <tbody>
+                    @foreach (var dm in _d.Domainler)
+                    {
+                        <tr><td class="mono">@dm.Host</td><td>@dm.Tur</td><td>@dm.Durum</td></tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+        else
+        {
+            <p class="muted small">Tanımlı host yok (firma "Sitemi Aç" demedi).</p>
+        }
+    </div>
 }
 
 @code {

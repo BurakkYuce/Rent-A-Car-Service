@@ -87,6 +87,32 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
 
+// ---- PR-9: güvenlik yanıt başlıkları. RentACar.Web/Program.cs'teki AYNI set — paylaşılan bir
+// kütüphaneye ÇIKARILMADI (PR-4'ün VehiclePhotoEndpoints kararıyla tutarlı: iki Web-SDK projesinde
+// ~15 satırlık tekrar, yanlış katmana abstraction sokmaktan iyi). PublicSite'ta interaktif circuit YOK,
+// bu yüzden connect-src'a ws gerekmiyor; frame-ancestors 'none' (halka açık site iframe'lenmemeli —
+// clickjacking yüzeyini kapatır; Web'de 'self' çünkü orada PDF-yazdır iframe'i var). ----
+app.Use(async (ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["X-Frame-Options"] = "DENY";
+    h["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    h["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()";
+    h["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self'; " +      // inline script YOK (static SSR; Blazor'ın kendi js'i harici dosya)
+        "style-src 'self' 'unsafe-inline'; " + // inline style attr'ları (Web ile aynı bilinçli taviz)
+        "img-src 'self' data:; " +
+        "font-src 'self'; " +
+        "connect-src 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'";
+    await next();
+});
+
 app.UseRateLimiter(); // PR-8 — ForwardedHeaders'tan SONRA (gerçek IP partition'ı)
 
 app.UseStaticFiles();
@@ -99,6 +125,7 @@ app.MapVehiclePhotoEndpoints(); // PR-4
 app.MapDomainVerificationEndpoints(); // PR-5: Caddy on_demand_tls ask
 app.MapBlogEndpoints(); // PR-6: blog kapak serve
 app.MapPublicBookingRequestEndpoints(); // PR-8: talep formu POST
+app.MapSeoEndpoints(); // PR-9: robots.txt + sitemap.xml (kanonik host'tan)
 
 app.MapRazorComponents<App>();
 
