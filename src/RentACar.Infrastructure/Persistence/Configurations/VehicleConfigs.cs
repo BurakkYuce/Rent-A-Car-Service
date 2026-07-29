@@ -225,6 +225,9 @@ internal sealed class WebIlanConfig : IEntityTypeConfiguration<WebIlan>
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Baslik).IsRequired().HasMaxLength(160);
+        e.Property(x => x.Slug).IsRequired().HasMaxLength(200);
+        // Slug URL'in kendisi → tenant içinde benzersiz (public /araclar/{slug} tekil satır çözer).
+        e.HasIndex(x => new { x.TenantId, x.Slug }).IsUnique();
         e.Property(x => x.EslesmeAnahtari).HasMaxLength(256);
         e.Property(x => x.Durum).HasConversion<int>();
         e.Property(x => x.GunlukFiyat).HasColumnType("numeric(19,4)");

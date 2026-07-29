@@ -34,6 +34,19 @@ public class WebIlan : ITenantOwned, IAuditable
     public string Baslik { get; set; } = string.Empty;
 
     /// <summary>
+    /// PR-14 — halka açık adres: <c>/araclar/{Slug}</c>. Tenant içinde BENZERSİZ.
+    /// Başlıktan <see cref="Common"/>.TurkishText.Slugify ile türetilir.
+    ///
+    /// <para>Blog'dan FARKI: "ayrı göster" modu aynı başlıkla N ilan üretir (12 Egea = 12 kart) →
+    /// çakışmada hata FIRLATILMAZ, otomatik son-ek verilir (<c>…-2</c>, <c>…-3</c>). Blog'da slug
+    /// kullanıcı girdisidir ve çakışma gerçek bir hatadır; burada sistem üretir.</para>
+    ///
+    /// <para>Yayınlandıktan sonra DEĞİŞMEZ (mevcut linkler/sitemap kırılmasın) — Blog'un
+    /// "slug donmuş" kuralıyla aynı.</para>
+    /// </summary>
+    public string Slug { get; set; } = string.Empty;
+
+    /// <summary>
     /// "Aynı araç" imzası: <c>Normalize(Marka)|Normalize(Tip)|Vites|Yakit</c>. Sonradan filoya
     /// eklenen araçların hangi ilana ait olabileceğini bulmak ve operatörün İKİZ ilan yaratmasını
     /// engellemek için saklanır.

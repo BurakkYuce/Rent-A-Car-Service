@@ -151,17 +151,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
         return slug;
     }
 
-    /// <summary>Türkçe-doğru slug: `TurkishText.Normalize` (İ/I/ı dahil) → alfanümerik dışı her şey tire →
-    /// ardışık/kenar tireler sadeleşir.</summary>
-    internal static string Slugify(string s)
-    {
-        var normalized = TurkishText.Normalize(s);
-        var sb = new StringBuilder(normalized.Length);
-        foreach (var ch in normalized)
-        {
-            if (char.IsAsciiLetterOrDigit(ch)) sb.Append(ch);
-            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
-        }
-        return sb.ToString().Trim('-');
-    }
+    /// <summary>PR-14: gerçek uygulama <see cref="TurkishText.Slugify"/>'a taşındı (ilan adresleri de
+    /// aynı kuralı kullanıyor). Bu köprü, mevcut çağrıları ve testleri kırmamak için duruyor.</summary>
+    internal static string Slugify(string s) => TurkishText.Slugify(s);
 }
