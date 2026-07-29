@@ -64,6 +64,10 @@ public static class VehicleEndpoints
         Marka = FormParse.Str(f, "marka"),
         Tip = FormParse.Str(f, "tip"),
         Grup = FormParse.Str(f, "grup"),
+        // PR-10: form <select name="grup"> DAİMA post eder → anahtar var + değer boş demek,
+        // kullanıcının "(Grupsuz)"u BİLİNÇLİ seçtiği demektir (varsayılan grup uygulanmaz).
+        // Anahtarın hiç olmaması ise "belirtilmedi"dir (yalnız form-dışı çağrılar).
+        GrupBilincliBos = f.ContainsKey("grup") && string.IsNullOrWhiteSpace(f["grup"].ToString()),
         Segment = FormParse.Str(f, "segment"),
         Sipp = FormParse.Str(f, "sipp"),
         Renk = FormParse.Str(f, "renk"),

@@ -248,12 +248,19 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
-        await CreateGroupAsync(host, tenantId, "Orta", webSira: 0); // Kod benzersiz (=Ad), Ad ise DEĞİL
+        await CreateGroupAsync(host, tenantId, "Orta", webSira: 0);
         Guid g2;
         using (var scope = host.ScopeFor(tenantId))
         {
-            var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-            g2 = await groups.CreateAsync(new VehicleGroupInput { Kod = "ORTA2", Ad = "Orta", WebSira = 1 });
+            // PR-10 Ad benzersizliğini SERVİS zorlar; DB'de unique index YOK (Türkçe-duyarsız index
+            // computed column ister — PR-12'nin GrupId FK'sına kadar ertelendi). Yani mükerrer Ad hâlâ
+            // mümkündür: PR-10 ÖNCESİ yazılmış veri, doğrudan SQL, ileride eklenecek bir içe-aktarım.
+            // Vitrinin buna karşı dayanıklılığı bu yüzden hâlâ gerekli → tohumlama bilinçli olarak
+            // repo'dan yapılır (servis kapısını atlar, kapının kendisi ayrıca GrupEslemeTests'te test edilir).
+            var repo = scope.ServiceProvider.GetRequiredService<IVehicleGroupRepository>();
+            var dup = new VehicleGroup { Kod = "ORTA2", Ad = "Orta", WebSira = 1, Aktif = true };
+            await repo.CreateAsync(dup);
+            g2 = dup.Id;
         }
         await CreateVehicleAsync(host, tenantId, "Orta");
 

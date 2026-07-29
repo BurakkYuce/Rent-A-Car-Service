@@ -16,19 +16,42 @@
     <p class="error">@Hata</p>
 }
 
+@if (!string.IsNullOrEmpty(Bilgi))
+{
+    <p class="success">@Bilgi</p>
+}
+
 @if (_unmatched.Count > 0)
 {
-    <details class="unmatched-grup">
+    <details class="unmatched-grup" open>
         <summary class="link">⚠ Hiçbir gruba eşleşmeyen @(_unmatched.Count) araç grup değeri (tanılama)</summary>
-        <p class="muted small">Filodaki bu <code>Grup</code> serbest-metin değerleri aşağıdaki tanımlı hiçbir
-            araç grubu adına eşleşmiyor (Türkçe büyük/küçük harf farkları dahil karşılaştırıldı) — araçlar
-            vitrine/aramaya girmiyor olabilir. Engelleyici değildir, yalnız veri-kalitesi görünürlüğü.</p>
+        <p class="muted small">Filodaki bu <code>Grup</code> değerleri aşağıdaki tanımlı hiçbir araç grubu
+            adına eşleşmiyor (Türkçe büyük/küçük harf farkları dahil karşılaştırıldı) — <strong>bu araçlar
+            vitrine ve müsaitlik aramasına girmez.</strong> Hedef grubu seçip "Ata" ile toplu
+            düzeltebilirsiniz; taşıma araçların <code>Grup</code> alanını günceller (denetime yazılır).</p>
         <table class="grid tr-grid">
-            <thead><tr><th>Grup değeri</th><th>Araç sayısı</th></tr></thead>
+            <thead><tr><th>Grup değeri</th><th>Araç sayısı</th><th>Hedef grup</th></tr></thead>
             <tbody>
                 @foreach (var u in _unmatched)
                 {
-                    <tr><td class="mono">@u.Grup</td><td class="num">@u.AracSayisi</td></tr>
+                    <tr>
+                        <td class="mono">@u.Grup</td>
+                        <td class="num">@u.AracSayisi</td>
+                        <td>
+                            <form method="post" action="/arac-gruplari/ata" class="inline-form"><AntiforgeryToken />
+                                <input type="hidden" name="kaynak" value="@u.Grup" />
+                                <input type="hidden" name="bos" value="@(u.Bos ? "true" : "false")" />
+                                <select name="hedefGrupId" required>
+                                    <option value="">(seçiniz)</option>
+                                    @foreach (var g in _list.Where(x => x.Aktif))
+                                    {
+                                        <option value="@g.Id">@g.Ad</option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn-sm">Ata</button>
+                            </form>
+                        </td>
+                    </tr>
                 }
             </tbody>
         </table>
@@ -157,6 +180,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "bilgi")] public string? Bilgi { get; set; } // PR-10 atama sonucu
 
     private IReadOnlyList<VehicleGroup> _list = [];
     private List<string> _markaOpts = [], _segmentOpts = [];

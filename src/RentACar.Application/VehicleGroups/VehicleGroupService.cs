@@ -8,8 +8,11 @@ namespace RentACar.Application.VehicleGroups;
 
 /// <summary>Bilinen hiçbir aktif `VehicleGroup.Ad`'a (Türkçe-duyarlı normalize dahil) eşleşmeyen,
 /// filodaki DISTINCT `Vehicle.Grup` serbest-metin değeri (PR-4.5 tanılama — bkz. FleetShowcaseService
-/// doc-yorumu: case-fold bunu çözmez, bu ayrıksı bir veri-kalitesi sinyalidir).</summary>
-public sealed record UnmatchedGrupValue(string Grup, int AracSayisi);
+/// doc-yorumu: case-fold bunu çözmez, bu ayrıksı bir veri-kalitesi sinyalidir).
+/// PR-10: <paramref name="Bos"/> true olan satır, grubu hiç GİRİLMEMİŞ araçları toplar (PR-10 öncesi
+/// açılmış kayıtlar varsayılan kuralından etkilenmez) — atama çağrısına string yerine bu BAYRAKLA
+/// gider, aksi halde gerçekten "(boş)" yazan bir grup değeriyle karışırdı.</summary>
+public sealed record UnmatchedGrupValue(string Grup, int AracSayisi, bool Bos = false);
 
 /// <summary>
 /// Araç grubu master iş mantığı: doğrulama + kod benzersizliği + CRUD. Yazma operasyonel
@@ -17,7 +20,8 @@ public sealed record UnmatchedGrupValue(string Grup, int AracSayisi);
 /// (<see cref="ListActiveAsync"/>) yetkisizdir (araç kayıt formu çağırır). Tenant izolasyonu/audit
 /// alt katmanda otomatik.
 /// </summary>
-public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICurrentUser currentUser, VehicleService vehicles)
+public sealed class VehicleGroupService(
+    IVehicleGroupRepository repository, ICurrentUser currentUser, VehicleService vehicles, ITenantCache cache)
 {
     private readonly IVehicleGroupRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -33,17 +37,24 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
     public async Task<IReadOnlyList<UnmatchedGrupValue>> ListUnmatchedGrupValuesAsync(CancellationToken ct = default)
     {
         var activeAdlar = (await ListActiveAsync(ct)).Select(g => g.Ad).ToList();
-        var grupDegerleri = (await vehicles.ListAsync(ct))
+        var filo = await vehicles.ListAsync(ct);
+
+        var sonuc = filo
             .Select(v => v.Grup)
             .Where(g => !string.IsNullOrWhiteSpace(g))
-            .Select(g => g!);
-
-        return grupDegerleri
+            .Select(g => g!)
             .Where(g => !activeAdlar.Any(ad => TurkishText.EqualsIgnoreTurkishCase(ad, g)))
             .GroupBy(g => g, StringComparer.Ordinal)
             .Select(grp => new UnmatchedGrupValue(grp.Key, grp.Count()))
             .OrderByDescending(x => x.AracSayisi)
             .ToList();
+
+        // PR-10: grubu hiç girilmemiş araçlar da atanabilir bir kaynaktır (en sonda — bunlar bir
+        // "yanlış değer" değil, eksik değerdir).
+        var bosSayi = filo.Count(v => string.IsNullOrWhiteSpace(v.Grup));
+        if (bosSayi > 0) sonuc.Add(new UnmatchedGrupValue("(boş)", bosSayi, Bos: true));
+
+        return sonuc;
     }
 
     public Task<VehicleGroup?> GetAsync(Guid id, CancellationToken ct = default)
@@ -56,6 +67,8 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu araç grubu zaten var.");
+        if (await _repository.AdExistsAsync(n.Ad, excludeId: null, ct))
+            throw new ValidationException($"'{n.Ad}' adlı araç grubu zaten var.");
 
         var group = new VehicleGroup();
         Apply(group, n);
@@ -70,12 +83,46 @@ public sealed class VehicleGroupService(IVehicleGroupRepository repository, ICur
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu araç grubu zaten var.");
+        // Ad taşıyıcı kolondur (araç eşlemesi/cascade/vitrin hep Ad üstünden) → mevcut bir adın
+        // ÜSTÜNE rename edilirse iki grubun filosu tek isim havuzunda birleşirdi.
+        if (await _repository.AdExistsAsync(n.Ad, excludeId: id, ct))
+            throw new ValidationException($"'{n.Ad}' adlı araç grubu zaten var.");
 
-        return await _repository.UpdateAsync(id, group =>
+        var sonuc = await _repository.UpdateAsync(id, group =>
         {
             Apply(group, n);
             group.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+
+        // Cascade araçların Grup değerini değiştirdiyse araç listesi cache'i bayat kaldı.
+        // (Grup listesi cache'lenmiyor — invalidate edilecek ayrı bir anahtarı yok.)
+        if (sonuc.TasinanArac > 0) cache.Invalidate(VehicleService.CacheKey);
+        return sonuc.Bulundu;
+    }
+
+    /// <summary>
+    /// PR-10 eşleme aracı: filodaki serbest-metin bir <c>Grup</c> değerini tanımlı bir gruba taşır
+    /// (Araç Grupları ekranındaki tanılama panelinin "Ata" butonu). Rename cascade ile AYNI repo
+    /// çekirdeğini kullanır — tek davranış, tek Türkçe-karşılaştırma kuralı.
+    /// </summary>
+    /// <param name="kaynakDeger">Taşınacak serbest-metin değer (<paramref name="bosOlanlar"/> true ise yok sayılır).</param>
+    /// <param name="bosOlanlar">true → kaynak, <c>Grup</c>'u BOŞ olan araçlardır (panelde "(boş)" satırı).</param>
+    /// <returns>Taşınan araç sayısı.</returns>
+    public async Task<int> GrupDegeriAtaAsync(string? kaynakDeger, bool bosOlanlar, Guid hedefGrupId, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!bosOlanlar && string.IsNullOrWhiteSpace(kaynakDeger))
+            throw new ValidationException("Kaynak grup değeri zorunludur.");
+
+        var hedef = await _repository.FindAsync(hedefGrupId, ct)
+            ?? throw new ValidationException("Hedef araç grubu bulunamadı.");
+        // Pasif gruba atamak araçları sessizce görünmez yapardı (vitrin yalnız aktif grupları okur).
+        if (!hedef.Aktif)
+            throw new ValidationException($"'{hedef.Ad}' grubu pasif — araçlar atanamaz. Önce grubu aktifleştirin.");
+
+        var n = await _repository.GrupDegeriTasiAsync(kaynakDeger?.Trim(), bosOlanlar, hedef.Ad, ct);
+        if (n > 0) cache.Invalidate(VehicleService.CacheKey);
+        return n;
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

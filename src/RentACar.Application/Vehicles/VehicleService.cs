@@ -11,13 +11,21 @@ namespace RentACar.Application.Vehicles;
 /// Tenant izolasyonu ve audit alt katmanda (DbContext filter + RLS + interceptor) otomatik.
 /// Liste, rol bazlı ŞUBE kapsamıyla filtrelenir (operatör yalnız kendi şubesi).
 /// </summary>
-public sealed class VehicleService(IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches, ITenantCache cache)
+public sealed class VehicleService(
+    IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches, ITenantCache cache,
+    VehicleGroups.VarsayilanGrupCozucu varsayilanGrup)
 {
     private readonly IVehicleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IBranchRepository _branches = branches;
     private readonly ITenantCache _cache = cache;
     public const string CacheKey = "vehicles"; // dropdown kaynağı (tam tenant listesi); RentalService de invalidate eder (araç Durum değişince)
+
+    /// <summary>PR-10: bu liste halka açık siteden de (AYRI PROCESS) okunuyor — oradaki cache'i bu
+    /// process'in Invalidate'i temizleyemez, tazelik yalnız TTL'den gelir. 10 dk'lık genel varsayılan
+    /// "grup atadım, vitrinde neden yok" sorusunu üretiyordu → bu anahtar 60 sn'ye opt-in eder.
+    /// (Grup/foto/tarife okumaları cache'siz olduğu için ONLAR zaten anında yansır.)</summary>
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
     /// <summary>Serbest-metin şubeyi tenant içi Branch FK'sine çözer (roadmap F1); eşleşmezse null (metin korunur).</summary>
     private async Task<Guid?> ResolveSubeAsync(string? sube, CancellationToken ct)
@@ -27,7 +35,7 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
     /// (operatör kendi şubesini görür). Yazımda invalidate. Durum diğer yollarca değişirse TTL (10dk) tazeler.</summary>
     public async Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
     {
-        var all = await _cache.GetOrCreateAsync(CacheKey, () => _repository.ListAsync(null, ct), ct);
+        var all = await _cache.GetOrCreateAsync(CacheKey, () => _repository.ListAsync(null, ct), ct, CacheTtl);
         var kapsam = BranchScope.EffectiveFilter(_currentUser); // C3: FK-farkındalı (rename kurtarması)
         return kapsam.Unrestricted ? all
             : all.Where(v => BranchScope.InScope(kapsam, v.SubeId, v.Sube)).ToList();
@@ -59,12 +67,18 @@ public sealed class VehicleService(IVehicleRepository repository, ICurrentUser c
             throw new DuplicatePlakaException(plaka);
 
         var subeId = await ResolveSubeAsync(input.Sube, ct);
+        // PR-10: grup BELİRTİLMEMİŞSE varsayılana düşer. Web formu grubu <select> ile önseçili
+        // getirdiği için bu dal fiilen yalnız REST API + Excel import yollarında çalışır.
+        // "(Grupsuz)" boş DEĞİLDİR (GrupBilincliBos) — bilinçli seçimi varsayılana snap'lemek
+        // kullanıcının kararını sessizce geri alırdı.
+        var grup = Trim(input.Grup);
+        if (grup is null && !input.GrupBilincliBos) grup = await varsayilanGrup.AdAsync(ct);
         var vehicle = new Vehicle
         {
             Plaka = plaka,
             Marka = Trim(input.Marka),
             Tip = Trim(input.Tip),
-            Grup = Trim(input.Grup),
+            Grup = grup,
             Segment = Trim(input.Segment),
             Sipp = NormalizeSipp(input.Sipp),
             Renk = Trim(input.Renk),
