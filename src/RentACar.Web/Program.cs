@@ -74,6 +74,7 @@ using RentACar.Web.Authorization;
 using RentACar.Web.Notifications;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
+using RentACar.Web.WebSite;
 using RentACar.Web.VehicleSales;
 using RentACar.Web.FiloKiralamalar;
 using RentACar.Web.AracSiparisleri;
@@ -487,6 +488,7 @@ app.MapHukukEndpoints();
 app.MapCrmEndpoints();
 app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
+app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
 app.MapBildirimEndpoints();

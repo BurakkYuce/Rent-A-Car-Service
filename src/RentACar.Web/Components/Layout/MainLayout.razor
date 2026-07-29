@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
 @inject RentACar.Application.Notifications.BildirimService Bildirimler
 @inject NavigationManager Nav
+@inject RentACar.Domain.Common.ITenantContext Tenant
+@inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
 
 <AuthorizeView>
     <Authorized>
@@ -73,6 +75,19 @@
                                 <a href="/gelen-talepler">Gelen Talepler</a>
                             </div>
                         </details>
+                        @* PR-12: yalnız "Web Sitesi" modülünü satın almış firmada görünür. Bu KAPI
+                           GÖRSELDİR — asıl koruma uçlarda (`RequireWebSitesiModulu`) ve sayfada. *@
+                        @if (_webSitesiModulu)
+                        {
+                            <details class="nav-group" open="@Acik("/web-sitesi")">
+                                <summary><span class="ic"></span> Web Sitesi <span class="chev"></span></summary>
+                                <div class="sub">
+                                    <a href="/web-sitesi">İlanlar</a>
+                                    <a href="/gelen-talepler">Gelen Talepler</a>
+                                    <a href="/blog-yonetim">Blog</a>
+                                </div>
+                            </details>
+                        }
                         <details class="nav-group" open="@Acik("/servisler","/servis-tanimlari","/regulasyon")">
                             <summary><span class="ic"></span> Servis & Sigorta <span class="chev"></span></summary>
                             <div class="sub">
@@ -248,12 +263,16 @@
 @code {
     private int _okunmamis;
     private string _path = "";
+    private bool _webSitesiModulu; // PR-12
 
     protected override async Task OnInitializedAsync()
     {
         _path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
         try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
         catch { _okunmamis = 0; }
+        // 60 sn cache'li tek okuma; platformdan açılınca en geç o kadar sonra menüde belirir.
+        try { _webSitesiModulu = Tenant.TenantId is { } id && await TenantDurum.WebSitesiModuluAsync(id); }
+        catch { _webSitesiModulu = false; } // menü hiçbir koşulda sayfayı düşürmemeli
     }
 
     // Mevcut sayfa bu modülün altındaysa grubu AÇIK render et (JS'siz oryantasyon).

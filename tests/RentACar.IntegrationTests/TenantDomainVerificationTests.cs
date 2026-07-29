@@ -30,7 +30,13 @@ public sealed class TenantDomainVerificationTests(PostgresFixture fx)
     private async Task<Guid> SeedTenantAsync()
     {
         await using var db = Owner();
-        var t = new Tenant { Code = "tdv" + Guid.NewGuid().ToString("N")[..10], Name = "TDV", IsActive = true };
+        // PR-12: modül AÇIK — bu dosyanın konusu domain doğrulaması, lisans değil
+        // (lisans kapısı WebSitesiModuluTests'te).
+        var t = new Tenant
+        {
+            Code = "tdv" + Guid.NewGuid().ToString("N")[..10], Name = "TDV",
+            IsActive = true, WebSitesiModulu = true,
+        };
         db.Tenants.Add(t);
         await db.SaveChangesAsync();
         return t.Id;

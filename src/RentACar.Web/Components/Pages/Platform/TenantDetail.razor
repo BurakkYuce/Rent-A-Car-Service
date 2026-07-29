@@ -85,11 +85,36 @@ else
         }
     </div>
 
+    @* ---- PR-12: MODÜL LİSANSI (satın alma). Tenant bunu kendi ERP'sinde GÖREMEZ/AÇAMAZ —
+       `Tenant` platform tablosunda tutuluyor. Tenant'ın kendi "Sitemi Aç" tercihinden AYRI
+       kademedir: site ancak İKİSİ de açıkken görünür. Kapatmak veri SİLMEZ. ---- *@
+    <h2>Modüller</h2>
+    <div class="kf-panel">
+        <form method="post" action="/platform/tenants/modul-web-sitesi" class="tahsil-mini"
+              data-confirm="@(_d.WebSitesiModulu ? $"{_d.Code} için Web Sitesi modülü KAPATILSIN mı? (ilanlar silinmez, site erişime kapanır)" : $"{_d.Code} için Web Sitesi modülü açılsın mı?")">
+            <AntiforgeryToken />
+            <input type="hidden" name="id" value="@_d.Id" />
+            <input type="hidden" name="aktif" value="@(_d.WebSitesiModulu ? "false" : "true")" />
+            <strong>Web Sitesi</strong>
+            <span class="badge @(_d.WebSitesiModulu ? "ok" : "warn")">@(_d.WebSitesiModulu ? "Satın alındı" : "Yok")</span>
+            <button type="submit" class="kf-btn">@(_d.WebSitesiModulu ? "Kapat" : "Aç")</button>
+        </form>
+        <p class="muted small">Firmanın ERP'sinde "Web Sitesi" bölümünü ve halka açık siteyi açar.
+            Firma bu anahtarı kendisi göremez/değiştiremez. Kapatıldığında mevcut ilanlar SİLİNMEZ,
+            yalnız erişim ve site kapanır. Değişiklik en geç 60 saniyede tüm süreçlere yansır.</p>
+    </div>
+
     @* ---- PR-9: halka açık site görünürlüğü (SALT-OKUNUR). Site açma/kapama tenant'ın kendi
        "Sitemi Aç" self-servisinde kalır — platform admin'in zorla kapatması AYRI bir özellik. ---- *@
     <h2>Halka Açık Site</h2>
     <div class="kf-panel">
-        <p>@(_d.PublicSiteEnabled ? "Site AÇIK" : "Site kapalı")</p>
+        <p>
+            @(_d.PublicSiteEnabled ? "Site AÇIK" : "Site kapalı")
+            @if (_d.PublicSiteEnabled && !_d.WebSitesiModulu)
+            {
+                <span class="badge warn">modül kapalı — site YAYINDA DEĞİL</span>
+            }
+        </p>
         @if (_d.Domainler.Count > 0)
         {
             <div class="table-scroll">
