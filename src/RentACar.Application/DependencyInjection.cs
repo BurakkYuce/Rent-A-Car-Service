@@ -76,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<KdvRateService>();
         services.AddScoped<VehicleGroupService>();
         services.AddScoped<VehicleGroups.VarsayilanGrupCozucu>(); // PR-10 varsayılan araç grubu çözücüsü
+        services.AddScoped<WebSite.WebIlanService>();             // PR-13 halka açık site ilan sihirbazı
         services.AddScoped<RateMatrixService>();
         services.AddScoped<CoverageProductService>();
         services.AddScoped<RentalRuleService>();
