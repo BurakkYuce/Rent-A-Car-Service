@@ -42,6 +42,7 @@ public sealed class TenantSettingsService(
 
             VarsayilanDoviz = s.VarsayilanDoviz,
             VarsayilanKdvOrani = s.VarsayilanKdvOrani,
+            VarsayilanGrupId = s.VarsayilanGrupId, // PR-10
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
             DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
@@ -123,6 +124,9 @@ public sealed class TenantSettingsService(
             if (m.VarsayilanKdvOrani is < 0m or > 1m)
                 throw new ValidationException("Varsayılan KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // A6
             s.VarsayilanKdvOrani = m.VarsayilanKdvOrani;
+            // PR-10: FK'si ON DELETE SET NULL; ayrıca çözücü grubu AKTİF olarak arar → pasifleşen
+            // ya da başka tenant'a ait bir Id sessizce Ekonomi zincirine düşer, araç yanlış gruba girmez.
+            s.VarsayilanGrupId = m.VarsayilanGrupId;
             s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
             s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;

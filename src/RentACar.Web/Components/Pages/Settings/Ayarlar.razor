@@ -1,6 +1,7 @@
 @page "/ayarlar"
 @attribute [Authorize(Roles = "Admin,Yonetici")]
 @inject TenantSettingsService Settings
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Ayarlar — RentPro</PageTitle>
 
@@ -44,6 +45,18 @@
         <label>Logo URL<input name="logoUrl" value="@_m.LogoUrl" /></label>
         <label>Varsayılan Döviz<input name="varsayilanDoviz" maxlength="3" value="@_m.VarsayilanDoviz" placeholder="TRY" /></label>
         <label>Varsayılan KDV Oranı<input name="varsayilanKdvOrani" type="number" step="0.0001" min="0" max="1" value="@_m.VarsayilanKdvOrani" /></label>
+        @* PR-10: grubu belirtilmeden açılan araçlar (REST API / Excel import) buraya düşer. Boş
+           bırakılırsa "Ekonomi" adlı aktif grup aranır; o da yoksa araç grupsuz kalır — bilinçli
+           olarak "ilk aktif grup"a düşürülmez (o grup "Lüks" olabilirdi). *@
+        <label>Varsayılan Araç Grubu
+            <select name="varsayilanGrupId">
+                <option value="">(Ekonomi'yi ara, yoksa grupsuz)</option>
+                @foreach (var g in _gruplar)
+                {
+                    <option value="@g.Id" selected="@(g.Id == _m.VarsayilanGrupId)">@g.Ad</option>
+                }
+            </select>
+        </label>
         <label>Min Kira Gün<input name="minKiraGun" type="number" min="0" value="@_m.MinKiraGun" /></label>
         <label>Max Kira Gün<input name="maxKiraGun" type="number" min="0" value="@_m.MaxKiraGun" /></label>
         <label class="check"><input type="checkbox" name="rezOnayZorunlu" value="true" checked="@(_m.RezOnayZorunlu == true)" /> Rezervasyon onayı zorunlu</label>
@@ -162,6 +175,7 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private TenantSettingsModel _m = new();
+    private IReadOnlyList<RentACar.Domain.Entities.VehicleGroup> _gruplar = []; // PR-10 varsayılan grup seçimi
     private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];
 
     private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
@@ -169,6 +183,7 @@
     protected override async Task OnInitializedAsync()
     {
         _m = await Settings.GetAsync();
+        _gruplar = await AracGruplari.ListActiveAsync();
         _gonderimler = await Settings.ListWhatsAppGonderimAsync();
     }
 }

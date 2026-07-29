@@ -9,6 +9,12 @@ public sealed class VehicleInput
     public string? Marka { get; set; }
     public string? Tip { get; set; }
     public string? Grup { get; set; }
+    /// <summary>PR-10: <c>true</c> ise <see cref="Grup"/> BİLİNÇLİ olarak boş bırakılmıştır (web
+    /// formundaki "(Grupsuz)" seçeneği) → varsayılan grup UYGULANMAZ. <c>false</c> (varsayılan): alan
+    /// hiç belirtilmemiştir (REST API / Excel import) → boşsa varsayılan grup uygulanır.
+    /// Ayrım şart: ikisi de boş string olarak gelseydi kullanıcının "grupsuz kalsın" kararı sessizce
+    /// geri alınırdı. Web ucu bunu <c>form.ContainsKey("grup")</c> ile üretir (select daima post eder).</summary>
+    public bool GrupBilincliBos { get; set; }
     public string? Segment { get; set; }
     public string? Sipp { get; set; }
     public string? Renk { get; set; }

@@ -67,6 +67,12 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// "Sitemi Aç" ile true olur; kapatılan/pasif tenant'ta host çözümlenmiş olsa bile site 404 döner.</summary>
     public bool PublicSiteEnabled { get; set; }
 
+    /// <summary>PR-10: grubu belirtilmeden açılan araçların düşeceği varsayılan araç grubu (FK →
+    /// VehicleGroups, ON DELETE SET NULL). Boşsa çözücü Türkçe-duyarsız "Ekonomi" eşleşmesine, o da
+    /// yoksa NULL'a düşer — "ilk aktif grup" gibi bir fallback BİLİNÇLİ OLARAK YOKTUR (o grup "Lüks"
+    /// olabilir; yanlış segmentte yayınlanmaktansa araç grupsuz/pending kalır). Bkz. VarsayilanGrupCozucu.</summary>
+    public Guid? VarsayilanGrupId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

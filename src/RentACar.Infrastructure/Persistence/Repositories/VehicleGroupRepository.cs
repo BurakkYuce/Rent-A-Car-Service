@@ -41,6 +41,19 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
             .AnyAsync(ct);
     }
 
+    /// <summary>Türkçe katlama (İ/I/ı/i) bir .NET comparer'dır, SQL'e çevrilemez → adaylar (grup sayısı
+    /// azdır) belleğe çekilip <see cref="TurkishText"/> ile karşılaştırılır. Ordinal `==` kullanmak
+    /// "EKONOMİ" ile "ekonomi"yi FARKLI sayıp çakışmayı sessizce geçirirdi.</summary>
+    public async Task<bool> AdExistsAsync(string ad, Guid? excludeId = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var adaylar = await db.VehicleGroups.AsNoTracking()
+            .Where(g => excludeId == null || g.Id != excludeId)
+            .Select(g => g.Ad)
+            .ToListAsync(ct);
+        return adaylar.Any(x => TurkishText.EqualsIgnoreTurkishCase(x, ad));
+    }
+
     public async Task CreateAsync(VehicleGroup group, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -55,13 +68,22 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         }
     }
 
-    public async Task<bool> UpdateAsync(Guid id, Action<VehicleGroup> apply, CancellationToken ct = default)
+    public async Task<GrupGuncellemeSonuc> UpdateAsync(Guid id, Action<VehicleGroup> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var group = await db.VehicleGroups.FirstOrDefaultAsync(g => g.Id == id, ct);
-        if (group is null) return false;
+        if (group is null) return new GrupGuncellemeSonuc(false, 0);
 
+        var eskiAd = group.Ad;
         apply(group);
+
+        // Rename cascade — AYNI SaveChanges. Ad değişip araçlar taşınmazsa filo sessizce eşleşmez
+        // hale gelir (vitrin/arama boşalır). Grup pasifleştirilerek yeniden adlandırılırsa araçlar
+        // yine taşınır ama vitrinden düşer: İSTENEN davranış (pasif grup yayınlanmaz).
+        var tasinan = TurkishText.EqualsIgnoreTurkishCase(eskiAd, group.Ad)
+            ? 0
+            : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, eskiAd), group.Ad, ct);
+
         try
         {
             await db.SaveChangesAsync(ct);
@@ -70,7 +92,37 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         {
             throw new ValidationException($"'{group.Kod}' kodlu araç grubu zaten var.");
         }
-        return true;
+        return new GrupGuncellemeSonuc(true, tasinan);
+    }
+
+    public async Task<int> GrupDegeriTasiAsync(string? kaynakDeger, bool bosOlanlar, string hedefAd, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var n = bosOlanlar
+            ? await TasiAsync(db, string.IsNullOrWhiteSpace, hedefAd, ct)
+            : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, kaynakDeger), hedefAd, ct);
+        if (n > 0) await db.SaveChangesAsync(ct);
+        return n;
+    }
+
+    /// <summary>Eşleme + rename-cascade'in ORTAK ÇEKİRDEĞİ (ikisi de buradan geçer, tek davranış).
+    /// <c>ExecuteUpdateAsync</c> BİLİNÇLİ OLARAK kullanılmaz: (a) <see cref="TurkishText"/> bir .NET
+    /// comparer'dır, SQL'e çevrilemez; (b) bulk update SaveChanges interceptor'larını atlar → audit ve
+    /// <c>UpdatedAtUtc</c> yazılmaz. Filo tenant başına onlarca satırdır; adaylar belleğe çekilip
+    /// TRACKING ile güncellenir. <b>SaveChanges çağırana aittir</b> — rename bunu grup güncellemesiyle
+    /// aynı transaction'da yapar.</summary>
+    private static async Task<int> TasiAsync(
+        AppDbContext db, Func<string?, bool> eslesir, string hedefAd, CancellationToken ct)
+    {
+        var adaylar = await db.Vehicles.ToListAsync(ct);
+        var n = 0;
+        foreach (var v in adaylar.Where(v => eslesir(v.Grup)))
+        {
+            v.Grup = hedefAd;
+            v.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            n++;
+        }
+        return n;
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
