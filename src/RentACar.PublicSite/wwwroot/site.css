@@ -212,3 +212,13 @@ img.card-img, .card-img-placeholder {
   gap: var(--s3);
   margin-top: var(--s2);
 }
+
+/* ---- PR-8: talep formu ---- */
+.talep-form { flex-direction: column; align-items: stretch; }
+.talep-form .tam-genislik { width: 100%; }
+.talep-form textarea {
+  font: inherit; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 8px; padding: .45rem .6rem; width: 100%;
+}
+/* Honeypot: ekran okuyucudan ve gözden gizli — bot doldurur, insan doldurmaz. */
+.hp-alan { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

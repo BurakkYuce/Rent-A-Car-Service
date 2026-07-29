@@ -1,0 +1,66 @@
+@page "/rezervasyon-talebi"
+@using RentACar.Application.Branches
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+@inject BranchService Subeler
+
+<PageTitle>Teklif İste — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <a class="back-link" href="/musaitlik">← Müsaitlik</a>
+    <h1>Teklif İsteyin</h1>
+    <p class="muted-note">Bilgilerinizi bırakın, en kısa sürede size dönelim. Bu form bir rezervasyon
+        oluşturmaz — ekibimiz size ulaşıp uygunluğu ve fiyatı teyit eder.</p>
+
+    @if (!string.IsNullOrEmpty(Hata))
+    {
+        <p class="empty-state">@Hata</p>
+    }
+
+    <form method="post" action="/rezervasyon-talebi/gonder" class="arama-form talep-form"><AntiforgeryToken />
+        <label>Ad Soyad<input name="adSoyad" required maxlength="160" /></label>
+        <label>Telefon<input name="telefon" required maxlength="32" placeholder="0555 000 00 00" /></label>
+        <label>E-posta<input name="email" type="email" maxlength="160" /></label>
+        <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
+        <label>İade<input name="bit" type="date" value="@Bit" required /></label>
+        <label>Şube
+            <select name="sube">
+                <option value="">Farketmez</option>
+                @foreach (var s in _subeler)
+                {
+                    <option value="@s" selected="@(s == Sube)">@s</option>
+                }
+            </select>
+        </label>
+        <label class="tam-genislik">Not<textarea name="not" rows="3" maxlength="2000"></textarea></label>
+
+        @* PR-7 aramasından gelen bağlam — ziyaretçiye gösterilmez, personel için taşınır. *@
+        <input type="hidden" name="grup" value="@Grup" />
+        <input type="hidden" name="fiyat" value="@Fiyat" />
+
+        @* HONEYPOT: CSS ile gizli; gerçek kullanıcı görmez/doldurmaz, bot doldurursa istek sessizce yutulur. *@
+        <div class="hp-alan" aria-hidden="true">
+            <label>Web sitesi<input name="website" tabindex="-1" autocomplete="off" /></label>
+        </div>
+
+        <button type="submit">Teklif İste</button>
+    </form>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "fiyat")] public string? Fiyat { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private FleetBranding? _branding;
+    private IReadOnlyList<string> _subeler = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+    }
+}
