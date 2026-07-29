@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<VehiclePhotoService>(); // PR-3
         services.AddScoped<RentACar.Application.Fleet.FleetShowcaseService>(); // PR-4
         services.AddScoped<RentACar.Application.Blog.BlogService>(); // PR-6 — halka açık site blog
+        services.AddScoped<RentACar.Application.PublicSite.PublicBookingRequestService>(); // PR-8 — site talebi (lead)
         services.AddScoped<CustomerService>();
         services.AddScoped<BranchService>();
         services.AddScoped<RateCardService>();

@@ -1,0 +1,121 @@
+@page "/gelen-talepler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.Availability
+@using RentACar.Application.PublicSite
+@using RentACar.Domain.Entities
+@inject PublicBookingRequestService Talepler
+@inject AvailabilityService Musaitlik
+
+<PageTitle>Gelen Talepler — RentPro</PageTitle>
+
+<div class="page-head"><h1>Gelen Talepler</h1><div class="actions"></div></div>
+<p class="muted small">Halka açık sitedeki formdan gelen teklif talepleri. Bunlar <strong>rezervasyon
+    değildir</strong> — "Dönüştür" ile müşteri kaydı (telefonu eşleşen cari varsa yeniden açılmaz) +
+    gerçek rezervasyon oluşturulur. Dönüştürürken talebin tarihlerinde <strong>müsait bir araç
+    seçmeniz</strong> gerekir.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead><tr>
+        <th>Tarih</th><th>Ad Soyad</th><th>Telefon</th><th>E-posta</th>
+        <th>Alış</th><th>İade</th><th>Grup</th><th>Şube</th><th class="num">Gösterilen ₺/gün</th>
+        <th>Not</th><th>Durum</th><th>İşlem</th>
+    </tr></thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="12" class="muted">Henüz talep yok.</td></tr>
+        }
+        @foreach (var t in _list)
+        {
+            <tr>
+                <td>@t.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@t.AdSoyad</td>
+                <td class="mono">@t.Telefon</td>
+                <td>@t.Email</td>
+                <td>@t.BasTar.ToString("dd.MM.yyyy")</td>
+                <td>@t.BitTar.ToString("dd.MM.yyyy")</td>
+                <td>@t.AracGrupKod</td>
+                <td>@t.Sube</td>
+                <td class="num">@(t.GosterilenGunlukUcretKdvDahil?.ToString("N2") ?? "—")</td>
+                <td class="muted small">@t.Not</td>
+                <td>
+                    @Durum(t.Durum)
+                    @if (t.Durum == PublicBookingRequestDurum.Donustu && t.DonusenReservationId is null)
+                    {
+                        @* Claim/release deseninde process çökerse kalabilecek TEK yarım durum — sessiz bırakılmaz. *@
+                        <span class="error small">(rezervasyonu bulunamadı)</span>
+                    }
+                </td>
+                <td>
+                    @if (t.Durum == PublicBookingRequestDurum.Yeni)
+                    {
+                        <details>
+                            <summary class="link">Dönüştür</summary>
+                            @{
+                                var musait = _musait.GetValueOrDefault(t.Id) ?? [];
+                            }
+                            @if (musait.Count == 0)
+                            {
+                                <p class="muted small">Bu tarihlerde müsait araç yok.</p>
+                            }
+                            else
+                            {
+                                <form method="post" action="/gelen-talepler/donustur" class="grid-form"><AntiforgeryToken />
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <label>Araç
+                                        <select name="vehicleId" required>
+                                            @foreach (var v in musait)
+                                            {
+                                                <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <button type="submit">Rezervasyona Dönüştür</button>
+                                </form>
+                            }
+                        </details>
+                        <form method="post" action="/gelen-talepler/reddet" data-confirm="Talep reddedilsin mi?"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <button type="submit" class="link danger">Reddet</button>
+                        </form>
+                    }
+                    else if (t.DonusenReservationId is { } rid)
+                    {
+                        <a href="/rezervasyonlar?vurgu=@rid">Rezervasyon →</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<PublicBookingRequest> _list = [];
+    private Dictionary<Guid, IReadOnlyList<Vehicle>> _musait = [];
+
+    private static string Durum(PublicBookingRequestDurum d) => d switch
+    {
+        PublicBookingRequestDurum.Yeni => "Yeni",
+        PublicBookingRequestDurum.Donustu => "Dönüştürüldü",
+        PublicBookingRequestDurum.Reddedildi => "Reddedildi",
+        _ => d.ToString()
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = await Talepler.ListAsync();
+        _musait = [];
+        // Yalnız işlenmemiş talepler için araç listesi çek (dönüştürme dropdown'u).
+        foreach (var t in _list.Where(x => x.Durum == PublicBookingRequestDurum.Yeni))
+            _musait[t.Id] = await Musaitlik.FindAvailableAsync(t.BasTar, t.BitTar, null, t.Sube);
+    }
+}

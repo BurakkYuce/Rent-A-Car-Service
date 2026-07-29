@@ -24,3 +24,24 @@ internal sealed class BlogPostConfig : IEntityTypeConfiguration<BlogPost>
         e.HasIndex(x => new { x.TenantId, x.Durum, x.YayinTarihi });
     }
 }
+
+// ---- PublicBookingRequest (halka açık site rezervasyon talebi/lead, PR-8) ----
+internal sealed class PublicBookingRequestConfig : IEntityTypeConfiguration<PublicBookingRequest>
+{
+    public void Configure(EntityTypeBuilder<PublicBookingRequest> e)
+    {
+        e.ToTable("SiteTalepleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.AdSoyad).IsRequired().HasMaxLength(160);
+        e.Property(x => x.Telefon).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Email).HasMaxLength(160);
+        e.Property(x => x.AracGrupKod).HasMaxLength(32);
+        e.Property(x => x.Sube).HasMaxLength(128);
+        e.Property(x => x.Not).HasMaxLength(2000); // sınırsız serbest metin = ucuz depolama şişirmesi
+        e.Property(x => x.GosterilenGunlukUcretKdvDahil).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Durum).HasConversion<int>();
+        // Staff kuyruğu: yeni talepler önce (Durum, tarih).
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.CreatedAtUtc });
+    }
+}

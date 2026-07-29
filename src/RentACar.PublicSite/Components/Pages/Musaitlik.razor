@@ -1,4 +1,5 @@
 @page "/musaitlik"
+@attribute [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("public-search")]
 @using RentACar.Application.Branches
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
@@ -64,6 +65,7 @@
                             </div>
                             <div class="kart-aksiyon">
                                 <a href="@($"/araclar/{r.GroupId}")">Detay</a>
+                                <a href="@TeklifLinki(r)">Teklif İste</a>
                             </div>
                         </div>
                     </div>
@@ -87,6 +89,19 @@
     private IReadOnlyList<PublicAvailabilityResult>? _sonuclar;
     private bool _arandi;
     private string? _hata;
+
+    /// <summary>PR-8 talep formuna bağlam taşır: grup + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
+    /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.</summary>
+    private string TeklifLinki(PublicAvailabilityResult r)
+    {
+        var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
+        q["grup"] = r.GrupKod;
+        q["bas"] = Bas;
+        q["bit"] = Bit;
+        if (!string.IsNullOrWhiteSpace(Sube)) q["sube"] = Sube;
+        q["fiyat"] = r.GunlukUcretKdvDahil.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return "/rezervasyon-talebi?" + q;
+    }
 
     private static string Para(decimal tutar, string birim)
         => birim == "TRY" ? $"₺{tutar:N2}" : $"{tutar:N2} {birim}";
