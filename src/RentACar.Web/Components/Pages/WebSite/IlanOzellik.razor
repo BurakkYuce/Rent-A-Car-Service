@@ -33,14 +33,18 @@ else
         }
     </p>
 
+    @* Satır ekle/sil `rc-web-ilan.js` ile YENİLEMESİZ yapılır (CSP-uyumlu JS adası, inline handler
+       yok). JS yüklenmezse ekran YİNE ÇALIŞIR: "+" bir <a> linkidir ve sayfayı `?bos=N+1` ile
+       yeniden basar, silme ise satırı boşaltmakla olur (sunucu boş satırları ayıklar). *@
     <form method="post" action="/web-sitesi/ilan/@Id/ozellikler/kaydet"><AntiforgeryToken />
         <div class="table-scroll">
-        <table class="grid tr-grid">
+        <table class="grid tr-grid" data-ozellik-tablo data-max-satir="@OzellikSnapshot.MaxSatir">
             <thead>
                 <tr>
                     <th style="width:5rem">Sitede</th>
                     <th style="width:30%">Özellik</th>
                     <th>Değer</th>
+                    <th style="width:3rem"></th>
                 </tr>
             </thead>
             <tbody>
@@ -48,27 +52,35 @@ else
                 {
                     var s = _satirlar[i];
                     <tr>
-                        @* Checkbox değeri satır İNDEKSİDİR — sunucu paralel dizilerle eşler. *@
+                        @* Checkbox değeri satır İNDEKSİDİR — sunucu paralel dizilerle eşler.
+                           JS satır silince bu değerleri YENİDEN NUMARALANDIRIR (yoksa görünürlük kayar). *@
                         <td><input type="checkbox" name="gorunur" value="@i" checked="@s.Gorunur" /></td>
                         <td><input name="etiket" value="@s.Etiket" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
                         <td><input name="deger" value="@s.Deger" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                        <td class="row-actions">
+                            <button type="button" class="link danger" data-ozellik-sil
+                                    title="Satırı sil" aria-label="Satırı sil">✕</button>
+                        </td>
                     </tr>
                 }
-                @* "+" ile eklenecek BOŞ satırlar: statik SSR'da JS'siz satır ekleme böyle yapılır —
-                   sunucu boş etiket/değer satırlarını zaten ayıklar. *@
                 @for (var i = _satirlar.Count; i < _satirlar.Count + _bosSatir; i++)
                 {
                     <tr>
                         <td><input type="checkbox" name="gorunur" value="@i" checked /></td>
                         <td><input name="etiket" placeholder="Özellik adı" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
                         <td><input name="deger" placeholder="Değer" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                        <td class="row-actions">
+                            <button type="button" class="link danger" data-ozellik-sil
+                                    title="Satırı sil" aria-label="Satırı sil">✕</button>
+                        </td>
                     </tr>
                 }
             </tbody>
         </table>
         </div>
         <div class="form-actions">
-            <a class="kf-btn" href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_bosSatir + 1)" title="Yeni özellik satırı ekle">+ Özellik ekle</a>
+            <a class="kf-btn" data-ozellik-ekle href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_bosSatir + 1)"
+               title="Yeni özellik satırı ekle">+ Özellik ekle</a>
             <button type="submit" class="kf-btn primary">Yayınla</button>
         </div>
     </form>
