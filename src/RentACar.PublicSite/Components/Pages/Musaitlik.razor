@@ -37,36 +37,35 @@
     {
         @if (_sonuclar is { Count: > 0 })
         {
-            <p class="muted-note">@_sonuclar[0].Gun günlük kiralama için @_sonuclar.Count araç grubu müsait.</p>
+            <p class="muted-note">@_sonuclar[0].Gun günlük kiralama için @_sonuclar.Count araç müsait.</p>
             <div class="grid">
                 @foreach (var r in _sonuclar)
                 {
                     <div class="card">
                         @if (r.CoverPhotoId is { } photoId)
                         {
-                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@r.Ad" />
+                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@r.Baslik" />
                         }
                         else
                         {
                             <div class="card-img-placeholder">🚗</div>
                         }
                         <div class="card-body">
-                            <h3>@r.Ad</h3>
+                            <h3>@r.Baslik</h3>
+                            @* PR-14: fiyat İLANDAN. Motor çağrılmaz; KDV etiketi ilanın kendi işaretinden. *@
                             <div class="fiyat">
-                                <span class="fiyat-buyuk">@Para(r.GunlukUcretKdvDahil, r.ParaBirimi)<span class="fiyat-birim">/gün</span></span>
-                                <span class="fiyat-kucuk">KDV dahil · KDV hariç @Para(r.GunlukUcretKdvHaric, r.ParaBirimi)</span>
-                                <span class="fiyat-toplam">@r.Gun gün toplam <strong>@Para(r.ToplamKdvDahil, r.ParaBirimi)</strong></span>
+                                <span class="fiyat-buyuk">@Para(r.GunlukFiyat)<span class="fiyat-birim">/gün</span></span>
+                                <span class="fiyat-kucuk">@(r.KdvDahil ? "KDV dahil" : "+ KDV")</span>
+                                <span class="fiyat-toplam">@r.Gun gün toplam <strong>@Para(r.Toplam)</strong></span>
                             </div>
                             <div class="chips">
-                                @if (!string.IsNullOrWhiteSpace(r.KasaTuru)) { <span class="chip">@r.KasaTuru</span> }
-                                @if (r.KoltukSayisi is { } k) { <span class="chip">@k koltuk</span> }
-                                @if (r.KapiSayisi is { } kp) { <span class="chip">@kp kapı</span> }
-                                @if (r.BagajSayisi is { } b) { <span class="chip">@b bagaj</span> }
-                                @* PR-11: bu tarihlerde MÜSAİT adet (kirada olanlar düşülmüş). *@
+                                @if (!string.IsNullOrWhiteSpace(r.YilAralik)) { <span class="chip">@r.YilAralik model</span> }
+                                @foreach (var o in r.Ozellikler.Take(3)) { <span class="chip">@o.Deger</span> }
+                                @* Bu tarihlerde MÜSAİT adet (kirada olanlar düşülmüş). *@
                                 @if (r.Adet > 1) { <span class="chip">@r.Adet araç müsait</span> }
                             </div>
                             <div class="kart-aksiyon">
-                                <a href="@($"/araclar/{r.GroupId}")">Detay</a>
+                                <a href="@($"/araclar/{r.Slug}")">Detay</a>
                                 <a href="@TeklifLinki(r)">Teklif İste</a>
                             </div>
                         </div>
@@ -92,21 +91,21 @@
     private bool _arandi;
     private string? _hata;
 
-    /// <summary>PR-8 talep formuna bağlam taşır: grup + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
+    /// <summary>PR-8 talep formuna bağlam taşır: İLAN + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
     /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.</summary>
     private string TeklifLinki(PublicAvailabilityResult r)
     {
         var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        q["grup"] = r.GrupKod;
+        q["ilan"] = r.Slug; // slug: sayfa ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
         q["bas"] = Bas;
         q["bit"] = Bit;
         if (!string.IsNullOrWhiteSpace(Sube)) q["sube"] = Sube;
-        q["fiyat"] = r.GunlukUcretKdvDahil.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        q["fiyat"] = r.GunlukFiyat.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return "/rezervasyon-talebi?" + q;
     }
 
-    private static string Para(decimal tutar, string birim)
-        => birim == "TRY" ? $"₺{tutar:N2}" : $"{tutar:N2} {birim}";
+    /// <summary>PR-14: fiyatlar TRY tabanlıdır (kullanıcı kararı) — para birimi alanı kalktı.</summary>
+    private static string Para(decimal tutar) => $"₺{tutar:N2}";
 
     protected override async Task OnInitializedAsync()
     {

@@ -34,8 +34,9 @@ public static class SeoEndpoints
             XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
             var urls = new List<XElement> { Url(ns, kok + "/") };
 
+            // PR-14: adres artık SLUG (eski `/araclar/{groupId}` GUID'leri yerine).
             foreach (var g in await showcase.ListShowcaseGroupsAsync(ct))
-                urls.Add(Url(ns, $"{kok}/araclar/{g.GroupId}"));
+                urls.Add(Url(ns, $"{kok}/araclar/{g.Slug}"));
 
             var yazilar = await blog.ListPublishedAsync(ct);
             if (yazilar.Count > 0)
@@ -47,6 +48,19 @@ public static class SeoEndpoints
 
             var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), new XElement(ns + "urlset", urls));
             return Results.Text(doc.ToString(), "application/xml; charset=utf-8");
+        });
+
+        // PR-14 GEÇİŞ: eski `/araclar/{guid}` adresleri. Google bunları indeksledi ve blog
+        // içeriğinde elle yazılmış linkler olabilir — hepsini 404'e düşürmek yerine slug'a
+        // KALICI (301) yönlendiriyoruz. GUID bir ilana çözülmezse (eski GRUP id'si ya da
+        // yayından kalkmış ilan) vitrine 302 — ziyaretçi boş sayfada kalmasın.
+        // Rota, slug sayfasından DAHA SPESİFİK olduğu için (`:guid` kısıtı) onunla çakışmaz.
+        app.MapGet("/araclar/{id:guid}", async (Guid id, FleetShowcaseService showcase, CancellationToken ct) =>
+        {
+            var slug = await showcase.SlugByIdAsync(id, ct);
+            return slug is null
+                ? Results.Redirect("/", permanent: false)
+                : Results.Redirect($"/araclar/{slug}", permanent: true);
         });
 
         return app;
