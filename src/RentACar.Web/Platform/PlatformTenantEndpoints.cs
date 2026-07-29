@@ -27,6 +27,21 @@ public static class PlatformTenantEndpoints
             }
         });
 
+        // PR-12: "Web Sitesi" modülü (satın alma kararı). Tenant detay sayfasından açılır/kapatılır.
+        grp.MapPost("/modul-web-sitesi", async (HttpContext http, PlatformAdminService svc,
+            [FromForm] Guid id, [FromForm] bool aktif) =>
+        {
+            try
+            {
+                await svc.SetWebSitesiModuluAsync(id, aktif, http.User.Identity?.Name ?? "platform");
+                return Results.Redirect($"/platform/tenants/{id}?ok=1");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/platform/tenants/{id}?hata=" + Uri.EscapeDataString(ex.Message));
+            }
+        });
+
         grp.MapPost("/create", async (HttpContext http, PlatformAdminService svc,
             [FromForm] string code, [FromForm] string name,
             [FromForm] string adminUser, [FromForm] string adminPassword) =>
