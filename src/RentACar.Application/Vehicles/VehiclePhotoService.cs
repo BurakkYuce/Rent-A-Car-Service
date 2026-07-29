@@ -32,6 +32,15 @@ public sealed class VehiclePhotoService(
         return await repository.ListMetaAsync(vehicleId, ct);
     }
 
+    /// <summary>PR-11: verilen araçlardan hangilerinin fotoğrafı var (TEK sorgu). Yayın kapısı ve
+    /// personel hazırlık paneli bunu kullanır. Guard deseni <see cref="ListMetaAsync"/>'ten farklı
+    /// olarak araç-başına <c>RequireVehicleAsync</c> ÇAĞIRMAZ — girdi zaten kapsam içi okunmuş bir
+    /// araç listesinden gelir ve tek tek doğrulamak N+1'i geri getirirdi; sonuç yalnız "fotosu var mı"
+    /// bilgisidir (içerik değil) ve tenant sınırı RLS ile zaten kapalıdır.</summary>
+    public Task<HashSet<Guid>> ListVehicleIdsWithPhotoAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
+        => repository.ListVehicleIdsWithPhotoAsync(vehicleIds, ct);
+
     public async Task<VehiclePhotoContent?> GetBytesAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default)
     {
         await RequireVehicleAsync(vehicleId, ct);

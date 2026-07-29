@@ -62,6 +62,8 @@
                                 @if (r.KoltukSayisi is { } k) { <span class="chip">@k koltuk</span> }
                                 @if (r.KapiSayisi is { } kp) { <span class="chip">@kp kapı</span> }
                                 @if (r.BagajSayisi is { } b) { <span class="chip">@b bagaj</span> }
+                                @* PR-11: bu tarihlerde MÜSAİT adet (kirada olanlar düşülmüş). *@
+                                @if (r.Adet > 1) { <span class="chip">@r.Adet araç müsait</span> }
                             </div>
                             <div class="kart-aksiyon">
                                 <a href="@($"/araclar/{r.GroupId}")">Detay</a>

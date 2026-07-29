@@ -39,6 +39,21 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
         return await db.VehiclePhotos.CountAsync(p => p.VehicleId == vehicleId, ct);
     }
 
+    public async Task<HashSet<Guid>> ListVehicleIdsWithPhotoAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
+    {
+        if (vehicleIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var idler = vehicleIds as Guid[] ?? [.. vehicleIds];
+        // Npgsql `= ANY(@ids)`'e çevirir; Distinct sunucuda. Bytea kolonuna DOKUNULMAZ.
+        var bulunan = await db.VehiclePhotos.AsNoTracking()
+            .Where(p => idler.Contains(p.VehicleId))
+            .Select(p => p.VehicleId)
+            .Distinct()
+            .ToListAsync(ct);
+        return [.. bulunan];
+    }
+
     public async Task AddAsync(VehiclePhoto photo, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

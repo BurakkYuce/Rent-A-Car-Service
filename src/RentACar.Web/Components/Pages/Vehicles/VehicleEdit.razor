@@ -126,6 +126,12 @@ else
         <label>Son Bakım Tarihi<input name="sonBakimTarih" type="date" value="@_vehicle.SonBakimTarih?.ToString("yyyy-MM-dd")" /></label>
         <label>Son Bakım KM<input name="sonBakimKm" type="number" min="0" value="@_vehicle.SonBakimKm" /></label>
         <label>Lastik Durumu<input name="lastikDurumu" value="@_vehicle.LastikDurumu" placeholder="Yazlık/Kışlık..." /></label>
+        @* PR-11: elinde aynı araçtan N adet olup hepsini ayrı ayrı kaydetmek istemeyen firma için.
+           YALNIZ vitrin gösterimi — rezervasyon/kira/müsaitlik bu alanı OKUMAZ (iç sistem plaka
+           başına tekil araçla çalışır). Kirayı sistemde tutuyorsanız her araç için ayrı kayıt açın:
+           tek kayıt kiraya çıktığında grup aramada N'den 0'a inmez, TAMAMEN kaybolur. *@
+        <label>Vitrin Adedi<input name="vitrinAdet" type="number" min="1" max="999" value="@_vehicle.VitrinAdet"
+            placeholder="1" title="Halka açık sitede kaç araç olarak gösterilsin (boş = 1). Yalnız gösterim." /></label>
         <fieldset class="flags">
             <legend>Operasyon Bayrakları</legend>
             <label><input type="checkbox" name="webRezKapat" value="true" checked="@_vehicle.WebRezKapat" /> Web rez. kapalı</label>

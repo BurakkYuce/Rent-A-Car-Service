@@ -68,6 +68,7 @@ public static class VehicleEndpoints
         // kullanıcının "(Grupsuz)"u BİLİNÇLİ seçtiği demektir (varsayılan grup uygulanmaz).
         // Anahtarın hiç olmaması ise "belirtilmedi"dir (yalnız form-dışı çağrılar).
         GrupBilincliBos = f.ContainsKey("grup") && string.IsNullOrWhiteSpace(f["grup"].ToString()),
+        VitrinAdet = FormParse.Int(FormParse.Str(f, "vitrinAdet")), // PR-11 (boş → null = 1)
         Segment = FormParse.Str(f, "segment"),
         Sipp = FormParse.Str(f, "sipp"),
         Renk = FormParse.Str(f, "renk"),

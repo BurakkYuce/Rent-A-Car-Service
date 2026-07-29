@@ -19,6 +19,12 @@ public interface IVehiclePhotoRepository
 
     Task<int> CountAsync(Guid vehicleId, CancellationToken ct = default);
 
+    /// <summary>PR-11 — verilen araçlardan hangilerinin EN AZ BİR fotoğrafı var (tek sorgu:
+    /// <c>SELECT DISTINCT "VehicleId" … WHERE "VehicleId" = ANY(@ids)</c>). Halka açık site yayın
+    /// kapısı foto şartı arar; araç başına <see cref="CountAsync"/> çağırmak rate-limit'siz en sıcak
+    /// anonim sayfada N+1 üretirdi. Blob kolonu (bytea/TOAST) PROJEKSİYONA GİRMEZ.</summary>
+    Task<HashSet<Guid>> ListVehicleIdsWithPhotoAsync(IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
+
     /// <summary><paramref name="photo"/>.Sira YOK SAYILIR — mevcut max+1 repo içinde hesaplanır (boş
     /// koleksiyonda patlamaması için nullable-cast Max).</summary>
     Task AddAsync(VehiclePhoto photo, CancellationToken ct = default);

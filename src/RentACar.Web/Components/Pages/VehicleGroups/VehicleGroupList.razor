@@ -1,6 +1,7 @@
 @page "/arac-gruplari"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject VehicleGroupService AracGruplari
+@inject FleetShowcaseService Vitrin
 @inject BrandService Markalar
 
 <PageTitle>Araç Grupları — RentPro</PageTitle>
@@ -19,6 +20,49 @@
 @if (!string.IsNullOrEmpty(Bilgi))
 {
     <p class="success">@Bilgi</p>
+}
+
+@* PR-11: halka açık site YAYIN HAZIRLIĞI. Eksiklerin TAMAMI birlikte gösterilir — tek sebep
+   gösterilseydi personel fotoyu yükler, kart yine çıkmaz ve nedenini bilemezdi. *@
+@if (_yayin.Count > 0)
+{
+    <details class="yayin-durumu" open="@(_yayin.Any(y => !y.Yayinda))">
+        <summary class="link">
+            Halka açık site yayın durumu — @_yayin.Count(y => y.Yayinda)/@_yayin.Count grup yayında
+        </summary>
+        <p class="muted small">Bir grup, uygun araçlarından <strong>en az birinin fotoğrafı</strong> ve
+            <strong>geçerli bir tarifesi</strong> olduğunda yayına girer; o ana kadar bekler (pending).
+            Şartlar tamamlandığında ayrıca bir işlem gerekmez.</p>
+        <table class="grid tr-grid">
+            <thead><tr><th>Grup</th><th>Araç</th><th>Vitrinde</th><th>Durum</th></tr></thead>
+            <tbody>
+                @foreach (var y in _yayin)
+                {
+                    <tr>
+                        <td>@y.Ad</td>
+                        <td class="num">@y.AracSayisi</td>
+                        <td class="num">
+                            @y.Adet
+                            @if (y.KarisikMod)
+                            {
+                                <span class="badge" title="Grupta hem çoklu kayıt hem 'Vitrin Adedi' girilmiş kayıt var — toplam beklediğinizden büyük olabilir.">karışık</span>
+                            }
+                        </td>
+                        <td>
+                            @if (y.Yayinda)
+                            {
+                                <span class="badge ok">Yayında</span>
+                            }
+                            else
+                            {
+                                <span class="badge warn">@string.Join(" · ", y.Eksikler)</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </details>
 }
 
 @if (_unmatched.Count > 0)
@@ -185,6 +229,7 @@
     private IReadOnlyList<VehicleGroup> _list = [];
     private List<string> _markaOpts = [], _segmentOpts = [];
     private IReadOnlyList<UnmatchedGrupValue> _unmatched = [];
+    private IReadOnlyList<GrupYayinDurumu> _yayin = []; // PR-11 yayın hazırlığı
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -198,5 +243,6 @@
         _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
         _segmentOpts = Opts(_list.Select(g => g.Segment));
         _unmatched = await AracGruplari.ListUnmatchedGrupValuesAsync();
+        _yayin = await Vitrin.ListYayinDurumuAsync(); // PR-11
     }
 }

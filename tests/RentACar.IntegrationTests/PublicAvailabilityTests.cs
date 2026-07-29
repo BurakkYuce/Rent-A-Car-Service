@@ -35,12 +35,20 @@ public sealed class PublicAvailabilityTests(PostgresFixture fx)
             OnayDurumu = TarifeOnayDurumu.Onayli
         });
 
-        await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        var aracId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         {
             Plaka = "34PA" + Guid.NewGuid().ToString("N")[..4].ToUpperInvariant(),
             Durum = VehicleStatus.Musait, Grup = grupAd, WebRezKapat = webRezKapat
         });
+
+        // PR-11 yayın kapısı: fotoğrafsız grup halka açık yüzeylerin HİÇBİRİNE girmez (vitrin,
+        // arama, detay, sitemap). Bu dosyanın konusu FİYAT doğruluğu olduğu için foto sadece kapıyı
+        // açmak üzere eklenir; kapının kendisi YayinKapisiTests'te test edilir.
+        await sp.GetRequiredService<VehiclePhotoService>().AddAsync(aracId, TinyPng);
     }
+
+    private static readonly byte[] TinyPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAIAAABPmPnhAAAAFElEQVR4nGM8YWTEgBsw4ZEb0tIAKaUBPDvSacQAAAAASUVORK5CYII=");
 
     private static FleetShowcaseService PublicSvc(TestHost host, Guid tenantId, out IServiceScope scope)
     {
@@ -137,8 +145,9 @@ public sealed class PublicAvailabilityTests(PostgresFixture fx)
             { Kod = "DZL", Ad = "DİZEL FİLO" });
             await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
             { Kod = "DZL-WEB", Ad = "Dzl", AracGrupKod = "DZL", Gun1 = 500m, OnayDurumu = TarifeOnayDurumu.Onayli });
-            await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+            var aracId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
             { Plaka = "34DZ0001", Durum = VehicleStatus.Musait, Grup = "dizel filo" });
+            await sp.GetRequiredService<VehiclePhotoService>().AddAsync(aracId, TinyPng); // PR-11 kapısı
         }
 
         var svc = PublicSvc(host, tenantId, out var s2);

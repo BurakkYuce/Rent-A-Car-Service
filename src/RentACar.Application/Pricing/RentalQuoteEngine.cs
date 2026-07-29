@@ -206,13 +206,8 @@ public sealed class RentalQuoteEngine(
     /// grup-özel &gt; tam-kanal-eşleşme &gt; kanal-agnostik(base) &gt; tam-şube &gt; şube-agnostik &gt; Kod.</summary>
     private static RateMatrix? SelectMatrix(
         IReadOnlyList<RateMatrix> all, string grupKod, string? kanal, string? sube, DateTimeOffset tarih)
-        => all.Where(m =>
-                m.OnayDurumu == TarifeOnayDurumu.Onayli &&
-                (m.AracGrupKod == null || m.AracGrupKod == grupKod) &&
-                (m.BasTar == null || m.BasTar <= tarih) &&
-                (m.BitTar == null || m.BitTar >= tarih) &&
-                (kanal == null || m.Kanal == null || string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
-                (sube == null || m.Sube == null || string.Equals(m.Sube, sube, StringComparison.OrdinalIgnoreCase)))
+        => all.Where(m => RowMatches(m, grupKod, kanal, sube,
+                x => (x.BasTar == null || x.BasTar <= tarih) && (x.BitTar == null || x.BitTar >= tarih)))
             .OrderByDescending(m => m.AracGrupKod == grupKod ? 1 : 0)
             .ThenByDescending(m => kanal != null && string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
             .ThenByDescending(m => m.Kanal == null ? 1 : 0)
@@ -220,6 +215,68 @@ public sealed class RentalQuoteEngine(
             .ThenByDescending(m => m.Sube == null ? 1 : 0)
             .ThenBy(m => m.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
+
+    /// <summary>
+    /// Tarife satırının SATIR yüklemi — onay/grup-kod/wildcard/kanal/şube. Tarih koşulu PARAMETRE'dir:
+    /// <see cref="SelectMatrix"/> "nokta tarih" (o gün geçerli) geçer, halka açık site kapısı
+    /// (<see cref="FiyatlanabilirGruplarAsync"/>) "geçmişte kalmamış" penceresini geçer. Ayrım tek
+    /// cümlededir ve bilinçlidir; geri kalan yüklem PAYLAŞILIR — kopyalansaydı iki yüzey zamanla
+    /// ayrışırdı (ör. <c>AracGrupKod == null</c> wildcard'ı kapıda unutulur, o gruba özel tarifesi
+    /// olmayan ama genel tarifeyle fiyatlanan grup vitrinden yanlışlıkla elenirdi).
+    /// </summary>
+    private static bool RowMatches(
+        RateMatrix m, string grupKod, string? kanal, string? sube, Func<RateMatrix, bool> tarihKosulu)
+        => m.OnayDurumu == TarifeOnayDurumu.Onayli &&
+           (m.AracGrupKod == null || m.AracGrupKod == grupKod) &&
+           tarihKosulu(m) &&
+           (kanal == null || m.Kanal == null || string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase)) &&
+           (sube == null || m.Sube == null || string.Equals(m.Sube, sube, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Matriste fiyatlamaya yetecek EN AZ BİR pozitif kademe var mı. Salt "satır var mı"
+    /// kontrolü yetmez: tüm kademeleri boş/0 olan bir satır vitrine girer ama aramada
+    /// <c>GunlukUcret &lt;= 0</c> filtresine takılır → vitrinde görünen grubun detay linki 404 olurdu.</summary>
+    private static bool PozitifKademeVar(RateMatrix m)
+        => m.Gun1 > 0 || m.Gun2 > 0 || m.Gun3 > 0 || m.Gun4 > 0 || m.Gun5 > 0 || m.Gun6 > 0 || m.Gun7 > 0
+           || m.GunHaftalik > 0 || m.GunAylik > 0;
+
+    /// <summary>
+    /// PR-11 — halka açık site YAYIN KAPISI: verilen grup kodlarından hangileri fiyatlanabilir.
+    ///
+    /// <para><b>Tek sorgu:</b> tarife listesi BİR KEZ yüklenir, yüklem bellekte grup başına
+    /// değerlendirilir. Grup başına ayrı çağrı, rate-limit'siz en sıcak anonim sayfada N+1 üretirdi
+    /// (<c>RateMatrixService.ListActiveAsync</c> cache'siz — her çağrı gerçek SQL).</para>
+    ///
+    /// <para><b>Tarih penceresi bilinçli olarak GENİŞ:</b> "bugün geçerli" değil, <b>"geçmişte
+    /// kalmamış"</b> (<c>BitTar == null || BitTar &gt;= bugün</c>). Sebep KAPI ⊇ ARAMA kuralı: vitrin
+    /// ve detay sayfasının tarihi yoktur, arama ziyaretçinin tarihiyle çalışır. Rent-a-car'da
+    /// Haziran–Eylül tarifesi Mart'ta girilir; kapı "bugün"e bakarsa Mart'ta grup vitrinde olmaz ve
+    /// <c>/araclar/{id}</c> 404 verir — ama Temmuz araması o grubu bulur ve kartın "Detay" linki
+    /// 404'e gider. Geniş pencere bunu kapatır; gelecek sezonun grubunu vitrinde göstermek pazarlama
+    /// olarak da doğrudur (kart fiyat basmaz). <c>BasTar</c> koşulu bu yüzden kapıda YOKTUR.</para>
+    ///
+    /// <para><b>Kanal/şube:</b> ikisi de <c>null</c> = en geniş görünüm. Public arama da
+    /// <c>QuoteRequest.Kanal</c> set etmez (bkz. <c>FleetShowcaseService.SearchAvailabilityAsync</c>)
+    /// — ikisi de aynı "belirtilmemiş" anlamına gelir ve <see cref="RowMatches"/>'te wildcard'a düşer.</para>
+    /// </summary>
+    public async Task<HashSet<string>> FiyatlanabilirGruplarAsync(
+        IReadOnlyCollection<string> grupKodlari, DateTimeOffset bugun, string? kanal = null, CancellationToken ct = default)
+    {
+        var sonuc = new HashSet<string>(StringComparer.Ordinal);
+        if (grupKodlari.Count == 0) return sonuc;
+
+        var tumu = await _rateMatrices.ListActiveAsync(ct); // TEK sorgu — grup başına değil
+        foreach (var ham in grupKodlari)
+        {
+            var kod = (ham ?? string.Empty).Trim().ToUpperInvariant(); // QuoteAsync ile aynı normalize
+            if (kod.Length == 0) continue;
+            // Any(...) — FirstOrDefault olsaydı kademesi boş bir satır, aynı gruba uyan dolu satırı
+            // gölgeleyip grubu yanlışlıkla eleyebilirdi (liste sırası anlamlı değil).
+            if (tumu.Any(m => RowMatches(m, kod, kanal, null, x => x.BitTar == null || x.BitTar >= bugun)
+                    && PozitifKademeVar(m)))
+                sonuc.Add(kod);
+        }
+        return sonuc;
+    }
 
     /// <summary>Gün-kademesi fiyatı. UZUN DÖNEM (FAZ 3.A1): 30+ gün → GunAylik (tanımsızsa GunHaftalik'e
     /// düşer), 8-29 gün → GunHaftalik; uzun-dönem kademesi hiç tanımsızsa bugünkü Gun7-clamp davranışı
