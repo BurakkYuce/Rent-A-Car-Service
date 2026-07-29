@@ -121,6 +121,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<VehicleKmLog> KmLoglari => Set<VehicleKmLog>(); // FAZ 2.5 — km zaman serisi
     public DbSet<VehiclePhoto> VehiclePhotos => Set<VehiclePhoto>(); // PR-3 — halka açık site araç galerisi
     public DbSet<BlogPost> BlogYazilari => Set<BlogPost>(); // PR-6 — halka açık site blog
+    public DbSet<PublicBookingRequest> SiteTalepleri => Set<PublicBookingRequest>(); // PR-8 — site rezervasyon talebi
     public DbSet<DolulukFiyatKural> DolulukFiyatKurallari => Set<DolulukFiyatKural>(); // FAZ 3.A7
     public DbSet<FaturaDonemi> FaturaDonemleri => Set<FaturaDonemi>(); // FAZ 4.2-B1
     public DbSet<DisHizmetAlimi> DisHizmetAlimlari => Set<DisHizmetAlimi>(); // FAZ 4.3
