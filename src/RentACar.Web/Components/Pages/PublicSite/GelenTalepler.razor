@@ -23,7 +23,7 @@
 <table class="grid tr-grid">
     <thead><tr>
         <th>Tarih</th><th>Ad Soyad</th><th>Telefon</th><th>E-posta</th>
-        <th>Alış</th><th>İade</th><th>Grup</th><th>Şube</th><th class="num">Gösterilen ₺/gün</th>
+        <th>Alış</th><th>İade</th><th>Araç</th><th>Şube</th><th class="num">Gösterilen ₺/gün</th>
         <th>Not</th><th>Durum</th><th>İşlem</th>
     </tr></thead>
     <tbody>
@@ -40,9 +40,16 @@
                 <td>@t.Email</td>
                 <td>@t.BasTar.ToString("dd.MM.yyyy")</td>
                 <td>@t.BitTar.ToString("dd.MM.yyyy")</td>
-                <td>@t.AracGrupKod</td>
+                <td>@(t.IlanBaslik ?? t.AracGrupKod)</td>
                 <td>@t.Sube</td>
-                <td class="num">@(t.GosterilenGunlukUcretKdvDahil?.ToString("N2") ?? "—")</td>
+                <td class="num">
+                    @if (t.GosterilenGunlukUcretKdvDahil is { } f)
+                    {
+                        <text>@f.ToString("N2")</text>
+                        <span class="muted small">@(t.GosterilenKdvDahil == false ? "+ KDV" : "KDV dahil")</span>
+                    }
+                    else { <text>—</text> }
+                </td>
                 <td class="muted small">@t.Not</td>
                 <td>
                     @Durum(t.Durum)

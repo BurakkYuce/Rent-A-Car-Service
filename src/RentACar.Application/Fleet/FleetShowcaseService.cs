@@ -1,150 +1,160 @@
 using RentACar.Application.Availability;
+using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.Finance;
-using RentACar.Application.Pricing;
-using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;
+using RentACar.Application.WebSite;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Fleet;
 
-/// <summary>PR-11 <paramref name="Adet"/>: vitrinde gösterilecek araç sayısı = Σ(VitrinAdet ?? 1).
-/// YALNIZ gösterim — rezervasyon kapasitesi DEĞİL (bkz. <see cref="Vehicle.VitrinAdet"/>).</summary>
+/// <summary>
+/// PR-14 vitrin kartı — artık SINIF (VehicleGroup) değil İLAN (<see cref="WebIlan"/>) bazlı.
+/// <paramref name="Adet"/>: Σ(VitrinAdet ?? 1) — YALNIZ gösterim, rezervasyon kapasitesi DEĞİL.
+/// </summary>
 public sealed record FleetShowcaseCard(
-    Guid GroupId, string Ad, string? Aciklama, string? KasaTuru,
-    int? KoltukSayisi, int? KapiSayisi, int? BagajSayisi, Guid? CoverPhotoId, int Adet = 1);
+    Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
+    decimal GunlukFiyat, bool KdvDahil, int Adet,
+    IReadOnlyList<OzellikGoster> Ozellikler);
+
+/// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır).</summary>
+public sealed record OzellikGoster(string Etiket, string Deger);
 
 /// <summary>
-/// PR-7: müsaitlik+fiyat arama sonucu (public). TÜM sayısal değerler fiyat MOTORUNDAN okunur —
-/// gün sayısı da toplam da BURADA HESAPLANMAZ: rent-a-car'da "gün" tanımı (24s blok + tolerans,
-/// saat bileşeni) ve toplam (hafta sonu farkı, iskonto, hediye gün) motorun içindedir; ikinci bir
-/// formül personelin verdiği teklifle uyuşmazlık üretirdi. `MusaitlikArama.razor` da aynı şekilde
-/// `q.GunlukUcret`/`q.GenelToplam` okur (çarpma YAPMAZ).
-///
-/// KDV: motor NET (KDV hariç) döndürür; tüketiciye KDV DAHİL göstermek için `KdvVarsayilan.OranAsync`
-/// ile brüte çevrilir — yalnız GÖSTERİM amaçlı gösterge rakam (gerçek rezervasyonda KDV normal
-/// zincirinden yeniden hesaplanır).
+/// PR-14: müsaitlik+fiyat arama sonucu (public). Fiyat İLANDAN gelir — <c>RentalQuoteEngine</c>
+/// halka açık yoldan TAMAMEN ÇIKTI (kullanıcı kararı: "tarife matrisi ilk müşteriler için çok
+/// karışık"). Gün sayısı yine <see cref="BookingMath.ComputeGun"/> ile hesaplanır — 24s blok +
+/// tolerans mantığı yeniden YAZILMAZ, ERP ile aynı gün tanımı korunur.
 /// </summary>
 public sealed record PublicAvailabilityResult(
-    Guid GroupId, string Ad, string? Aciklama, string? KasaTuru,
-    int? KoltukSayisi, int? KapiSayisi, int? BagajSayisi, Guid? CoverPhotoId,
-    string GrupKod, int Gun, string ParaBirimi,
-    decimal GunlukUcretKdvHaric, decimal GunlukUcretKdvDahil,
-    decimal ToplamKdvHaric, decimal ToplamKdvDahil,
-    /// <summary>PR-11: bu tarih aralığında MÜSAİT araç adedi (Σ VitrinAdet ?? 1) — biri kirada ise düşer.</summary>
-    int Adet = 1);
+    Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
+    int Gun, decimal GunlukFiyat, decimal Toplam, bool KdvDahil,
+    /// <summary>Bu tarih aralığında MÜSAİT adet (Σ VitrinAdet ?? 1) — biri kirada ise düşer.</summary>
+    int Adet,
+    IReadOnlyList<OzellikGoster> Ozellikler);
 
 public sealed record FleetShowcaseDetail(
-    Guid GroupId, string Ad, string? Aciklama, string? KasaTuru,
-    int? KoltukSayisi, int? KapiSayisi, int? BagajSayisi, IReadOnlyList<Guid> PhotoIds, int Adet = 1);
+    Guid IlanId, string Slug, string Baslik, string? YilAralik,
+    decimal GunlukFiyat, decimal? HaftalikToplam, decimal? AylikToplam, bool KdvDahil,
+    int Adet, IReadOnlyList<Guid> PhotoIds, IReadOnlyList<OzellikGoster> Ozellikler);
 
 public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, string? Email);
 
-/// <summary>PR-11 personel görünürlüğü: grubun halka açık sitede yayında olup olmadığı ve
-/// değilse eksiklerin TAMAMI ("Foto yok" + "Tarife yok" birlikte gösterilir).</summary>
-/// <param name="Adet">Vitrinde görünecek toplam (Σ VitrinAdet ?? 1) — <paramref name="AracSayisi"/>'ndan farklı olabilir.</param>
-/// <param name="KarisikMod">Grupta hem çoklu kayıt hem VitrinAdet&gt;1 var — toplam beklenenden büyük olabilir.</param>
-public sealed record GrupYayinDurumu(
-    Guid GroupId, string Ad, bool Yayinda, IReadOnlyList<string> Eksikler,
-    int AracSayisi, int Adet, bool KarisikMod);
-
 /// <summary>
-/// Public-site filo vitrini (PR-4). Yetki gerektirmez — mevcut guard-free okuma servisleri (
-/// <see cref="VehicleGroupService.ListActiveAsync"/>, <see cref="VehicleService.ListAsync"/>,
-/// <see cref="VehiclePhotoService"/>) üstünden salt-okur derleme (DashboardService deseni).
-/// Vitrin GRUP bazlı (tekil araç/plaka değil — VehicleGroup.WebSira zaten bunun için tanımlanmış
-/// ama hiç okunmuyordu); Vehicle.Grup FK değil string eşleşmesi (VehicleGroup.cs doc-yorumu).
+/// Public-site filo vitrini. Yetki gerektirmez — guard-free okuma servisleri üstünden salt-okur
+/// derleme (DashboardService deseni; `PublicTenantContext.Role=null` → BranchScope Unrestricted).
+///
+/// <para><b>PR-14 — vitrin İLAN bazlı.</b> Eskiden aktif her <see cref="VehicleGroup"/> bir kart
+/// olurdu ve fiyat <c>RentalQuoteEngine</c>'den gelirdi. Artık kart = personelin sihirbazdan
+/// yayınladığı ilan, fiyat = ilandaki sabit fiyat. Motor/tarife halka açık yoldan tamamen çıktı.</para>
+///
+/// <para><b>Yayın kapısı</b> (dört yüzeyin TEK kaynağı — vitrin/arama/detay/sitemap):
+/// ilan <c>Yayinda</c> · <c>GunlukFiyat &gt; 0</c> · üye araçlardan en az birinin FOTOĞRAFI var ·
+/// en az bir üye araç sitede gösterilebilir durumda (<c>!WebRezKapat</c> ve durumu Pasif/Satıldı değil).
+/// Tarih şartı YOK — PR-11'in sezonluk-tarife penceresi karmaşası bu modelde ortadan kalktı.</para>
 /// </summary>
 public sealed class FleetShowcaseService(
-    VehicleGroupService groups, VehicleService vehicles, VehiclePhotoService photos,
+    IWebIlanRepository ilanlar, VehiclePhotoService photos,
     IPublicBrandingRepository branding, ITenantContext tenant,
-    AvailabilityService availability, RentalQuoteEngine quotes, KdvVarsayilan kdv)
+    AvailabilityService availability)
 {
-    public async Task<IReadOnlyList<FleetShowcaseCard>> ListShowcaseGroupsAsync(CancellationToken ct = default)
+    /// <summary>Detay sayfasında gösterilecek en fazla fotoğraf (üye araç sayısı büyük olabilir).</summary>
+    private const int MaxDetayFoto = 24;
+
+    // ---- Yayın kapısı ----
+
+    /// <summary>Sitede gösterilebilir üye araç: web'e kapalı ya da elden çıkmış araçlar SAYILMAZ.</summary>
+    private static bool Gosterilebilir(Vehicle v)
+        => !v.WebRezKapat && v.Durum != VehicleStatus.Pasif && v.Durum != VehicleStatus.Satildi;
+
+    private sealed record Yayin(WebIlanDetay Detay, IReadOnlyList<Vehicle> Araclar, Vehicle Kapak);
+
+    /// <summary>
+    /// Yayındaki ilanlar + gösterilebilir üyeleri + kapak aracı. Foto varlığı TEK toplu sorguyla
+    /// (ilan/araç başına sorgu, rate-limit'siz en sıcak anonim sayfada N+1 üretirdi).
+    /// </summary>
+    private async Task<List<Yayin>> YayindakilerAsync(CancellationToken ct)
     {
-        var cards = new List<FleetShowcaseCard>();
-        foreach (var y in await YayindakiGruplarAsync(ct))
+        var hepsi = await ilanlar.ListAsync(ct);
+        var adaylar = hepsi
+            .Where(d => d.Ilan.Durum == WebIlanDurum.Yayinda && d.Ilan.GunlukFiyat > 0m)
+            .Select(d => (Detay: d, Araclar: d.Araclar.Where(Gosterilebilir).ToList()))
+            .Where(x => x.Araclar.Count > 0)
+            .ToList();
+        if (adaylar.Count == 0) return [];
+
+        var fotolu = await photos.ListVehicleIdsWithPhotoAsync(
+            [.. adaylar.SelectMany(a => a.Araclar).Select(v => v.Id).Distinct()], ct);
+
+        var sonuc = new List<Yayin>();
+        foreach (var (detay, araclar) in adaylar)
         {
-            var g = y.Group;
-            var meta = await photos.ListMetaAsync(y.KapakAraci.Id, ct); // zaten Sira sıralı; kapak aracında foto VAR
-            cards.Add(new FleetShowcaseCard(g.Id, g.Ad, g.Aciklama, g.KasaTuru, g.KoltukSayisi, g.KapiSayisi, g.BagajSayisi,
-                meta.Count > 0 ? meta[0].Id : null, Adet(y.Araclar)));
+            // Kapak: fotoğrafı OLAN ilk araç. Kapak Id'si SNAPSHOT DEĞİL, her istekte hesaplanır —
+            // foto silinirse kart kendini onarır (dangling GUID → kırık görsel olmaz).
+            var kapak = araclar.FirstOrDefault(v => fotolu.Contains(v.Id));
+            if (kapak is null) continue; // foto şartı
+            sonuc.Add(new Yayin(detay, araclar, kapak));
         }
-        return cards;
+        // Sıra: WebIlan.Sira, sonra Baslik. Tie-break ŞART — eşit Sira'da Postgres sıra garanti
+        // etmez (vitrin sırası her istekte değişir: SEO + test kararsızlığı).
+        return [.. sonuc.OrderBy(y => y.Detay.Ilan.Sira).ThenBy(y => y.Detay.Ilan.Baslik, StringComparer.Ordinal)];
     }
 
-    /// <summary>PR-11: yayınlanmamış grup <b>404</b> döner (null). Sebep: eski bir sitemap girdisi ya
-    /// da paylaşılmış link, fotosuz/fiyatsız bir grubu ziyaretçiye açmamalı — vitrin ile detayın
-    /// yayın kararı TEK yerden gelir.</summary>
-    public async Task<FleetShowcaseDetail?> GetGroupDetailAsync(Guid groupId, CancellationToken ct = default)
+    private static IReadOnlyList<OzellikGoster> Gorunur(WebIlanDetay d)
+        => [.. d.Ozellikler.Where(o => o.Gorunur).OrderBy(o => o.Sira).Select(o => new OzellikGoster(o.Etiket, o.Deger))];
+
+    private static int Adet(IEnumerable<Vehicle> araclar) => araclar.Sum(v => v.VitrinAdet ?? 1);
+
+    // ---- Vitrin ----
+
+    public async Task<IReadOnlyList<FleetShowcaseCard>> ListShowcaseGroupsAsync(CancellationToken ct = default)
     {
-        var y = (await YayindakiGruplarAsync(ct)).FirstOrDefault(x => x.Group.Id == groupId);
+        var kartlar = new List<FleetShowcaseCard>();
+        foreach (var y in await YayindakilerAsync(ct))
+        {
+            var meta = await photos.ListMetaAsync(y.Kapak.Id, ct); // kapak aracında foto VAR
+            kartlar.Add(new FleetShowcaseCard(
+                y.Detay.Ilan.Id, y.Detay.Ilan.Slug, y.Detay.Ilan.Baslik, AracImza.YilAralik(y.Araclar),
+                meta.Count > 0 ? meta[0].Id : null,
+                y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Adet(y.Araclar), Gorunur(y.Detay)));
+        }
+        return kartlar;
+    }
+
+    /// <summary>PR-14: yayınlanmamış ilan <b>404</b> döner (null) — eski/paylaşılmış link
+    /// fotosuz-fiyatsız içeriği ziyaretçiye AÇMAMALI; vitrin ile detayın yayın kararı TEK yerden.</summary>
+    public async Task<FleetShowcaseDetail?> GetIlanDetayAsync(string slug, CancellationToken ct = default)
+    {
+        var y = (await YayindakilerAsync(ct)).FirstOrDefault(x => x.Detay.Ilan.Slug == slug);
         if (y is null) return null;
 
         var photoIds = new List<Guid>();
         foreach (var v in y.Araclar)
-            photoIds.AddRange((await photos.ListMetaAsync(v.Id, ct)).Select(m => m.Id));
-        var group = y.Group;
-        return new FleetShowcaseDetail(group.Id, group.Ad, group.Aciklama, group.KasaTuru,
-            group.KoltukSayisi, group.KapiSayisi, group.BagajSayisi, photoIds, Adet(y.Araclar));
-    }
-
-    /// <summary>
-    /// PR-11 — personel hazırlık ("pending") paneli: her aktif grubun yayına girip girmediği ve
-    /// GİRMEDİYSE eksiklerin TAMAMI. Tek bir sebep göstermek yetmez: personel fotoyu yükler, kart
-    /// yine çıkmaz, panel "yayında değil" der ve nedenini söylemez.
-    ///
-    /// Kapı ile AYNI toplu yardımcıları kullanır — panelin "tarife var" dediği yerde vitrinin
-    /// elemesi (ör. wildcard tarife ya da tüm kademeleri 0 olan satır) mümkün olmamalı.
-    /// </summary>
-    public async Task<IReadOnlyList<GrupYayinDurumu>> ListYayinDurumuAsync(CancellationToken ct = default)
-    {
-        var adaylar = await GetAdaylarAsync(ct);
-        var tumGruplar = (await groups.ListActiveAsync(ct)).OrderBy(g => g.WebSira).ToList();
-
-        var fotolu = await photos.ListVehicleIdsWithPhotoAsync(
-            [.. adaylar.SelectMany(a => a.Araclar).Select(v => v.Id).Distinct()], ct);
-        var fiyatli = await quotes.FiyatlanabilirGruplarAsync(
-            [.. tumGruplar.Select(Kod)], DateTimeOffset.UtcNow, ct: ct);
-
-        var sonuc = new List<GrupYayinDurumu>();
-        foreach (var g in tumGruplar)
         {
-            // Araçsız grup da listelenir — "hiç araç yok" da bir eksiktir, sessizce kaybolmamalı.
-            var araclar = adaylar.FirstOrDefault(a => a.Group.Id == g.Id).Araclar ?? [];
-            var eksikler = new List<string>();
-            if (araclar.Count == 0) eksikler.Add("Uygun araç yok");
-            else if (!araclar.Any(v => fotolu.Contains(v.Id))) eksikler.Add("Foto yok");
-            if (!fiyatli.Contains(Kod(g))) eksikler.Add("Tarife yok");
-
-            // Karışım kayması: hem VitrinAdet dolu kayıt hem birden fazla kayıt varsa toplam
-            // beklenenden büyük olabilir (ör. "12 adet"lik kayıt + 3 tekil kayıt = 15).
-            var karisikMod = araclar.Count > 1 && araclar.Any(v => v.VitrinAdet is > 1);
-
-            sonuc.Add(new GrupYayinDurumu(g.Id, g.Ad, eksikler.Count == 0, eksikler, araclar.Count,
-                Adet(araclar), karisikMod));
+            if (photoIds.Count >= MaxDetayFoto) break;
+            photoIds.AddRange((await photos.ListMetaAsync(v.Id, ct)).Select(m => m.Id));
         }
-        return sonuc;
+        var i = y.Detay.Ilan;
+        return new FleetShowcaseDetail(i.Id, i.Slug, i.Baslik, AracImza.YilAralik(y.Araclar),
+            i.GunlukFiyat, i.HaftalikToplam, i.AylikToplam, i.KdvDahil,
+            Adet(y.Araclar), [.. photoIds.Take(MaxDetayFoto)], Gorunur(y.Detay));
     }
 
-    public Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
-        => branding.GetAsync(tenant.TenantIdOrThrow(), ct);
+    /// <summary>PR-14 geçiş: eski <c>/araclar/{groupId}</c> linkleri için ilan Id'siyle de çözülür
+    /// (sitemap'te indekslenmiş adresler 404 olmasın — 301 ile slug'a yönlendirilir).</summary>
+    public async Task<string?> SlugByIdAsync(Guid ilanId, CancellationToken ct = default)
+        => (await YayindakilerAsync(ct)).FirstOrDefault(y => y.Detay.Ilan.Id == ilanId)?.Detay.Ilan.Slug;
 
-    /// <summary>PR-9: SEO kanonik host'u (canonical link + sitemap + robots TEK kaynağı).</summary>
-    public Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)
-        => branding.GetCanonicalHostAsync(tenant.TenantIdOrThrow(), ct);
+    // ---- Arama ----
 
     /// <summary>
-    /// PR-7: anonim müsaitlik+fiyat araması. `MusaitlikArama.razor`'ın (iç ekran) deseniyle BİREBİR aynı:
-    /// <see cref="AvailabilityService.FindAvailableAsync"/> (guard-free) → uygun grup → grup başına
-    /// <see cref="RentalQuoteEngine.QuoteAsync"/> (guard-free), `ValidationException` GRUP BAZINDA yutulur
-    /// (geçersiz kampanya/kural bir kartı düşürür, sayfa çökmez). `KiraHesapService` KULLANILAMAZ —
-    /// `Permission.OperationsWrite` ister.
+    /// PR-14 anonim müsaitlik+fiyat araması. Motor ÇAĞRILMAZ; fiyat ilandan gelir.
     ///
-    /// Grup→araç eşleşmesi PR-4.5'in `GetEligibleCandidatesByGroupAsync` helper'ı (Türkçe-duyarlı).
-    /// Fiyatı olmayan grup (tarife matrisi yok → `GunlukUcret = 0`) sonuçta GÖSTERİLMEZ: staff "—" görebilir
-    /// ama ziyaretçiye fiyatsız kart kafa karıştırıcıdır.
+    /// <para><b>Gün kademesi:</b> 1–7 → <c>GunlukFiyat</c>, 8–29 → <c>HaftalikToplam/7</c>,
+    /// 30+ → <c>AylikToplam/30</c>. Eşikler <c>RentalQuoteEngine.ResolveTierRate</c> ile AYNI
+    /// (personelin ERP'de vereceği teklifle uyuşsun diye BİLİNÇLİ hizalama); üst kademe boşsa
+    /// bir alta düşülür. DİKKAT: ilan alanları TOPLAM'dır, motorunki gibi günlük ücret değil.</para>
     /// </summary>
     public async Task<IReadOnlyList<PublicAvailabilityResult>> SearchAvailabilityAsync(
         DateTimeOffset from, DateTimeOffset to, string? sube, CancellationToken ct = default)
@@ -153,109 +163,47 @@ public sealed class FleetShowcaseService(
             .Where(v => !v.WebRezKapat).ToList();
         if (musait.Count == 0) return [];
 
-        var oran = await kdv.OranAsync(ct);
-        var results = new List<PublicAvailabilityResult>();
+        var gun = BookingMath.ComputeGun(from, to); // gün tanımı ERP ile ORTAK — yeniden yazılmaz
+        var musaitIdler = musait.Select(v => v.Id).ToHashSet();
+        var sonuclar = new List<PublicAvailabilityResult>();
 
-        foreach (var y in await YayindakiGruplarAsync(ct))
+        foreach (var y in await YayindakilerAsync(ct))
         {
-            var g = y.Group;
-            // Grubun bu tarih aralığında GERÇEKTEN müsait araçları (vitrin adayı ≠ müsait araç).
-            // PR-11: adet buradan sayılır — biri kirada ise ziyaretçi 12 değil 11 görür.
-            var musaitOlanlar = musait.Where(v => TurkishText.EqualsIgnoreTurkishCase(v.Grup, g.Ad)).ToList();
-            if (musaitOlanlar.Count == 0) continue;
+            // Bu ilanın araçlarından bu tarih aralığında GERÇEKTEN müsait olanlar.
+            var musaitUyeler = y.Araclar.Where(v => musaitIdler.Contains(v.Id)).ToList();
+            if (musaitUyeler.Count == 0) continue;
 
-            QuoteResult quote;
-            try
-            {
-                quote = await quotes.QuoteAsync(new QuoteRequest
-                { AracGrupKod = g.Kod, BasTar = from, BitTar = to, Sube = sube, SigortaUrunKodlari = [] }, ct);
-            }
-            catch (ValidationException) { continue; } // MusaitlikArama'daki AYNI yutma deseni
-            if (quote.GunlukUcret <= 0m) continue;
+            var gunluk = GunlukEsdeger(y.Detay.Ilan, gun);
+            if (gunluk <= 0m) continue;
 
-            var meta = await photos.ListMetaAsync(y.KapakAraci.Id, ct);
-            results.Add(new PublicAvailabilityResult(
-                g.Id, g.Ad, g.Aciklama, g.KasaTuru, g.KoltukSayisi, g.KapiSayisi, g.BagajSayisi,
+            var meta = await photos.ListMetaAsync(y.Kapak.Id, ct);
+            var i = y.Detay.Ilan;
+            sonuclar.Add(new PublicAvailabilityResult(
+                i.Id, i.Slug, i.Baslik, AracImza.YilAralik(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
-                g.Kod, quote.Gun, quote.ParaBirimi,
-                quote.GunlukUcret, Brut(quote.GunlukUcret, oran),
-                quote.GenelToplam, Brut(quote.GenelToplam, oran), Adet(musaitOlanlar)));
+                gun, gunluk, R(gunluk * gun), i.KdvDahil, Adet(musaitUyeler), Gorunur(y.Detay)));
         }
-
-        return results.OrderBy(r => r.GunlukUcretKdvDahil).ToList();
+        return [.. sonuclar.OrderBy(r => r.GunlukFiyat)];
     }
 
-    /// <summary>NET → BRÜT (yalnız gösterim). Kuruşa yuvarlanır; motor zaten 2 ondalık döndürür.</summary>
-    private static decimal Brut(decimal net, decimal oran) => Math.Round(net * (1m + oran), 2, MidpointRounding.AwayFromZero);
-
-    /// <summary>PR-4.5: aktif grup → o gruba uygun (WebRezKapat=false) araç eşleşmesi —
-    /// `Vehicle.Grup` serbest metin olduğu için `TurkishText.EqualsIgnoreTurkishCase` ile eşleştirilir
-    /// (ordinal/`OrdinalIgnoreCase` DEĞİL — İ/I/ı'da sessizce kaçırır, bkz. TurkishText doc-yorumu).
-    /// Aynı `Ad`'a sahip birden fazla aktif grup varsa HER İKİSİ de (WebSira sıralı) bağımsız değerlendirilir
-    /// — `ToDictionary(g => g.Ad)` KULLANILMAZ (tekil olmayan anahtarda çöker).
-    /// PR-11: artık TEMSİLCİ değil, gruba ait TÜM uygun araçlar döner (kapak seçimi, adet toplamı ve
-    /// foto kapısı hepsi tam listeye ihtiyaç duyar).</summary>
-    private async Task<List<(VehicleGroup Group, List<Vehicle> Araclar)>> GetAdaylarAsync(CancellationToken ct)
+    /// <summary>Gün sayısına düşen GÜNLÜK eşdeğer fiyat. Toplam alanları /7 ve /30 ile günlüğe çevrilir.</summary>
+    internal static decimal GunlukEsdeger(WebIlan ilan, int gun)
     {
-        var activeGroups = (await groups.ListActiveAsync(ct)).OrderBy(g => g.WebSira).ToList();
-        var eligibleVehicles = (await vehicles.ListAsync(ct)).Where(v => !v.WebRezKapat).ToList();
-
-        var result = new List<(VehicleGroup, List<Vehicle>)>();
-        foreach (var g in activeGroups)
-        {
-            var esleşen = eligibleVehicles.Where(v => TurkishText.EqualsIgnoreTurkishCase(v.Grup, g.Ad)).ToList();
-            if (esleşen.Count > 0) result.Add((g, esleşen));
-        }
-        return result;
+        if (gun >= 30 && ilan.AylikToplam is { } ay && ay > 0m) return R(ay / 30m);
+        if (gun >= 8 && ilan.HaftalikToplam is { } hafta && hafta > 0m) return R(hafta / 7m);
+        // Üst kademe girilmemişse bir alta düş (motorun `?? m.GunHaftalik` davranışıyla aynı).
+        if (gun >= 30 && ilan.HaftalikToplam is { } h2 && h2 > 0m) return R(h2 / 7m);
+        return ilan.GunlukFiyat;
     }
 
-    /// <summary>PR-11 yayınlanmış grup: kapak fotosu OLAN bir aracı ve geçerli tarifesi var.</summary>
-    private sealed record YayindakiGrup(VehicleGroup Group, List<Vehicle> Araclar, Vehicle KapakAraci);
+    private static decimal R(decimal x) => Math.Round(x, 2, MidpointRounding.AwayFromZero);
 
-    /// <summary>
-    /// PR-11 — <b>YAYIN KAPISI</b>. Bir grup halka açık sitede ancak (a) uygun araçlarından en az
-    /// birinin FOTOĞRAFI ve (b) geçerli bir TARİFESİ varsa görünür. Araçlar bu iki şart sağlanana
-    /// kadar "pending" bekler; personel foto yükleyip fiyat girdiğinde grup kendiliğinden yayına girer.
-    ///
-    /// <para><b>Tek kaynak:</b> vitrin, arama, <c>/araclar/{id}</c> detayı ve <c>sitemap.xml</c>'in
-    /// dördü de buradan beslenir. Ayrı ayrı yazılsalardı biri yayınlar diğeri 404 verirdi.</para>
-    ///
-    /// <para><b>İki toplu sorgu:</b> tüm adayların fotoğraf varlığı TEK sorguda
-    /// (<see cref="VehiclePhotoService.ListVehicleIdsWithPhotoAsync"/>), tüm grupların fiyatlanabilirliği
-    /// TEK sorguda (<see cref="RentalQuoteEngine.FiyatlanabilirGruplarAsync"/>). Grup/araç başına
-    /// çağrı, rate-limit'siz en sıcak anonim sayfada N+1 üretirdi.</para>
-    ///
-    /// <para><b>KAPI ⊇ ARAMA:</b> kapı aramanın kabul ettiği her durumu kabul eder (tarife penceresi
-    /// geniş, şube/kanal belirtilmemiş). Aksi halde arama kart basar, kartın "Detay" linki 404 verir.</para>
-    /// </summary>
-    private async Task<List<YayindakiGrup>> YayindakiGruplarAsync(CancellationToken ct)
-    {
-        var adaylar = await GetAdaylarAsync(ct);
-        if (adaylar.Count == 0) return [];
+    // ---- Marka / SEO ----
 
-        var fotolu = await photos.ListVehicleIdsWithPhotoAsync(
-            [.. adaylar.SelectMany(a => a.Araclar).Select(v => v.Id).Distinct()], ct);
-        var fiyatli = await quotes.FiyatlanabilirGruplarAsync(
-            [.. adaylar.Select(a => Kod(a.Group))], DateTimeOffset.UtcNow, ct: ct);
+    public Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
+        => branding.GetAsync(tenant.TenantIdOrThrow(), ct);
 
-        var sonuc = new List<YayindakiGrup>();
-        foreach (var (g, araclar) in adaylar)
-        {
-            // Kapak: fotosu OLAN ilk araç. Eskiden tek temsilci alınıyordu ve onda foto yoksa kart
-            // fotosuz kalıyordu — grubun başka aracında foto olsa bile.
-            var kapak = araclar.FirstOrDefault(v => fotolu.Contains(v.Id));
-            if (kapak is null) continue;                 // foto şartı
-            if (!fiyatli.Contains(Kod(g))) continue;     // fiyat şartı
-            sonuc.Add(new YayindakiGrup(g, araclar, kapak));
-        }
-        return sonuc;
-    }
-
-    /// <summary>Grup kodunu motorun <c>QuoteAsync</c>'iyle AYNI şekilde normalize eder (trim+upper) —
-    /// kapı ile motor farklı normalize etseydi eşleşme sessizce kaçardı.</summary>
-    private static string Kod(VehicleGroup g) => (g.Kod ?? string.Empty).Trim().ToUpperInvariant();
-
-    /// <summary>PR-11 vitrin adedi: <c>Σ (VitrinAdet ?? 1)</c>. Tek formül üç modeli de karşılar —
-    /// 12 ayrı kayıt (12×1), tek kayıt "12 adet" (1×12), karışık. YALNIZ gösterim.</summary>
-    private static int Adet(IEnumerable<Vehicle> araclar) => araclar.Sum(v => v.VitrinAdet ?? 1);
+    /// <summary>PR-9: SEO kanonik host'u (canonical link + sitemap + robots TEK kaynağı).</summary>
+    public Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)
+        => branding.GetCanonicalHostAsync(tenant.TenantIdOrThrow(), ct);
 }

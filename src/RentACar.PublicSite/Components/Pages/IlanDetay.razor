@@ -1,0 +1,92 @@
+@page "/araclar/{Slug}"
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+
+<PageTitle>@(_detay?.Baslik ?? "Araç") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <a class="back-link" href="/">← Filo</a>
+
+    @if (_detay is null)
+    {
+        <p class="empty-state">Bu araç bulunamadı.</p>
+    }
+    else
+    {
+        <h1>@_detay.Baslik</h1>
+        <div class="chips">
+            @if (!string.IsNullOrWhiteSpace(_detay.YilAralik))
+            {
+                <span class="chip">@_detay.YilAralik model</span>
+            }
+            @if (_detay.Adet > 1)
+            {
+                <span class="chip">@_detay.Adet araç</span>
+            }
+        </div>
+
+        <p class="fiyat-buyuk">
+            <strong>@_detay.GunlukFiyat.ToString("N0") ₺</strong>
+            <span class="muted">/ gün</span>
+            <span class="muted small">@(_detay.KdvDahil ? "KDV dahil" : "+ KDV")</span>
+        </p>
+        @if (_detay.HaftalikToplam is { } hafta || _detay.AylikToplam is { } ay)
+        {
+            <p class="muted small">
+                @if (_detay.HaftalikToplam is { } h) { <text>Haftalık @h.ToString("N0") ₺</text> }
+                @if (_detay.HaftalikToplam is not null && _detay.AylikToplam is not null) { <text> · </text> }
+                @if (_detay.AylikToplam is { } a) { <text>Aylık @a.ToString("N0") ₺</text> }
+            </p>
+        }
+
+        @* Teknik özellikler: personelin sihirbazda "sitede görünsün" işaretlediği satırlar. *@
+        @if (_detay.Ozellikler.Count > 0)
+        {
+            <h2 class="section-title">Teknik Özellikler</h2>
+            <div class="table-scroll">
+                <table class="ozellik-tablo">
+                    <tbody>
+                        @foreach (var o in _detay.Ozellikler)
+                        {
+                            <tr><th scope="row">@o.Etiket</th><td>@o.Deger</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (_detay.PhotoIds.Count > 0)
+        {
+            <h2 class="section-title">Fotoğraflar</h2>
+            <div class="galeri">
+                @foreach (var photoId in _detay.PhotoIds)
+                {
+                    <img src="@($"/foto/{photoId}/thumb")" alt="@_detay.Baslik" loading="lazy" />
+                }
+            </div>
+        }
+
+        <p class="ust-linkler">
+            <a href="@($"/musaitlik?ilan={_detay.Slug}")">Bu araç için müsaitlik ve fiyat sorgula →</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    /// <summary>Statik SSR'da doğrudan kullanılabilir (circuit yok) — durum kodunu yazmak için.</summary>
+    [CascadingParameter] public HttpContext? Http { get; set; }
+
+    private FleetShowcaseDetail? _detay;
+    private FleetBranding? _branding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Showcase.GetBrandingAsync();
+        _detay = await Showcase.GetIlanDetayAsync(Slug);
+
+        // PR-11'den devralınan kural: yayında olmayan içerik GERÇEK 404 döner. HTTP 200 ile
+        // "bulunamadı" basmak (soft-404) arama motoruna bunu geçerli içerik olarak indeksletirdi.
+        if (_detay is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+}

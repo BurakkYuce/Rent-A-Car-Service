@@ -27,8 +27,8 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
     private static PublicBookingRequestInput Input(string ad = "Ayşe Yılmaz", string tel = "0555 111 22 33") => new()
     {
         AdSoyad = ad, Telefon = tel, Email = "a@ornek.com",
-        BasTar = Bas, BitTar = Bit, AracGrupKod = "EKO", Not = "Bebek koltuğu olsun",
-        GosterilenGunlukUcretKdvDahil = 1560.00m,
+        // PR-14: ilan/fiyat artık SUNUCUDAN çözülüyor (form değerine güvenilmez) → girdide yok.
+        BasTar = Bas, BitTar = Bit, Not = "Bebek koltuğu olsun",
     };
 
     private static async Task<Guid> SeedVehicleAsync(TestHost host, Guid tenantId)
@@ -60,7 +60,9 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var talep = await TekTalepAsync(host, tenantId);
         Assert.Equal("Ayşe Yılmaz", talep.AdSoyad);
         Assert.Equal(PublicBookingRequestDurum.Yeni, talep.Durum);
-        Assert.Equal(1560.00m, talep.GosterilenGunlukUcretKdvDahil); // fiyat snapshot'ı taşındı
+        // PR-14: ilan bağlanmadan gelen talepte fiyat snapshot'ı YOKTUR (ilan bazlı akış
+        // VitrinIlanTests'te test edilir) — doğrudan forma gelen talep hâlâ desteklenir.
+        Assert.Null(talep.GosterilenGunlukUcretKdvDahil);
         Assert.Null(talep.DonusenReservationId);
     }
 

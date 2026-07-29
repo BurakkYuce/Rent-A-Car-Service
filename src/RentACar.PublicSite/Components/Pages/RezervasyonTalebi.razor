@@ -34,9 +34,14 @@
         </label>
         <label class="tam-genislik">Not<textarea name="not" rows="3" maxlength="2000"></textarea></label>
 
-        @* PR-7 aramasından gelen bağlam — ziyaretçiye gösterilmez, personel için taşınır. *@
-        <input type="hidden" name="grup" value="@Grup" />
-        <input type="hidden" name="fiyat" value="@Fiyat" />
+        @* PR-14: aramadan gelen bağlam — ziyaretçiye gösterilmez, personel için taşınır.
+           İlan SLUG'dan yeniden çözülür: yayından kalkmışsa başlık/fiyat taşınmaz (ziyaretçinin
+           gördüğü fiyat artık geçerli değildir; talep yine oluşur, personel teyit eder). *@
+        @if (_ilan is not null)
+        {
+            @* YALNIZ ilan kimliği taşınır — başlık ve fiyatı sunucu ilandan okur. *@
+            <input type="hidden" name="ilanId" value="@_ilan.IlanId" />
+        }
 
         @* HONEYPOT: CSS ile gizli; gerçek kullanıcı görmez/doldurmaz, bot doldurursa istek sessizce yutulur. *@
         <div class="hp-alan" aria-hidden="true">
@@ -48,7 +53,8 @@
 </div>
 
 @code {
-    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    /// <summary>PR-14: aramadan gelen ilan adresi (slug).</summary>
+    [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
@@ -57,10 +63,12 @@
 
     private FleetBranding? _branding;
     private IReadOnlyList<string> _subeler = [];
+    private FleetShowcaseDetail? _ilan; // PR-14: slug'dan çözülen ilan (yayında değilse null)
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        if (!string.IsNullOrWhiteSpace(Ilan)) _ilan = await Showcase.GetIlanDetayAsync(Ilan);
     }
 }

@@ -41,4 +41,22 @@ public static class TurkishText
         if (a is null || b is null) return a is null && b is null;
         return string.Equals(Normalize(a), Normalize(b), StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Türkçe-doğru URL slug'ı: <see cref="Normalize"/> (İ/I/ı dahil) → alfanümerik dışı her şey tire →
+    /// ardışık/kenar tireler sadeleşir. Boş dönebilir (çağıran karar verir).
+    /// PR-14: Blog'un `Slugify`'ı buraya taşındı — ilan adresleri de aynı kuralı kullanıyor,
+    /// iki kopya olsaydı "aynı başlık iki farklı adres" üretirdi.
+    /// </summary>
+    public static string Slugify(string s)
+    {
+        var normalized = Normalize(s);
+        var sb = new System.Text.StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (char.IsAsciiLetterOrDigit(ch)) sb.Append(ch);
+            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
+        }
+        return sb.ToString().Trim('-');
+    }
 }
