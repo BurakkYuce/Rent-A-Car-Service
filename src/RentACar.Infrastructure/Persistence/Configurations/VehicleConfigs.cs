@@ -15,6 +15,11 @@ internal sealed class VehicleConfig : IEntityTypeConfiguration<Vehicle>
         e.ToTable("Vehicles");
         e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
         e.HasIndex(x => x.SubeId);
+        // PR-13: halka açık site ilanı üyeliği. Composite FK (şube deseniyle aynı) → çapraz-tenant
+        // referans imkânsız. SET NULL: ilan silinince araç yayından düşer, araç kaydı bozulmaz.
+        e.HasOne<WebIlan>().WithMany().HasForeignKey(x => new { x.TenantId, x.WebIlanId })
+            .HasPrincipalKey(i => new { i.TenantId, i.Id }).OnDelete(DeleteBehavior.SetNull);
+        e.HasIndex(x => new { x.TenantId, x.WebIlanId });
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Plaka).IsRequired().HasMaxLength(16);
@@ -206,5 +211,45 @@ internal sealed class VehiclePhotoConfig : IEntityTypeConfiguration<VehiclePhoto
         // BİLİNÇLİ NON-UNIQUE: MoveAsync iki satırın Sira'sını TAKAS eder (iki ayrı UPDATE) — unique
         // olsaydı ilk UPDATE'ten sonra iki satır aynı Sira'yı taşır, constraint patlardı.
         e.HasIndex(x => new { x.TenantId, x.VehicleId, x.Sira });
+    }
+}
+
+// ---- WebIlan / WebIlanOzellik (PR-13 — halka açık site ilanları) ----
+// NOT: HasQueryFilter BURAYA YAZILMAZ — AppDbContext.OnModelCreating'deki merkezi döngü tüm
+// ITenantOwned entity'lere tenant filtresini otomatik uygular (ModelGuardTests bunu doğrular).
+internal sealed class WebIlanConfig : IEntityTypeConfiguration<WebIlan>
+{
+    public void Configure(EntityTypeBuilder<WebIlan> e)
+    {
+        e.ToTable("WebIlanlar");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Baslik).IsRequired().HasMaxLength(160);
+        e.Property(x => x.EslesmeAnahtari).HasMaxLength(256);
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.GunlukFiyat).HasColumnType("numeric(19,4)");
+        e.Property(x => x.HaftalikToplam).HasColumnType("numeric(19,4)");
+        e.Property(x => x.AylikToplam).HasColumnType("numeric(19,4)");
+        // Composite alternatif anahtar: Vehicle.WebIlanId'nin (TenantId, WebIlanId) FK'si buna bağlanır.
+        e.HasAlternateKey(x => new { x.TenantId, x.Id });
+        // EslesmeAnahtari UNIQUE DEĞİL — "ayrı göster" modu aynı anahtardan bilinçli N ilan üretir.
+        e.HasIndex(x => new { x.TenantId, x.EslesmeAnahtari });
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.Sira });
+    }
+}
+
+internal sealed class WebIlanOzellikConfig : IEntityTypeConfiguration<WebIlanOzellik>
+{
+    public void Configure(EntityTypeBuilder<WebIlanOzellik> e)
+    {
+        e.ToTable("WebIlanOzellikler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Etiket).IsRequired().HasMaxLength(60);
+        e.Property(x => x.Deger).IsRequired().HasMaxLength(160);
+        // İlan silinince özellikleri de düşer (yetim satır kalmasın) — composite FK ile çapraz-tenant kapalı.
+        e.HasOne<WebIlan>().WithMany().HasForeignKey(x => new { x.TenantId, x.IlanId })
+            .HasPrincipalKey(i => new { i.TenantId, i.Id }).OnDelete(DeleteBehavior.Cascade);
+        e.HasIndex(x => new { x.TenantId, x.IlanId, x.Sira });
     }
 }
