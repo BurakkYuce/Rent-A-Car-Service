@@ -4,7 +4,10 @@ using RentACar.Infrastructure.Persistence;
 
 namespace RentACar.PublicSite;
 
-public enum PublicTenantResolution { NotFound, TenantInactive, SiteDisabled, Found }
+/// <summary>PR-12 <c>ModulKapali</c>: "Web Sitesi" modülü satın alınmamış. Ziyaretçiye
+/// <c>SiteDisabled</c>/<c>NotFound</c> ile AYNI 404 döner (bilgi sızdırmama kararı korunur);
+/// ayrı değer olmasının sebebi log/test ayırt edilebilirliğidir.</summary>
+public enum PublicTenantResolution { NotFound, TenantInactive, SiteDisabled, ModulKapali, Found }
 
 public sealed record PublicTenantResult(PublicTenantResolution Kind, Guid? TenantId = null);
 
@@ -50,9 +53,16 @@ public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantR
                 .FirstOrDefaultAsync(ct);
             if (row is null) return new(PublicTenantResolution.NotFound);
 
-            var active = await db0.Tenants.AsNoTracking()
-                .Where(x => x.Id == row.TenantId).Select(x => x.IsActive).FirstOrDefaultAsync(ct);
-            if (!active) return new(PublicTenantResolution.TenantInactive);
+            // PR-12: modül bayrağı AYNI satırdan okunur → ek sorgu YOK. `Tenant` platform tablosu
+            // olduğu için bu faz-1 (NullTenantContext) okumasına doğal olarak sığar.
+            var t = await db0.Tenants.AsNoTracking()
+                .Where(x => x.Id == row.TenantId)
+                .Select(x => new { x.IsActive, x.WebSitesiModulu })
+                .FirstOrDefaultAsync(ct);
+            if (t is null || !t.IsActive) return new(PublicTenantResolution.TenantInactive);
+            // Modül satın alınmamışsa site YOK. Tenant kendi "Sitemi Aç"ı açmış olsa bile geçerli —
+            // iki kademe AYRI: satın alma (platform) + tercih (tenant).
+            if (!t.WebSitesiModulu) return new(PublicTenantResolution.ModulKapali);
 
             tenantId = row.TenantId;
             if (row.Status == TenantDomainStatus.PendingVerification) pendingDomainId = row.Id;

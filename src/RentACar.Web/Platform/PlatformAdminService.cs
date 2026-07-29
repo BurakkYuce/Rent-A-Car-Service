@@ -21,7 +21,9 @@ public sealed record PlatformTenantDetay(
     DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc,
     string? YetkiliAd, string? Eposta, string? Telefon, string? Notlar, string? Plan,
     int UserCount, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun,
-    bool PublicSiteEnabled, IReadOnlyList<PlatformTenantDomain> Domainler)
+    bool PublicSiteEnabled, IReadOnlyList<PlatformTenantDomain> Domainler,
+    /// <summary>PR-12: "Web Sitesi" modülü satın alındı mı (platform kararı).</summary>
+    bool WebSitesiModulu = false)
 {
     public string Durum => KapanisTarihiUtc is not null ? "Kapalı" : IsActive ? "Aktif" : "Pasif";
 }
@@ -141,7 +143,8 @@ public sealed class PlatformAdminService(
                     TenantDomainStatus.PendingVerification => "Doğrulama Bekliyor",
                     TenantDomainStatus.Failed => "Başarısız",
                     _ => d.Status.ToString()
-                })).ToList());
+                })).ToList(),
+            t.WebSitesiModulu); // PR-12
     }
 
     /// <summary>Bilgi alanlarını günceller. Code DEĞİŞMEZ (login anahtarı). Kolon sınırları burada
@@ -172,6 +175,27 @@ public sealed class PlatformAdminService(
         log.LogWarning("PLATFORM: tenant {Code} bilgileri güncellendi — operatör {Operator}.", tenant.Code, operatorName);
 
         static string? Bosalt(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    }
+
+    /// <summary>
+    /// PR-12: "Web Sitesi" modülünü aç/kapa. SATIN ALMA kararıdır → yalnız platform konsolundan;
+    /// tenant'ın ERP'sinde bu alanı yazan hiçbir yol YOKTUR (bilinçli — <c>TenantSettings</c>
+    /// `ManageUsers` ile müşteriye açıktır, oraya konsaydı müşteri kendi kendine açardı).
+    /// Kapatmak veriyi SİLMEZ: mevcut ilanlar durur, yalnız erişim ve halka açık site kapanır.
+    /// </summary>
+    public async Task SetWebSitesiModuluAsync(Guid tenantId, bool aktif, string operatorName, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
+            ?? throw new ValidationException("Tenant bulunamadı.");
+        tenant.WebSitesiModulu = aktif;
+        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        // Invalidate ŞART: yoksa "modülü açtım, menü gelmedi" (TTL kadar sessizlik).
+        statusCache.Invalidate(tenantId);
+        log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) Web Sitesi modülü {Durum} — operatör {Operator}.",
+            tenant.Code, tenantId, aktif ? "AÇILDI" : "KAPATILDI", operatorName);
     }
 
     /// <summary>Tenant erişimini aç/kapa — PASİF geçici askıya alma (+ anlık kesme).

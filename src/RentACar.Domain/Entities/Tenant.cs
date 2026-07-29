@@ -26,6 +26,19 @@ public class Tenant
     /// <summary>Abonelik plan etiketi (ör. Deneme/Standart/Pro) — şimdilik bilgi amaçlı, zorlama yok.</summary>
     public string? Plan { get; set; }
 
+    /// <summary>
+    /// PR-12: "Web Sitesi" modülü satın alındı mı. Bu alan PLATFORM kararıdır — yalnız <c>/platform</c>
+    /// konsolundan yazılır; tenant kendi ERP'sinden GÖREMEZ/AÇAMAZ (bu yüzden tenant-owned
+    /// <see cref="TenantSettings"/>'e değil buraya kondu; orası `ManageUsers` ile müşteriye açık).
+    /// <c>TenantSettings.PublicSiteEnabled</c> ise tenant'ın KENDİ "Sitemi Aç" tercihidir — ikisi
+    /// AYRI kademedir ve site ancak İKİSİ de açıkken görünür.
+    ///
+    /// BİLİNÇLİ BORÇ: tek bool. İkinci modülde <c>TenantModul(TenantId, ModulKod, Aktif)</c> platform
+    /// tablosuna geçilmeli (kolon enflasyonu). <see cref="Plan"/>'ı zorlayıcı yapmak seçenek DEĞİL —
+    /// serbest metin ("Deneme/Standart/Pro") ve mevcut veriyi kırar.
+    /// </summary>
+    public bool WebSitesiModulu { get; set; }
+
     /// <summary>KAPALI durumu damgası. Set ise firma kapalıdır (CloseAsync IsActive=false ile BİRLİKTE set eder
     /// → tek yaptırım yolu değişmez); yalnız ReopenAsync temizler. Pasif (IsActive=false, Kapanis=null)
     /// geçici askıya almadan AYRIDIR. Veri hiçbir durumda silinmez.</summary>

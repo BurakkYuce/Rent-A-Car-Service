@@ -1,0 +1,37 @@
+@page "/web-sitesi"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Domain.Common
+@using RentACar.Infrastructure.Persistence
+@inject ITenantContext Tenant
+@inject TenantStatusCache Durum
+
+<PageTitle>Web Sitesi — RentPro</PageTitle>
+
+@* PR-12: SAYFA da sunucuda modülü doğrular. `[Authorize]` yalnız rolü kontrol eder; modül kapısı
+   ayrı bir kademedir ve menüyü gizlemek tek başına koruma değildir. *@
+@if (!_modul)
+{
+    <div class="page-head"><h1>Web Sitesi</h1></div>
+    <p class="empty-state">Bu modül firmanızda etkin değil.</p>
+}
+else
+{
+    <div class="page-head">
+        <h1>Web Sitesi</h1>
+        <div class="actions"><a class="kf-btn" href="/web-sitesi/arac-ekle">+ Araç Ekle</a></div>
+    </div>
+    <p class="muted small">Halka açık sitenizde hangi araçların, hangi fiyatla ve hangi teknik
+        özelliklerle görüneceğini buradan yönetirsiniz. Bir ilan; bir araç ya da birbirinin aynısı
+        birden çok araç olabilir.</p>
+
+    <p class="empty-state">Henüz ilan oluşturmadınız — "Araç Ekle" ile başlayın.</p>
+}
+
+@code {
+    private bool _modul;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _modul = Tenant.TenantId is { } id && await Durum.WebSitesiModuluAsync(id);
+    }
+}
