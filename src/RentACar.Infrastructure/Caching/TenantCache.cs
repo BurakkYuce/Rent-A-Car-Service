@@ -14,13 +14,13 @@ public sealed class TenantCache(IMemoryCache cache, ITenantContext tenant) : ITe
 
     private string Key(string key) => $"tc:{tenant.TenantId ?? Guid.Empty}:{key}";
 
-    public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, CancellationToken ct = default)
+    public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, CancellationToken ct = default, TimeSpan? ttl = null)
     {
         var full = Key(key);
         if (cache.TryGetValue(full, out T? cached) && cached is not null)
             return cached;
         var value = await factory();
-        cache.Set(full, value, Ttl);
+        cache.Set(full, value, ttl ?? Ttl); // PR-10: anahtar-bazlı TTL (varsayılan sabit korunur)
         return value;
     }
 

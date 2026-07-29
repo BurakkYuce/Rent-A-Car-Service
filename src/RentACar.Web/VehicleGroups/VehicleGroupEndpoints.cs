@@ -24,6 +24,24 @@ public static class VehicleGroupEndpoints
         grp.MapPost("/delete", async (VehicleGroupService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
 
+        // PR-10 eşleme aracı: tanımsız bir Grup serbest-metin değerini tanımlı gruba taşır.
+        // "(boş)" satırı string yerine `bos=true` bayrağıyla gelir (gerçekten "(boş)" yazan bir
+        // grup değeriyle karışmasın diye).
+        grp.MapPost("/ata", async (VehicleGroupService svc, HttpRequest req,
+            [FromForm] Guid hedefGrupId, [FromForm] string? kaynak, [FromForm] bool? bos) =>
+        {
+            try
+            {
+                var n = await svc.GrupDegeriAtaAsync(kaynak, bos ?? false, hedefGrupId);
+                return Results.Redirect("/arac-gruplari?bilgi=" +
+                    Uri.EscapeDataString($"{n} araç '{kaynak}' değerinden taşındı."));
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect("/arac-gruplari?hata=" + Uri.EscapeDataString(ex.Message));
+            }
+        });
+
         return app;
     }
 

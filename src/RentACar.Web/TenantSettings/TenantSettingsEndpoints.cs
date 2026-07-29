@@ -35,6 +35,7 @@ public static class TenantSettingsEndpoints
                 LogoUrl = f["logoUrl"].ToString(),
                 VarsayilanDoviz = f["varsayilanDoviz"].ToString(),
                 VarsayilanKdvOrani = FormParse.Dec(f["varsayilanKdvOrani"].ToString()),
+                VarsayilanGrupId = FormParse.Id(f["varsayilanGrupId"].ToString()), // PR-10
                 MinKiraGun = FormParse.Int(f["minKiraGun"].ToString()),
                 MaxKiraGun = FormParse.Int(f["maxKiraGun"].ToString()),
                 RezOnayZorunlu = f["rezOnayZorunlu"].ToString() is "true" or "on",

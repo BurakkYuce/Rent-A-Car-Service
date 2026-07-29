@@ -38,6 +38,13 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SmtpKullanici).HasMaxLength(256);
         e.Property(x => x.SmtpSifreEnc).HasMaxLength(1024);
         e.Property(x => x.WhatsAppNumarasi).HasMaxLength(32);
+        // PR-10: varsayılan araç grubu. Grup silinirse ayar NULL'a düşer (ON DELETE SET NULL) —
+        // ölü Id'ye işaret eden ayar, çözücüde "bulunamadı" olarak sessizce Ekonomi'ye kayardı.
+        // Tenant-arası bütünlük: FK tek kolonlu (Id) ama çözücü grubu AKTİF olarak arar ve o okuma
+        // query-filter + RLS altındadır → başka tenant'ın Id'si yazılsa bile çözülmez (null döner).
+        e.HasOne<VehicleGroup>().WithMany()
+            .HasForeignKey(x => x.VarsayilanGrupId)
+            .OnDelete(DeleteBehavior.SetNull);
         e.HasIndex(x => x.TenantId).IsUnique(); // tenant başına tek satır
     }
 }
