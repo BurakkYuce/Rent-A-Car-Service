@@ -47,6 +47,20 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
         return new WebIlanDetay(ilan, araclar, ozellikler);
     }
 
+    public async Task<WebIlanDetay?> FindBySlugAsync(string slug, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var id = await db.WebIlanlar.AsNoTracking().Where(i => i.Slug == slug)
+            .Select(i => (Guid?)i.Id).FirstOrDefaultAsync(ct);
+        return id is { } g ? await FindAsync(g, ct) : null;
+    }
+
+    public async Task<IReadOnlyList<string>> ListSluglarAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.WebIlanlar.AsNoTracking().Select(i => i.Slug).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<WebIlan>> FindByAnahtarAsync(string anahtar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

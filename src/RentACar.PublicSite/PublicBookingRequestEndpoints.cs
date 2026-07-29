@@ -25,14 +25,17 @@ public static class PublicBookingRequestEndpoints
                 AdSoyad = f["adSoyad"].ToString(),
                 Telefon = f["telefon"].ToString(),
                 Email = f["email"].ToString(),
-                AracGrupKod = f["grup"].ToString(),
+                // PR-14: vitrin ilan bazlı → yalnız İLAN KİMLİĞİ formdan gelir.
+                // FİYAT VE KDV BAYRAĞI FORMDAN OKUNMAZ — servis bunları ilandan SUNUCU TARAFINDA
+                // çözer. Sebep: bu snapshot artık sözleşme fiyatına akıyor (DonusturAsync); formdan
+                // alınsaydı ziyaretçi `fiyat=1` ya da `kdvDahil=true` yazıp sözleşme bedelini
+                // düşürebilirdi. PR-8'de bu alanlar yalnız bilgi amaçlıydı, artık PARA.
+                IlanId = Guid.TryParse(f["ilanId"].ToString(), out var ilanId) ? ilanId : null,
                 Sube = f["sube"].ToString(),
                 Not = f["not"].ToString(),
                 Website = f["website"].ToString(), // HONEYPOT — gerçek kullanıcı boş bırakır
                 BasTar = ParseDate(f["bas"].ToString()) ?? default,
                 BitTar = ParseDate(f["bit"].ToString()) ?? default,
-                GosterilenGunlukUcretKdvDahil = decimal.TryParse(f["fiyat"].ToString(),
-                    System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var fi) ? fi : null,
             };
 
             try

@@ -185,6 +185,9 @@ public sealed class WebIlanService(
     private async Task<Guid> OlusturAsync(IReadOnlyList<Vehicle> secilen, bool beraber, CancellationToken ct)
     {
         var gruplar = new List<(WebIlan Ilan, bool Yeni, IReadOnlyList<Guid> AracIdler)>();
+        // Slug çakışmasını BELLEKTE takip et: "ayrı" mod aynı başlıkla N ilan üretir, hepsi aynı
+        // SaveChanges'te yazılır → DB'ye sormak yetmez, yeni verilenler de kümede olmalı.
+        var kullanilan = (await repository.ListSluglarAsync(ct)).ToHashSet(StringComparer.Ordinal);
 
         if (beraber)
         {
@@ -196,7 +199,7 @@ public sealed class WebIlanService(
                 var mevcut = (await repository.FindByAnahtarAsync(kume.Key, ct)).FirstOrDefault();
                 gruplar.Add(mevcut is not null
                     ? (mevcut, false, idler)
-                    : (YeniIlan(liste, kume.Key), true, idler));
+                    : (YeniIlan(liste, kume.Key, kullanilan), true, idler));
             }
         }
         else
@@ -204,7 +207,7 @@ public sealed class WebIlanService(
             // "Ayrı": her araç kendi ilanı. İmza yine YAZILIR — kardeşlere fiyat/özellik kopyalamak
             // ve sonradan alınan aracın hangi kümeye ait olduğunu bilmek için gerekli.
             foreach (var v in secilen)
-                gruplar.Add((YeniIlan([v], AracImza.Hesapla(v)), true, new[] { v.Id }));
+                gruplar.Add((YeniIlan([v], AracImza.Hesapla(v), kullanilan), true, new[] { v.Id }));
         }
 
         await repository.CreateWithUyelikAsync(gruplar, ct);
@@ -310,12 +313,33 @@ public sealed class WebIlanService(
 
     // ---- Yardımcılar ----
 
-    private static WebIlan YeniIlan(IReadOnlyList<Vehicle> araclar, string imza) => new()
+    private static WebIlan YeniIlan(IReadOnlyList<Vehicle> araclar, string imza, HashSet<string> kullanilanSluglar)
     {
-        Baslik = AracImza.Baslik(araclar),
-        EslesmeAnahtari = imza,
-        Durum = WebIlanDurum.Taslak,
-    };
+        var baslik = AracImza.Baslik(araclar);
+        return new WebIlan
+        {
+            Baslik = baslik,
+            Slug = BenzersizSlug(baslik, kullanilanSluglar),
+            EslesmeAnahtari = imza,
+            Durum = WebIlanDurum.Taslak,
+        };
+    }
+
+    /// <summary>
+    /// Başlıktan Türkçe-doğru slug; çakışırsa <c>-2</c>, <c>-3</c>… ekler. Blog'dan FARKLI olarak
+    /// hata FIRLATMAZ: "ayrı göster" modu aynı başlıkla N ilan üretmek İÇİN vardır (12 Egea = 12
+    /// kart), çakışma burada beklenen durumdur. <paramref name="kullanilan"/> hem DB'dekileri hem
+    /// bu çağrıda üretilenleri taşır (hepsi tek SaveChanges'te yazılıyor).
+    /// </summary>
+    private static string BenzersizSlug(string baslik, HashSet<string> kullanilan)
+    {
+        var taban = TurkishText.Slugify(baslik);
+        if (taban.Length == 0) taban = "arac"; // başlık tamamen simgeyse adres yine üretilebilsin
+        var aday = taban;
+        var n = 1;
+        while (!kullanilan.Add(aday)) aday = $"{taban}-{++n}";
+        return aday;
+    }
 
     /// <summary>Aracın serbest-metin <c>Grup</c> değerine Türkçe-duyarsız eşleşen aktif grup
     /// (koltuk/kapı/bagaj oradan gelir — <see cref="Vehicle"/>'da bu alanlar yok).</summary>

@@ -13,6 +13,13 @@ public interface IWebIlanRepository
 
     Task<WebIlanDetay?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>PR-14: halka açık adres çözümü (<c>/araclar/{slug}</c>).</summary>
+    Task<WebIlanDetay?> FindBySlugAsync(string slug, CancellationToken ct = default);
+
+    /// <summary>PR-14: kullanılmakta olan tüm slug'lar — sihirbaz otomatik son-ek verirken
+    /// ("…-2", "…-3") çakışma kontrolü için. Tenant kapsamı query filter + RLS ile otomatik.</summary>
+    Task<IReadOnlyList<string>> ListSluglarAsync(CancellationToken ct = default);
+
     /// <summary>Aynı eşleşme anahtarına sahip mevcut ilanlar (operatörün İKİZ ilan yaratmasını
     /// engellemek ve sonradan alınan aracı doğru ilana katmak için).</summary>
     Task<IReadOnlyList<WebIlan>> FindByAnahtarAsync(string anahtar, CancellationToken ct = default);
