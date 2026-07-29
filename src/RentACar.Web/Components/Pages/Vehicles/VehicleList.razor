@@ -3,6 +3,7 @@
 @inject VehicleService Vehicles
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
+@inject VarsayilanGrupCozucu VarsayilanGrup
 @inject BranchService Subeler
 @inject VehicleColorService Renkler
 @inject VehicleSegmentService Segmentler
@@ -36,7 +37,18 @@
     <form method="post" action="/vehicles/create" class="grid-form"><AntiforgeryToken />
         <label>Plaka<input name="plaka" required /></label>
         <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
-        <ComboBox Name="grup" Label="Grup" Options="_grupOpts" />
+        @* PR-10: Grup artık serbest metin DEĞİL — tanımlı gruplardan seçilir (serbest metin, hiçbir
+           gruba eşleşmeyen ve bu yüzden vitrine/aramaya hiç girmeyen araçlar üretiyordu). Varsayılan
+           grup ÖNSEÇİLİ gelir; "(Grupsuz)" bilinçli bir seçimdir ve varsayılana snap'lenmez. *@
+        <label>Grup
+            <select name="grup">
+                <option value="">(Grupsuz)</option>
+                @foreach (var g in _gruplar)
+                {
+                    <option value="@g.Ad" selected="@(TurkishText.EqualsIgnoreTurkishCase(g.Ad, _varsayilanGrupAd))">@g.Ad</option>
+                }
+            </select>
+        </label>
         <ComboBox Name="tip" Label="Tip" Options="_tipOpts" />
         <ComboBox Name="segment" Label="Segment" Options="_segmentOpts" />
         <label>SIPP<input name="sipp" maxlength="4" placeholder="CDMD" /></label>
@@ -269,6 +281,7 @@ else
     private PagedResult<Vehicle> _page = new([], 0, 1, 20);
     private IReadOnlyList<Brand> _markalar = [];
     private IReadOnlyList<VehicleGroup> _gruplar = [];
+    private string? _varsayilanGrupAd; // PR-10
     private IReadOnlyList<Branch> _subeler = [];
     private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [], _yilOpts = [];
     private int _toplam, _musait, _serviste, _doluluk;
@@ -322,6 +335,7 @@ else
 
         _markalar = await Markalar.ListActiveAsync();
         _gruplar = await AracGruplari.ListActiveAsync();
+        _varsayilanGrupAd = await VarsayilanGrup.AdAsync(); // PR-10: yeni araç formunda önseçili gelir
         _subeler = await Subeler.ListActiveAsync();
         var renkler = await Renkler.ListActiveAsync();
         var segmentler = await Segmentler.ListActiveAsync();

@@ -25,6 +25,8 @@ public sealed class TenantSettingsModel
     public byte[]? LogoBytes { get; set; } // PR-C: PDF başlığı için firma logosu (Ayarlar'dan yüklenir)
     public string? VarsayilanDoviz { get; set; }
     public decimal? VarsayilanKdvOrani { get; set; }
+    /// <summary>PR-10: grubu belirtilmeden açılan araçların düşeceği grup (boş → "Ekonomi" eşleşmesi → grupsuz).</summary>
+    public Guid? VarsayilanGrupId { get; set; }
     public bool DonemselFaturalamaJob { get; set; }   // FAZ 4.2-B4
     public bool DonemselOtomatikTahsilat { get; set; } // FAZ 4.2-B4
     public int? MinKiraGun { get; set; }
