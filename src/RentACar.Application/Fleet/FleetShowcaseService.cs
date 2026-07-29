@@ -79,6 +79,10 @@ public sealed class FleetShowcaseService(
     public Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
         => branding.GetAsync(tenant.TenantIdOrThrow(), ct);
 
+    /// <summary>PR-9: SEO kanonik host'u (canonical link + sitemap + robots TEK kaynağı).</summary>
+    public Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)
+        => branding.GetCanonicalHostAsync(tenant.TenantIdOrThrow(), ct);
+
     /// <summary>
     /// PR-7: anonim müsaitlik+fiyat araması. `MusaitlikArama.razor`'ın (iç ekran) deseniyle BİREBİR aynı:
     /// <see cref="AvailabilityService.FindAvailableAsync"/> (guard-free) → uygun grup → grup başına
