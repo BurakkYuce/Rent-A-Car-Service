@@ -15,6 +15,9 @@ public sealed class VehicleInput
     /// Ayrım şart: ikisi de boş string olarak gelseydi kullanıcının "grupsuz kalsın" kararı sessizce
     /// geri alınırdı. Web ucu bunu <c>form.ContainsKey("grup")</c> ile üretir (select daima post eder).</summary>
     public bool GrupBilincliBos { get; set; }
+    /// <summary>PR-11: halka açık sitede kaç araç olarak gösterilsin (null = 1; 1..999). YALNIZ
+    /// görüntüleme — müsaitlik/rezervasyon sonucunu etkilemez (bkz. <see cref="Domain.Entities.Vehicle.VitrinAdet"/>).</summary>
+    public int? VitrinAdet { get; set; }
     public string? Segment { get; set; }
     public string? Sipp { get; set; }
     public string? Renk { get; set; }

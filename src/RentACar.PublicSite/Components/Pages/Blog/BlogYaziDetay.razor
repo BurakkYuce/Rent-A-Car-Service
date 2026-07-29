@@ -37,6 +37,7 @@
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    [CascadingParameter] public HttpContext? Http { get; set; }
 
     private BlogDetail? _post;
     private FleetBranding? _branding;
@@ -50,5 +51,7 @@
     {
         _branding = await Showcase.GetBrandingAsync();
         _post = await Blog.GetPublishedBySlugAsync(Slug);
+        // Araç grubu detayıyla AYNI soft-404 kusuru (yayından kaldırılan yazı, yanlış slug).
+        if (_post is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
     }
 }

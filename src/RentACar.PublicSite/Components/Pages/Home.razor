@@ -63,6 +63,11 @@
                             {
                                 <span class="chip">@bagaj bagaj</span>
                             }
+                            @* PR-11: filoda bu gruptan kaç araç var. Tek araçta gösterilmez (gürültü). *@
+                            @if (c.Adet > 1)
+                            {
+                                <span class="chip">@c.Adet araç</span>
+                            }
                         </div>
                     </div>
                 </a>

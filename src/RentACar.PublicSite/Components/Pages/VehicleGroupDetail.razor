@@ -58,6 +58,8 @@
 
 @code {
     [Parameter] public Guid GroupId { get; set; }
+    /// <summary>Statik SSR'da doğrudan kullanılabilir (circuit yok) — durum kodunu yazmak için.</summary>
+    [CascadingParameter] public HttpContext? Http { get; set; }
 
     private FleetShowcaseDetail? _detail;
     private FleetBranding? _branding;
@@ -66,5 +68,11 @@
     {
         _branding = await Showcase.GetBrandingAsync();
         _detail = await Showcase.GetGroupDetailAsync(GroupId);
+
+        // PR-11: GERÇEK 404. Yayın kapısı geldikten sonra bu dal artık bir kenar durumu değil —
+        // yayınlanmamış her grup ve eski/paylaşılmış her link buraya düşer. HTTP 200 ile "bulunamadı"
+        // basmak (soft-404) arama motorlarına bu sayfayı geçerli içerik olarak indeksletirdi; PR-9'da
+        // tek kaynağa bağlanan kanonik/sitemap sinyallerini de kendi kendine çürütürdü.
+        if (_detail is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
     }
 }
