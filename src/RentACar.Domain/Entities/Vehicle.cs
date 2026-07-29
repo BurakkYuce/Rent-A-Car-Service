@@ -110,6 +110,23 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     public string? AlimYapilanFirma { get; set; }
     public int? KiraKmLimiti { get; set; }
 
+    /// <summary>
+    /// PR-11 — halka açık sitede bu kaydın kaç araç olarak GÖSTERİLECEĞİ (null = 1). Sınır 1..999.
+    ///
+    /// <para><b>YALNIZ GÖRÜNTÜLEME.</b> Rezervasyon, kira, müsaitlik, km, hasar, sigorta ve defter
+    /// yollarının HİÇBİRİ bu alanı okumaz — iç sistem plaka başına tekil araçla çalışır. Sebebi
+    /// yapısal: <c>rentals_no_overlap</c> GiST kısıtı (<c>EXCLUDE … "VehicleId" =, "Period" &amp;&amp;</c>)
+    /// tek VehicleId üzerinde çakışan iki açık kirayı FİZİKSEL olarak yasaklar; 17 entity VehicleId
+    /// FK'lıdır ve <c>(TenantId, Plaka)</c> benzersizdir. "Tek kayıt = 12 araç" iç sistemde
+    /// yapılamaz — vitrinde yapılabilir.</para>
+    ///
+    /// <para><b>SINIR:</b> tek-kayıt-N modunda temsilci gerçek plakalı bir araçsa, ilk kirada
+    /// müsaitlik onu düşürür → aramada grup N'den 0'a inmez, TAMAMEN kaybolur (diğer N−1 araç boşta
+    /// olsa bile). Bu mod fiilen "o araçların kirasını sistemde tutmayan" tenant içindir; kirayı
+    /// sistemde tutan filo için doğru model her araç için ayrı kayıttır (VitrinAdet = null).</para>
+    /// </summary>
+    public int? VitrinAdet { get; set; }
+
     // ---- Operasyon bayrakları (roadmap K2; varsayılan false) ----
     /// <summary>Web kanalına rezervasyona kapalı.</summary>
     public bool WebRezKapat { get; set; }

@@ -185,6 +185,9 @@ public sealed class VehicleService(
             throw new ValidationException("Alım bedeli negatif olamaz.");
         if (input.IkinciElDeger is < 0m)
             throw new ValidationException("İkinci el değeri negatif olamaz.");
+        // PR-11: üst sınır, "12" yerine "1200" yazan bir typo'nun vitrinde "1200 araç" basmasını önler.
+        if (input.VitrinAdet is < 1 or > 999)
+            throw new ValidationException("Vitrin adedi 1 ile 999 arasında olmalıdır (boş = 1).");
     }
 
     private static string Normalize(string? plaka)
@@ -221,6 +224,7 @@ public sealed class VehicleService(
         v.AlimFaturaNo = Trim(input.AlimFaturaNo);
         v.AlimYapilanFirma = Trim(input.AlimYapilanFirma);
         v.KiraKmLimiti = input.KiraKmLimiti;
+        v.VitrinAdet = input.VitrinAdet; // PR-11 (yalnız vitrin gösterimi)
         // roadmap K2 — operasyon bayrakları + bakım/lastik
         v.WebRezKapat = input.WebRezKapat;
         v.OfisRezKapat = input.OfisRezKapat;

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Fleet;
+using RentACar.Application.RateMatrices;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
@@ -49,6 +50,19 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
         await photos.AddAsync(vehicleId, TinyPng);
     }
 
+    /// <summary>PR-11 yayın kapısının FİYAT şartını karşılar: wildcard (AracGrupKod=null) onaylı
+    /// tarife — tüm gruplara uyar. Bu dosyanın konusu grup↔araç eşleşmesi ve kapak seçimidir;
+    /// kapının tarife tarafı <c>YayinKapisiTests</c>'te ayrıca ve ayrıntılı test edilir.</summary>
+    private static async Task AddWildcardTarifeAsync(TestHost host, Guid tenantId)
+    {
+        using var scope = host.ScopeFor(tenantId);
+        await scope.ServiceProvider.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
+        {
+            Kod = "GENEL", Ad = "Genel tarife", AracGrupKod = null, Gun1 = 100m,
+            OnayDurumu = TarifeOnayDurumu.Onayli, Aktif = true,
+        });
+    }
+
     [Fact]
     public async Task WebRezKapat_tek_araclik_grup_vitrine_girmez()
     {
@@ -80,13 +94,16 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
     }
 
     [Fact]
-    public async Task Kapak_min_sira_fotografidir_fotografsiz_temsilci_kart_yine_gorunur()
+    /// <summary>PR-11 ile DEĞİŞEN davranış: fotosuz grup artık vitrine hiç GİRMEZ (eskiden fotosuz
+    /// kart çıkardı). Değişmeyen kısım: kapak, aracın en küçük Sira'lı fotoğrafıdır.</summary>
+    public async Task Kapak_min_sira_fotografidir_fotosuz_grup_vitrine_GIRMEZ()
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
+        await AddWildcardTarifeAsync(host, tenantId); // fiyat şartı ikisinde de sağlanır
 
         await CreateGroupAsync(host, tenantId, "Fotosuz", webSira: 0);
-        await CreateVehicleAsync(host, tenantId, "Fotosuz"); // hiç foto yok
+        await CreateVehicleAsync(host, tenantId, "Fotosuz"); // hiç foto yok → pending
 
         await CreateGroupAsync(host, tenantId, "Fotolu", webSira: 1);
         var vehicleWithPhotos = await CreateVehicleAsync(host, tenantId, "Fotolu");
@@ -98,11 +115,8 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
         var photos = scope.ServiceProvider.GetRequiredService<VehiclePhotoService>();
         var cards = await svc.ListShowcaseGroupsAsync();
 
-        Assert.Equal(2, cards.Count);
-        var fotosuz = cards.Single(c => c.Ad == "Fotosuz");
-        Assert.Null(fotosuz.CoverPhotoId); // kart yine listede — foto olmadan
-
-        var fotolu = cards.Single(c => c.Ad == "Fotolu");
+        var fotolu = Assert.Single(cards); // "Fotosuz" grubu listede YOK
+        Assert.Equal("Fotolu", fotolu.Ad);
         var meta = await photos.ListMetaAsync(vehicleWithPhotos);
         Assert.Equal(meta[0].Id, fotolu.CoverPhotoId); // Sira 0'daki foto
     }
@@ -113,6 +127,7 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
         var groupId = await CreateGroupAsync(host, tenantId, "SUV", webSira: 0);
+        await AddWildcardTarifeAsync(host, tenantId); // PR-11 kapısının fiyat şartı
 
         var v1 = await CreateVehicleAsync(host, tenantId, "SUV");
         var v2 = await CreateVehicleAsync(host, tenantId, "SUV");
@@ -233,7 +248,9 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
         await CreateGroupAsync(host, tenantId, "DİZEL", webSira: 0);
-        await CreateVehicleAsync(host, tenantId, "dizel");
+        var arac = await CreateVehicleAsync(host, tenantId, "dizel");
+        await AddPhotoAsync(host, tenantId, arac);        // PR-11 kapısı: foto
+        await AddWildcardTarifeAsync(host, tenantId);     // PR-11 kapısı: fiyat
 
         using var scope = host.ScopeFor(tenantId, role: null);
         var svc = scope.ServiceProvider.GetRequiredService<FleetShowcaseService>();
@@ -262,7 +279,9 @@ public sealed class FleetShowcaseServiceTests(PostgresFixture fx)
             await repo.CreateAsync(dup);
             g2 = dup.Id;
         }
-        await CreateVehicleAsync(host, tenantId, "Orta");
+        var arac = await CreateVehicleAsync(host, tenantId, "Orta");
+        await AddPhotoAsync(host, tenantId, arac);    // PR-11 kapısı: foto
+        await AddWildcardTarifeAsync(host, tenantId); // PR-11 kapısı: fiyat (iki grubun kodu da farklı → wildcard)
 
         using var scope2 = host.ScopeFor(tenantId, role: null);
         var svc = scope2.ServiceProvider.GetRequiredService<FleetShowcaseService>();
