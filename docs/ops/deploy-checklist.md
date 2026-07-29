@@ -146,6 +146,14 @@ https:// {
 
 **Rollback:** Sorun çıkarsa yalnız `https:// { ... }` catch-all bloğu Caddyfile'dan kaldırılıp `caddy reload`
 yapılır — public site geçici olarak erişilemez hale gelir ama ERP/Api (AYRI blok sayesinde) ETKİLENMEZ.
+
+**⚠ GELECEK-GUARDRAIL — HTML cache eklenirse `Vary: Host` ZORUNLU (PR-9 notu):** Bugün hiçbir katmanda
+(Caddy dahil) HTML cache'i YOK. Ama ileride public site'a sayfa cache'i eklenirse (`cache` direktifi,
+CDN, reverse-proxy cache) **`Vary: Host` başlığı ŞART**: aynı yol (`/`, `/musaitlik`, `/blog`) HER TENANT
+için FARKLI içerik döndürür (host→tenant çözümlemesi) — Vary olmadan A firmasının ana sayfası B firmasının
+ziyaretçisine servis edilir. Bu, çok-kiracılı bir sitede sessiz ve ciddi bir veri sızıntısıdır.
+Statik varlıklar (`/foto/...`, `/blog-kapak/...`, `site.css`) bu kuraldan MUAF değildir: foto uçları
+tenant-özel bytea döndürür (yalnız `site.css`/`app.css` gerçekten tenant-bağımsızdır).
 - **CSP (uygulamada, katı):** `script-src 'self'` — `'unsafe-inline'` YOK, hash YOK. 52 inline event handler harici
   JS'e taşındı (`data-confirm`/`data-select-all` → `wwwroot/js/rc-ui.js`). Blazor'ın `<ImportMap>` inline script'i
   App.razor'dan **kaldırıldı** (tam statik SSR'de gereksizdi ve fingerprint'i her asset/CSS değişiminde dönüp CSP

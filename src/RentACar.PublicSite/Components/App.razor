@@ -1,10 +1,20 @@
-﻿<!DOCTYPE html>
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+@inject NavigationManager Nav
+<!DOCTYPE html>
 <html lang="tr">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    @* PR-9: canonical — aynı içerik hem subdomain hem özel domain'den servis edilebildiği için
+       duplicate-content sinyali oluşur. Host `req.Host`'tan DEĞİL, kanonik kaynaktan okunur; query
+       string ATILIR (parametreli arama sayfaları ayrı ayrı indekslenmesin). *@
+    @if (_canonical is not null)
+    {
+        <link rel="canonical" href="@_canonical" />
+    }
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="site.css" />
     <HeadOutlet />
@@ -16,3 +26,22 @@
 </body>
 
 </html>
+
+@code {
+    private string? _canonical;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var host = await Showcase.GetCanonicalHostAsync();
+            if (host is null) return;
+            var path = new Uri(Nav.Uri).AbsolutePath; // query BİLİNÇLİ olarak atılır
+            _canonical = $"https://{host}{path}";
+        }
+        catch
+        {
+            // Canonical yalnız bir SEO ipucudur — üretilemezse sayfa YİNE de servis edilmeli.
+        }
+    }
+}
