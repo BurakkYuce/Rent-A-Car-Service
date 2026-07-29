@@ -133,6 +133,8 @@ public static class DependencyInjection
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<IKdvRateRepository, KdvRateRepository>();
         services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
+        services.AddScoped<RentACar.Application.WebSite.IWebIlanRepository,
+            Persistence.Repositories.WebIlanRepository>(); // PR-13
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();

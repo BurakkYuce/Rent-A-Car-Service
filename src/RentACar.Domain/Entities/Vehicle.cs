@@ -127,6 +127,12 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     /// </summary>
     public int? VitrinAdet { get; set; }
 
+    /// <summary>PR-13: aracın bağlı olduğu halka açık site İLANI (yoksa araç sitede hiç yayınlanmamış).
+    /// Bir araç en fazla BİR ilana aittir. FK composite'tir (<c>TenantId, WebIlanId</c>) — çapraz-tenant
+    /// referansı yapısal olarak imkânsız (FAZ 5-C4 şube FK deseni). İlan silinirse SET NULL: araç
+    /// yayından düşer ama araç kaydı bozulmaz.</summary>
+    public Guid? WebIlanId { get; set; }
+
     // ---- Operasyon bayrakları (roadmap K2; varsayılan false) ----
     /// <summary>Web kanalına rezervasyona kapalı.</summary>
     public bool WebRezKapat { get; set; }

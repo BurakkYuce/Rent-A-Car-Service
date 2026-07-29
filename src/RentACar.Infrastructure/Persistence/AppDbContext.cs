@@ -120,6 +120,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<YetkiGrup> YetkiGruplari => Set<YetkiGrup>(); // PR-D — ekran-izni şablonu
     public DbSet<VehicleKmLog> KmLoglari => Set<VehicleKmLog>(); // FAZ 2.5 — km zaman serisi
     public DbSet<VehiclePhoto> VehiclePhotos => Set<VehiclePhoto>(); // PR-3 — halka açık site araç galerisi
+    public DbSet<WebIlan> WebIlanlar => Set<WebIlan>();              // PR-13 — halka açık site ilanları
+    public DbSet<WebIlanOzellik> WebIlanOzellikler => Set<WebIlanOzellik>();
     public DbSet<BlogPost> BlogYazilari => Set<BlogPost>(); // PR-6 — halka açık site blog
     public DbSet<PublicBookingRequest> SiteTalepleri => Set<PublicBookingRequest>(); // PR-8 — site rezervasyon talebi
     public DbSet<DolulukFiyatKural> DolulukFiyatKurallari => Set<DolulukFiyatKural>(); // FAZ 3.A7

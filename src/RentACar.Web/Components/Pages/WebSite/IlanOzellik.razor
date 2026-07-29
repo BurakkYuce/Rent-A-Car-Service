@@ -1,0 +1,97 @@
+@page "/web-sitesi/ilan/{Id:guid}/ozellikler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.WebSite
+@using RentACar.Domain.Common
+@using RentACar.Infrastructure.Persistence
+@inject WebIlanService Ilanlar
+@inject ITenantContext Tenant
+@inject TenantStatusCache Durum
+
+<PageTitle>Teknik Özellikler — Web Sitesi</PageTitle>
+
+@if (!_modul || _detay is null)
+{
+    <div class="page-head"><h1>Web Sitesi</h1></div>
+    <p class="empty-state">@(_modul ? "İlan bulunamadı." : "Bu modül firmanızda etkin değil.")</p>
+}
+else
+{
+    <div class="page-head">
+        <h1>@_detay.Ilan.Baslik <span class="muted small">— 3/3 teknik özellikler</span></h1>
+        <div class="actions"><a class="link" href="/web-sitesi">← İlanlar</a></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+    <p class="muted small">Aşağıdaki özellikler araç kayıtlarınızdan getirildi. <strong>İşaretli
+        olanlar sitede görünür.</strong> Değerleri düzenleyebilir, sağ üstteki <strong>+</strong> ile
+        yeni satır ekleyebilirsiniz (en fazla @OzellikSnapshot.MaxSatir satır).
+        @if (_detay.Araclar.Count > 1)
+        {
+            <text> Bu ilan @_detay.Araclar.Count araç içerdiği için <strong>araçlar arasında farklı
+            olan alanlar (ör. renk) listeye eklenmedi</strong> — sitede yanlış bilgi çıkmasın diye.</text>
+        }
+    </p>
+
+    <form method="post" action="/web-sitesi/ilan/@Id/ozellikler/kaydet"><AntiforgeryToken />
+        <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead>
+                <tr>
+                    <th style="width:5rem">Sitede</th>
+                    <th style="width:30%">Özellik</th>
+                    <th>Değer</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < _satirlar.Count; i++)
+                {
+                    var s = _satirlar[i];
+                    <tr>
+                        @* Checkbox değeri satır İNDEKSİDİR — sunucu paralel dizilerle eşler. *@
+                        <td><input type="checkbox" name="gorunur" value="@i" checked="@s.Gorunur" /></td>
+                        <td><input name="etiket" value="@s.Etiket" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
+                        <td><input name="deger" value="@s.Deger" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                    </tr>
+                }
+                @* "+" ile eklenecek BOŞ satırlar: statik SSR'da JS'siz satır ekleme böyle yapılır —
+                   sunucu boş etiket/değer satırlarını zaten ayıklar. *@
+                @for (var i = _satirlar.Count; i < _satirlar.Count + _bosSatir; i++)
+                {
+                    <tr>
+                        <td><input type="checkbox" name="gorunur" value="@i" checked /></td>
+                        <td><input name="etiket" placeholder="Özellik adı" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
+                        <td><input name="deger" placeholder="Değer" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+        <div class="form-actions">
+            <a class="kf-btn" href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_bosSatir + 1)" title="Yeni özellik satırı ekle">+ Özellik ekle</a>
+            <button type="submit" class="kf-btn primary">Yayınla</button>
+        </div>
+    </form>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    /// <summary>Kaç BOŞ satır gösterilsin ("+" her basışta bir artar). Statik SSR'da JS'siz satır ekleme.</summary>
+    [SupplyParameterFromQuery(Name = "bos")] public int? Bos { get; set; }
+
+    private bool _modul;
+    private WebIlanDetay? _detay;
+    private IReadOnlyList<OzellikSatiri> _satirlar = [];
+    private int _bosSatir = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
+        if (!_modul) return;
+        _detay = await Ilanlar.GetAsync(Id);
+        if (_detay is null) return;
+        _satirlar = await Ilanlar.OnerilenOzelliklerAsync(Id);
+        _bosSatir = Math.Clamp(Bos ?? 1, 1, OzellikSnapshot.MaxSatir);
+    }
+}
