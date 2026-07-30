@@ -23,6 +23,59 @@ else
 
     @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
+    @* ---- FOTOĞRAFLAR ----
+       Vitrinin yayın şartlarından biri "üye araçlardan en az birinin fotoğrafı var"
+       (FleetShowcaseService). Bu blok olmadan sihirbazın mutlu yolu, sitede ASLA görünemeyecek bir
+       ilan üretiyordu. Yükleme formu özellik formunun DIŞINDA (statik SSR'da iç içe form yasak) ve
+       bu kart özellik tablosundan ÖNCE geliyor — eksik olduğunda ilk görülen şey olsun. *@
+    <div class="card">
+        <div class="page-head" style="margin:0">
+            <h2 style="margin:0;font-size:1.05rem">Fotoğraflar</h2>
+            @if (_fotolar.Count == 0)
+            {
+                <span class="badge warn" title="Fotoğrafsız ilan halka açık sitede gösterilmez">
+                    Zorunlu — sitede görünmesi için en az 1 fotoğraf
+                </span>
+            }
+            else
+            {
+                <span class="badge ok">@_fotolar.Count fotoğraf · ilk fotoğraf kapak olur</span>
+            }
+        </div>
+
+        @if (_fotolar.Count > 0)
+        {
+            <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin:.75rem 0">
+                @foreach (var f in _fotolar)
+                {
+                    <figure style="margin:0;text-align:center">
+                        @* Küçük görsel mevcut araç ucundan servis edilir (yeni okuma ucu AÇILMADI). *@
+                        <img src="/vehicles/@f.VehicleId/photos/@f.PhotoId/thumb" alt="İlan fotoğrafı"
+                             style="width:130px;height:90px;object-fit:cover;border-radius:6px;display:block" />
+                        <figcaption class="muted small" style="margin-top:.2rem">@f.Plaka</figcaption>
+                        <form method="post" action="/web-sitesi/ilan/@Id/foto/@f.VehicleId/@f.PhotoId/sil"
+                              style="margin:.2rem 0 0"><AntiforgeryToken />
+                            <button type="submit" class="link danger">Sil</button>
+                        </form>
+                    </figure>
+                }
+            </div>
+        }
+
+        <form method="post" action="/web-sitesi/ilan/@Id/foto" enctype="multipart/form-data"
+              class="grid-form" style="margin:0"><AntiforgeryToken />
+            <label>Fotoğraf ekle (PNG/JPEG/WebP, ≤2 MB)
+                <input name="foto" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
+            <button type="submit" class="kf-btn">Yükle</button>
+        </form>
+        @if (_detay.Araclar.Count > 1)
+        {
+            <p class="muted small" style="margin:.5rem 0 0">Bu ilan @_detay.Araclar.Count aynı aracı
+                birlikte gösteriyor; sitede tek kart çıktığı için <strong>tek fotoğraf yeterli</strong>
+                (aynı görsel araç başına kopyalanmaz).</p>
+        }
+    </div>
+
     <p class="muted small">Aşağıdaki özellikler araç kayıtlarınızdan getirildi. <strong>İşaretli
         olanlar sitede görünür.</strong> Değerleri düzenleyebilir, sağ üstteki <strong>+</strong> ile
         yeni satır ekleyebilirsiniz (en fazla @OzellikSnapshot.MaxSatir satır).
@@ -81,7 +134,14 @@ else
         <div class="form-actions">
             <a class="kf-btn" data-ozellik-ekle href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_bosSatir + 1)"
                title="Yeni özellik satırı ekle">+ Özellik ekle</a>
-            <button type="submit" class="kf-btn primary">Yayınla</button>
+            <button type="submit" class="kf-btn primary">
+                @(_fotolar.Count == 0 ? "Özellikleri Kaydet" : "Yayınla")
+            </button>
+            @if (_fotolar.Count == 0)
+            {
+                <span class="muted small" style="align-self:center">Fotoğraf eklenene kadar ilan
+                    taslakta kalır (kaydettiğiniz özellikler korunur).</span>
+            }
         </div>
     </form>
 }
@@ -95,6 +155,7 @@ else
     private bool _modul;
     private WebIlanDetay? _detay;
     private IReadOnlyList<OzellikSatiri> _satirlar = [];
+    private IReadOnlyList<IlanFotoSatiri> _fotolar = [];
     private int _bosSatir = 1;
 
     protected override async Task OnInitializedAsync()
@@ -104,6 +165,7 @@ else
         _detay = await Ilanlar.GetAsync(Id);
         if (_detay is null) return;
         _satirlar = await Ilanlar.OnerilenOzelliklerAsync(Id);
+        _fotolar = await Ilanlar.FotolarAsync(Id);
         _bosSatir = Math.Clamp(Bos ?? 1, 1, OzellikSnapshot.MaxSatir);
     }
 }

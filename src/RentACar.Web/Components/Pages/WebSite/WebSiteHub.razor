@@ -79,12 +79,28 @@ else
                             }
                             else
                             {
-                                <span class="badge warn">@string.Join(" · ", s.Eksikler)</span>
+                                @* Teşhis TIKLANABİLİR olmalı: "Foto yok" rozetini görüp de çareye
+                                   ulaşamamak canlıda tam olarak yaşandı (tek yol araç ekranıydı). *@
+                                @if (s.Eksikler.Contains("Foto yok"))
+                                {
+                                    <a class="badge warn" href="/web-sitesi/ilan/@s.Id/ozellikler"
+                                       title="Fotoğraf eklemek için tıklayın — fotoğrafsız ilan sitede görünmez">
+                                        Foto yok → ekle
+                                    </a>
+                                    @foreach (var e in s.Eksikler.Where(x => x != "Foto yok"))
+                                    {
+                                        <span class="badge warn">@e</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge warn">@string.Join(" · ", s.Eksikler)</span>
+                                }
                             }
                         </td>
                         <td class="row-actions">
                             <a class="link" href="/web-sitesi/ilan/@s.Id/fiyat">Fiyat</a>
-                            <a class="link" href="/web-sitesi/ilan/@s.Id/ozellikler">Özellikler</a>
+                            <a class="link" href="/web-sitesi/ilan/@s.Id/ozellikler">Özellikler / Foto</a>
                             @if (s.Durum == WebIlanDurum.Yayinda)
                             {
                                 <form method="post" action="/web-sitesi/ilan/@s.Id/durum" class="inline-form"><AntiforgeryToken />

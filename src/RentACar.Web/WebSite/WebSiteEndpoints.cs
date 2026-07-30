@@ -84,10 +84,37 @@ public static class WebSiteEndpoints
 
             try
             {
-                await svc.AdimUcAsync(id, satirlar);
-                return Results.Redirect("/web-sitesi?ok=1");
+                // false = özellikler kaydedildi ama FOTOĞRAF olmadığı için taslakta kaldı. Sessizce
+                // "yayınlandı" demek yalan olurdu: vitrin fotosuz ilanı hiç göstermiyor.
+                if (await svc.AdimUcAsync(id, satirlar))
+                    return Results.Redirect("/web-sitesi?ok=1");
+                return Results.Redirect($"/web-sitesi/ilan/{id}/ozellikler?hata="
+                    + Uri.EscapeDataString("Özellikler kaydedildi. Yayınlamak için en az bir fotoğraf ekleyin — "
+                        + "fotoğrafsız ilan sitede görünmez."));
             }
             catch (ValidationException ex) { return Geri($"/web-sitesi/ilan/{id}/ozellikler", ex); }
+        });
+
+        // ---- Fotoğraflar (adım-3 içinde) ----
+        // Vitrinin yayın şartlarından biri "üye araçlardan en az birinin fotoğrafı var". Sihirbazda
+        // yükleme yolu OLMADIĞI için personel, hub'daki "Foto yok" teşhisini görüp de çaresine
+        // ulaşamıyordu (tek yol araç düzenleme ekranıydı). Yol artık sihirbazın içinde.
+        grp.MapPost("/ilan/{id:guid}/foto", async (WebIlanService svc, Guid id, IFormFile? foto) =>
+        {
+            var geri = $"/web-sitesi/ilan/{id}/ozellikler";
+            if (foto is null || foto.Length == 0) return Results.Redirect(geri);
+            using var ms = new MemoryStream();
+            await foto.CopyToAsync(ms);
+            try { await svc.FotoEkleAsync(id, ms.ToArray()); return Results.Redirect(geri); }
+            catch (ValidationException ex) { return Geri(geri, ex); }
+        }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB foto + multipart payı (araç ucuyla aynı)
+
+        grp.MapPost("/ilan/{id:guid}/foto/{vehicleId:guid}/{photoId:guid}/sil",
+            async (WebIlanService svc, Guid id, Guid vehicleId, Guid photoId) =>
+        {
+            var geri = $"/web-sitesi/ilan/{id}/ozellikler";
+            try { await svc.FotoSilAsync(id, vehicleId, photoId); return Results.Redirect(geri); }
+            catch (ValidationException ex) { return Geri(geri, ex); }
         });
 
         // ---- Yönetim ----
