@@ -41,7 +41,9 @@ internal sealed class PublicBookingRequestConfig : IEntityTypeConfiguration<Publ
         e.Property(x => x.Not).HasMaxLength(2000); // sınırsız serbest metin = ucuz depolama şişirmesi
         e.Property(x => x.GosterilenGunlukUcretKdvDahil).HasColumnType("numeric(19,4)");
         e.Property(x => x.Durum).HasConversion<int>();
-        // Staff kuyruğu: yeni talepler önce (Durum, tarih).
+        e.Property(x => x.AtananAd).HasMaxLength(128); // PR-17: denormalize ad (Users'a join gerekmesin)
+        // Staff kuyruğu: yeni talepler önce (Durum, tarih). PR-17'nin durum filtresi + sayfalaması
+        // da bu index'i kullanıyor — YENİ index gerekmedi.
         e.HasIndex(x => new { x.TenantId, x.Durum, x.CreatedAtUtc });
     }
 }
@@ -75,5 +77,24 @@ internal sealed class SssKaydiConfig : IEntityTypeConfiguration<SssKaydi>
         e.Property(x => x.Soru).IsRequired().HasMaxLength(300);
         e.Property(x => x.Cevap).IsRequired().HasMaxLength(4_000);
         e.HasIndex(x => new { x.TenantId, x.Yayinda, x.Sira });
+    }
+}
+
+// ---- PR-17: talep takip notlari (tenant-owned) ----
+internal sealed class TalepNotuConfig : IEntityTypeConfiguration<TalepNotu>
+{
+    public void Configure(EntityTypeBuilder<TalepNotu> e)
+    {
+        e.ToTable("TalepNotlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Metin).IsRequired().HasMaxLength(2_000);
+        e.Property(x => x.Kullanici).HasMaxLength(128);
+        // Talep silinmiyor; yine de butunluk icin composite FK (tenant-esli).
+        e.HasOne<PublicBookingRequest>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.TalepId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .OnDelete(DeleteBehavior.Cascade);
+        e.HasIndex(x => new { x.TenantId, x.TalepId, x.ZamanUtc });
     }
 }

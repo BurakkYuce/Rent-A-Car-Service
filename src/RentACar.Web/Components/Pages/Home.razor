@@ -9,6 +9,9 @@
 @inject RentACar.Application.Reporting.ReportService Reports
 @inject RentACar.Application.Crm.SikayetService Sikayet
 @inject RentACar.Application.Finance.CashService Cash
+@inject RentACar.Application.PublicSite.PublicBookingRequestService SiteTalepleri
+@inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
+@inject RentACar.Domain.Common.ITenantContext TenantCtx
 
 <PageTitle>Panel — RentPro</PageTitle>
 @* Statik SSR panosu: sayfa 120 sn'de bir otomatik yenilenir → boştaki araç/rezervasyon sayaçları güncel kalır. *@
@@ -65,6 +68,15 @@
                     <span class="vt-n">@_kmGecenBakim</span>KM Geçen Bakım</a>
                 <a class="vt-box @(_gorulmeyenRez > 0 ? "warn" : "")" href="/rezervasyonlar">
                     <span class="vt-n">@_gorulmeyenRez</span>Görülmeyen Rez.</a>
+                @* PR-17: siteden gelen cevaplanmamış talep — en eskisinin bekleme süresi başlıkta.
+                   Yalnız "Web Sitesi" modülü açıkken gösterilir (kapalıysa hep 0 olurdu). *@
+                @if (_siteTalep is { } st)
+                {
+                    <a class="vt-box @(st.Yeni > 0 ? (st.EnEskiGun >= 3 ? "danger" : "warn") : "")"
+                       href="/gelen-talepler?durum=0"
+                       title="@(st.EnEskiGun is { } g ? $"En eskisi {g} gündür bekliyor" : "Bekleyen talep yok")">
+                        <span class="vt-n">@st.Yeni</span>Site Talebi</a>
+                }
             </div>
         </div>
     </div>
@@ -184,6 +196,8 @@
     private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0);
     private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
     private int _acikRezSayi, _kmGecenBakim, _gorulmeyenRez, _gecmis, _yakin, _acikSikayet;
+    /// <summary>PR-17: siteden gelen cevaplanmamış talep özeti. Modül kapalıysa null → kutu basılmaz.</summary>
+    private RentACar.Application.PublicSite.TalepOzet? _siteTalep;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
 
     private List<DcRow> _donusGec = [], _donusBugun = [], _donusYarin = [];
@@ -241,6 +255,15 @@
         _cikisBugun = CikisRows(d => d == bugun);
         _cikisYarin = CikisRows(d => d == bugun.AddDays(1));
         _gorulmeyenRez = _cikisGec.Count; // çıkışı gecikmiş açık rezervasyon = görülmeyen
+
+        // PR-17: site talebi kutusu — YALNIZ modül açıkken (kapalıysa sayı hep 0 olur, kutu gürültü).
+        // Yetkisiz rol guard'a takılırsa pano DÜŞMEMELİ (menüdeki sayaçla aynı savunma).
+        try
+        {
+            if (TenantCtx.TenantId is { } tid && await TenantDurum.WebSitesiModuluAsync(tid))
+                _siteTalep = await SiteTalepleri.OzetAsync();
+        }
+        catch { _siteTalep = null; }
 
         // Vade kademeleri (tür × bucket).
         var vade = await Vade.GetAllAsync();
