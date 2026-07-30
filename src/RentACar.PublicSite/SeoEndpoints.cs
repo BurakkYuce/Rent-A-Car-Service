@@ -25,7 +25,8 @@ public static class SeoEndpoints
             return Results.Text(sb.ToString(), "text/plain; charset=utf-8");
         });
 
-        app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog, CancellationToken ct) =>
+        app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog,
+            RentACar.Application.SiteIcerik.SiteIcerikService icerik, CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
             if (host is null) return Results.NotFound(); // site hiç yayında değil
@@ -37,6 +38,12 @@ public static class SeoEndpoints
             // PR-14: adres artık SLUG (eski `/araclar/{groupId}` GUID'leri yerine).
             foreach (var g in await showcase.ListShowcaseGroupsAsync(ct))
                 urls.Add(Url(ns, $"{kok}/araclar/{g.Slug}"));
+
+            // PR-16: iletişim her zaman var (kod üretimli); SSS ve içerik sayfaları varsa eklenir.
+            urls.Add(Url(ns, kok + "/iletisim"));
+            if ((await icerik.YayindakiSssAsync(ct)).Count > 0) urls.Add(Url(ns, kok + "/sss"));
+            foreach (var sf in await icerik.YayindakiSayfalarAsync(ct))
+                urls.Add(Url(ns, $"{kok}/{sf.Slug}"));
 
             var yazilar = await blog.ListPublishedAsync(ct);
             if (yazilar.Count > 0)
