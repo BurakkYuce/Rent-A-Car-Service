@@ -1,45 +1,104 @@
 @page "/araclar/{Slug}"
 @using RentACar.Application.Fleet
+@using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 
+@* PR-20 — araç detayı, PR-19'un bölüm diline getirildi.
+
+   EN ÖNEMLİ DEĞİŞİKLİK bir tasarım değil, bir DÖNÜŞÜM boşluğunun kapanması: bu sayfa arama
+   motorundan gelen ziyaretçinin İNDİĞİ sayfa ama üzerinde talep bırakacak hiçbir düğme YOKTU —
+   yalnız "müsaitlik sorgula" metin bağlantısı vardı. Artık fiyat kartında birincil eylem
+   "Teklif İste" (`/rezervasyon-talebi?ilan={slug}`; tarihleri ziyaretçi formda giriyor). *@
+
 <PageTitle>@(_detay?.Baslik ?? "Araç") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+@if (_detay is not null)
+{
+    <YapisalVeriArac Detay="_detay" KanonikKok="@_kanonikKok" />
+}
 
 <div class="container">
     <a class="back-link" href="/">← Filo</a>
 
     @if (_detay is null)
     {
-        <p class="empty-state">Bu araç bulunamadı.</p>
+        <h1>Araç bulunamadı</h1>
+        <p class="empty-state">Bu araç yayından kaldırılmış olabilir. Filodaki diğer araçlara
+            göz atabilir ya da bize ulaşabilirsiniz.</p>
+        <p class="ust-linkler"><a href="/">Filoyu gör</a> <a href="/iletisim">İletişim</a></p>
     }
     else
     {
-        <h1>@_detay.Baslik</h1>
-        <div class="chips">
-            @if (!string.IsNullOrWhiteSpace(_detay.YilAralik))
-            {
-                <span class="chip">@_detay.YilAralik model</span>
-            }
-            @if (_detay.Adet > 1)
-            {
-                <span class="chip">@_detay.Adet araç</span>
-            }
+        <header class="site-header">
+            <h1>@_detay.Baslik</h1>
+            <div class="chips">
+                @if (!string.IsNullOrWhiteSpace(_detay.YilAralik))
+                {
+                    <span class="chip">@_detay.YilAralik model</span>
+                }
+                @* "adet" bir MÜSAİTLİK vaadi değil, ilana bağlı araç sayısı. *@
+                @if (_detay.Adet > 1)
+                {
+                    <span class="chip">@_detay.Adet araç</span>
+                }
+            </div>
+        </header>
+
+        <div class="detay-ust">
+            <div class="detay-gorsel">
+                @if (_detay.PhotoIds.Count > 0)
+                {
+                    @* Kapak BÜYÜK, kalanlar küçük şerit. Eskiden tümü küçük thumbnail'di ve aracın
+                       nasıl göründüğü ancak yakınlaştırınca anlaşılıyordu. *@
+                    <img class="detay-kapak" src="@($"/foto/{_detay.PhotoIds[0]}")" alt="@_detay.Baslik" />
+                    @if (_detay.PhotoIds.Count > 1)
+                    {
+                        <div class="galeri">
+                            @foreach (var photoId in _detay.PhotoIds.Skip(1))
+                            {
+                                <img src="@($"/foto/{photoId}/thumb")" alt="@_detay.Baslik" loading="lazy" />
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="card-img-placeholder detay-kapak" aria-hidden="true"></div>
+                }
+            </div>
+
+            @* Fiyat kartı — sayfanın karar noktası. Kademeler ilandan; KDV etiketi ilanın kendi
+               işaretinden (uydurulmaz). *@
+            <aside class="fiyat-kart">
+                <div class="fiyat">
+                    <span class="fiyat-buyuk">@_detay.GunlukFiyat.ToString("N0") ₺<span class="fiyat-birim">/gün</span></span>
+                    <span class="fiyat-kucuk">@(_detay.KdvDahil ? "KDV dahil" : "+ KDV")</span>
+                </div>
+
+                @if (_detay.HaftalikToplam is not null || _detay.AylikToplam is not null)
+                {
+                    <ul class="fiyat-kademe">
+                        @if (_detay.HaftalikToplam is { } h)
+                        {
+                            <li><span>Haftalık</span><strong>@h.ToString("N0") ₺</strong></li>
+                        }
+                        @if (_detay.AylikToplam is { } a)
+                        {
+                            <li><span>Aylık</span><strong>@a.ToString("N0") ₺</strong></li>
+                        }
+                    </ul>
+                }
+
+                <a class="btn-cta tam-genislik" href="@($"/rezervasyon-talebi?ilan={_detay.Slug}")">Teklif İste</a>
+                <a class="link" href="@($"/musaitlik?ilan={_detay.Slug}")">Tarihe göre müsaitlik ve toplam tutar →</a>
+                @* Bu cümle bir firma taahhüdü DEĞİL, sistemin davranışı: talep bir lead kaydıdır,
+                   rezervasyon değildir (PublicBookingRequest). *@
+                <p class="muted small">Teklif istemek ücretsizdir ve sizi bağlamaz; talebiniz bir
+                    rezervasyon değil, ekibin size dönmesi için bir kayıttır.</p>
+            </aside>
         </div>
 
-        <p class="fiyat-buyuk">
-            <strong>@_detay.GunlukFiyat.ToString("N0") ₺</strong>
-            <span class="muted">/ gün</span>
-            <span class="muted small">@(_detay.KdvDahil ? "KDV dahil" : "+ KDV")</span>
-        </p>
-        @if (_detay.HaftalikToplam is { } hafta || _detay.AylikToplam is { } ay)
-        {
-            <p class="muted small">
-                @if (_detay.HaftalikToplam is { } h) { <text>Haftalık @h.ToString("N0") ₺</text> }
-                @if (_detay.HaftalikToplam is not null && _detay.AylikToplam is not null) { <text> · </text> }
-                @if (_detay.AylikToplam is { } a) { <text>Aylık @a.ToString("N0") ₺</text> }
-            </p>
-        }
-
-        @* Teknik özellikler: personelin sihirbazda "sitede görünsün" işaretlediği satırlar. *@
+        @* Teknik özellikler: sihirbazda "sitede görünsün" işaretlenen satırlar. Boşsa bölüm YOK (T2). *@
         @if (_detay.Ozellikler.Count > 0)
         {
             <h2 class="section-title">Teknik Özellikler</h2>
@@ -54,23 +113,15 @@
                 </table>
             </div>
         }
-
-        @if (_detay.PhotoIds.Count > 0)
-        {
-            <h2 class="section-title">Fotoğraflar</h2>
-            <div class="galeri">
-                @foreach (var photoId in _detay.PhotoIds)
-                {
-                    <img src="@($"/foto/{photoId}/thumb")" alt="@_detay.Baslik" loading="lazy" />
-                }
-            </div>
-        }
-
-        <p class="ust-linkler">
-            <a href="@($"/musaitlik?ilan={_detay.Slug}")">Bu araç için müsaitlik ve fiyat sorgula →</a>
-        </p>
     }
 </div>
+
+@if (_detay is not null)
+{
+    @* Ana sayfayla AYNI bileşenler — anlatı tek yerde, iki sayfada kopyalanmıyor. *@
+    <BolumGuvenSeridi />
+    <BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
+}
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
@@ -79,6 +130,7 @@
 
     private FleetShowcaseDetail? _detay;
     private FleetBranding? _branding;
+    private string? _kanonikKok;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,5 +140,8 @@
         // PR-11'den devralınan kural: yayında olmayan içerik GERÇEK 404 döner. HTTP 200 ile
         // "bulunamadı" basmak (soft-404) arama motoruna bunu geçerli içerik olarak indeksletirdi.
         if (_detay is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+
+        if (_detay is not null && await Showcase.GetCanonicalHostAsync() is { } host)
+            _kanonikKok = $"https://{host}";
     }
 }

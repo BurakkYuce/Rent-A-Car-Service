@@ -1,0 +1,69 @@
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using RentACar.Application.Fleet
+
+@* PR-20 — araç detay sayfası için JSON-LD (`Car` + `Offer`). Şema tipi sektörde DEĞİŞMEZ,
+   içerik ilandan gelir.
+
+   DÜRÜSTLÜK NOTU (T1): `availability` alanı BİLİNÇLİ OLARAK YAZILMIYOR. İlanın yayında olması
+   "her tarihte müsait" demek değil; müsaitlik tarihe göre hesaplanıyor. `InStock` yazmak arama
+   motoruna doğrulanmamış bir taahhüt vermek olurdu. Fiyatın KDV durumu ise
+   `valueAddedTaxIncluded` ile AÇIKÇA belirtiliyor — ilanda ne yazıyorsa o.
+
+   `MarkupString` güvenli: çıktı `System.Text.Json` ile üretiliyor ve varsayılan encoder `<`/`>`/`&`
+   karakterlerini kaçırıyor → tenant verisinden `</script>` üretilemez (YapisalVeri.razor ile aynı
+   gerekçe). *@
+
+@if (_json is { Length: > 0 })
+{
+    <script type="application/ld+json">@((MarkupString)_json)</script>
+}
+
+@code {
+    [Parameter] public FleetShowcaseDetail? Detay { get; set; }
+    /// <summary>Kanonik site kökü (https://host). Yoksa mutlak adresler atlanır.</summary>
+    [Parameter] public string? KanonikKok { get; set; }
+
+    private string? _json;
+
+    private static readonly JsonSerializerOptions Opt = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = false,
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (Detay is null) { _json = null; return; }
+
+        var kok = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+
+        var dugum = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "Car",
+            ["name"] = Detay.Baslik,
+            ["url"] = kok is null ? null : $"{kok}/araclar/{Detay.Slug}",
+            // Kapak görseli MUTLAK adres olmalı (arama motoru göreli yolu çözemez).
+            ["image"] = kok is null || Detay.PhotoIds.Count == 0
+                ? null
+                : $"{kok}/foto/{Detay.PhotoIds[0]}",
+            ["offers"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "Offer",
+                ["url"] = kok is null ? null : $"{kok}/araclar/{Detay.Slug}",
+                ["priceCurrency"] = "TRY",
+                ["priceSpecification"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "UnitPriceSpecification",
+                    ["price"] = Detay.GunlukFiyat,
+                    ["priceCurrency"] = "TRY",
+                    ["unitCode"] = "DAY",                       // UN/CEFACT: günlük birim fiyat
+                    ["valueAddedTaxIncluded"] = Detay.KdvDahil,  // ilanda ne yazıyorsa o
+                },
+            },
+        };
+
+        _json = JsonSerializer.Serialize(dugum, Opt);
+    }
+}
