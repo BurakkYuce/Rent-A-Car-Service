@@ -38,6 +38,10 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     private static async Task<Guid> EkleAsync(IServiceScope s, VehicleInput input)
         => await s.ServiceProvider.GetRequiredService<VehicleService>().CreateAsync(input);
 
+    /// <summary>10x8 gerçek PNG (VehiclePhotoTests ile aynı fixture) — magic-byte + gerçek decode geçer.</summary>
+    private static readonly byte[] TinyPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAIAAABPmPnhAAAAFElEQVR4nGM8YWTEgBsw4ZEb0tIAKaUBPDvSacQAAAAASUVORK5CYII=");
+
     // ---- Adım 1: beraber / ayrı ----
 
     [Fact]
@@ -235,7 +239,7 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     }
 
     [Fact]
-    public async Task Adim_uc_ilani_YAYINA_alir_ve_ozel_satir_eklenebilir()
+    public async Task Adim_uc_FOTOLU_ilani_YAYINA_alir_ve_ozel_satir_eklenebilir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
@@ -243,17 +247,91 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
         await EkleAsync(s, Arac("34 YAY 001"));
         var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
         await svc.AdimIkiAsync(ilanId, 1500m, null, null, true);
+        await svc.FotoEkleAsync(ilanId, TinyPng);              // yayın şartı
 
-        await svc.AdimUcAsync(ilanId, [
+        Assert.True(await svc.AdimUcAsync(ilanId, [
             new OzellikSatiri("Marka", "Fiat"),
             new OzellikSatiri("Bluetooth", "Var"),            // "+" ile eklenen özel satır
             new OzellikSatiri("Gizli", "Değer", Gorunur: false),
-        ]);
+        ]));
 
         var d = await svc.GetAsync(ilanId);
         Assert.Equal(WebIlanDurum.Yayinda, d!.Ilan.Durum);
         Assert.Equal(3, d.Ozellikler.Count);
         Assert.False(d.Ozellikler.Single(o => o.Etiket == "Gizli").Gorunur);
+    }
+
+    /// <summary>
+    /// CANLIDA YAŞANAN HATANIN KİLİDİ: sihirbaz, fotoğrafsız bir ilanı "Yayında" işaretliyordu; oysa
+    /// vitrinin yayın şartlarından biri fotoğraf (FleetShowcaseService). Sonuç: personele "yayınlandı"
+    /// deniyor, sitede hiçbir şey görünmüyordu — üstelik sihirbazda fotoğraf yükleme yolu da yoktu.
+    /// Yeni kural: özellikler HER ZAMAN kaydedilir (emek kaybolmaz), yayın fotoğrafa bağlıdır.
+    /// </summary>
+    [Fact]
+    public async Task Adim_uc_FOTOSUZ_ilani_YAYINA_ALMAZ_ama_ozellikleri_KAYDEDER()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        await EkleAsync(s, Arac("34 FOT 001"));
+        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        await svc.AdimIkiAsync(ilanId, 1500m, null, null, true);
+
+        Assert.False(await svc.AdimUcAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
+
+        var d = await svc.GetAsync(ilanId);
+        Assert.Equal(WebIlanDurum.Taslak, d!.Ilan.Durum);            // yayına ALINMADI
+        Assert.Single(d.Ozellikler);                                  // …ama emek KORUNDU
+        Assert.Contains("Foto yok", (await svc.ListAsync()).Single().Eksikler);
+
+        // Fotoğraf eklenince aynı çağrı yayına alır (çare erişilebilir).
+        await svc.FotoEkleAsync(ilanId, TinyPng);
+        Assert.True(await svc.AdimUcAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
+        Assert.Equal(WebIlanDurum.Yayinda, (await svc.GetAsync(ilanId))!.Ilan.Durum);
+    }
+
+    [Fact]
+    public async Task Foto_BERABER_modda_tek_araca_eklenir_bayt_kopyalanmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        for (var i = 1; i <= 4; i++) await EkleAsync(s, Arac($"34 KAP {i:000}"));
+        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+
+        await svc.FotoEkleAsync(ilanId, TinyPng);
+        await svc.FotoEkleAsync(ilanId, TinyPng);
+
+        // 4 araçlık ilana 2 foto: İKİSİ DE AYNI araçta (vitrin tek kart gösteriyor, tek kapak yeter).
+        var fotolar = await svc.FotolarAsync(ilanId);
+        Assert.Equal(2, fotolar.Count);
+        Assert.Single(fotolar.Select(f => f.VehicleId).Distinct());
+    }
+
+    [Fact]
+    public async Task Foto_silme_UYE_OLMAYAN_araci_hedefleyemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        await EkleAsync(s, Arac("34 UYE 001"));
+        var yabanciArac = await EkleAsync(s, Arac("34 UYE 002", tip: "Fiorino"));
+        await s.ServiceProvider.GetRequiredService<VehiclePhotoService>().AddAsync(yabanciArac, TinyPng);
+
+        var ilanId = await svc.AdimBirImzaAsync(
+            [(await svc.HavuzAsync()).Single(k => k.Baslik.Contains("Egea")).Imza]);
+        await svc.FotoEkleAsync(ilanId, TinyPng);
+        var yabanciFoto = (await s.ServiceProvider.GetRequiredService<VehiclePhotoService>()
+            .ListMetaAsync(yabanciArac)).Single();
+
+        // İlan id'si üzerinden BAŞKA aracın fotoğrafı silinemez (yetki var, hedef yanlış).
+        await Assert.ThrowsAsync<ValidationException>(
+            () => svc.FotoSilAsync(ilanId, yabanciArac, yabanciFoto.Id));
+
+        // Kendi fotoğrafı silinir.
+        var kendi = Assert.Single(await svc.FotolarAsync(ilanId));
+        await svc.FotoSilAsync(ilanId, kendi.VehicleId, kendi.PhotoId);
+        Assert.Empty(await svc.FotolarAsync(ilanId));
     }
 
     [Fact]
