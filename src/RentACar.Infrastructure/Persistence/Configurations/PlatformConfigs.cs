@@ -64,3 +64,39 @@ internal sealed class TenantDomainConfig : IEntityTypeConfiguration<TenantDomain
         e.HasIndex(x => x.TenantId);
     }
 }
+
+// ---- PlatformBelge / PlatformBelgeHedef (PR-B — platformdan tenant'a PDF dağıtımı) ----
+// PLATFORM tabloları: ITenantOwned DEĞİL → merkezi tenant-filtre döngüsü dokunmaz, RLS de yok.
+// İzolasyon uygulama katmanında (PlatformBelgeRepository.Gorunur — dört koşul).
+internal sealed class PlatformBelgeConfig : IEntityTypeConfiguration<PlatformBelge>
+{
+    public void Configure(EntityTypeBuilder<PlatformBelge> e)
+    {
+        e.ToTable("PlatformBelgeler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Baslik).IsRequired().HasMaxLength(200);
+        e.Property(x => x.Aciklama).HasMaxLength(1000);
+        e.Property(x => x.DosyaAdi).IsRequired().HasMaxLength(120);
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.YukleyenOperator).HasMaxLength(128);
+        // Liste sorgusu Durum + tarih üzerinden gidiyor.
+        e.HasIndex(x => new { x.Durum, x.GuncellemeUtc });
+    }
+}
+
+internal sealed class PlatformBelgeHedefConfig : IEntityTypeConfiguration<PlatformBelgeHedef>
+{
+    public void Configure(EntityTypeBuilder<PlatformBelgeHedef> e)
+    {
+        e.ToTable("PlatformBelgeHedefler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        // Belge silinince hedefleri de düşer (yetim satır kalmasın).
+        e.HasOne<PlatformBelge>().WithMany().HasForeignKey(x => x.BelgeId).OnDelete(DeleteBehavior.Cascade);
+        // Tenant silinmiyor (kapatılıyor) ama bütünlük için FK + Restrict.
+        e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        // Aynı belge aynı tenant'a iki kez hedeflenmesin.
+        e.HasIndex(x => new { x.BelgeId, x.TenantId }).IsUnique();
+    }
+}
