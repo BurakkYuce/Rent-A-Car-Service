@@ -1,0 +1,160 @@
+@page "/site-icerik"
+@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using RentACar.Application.SiteIcerik
+@using RentACar.Domain.Common
+@using RentACar.Domain.Entities
+@using RentACar.Infrastructure.Persistence
+@inject SiteIcerikService Icerik
+@inject ITenantContext Tenant
+@inject TenantStatusCache Durum
+
+<PageTitle>Site İçeriği — Web Sitesi</PageTitle>
+
+@if (!_modul)
+{
+    <div class="page-head"><h1>Site İçeriği</h1></div>
+    <p class="empty-state">Bu modül firmanızda etkin değil.</p>
+}
+else
+{
+    <div class="page-head">
+        <h1>Site İçeriği</h1>
+        <div class="actions"><a class="link" href="/web-sitesi">← İlanlar</a></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+    @if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+
+    <p class="muted small">Buradaki sayfalar sitenizde <strong>kök adreste</strong> yayınlanır
+        (ör. <code>/hakkimizda</code>) ve alt bilgide listelenir. Metin <strong>düz yazıdır</strong>:
+        boş satır bırakmak yeni paragraf açar; HTML etiketi yazarsanız ekranda <em>metin olarak</em>
+        görünür.</p>
+
+    @* ---- SAYFALAR ---- *@
+    <h2 class="section-title">Sayfalar</h2>
+    @if (_sayfalar.Count == 0)
+    {
+        <p class="empty-state">Henüz sayfa eklenmedi. Aşağıdaki formla ilk sayfanızı oluşturun
+            (ör. "Hakkımızda", "Kiralama Koşulları").</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead><tr><th>Başlık</th><th>Adres</th><th class="num">Sıra</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var s in _sayfalar)
+                {
+                    <tr>
+                        <td>@s.Baslik</td>
+                        <td><code>/@s.Slug</code></td>
+                        <td class="num">@s.Sira</td>
+                        <td>
+                            @if (s.Yayinda) { <span class="badge ok">Yayında</span> }
+                            else { <span class="badge warn">Gizli — sitede 404</span> }
+                        </td>
+                        <td class="row-actions">
+                            <a class="link" href="/site-icerik?sayfa=@s.Id">Düzenle</a>
+                            <form method="post" action="/site-icerik/@s.Id/durum" class="inline-form"><AntiforgeryToken />
+                                <input type="hidden" name="durum" value="@(s.Yayinda ? "gizli" : "yayinda")" />
+                                <button type="submit" class="link">@(s.Yayinda ? "Gizle" : "Yayınla")</button>
+                            </form>
+                            <form method="post" action="/site-icerik/@s.Id/sil" class="inline-form"
+                                  data-confirm="'@s.Baslik' sayfası silinsin mi?"><AntiforgeryToken />
+                                <button type="submit" class="link danger">Sil</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+
+    <h3 class="section-title">@(_duzenlenen is null ? "Yeni sayfa" : $"Düzenle: {_duzenlenen.Baslik}")</h3>
+    <form method="post" action="/site-icerik/kaydet" class="grid-form card"><AntiforgeryToken />
+        @if (_duzenlenen is not null) { <input type="hidden" name="id" value="@_duzenlenen.Id" /> }
+        <label>Başlık <span class="req">*</span>
+            <input name="baslik" value="@_duzenlenen?.Baslik" maxlength="@SiteIcerikService.MaxBaslik" required /></label>
+        <label>Adres (boş bırakırsanız başlıktan üretilir)
+            <input name="slug" value="@_duzenlenen?.Slug" maxlength="200" placeholder="hakkimizda" /></label>
+        <label>Sıra (alt bilgideki sıralama)
+            <input name="sira" type="number" value="@(_duzenlenen?.Sira ?? 0)" /></label>
+        <label>Arama motoru özeti
+            <input name="metaAciklama" value="@_duzenlenen?.MetaAciklama" maxlength="@SiteIcerikService.MaxMeta" /></label>
+        <label class="tam-genislik">İçerik <span class="req">*</span>
+            <textarea name="govde" rows="10" maxlength="@SiteIcerikService.MaxGovde" required>@_duzenlenen?.Govde</textarea></label>
+        <label class="onay">
+            <input type="checkbox" name="yayinda" value="true" checked="@(_duzenlenen?.Yayinda ?? true)" />
+            Sitede yayında olsun
+        </label>
+        <div class="form-actions">
+            <button type="submit" class="kf-btn primary">Kaydet</button>
+            @if (_duzenlenen is not null) { <a class="link" href="/site-icerik">Vazgeç</a> }
+        </div>
+    </form>
+
+    @* ---- SSS ---- *@
+    <h2 class="section-title">Sık Sorulan Sorular</h2>
+    <p class="muted small">Sitede <code>/sss</code> adresinde açılır-kapanır liste olarak, ana sayfada
+        da ilk @AnaSayfaSss soru özet olarak görünür.</p>
+
+    @if (_sorular.Count > 0)
+    {
+        <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead><tr><th>Soru</th><th class="num">Sıra</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var k in _sorular)
+                {
+                    <tr>
+                        <td>@k.Soru</td>
+                        <td class="num">@k.Sira</td>
+                        <td>@if (k.Yayinda) { <span class="badge ok">Yayında</span> } else { <span class="badge warn">Gizli</span> }</td>
+                        <td class="row-actions">
+                            <form method="post" action="/site-icerik/sss/@k.Id/sil" class="inline-form"
+                                  data-confirm="Soru silinsin mi?"><AntiforgeryToken />
+                                <button type="submit" class="link danger">Sil</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+
+    <form method="post" action="/site-icerik/sss/kaydet" class="grid-form card"><AntiforgeryToken />
+        <label class="tam-genislik">Soru <span class="req">*</span>
+            <input name="soru" maxlength="@SiteIcerikService.MaxSoru" required /></label>
+        <label class="tam-genislik">Cevap <span class="req">*</span>
+            <textarea name="cevap" rows="4" maxlength="@SiteIcerikService.MaxCevap" required></textarea></label>
+        <label>Sıra <input name="sira" type="number" value="0" /></label>
+        <label class="onay"><input type="checkbox" name="yayinda" value="true" checked /> Yayında</label>
+        <div class="form-actions"><button type="submit" class="kf-btn">Soru Ekle</button></div>
+    </form>
+}
+
+@code {
+    /// <summary>Ana sayfada gösterilen SSS adedi — site tarafıyla AYNI sabit (tek kaynak).</summary>
+    public const int AnaSayfaSss = 4;
+
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    /// <summary>Düzenlenecek sayfa — formu doldurur (ayrı bir düzenleme sayfası açmak yerine).</summary>
+    [SupplyParameterFromQuery(Name = "sayfa")] public Guid? SayfaId { get; set; }
+
+    private bool _modul;
+    private IReadOnlyList<SayfaOzet> _sayfalar = [];
+    private IReadOnlyList<SssSatiri> _sorular = [];
+    private SayfaIcerik? _duzenlenen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
+        if (!_modul) return;
+        _sayfalar = await Icerik.ListeleAsync();
+        _sorular = await Icerik.SssListeAsync();
+        if (SayfaId is Guid id) _duzenlenen = await Icerik.GetirAsync(id);
+    }
+}

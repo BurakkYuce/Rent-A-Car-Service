@@ -91,6 +91,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<RentalContract> Rentals => Set<RentalContract>();
     public DbSet<SozlesmePdf> SozlesmePdfler => Set<SozlesmePdf>();   // PR-C anlık görüntü (tenant-owned + RLS)
+    public DbSet<SayfaIcerik> SayfaIcerikler => Set<SayfaIcerik>();   // PR-16 halka açık içerik sayfası
+    public DbSet<SssKaydi> SssKayitlari => Set<SssKaydi>();           // PR-16 sık sorulan sorular
     public DbSet<RentalAddOn> RentalAddOns => Set<RentalAddOn>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

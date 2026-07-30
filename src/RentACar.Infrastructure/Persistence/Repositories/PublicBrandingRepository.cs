@@ -16,7 +16,8 @@ public sealed class PublicBrandingRepository(IDbContextFactory<AppDbContext> fac
             .Where(t => t.Id == tenantId).Select(t => t.Name).FirstOrDefaultAsync(ct);
         var s = await db.TenantSettings.AsNoTracking().FirstOrDefaultAsync(ct);
         var marka = string.IsNullOrWhiteSpace(s?.FirmaMarka) ? tenantName : s.FirmaMarka;
-        return new FleetBranding(marka, s?.FirmaAdres, s?.FirmaTel, s?.FirmaEmail);
+        return new FleetBranding(marka, s?.FirmaAdres, s?.FirmaTel, s?.FirmaEmail,
+            s?.FirmaMobilTel, s?.WhatsAppNumarasi);
     }
 
     public async Task<string?> GetCanonicalHostAsync(Guid tenantId, CancellationToken ct = default)

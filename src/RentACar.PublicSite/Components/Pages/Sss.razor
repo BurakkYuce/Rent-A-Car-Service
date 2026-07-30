@@ -1,0 +1,47 @@
+@page "/sss"
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@using RentACar.Application.SiteIcerik
+@inject SiteIcerikService Icerik
+@inject FleetShowcaseService Showcase
+
+@* PR-16 — sık sorulan sorular. Açılır-kapanır liste `<details>`/`<summary>` ile: JS GEREKMEZ
+   (statik SSR + `script-src 'self'`), klavye ve ekran okuyucu desteği tarayıcıdan gelir. *@
+
+<PageTitle>Sık Sorulan Sorular — @(_marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <header class="site-header"><h1>Sık Sorulan Sorular</h1></header>
+
+    @if (_sorular.Count == 0)
+    {
+        <p class="empty-state">Henüz soru eklenmedi.</p>
+    }
+    else
+    {
+        <div class="sss-liste">
+            @foreach (var k in _sorular)
+            {
+                <details class="sss">
+                    <summary>@k.Soru</summary>
+                    @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
+                    {
+                        <p>@p</p>
+                    }
+                </details>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<SssSatiri> _sorular = [];
+    private string? _marka;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sorular = await Icerik.YayindakiSssAsync();
+        try { _marka = (await Showcase.GetBrandingAsync()).Marka; }
+        catch { /* marka çözülemezse sayfa yine basılır */ }
+    }
+}

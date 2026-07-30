@@ -1,5 +1,6 @@
 @page "/blog/{Slug}"
 @using RentACar.Application.Blog
+@using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @inject BlogService Blog
 @inject FleetShowcaseService Showcase
@@ -27,7 +28,7 @@
         <article class="blog-icerik">
             @* MarkupString KULLANILMAZ — @p normal bir Razor ifadesi olduğu için otomatik HTML-encode edilir;
                içerik düz metin saklandığından XSS risk sınıfı tasarım gereği ortadan kalkar. *@
-            @foreach (var p in Paragraflar(_post.Icerik))
+            @foreach (var p in IcerikMetni.Paragraflar(_post.Icerik))
             {
                 <p>@p</p>
             }
@@ -43,10 +44,6 @@
     private FleetBranding? _branding;
 
     /// <summary>Boş satırla ayrılmış blokları paragraflara böler (satır sonları korunmaz — düz metin).</summary>
-    private static IEnumerable<string> Paragraflar(string icerik) => icerik
-        .Replace("\r\n", "\n")
-        .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
