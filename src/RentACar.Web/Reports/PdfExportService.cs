@@ -155,7 +155,16 @@ public sealed class PdfExportService
                         .Text($"Günlük {s.GunlukUcret:N2}   ·   Kira {s.Tutar:N2}   ·   KM Limit {(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())} / Aşım {s.FazlaKmUcret:N2}   ·   Fazla KM {s.FazlaKmBedeli:N2}   ·   Yakıt {s.YakitBedeli:N2}   ·   Uzatma {s.UzatmaBedeli:N2}   ·   Ek Hizmet {s.EkHizmetToplam:N2}   ({pb})").FontSize(8);
 
                     // ========== ÇİFT EKSPERTİZ (orijinal araç şeması görseli — çıkış+dönüş tek karede) ==========
-                    col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Image(EkspertizSema).FitWidth();
+                    // PR-18: `UseOriginalImage()` ŞART. QuestPDF varsayılanda görseli JPEG'e YENİDEN
+                    // KODLUYOR; bu bir ÇİZGİ ÇİZİMİ (etiketli kutular, "Avadanlık/Trafik Seti", E/F
+                    // yakıt göstergesi) olduğu için lossy kodlama metin çevresinde halka/bulanıklık
+                    // üretir — personelin üstüne hasar işaretlediği form okunmaz hale gelirdi.
+                    // Varlığın kendisi küçültüldüğü için (2000x647 RGBA 807 KB → 1040x336 gri 93 KB,
+                    // bkz. scripts/optimize-ekspertiz-sema.py) yeniden kodlamaya GEREK de yok:
+                    // baytlar olduğu gibi gömülüyor → sözleşme PDF'i 1,05 MB'dan ~150 KB'a düşüyor.
+                    // Logoya DOKUNULMUYOR (PR-A kuralları; marka kalitesi orada önemli).
+                    col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line)
+                        .Image(EkspertizSema).UseOriginalImage().FitWidth();
 
                     // ========== HUKUKİ METİN (iki dilli) ==========
                     col.Item().PaddingTop(2).Row(r =>
