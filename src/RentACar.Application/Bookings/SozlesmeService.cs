@@ -1,4 +1,5 @@
 using RentACar.Application.BelgeSablon;
+using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Personnel;
 using RentACar.Application.RentalAddOns;
@@ -80,7 +81,11 @@ public sealed class SozlesmeService(
 
         return new SozlesmeView(
             ayar.FirmaUnvan, ayar.FirmaAdres, ayar.FirmaTel, ayar.FirmaMobilTel, ayar.FirmaMarka,
-            ayar.FirmaVergiDairesi, ayar.FirmaVergiNo, ayar.LogoBytes,
+            // PR-A: basılamayacak logo (absürt küçük / ölçüsü okunamayan) BURADA null'lanır → PDF'in
+            // mevcut metin fallback'i (firma markası/ünvanı) devreye girer. Bayt var olduğu sürece
+            // fallback tetiklenmiyordu ve 1×1 piksellik dosya sözleşme başlığına leke basıyordu.
+            ayar.FirmaVergiDairesi, ayar.FirmaVergiNo,
+            LogoKurallari.BasilabilirMi(ayar.LogoBytes) ? ayar.LogoBytes : null,
             c.SozlesmeNo, c.Durum.ToString(), c.BasTar, c.BitTar, c.Gun,
             c.CikisOfisi, c.DonusOfisi, c.Aciklama,
             musteri?.DisplayName ?? "(bilinmeyen cari)", musteri?.CepTel, musteri?.Email, musteri?.Adres,
