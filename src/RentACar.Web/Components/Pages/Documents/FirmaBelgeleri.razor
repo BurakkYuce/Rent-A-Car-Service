@@ -1,0 +1,55 @@
+@page "/firma-belgeleri"
+@attribute [Authorize]
+@using RentACar.Application.PlatformBelgeler
+@inject PlatformBelgeService Belgeler
+
+<PageTitle>Firma Belgeleri — RentPro</PageTitle>
+
+<div class="page-head"><h1>Firma Belgeleri</h1></div>
+<p class="muted small">RentPro'nun sizinle paylaştığı belgeler (kullanım kılavuzu, KVKK metni, boş
+    sözleşme nüshası, fiyat listesi). Bu liste salt okunurdur — belgeler bizim tarafımızdan
+    güncellenir, güncellendiğinde sürüm numarası artar.</p>
+
+@if (_satirlar.Count == 0)
+{
+    <p class="empty-state">Şu anda sizinle paylaşılmış bir belge yok.</p>
+}
+else
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
+            <tr><th>Belge</th><th class="num">Sürüm</th><th class="num">Boyut</th><th>Güncelleme</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var b in _satirlar)
+            {
+                <tr>
+                    <td>
+                        @b.Baslik
+                        @if (b.Yeni) { <span class="badge ok">Yeni</span> }
+                        @if (!string.IsNullOrWhiteSpace(b.Aciklama)) { <br /><span class="muted small">@b.Aciklama</span> }
+                    </td>
+                    <td class="num">v@b.Surum</td>
+                    <td class="num">@(b.Boyut / 1024) KB</td>
+                    <td>@b.Guncelleme.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                    <td class="row-actions">
+                        @* Aynı uç, iki davranış: varsayılan `inline` (tarayıcının PDF görüntüleyicisi
+                           açılır, oradan yazdırılır), `?indir=1` ise `attachment` (diske kaydeder).
+                           `download` attribute'ü yetmiyor — sunucu `attachment` yazdığında
+                           "Görüntüle" de indirmeye dönüşüyordu. *@
+                        <a class="link" href="/firma-belgeleri/@b.Id/indir" target="_blank">Görüntüle</a>
+                        <a class="link" href="/firma-belgeleri/@b.Id/indir?indir=1">İndir</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<FirmaBelgeSatiri> _satirlar = [];
+
+    protected override async Task OnInitializedAsync() => _satirlar = await Belgeler.ListeleAsync();
+}

@@ -1,0 +1,136 @@
+@page "/platform/belgeler"
+@attribute [Authorize(Policy = "PlatformAdmin")]
+@layout PlatformLayout
+@using RentACar.Application.Common
+@using RentACar.Domain.Entities
+@inject PlatformAdminService Platform
+
+<PageTitle>Belge Merkezi — Platform</PageTitle>
+
+<div class="page-head"><h1>Belge Merkezi</h1></div>
+<p class="muted small">Firmalara dağıtılan hazır PDF'ler (kılavuz, KVKK metni, boş sözleşme nüshası,
+    fiyat listesi). Firmalar bunları <strong>Firma Belgeleri</strong> ekranından yalnız görür ve indirir —
+    düzenleyemez. Yükleme <strong>taslak</strong> olarak başlar; yayınlayana kadar kimse görmez.</p>
+
+@if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<details class="new-vehicle" open="@(_satirlar.Count == 0)">
+    <summary>+ Yeni Belge Yükle</summary>
+    <form method="post" action="/platform/belgeler/yukle" enctype="multipart/form-data" class="grid-form">
+        <AntiforgeryToken />
+        <label>Başlık <span class="req">*</span><input name="baslik" required maxlength="200" placeholder="KVKK Aydınlatma Metni" /></label>
+        <label>Açıklama<input name="aciklama" maxlength="1000" placeholder="(opsiyonel)" /></label>
+        <label>PDF <span class="req">*</span><input type="file" name="dosya" accept="application/pdf" required /></label>
+        <label class="check">
+            <input type="hidden" name="yalnizYoneticiler" value="false" />
+            <input type="checkbox" name="yalnizYoneticiler" value="true" />
+            Yalnız yöneticiler görsün
+            <span class="hint">Kapalıysa oturum açmış tüm personel görür (KVKK metnini muhasebeci de görmeli).</span>
+        </label>
+        <div class="tam-genislik">
+            <span class="muted small">Hedef firmalar — <strong>hiçbiri seçilmezse belge TÜM firmalara açıktır.</strong></span>
+            <div class="chips">
+                @foreach (var t in _tenantlar)
+                {
+                    <label class="chip"><input type="checkbox" name="hedef" value="@t.Id" /> @t.Code</label>
+                }
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="kf-btn primary">Yükle (taslak)</button>
+            <span class="muted small">En fazla @(PdfValidation.MaxBayt / (1024 * 1024)) MB · yalnız PDF</span>
+        </div>
+    </form>
+</details>
+
+@if (_satirlar.Count == 0)
+{
+    <p class="empty-state">Henüz belge yüklenmedi.</p>
+}
+else
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
+            <tr>
+                <th>Başlık</th><th>Hedef</th><th class="num">Sürüm</th><th class="num">Boyut</th>
+                <th>Güncelleme</th><th>Durum</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var b in _satirlar)
+            {
+                <tr>
+                    <td>
+                        @b.Baslik
+                        @if (b.YalnizYoneticiler) { <span class="badge">yalnız yönetici</span> }
+                        @if (!string.IsNullOrWhiteSpace(b.Aciklama)) { <br /><span class="muted small">@b.Aciklama</span> }
+                    </td>
+                    <td>
+                        @if (b.HedefKodlar.Count == 0) { <span class="badge ok">tüm firmalar</span> }
+                        else { <span class="mono small">@string.Join(", ", b.HedefKodlar)</span> }
+                    </td>
+                    <td class="num">v@b.Surum</td>
+                    <td class="num">@(b.Boyut / 1024) KB</td>
+                    <td>@b.GuncellemeUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        @switch (b.Durum)
+                        {
+                            case PlatformBelgeDurum.Yayinda: <span class="badge ok">Yayında</span> break;
+                            case PlatformBelgeDurum.Taslak: <span class="badge warn">Taslak</span> break;
+                            default: <span class="badge">Arşiv</span> break;
+                        }
+                    </td>
+                    <td class="row-actions">
+                        <a class="link" href="/platform/belgeler/@b.Id/indir" target="_blank">Görüntüle</a>
+                        @if (b.Durum != PlatformBelgeDurum.Yayinda)
+                        {
+                            <form method="post" action="/platform/belgeler/@b.Id/durum" class="inline-form"><AntiforgeryToken />
+                                <input type="hidden" name="durum" value="yayinda" />
+                                <button type="submit" class="link">Yayınla</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" action="/platform/belgeler/@b.Id/durum" class="inline-form"><AntiforgeryToken />
+                                <input type="hidden" name="durum" value="arsiv" />
+                                <button type="submit" class="link">Arşivle</button>
+                            </form>
+                        }
+                        <details class="inline-form">
+                            <summary class="link">Yeni sürüm</summary>
+                            <form method="post" action="/platform/belgeler/@b.Id/surum" enctype="multipart/form-data">
+                                <AntiforgeryToken />
+                                <input type="file" name="dosya" accept="application/pdf" required />
+                                <button type="submit" class="link">Yükle (v@(b.Surum + 1))</button>
+                            </form>
+                        </details>
+                        <form method="post" action="/platform/belgeler/@b.Id/sil" class="inline-form"
+                              data-confirm="'@b.Baslik' belgesi tamamen silinsin mi? Arşivlemek yerine silmek geri alınamaz."><AntiforgeryToken />
+                            <button type="submit" class="link danger">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+    <p class="muted small">Yeni sürüm yüklemek <strong>yeni kayıt açmaz</strong> — dosya değişir, sürüm
+        artar, firmaların elindeki link kırılmaz. Arşiv listeden düşürür ama dosyayı silmez
+        ("hangi sürümü indirdiler" sorusu cevaplanabilir kalsın).</p>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+    private IReadOnlyList<PlatformAdminService.PlatformBelgeSatiri> _satirlar = [];
+    private IReadOnlyList<PlatformTenantRow> _tenantlar = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _satirlar = await Platform.ListBelgelerAsync();
+        _tenantlar = await Platform.ListTenantsAsync();
+    }
+}
