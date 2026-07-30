@@ -1,0 +1,35 @@
+@* PR-19 — "3 adımda nasıl çalışır". TAMAMEN SABİT: anlatılan şey firmanın vaadi değil,
+   SİSTEMİN AKIŞI (T1). Üç adım da kodda birebir karşılığı olan gerçek davranış:
+     1. vitrin/müsaitlik araması  → FleetShowcaseService
+     2. talep formu               → PublicBookingRequest (rezervasyon DEĞİL, lead)
+     3. personel dönüştürür       → DonusturAsync → Cari + Rezervasyon + sözleşme
+   Özellikle 2. adımdaki "rezervasyon değil, talep" ifadesi ÖNEMLİ: ziyaretçi formu doldurup
+   aracın kendisine ayrıldığını sanmamalı — sistemde de öyle çalışmıyor. *@
+
+<section class="bolum" id="nasil">
+    <div class="container">
+        <h2 class="section-title">3 adımda araç kiralayın</h2>
+        <ol class="adimlar">
+            @foreach (var (n, baslik, aciklama) in Adimlar)
+            {
+                <li class="adim">
+                    <span class="adim-no" aria-hidden="true">@n</span>
+                    <h3>@baslik</h3>
+                    <p class="muted small">@aciklama</p>
+                </li>
+            }
+        </ol>
+    </div>
+</section>
+
+@code {
+    private static readonly (int No, string Baslik, string Aciklama)[] Adimlar =
+    [
+        (1, "Aracı seçin",
+            "Tarihlerinizi girin, o aralıkta müsait araçları ve günlük/haftalık/aylık fiyatlarını görün."),
+        (2, "Talep bırakın",
+            "Adınız ve telefonunuzla kısa formu doldurun. Bu bir rezervasyon değil, talep kaydıdır."),
+        (3, "Ekip sizi arasın",
+            "Talebiniz onaylanınca sözleşmeniz hazırlanır ve aracınızı teslim alırsınız."),
+    ];
+}

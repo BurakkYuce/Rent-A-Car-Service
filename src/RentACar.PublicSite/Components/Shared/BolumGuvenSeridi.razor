@@ -1,0 +1,36 @@
+@* PR-19 — güven şeridi. DÖRT MADDE DE SABİT ve bu bilinçli bir kısıt altında yazıldı:
+
+   T1 — SABİT METİN, FİRMA ADINA TAAHHÜT VEREMEZ.
+   Referans projede bu şeritte "Tam kasko dahil", "Ücretsiz teslimat" yazıyor; bunlar O FİRMANIN
+   vaatleri. Bizde sigorta opsiyonel bir ek hizmet (`CoverageProduct`) ve teslimat politikası
+   firmadan firmaya değişiyor — aynı cümleyi koda gömmek, HER tenant'ın sitesinde doğrulanmamış
+   bir taahhüt yayınlamak olurdu.
+
+   Bu yüzden buradaki dört madde yalnız SİSTEMİN YAPISI GEREĞİ doğru olan şeyleri söylüyor:
+     1. ilan fiyatı sözleşmeye birebir geçer  → PublicBookingRequestService.DonusturAsync
+     2. KDV durumu her ilanda yazılı          → WebIlan.KdvDahil, kartta ve detayda basılıyor
+     3. müsaitlik anlık filodan hesaplanır    → AvailabilityService
+     4. kiralama yazılı sözleşmeyle yapılır   → SozlesmeService + sözleşme PDF'i
+   Kasko/teslimat/km gibi firmaya özel ayrıcalıklar firmanın KENDİ içerik sayfasında anlatılır. *@
+
+<section class="serit" aria-label="Nasıl çalışıyoruz">
+    <div class="container serit-ic">
+        @foreach (var (baslik, aciklama) in Maddeler)
+        {
+            <div class="serit-kutu">
+                <strong>@baslik</strong>
+                <span class="muted small">@aciklama</span>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private static readonly (string Baslik, string Aciklama)[] Maddeler =
+    [
+        ("Fiyat baştan belli", "İlanda gördüğünüz fiyat sözleşmenize birebir geçer."),
+        ("KDV durumu açık", "Her ilanda fiyatın KDV dahil mi hariç mi olduğu yazılıdır."),
+        ("Anlık müsaitlik", "Tarih seçtiğinizde o aralıkta gerçekten boşta olan araçlar listelenir."),
+        ("Yazılı sözleşme", "Kiralama, araç durumunun kayda geçtiği yazılı sözleşmeyle yapılır."),
+    ];
+}

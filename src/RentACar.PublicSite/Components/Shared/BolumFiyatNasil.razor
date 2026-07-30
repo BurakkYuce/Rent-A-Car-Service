@@ -1,0 +1,36 @@
+@* PR-19 — "Fiyatlar nasıl gösteriliyor". Referanstaki "Aylık fiyata neler dahil?" bölümünün
+   BİZE UYARLANMIŞ hâli.
+
+   NEDEN BAŞLIK DEĞİŞTİ (T1): "fiyata dahil" listesi kasko/bakım/yol yardımı gibi FİRMA
+   TAAHHÜTLERİ demektir; onları koda gömüp her tenant adına vaat edemeyiz. Onun yerine bölüm,
+   sistemin fiyatı NASIL gösterdiğini anlatıyor — hepsi doğrulanabilir. Firmaya özel neyin dahil
+   olduğu, firmanın kendi içerik sayfasında yazılır ve aşağıdaki bağlantı oraya götürür. *@
+
+<section class="bolum bolum-alt" id="fiyat">
+    <div class="container">
+        <h2 class="section-title">Fiyatlar nasıl gösteriliyor?</h2>
+        <ul class="madde-liste">
+            @foreach (var m in Maddeler)
+            {
+                <li>@m</li>
+            }
+        </ul>
+        @if (KosulSayfasi is { Length: > 0 } yol)
+        {
+            <p class="ust-linkler"><a href="@yol">Kiralama koşullarımızın tamamı →</a></p>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Firmanın kendi yazdığı koşullar sayfası (varsa). Yoksa bağlantı basılmaz (T2).</summary>
+    [Parameter] public string? KosulSayfasi { get; set; }
+
+    private static readonly string[] Maddeler =
+    [
+        "Her araç için günlük, haftalık ve aylık fiyat ayrı ayrı yazılıdır.",
+        "Fiyatın KDV dahil mi hariç mi olduğu ilanın üzerinde belirtilir.",
+        "Tarih seçtiğinizde seçtiğiniz gün sayısına göre toplam tutar hesaplanır.",
+        "Gördüğünüz fiyat, talebiniz onaylandığında sözleşmenize aynen geçer.",
+    ];
+}

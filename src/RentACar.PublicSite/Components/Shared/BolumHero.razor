@@ -1,0 +1,26 @@
+@* PR-19 — Hero. Başlık ve alt metin SABİT (T1: firmanın vaadini değil, sitenin ne yaptığını
+   anlatır); marka adı ve arama formu TENANT'tan. Arama, `/musaitlik` ile AYNI bileşen (T4). *@
+
+<section class="hero">
+    <div class="container hero-ic">
+        <h1>Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
+        <p class="hero-alt">
+            @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
+            araçların günlük, haftalık ve aylık fiyatları ilanlarda yazılıdır.
+            Uygun aracı seçip talep bırakın, ekibimiz sizi arasın.
+        </p>
+
+        <AramaFormu Hedef="/musaitlik" Subeler="Subeler" ButonMetni="Müsait araçları göster"
+                    EkSinif="hero-arama" />
+
+        <p class="hero-ipuclari muted small">
+            @* Bu üç ifade de sistemin davranışı — firma taahhüdü DEĞİL (T1). *@
+            Kayıt gerekmez · Talep bırakmak ücretsizdir · Fiyat sözleşmeye aynen geçer
+        </p>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Marka { get; set; }
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+}

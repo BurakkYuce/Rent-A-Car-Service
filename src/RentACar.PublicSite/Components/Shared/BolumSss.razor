@@ -1,0 +1,35 @@
+@using RentACar.Application.Common
+@using RentACar.Application.SiteIcerik
+@* PR-19 — SSS özeti. VERİYE BAĞLI: firma soru girmediyse bölüm HİÇ basılmaz (T2 — boş başlık,
+   siteyi bakımsız gösterir). `<details>` ile JS'siz açılır kapanır. *@
+
+@if (Sorular.Count > 0)
+{
+    <section class="bolum" id="sss">
+        <div class="container">
+            <h2 class="section-title">Sık Sorulan Sorular</h2>
+            <div class="sss-liste">
+                @foreach (var k in Sorular.Take(Adet))
+                {
+                    <details class="sss">
+                        <summary>@k.Soru</summary>
+                        @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
+                        {
+                            <p>@p</p>
+                        }
+                    </details>
+                }
+            </div>
+            @if (Sorular.Count > Adet)
+            {
+                <p class="ust-linkler"><a href="/sss">Tüm soruları gör (@Sorular.Count)</a></p>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<SssSatiri> Sorular { get; set; } = [];
+    /// <summary>Ana sayfada gösterilen soru adedi (ERP yönetim ekranındaki notla aynı sayı).</summary>
+    [Parameter] public int Adet { get; set; } = 4;
+}

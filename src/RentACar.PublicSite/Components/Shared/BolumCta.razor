@@ -1,0 +1,28 @@
+@using RentACar.Application.Common
+@* PR-19 — kapanış çağrısı. Metin sabit, iletişim kanalları TENANT'tan (T1).
+   Telefon yoksa "ara" düğmesi basılmaz; hiçbir kanal yoksa yalnız müsaitlik CTA'sı kalır (T2). *@
+
+<section class="cta-serit">
+    <div class="container cta-ic">
+        <div>
+            <h2>Uygun aracı bulalım</h2>
+            <p class="muted small">Tarihlerinizi girin, müsait araçları görün; ya da doğrudan bize ulaşın.</p>
+        </div>
+        <div class="cta-butonlar">
+            <a class="btn-cta" href="/musaitlik">Müsaitlik sorgula</a>
+            @if (TelefonLink.Tel(Telefon) is { } tel)
+            {
+                <a class="btn-ikincil" href="@tel">@Telefon</a>
+            }
+            @if (TelefonLink.Wa(WhatsApp ?? Telefon, "Merhaba, araç kiralama hakkında bilgi almak istiyorum.") is { } wa)
+            {
+                <a class="btn-ikincil" href="@wa" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Telefon { get; set; }
+    [Parameter] public string? WhatsApp { get; set; }
+}
