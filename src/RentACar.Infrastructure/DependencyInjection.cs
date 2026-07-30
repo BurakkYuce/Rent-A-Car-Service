@@ -137,6 +137,8 @@ public static class DependencyInjection
             Persistence.Repositories.WebIlanRepository>(); // PR-13
         services.AddScoped<RentACar.Application.PlatformBelgeler.IPlatformBelgeRepository,
             Persistence.Repositories.PlatformBelgeRepository>(); // PR-B
+        services.AddScoped<RentACar.Application.Bookings.ISozlesmePaylasimRepository,
+            Persistence.Repositories.SozlesmePaylasimRepository>(); // PR-C
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
