@@ -1,0 +1,93 @@
+@page "/iletisim"
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+
+@* PR-16 — iletişim sayfası. İçeriği KOD ÜRETİR, düzenlenebilir bir sayfa DEĞİL: veriler
+   `TenantSettings`te zaten var (adres/tel/mobil/e-posta/WhatsApp) ve ikinci bir yere elle
+   yazılması, birinin bayatlaması demek. Bu yüzden `iletisim` rezerve bir slug.
+
+   HARİTA GÖMÜLMEZ: PublicSite CSP'sinde `frame-src` tanımsız ve `frame-ancestors 'none'` —
+   üçüncü-taraf iframe (Google Maps) sessizce boş kutu olarak görünürdü. Yerine adres metni +
+   haritada aç bağlantısı (dış link, kullanıcının kendi uygulamasında açılır).
+
+   Çalışma saatleri gibi ek bilgiler için firma "Site İçeriği"nden bir sayfa açar (ör.
+   "Çalışma Saatleri") — TenantSettings'e yarım bağlanmış yeni bir alan EKLENMEDİ. *@
+
+<PageTitle>İletişim — @(_b?.Marka ?? "RentPro")</PageTitle>
+
+<div class="container">
+    <header class="site-header">
+        <h1>İletişim</h1>
+        <p class="contact">Aşağıdaki kanallardan bize ulaşabilir ya da doğrudan
+            <a href="/musaitlik">müsaitlik ve fiyat sorgulayabilirsiniz</a>.</p>
+    </header>
+
+    <div class="grid">
+        @if (!string.IsNullOrWhiteSpace(_b?.Adres))
+        {
+            <div class="card"><div class="card-body">
+                <h3>Adres</h3>
+                <p>@_b!.Adres</p>
+                @* Dış link: kullanıcının kendi harita uygulamasında açılır (gömme YOK, CSP). *@
+                <a class="link" href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(_b!.Adres!)}")"
+                   target="_blank" rel="noopener noreferrer">Haritada aç</a>
+            </div></div>
+        }
+
+        @if (_telLink is not null || _mobilLink is not null)
+        {
+            <div class="card"><div class="card-body">
+                <h3>Telefon</h3>
+                @if (_telLink is not null) { <p><a href="@_telLink">@_b!.Tel</a></p> }
+                @if (_mobilLink is not null) { <p><a href="@_mobilLink">@_b!.MobilTel</a> <span class="muted small">(mobil)</span></p> }
+            </div></div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_b?.Email))
+        {
+            <div class="card"><div class="card-body">
+                <h3>E-posta</h3>
+                <p><a href="@($"mailto:{_b!.Email}")">@_b!.Email</a></p>
+            </div></div>
+        }
+
+        @if (_waLink is not null)
+        {
+            <div class="card"><div class="card-body">
+                <h3>WhatsApp</h3>
+                <p class="muted small">Hazır bir mesajla konuşma açar.</p>
+                <a class="btn-cta" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yaz</a>
+            </div></div>
+        }
+    </div>
+
+    @if (_telLink is null && _mobilLink is null && _waLink is null
+         && string.IsNullOrWhiteSpace(_b?.Email) && string.IsNullOrWhiteSpace(_b?.Adres))
+    {
+        <p class="empty-state">İletişim bilgileri henüz girilmemiş.</p>
+    }
+</div>
+
+@code {
+    private FleetBranding? _b;
+    private string? _telLink, _mobilLink, _waLink;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _b = await Showcase.GetBrandingAsync();
+            _telLink = TelefonLink.Tel(_b.Tel);
+            _mobilLink = TelefonLink.Tel(_b.MobilTel);
+            // WhatsApp numarası yoksa MOBİL numaraya düş (firmaların çoğu aynı numarayı kullanıyor).
+            _waLink = TelefonLink.Wa(
+                string.IsNullOrWhiteSpace(_b.WhatsApp) ? _b.MobilTel : _b.WhatsApp,
+                $"Merhaba, {_b.Marka} araç kiralama hakkında bilgi almak istiyorum.");
+        }
+        catch
+        {
+            // Marka/iletişim çözülemedi → sayfa "bilgi girilmemiş" haliyle basılır.
+        }
+    }
+}

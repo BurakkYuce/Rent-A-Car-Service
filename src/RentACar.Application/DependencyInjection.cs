@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<WebSite.WebIlanService>();             // PR-13 halka açık site ilan sihirbazı
         services.AddScoped<PlatformBelgeler.PlatformBelgeService>(); // PR-B firma belgeleri (salt-okur)
         services.AddScoped<Bookings.SozlesmePaylasimService>(); // PR-C sözleşme paylaşım linki
+        services.AddScoped<SiteIcerik.SiteIcerikService>(); // PR-16 halka açık içerik sayfaları + SSS
         services.AddScoped<RateMatrixService>();
         services.AddScoped<CoverageProductService>();
         services.AddScoped<RentalRuleService>();

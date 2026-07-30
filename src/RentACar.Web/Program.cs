@@ -22,6 +22,7 @@ using RentACar.Web.Import;
 using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
+using RentACar.Web.SiteIcerik;
 using RentACar.Web.Bookings;
 using RentACar.Web.Branches;
 using RentACar.Web.FuelKinds;
@@ -496,6 +497,7 @@ app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapı
 app.MapFirmaBelgeEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
 app.MapSozlesmePaylasimEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
 app.MapSozlesmeGoruntuleEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
+app.MapSiteIcerikEndpoints();        // PR-16 — halka açık site içerik sayfaları + SSS yönetimi
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
 app.MapBildirimEndpoints();

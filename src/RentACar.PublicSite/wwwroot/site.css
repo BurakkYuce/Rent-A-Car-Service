@@ -441,3 +441,23 @@ img.card-img, .card-img-placeholder {
 
 /* Honeypot: ekran okuyucudan ve gözden gizli — bot doldurur, insan doldurmaz. */
 .hp-alan { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+/* ---- PR-16: SSS listesi (JS'siz açılır-kapanır) ---- */
+.sss-liste { display: grid; gap: var(--s1); }
+
+.sss {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: var(--s2);
+}
+
+.sss > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Sora', system-ui, sans-serif;
+}
+
+.sss[open] > summary { margin-bottom: var(--s1); color: var(--brand); }
+.sss p { margin: 0 0 var(--s1); color: var(--ink-muted); }
+.sss p:last-child { margin-bottom: 0; }

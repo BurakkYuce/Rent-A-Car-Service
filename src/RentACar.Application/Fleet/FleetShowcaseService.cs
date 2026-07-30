@@ -39,7 +39,13 @@ public sealed record FleetShowcaseDetail(
     decimal GunlukFiyat, decimal? HaftalikToplam, decimal? AylikToplam, bool KdvDahil,
     int Adet, IReadOnlyList<Guid> PhotoIds, IReadOnlyList<OzellikGoster> Ozellikler);
 
-public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, string? Email);
+/// <summary>
+/// Halka açık sitede gösterilen firma bilgisi. PR-16: <see cref="MobilTel"/> + <see cref="WhatsApp"/>
+/// eklendi — iletişim sayfası ve WhatsApp CTA'sı için (Türkiye'de en çok kullanılan temas kanalı).
+/// Bu alanların hepsi zaten fatura/sözleşme başlığında müşteriye görünüyor, yeni PII yüzeyi YOK.
+/// </summary>
+public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, string? Email,
+    string? MobilTel = null, string? WhatsApp = null);
 
 /// <summary>
 /// Public-site filo vitrini. Yetki gerektirmez — guard-free okuma servisleri üstünden salt-okur

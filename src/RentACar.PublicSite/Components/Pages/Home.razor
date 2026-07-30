@@ -1,6 +1,9 @@
 @page "/"
+@using RentACar.Application.Common
 @using RentACar.Application.Fleet
+@using RentACar.Application.SiteIcerik
 @inject FleetShowcaseService Showcase
+@inject SiteIcerikService Icerik
 
 <PageTitle>@(_branding?.Marka ?? "RentPro")</PageTitle>
 
@@ -61,15 +64,42 @@
     {
         <p class="empty-state">Şu anda vitrine eklenmiş bir araç bulunmuyor.</p>
     }
+
+    @* PR-16: SSS özeti — tamamı /sss'te. Adet SssOzetAdet ile sabit (yönetim ekranındaki notla aynı). *@
+    @if (_sss.Count > 0)
+    {
+        <h2 class="section-title">Sık Sorulan Sorular</h2>
+        <div class="sss-liste">
+            @foreach (var k in _sss.Take(SssOzetAdet))
+            {
+                <details class="sss">
+                    <summary>@k.Soru</summary>
+                    @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
+                    {
+                        <p>@p</p>
+                    }
+                </details>
+            }
+        </div>
+        @if (_sss.Count > SssOzetAdet)
+        {
+            <p class="ust-linkler"><a href="/sss">Tüm soruları gör (@_sss.Count)</a></p>
+        }
+    }
 </div>
 
 @code {
+    /// <summary>Ana sayfada gösterilen SSS adedi — yönetim ekranındaki nota karşılık gelir.</summary>
+    public const int SssOzetAdet = 4;
+
     private IReadOnlyList<FleetShowcaseCard>? _cards;
+    private IReadOnlyList<SssSatiri> _sss = [];
     private FleetBranding? _branding;
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
+        _sss = await Icerik.YayindakiSssAsync();
     }
 }
