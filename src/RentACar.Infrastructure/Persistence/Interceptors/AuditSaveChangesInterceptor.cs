@@ -23,10 +23,13 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
 
     // KVKK/F2 (adversarial HIGH-1): PII alan DEĞERLERİ denetim izine yazılmaz — değişiklik
     // "***" ile işaretlenir. Düz-metin legacy alanlar + cipher/hash türevleri (korelasyonu da kes).
+    // PR-C: "Token" da burada — PaylasimLink.Token bir SIRDIR (linki bilen sözleşmeyi görür); denetim
+    // izi "paylaşım oluşturuldu" bilgisini taşımalı, sırrın ikinci bir kopyasını DEĞİL.
     private static readonly HashSet<string> PiiMaskedProps = new(StringComparer.Ordinal)
     {
         "TcKimlik", "EhliyetNo", "PasaportNo",
-        "TcKimlikEnc", "EhliyetNoEnc", "PasaportNoEnc", "TcKimlikHash", "MaasEnc"
+        "TcKimlikEnc", "EhliyetNoEnc", "PasaportNoEnc", "TcKimlikHash", "MaasEnc",
+        "Token"
     };
 
     private static object? Mask(string propertyName, object? value)

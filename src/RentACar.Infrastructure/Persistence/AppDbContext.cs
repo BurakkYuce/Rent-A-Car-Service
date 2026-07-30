@@ -46,6 +46,8 @@ public sealed class AppDbContext : DbContext
     // katmanında (PlatformBelgeRepository.Gorunur); ModelGuardTests platform listesini pinliyor.
     public DbSet<PlatformBelge> PlatformBelgeler => Set<PlatformBelge>();
     public DbSet<PlatformBelgeHedef> PlatformBelgeHedefler => Set<PlatformBelgeHedef>();
+    // PR-C: paylaşım linki PLATFORM tablosu (anonim token çözümü RLS'siz olmak ZORUNDA).
+    public DbSet<PaylasimLink> PaylasimLinkler => Set<PaylasimLink>();
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();
@@ -88,6 +90,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<RentalContract> Rentals => Set<RentalContract>();
+    public DbSet<SozlesmePdf> SozlesmePdfler => Set<SozlesmePdf>();   // PR-C anlık görüntü (tenant-owned + RLS)
     public DbSet<RentalAddOn> RentalAddOns => Set<RentalAddOn>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

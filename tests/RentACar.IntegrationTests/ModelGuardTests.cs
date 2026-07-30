@@ -58,11 +58,14 @@ public sealed class ModelGuardTests(PostgresFixture fx)
             .ToList();
 
         // PR-B: PlatformBelge/PlatformBelgeHedef eklendi — platformdan tenant'lara PDF dağıtımı.
+        // PR-C: PaylasimLink eklendi — anonim sözleşme linki token'ı RLS'li tablodan ÇÖZÜLEMEZ
+        //       (GUC set edilmemiş istekte sorgu sessizce 0 satır döner), bu yüzden platform tablosu.
+        //       PDF'in kendisi SozlesmePdf'te ve O tenant-owned + RLS'li (kişisel veri orada).
         // Bu liste bilinçli olarak ELLE tutuluyor: yeni bir filtresiz (=RLS'siz) tablo eklemek,
         // izolasyonun uygulama katmanına taşınması demek ve bu testi güncellemeyi ZORUNLU kılıyor.
         Type[] beklenenPlatform =
         [
-            typeof(KurKaydi), typeof(PlatformBelge), typeof(PlatformBelgeHedef),
+            typeof(KurKaydi), typeof(PaylasimLink), typeof(PlatformBelge), typeof(PlatformBelgeHedef),
             typeof(Tenant), typeof(TenantDomain), typeof(User),
         ];
         Assert.Equal(beklenenPlatform, filtresizler);
