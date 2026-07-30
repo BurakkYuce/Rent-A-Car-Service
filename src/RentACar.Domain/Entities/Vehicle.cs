@@ -60,7 +60,13 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
 
     public int Km { get; set; }
 
-    public FuelType Yakit { get; set; } = FuelType.Benzin;
+    /// <summary>
+    /// Yakıt türü. <b>NULLABLE (PR-21)</b> — eskiden zorunluydu ve varsayılanı <c>Benzin</c>'di,
+    /// yani hiç girilmemiş her araç sessizce "Benzin" oluyordu ve bu bilgi halka açık siteye,
+    /// ilan başlığına ve sözleşmeye basılıyordu. Canlıda 26 aracın 26'sı "Benzin" görünüyordu.
+    /// <c>null</c> = "girilmedi"; yanlış bilgi yayınlamaktansa hiç yayınlamamak doğrudur.
+    /// </summary>
+    public FuelType? Yakit { get; set; }
 
     // ---- Parite zenginleştirme (docs/parite/01; additive, NULLABLE) ----
     /// <summary>Motor gücü (HP).</summary>

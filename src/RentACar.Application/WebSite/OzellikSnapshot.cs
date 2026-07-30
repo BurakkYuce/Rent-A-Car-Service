@@ -46,7 +46,7 @@ public static class OzellikSnapshot
         Ekle("Marka", ilk.Marka);
         Ekle("Model", ilk.Tip);
         Ekle("Vites", ilk.Vites?.ToString());
-        Ekle("Yakıt", ilk.Yakit.ToString());
+        Ekle("Yakıt", ilk.Yakit?.ToString());   // PR-21: girilmemişse satır HİÇ eklenmez
 
         // Yıl: tek yıl ise değer, aralık ise aralık (bilgi kaybı yok, yanlış bilgi de yok).
         Ekle("Model Yılı", AracImza.YilAralik(araclar));
