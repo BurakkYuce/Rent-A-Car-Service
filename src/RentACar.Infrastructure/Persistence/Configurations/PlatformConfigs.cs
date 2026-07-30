@@ -100,3 +100,26 @@ internal sealed class PlatformBelgeHedefConfig : IEntityTypeConfiguration<Platfo
         e.HasIndex(x => new { x.BelgeId, x.TenantId }).IsUnique();
     }
 }
+
+// ---- PR-C: sozlesme paylasim linki (PLATFORM tablosu — RLS YOK, kisisel veri YOK) ----
+// Neden platform tablosu: link ANONIM aciliyor, istekte cookie/GUC yok. Tenant-owned + FORCE RLS
+// olsaydi token sorgusu sessizce 0 satir donerdi (Users.CalendarToken ile ayni zorunluluk).
+internal sealed class PaylasimLinkConfig : IEntityTypeConfiguration<PaylasimLink>
+{
+    public void Configure(EntityTypeBuilder<PaylasimLink> e)
+    {
+        e.ToTable("PaylasimLinkler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Token).IsRequired().HasMaxLength(64);
+        e.Property(x => x.SozlesmeNo).IsRequired().HasMaxLength(64);
+        // Token GLOBAL unique: tenant kirilimi YOK, cunku token tek basina tenant'i cozmek zorunda.
+        e.HasIndex(x => x.Token).IsUnique();
+        e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        // Kira basina EN FAZLA BIR aktif link — kismi unique index (iptal edilmisler birikebilir).
+        e.HasIndex(x => new { x.TenantId, x.RentalId })
+            .IsUnique()
+            .HasFilter("NOT \"Iptal\"")
+            .HasDatabaseName("UX_PaylasimLinkler_Aktif");
+    }
+}

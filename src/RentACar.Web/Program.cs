@@ -257,6 +257,8 @@ builder.Services.AddRacarObservability(builder.Configuration, "rentacar-web");
 
 // iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
 builder.Services.AddScoped<CalendarFeedService>();
+// PR-C: anonim sözleşme görüntüleme (iki-fazlı tenant çözümü — CalendarFeedService ile aynı desen).
+builder.Services.AddScoped<RentACar.Web.Bookings.SozlesmeGoruntuleService>();
 builder.Services.AddScoped<CalendarTokenService>();
 
 // ---- Uygulama + altyapı ----
@@ -492,6 +494,8 @@ app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
 app.MapFirmaBelgeEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
+app.MapSozlesmePaylasimEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
+app.MapSozlesmeGoruntuleEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
 app.MapBildirimEndpoints();

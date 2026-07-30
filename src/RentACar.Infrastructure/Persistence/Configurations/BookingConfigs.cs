@@ -186,3 +186,16 @@ internal sealed class RentalAddOnConfig : IEntityTypeConfiguration<RentalAddOn>
         e.HasIndex(x => new { x.TenantId, x.RentalId });
     }
 }
+
+// ---- PR-C: paylasilan sozlesmenin anlik goruntusu (tenant-owned + RLS; kisisel veri PDF'in icinde) ----
+internal sealed class SozlesmePdfConfig : IEntityTypeConfiguration<SozlesmePdf>
+{
+    public void Configure(EntityTypeBuilder<SozlesmePdf> e)
+    {
+        e.ToTable("SozlesmePdfler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        // Kira basina TEK anlik goruntu: "yeni surum" ayni satirin baytini degistirir.
+        e.HasIndex(x => new { x.TenantId, x.RentalId }).IsUnique();
+    }
+}

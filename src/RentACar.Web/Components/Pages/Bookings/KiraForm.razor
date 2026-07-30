@@ -23,6 +23,8 @@
 @inject PenaltyService Cezalar
 @inject PersonelService Personeller
 @inject RentACar.Application.BelgeSablon.BelgeSablonService BelgeSablonlar
+@inject RentACar.Application.Bookings.SozlesmePaylasimService Paylasim
+@inject NavigationManager Nav
 
 <PageTitle>@(_vm.Edit ? $"Kira {_vm.Rental!.SozlesmeNo}" : "Yeni Kira") — RentPro</PageTitle>
 
@@ -57,6 +59,7 @@ else
 
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 @if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+@if (!string.IsNullOrEmpty(PaylasimMesaj)) { <p class="ok">@PaylasimMesaj</p> }
 @if (_vm.Edit && !string.IsNullOrEmpty(_vm.DovizNot)) { <p class="muted small">@_vm.DovizNot</p> }
 @if (_vm.Edit && !string.IsNullOrWhiteSpace(_vm.Rental!.UyariAciklama)) { <p class="error"><strong>UYARI:</strong> @_vm.Rental!.UyariAciklama</p> }
 
@@ -76,6 +79,52 @@ else
         </label>
         <button type="button" class="kf-btn-ghost" data-paylas-gmail title="Gmail taslağını hazır konu/metinle açar; PDF'i taslağa eklersiniz">Gmail'de Aç</button>
         <span data-paylas-hata class="small" style="align-self:center;"></span>
+    </div>
+
+    @* ---- PR-C: müşteriye verilecek sözleşme LİNKİ ----
+       Link, yukarıdaki WhatsApp/Gmail mesajına otomatik eklenir (data-link) → personel artık PDF'i
+       elle eklemek zorunda değil. Formlar ana formun DIŞINDA (bu blok <form id="kira-form">'dan
+       önce geliyor) — statik SSR'da iç içe form yasak. *@
+    <div class="card kf-paylas" data-paylas-link-kart>
+        <strong>Sözleşme Linki</strong>
+        @if (!_vm.OperasyonYetkisi)
+        {
+            <span class="muted small">Link oluşturmak için operasyon yetkisi gerekir.</span>
+        }
+        else if (_paylasimDurum is null)
+        {
+            <span class="muted small">Müşteriye dosya göndermek yerine, sözleşmeyi tarayıcıda açan
+                bir adres üretin. Adres tahmin edilemez ve dilediğiniz an iptal edilebilir.</span>
+            <form method="post" action="/kiralar/@Id/paylas" style="margin:0"><AntiforgeryToken />
+                <button type="submit" class="kf-btn-ghost">Paylaşım Linki Oluştur</button>
+            </form>
+        }
+        else
+        {
+            <input readonly value="@_paylasimUrl" data-paylas-link
+                   style="min-width:22rem;font-family:var(--mono,monospace);" aria-label="Sözleşme paylaşım adresi" />
+            <button type="button" class="kf-btn-ghost" data-paylas-kopyala>Kopyala</button>
+            <a class="link" href="@_paylasimUrl" target="_blank" rel="noopener">Aç</a>
+            <span class="small" style="align-self:center;">
+                @(_paylasimDurum.ErisimSayisi == 0
+                    ? "Henüz açılmadı"
+                    : $"{_paylasimDurum.ErisimSayisi} kez açıldı")@(_paylasimDurum.SonErisimUtc is DateTimeOffset se
+                    ? $" · son {se.ToLocalTime():dd.MM HH:mm}" : "")
+            </span>
+            @if (_paylasimDurum.Bayat)
+            {
+                @* Sözleşme, anlık görüntü alındıktan sonra değişti. Otomatik yenilemek yanlış olurdu:
+                   müşterinin elindeki belge sessizce değişmemeli — kararı personel verir. *@
+                <span class="badge warn" title="Sözleşme bu linkten sonra güncellendi; müşteri ESKİ nüshayı görüyor">Güncel değil</span>
+            }
+            <form method="post" action="/kiralar/@Id/paylas-yeni" style="margin:0"><AntiforgeryToken />
+                <button type="submit" class="kf-btn-ghost"
+                        title="Yeni bir anlık görüntü alır ve YENİ adres verir; eski adres çalışmaz">Yeni Sürüm</button>
+            </form>
+            <form method="post" action="/kiralar/@Id/paylas-iptal" style="margin:0"><AntiforgeryToken />
+                <button type="submit" class="kf-btn-ghost" title="Adres bundan sonra 404 döner">İptal Et</button>
+            </form>
+        }
     </div>
 }
 
@@ -165,6 +214,7 @@ else
     [Parameter] public Guid? Id { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "paylasim")] public string? PaylasimMesaj { get; set; }
     [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; }
     [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }
     [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
@@ -178,6 +228,9 @@ else
     private string _musteriEmail = "";
     private string _paylasMesaj = "";
     private string _paylasKonu = "";
+    // PR-C: aktif paylaşım linki (yoksa null). URL sunucuda kurulur — JS'e yalnız hazır adres gider.
+    private RentACar.Application.Bookings.PaylasimDurum? _paylasimDurum;
+    private string _paylasimUrl = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -246,10 +299,21 @@ else
             var musteri = _vm.Customers.FirstOrDefault(x => x.Id == c.MusteriId);
             _musteriTel = musteri?.CepTel ?? "";
             _musteriEmail = musteri?.Email ?? "";
+            // PR-C: aktif link (varsa) — mesaj metnine de eklenecek. Yetkisiz rolde guard atar,
+            // ekran patlamasın: link bloğu zaten OperasyonYetkisi ile gizli.
+            if (_vm.OperasyonYetkisi)
+            {
+                try { _paylasimDurum = await Paylasim.DurumAsync(c.Id); }
+                catch (RentACar.Application.Common.ValidationException) { _paylasimDurum = null; }
+            }
+            if (_paylasimDurum is not null)
+                _paylasimUrl = Nav.BaseUri.TrimEnd('/') + "/sozlesme/" + _paylasimDurum.Token;
+
             _paylasKonu = $"Kira Sözleşmesi {c.SozlesmeNo}";
             _paylasMesaj = $"Sayın {musteri?.DisplayName}, {c.SozlesmeNo} nolu kira sözleşmeniz: " +
                            $"{c.BasTar.LocalDateTime:dd.MM.yyyy} - {c.BitTar.LocalDateTime:dd.MM.yyyy}, " +
-                           $"genel toplam {c.GenelToplam:N2} {c.Doviz ?? "TL"}.";
+                           $"genel toplam {c.GenelToplam:N2} {c.Doviz ?? "TL"}." +
+                           (_paylasimUrl.Length > 0 ? $" Sözleşmeniz: {_paylasimUrl}" : "");
 
             // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kuru kesim anında sabitlenir).
             var doviz = RentACar.Application.Kur.KurService.NormalizeKod(c.Doviz);

@@ -353,6 +353,37 @@
         });
     }
 
+
+    // ---- PR-C: sozlesme paylasim linki — panoya kopyala + odakta tam secim ----
+    // ILERICI ZENGINLESTIRME: JS calismazsa da is durmuyor; input readonly ve gorunur, elle
+    // secilip kopyalanabilir. Ayri bir rc-paylas.js ACILMADI — kart yalnizca bu ekranda yasiyor,
+    // bu dosya da yalnizca bu ekranda yukleniyor (fazladan script etiketi + CSP yuzeyi olmasin).
+    function bindPaylasLink() {
+        var input = document.querySelector('[data-paylas-link]');
+        if (!input || input._kfBound) return;
+        input._kfBound = true;
+
+        // Odaklanan personel tek tiklamayla tum adresi alsin (mobilde de secim derdi olmasin).
+        input.addEventListener('focus', function () { try { input.select(); } catch (e) { } });
+
+        var btn = document.querySelector('[data-paylas-kopyala]');
+        if (!btn) return;
+        var eskiMetin = btn.textContent;
+        btn.addEventListener('click', function () {
+            function tamam() {
+                btn.textContent = 'Kopyalandi';
+                setTimeout(function () { btn.textContent = eskiMetin; }, 1500);
+            }
+            // navigator.clipboard yalniz guvenli baglamda (https/localhost) var; yoksa eski yola dus.
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(tamam, function () { input.select(); });
+                return;
+            }
+            input.select();
+            try { document.execCommand('copy'); tamam(); } catch (e) { }
+        });
+    }
+
     function bind() {
         bindTabs();
         bindInvalid();
@@ -365,6 +396,7 @@
         bindMusaitKoru();
         bindPdfYazdir();
         bindPaylas();
+        bindPaylasLink();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
