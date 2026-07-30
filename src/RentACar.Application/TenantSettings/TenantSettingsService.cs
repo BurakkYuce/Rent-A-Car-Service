@@ -142,13 +142,21 @@ public sealed class TenantSettingsService(
         }, ct);
     }
 
-    /// <summary>PR-C: PDF firma logosunu ayarla/kaldır (Ayarlar upload). null → logoyu sil. En fazla 1 MB.</summary>
+    /// <summary>
+    /// PR-C: PDF firma logosunu ayarla/kaldır (Ayarlar upload). null/boş → logoyu sil.
+    ///
+    /// <para>PR-A: doğrulama ARTIK BURADA (<see cref="LogoKurallari.Reddet"/>) — tür/boyut/ölçü.
+    /// Önceden yalnız web ucunda (`TenantSettingsEndpoints`) yapılıyordu; uç kontrolü kalıyor
+    /// (iki katman) ama servis public API olduğu için tek başına yeterli değildi: yeni bir çağıran
+    /// (REST API, içe aktarım, platform yolu) doğrulamayı sessizce atlardı ve bozuk bayt PDF üretimini
+    /// patlatarak sözleşmenin HİÇ basılamamasına yol açardı.</para>
+    /// </summary>
     public async Task SetLogoAsync(byte[]? bytes, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
-        if (bytes is { Length: > 1_048_576 })
-            throw new ValidationException("Logo en fazla 1 MB olabilir.");
+        if (bytes is { Length: > 0 } dolu && LogoKurallari.Reddet(dolu) is { } hata)
+            throw new ValidationException(hata);
         await repository.UpsertAsync(s => s.LogoBytes = bytes is { Length: > 0 } ? bytes : null, ct);
     }
 

@@ -13,11 +13,16 @@ namespace RentACar.Web.Reports;
 /// Salt-okur GET (antiforgery gerekmez). Fatura/makbuz TenantSettings'ten firma markası + logo taşır.</summary>
 public static class PdfEndpoints
 {
-    /// <summary>TenantSettings'ten PDF marka bilgisi (logo + firma) kur.</summary>
+    /// <summary>TenantSettings'ten PDF marka bilgisi (logo + firma) kur.
+    /// PR-A: basılamayacak logo (absürt küçük / ölçüsü okunamayan) null'lanır → PDF'in metin
+    /// fallback'i devreye girer. Fatura/makbuz `PdfMarka`'yı BURADA kuruyor, `SozlesmeService`'ten
+    /// ayrı — bu yüzden kapı iki yerde de açıkça uygulanmak zorunda (tek yerde sanılırsa fatura
+    /// başlığı lekeyi basmaya devam ederdi).</summary>
     private static async Task<PdfMarka> MarkaAsync(TenantSettingsService ts, CancellationToken ct)
     {
         var s = await ts.GetAsync(ct);
-        return new PdfMarka(s.LogoBytes, s.FirmaUnvan, s.FirmaMarka, s.FirmaAdres, s.FirmaTel, s.FirmaVergiDairesi, s.FirmaVergiNo);
+        var logo = RentACar.Application.Common.LogoKurallari.BasilabilirMi(s.LogoBytes) ? s.LogoBytes : null;
+        return new PdfMarka(logo, s.FirmaUnvan, s.FirmaMarka, s.FirmaAdres, s.FirmaTel, s.FirmaVergiDairesi, s.FirmaVergiNo);
     }
 
     public static IEndpointRouteBuilder MapPdfEndpoints(this IEndpointRouteBuilder app)

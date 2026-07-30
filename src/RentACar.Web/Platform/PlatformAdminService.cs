@@ -178,6 +178,59 @@ public sealed class PlatformAdminService(
     }
 
     /// <summary>
+    /// PR-A: tenant'ın PDF logosunu platform konsolundan yükle/kaldır. Tenant kendi
+    /// <c>/ayarlar</c> yolundan da yükleyebilir — bu EK kanal, ikame değil (tek alan, son yazan kazanır).
+    ///
+    /// <para><c>Ayarlar</c> tenant-owned ve FORCE-RLS → owner bağlantısı tek başına yetmez, GUC şart:
+    /// <see cref="TenantKapsaminda"/> helper'ı (tx-yerel <c>set_config</c>) kullanılır. Bu helper bugüne
+    /// kadar yalnız OKUMA için kullanılıyordu; yazma da aynı tx içinde güvenli.</para>
+    ///
+    /// <para>Doğrulama <see cref="LogoKurallari.Reddet"/> ile — tenant yoluyla AYNI kural (iki panel
+    /// farklı davranmasın).</para>
+    /// </summary>
+    public async Task SetTenantLogoAsync(Guid tenantId, byte[]? png, string operatorName, CancellationToken ct = default)
+    {
+        if (png is { Length: > 0 } dolu && LogoKurallari.Reddet(dolu) is { } hata)
+            throw new ValidationException(hata);
+
+        await using var db = OwnerDb();
+        var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, ct)
+            ?? throw new ValidationException("Tenant bulunamadı.");
+
+        await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var ayar = await db.TenantSettings.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
+            if (ayar is null)
+            {
+                // Tenant hiç Ayarlar satırı açmamış olabilir (yeni firma) → upsert.
+                ayar = new RentACar.Domain.Entities.TenantSettings { TenantId = tenantId };
+                db.TenantSettings.Add(ayar);
+            }
+            ayar.LogoBytes = png is { Length: > 0 } ? png : null;
+            ayar.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return 0;
+        }, ct);
+
+        log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) PDF logosu {Durum} — operatör {Operator}.",
+            tenant.Code, tenantId, png is { Length: > 0 } ? $"GÜNCELLENDİ ({png.Length} bayt)" : "KALDIRILDI", operatorName);
+    }
+
+    /// <summary>Platform ekranında logoyu göstermek + değerlendirmesini basmak için.</summary>
+    public async Task<(byte[]? Bytes, LogoDegerlendirme? Degerlendirme)> GetTenantLogoAsync(
+        Guid tenantId, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var bytes = await TenantKapsaminda(db, tenantId, async () =>
+            await db.TenantSettings.AsNoTracking().IgnoreQueryFilters()
+                .Where(s => s.TenantId == tenantId).Select(s => s.LogoBytes).FirstOrDefaultAsync(ct), ct);
+        return bytes is { Length: > 0 }
+            ? (bytes, LogoKurallari.Degerlendir(bytes))
+            : (null, null);
+    }
+
+    /// <summary>
     /// PR-12: "Web Sitesi" modülünü aç/kapa. SATIN ALMA kararıdır → yalnız platform konsolundan;
     /// tenant'ın ERP'sinde bu alanı yazan hiçbir yol YOKTUR (bilinçli — <c>TenantSettings</c>
     /// `ManageUsers` ile müşteriye açıktır, oraya konsaydı müşteri kendi kendine açardı).
