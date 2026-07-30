@@ -1,30 +1,18 @@
 @page "/"
-@using RentACar.Application.Blog
 @using RentACar.Application.Fleet
 @inject FleetShowcaseService Showcase
-@inject BlogService Blog
 
 <PageTitle>@(_branding?.Marka ?? "RentPro")</PageTitle>
 
 <div class="container">
+    @* PR-15: marka + iletişim + gezinme artık KABUKTA (MainLayout). Burada yalnız sayfanın
+       kendi başlığı kalır — aynı bilgiyi iki kez basmak eski halin en görünür kusuruydu. *@
     <header class="site-header">
-        <h1>@(_branding?.Marka ?? "RentPro")</h1>
-        @if (_branding is { } b && (b.Adres is not null || b.Tel is not null || b.Email is not null))
-        {
-            <p class="contact">
-                @string.Join(" · ", new[] { b.Adres, b.Tel, b.Email }.Where(x => !string.IsNullOrWhiteSpace(x)))
-            </p>
-        }
-        <p class="ust-linkler">
-            <a href="/musaitlik">Müsaitlik ve fiyat sorgula →</a>
-            @if (_blogVar)
-            {
-                <a href="/blog">Blog →</a>
-            }
-        </p>
+        <h1>Kiralık Araçlar</h1>
+        <p class="contact">Günlük, haftalık ve aylık fiyatlarımız aşağıda; tarih seçerek
+            müsaitliği ve toplam tutarı hesaplayabilirsiniz.</p>
+        <p class="ust-linkler"><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></p>
     </header>
-
-    <h2 class="section-title">Filomuz</h2>
 
     @* PR-14: kartlar artık SINIF değil İLAN bazlı — personelin sihirbazdan yayınladığı araçlar.
        Adres slug'dır (/araclar/fiat-egea-manuel-dizel), fiyat ilandan gelir (motor yok). *@
@@ -40,7 +28,7 @@
                     }
                     else
                     {
-                        <div class="card-img-placeholder">🚗</div>
+                        <div class="card-img-placeholder" aria-hidden="true"></div>
                     }
                     <div class="card-body">
                         <h3>@c.Baslik</h3>
@@ -78,12 +66,10 @@
 @code {
     private IReadOnlyList<FleetShowcaseCard>? _cards;
     private FleetBranding? _branding;
-    private bool _blogVar; // PR-6: yayınlanmış yazı yoksa link basılmaz (boş sayfaya götürmesin)
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
-        _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
     }
 }
