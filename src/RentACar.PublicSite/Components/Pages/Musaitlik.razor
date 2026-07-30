@@ -3,6 +3,7 @@
 @using RentACar.Application.Branches
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
+@using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 @inject BranchService Subeler
 
@@ -25,7 +26,8 @@
     {
         @if (_sonuclar is { Count: > 0 })
         {
-            <p class="muted-note">@_sonuclar[0].Gun günlük kiralama için @_sonuclar.Count araç müsait.</p>
+            <p class="muted-note"><strong>@_sonuclar.Count araç</strong> müsait ·
+                @_sonuclar[0].Gun günlük kiralama · fiyatlar seçtiğiniz gün sayısına göre hesaplandı.</p>
             <div class="grid">
                 @foreach (var r in _sonuclar)
                 {
@@ -63,10 +65,22 @@
         }
         else
         {
+            @* PR-20: eskiden burada tek cümle vardı ve ziyaretçi ÇIKMAZ SOKAKTA kalıyordu.
+               Sonuç yoksa bile üç çıkış yolu sunulur: tarihi değiştir (form yukarıda), tüm filoyu
+               gör, ya da doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler. *@
             <p class="empty-state">Seçtiğiniz tarihlerde müsait araç bulunamadı.</p>
+            <p class="ust-linkler">
+                <a href="/">Tüm filoyu gör</a>
+                <a href="/iletisim">Bize ulaşın</a>
+            </p>
+            <p class="muted small">Tarihleri biraz esnetmek çoğu zaman sonucu değiştirir;
+                yukarıdaki formdan yeniden deneyebilirsiniz.</p>
         }
     }
 </div>
+
+@* Ana sayfa ve detayla AYNI kapanış çağrısı — anlatı tek yerde. *@
+<BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
 
 @code {
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
