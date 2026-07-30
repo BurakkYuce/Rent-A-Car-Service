@@ -3,6 +3,7 @@
 @inject NavigationManager Nav
 @inject RentACar.Domain.Common.ITenantContext Tenant
 @inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
+@inject RentACar.Application.PublicSite.PublicBookingRequestService Talepler
 
 <AuthorizeView>
     <Authorized>
@@ -72,7 +73,7 @@
                                 <a href="/hukuk">Hukuk</a>
                                 <a href="/anketler">Anketler</a>
                                 <a href="/blog-yonetim">Blog</a>
-                                <a href="/gelen-talepler">Gelen Talepler</a>
+                                <a href="/gelen-talepler">Gelen Talepler @if (_yeniTalep > 0) { <span class="badge warn">@_yeniTalep</span> }</a>
                             </div>
                         </details>
                         @* PR-12: yalnız "Web Sitesi" modülünü satın almış firmada görünür. Bu KAPI
@@ -84,7 +85,11 @@
                                 <div class="sub">
                                     <a href="/web-sitesi">İlanlar</a>
                                     <a href="/site-icerik">Site İçeriği</a>
-                                    <a href="/gelen-talepler">Gelen Talepler</a>
+                                    @* PR-17: cevaplanmamış talep sayacı — lead sessizce beklemesin.
+                                       DİKKAT: `Talepler@if` yazmak İŞE YARAMAZ — Razor, boşluksuz `@`yı
+                                       e-posta adresi sanıp `@if (...)` metnini EKRANA BASIYOR (canlıda
+                                       görüldü). `@` önünde boşluk ZORUNLU. *@
+                                    <a href="/gelen-talepler">Gelen Talepler @if (_yeniTalep > 0) { <span class="badge warn">@_yeniTalep</span> }</a>
                                     <a href="/blog-yonetim">Blog</a>
                                 </div>
                             </details>
@@ -271,6 +276,7 @@
     private int _okunmamis;
     private string _path = "";
     private bool _webSitesiModulu; // PR-12
+    private int _yeniTalep;        // PR-17 cevaplanmamış site talebi sayacı
 
     protected override async Task OnInitializedAsync()
     {
@@ -280,6 +286,13 @@
         // 60 sn cache'li tek okuma; platformdan açılınca en geç o kadar sonra menüde belirir.
         try { _webSitesiModulu = Tenant.TenantId is { } id && await TenantDurum.WebSitesiModuluAsync(id); }
         catch { _webSitesiModulu = false; } // menü hiçbir koşulda sayfayı düşürmemeli
+        // PR-17: yalnız modül açıkken sorulur (kapalıysa menü de yok). Yetkisiz rolde guard atar →
+        // sayaç 0 gösterilir; menü hiçbir koşulda sayfayı düşürmemeli.
+        if (_webSitesiModulu)
+        {
+            try { _yeniTalep = (await Talepler.OzetAsync()).Yeni; }
+            catch { _yeniTalep = 0; }
+        }
     }
 
     // Mevcut sayfa bu modülün altındaysa grubu AÇIK render et (JS'siz oryantasyon).

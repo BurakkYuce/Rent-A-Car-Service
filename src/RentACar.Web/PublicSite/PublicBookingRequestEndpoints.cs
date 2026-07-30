@@ -26,7 +26,32 @@ public static class PublicBookingRequestEndpoints
 
         grp.MapPost("/reddet", async (PublicBookingRequestService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ReddetAsync(id); return Results.Redirect("/gelen-talepler"); }
+            try { await svc.ReddetAsync(id); return Results.Redirect("/gelen-talepler?ok=1"); }
+            catch (ValidationException ex) { return Geri(ex); }
+        });
+
+        // ---- PR-17: yaşam döngüsü ----
+        grp.MapPost("/durum", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] int durum) =>
+        {
+            try
+            {
+                if (!Enum.IsDefined(typeof(Domain.Entities.PublicBookingRequestDurum), durum))
+                    throw new ValidationException("Geçersiz durum.");
+                await svc.DurumAtaAsync(id, (Domain.Entities.PublicBookingRequestDurum)durum);
+                return Results.Redirect("/gelen-talepler?ok=1");
+            }
+            catch (ValidationException ex) { return Geri(ex); }
+        });
+
+        grp.MapPost("/ustlen", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string ustlen) =>
+        {
+            try { await svc.UstlenAsync(id, ustlen == "true"); return Results.Redirect("/gelen-talepler?ok=1"); }
+            catch (ValidationException ex) { return Geri(ex); }
+        });
+
+        grp.MapPost("/not", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string metin) =>
+        {
+            try { await svc.NotEkleAsync(id, metin); return Results.Redirect("/gelen-talepler?ok=1"); }
             catch (ValidationException ex) { return Geri(ex); }
         });
 
