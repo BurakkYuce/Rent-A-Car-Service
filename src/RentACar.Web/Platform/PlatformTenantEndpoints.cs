@@ -27,6 +27,51 @@ public static class PlatformTenantEndpoints
             }
         });
 
+        // PR-A: tenant'ın PDF logosu — platform admini tenant adına yükler/kaldırır.
+        // Doğrulama serviste (LogoKurallari) — tenant yoluyla AYNI kural.
+        grp.MapPost("/logo", async (HttpContext http, PlatformAdminService svc,
+            [FromForm] Guid id, IFormFile? logo) =>
+        {
+            try
+            {
+                byte[]? bytes = null;
+                if (logo is { Length: > 0 })
+                {
+                    using var ms = new MemoryStream();
+                    await logo.CopyToAsync(ms);
+                    bytes = ms.ToArray();
+                }
+                await svc.SetTenantLogoAsync(id, bytes, http.User.Identity?.Name ?? "platform");
+                return Results.Redirect($"/platform/tenants/{id}?ok=1");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/platform/tenants/{id}?hata=" + Uri.EscapeDataString(ex.Message));
+            }
+        }).WithMetadata(new RequestSizeLimitAttribute(2_000_000)); // 1 MB logo + multipart payı
+
+        grp.MapPost("/logo-sil", async (HttpContext http, PlatformAdminService svc, [FromForm] Guid id) =>
+        {
+            try
+            {
+                await svc.SetTenantLogoAsync(id, null, http.User.Identity?.Name ?? "platform");
+                return Results.Redirect($"/platform/tenants/{id}?ok=1");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/platform/tenants/{id}?hata=" + Uri.EscapeDataString(ex.Message));
+            }
+        });
+
+        // PR-A: platform ekranında logoyu göstermek için (girişli platform operatörüne servis edilir).
+        grp.MapGet("/{id:guid}/logo", async (Guid id, PlatformAdminService svc, CancellationToken ct) =>
+        {
+            var (bytes, _) = await svc.GetTenantLogoAsync(id, ct);
+            return bytes is { Length: > 0 }
+                ? Results.Bytes(bytes, "image/png")
+                : Results.NotFound();
+        });
+
         // PR-12: "Web Sitesi" modülü (satın alma kararı). Tenant detay sayfasından açılır/kapatılır.
         grp.MapPost("/modul-web-sitesi", async (HttpContext http, PlatformAdminService svc,
             [FromForm] Guid id, [FromForm] bool aktif) =>

@@ -106,18 +106,39 @@
 
 <fieldset>
     <legend>PDF Logo (sözleşme / fatura / makbuz başlığı)</legend>
-    @if (_m.LogoBytes is { Length: > 0 })
+    @if (_m.LogoBytes is { Length: > 0 } logo)
     {
-        <p class="ok">Logo yüklü (@(_m.LogoBytes.Length / 1024) KB). PDF çıktılarının başlığında görünür.</p>
+        @* PR-A: BASKI BOYUTUNDA önizleme — PDF'te logo 38 pt yüksekliğe sığdırılıyor. Ekranda aynı
+           yükseklikte göstermek bulanıklığı PDF üretmeden, müşteriye gitmeden görünür kılar. *@
+        <p class="muted small">Sözleşme/fatura başlığında görünen boyut:</p>
+        <div style="border:1px solid var(--tr-line);padding:.5rem;display:inline-block;background:#fff">
+            <img src="data:image/png;base64,@Convert.ToBase64String(logo)" alt="Logo önizleme" style="height:38px;width:auto" />
+        </div>
+        @* Renk kodu: basılamıyorsa error, basılıyor ama uyarı varsa nötr, temizse ok.
+           Uyarıyı yeşil basmak "her şey yolunda" mesajı verirdi. *@
+        <p class="@(_logo is null ? "muted" : !_logo.BaskiyaUygun ? "error" : _logo.Uyari is not null ? "muted" : "ok")">
+            @if (_logo is { } d)
+            {
+                <text>@(d.Genislik is { } g && d.Yukseklik is { } y ? $"{g}×{y} px · " : "")@(d.Bayt / 1024) KB</text>
+                @if (d.Uyari is { } u)
+                {
+                    <text> — </text><span class="badge warn">@u</span>
+                }
+                else { <text> — PDF başlığında görünüyor.</text> }
+            }
+        </p>
     }
     else
     {
-        <p class="muted">Logo yüklü değil.</p>
+        <p class="muted">Logo yüklü değil — PDF başlıklarında firma adı basılıyor.</p>
     }
     <form method="post" action="/ayarlar/logo" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
-        <label>Logo dosyası (PNG/JPG, ≤1 MB)<input name="logo" type="file" accept="image/png,image/jpeg" required /></label>
+        <label>Logo dosyası (PNG, ≤1 MB)<input name="logo" type="file" accept="image/png" required /></label>
         <button type="submit">Logoyu Yükle</button>
     </form>
+    <p class="muted small">Yalnız <strong>PNG</strong> (şeffaf zemin gerekiyor). En az
+        <strong>@LogoKurallari.OnerilenGenislik px</strong> genişlik önerilir;
+        <strong>@LogoKurallari.YokSayilanGenislik px altı yok sayılır</strong> ve yerine firma adı basılır.</p>
     <form method="post" action="/ayarlar/logo-sil"><AntiforgeryToken />
         <button type="submit" class="btn-secondary">Logoyu Kaldır</button>
     </form>
@@ -176,6 +197,7 @@
 
     private TenantSettingsModel _m = new();
     private IReadOnlyList<RentACar.Domain.Entities.VehicleGroup> _gruplar = []; // PR-10 varsayılan grup seçimi
+    private LogoDegerlendirme? _logo; // PR-A
     private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];
 
     private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
@@ -183,6 +205,8 @@
     protected override async Task OnInitializedAsync()
     {
         _m = await Settings.GetAsync();
+        // PR-A: yüklü logonun baskıya uygunluğu (aynı kural platform panelinde de kullanılıyor).
+        _logo = _m.LogoBytes is { Length: > 0 } b ? LogoKurallari.Degerlendir(b) : null;
         _gruplar = await AracGruplari.ListActiveAsync();
         _gonderimler = await Settings.ListWhatsAppGonderimAsync();
     }

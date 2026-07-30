@@ -85,6 +85,48 @@ else
         }
     </div>
 
+    @* ---- PR-A: PDF LOGOSU. Tenant kendi /ayarlar'ından da yükleyebilir; bu EK kanal.
+       Tek alan (TenantSettings.LogoBytes) — son yazan kazanır. ---- *@
+    <h2>PDF Logosu</h2>
+    <div class="kf-panel">
+        @if (_loguVar)
+        {
+            @* BASKI BOYUTUNDA önizleme: PDF'te logo 38 pt yüksekliğe sığdırılıyor (PdfExportService:65).
+               Ekranda 38 px göstermek bulanıklığı PDF üretmeden, müşteriye gitmeden görünür kılar. *@
+            <p class="muted small">Sözleşme/fatura başlığında görünen boyut:</p>
+            <div style="border:1px solid var(--tr-line);padding:.5rem;display:inline-block;background:#fff">
+                <img src="/platform/tenants/@_d.Id/logo" alt="Logo önizleme" style="height:38px;width:auto" />
+            </div>
+            <p class="muted small">
+                @_logoBilgi
+                @if (_logoUyari is not null)
+                {
+                    <br /><span class="badge warn">@_logoUyari</span>
+                }
+            </p>
+            <form method="post" action="/platform/tenants/logo-sil" class="tahsil-mini"
+                  data-confirm="@_d.Code logosu kaldırılsın mı? PDF'lerde firma adı basılacak."><AntiforgeryToken />
+                <input type="hidden" name="id" value="@_d.Id" />
+                <button type="submit" class="kf-btn">Logoyu Kaldır</button>
+            </form>
+        }
+        else
+        {
+            <p class="muted">Logo yüklü değil — PDF başlıklarında firma adı basılıyor.</p>
+        }
+
+        <form method="post" action="/platform/tenants/logo" enctype="multipart/form-data" class="grid-form">
+            <AntiforgeryToken />
+            <input type="hidden" name="id" value="@_d.Id" />
+            <label>Logo (PNG)<input type="file" name="logo" accept="image/png" required /></label>
+            <button type="submit" class="kf-btn">Yükle</button>
+        </form>
+        <p class="muted small">Yalnız <strong>PNG</strong> (şeffaf zemin gerekiyor).
+            En az <strong>@LogoKurallari.OnerilenGenislik px</strong> genişlik önerilir — altında baskıda
+            bulanık çıkar. <strong>@LogoKurallari.YokSayilanGenislik px altındaki logo PDF'te yok sayılır</strong>
+            ve yerine firma adı basılır. Üst sınır @LogoKurallari.MaxGenislik px / 1 MB.</p>
+    </div>
+
     @* ---- PR-12: MODÜL LİSANSI (satın alma). Tenant bunu kendi ERP'sinde GÖREMEZ/AÇAMAZ —
        `Tenant` platform tablosunda tutuluyor. Tenant'ın kendi "Sitemi Aç" tercihinden AYRI
        kademedir: site ancak İKİSİ de açıkken görünür. Kapatmak veri SİLMEZ. ---- *@
@@ -142,6 +184,23 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private PlatformTenantDetay? _d;
+    // PR-A logo durumu (byte'ın kendisi tutulmaz — önizleme ayrı uçtan servis edilir).
+    private bool _loguVar;
+    private string? _logoBilgi;
+    private string? _logoUyari;
 
-    protected override async Task OnInitializedAsync() => _d = await Platform.GetTenantAsync(Id);
+    protected override async Task OnInitializedAsync()
+    {
+        _d = await Platform.GetTenantAsync(Id);
+        if (_d is null) return;
+        var (bytes, degerlendirme) = await Platform.GetTenantLogoAsync(Id);
+        _loguVar = bytes is { Length: > 0 };
+        if (degerlendirme is { } d)
+        {
+            _logoBilgi = d.Genislik is { } g && d.Yukseklik is { } y
+                ? $"{g}×{y} px · {d.Bayt / 1024} KB"
+                : $"{d.Bayt} bayt · ölçü okunamadı";
+            _logoUyari = d.Uyari;
+        }
+    }
 }
