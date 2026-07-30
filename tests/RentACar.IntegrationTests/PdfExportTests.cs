@@ -59,6 +59,44 @@ public sealed class PdfExportTests
         Assert.True(IsPdf(pdf));
     }
 
+    /// <summary>
+    /// PR-18 — SÖZLEŞME PDF'İ BOYUT KİLİDİ. Bu ölçüm kalıcı bir regresyon çitidir: çıktı 1,05 MB'dı
+    /// ve bunun 995 KB'ı TEK gömülü görseldi (ekspertiz şeması, 2000x647 RGBA, alfası tamamen opak).
+    /// Varlık 1040x336 / 16 seviye griye indirildi ve QuestPDF'e <c>UseOriginalImage()</c> ile
+    /// veriliyor.
+    ///
+    /// <para>Üç şeyi birlikte kilitler:</para>
+    /// <list type="number">
+    ///   <item><b>Boyut</b> — 150 KB üstüne çıkarsa biri varlığı büyütmüş ya da yeniden kodlamayı
+    ///   geri açmıştır. PR-C paylaşım anlık görüntüleri bu baytları SAKLIYOR, yani şişme kalıcı olur.</item>
+    ///   <item><b>JPEG YOK</b> (<c>/DCTDecode</c>) — şema bir ÇİZGİ ÇİZİMİ; lossy kodlama etiketlerin
+    ///   ("Avadanlık", "Trafik Seti") çevresinde halka üretir ve sahada üzerine hasar işaretlenen
+    ///   form okunmaz hale gelir.</item>
+    ///   <item><b>Sayfa sayısı 1</b> — küçültme düzeni kaydırmadı.</item>
+    /// </list>
+    /// </summary>
+    [Fact]
+    public void Sozlesme_pdf_boyutu_ve_gorsel_kodlamasi_KILITLI()
+    {
+        var pdf = new PdfExportService().Contract(OrnekSozlesme.Ornek());
+        var metin = System.Text.Encoding.Latin1.GetString(pdf);
+
+        // Bağımsız oracle: eşik koddan değil ölçümden geliyor (öncesi 1.054.980 bayt, sonrası ~101 KB).
+        Assert.True(pdf.Length < 150_000,
+            $"Sözleşme PDF'i {pdf.Length} bayt — 150 KB eşiğini aştı. Ekspertiz şeması büyütülmüş " +
+            "ya da görsel yeniden kodlaması geri açılmış olabilir (bkz. scripts/optimize-ekspertiz-sema.py).");
+
+        Assert.DoesNotContain("/DCTDecode", metin);   // JPEG'e yeniden kodlanmıyor (metin net kalıyor)
+
+        // Gömülü şema: gri tonlama, tek görsel (örnek sözleşmede tenant logosu YOK).
+        Assert.Contains("/DeviceGray", metin);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(metin, @"/Subtype\s*/Image"));
+
+        // Düzen kaymadı.
+        var sayfa = System.Text.RegularExpressions.Regex.Matches(metin, @"/Type\s*/Page[^s]").Count;
+        Assert.Equal(1, sayfa);
+    }
+
     /// <summary>Generic tablo PDF'i (tüm liste/rapor ?format=pdf çıktısı) — geçerli PDF + tip-duyarlı hücreler.</summary>
     [Fact]
     public void Table_pdf_generic_valid_and_nonempty()
