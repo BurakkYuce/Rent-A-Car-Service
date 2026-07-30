@@ -16,6 +16,9 @@ public sealed record WebIlanSatiri(
     public bool Yayinda => Durum == WebIlanDurum.Yayinda && Eksikler.Count == 0;
 }
 
+/// <summary>Sihirbazda gösterilen ilan fotoğrafı (kaynağı bir ÜYE ARAÇ — ilana ait ayrı tablo yok).</summary>
+public sealed record IlanFotoSatiri(Guid VehicleId, Guid PhotoId, string Plaka, int Sira);
+
 /// <summary>Adım-1 havuzundaki bir "aynı araç" kümesi (beraber modda tek satır olarak seçilir).</summary>
 public sealed record AracKumesi(string Imza, string Baslik, string? YilAralik, IReadOnlyList<Vehicle> Araclar);
 
@@ -41,6 +44,7 @@ public sealed class WebIlanService(
     IWebIlanRepository repository,
     IVehicleGroupRepository gruplar,
     IVehiclePhotoRepository fotograflar,
+    VehiclePhotoService fotoServisi,
     ICurrentUser currentUser,
     ITenantCache cache,
     ScreenPermissionService screens)
@@ -252,7 +256,12 @@ public sealed class WebIlanService(
 
     /// <summary>Teknik özellikleri yazar ve ilanı YAYINA alır. Satır sınırları burada zorlanır
     /// (sınırsız satır bir tenant'ın kendi sayfasını şişirir).</summary>
-    public async Task AdimUcAsync(Guid ilanId, IReadOnlyList<OzellikSatiri> satirlar, CancellationToken ct = default)
+    /// <summary>
+    /// Adım-3: özellikleri kaydeder ve — <b>fotoğraf varsa</b> — taslağı yayına alır.
+    /// </summary>
+    /// <returns><c>true</c>: ilan yayında. <c>false</c>: özellikler kaydedildi ama fotoğraf olmadığı
+    /// için taslakta kaldı (uç bunu kullanıcıya söyler).</returns>
+    public async Task<bool> AdimUcAsync(Guid ilanId, IReadOnlyList<OzellikSatiri> satirlar, CancellationToken ct = default)
     {
         await GuardAsync(ct);
         var temiz = satirlar
@@ -272,19 +281,88 @@ public sealed class WebIlanService(
             [.. temiz.Select((s, i) => new WebIlanOzellik { Etiket = s.Etiket, Deger = s.Deger, Sira = i, Gorunur = s.Gorunur })],
             ct);
 
-        // Taslaktan yayına AL. Zaten Yayinda/Pasif ise durumu DEĞİŞTİRME (personel bilinçli gizlemiş olabilir).
-        if (d.Ilan.Durum == WebIlanDurum.Taslak)
-            await repository.UpdateAsync(ilanId, i => i.Durum = WebIlanDurum.Yayinda, ct);
+        // FOTO KAPISI. Halka açık vitrinin yayın şartlarından biri "üye araçlardan en az birinin
+        // fotoğrafı var" (FleetShowcaseService). Fotoğrafsız bir ilanı Yayinda'ya almak, personele
+        // "yayınlandı" deyip sitede HİÇBİR ŞEY göstermemek demekti — canlıda tam olarak bu yaşandı.
+        // Bu yüzden: özellikler HER ZAMAN kaydedilir (emek kaybolmaz), ama yayına almak fotoğrafa bağlı.
+        var fotolu = await fotograflar.ListVehicleIdsWithPhotoAsync(
+            [.. d.Araclar.Select(v => v.Id)], ct);
+        var yayinlandi = false;
+        if (d.Araclar.Any(v => fotolu.Contains(v.Id)))
+        {
+            // Zaten Yayinda/Pasif ise durumu DEĞİŞTİRME (personel bilinçli gizlemiş olabilir).
+            if (d.Ilan.Durum == WebIlanDurum.Taslak)
+                await repository.UpdateAsync(ilanId, i => i.Durum = WebIlanDurum.Yayinda, ct);
+            yayinlandi = true;
+        }
 
-        // "Ayrı" modda kardeş taslaklara aynı özellikleri kopyala (fiyatla aynı kural).
-        foreach (var kardes in (await repository.FindByAnahtarAsync(d.Ilan.EslesmeAnahtari ?? "", ct))
-                     .Where(k => k.Id != ilanId && k.Durum == WebIlanDurum.Taslak))
+        // "Ayrı" modda kardeş taslaklara aynı özellikleri kopyala (fiyatla aynı kural). Foto kapısı
+        // kardeş BAŞINA uygulanır: ayrı modda her ilanın kendi aracı ve kendi fotoğrafı var.
+        var kardesler = (await repository.FindByAnahtarAsync(d.Ilan.EslesmeAnahtari ?? "", ct))
+            .Where(k => k.Id != ilanId && k.Durum == WebIlanDurum.Taslak).ToList();
+        foreach (var kardes in kardesler)
         {
             await repository.ReplaceOzelliklerAsync(kardes.Id,
                 [.. temiz.Select((s, i) => new WebIlanOzellik { Etiket = s.Etiket, Deger = s.Deger, Sira = i, Gorunur = s.Gorunur })],
                 ct);
-            await repository.UpdateAsync(kardes.Id, i => i.Durum = WebIlanDurum.Yayinda, ct);
+            var kd = await repository.FindAsync(kardes.Id, ct);
+            if (kd is null) continue;
+            var kf = await fotograflar.ListVehicleIdsWithPhotoAsync([.. kd.Araclar.Select(v => v.Id)], ct);
+            if (kd.Araclar.Any(v => kf.Contains(v.Id)))
+                await repository.UpdateAsync(kardes.Id, i => i.Durum = WebIlanDurum.Yayinda, ct);
         }
+
+        return yayinlandi;
+    }
+
+    // ---- Fotoğraflar (sihirbaz adım-3) ----
+
+    /// <summary>
+    /// İlanın fotoğrafları = ÜYE ARAÇLARIN fotoğrafları. İlana ayrı bir foto tablosu AÇILMADI:
+    /// vitrin kapağı zaten "fotoğrafı olan ilk gösterilebilir araç" üzerinden hesaplanıyor
+    /// (<c>FleetShowcaseService</c>), ikinci bir kaynak eklemek iki gerçek yaratırdı.
+    /// </summary>
+    public async Task<IReadOnlyList<IlanFotoSatiri>> FotolarAsync(Guid ilanId, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        var d = await repository.FindAsync(ilanId, ct);
+        if (d is null) return [];
+
+        var sonuc = new List<IlanFotoSatiri>();
+        foreach (var v in d.Araclar)
+            foreach (var m in await fotograflar.ListMetaAsync(v.Id, ct))
+                sonuc.Add(new IlanFotoSatiri(v.Id, m.Id, v.Plaka, m.Sira));
+        return sonuc;
+    }
+
+    /// <summary>
+    /// İlana fotoğraf ekler. Hedef araç DETERMİNİSTİK seçilir: fotoğrafı olan ilk üye, yoksa ilk üye.
+    /// Böylece "beraber" modda 9 aynı Egea için bayt 9 kez kopyalanmaz — vitrin tek kart gösteriyor,
+    /// tek kapak yeter. Doğrulama/thumbnail üretimi <see cref="VehiclePhotoService"/>'te (tek kaynak).
+    /// </summary>
+    public async Task FotoEkleAsync(Guid ilanId, byte[] bytes, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        var d = await repository.FindAsync(ilanId, ct) ?? throw new ValidationException("İlan bulunamadı.");
+        if (d.Araclar.Count == 0)
+            throw new ValidationException("İlana bağlı araç yok — fotoğraf eklenemez.");
+
+        var fotolu = await fotograflar.ListVehicleIdsWithPhotoAsync([.. d.Araclar.Select(v => v.Id)], ct);
+        var hedef = d.Araclar.FirstOrDefault(v => fotolu.Contains(v.Id)) ?? d.Araclar[0];
+        await fotoServisi.AddAsync(hedef.Id, bytes, ct);
+    }
+
+    /// <summary>
+    /// Fotoğrafı siler. <paramref name="vehicleId"/> bu ilanın ÜYESİ olmak zorunda — aksi halde ilan
+    /// id'si üzerinden başka bir aracın fotoğrafı silinebilirdi (yetki var, hedef yanlış).
+    /// </summary>
+    public async Task FotoSilAsync(Guid ilanId, Guid vehicleId, Guid photoId, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        var d = await repository.FindAsync(ilanId, ct) ?? throw new ValidationException("İlan bulunamadı.");
+        if (d.Araclar.All(v => v.Id != vehicleId))
+            throw new ValidationException("Bu fotoğraf bu ilana ait değil.");
+        await fotoServisi.DeleteAsync(vehicleId, photoId, ct);
     }
 
     // ---- Yönetim ----
