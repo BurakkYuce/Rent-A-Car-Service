@@ -74,6 +74,7 @@ using RentACar.Web.Authorization;
 using RentACar.Web.Notifications;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
+using RentACar.Web.Documents;
 using RentACar.Web.WebSite;
 using RentACar.Web.VehicleSales;
 using RentACar.Web.FiloKiralamalar;
@@ -425,6 +426,7 @@ app.MapStaticAssets();
 app.MapAuthEndpoints();
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
+app.MapPlatformBelgeEndpoints();  // PR-B — Belge Merkezi (PlatformAdmin policy)
 app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
 app.MapKurEndpoints();            // TCMB yenile + sabit kur CRUD
 app.MapVehicleEndpoints();
@@ -489,6 +491,7 @@ app.MapCrmEndpoints();
 app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
+app.MapFirmaBelgeEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
 app.MapDonemKapanisEndpoints();
 app.MapYetkiEndpoints();
 app.MapBildirimEndpoints();

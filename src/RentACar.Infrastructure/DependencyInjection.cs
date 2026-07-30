@@ -135,6 +135,8 @@ public static class DependencyInjection
         services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
         services.AddScoped<RentACar.Application.WebSite.IWebIlanRepository,
             Persistence.Repositories.WebIlanRepository>(); // PR-13
+        services.AddScoped<RentACar.Application.PlatformBelgeler.IPlatformBelgeRepository,
+            Persistence.Repositories.PlatformBelgeRepository>(); // PR-B
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
