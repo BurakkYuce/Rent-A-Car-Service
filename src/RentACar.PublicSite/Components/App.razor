@@ -24,7 +24,11 @@
 
 <body>
     <Routes />
-    <script src="_framework/blazor.web.js"></script>
+    @* PR-19: `blazor.web.js` KALDIRILDI (200.538 bayt, HER sayfada iniyordu).
+       Site %100 statik SSR: `AddRazorComponents()` var ama `AddInteractiveServerComponents` YOK,
+       hiçbir bileşende `@@rendermode` YOK, enhanced form/streaming kullanılmıyor. Dosyanın tek
+       katkısı "enhanced navigation" idi; karşılığında her ziyaretçiye 200 KB indiriliyordu.
+       Sayfa ağırlığı ~210 KB → ~10 KB. Formlar zaten saf GET/POST, `<details>` tarayıcıdan. *@
 </body>
 
 </html>

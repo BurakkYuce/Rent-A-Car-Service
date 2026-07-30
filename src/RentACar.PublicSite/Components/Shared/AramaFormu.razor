@@ -1,0 +1,40 @@
+@* PR-19 — müsaitlik arama formu. TEK KAYNAK: hem ana sayfadaki Hero hem `/musaitlik` bunu
+   kullanır. İkinci bir kopya yazmak, alan adlarının (`bas`/`bit`/`sube`) ve doğrulama
+   kurallarının zamanla ayrışmasına yol açardı.
+
+   GET + querystring: JS YOK, sonuç adresi paylaşılabilir ve geri tuşuna dost. Hero'da
+   `Hedef="/musaitlik"` verilir (form başka sayfadan gönderiliyor), `/musaitlik` içinde
+   boş bırakılır (aynı sayfaya gönderir). *@
+
+<form method="get" action="@Hedef" class="arama-form @(EkSinif ?? "")">
+    <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
+    <label>İade<input name="bit" type="date" value="@Bit" required /></label>
+    @if (Subeler.Count > 0)
+    {
+        <label>Şube
+            <select name="sube">
+                <option value="">Tümü</option>
+                @foreach (var s in Subeler)
+                {
+                    <option value="@s" selected="@(s == Sube)">@s</option>
+                }
+            </select>
+        </label>
+    }
+    <button type="submit">@(ButonMetni ?? "Ara")</button>
+</form>
+
+@code {
+    /// <summary>Formun gönderileceği adres. Boş = bulunulan sayfa (`/musaitlik` kendi içinde).</summary>
+    [Parameter] public string? Hedef { get; set; }
+
+    [Parameter] public string? Bas { get; set; }
+    [Parameter] public string? Bit { get; set; }
+    [Parameter] public string? Sube { get; set; }
+
+    /// <summary>Şube listesi boşsa seçim kutusu HİÇ basılmaz (tek şubeli firmada gürültü olurdu).</summary>
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+
+    [Parameter] public string? ButonMetni { get; set; }
+    [Parameter] public string? EkSinif { get; set; }
+}
