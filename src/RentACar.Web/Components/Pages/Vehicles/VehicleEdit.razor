@@ -89,7 +89,11 @@ else
         </label>
         <label>KM<input name="km" type="number" value="@_vehicle.Km" /></label>
         <label>Yakıt
+            @* PR-21: "Belirtilmedi" GERÇEK bir seçenek. Eskiden alan zorunluydu ve varsayılanı
+               Benzin'di; yakıtı bilinmeyen her araç sessizce "Benzin" kaydediliyor ve bu bilgi
+               halka açık siteye, ilan başlığına ve sözleşmeye basılıyordu. *@
             <select name="yakit">
+                <option value="" selected="@(_vehicle.Yakit is null)">— Belirtilmedi —</option>
                 @foreach (var f in Enum.GetValues<FuelType>())
                 {
                     <option value="@f" selected="@(f == _vehicle.Yakit)">@f</option>
