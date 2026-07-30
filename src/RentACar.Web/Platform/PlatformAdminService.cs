@@ -177,6 +177,134 @@ public sealed class PlatformAdminService(
         static string? Bosalt(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
     }
 
+    // ---- PR-B: Belge Merkezi (platform → tenant PDF dağıtımı) ----
+
+    /// <summary>Platform ekranı satırı — <b>PDF içeriği YOK</b> (blob liste sorgusuna girmez).</summary>
+    public sealed record PlatformBelgeSatiri(
+        Guid Id, string Baslik, string? Aciklama, string DosyaAdi, long Boyut, int Surum,
+        PlatformBelgeDurum Durum, bool YalnizYoneticiler, DateTimeOffset GuncellemeUtc,
+        string? YukleyenOperator, IReadOnlyList<string> HedefKodlar);
+
+    /// <summary>Tüm belgeler (taslak/arşiv dahil) + hedef tenant kodları. Yalnız platform konsolu.</summary>
+    public async Task<IReadOnlyList<PlatformBelgeSatiri>> ListBelgelerAsync(CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var belgeler = await db.PlatformBelgeler.AsNoTracking()
+            .OrderByDescending(b => b.GuncellemeUtc)
+            .Select(b => new
+            {
+                b.Id, b.Baslik, b.Aciklama, b.DosyaAdi, b.Boyut, b.Surum, b.Durum,
+                b.YalnizYoneticiler, b.GuncellemeUtc, b.YukleyenOperator,
+            })
+            .ToListAsync(ct);
+        if (belgeler.Count == 0) return [];
+
+        // Hedefleri TEK sorguda çek (belge başına sorgu N+1 üretirdi).
+        var idler = belgeler.Select(b => b.Id).ToList();
+        var hedefler = await db.PlatformBelgeHedefler.AsNoTracking()
+            .Where(h => idler.Contains(h.BelgeId))
+            .Join(db.Tenants.AsNoTracking(), h => h.TenantId, t => t.Id, (h, t) => new { h.BelgeId, t.Code })
+            .ToListAsync(ct);
+
+        return [.. belgeler.Select(b => new PlatformBelgeSatiri(
+            b.Id, b.Baslik, b.Aciklama, b.DosyaAdi, b.Boyut, b.Surum, b.Durum,
+            b.YalnizYoneticiler, b.GuncellemeUtc, b.YukleyenOperator,
+            [.. hedefler.Where(h => h.BelgeId == b.Id).Select(h => h.Code).OrderBy(c => c)]))];
+    }
+
+    /// <summary>
+    /// Yeni belge yükler — <b>TASLAK</b> olarak (tenant görmez). "Yükle → kontrol et → yayınla"
+    /// akışı bilinçli: aksi halde her yükleme anında tüm müşterilerin ekranına çıkardı.
+    /// </summary>
+    public async Task<Guid> BelgeYukleAsync(string baslik, string? aciklama, string dosyaAdi, byte[] bytes,
+        IReadOnlyList<Guid> hedefTenantIdler, bool yalnizYoneticiler, string operatorName, CancellationToken ct = default)
+    {
+        baslik = (baslik ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(baslik)) throw new ValidationException("Belge başlığı zorunludur.");
+        if (baslik.Length > 200) throw new ValidationException("Başlık en çok 200 karakter olabilir.");
+        if (PdfValidation.Reddet(bytes) is { } hata) throw new ValidationException(hata);
+
+        await using var db = OwnerDb();
+        var belge = new PlatformBelge
+        {
+            Baslik = baslik,
+            Aciklama = string.IsNullOrWhiteSpace(aciklama) ? null : aciklama.Trim(),
+            DosyaAdi = PdfValidation.GuvenliDosyaAdi(dosyaAdi),
+            Bytes = bytes,
+            Boyut = bytes.Length,
+            Durum = PlatformBelgeDurum.Taslak,
+            YalnizYoneticiler = yalnizYoneticiler,
+            YukleyenOperator = operatorName,
+        };
+        db.PlatformBelgeler.Add(belge);
+        foreach (var tid in hedefTenantIdler.Distinct())
+            db.PlatformBelgeHedefler.Add(new PlatformBelgeHedef { BelgeId = belge.Id, TenantId = tid });
+        await db.SaveChangesAsync(ct);
+
+        log.LogWarning("PLATFORM: belge '{Baslik}' yüklendi ({Bayt} bayt, {Hedef}) — operatör {Operator}.",
+            baslik, bytes.Length, hedefTenantIdler.Count == 0 ? "GLOBAL" : $"{hedefTenantIdler.Count} tenant", operatorName);
+        return belge.Id;
+    }
+
+    /// <summary>
+    /// Dosyayı DEĞİŞTİRİR: yeni kayıt açılmaz, <c>Surum</c> artar, tarih yenilenir. Böylece
+    /// tenant'ın elindeki link kırılmaz ve "v2 · 3 gün önce güncellendi" gösterilebilir.
+    /// </summary>
+    public async Task BelgeSurumGuncelleAsync(Guid belgeId, string dosyaAdi, byte[] bytes,
+        string operatorName, CancellationToken ct = default)
+    {
+        if (PdfValidation.Reddet(bytes) is { } hata) throw new ValidationException(hata);
+
+        await using var db = OwnerDb();
+        var belge = await db.PlatformBelgeler.FirstOrDefaultAsync(b => b.Id == belgeId, ct)
+            ?? throw new ValidationException("Belge bulunamadı.");
+        belge.Bytes = bytes;
+        belge.Boyut = bytes.Length;
+        belge.DosyaAdi = PdfValidation.GuvenliDosyaAdi(dosyaAdi);
+        belge.Surum++;
+        belge.GuncellemeUtc = DateTimeOffset.UtcNow;
+        belge.YukleyenOperator = operatorName;
+        await db.SaveChangesAsync(ct);
+
+        log.LogWarning("PLATFORM: belge '{Baslik}' v{Surum}'e güncellendi — operatör {Operator}.",
+            belge.Baslik, belge.Surum, operatorName);
+    }
+
+    public async Task BelgeDurumAsync(Guid belgeId, PlatformBelgeDurum durum, string operatorName, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var belge = await db.PlatformBelgeler.FirstOrDefaultAsync(b => b.Id == belgeId, ct)
+            ?? throw new ValidationException("Belge bulunamadı.");
+        belge.Durum = durum;
+        belge.GuncellemeUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        log.LogWarning("PLATFORM: belge '{Baslik}' durumu {Durum} — operatör {Operator}.", belge.Baslik, durum, operatorName);
+    }
+
+    /// <summary>Belgeyi tamamen siler (hedefleri cascade düşer). Arşiv yeterli olmadığında —
+    /// ör. yanlış dosya yüklendiyse.</summary>
+    public async Task BelgeSilAsync(Guid belgeId, string operatorName, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var belge = await db.PlatformBelgeler.FirstOrDefaultAsync(b => b.Id == belgeId, ct)
+            ?? throw new ValidationException("Belge bulunamadı.");
+        db.PlatformBelgeler.Remove(belge);
+        await db.SaveChangesAsync(ct);
+        log.LogWarning("PLATFORM: belge '{Baslik}' SİLİNDİ — operatör {Operator}.", belge.Baslik, operatorName);
+    }
+
+    /// <summary>Platform ekranında belgeyi önizlemek/indirmek için (platform operatörü — hedef
+    /// filtresi UYGULANMAZ, burada zaten her belgeyi görme yetkisi var).</summary>
+    public async Task<(byte[] Bytes, string DosyaAdi)?> BelgeIcerikAsync(Guid belgeId, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var satir = await db.PlatformBelgeler.AsNoTracking()
+            .Where(b => b.Id == belgeId)
+            .Select(b => new { b.Bytes, b.DosyaAdi })
+            .FirstOrDefaultAsync(ct);
+        return satir is null ? null : (satir.Bytes, satir.DosyaAdi);
+    }
+
     /// <summary>
     /// PR-A: tenant'ın PDF logosunu platform konsolundan yükle/kaldır. Tenant kendi
     /// <c>/ayarlar</c> yolundan da yükleyebilir — bu EK kanal, ikame değil (tek alan, son yazan kazanır).

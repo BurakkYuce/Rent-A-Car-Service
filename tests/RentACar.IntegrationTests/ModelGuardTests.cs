@@ -57,7 +57,14 @@ public sealed class ModelGuardTests(PostgresFixture fx)
             .OrderBy(t => t.Name)
             .ToList();
 
-        Type[] beklenenPlatform = [typeof(KurKaydi), typeof(Tenant), typeof(TenantDomain), typeof(User)];
+        // PR-B: PlatformBelge/PlatformBelgeHedef eklendi — platformdan tenant'lara PDF dağıtımı.
+        // Bu liste bilinçli olarak ELLE tutuluyor: yeni bir filtresiz (=RLS'siz) tablo eklemek,
+        // izolasyonun uygulama katmanına taşınması demek ve bu testi güncellemeyi ZORUNLU kılıyor.
+        Type[] beklenenPlatform =
+        [
+            typeof(KurKaydi), typeof(PlatformBelge), typeof(PlatformBelgeHedef),
+            typeof(Tenant), typeof(TenantDomain), typeof(User),
+        ];
         Assert.Equal(beklenenPlatform, filtresizler);
 
         // Platform entity'leri ITenantOwned DEĞİL (merkezi döngü onlara dokunmaz).

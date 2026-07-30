@@ -4,6 +4,13 @@
 <div class="platform-shell">
     <header class="platform-top">
         <span class="platform-brand">RentPro · <b>Platform</b></span>
+        @* PR-B: konsol ikinci bir sayfa kazandı → gezinme linkleri (öncesinde tek sayfa vardı). *@
+        <AuthorizeView Policy="PlatformAdmin" Context="navCtx">
+            <nav class="platform-nav" style="display:flex;gap:1rem;margin-left:1.5rem">
+                <a href="/platform/tenants">Firmalar</a>
+                <a href="/platform/belgeler">Belge Merkezi</a>
+            </nav>
+        </AuthorizeView>
         <span class="spacer"></span>
         <AuthorizeView Policy="PlatformAdmin">
             <span class="platform-user">@context.User.Identity?.Name</span>

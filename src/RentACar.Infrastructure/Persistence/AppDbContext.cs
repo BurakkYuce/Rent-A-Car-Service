@@ -42,6 +42,10 @@ public sealed class AppDbContext : DbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
     public DbSet<TenantDomain> TenantDomains => Set<TenantDomain>(); // PR-0: public site host→tenant (platform, RLS yok)
+    // PR-B: platformdan tenant'lara dağıtılan hazır PDF'ler. RLS YOK → izolasyon uygulama
+    // katmanında (PlatformBelgeRepository.Gorunur); ModelGuardTests platform listesini pinliyor.
+    public DbSet<PlatformBelge> PlatformBelgeler => Set<PlatformBelge>();
+    public DbSet<PlatformBelgeHedef> PlatformBelgeHedefler => Set<PlatformBelgeHedef>();
 
     // Tenant-owned tablolar (EF filter + Postgres RLS)
     public DbSet<Branch> Branches => Set<Branch>();
