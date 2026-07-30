@@ -45,3 +45,35 @@ internal sealed class PublicBookingRequestConfig : IEntityTypeConfiguration<Publ
         e.HasIndex(x => new { x.TenantId, x.Durum, x.CreatedAtUtc });
     }
 }
+
+// ---- PR-16: halka açık site içerik sayfaları + SSS (tenant-owned; merkezi query filter kapsıyor) ----
+internal sealed class SayfaIcerikConfig : IEntityTypeConfiguration<SayfaIcerik>
+{
+    public void Configure(EntityTypeBuilder<SayfaIcerik> e)
+    {
+        e.ToTable("SayfaIcerikler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Slug).IsRequired().HasMaxLength(200);
+        e.Property(x => x.Baslik).IsRequired().HasMaxLength(200);
+        e.Property(x => x.Govde).IsRequired().HasMaxLength(20_000);
+        e.Property(x => x.MetaAciklama).HasMaxLength(300);
+        // Kok seviyeli adres: tenant icinde benzersiz olmak ZORUNDA (iki sayfa ayni adresi paylasamaz).
+        e.HasIndex(x => new { x.TenantId, x.Slug }).IsUnique();
+        // Footer/sitemap sorgusu Yayinda + Sira uzerinden gidiyor.
+        e.HasIndex(x => new { x.TenantId, x.Yayinda, x.Sira });
+    }
+}
+
+internal sealed class SssKaydiConfig : IEntityTypeConfiguration<SssKaydi>
+{
+    public void Configure(EntityTypeBuilder<SssKaydi> e)
+    {
+        e.ToTable("SssKayitlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Soru).IsRequired().HasMaxLength(300);
+        e.Property(x => x.Cevap).IsRequired().HasMaxLength(4_000);
+        e.HasIndex(x => new { x.TenantId, x.Yayinda, x.Sira });
+    }
+}

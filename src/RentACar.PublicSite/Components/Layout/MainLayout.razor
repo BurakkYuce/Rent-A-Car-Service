@@ -2,8 +2,10 @@
 @using RentACar.Application.Blog
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
+@using RentACar.Application.SiteIcerik
 @inject FleetShowcaseService Showcase
 @inject BlogService Blog
+@inject SiteIcerikService Icerik
 
 @* PR-15: site kabuğu (üst bar + alt bilgi) BURAYA taşındı. Önce her sayfa kendi
    başlığını/iletişim satırını basıyordu; marka ve gezinme tek yerde olmalı.
@@ -15,7 +17,9 @@
             <nav class="site-nav">
                 <a href="/">Filomuz</a>
                 <a href="/musaitlik">Müsaitlik ve Fiyat</a>
+                @if (_sssVar) { <a href="/sss">S.S.S.</a> }
                 @if (_blogVar) { <a href="/blog">Blog</a> }
+                <a href="/iletisim">İletişim</a>
             </nav>
             @if (_telLink is not null)
             {
@@ -50,7 +54,14 @@
                 <ul>
                     <li><a href="/">Filomuz</a></li>
                     <li><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></li>
+                    @if (_sssVar) { <li><a href="/sss">Sık sorulan sorular</a></li> }
                     @if (_blogVar) { <li><a href="/blog">Blog</a></li> }
+                    <li><a href="/iletisim">İletişim</a></li>
+                    @* PR-16: firmanın kendi yazdığı sayfalar (sıra alanına göre). *@
+                    @foreach (var sf in _sayfalar)
+                    {
+                        <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
+                    }
                 </ul>
             </div>
         </div>
@@ -62,6 +73,8 @@
     private FleetBranding? _branding;
     private string? _telLink;
     private bool _blogVar;
+    private bool _sssVar;
+    private IReadOnlyList<SayfaOzet> _sayfalar = [];
 
     private string Marka => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
 
@@ -74,6 +87,8 @@
             _branding = await Showcase.GetBrandingAsync();
             _telLink = TelefonLink.Tel(_branding.Tel);
             _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
+            _sayfalar = await Icerik.YayindakiSayfalarAsync();
+            _sssVar = (await Icerik.YayindakiSssAsync()).Count > 0;
         }
         catch
         {

@@ -79,10 +79,11 @@
                            GÖRSELDİR — asıl koruma uçlarda (`RequireWebSitesiModulu`) ve sayfada. *@
                         @if (_webSitesiModulu)
                         {
-                            <details class="nav-group" open="@Acik("/web-sitesi")">
+                            <details class="nav-group" open="@Acik("/web-sitesi","/site-icerik")">
                                 <summary><span class="ic"></span> Web Sitesi <span class="chev"></span></summary>
                                 <div class="sub">
                                     <a href="/web-sitesi">İlanlar</a>
+                                    <a href="/site-icerik">Site İçeriği</a>
                                     <a href="/gelen-talepler">Gelen Talepler</a>
                                     <a href="/blog-yonetim">Blog</a>
                                 </div>
