@@ -1,22 +1,136 @@
-:root{
-  --ink:#16150f; --ink-soft:#6b6459; --bg:#faf8f4; --card:#fff;
-  --line:#e6e1d8; --accent:#1a5c4a;
-  --s1:.5rem; --s2:1rem; --s3:1.5rem; --s4:2.5rem; --s5:4rem;
-  --t0:clamp(1rem,.95rem + .2vw,1.0625rem);
-  --t1:clamp(1.25rem,1.1rem + .5vw,1.5rem);
-  --t2:clamp(1.75rem,1.4rem + 1.4vw,2.5rem);
-  --r:12px;
+/* =============================================================================
+   Halka açık site teması (PR-15).
+
+   TOKEN SİSTEMİ: renkler doğrudan yazılmaz, hepsi semantik değişken üzerinden gelir
+   (--surface / --ink / --brand …). Karanlık tema AYNI isimleri yeniden tanımlar →
+   her bileşen kendiliğinden çevrilir. Tema ANAHTARI YOK (bilinçli): sistem tercihi
+   (`prefers-color-scheme`) yeterli; buton JS + localStorage isterdi, statik SSR'da
+   ve `script-src 'self'` altında ayrı bir iştir.
+
+   DIŞ KAYNAK YOK: fontlar kendi barındırılıyor. PublicSite CSP'si `font-src 'self'`
+   (Program.cs) — Google Fonts'a link vermek sayfayı SESSİZCE fallback font'a düşürür.
+   ============================================================================= */
+
+/* ---- Fontlar: Sora (başlık) + Inter (gövde), değişken ağırlık, iki alt küme ----
+   latin-ext ZORUNLU: `ı` (U+0131) latin alt kümesinde ama Ğ/ğ (U+011E-011F),
+   Ş/ş (U+015E-015F) ve İ (U+0130) latin-ext'te. Yalnız latin yüklenirse Türkçe
+   başlıklar harf harf fallback font'a düşer ve tipografi dağılır. */
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('fonts/sora-latin-ext.woff2') format('woff2');
+  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308,
+    U+329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('fonts/sora-latin.woff2') format('woff2');
+  unicode-range: U+0-FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308,
+    U+329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308,
+    U+329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0-FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308,
+    U+329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---- Aydınlık tema (varsayılan) ---- */
+:root {
+  color-scheme: light;
+
+  --surface: #ffffff;
+  --surface-muted: #f4f8fc;
+  --surface-alt: #e9f1fa;
+  --ink: #0a2540;
+  --ink-muted: #46607a;
+  --ink-subtle: #5b7288;      /* AA: 4.68:1 — --surface-muted üzerinde */
+  --line: #dce6f1;
+  --brand: #1668a8;
+  --brand-strong: #0f4f80;
+  --brand-ink: #ffffff;       /* dolu marka zemini üzerindeki metin */
+  --accent: #f59e0b;
+  --accent-strong: #d97f06;
+  --accent-ink: #0a2540;      /* amber zemin üzerinde KOYU metin — beyaz AA'yı geçmiyor */
+
+  --s1: .5rem; --s2: 1rem; --s3: 1.5rem; --s4: 2.5rem; --s5: 4rem;
+  --t0: clamp(1rem, .95rem + .2vw, 1.0625rem);
+  --t1: clamp(1.25rem, 1.1rem + .5vw, 1.5rem);
+  --t2: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem);
+  --r: 12px;
+  --golge: 0 1px 2px rgb(10 37 64 / 6%), 0 4px 16px rgb(10 37 64 / 6%);
+}
+
+/* ---- Karanlık tema: AYNI isimler, farklı değerler ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --surface: #0a1828;
+    --surface-muted: #0f2235;
+    --surface-alt: #16304a;
+    --ink: #e9f1fa;
+    --ink-muted: #a7bccf;
+    --ink-subtle: #8ba4bb;    /* AA: 6.25:1 — --surface-muted üzerinde */
+    --line: #21384f;
+    --brand: #4d9bd8;
+    --brand-strong: #6fb0e2;
+    /* Karanlıkta --brand AÇIK bir ton olduğu için üzerine beyaz metin yalnız 3.0:1
+       veriyordu. Çözüm --brand'i koyulaştırmak DEĞİL (o renk metin rengi olarak da
+       kullanılıyor, onu bozardı) → zemin üstü metni TERS ÇEVİR: 6.28:1. */
+    --brand-ink: #06121f;
+    --accent: #ffb13d;
+    --accent-strong: #ffc266;
+    --golge: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px rgb(0 0 0 / 30%);
+  }
 }
 
 * { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--surface-muted);
   color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: var(--t0);
-  line-height: 1.5;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .fiyat-buyuk {
+  font-family: 'Sora', 'Inter', system-ui, sans-serif;
+  letter-spacing: -.01em;
+}
+
+a { color: var(--brand); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--brand-strong); }
+
+/* Klavye kullanıcısı nerede olduğunu GÖRMELİ (fare kullanıcısını rahatsız etmeden). */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .container {
@@ -25,27 +139,124 @@ body {
   padding: var(--s3) var(--s2) var(--s5);
 }
 
-a { color: var(--accent); }
-
-.site-header {
-  padding: var(--s4) 0 var(--s3);
+/* ---- Site kabuğu: üst bar + alt bilgi (PR-15'te MainLayout'a taşındı) ---- */
+.site-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
+
+.site-bar-ic {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+
+.site-marka {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--ink);
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.site-nav a {
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.site-nav a:hover { color: var(--brand); }
+
+/* Birincil eylem: "Ara" / WhatsApp — amber zemin, koyu metin (AA). */
+.btn-cta {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+  border-radius: 999px;
+  padding: .5rem 1.1rem;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn-cta:hover { background: var(--accent-strong); color: var(--accent-ink); }
+
+.site-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  margin-top: var(--s5);
+}
+
+.site-footer-ic {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s4) var(--s2);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s3);
+}
+
+.site-footer h2 {
+  font-size: 1rem;
+  margin: 0 0 var(--s1);
+  color: var(--ink);
+}
+
+.site-footer a { color: var(--ink-muted); }
+.site-footer a:hover { color: var(--brand); }
+
+.site-footer ul { list-style: none; margin: 0; padding: 0; }
+.site-footer li { margin-bottom: .35rem; }
+
+.site-footer-alt {
+  border-top: 1px solid var(--line);
+  padding: var(--s2);
+  text-align: center;
+  font-size: .85em;
+  color: var(--ink-subtle);
+}
+
+/* ---- Sayfa başlığı ---- */
+.site-header { padding: var(--s4) 0 var(--s3); }
 
 .site-header h1 {
   font-size: var(--t2);
   margin: 0 0 var(--s1);
+  font-weight: 600;
 }
 
-.site-header .contact {
-  color: var(--ink-soft);
+.site-header .contact,
+.contact {
+  color: var(--ink-subtle);
   font-size: var(--t0);
 }
 
 .section-title {
   font-size: var(--t1);
   margin: var(--s4) 0 var(--s2);
+  font-weight: 600;
 }
 
+.muted { color: var(--ink-subtle); }
+.small { font-size: .85em; }
+
+/* ---- Kartlar ---- */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -53,13 +264,25 @@ a { color: var(--accent); }
 }
 
 .card {
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
   text-decoration: none;
   color: var(--ink);
   display: block;
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+
+a.card:hover {
+  border-color: var(--brand);
+  box-shadow: var(--golge);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.card:hover { transform: none; }
+  html { scroll-behavior: auto; }
 }
 
 img.card-img, .card-img-placeholder {
@@ -70,74 +293,94 @@ img.card-img, .card-img-placeholder {
   border-radius: var(--r) var(--r) 0 0;
 }
 
+/* Fotoğrafsız kart: EMOJİ KULLANILMAZ (ürün genelinde emoji yok kararı) — nötr
+   bir çizgi deseni. Fotoğraf zaten yayın şartı, bu yalnız yönetim önizlemeleri
+   ve fotoğrafın yüklenememesi hali için bir tutucudur. */
 .card-img-placeholder {
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--line);
-  font-size: 2.5rem;
+  background:
+    repeating-linear-gradient(135deg, var(--surface-alt) 0 10px, var(--surface-muted) 10px 20px);
+  border-bottom: 1px solid var(--line);
 }
 
-.card-body {
-  padding: var(--s2);
-}
+.card-body { padding: var(--s2); }
 
 .card-body h3 {
   margin: 0 0 var(--s1);
   font-size: var(--t1);
+  font-weight: 600;
 }
 
-.card-body p {
-  margin: 0 0 var(--s2);
-  color: var(--ink-soft);
-}
+.card-body p { margin: 0 0 var(--s2); color: var(--ink-muted); }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1);
-}
+.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
 
 .chip {
-  background: var(--bg);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: .2rem .6rem;
   font-size: .85em;
-  color: var(--ink-soft);
+  color: var(--ink-muted);
 }
 
-.photo-grid {
+/* ---- Galeri (detay sayfası) ---- */
+.galeri, .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--s2);
 }
 
-.photo-grid a {
+.galeri img, .photo-grid img {
+  width: 100%;
+  aspect-ratio: 3/2;
+  object-fit: cover;
   border-radius: var(--r);
-  overflow: hidden;
   display: block;
+  border: 1px solid var(--line);
 }
 
+.galeri a, .photo-grid a { border-radius: var(--r); overflow: hidden; display: block; }
+
+/* ---- Teknik özellik tablosu ---- */
+.table-scroll { overflow-x: auto; }
+
+.ozellik-tablo {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.ozellik-tablo th, .ozellik-tablo td {
+  padding: .55rem var(--s2);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.ozellik-tablo tr:last-child th, .ozellik-tablo tr:last-child td { border-bottom: 0; }
+.ozellik-tablo th { color: var(--ink-subtle); font-weight: 500; white-space: nowrap; }
+
+/* ---- Uzun metin (blog + içerik sayfaları) ---- */
+.blog-icerik { max-width: 68ch; }
+.blog-icerik p { margin: 0 0 var(--s2); }
+
 .empty-state {
-  color: var(--ink-soft);
+  color: var(--ink-subtle);
   padding: var(--s4) 0;
   text-align: center;
 }
 
-.back-link {
-  display: inline-block;
-  margin-bottom: var(--s3);
-}
+.back-link { display: inline-block; margin-bottom: var(--s3); }
 
-/* ---- PR-7: müsaitlik arama formu + fiyat kartı ---- */
+/* ---- Müsaitlik arama formu + fiyat kartı (PR-7) ---- */
 .arama-form {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
   align-items: flex-end;
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: var(--s2);
@@ -149,13 +392,13 @@ img.card-img, .card-img-placeholder {
   flex-direction: column;
   gap: .25rem;
   font-size: .9em;
-  color: var(--ink-soft);
+  color: var(--ink-muted);
 }
 
-.arama-form input, .arama-form select {
+.arama-form input, .arama-form select, .talep-form textarea {
   font: inherit;
   color: var(--ink);
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: .45rem .6rem;
@@ -163,25 +406,20 @@ img.card-img, .card-img-placeholder {
 
 .arama-form button {
   font: inherit;
-  background: var(--accent);
-  color: #fff;
+  font-weight: 600;
+  background: var(--brand);
+  color: var(--brand-ink);
   border: 0;
   border-radius: 8px;
   padding: .55rem 1.2rem;
   cursor: pointer;
 }
 
-.muted-note {
-  color: var(--ink-soft);
-  margin-bottom: var(--s2);
-}
+.arama-form button:hover { background: var(--brand-strong); }
 
-.fiyat {
-  display: flex;
-  flex-direction: column;
-  gap: .15rem;
-  margin-bottom: var(--s2);
-}
+.muted-note { color: var(--ink-subtle); margin-bottom: var(--s2); }
+
+.fiyat { display: flex; flex-direction: column; gap: .15rem; margin-bottom: var(--s2); }
 
 .fiyat-buyuk {
   font-size: var(--t1);
@@ -189,36 +427,17 @@ img.card-img, .card-img-placeholder {
   color: var(--ink);
 }
 
-.fiyat-birim {
-  font-size: .7em;
-  font-weight: 400;
-  color: var(--ink-soft);
-}
+.fiyat-birim { font-size: .7em; font-weight: 400; color: var(--ink-subtle); }
+.fiyat-kucuk, .fiyat-toplam { font-size: .85em; color: var(--ink-subtle); }
 
-.fiyat-kucuk, .fiyat-toplam {
-  font-size: .85em;
-  color: var(--ink-soft);
-}
+.kart-aksiyon { margin-top: var(--s2); display: flex; gap: var(--s2); }
 
-.kart-aksiyon {
-  margin-top: var(--s2);
-  display: flex;
-  gap: var(--s2);
-}
+.ust-linkler { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s2); }
 
-.ust-linkler {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s3);
-  margin-top: var(--s2);
-}
-
-/* ---- PR-8: talep formu ---- */
+/* ---- Talep formu (PR-8) ---- */
 .talep-form { flex-direction: column; align-items: stretch; }
 .talep-form .tam-genislik { width: 100%; }
-.talep-form textarea {
-  font: inherit; color: var(--ink); background: var(--card);
-  border: 1px solid var(--line); border-radius: 8px; padding: .45rem .6rem; width: 100%;
-}
+.talep-form textarea { width: 100%; }
+
 /* Honeypot: ekran okuyucudan ve gözden gizli — bot doldurur, insan doldurmaz. */
 .hp-alan { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

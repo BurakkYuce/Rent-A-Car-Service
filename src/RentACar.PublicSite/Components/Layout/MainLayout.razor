@@ -1,7 +1,83 @@
 @inherits LayoutComponentBase
+@using RentACar.Application.Blog
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
+@inject BlogService Blog
 
+@* PR-15: site kabuğu (üst bar + alt bilgi) BURAYA taşındı. Önce her sayfa kendi
+   başlığını/iletişim satırını basıyordu; marka ve gezinme tek yerde olmalı.
+   Sayfaların kendi <h1>'i KALIR (sayfa başlığı) — üst bardaki marka ondan ayrıdır. *@
 <div class="page">
+    <header class="site-bar">
+        <div class="site-bar-ic">
+            <a class="site-marka" href="/">@Marka</a>
+            <nav class="site-nav">
+                <a href="/">Filomuz</a>
+                <a href="/musaitlik">Müsaitlik ve Fiyat</a>
+                @if (_blogVar) { <a href="/blog">Blog</a> }
+            </nav>
+            @if (_telLink is not null)
+            {
+                @* Numara METİN olarak da görünür: `tel:` linkini açamayan masaüstünde de işe yarasın. *@
+                <a class="btn-cta" href="@_telLink">@_branding!.Tel</a>
+            }
+        </div>
+    </header>
+
     <main>
         @Body
     </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-ic">
+            <div>
+                <h2>@Marka</h2>
+                @if (!string.IsNullOrWhiteSpace(_branding?.Adres)) { <p>@_branding!.Adres</p> }
+            </div>
+            <div>
+                <h2>İletişim</h2>
+                <ul>
+                    @if (_telLink is not null) { <li><a href="@_telLink">@_branding!.Tel</a></li> }
+                    @if (!string.IsNullOrWhiteSpace(_branding?.Email))
+                    {
+                        <li><a href="@($"mailto:{_branding!.Email}")">@_branding!.Email</a></li>
+                    }
+                </ul>
+            </div>
+            <div>
+                <h2>Sayfalar</h2>
+                <ul>
+                    <li><a href="/">Filomuz</a></li>
+                    <li><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></li>
+                    @if (_blogVar) { <li><a href="/blog">Blog</a></li> }
+                </ul>
+            </div>
+        </div>
+        <div class="site-footer-alt">© @DateTime.Now.Year @Marka</div>
+    </footer>
 </div>
+
+@code {
+    private FleetBranding? _branding;
+    private string? _telLink;
+    private bool _blogVar;
+
+    private string Marka => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Kabuk, içerik servisleri patlasa DA basılmalı: alan adı henüz çözülmemiş ya da site
+        // kapatılmış olabilir (App.razor'daki canonical ile aynı savunma).
+        try
+        {
+            _branding = await Showcase.GetBrandingAsync();
+            _telLink = TelefonLink.Tel(_branding.Tel);
+            _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
+        }
+        catch
+        {
+            // Marka çözülemedi → nötr kabuk. Sayfa içeriği kendi hatasını kendi gösterir.
+        }
+    }
+}
