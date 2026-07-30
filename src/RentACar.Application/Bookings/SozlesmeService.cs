@@ -93,7 +93,7 @@ public sealed class SozlesmeService(
             musteri?.DogumTarihi,
             ikinci?.DisplayName, ikinci?.TcKimlik, ikinci?.EhliyetNo, ikinci?.EhliyetSinifi,
             ikinci?.EhliyetTarihi, ikinci?.EhliyetYeri, ikinci?.DogumTarihi,
-            arac?.Plaka ?? "—", arac?.Marka, arac?.Tip, arac?.Grup, arac?.Yakit.ToString() ?? "—", arac?.ModelYili,
+            arac?.Plaka ?? "—", arac?.Marka, arac?.Tip, arac?.Grup, arac?.Yakit?.ToString() ?? "—", arac?.ModelYili,
             c.CikisKm, c.DonusKm, kullanilan, c.CikisYakit, c.DonusYakit,
             c.KmLimit, c.FazlaKmUcret,
             c.KmHediye, c.BitisSebebi, teslimAlan, c.GercekDonusTar,

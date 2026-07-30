@@ -175,7 +175,7 @@
                                 <td>@v.ModelYili</td>
                                 <td>@v.Renk</td>
                                 <td>@v.Vites</td>
-                                <td>@v.Yakit</td>
+                                <td>@(v.Yakit?.ToString() ?? "—")</td>
                                 <td class="num">@v.Km</td>
                                 <td>@v.Sube</td>
                                 <td><StatusBadge Durum="@v.Durum" /></td>
@@ -224,7 +224,7 @@ else
                 <td>@v.ModelYili</td>
                 <td>@v.Renk</td>
                 <td>@v.Vites</td>
-                <td>@v.Yakit</td>
+                <td>@(v.Yakit?.ToString() ?? "—")</td>
                 <td class="num">@v.Km</td>
                 <td>@v.Sube</td>
                 <td><StatusBadge Durum="@v.Durum" /></td>

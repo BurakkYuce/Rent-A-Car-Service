@@ -80,7 +80,8 @@ public static class VehicleEndpoints
         Durum = ParseEnum<VehicleStatus>(FormParse.Str(f, "durum")) ?? VehicleStatus.Musait,
         FiloDurum = ParseEnum<FiloStatus>(FormParse.Str(f, "filoDurum")),
         Km = FormParse.Int(FormParse.Str(f, "km")) ?? 0,
-        Yakit = ParseEnum<FuelType>(FormParse.Str(f, "yakit")) ?? FuelType.Benzin,
+        // PR-21: boş seçim artık NULL ("belirtilmedi"); eskiden sessizce Benzin'e düşüyordu.
+        Yakit = ParseEnum<FuelType>(FormParse.Str(f, "yakit")),
         // Parite zenginleştirme
         MotorGucu = FormParse.Int(FormParse.Str(f, "motorGucu")),
         SilindirHacmi = FormParse.Int(FormParse.Str(f, "silindirHacmi")),

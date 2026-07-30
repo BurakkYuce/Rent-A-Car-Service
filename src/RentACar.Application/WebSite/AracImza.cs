@@ -27,7 +27,10 @@ public static class AracImza
             TurkishText.Normalize(v.Marka ?? string.Empty),
             TurkishText.Normalize(v.Tip ?? string.Empty),
             v.Vites?.ToString() ?? "-",
-            v.Yakit.ToString());
+            // PR-21: yakıt artık nullable. İmzada "-" ile temsil edilir → yakıtı GİRİLMEMİŞ araçlar
+            // kendi aralarında gruplanır, yakıtı girilmiş olanlarla KARIŞMAZ (aksi halde "girilmedi"
+            // olanlar sessizce Benzin grubuna düşerdi).
+            v.Yakit?.ToString() ?? "-");
 
     /// <summary>Kart başlığı: "Fiat Egea Manuel Dizel". Marka/Tip boşsa plakaya düşer (ilan başlıksız kalmasın).</summary>
     public static string Baslik(IReadOnlyList<Vehicle> araclar)
@@ -38,7 +41,9 @@ public static class AracImza
             (ilk.Marka ?? string.Empty).Trim(),
             (ilk.Tip ?? string.Empty).Trim(),
             ilk.Vites?.ToString() ?? string.Empty,
-            ilk.Yakit.ToString(),
+            // Girilmemiş yakıt başlığa YAZILMAZ: "Fiat Egea Manuel" doğru, "Fiat Egea Manuel Benzin"
+            // uydurma olurdu.
+            ilk.Yakit?.ToString() ?? string.Empty,
         }.Where(p => p.Length > 0);
 
         var baslik = string.Join(' ', parcalar).Trim();
