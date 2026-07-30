@@ -1,6 +1,7 @@
 @page "/gelen-talepler"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @using RentACar.Application.Availability
+@using RentACar.Application.Common
 @using RentACar.Application.PublicSite
 @using RentACar.Domain.Entities
 @inject PublicBookingRequestService Talepler
@@ -8,33 +9,66 @@
 
 <PageTitle>Gelen Talepler — RentPro</PageTitle>
 
-<div class="page-head"><h1>Gelen Talepler</h1><div class="actions"></div></div>
+<div class="page-head">
+    <h1>Gelen Talepler</h1>
+    <div class="actions">
+        @if (_ozet is { Yeni: > 0 } o)
+        {
+            <span class="badge warn">@o.Yeni yeni@(o.EnEskiGun is { } g and > 0 ? $" · en eskisi {g} gündür bekliyor" : "")</span>
+        }
+    </div>
+</div>
 <p class="muted small">Halka açık sitedeki formdan gelen teklif talepleri. Bunlar <strong>rezervasyon
     değildir</strong> — "Dönüştür" ile müşteri kaydı (telefonu eşleşen cari varsa yeniden açılmaz) +
     gerçek rezervasyon oluşturulur. Dönüştürürken talebin tarihlerinde <strong>müsait bir araç
     seçmeniz</strong> gerekir.</p>
 
-@if (!string.IsNullOrEmpty(Hata))
-{
-    <p class="error">@Hata</p>
-}
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
+
+@* ---- Filtre: durum + arama. GET formu (PRG) — sayfa yenilenebilir/paylaşılabilir olsun. ---- *@
+<form method="get" action="/gelen-talepler" class="grid-form card">
+    <label>Durum
+        <select name="durum">
+            <option value="">Tümü</option>
+            @foreach (var d in TalepDurumu.GosterimSirasi)
+            {
+                <option value="@((int)d)" selected="@(Durum == (int)d)">@TalepDurumu.Etiket(d)</option>
+            }
+        </select>
+    </label>
+    <label>Ara (ad veya telefon)
+        <input name="ara" value="@Ara" placeholder="Ahmet / 0532…" /></label>
+    <div class="form-actions">
+        <button type="submit" class="kf-btn">Filtrele</button>
+        <a class="link" href="/gelen-talepler">Temizle</a>
+    </div>
+</form>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr>
         <th>Tarih</th><th>Ad Soyad</th><th>Telefon</th><th>E-posta</th>
         <th>Alış</th><th>İade</th><th>Araç</th><th>Şube</th><th class="num">Gösterilen ₺/gün</th>
-        <th>Not</th><th>Durum</th><th>İşlem</th>
+        <th>Durum</th><th>Takip</th><th>İşlem</th>
     </tr></thead>
     <tbody>
-        @if (_list.Count == 0)
+        @if (_satirlar.Count == 0)
         {
-            <tr><td colspan="12" class="muted">Henüz talep yok.</td></tr>
+            <tr><td colspan="12" class="muted">Bu filtreyle talep yok.</td></tr>
         }
-        @foreach (var t in _list)
+        @foreach (var s in _satirlar)
         {
+            var t = s.Talep;
             <tr>
-                <td>@t.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                <td>
+                    @t.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                    @* Yaşlanma rozeti YALNIZ açık taleplerde: kapanmışta "12 gündür bekliyor" yanıltır. *@
+                    @if (TalepDurumu.Aktif(t.Durum) && s.BekleyenGun >= 1)
+                    {
+                        <br /><span class="badge @(s.BekleyenGun >= 3 ? "danger" : "warn")">@s.BekleyenGun gün</span>
+                    }
+                </td>
                 <td>@t.AdSoyad</td>
                 <td class="mono">@t.Telefon</td>
                 <td>@t.Email</td>
@@ -50,18 +84,71 @@
                     }
                     else { <text>—</text> }
                 </td>
-                <td class="muted small">@t.Not</td>
                 <td>
-                    @Durum(t.Durum)
+                    <span class="badge @DurumSinif(t.Durum)">@TalepDurumu.Etiket(t.Durum)</span>
                     @if (t.Durum == PublicBookingRequestDurum.Donustu && t.DonusenReservationId is null)
                     {
                         @* Claim/release deseninde process çökerse kalabilecek TEK yarım durum — sessiz bırakılmaz. *@
-                        <span class="error small">(rezervasyonu bulunamadı)</span>
+                        <br /><span class="error small">(rezervasyonu bulunamadı)</span>
+                    }
+                    @if (t.AtananAd is { Length: > 0 } ad)
+                    {
+                        <br /><span class="muted small">@ad</span>
+                    }
+                </td>
+                <td class="muted small">
+                    @if (!string.IsNullOrWhiteSpace(t.Not)) { <div><em>@t.Not</em></div> }
+                    @if (s.NotSayisi > 0)
+                    {
+                        <details>
+                            <summary class="link">@s.NotSayisi not</summary>
+                            @foreach (var n in _notlar.GetValueOrDefault(t.Id) ?? [])
+                            {
+                                <div>@n.ZamanUtc.ToLocalTime().ToString("dd.MM HH:mm")
+                                    @if (!string.IsNullOrWhiteSpace(n.Kullanici)) { <text>· @n.Kullanici</text> }
+                                    <br />@n.Metin</div>
+                            }
+                        </details>
+                    }
+                    @if (TalepDurumu.Aktif(t.Durum))
+                    {
+                        <form method="post" action="/gelen-talepler/not" class="inline-form"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <input name="metin" placeholder="Not ekle…" maxlength="@PublicBookingRequestService.MaxNot" required style="min-width:9rem" />
+                            <button type="submit" class="link">Ekle</button>
+                        </form>
                     }
                 </td>
                 <td>
-                    @if (t.Durum == PublicBookingRequestDurum.Yeni)
+                    @* Hızlı temas: link üretimi SUNUCUDA (TelefonLink) — rc-kira-tabs.js'teki JS
+                       normalizasyon kuralının ikinci kopyası çıkarılmıyor. *@
+                    @if (TelefonLink.Tel(t.Telefon) is { } tel)
                     {
+                        <a class="link" href="@tel">Ara</a>
+                    }
+                    @if (TelefonLink.Wa(t.Telefon, WaMesaj(t)) is { } wa)
+                    {
+                        <a class="link" href="@wa" target="_blank" rel="noopener">WhatsApp</a>
+                    }
+
+                    @if (TalepDurumu.Aktif(t.Durum))
+                    {
+                        @* Üstlenme YALNIZ kendine — kullanıcı listesi ManageUsers kilidi ardında. *@
+                        <form method="post" action="/gelen-talepler/ustlen" class="inline-form"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <input type="hidden" name="ustlen" value="@(t.AtananKullaniciId is null ? "true" : "false")" />
+                            <button type="submit" class="link">@(t.AtananKullaniciId is null ? "Bana ata" : "Bırak")</button>
+                        </form>
+
+                        @foreach (var hedef in Ilerlemeler(t.Durum))
+                        {
+                            <form method="post" action="/gelen-talepler/durum" class="inline-form"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <input type="hidden" name="durum" value="@((int)hedef)" />
+                                <button type="submit" class="link">@TalepDurumu.Etiket(hedef)</button>
+                            </form>
+                        }
+
                         <details>
                             <summary class="link">Dönüştür</summary>
                             @{
@@ -103,26 +190,74 @@
 </table>
 </div>
 
+@if (_toplam > Boyut)
+{
+    <div class="form-actions">
+        <span class="muted small">@_toplam talep · sayfa @SayfaNo / @((_toplam + Boyut - 1) / Boyut)</span>
+        @if (SayfaNo > 1) { <a class="link" href="@Link(SayfaNo - 1)">← Önceki</a> }
+        @if (SayfaNo * Boyut < _toplam) { <a class="link" href="@Link(SayfaNo + 1)">Sonraki →</a> }
+    </div>
+}
+
 @code {
+    /// <summary>Sayfa boyutu — eski ekran TÜM talepleri çekiyordu (sınırsız liste).</summary>
+    private const int Boyut = 25;
+
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public int? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "sayfa")] public int? Sayfa { get; set; }
 
-    private IReadOnlyList<PublicBookingRequest> _list = [];
+    private int SayfaNo => Math.Max(1, Sayfa ?? 1);
+
+    private IReadOnlyList<TalepSatiri> _satirlar = [];
     private Dictionary<Guid, IReadOnlyList<Vehicle>> _musait = [];
+    private Dictionary<Guid, IReadOnlyList<TalepNotu>> _notlar = [];
+    private TalepOzet? _ozet;
+    private int _toplam;
 
-    private static string Durum(PublicBookingRequestDurum d) => d switch
+    private string Link(int sayfa)
+        => $"/gelen-talepler?sayfa={sayfa}" +
+           (Durum is { } d ? $"&durum={d}" : "") +
+           (string.IsNullOrWhiteSpace(Ara) ? "" : $"&ara={Uri.EscapeDataString(Ara)}");
+
+    private static string DurumSinif(PublicBookingRequestDurum d) => d switch
     {
-        PublicBookingRequestDurum.Yeni => "Yeni",
-        PublicBookingRequestDurum.Donustu => "Dönüştürüldü",
-        PublicBookingRequestDurum.Reddedildi => "Reddedildi",
-        _ => d.ToString()
+        PublicBookingRequestDurum.Yeni => "warn",
+        PublicBookingRequestDurum.Donustu => "ok",
+        PublicBookingRequestDurum.Reddedildi or PublicBookingRequestDurum.Kayip => "danger",
+        _ => "",
     };
+
+    /// <summary>Bir durumdan ELLE geçilebilecek hedefler. "Dönüştü" listede YOK — o yalnız
+    /// Dönüştür akışıyla atanır (elle atanması defterle çelişen bir lead durumu üretirdi).</summary>
+    private static PublicBookingRequestDurum[] Ilerlemeler(PublicBookingRequestDurum d) => d switch
+    {
+        PublicBookingRequestDurum.Yeni => [PublicBookingRequestDurum.Iletisimde, PublicBookingRequestDurum.Kayip],
+        PublicBookingRequestDurum.Iletisimde => [PublicBookingRequestDurum.TeklifVerildi, PublicBookingRequestDurum.Kayip],
+        PublicBookingRequestDurum.TeklifVerildi => [PublicBookingRequestDurum.Kayip],
+        _ => [],
+    };
+
+    private static string WaMesaj(PublicBookingRequest t)
+        => $"Merhaba {t.AdSoyad}, {t.BasTar.LocalDateTime:dd.MM.yyyy}-{t.BitTar.LocalDateTime:dd.MM.yyyy} " +
+           $"tarihleri için araç kiralama talebiniz hakkında görüşmek istiyoruz.";
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Talepler.ListAsync();
-        _musait = [];
-        // Yalnız işlenmemiş talepler için araç listesi çek (dönüştürme dropdown'u).
-        foreach (var t in _list.Where(x => x.Durum == PublicBookingRequestDurum.Yeni))
-            _musait[t.Id] = await Musaitlik.FindAvailableAsync(t.BasTar, t.BitTar, null, t.Sube);
+        var durum = Durum is { } d && Enum.IsDefined(typeof(PublicBookingRequestDurum), d)
+            ? (PublicBookingRequestDurum?)d : null;
+
+        (_satirlar, _toplam) = await Talepler.ListeleAsync(new TalepFiltre(durum, Ara, SayfaNo, Boyut));
+        _ozet = await Talepler.OzetAsync();
+
+        // Yalnız AÇIK talepler için müsait araç + not geçmişi çek (kapanmışta ikisi de gereksiz).
+        foreach (var s in _satirlar.Where(x => TalepDurumu.Aktif(x.Talep.Durum)))
+        {
+            _musait[s.Talep.Id] = await Musaitlik.FindAvailableAsync(
+                s.Talep.BasTar, s.Talep.BitTar, null, s.Talep.Sube);
+            if (s.NotSayisi > 0) _notlar[s.Talep.Id] = await Talepler.NotlarAsync(s.Talep.Id);
+        }
     }
 }
