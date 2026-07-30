@@ -15,7 +15,9 @@
     {
         <link rel="canonical" href="@_canonical" />
     }
-    <link rel="stylesheet" href="app.css" />
+    @* PR-15: `app.css` KALDIRILDI — Blazor şablonundan kalan `body{padding:2rem}` kuralı
+       `.container`ın kendi boşluğuyla çakışıyordu ve kabuk barının kenara yapışmasını engelliyordu. *@
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="site.css" />
     <HeadOutlet />
 </head>
