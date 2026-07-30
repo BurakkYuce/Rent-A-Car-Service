@@ -226,3 +226,88 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 - e-Fatura (GİB kimliği), SMS/HGS/POS (sağlayıcı kimliği) — stub; kimlik gelince config'le aktif.
 - Fiyat motoru kalibrasyonu (canlı parite 403) — makul kurallarla çalışıyor, birebir kalibrasyon ertelendi.
 - Bağımlılık hijyeni (opsiyonel): transitive IdentityModel 8.0.1 pin'i güncelle; QuestPDF gelir eşiği aşılırsa ticari lisans.
+
+---
+
+## 10. SÜRÜM GÜNCELLEME (mevcut kurulumu yenileme)
+
+Yukarıdaki bölümler **sıfırdan kurulum** içindir. Zaten çalışan bir sunucuyu güncellerken sıra şudur:
+
+```bash
+# 1) YEDEK — migration'dan ÖNCE, her seferinde (geri dönüşü olmayan göç olabilir, bkz. aşağıdaki tablo)
+sudo -u postgres pg_dump racar | gzip > /var/backups/racar-$(date +%F-%H%M).sql.gz
+
+# 2) Kodu al + yayınla
+git -C /opt/racar/src pull
+dotnet publish /opt/racar/src/src/RentACar.Web        -c Release -o /opt/racar/web
+dotnet publish /opt/racar/src/src/RentACar.PublicSite -c Release -o /opt/racar/publicsite
+
+# 3) Yeniden başlat — MIGRATION AÇILIŞTA OTOMATİK KOŞAR (elle `dotnet ef` GEREKMEZ)
+sudo systemctl restart racar-web racar-publicsite
+sudo systemctl status racar-web --no-pager | head -5
+```
+
+### 10.1 Geri dönüşü OLMAYAN göçler (yükseltmeden önce oku)
+
+Migration'ların çoğu şema ekler ve `Down()` ile geri alınabilir. **Veriye dokunanlar alınamaz.**
+Bu tabloya, veri değiştiren her yeni migration eklenmelidir.
+
+| Migration | Ne yapar | Geri alınabilir mi |
+|---|---|---|
+| `YakitNullable` (PR-21) | `Vehicles.Yakit` nullable yapar **ve tüm satırları NULL'a çeker** | **HAYIR.** Hangi satırın gerçekten "Benzin" olduğu bilinmiyordu (kolon NOT NULL + varsayılanlıydı, hiçbir değer bilinçli giriş sayılamaz). `Down()` kolonu NOT NULL'a döndürüp hepsini Benzin yapar — yani eski hâli DEĞİL, eski hâlin tahminini üretir. **Yükseltmeden önce yedek şart.** Yükseltme sonrası personel araç ekranından doğru yakıtları girer. |
+
+### 10.2 Veriye dokunan migration yazarken — RLS TUZAĞI
+
+Migration'lar `racar_owner` ile koşar ve **bu rolün BYPASSRLS yetkisi YOKTUR** (bilinçli, CLAUDE.md §4).
+Tenant tablolarının çoğu `FORCE ROW LEVEL SECURITY` taşır. Bu yüzden migration içinde düz bir
+
+```sql
+UPDATE "Vehicles" SET "Yakit" = NULL;      -- ❌ SESSİZCE 0 SATIR
+```
+
+**hata vermeden hiçbir şey yapmaz**: `app.tenant_id` GUC'u set edilmediği için policy hiçbir satırı
+eşleştirmez. PR-21'de tam olarak bu yaşandı — kolon nullable oldu, veri olduğu gibi kaldı ve bu ancak
+veri ÖLÇÜLDÜĞÜ için fark edildi. Doğrusu tenant döngüsü + işlem-yerel `set_config`:
+
+```sql
+DO $$
+DECLARE t uuid;
+BEGIN
+    FOR t IN SELECT "Id" FROM "Tenants" LOOP
+        PERFORM set_config('app.tenant_id', t::text, true);
+        UPDATE "Vehicles" SET "Yakit" = NULL;
+    END LOOP;
+END $$;
+```
+
+**Kural:** veri değiştiren her migration'dan sonra, etkilenen satır sayısını DOĞRULA
+(`select count(*) … where <yeni durum>`). Migration'ın "uygulandı" yazması, veriyi değiştirdiği
+anlamına GELMEZ.
+
+### 10.3 Bu sürüme özel doğrulama (PR-15…21)
+
+Genel kontroller §9'da. Bu sürümde değişen ve **canlıda ayrıca bakılması gereken** üç şey:
+
+1. **Statik varlıklar (PR-19 — `UseStaticFiles` → `MapStaticAssets`).** PublicSite'ın statik dosya
+   servisi değişti. Yükseltme sonrası:
+   ```bash
+   curl -sI https://<tenant-domaini>/site.css | head -3     # 200 + content-type: text/css
+   curl -so /dev/null -w '%{http_code}\n' https://<tenant-domaini>/favicon.svg
+   ```
+   **200 değilse site CSS'siz kalır.** (Yerelde bu tam olarak yaşandı: eski API sıkıştırılmış `.gz`
+   varyantını çözemeyince istek kök-slug rotasına düşüp 500 veriyordu.)
+2. **`blazor.web.js` artık YOK (PR-19).** Sayfa kaynağında `_framework/blazor.web.js` referansı
+   **olmamalı**; formlar (müsaitlik araması, talep formu) ve SSS `<details>` JS'siz çalışmalı.
+3. **Yakıt alanı (PR-21).** Yükseltme sonrası araç listesinde yakıt sütunu `—` görünür; bu BEKLENEN
+   davranıştır (bkz. 10.1). Personel doğru değerleri girene kadar ilan başlıklarında yakıt yazmaz.
+
+### 10.4 Geri alma (rollback)
+
+```bash
+# Kod: bir önceki yayına dön
+sudo systemctl stop racar-web racar-publicsite
+# (önceki publish çıktısını sakladıysan geri kopyala; saklamıyorsan git'te bir önceki etikete dönüp yeniden publish et)
+sudo systemctl start racar-web racar-publicsite
+```
+**Şema geri alınmaz.** Yeni migration'lar eski kodla uyumsuzsa (kolon tipi değiştiyse) tek güvenli
+yol §8'deki yedekten geri yüklemektir — bu yüzden 10. adımın 1. maddesi (yedek) atlanamaz.
