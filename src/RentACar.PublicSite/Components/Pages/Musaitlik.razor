@@ -17,21 +17,9 @@
         <p class="empty-state">@_hata</p>
     }
 
-    @* MusaitlikArama.razor'ın GET-querystring deseni — JS yok, paylaşılabilir/geri-tuşuna dost URL. *@
-    <form method="get" class="arama-form">
-        <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
-        <label>İade<input name="bit" type="date" value="@Bit" required /></label>
-        <label>Şube
-            <select name="sube">
-                <option value="">Tümü</option>
-                @foreach (var s in _subeler)
-                {
-                    <option value="@s" selected="@(s == Sube)">@s</option>
-                }
-            </select>
-        </label>
-        <button type="submit">Ara</button>
-    </form>
+    @* PR-19: form ORTAK bileşene çıkarıldı (T4) — Hero ile aynı alan adları/doğrulama.
+       GET-querystring deseni korunuyor: JS yok, paylaşılabilir/geri-tuşuna dost URL. *@
+    <AramaFormu Bas="@Bas" Bit="@Bit" Sube="@Sube" Subeler="_subeler" />
 
     @if (_arandi)
     {
