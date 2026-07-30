@@ -27,6 +27,17 @@ public sealed class PublicBookingRequestInput
     public string? Website { get; set; }
 }
 
+/// <summary>PR-17: liste satırı — talep + türetilmiş göstergeler.</summary>
+/// <param name="BekleyenGun">Talep AÇIKSA kaç gündür beklediği; kapanmışsa 0 (yanıltmasın).</param>
+public sealed record TalepSatiri(PublicBookingRequest Talep, int NotSayisi, int BekleyenGun);
+
+/// <summary>PR-17: liste filtresi. <paramref name="Durum"/> null = tümü.</summary>
+public sealed record TalepFiltre(PublicBookingRequestDurum? Durum = null, string? Ara = null,
+    int Sayfa = 1, int Boyut = 25);
+
+/// <summary>PR-17: nav sayacı + Home KPI. <paramref name="EnEskiGun"/> null = bekleyen yok.</summary>
+public sealed record TalepOzet(int Yeni, int? EnEskiGun);
+
 /// <summary>
 /// PR-8: halka açık site rezervasyon TALEBİ (lead). <see cref="CreateAsync"/> repo'daki İLK anonim
 /// YAZMA yoludur — bilinçli guard'sız; izolasyon RLS, kötüye kullanım koruması honeypot + rate-limit
@@ -93,12 +104,109 @@ public sealed class PublicBookingRequestService(
         return repository.ListAsync(ct);
     }
 
+    /// <summary>
+    /// PR-17: ekranın kullandığı filtreli/sayfalı liste. Not sayıları TEK sorguyla getirilir
+    /// (satır başına COUNT N+1 üretirdi), yaşlanma gün cinsinden hesaplanır.
+    /// </summary>
+    public async Task<(IReadOnlyList<TalepSatiri> Satirlar, int Toplam)> ListeleAsync(
+        TalepFiltre filtre, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        var boyut = Math.Clamp(filtre.Boyut, 1, 200);
+        var (satirlar, toplam) = await repository.SayfaliAsync(
+            filtre.Durum, filtre.Ara, filtre.Sayfa, boyut, ct);
+
+        var notSayilari = await repository.NotSayilariAsync([.. satirlar.Select(t => t.Id)], ct);
+        var now = DateTimeOffset.UtcNow;
+        return ([.. satirlar.Select(t => new TalepSatiri(
+            t,
+            notSayilari.GetValueOrDefault(t.Id),
+            // Yaşlanma YALNIZ açık taleplerde anlamlı: kapanmış bir lead'in "12 gündür bekliyor"
+            // yazması yanıltıcı olurdu.
+            TalepDurumu.Aktif(t.Durum) ? (int)(now - t.CreatedAtUtc).TotalDays : 0))], toplam);
+    }
+
+    /// <summary>PR-17: nav sayacı + Home KPI. Yetki KONTROL EDİLİR (rakam da bilgidir).</summary>
+    public async Task<TalepOzet> OzetAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        var yeni = await repository.YeniSayisiAsync(ct);
+        var enEski = yeni == 0 ? null : await repository.EnEskiYeniAsync(ct);
+        return new TalepOzet(yeni, enEski is { } e ? (int)(DateTimeOffset.UtcNow - e).TotalDays : null);
+    }
+
     public async Task ReddetAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         if (!await repository.TryClaimAsync(id, PublicBookingRequestDurum.Reddedildi, ct))
-            throw new ValidationException("Bu talep zaten işlenmiş.");
+            throw new ValidationException("Bu talep zaten kapanmış.");
     }
+
+    /// <summary>
+    /// PR-17: aktif durumlar arası ilerletme (Yeni → İletişimde → Teklif verildi) ve Kayıp işaretleme.
+    ///
+    /// <para><b>Guard:</b> TERMİNAL durumdan çıkış YOK. Özellikle <c>Donustu</c>: ortada gerçek bir
+    /// rezervasyon varken lead'i "Kayıp" göstermek defterle çelişirdi. Kontrol hem burada (anlaşılır
+    /// mesaj) hem repository'nin atomik yükleminde (yarış) var.</para>
+    /// </summary>
+    public async Task DurumAtaAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        if (hedef == PublicBookingRequestDurum.Donustu)
+            throw new ValidationException("\"Dönüştü\" durumu elle atanamaz — talebi Dönüştür ile işleyin.");
+
+        var talep = await repository.FindAsync(id, ct) ?? throw new ValidationException("Talep bulunamadı.");
+        // TEK kontrol yeter: `DonusenReservationId` YALNIZ başarılı bir `Donustu` claim'inden sonra
+        // yazılıyor (`SetDonusenReservationAsync`) ve iptalde null'lanıyor → "rezervasyonu var ama
+        // durumu terminal değil" hali oluşamaz. Ayrı bir `DonusenReservationId is not null` kontrolü
+        // yazılmıştı; testte ULAŞILAMAZ olduğu görüldü (terminal kontrolü her zaman önce tetikliyor)
+        // ve ölü kod olarak kaldırıldı.
+        if (TalepDurumu.Terminal(talep.Durum))
+            throw new ValidationException(
+                $"Bu talep \"{TalepDurumu.Etiket(talep.Durum)}\" durumunda kapanmış; durumu değiştirilemez."
+                + (talep.DonusenReservationId is not null ? " (Rezervasyona dönüşmüş.)" : ""));
+
+        if (!await repository.DurumDegistirAsync(id, hedef, ct))
+            throw new ValidationException("Bu talep zaten kapanmış.");
+    }
+
+    /// <summary>
+    /// PR-17: talebi ÜSTLENME / bırakma. Yalnız KENDİNE atanır — başka kullanıcıya atamak, kullanıcı
+    /// listesini (ManageUsers kilidi ardında) bu ekrana taşımayı gerektirirdi ve Operatör rolünde
+    /// patlardı (Personel dropdown tuzağının aynısı).
+    /// </summary>
+    public async Task UstlenAsync(Guid id, bool ustlen, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        var ok = ustlen
+            ? await repository.AtaAsync(id, currentUser.UserId, currentUser.UserName, ct)
+            : await repository.AtaAsync(id, null, null, ct);
+        if (!ok) throw new ValidationException("Talep bulunamadı.");
+    }
+
+    /// <summary>PR-17: takip notu ekler. Notlar SİLİNMEZ (geçmiş kanıttır) → silme metodu yok.</summary>
+    public async Task NotEkleAsync(Guid id, string metin, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        var m = (metin ?? "").Trim();
+        if (m.Length == 0) throw new ValidationException("Not boş olamaz.");
+        if (m.Length > MaxNot) throw new ValidationException($"Not en çok {MaxNot} karakter olabilir.");
+        _ = await repository.FindAsync(id, ct) ?? throw new ValidationException("Talep bulunamadı.");
+
+        await repository.NotEkleAsync(new TalepNotu
+        {
+            TalepId = id, Metin = m, Kullanici = currentUser.UserName,
+        }, ct);
+    }
+
+    public Task<IReadOnlyList<TalepNotu>> NotlarAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        return repository.NotlarAsync(id, ct);
+    }
+
+    /// <summary>Not uzunluk sınırı (kolon 2.000).</summary>
+    public const int MaxNot = 2_000;
 
     /// <summary>
     /// Talebi gerçek Cari+Rezervasyon'a dönüştürür. <paramref name="vehicleId"/> ZORUNLU: talep yalnız
@@ -111,6 +219,7 @@ public sealed class PublicBookingRequestService(
 
         var talep = await repository.FindAsync(id, ct)
             ?? throw new ValidationException("Talep bulunamadı.");
+        var oncekiDurum = talep.Durum; // PR-17: claim geri alınırsa BU duruma dönülür (Yeni'ye değil)
 
         // (1) ATOMİK CLAIM — iki personel aynı anda tıklarsa yalnız biri geçer.
         if (!await repository.TryClaimAsync(id, PublicBookingRequestDurum.Donustu, ct))
@@ -155,7 +264,7 @@ public sealed class PublicBookingRequestService(
         catch
         {
             // (3) Cari/Rezervasyon aşaması patladı → claim'i GERİ AL; personel tekrar deneyebilsin.
-            await repository.ReleaseClaimAsync(id, ct);
+            await repository.ReleaseClaimAsync(id, oncekiDurum, ct);
             throw;
         }
     }

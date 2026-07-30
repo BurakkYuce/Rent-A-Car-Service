@@ -2,11 +2,67 @@ using RentACar.Domain.Common;
 
 namespace RentACar.Domain.Entities;
 
+/// <summary>
+/// Talebin (lead) yaşam döngüsü.
+///
+/// <para><b>YENİ DEĞERLER YALNIZ SONA EKLENİR.</b> Kolon <c>int</c> saklanıyor
+/// (<c>HasConversion&lt;int&gt;()</c>); araya bir değer sokmak mevcut satırların ANLAMINI kaydırır
+/// (ör. <see cref="Iletisimde"/> 1'e konsa bugünün <see cref="Donustu"/> satırları bir gecede
+/// "İletişimde" olurdu). UI sıralaması bu numaralardan BAĞIMSIZ yazılır.</para>
+///
+/// <para><b>TERMİNAL durumlar:</b> <see cref="Donustu"/>, <see cref="Reddedildi"/>, <see cref="Kayip"/>
+/// — bunlardan çıkış yok (bkz. <see cref="TalepDurumu.Terminal"/>). Diğerleri "üzerinde çalışılıyor".</para>
+/// </summary>
 public enum PublicBookingRequestDurum
 {
     Yeni = 0,
     Donustu = 1,
-    Reddedildi = 2
+    Reddedildi = 2,
+    /// <summary>PR-17: personel müşteriyle temas kurdu, sonuç bekleniyor.</summary>
+    Iletisimde = 3,
+    /// <summary>PR-17: fiyat/araç teklifi iletildi, müşterinin cevabı bekleniyor.</summary>
+    TeklifVerildi = 4,
+    /// <summary>PR-17: müşteri vazgeçti ya da ulaşılamadı — "Reddedildi"den farkı, RED bizden değil.</summary>
+    Kayip = 5,
+}
+
+/// <summary>
+/// Durum kuralları TEK yerde. Hem servis guard'ı hem repository'nin atomik claim yüklemi buradan
+/// okur — kopyalanırsa biri "İletişimde" talebi dönüştürülemez hale getirir (bu PR'da tam olarak
+/// bu regresyon yakalandı: eski claim yüklemi <c>Durum == Yeni</c> idi).
+/// </summary>
+public static class TalepDurumu
+{
+    /// <summary>Çıkışı olmayan durumlar — üzerinde başka işlem yapılamaz.</summary>
+    public static bool Terminal(PublicBookingRequestDurum d)
+        => d is PublicBookingRequestDurum.Donustu
+             or PublicBookingRequestDurum.Reddedildi
+             or PublicBookingRequestDurum.Kayip;
+
+    /// <summary>Hâlâ üzerinde çalışılan durumlar (claim edilebilir, durumu değiştirilebilir).</summary>
+    public static bool Aktif(PublicBookingRequestDurum d) => !Terminal(d);
+
+    /// <summary>Ekranda gösterim sırası — enum numaralarından BAĞIMSIZ (bkz. append-only kuralı).</summary>
+    public static readonly PublicBookingRequestDurum[] GosterimSirasi =
+    [
+        PublicBookingRequestDurum.Yeni,
+        PublicBookingRequestDurum.Iletisimde,
+        PublicBookingRequestDurum.TeklifVerildi,
+        PublicBookingRequestDurum.Donustu,
+        PublicBookingRequestDurum.Reddedildi,
+        PublicBookingRequestDurum.Kayip,
+    ];
+
+    public static string Etiket(PublicBookingRequestDurum d) => d switch
+    {
+        PublicBookingRequestDurum.Yeni => "Yeni",
+        PublicBookingRequestDurum.Iletisimde => "İletişimde",
+        PublicBookingRequestDurum.TeklifVerildi => "Teklif verildi",
+        PublicBookingRequestDurum.Donustu => "Dönüştü",
+        PublicBookingRequestDurum.Reddedildi => "Reddedildi",
+        PublicBookingRequestDurum.Kayip => "Kayıp",
+        _ => d.ToString(),
+    };
 }
 
 /// <summary>
@@ -62,6 +118,38 @@ public class PublicBookingRequest : ITenantOwned, IAuditable
     /// yarıda kalmış demektir (bkz. servisin claim/release notu) — staff ekranı bunu uyarı olarak gösterir.</summary>
     public Guid? DonusenReservationId { get; set; }
 
+    /// <summary>
+    /// PR-17: talebi üstlenen personel. ATAMA YALNIZ KENDİNE yapılır ("Bana ata") — başka bir
+    /// kullanıcıya atamak, <c>ManageUsers</c> kilidi ardındaki kullanıcı listesini bu ekrana taşımayı
+    /// gerektirirdi ve Operatör rolünde patlardı (Personel dropdown'ında yaşanan tuzağın aynısı).
+    /// Ad DENORMALİZE saklanıyor: liste ekranı için <c>Users</c>'a join etmeye gerek kalmasın.
+    /// </summary>
+    public Guid? AtananKullaniciId { get; set; }
+    public string? AtananAd { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAtUtc { get; set; }
+}
+
+/// <summary>
+/// PR-17 — talep takip notu ("aradım, akşam tekrar arayacağım"). Bir lead'in neden hâlâ açık
+/// olduğunu ancak bu satırlar açıklar; tek bir "Not" alanı üzerine yazılırdı ve geçmiş kaybolurdu.
+///
+/// <para>SİLİNMEZ: takip geçmişi kanıttır (müşteri "kimse aramadı" derse cevap burada). Bu yüzden
+/// silme metodu YOK — yalnız ekleme.</para>
+/// </summary>
+public class TalepNotu : ITenantOwned, IAuditable
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
+    public Guid TalepId { get; set; }
+
+    public string Metin { get; set; } = string.Empty;
+
+    /// <summary>Notu yazan personel (denormalize — liste için join gerekmesin).</summary>
+    public string? Kullanici { get; set; }
+
+    public DateTimeOffset ZamanUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }
