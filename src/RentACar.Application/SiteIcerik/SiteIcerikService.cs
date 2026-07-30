@@ -112,6 +112,7 @@ public sealed class SiteIcerikService(
                 s.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }, ct);
             if (!ok) throw new ValidationException("Sayfa bulunamadı.");
+            OnbellegiDusur();
             return id;
         }
 
@@ -121,6 +122,7 @@ public sealed class SiteIcerikService(
             Sira = input.Sira, Yayinda = input.Yayinda,
         };
         await repository.EkleAsync(yeni, ct);
+        OnbellegiDusur();
         return yeni.Id;
     }
 
@@ -134,12 +136,14 @@ public sealed class SiteIcerikService(
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
         if (!ok) throw new ValidationException("Sayfa bulunamadı.");
+        OnbellegiDusur();
     }
 
     public async Task SilAsync(Guid id, CancellationToken ct = default)
     {
         await GuardAsync(ct);
         if (!await repository.SilAsync(id, ct)) throw new ValidationException("Sayfa bulunamadı.");
+        OnbellegiDusur();
     }
 
     // ---- SSS yönetimi ----
@@ -169,11 +173,13 @@ public sealed class SiteIcerikService(
                 k.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }, ct);
             if (!ok) throw new ValidationException("Soru bulunamadı.");
+            OnbellegiDusur();
             return id;
         }
 
         var yeni = new SssKaydi { Soru = soru, Cevap = cevap, Sira = input.Sira, Yayinda = input.Yayinda };
         await repository.SssEkleAsync(yeni, ct);
+        OnbellegiDusur();
         return yeni.Id;
     }
 
@@ -181,18 +187,37 @@ public sealed class SiteIcerikService(
     {
         await GuardAsync(ct);
         if (!await repository.SssSilAsync(id, ct)) throw new ValidationException("Soru bulunamadı.");
+        OnbellegiDusur();
     }
 
     // ---- Halka açık okuma (GUARD YOK — anonim ziyaretçi) ----
+    //
+    // PR-19 — İSTEK-İÇİ ÖNBELLEK. Ölçümde görüldü ki halka açık sayfalarda bu iki sorgu İKİ KEZ
+    // koşuyor: bir kez kabuk (MainLayout alt bilgisi), bir kez sayfanın kendi bölümü. Servis
+    // `AddScoped` olduğu için örnek istek başına tek → aynı istekte ikinci çağrı DB'ye gitmez.
+    // Veri istek ortasında değişmez, dolayısıyla tutarlılık riski yok.
+    private IReadOnlyList<SayfaOzet>? _yayindakiSayfalar;
+    private IReadOnlyList<SssSatiri>? _yayindakiSss;
+
+    /// <summary>
+    /// Yazma sonrası önbelleği DÜŞÜR. Halka açık okuma yolunda aynı scope'ta yazma olmuyor, ama
+    /// yönetim akışı (ve testler) aynı örnekte "kaydet → oku" yapabiliyor; geçersiz kılmazsak
+    /// ekran kendi yaptığı değişikliği görmezdi. Önbellek bir HIZ optimizasyonu, davranış değil.
+    /// </summary>
+    private void OnbellegiDusur()
+    {
+        _yayindakiSayfalar = null;
+        _yayindakiSss = null;
+    }
 
     /// <summary>Yayındaki sayfa; yoksa <c>null</c> → sayfa kendi 404'ünü yazar.</summary>
     public Task<SayfaGoster?> SayfaAsync(string slug, CancellationToken ct = default)
         => repository.BulAsync(slug, ct);
 
     /// <summary>Footer ve sitemap için yayındaki sayfa listesi.</summary>
-    public Task<IReadOnlyList<SayfaOzet>> YayindakiSayfalarAsync(CancellationToken ct = default)
-        => repository.YayindakilerAsync(ct);
+    public async Task<IReadOnlyList<SayfaOzet>> YayindakiSayfalarAsync(CancellationToken ct = default)
+        => _yayindakiSayfalar ??= await repository.YayindakilerAsync(ct);
 
-    public Task<IReadOnlyList<SssSatiri>> YayindakiSssAsync(CancellationToken ct = default)
-        => repository.SssListeAsync(yalnizYayinda: true, ct);
+    public async Task<IReadOnlyList<SssSatiri>> YayindakiSssAsync(CancellationToken ct = default)
+        => _yayindakiSss ??= await repository.SssListeAsync(yalnizYayinda: true, ct);
 }

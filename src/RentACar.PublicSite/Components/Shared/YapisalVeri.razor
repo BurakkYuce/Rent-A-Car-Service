@@ -1,0 +1,88 @@
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using RentACar.Application.Fleet
+@using RentACar.Application.SiteIcerik
+
+@* PR-19 — arama motorları için yapısal veri (JSON-LD): LocalBusiness + FAQPage.
+   Şema tipleri sektörde DEĞİŞMEZ, içerik tenant'tan gelir. Eksik alan atlanır (T2).
+
+   `MarkupString` BURADA GÜVENLİ ve tek meşru kullanımı — gerekçesi:
+   çıktı `System.Text.Json` ile ÜRETİLİYOR ve varsayılan `JavaScriptEncoder`, `<` `>` `&` gibi
+   karakterleri `<` biçiminde kaçırıyor. Yani tenant verisi (firma adı, SSS cevabı) ne
+   içerirse içersin `</script>` dizisi ÜRETİLEMEZ, script bloğundan kaçış mümkün değil.
+   Elle string birleştirilseydi bu güvence olmazdı. *@
+
+@if (_json is { Length: > 0 })
+{
+    <script type="application/ld+json">@((MarkupString)_json)</script>
+}
+
+@code {
+    [Parameter] public FleetBranding? Marka { get; set; }
+    [Parameter] public IReadOnlyList<SssSatiri> Sorular { get; set; } = [];
+    /// <summary>Kanonik site adresi (https://…). Yoksa `url` alanı atlanır.</summary>
+    [Parameter] public string? KanonikUrl { get; set; }
+
+    private string? _json;
+
+    private static readonly JsonSerializerOptions Opt = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = false,
+        // Varsayılan encoder BİLİNÇLİ olarak korunuyor: `<`/`>`/`&` kaçırılır → script'ten kaçış yok.
+    };
+
+    protected override void OnParametersSet()
+    {
+        var dugumler = new List<object>();
+
+        if (!string.IsNullOrWhiteSpace(Marka?.Marka))
+        {
+            dugumler.Add(new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "AutoRental",   // LocalBusiness'ın araç kiralamaya özel alt tipi
+                ["name"] = Marka!.Marka,
+                ["url"] = Bos(KanonikUrl),
+                ["telephone"] = Bos(Marka.Tel) ?? Bos(Marka.MobilTel),
+                ["email"] = Bos(Marka.Email),
+                ["address"] = Bos(Marka.Adres) is { } adres
+                    ? new Dictionary<string, object?>
+                    {
+                        ["@type"] = "PostalAddress",
+                        ["streetAddress"] = adres,
+                        ["addressCountry"] = "TR",
+                    }
+                    : null,
+            });
+        }
+
+        if (Sorular.Count > 0)
+        {
+            dugumler.Add(new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "FAQPage",
+                ["mainEntity"] = Sorular.Select(s => new Dictionary<string, object?>
+                {
+                    ["@type"] = "Question",
+                    ["name"] = s.Soru,
+                    ["acceptedAnswer"] = new Dictionary<string, object?>
+                    {
+                        ["@type"] = "Answer",
+                        ["text"] = s.Cevap,
+                    },
+                }).ToArray(),
+            });
+        }
+
+        _json = dugumler.Count switch
+        {
+            0 => null,
+            1 => JsonSerializer.Serialize(dugumler[0], Opt),
+            _ => JsonSerializer.Serialize(dugumler, Opt),   // birden fazla düğüm → dizi
+        };
+    }
+
+    private static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+}

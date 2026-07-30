@@ -55,8 +55,27 @@
     private SayfaGoster? _sayfa;
     private string? _marka;
 
+    /// <summary>
+    /// NOKTALI yol asla bir içerik sayfası olamaz: <c>TurkishText.Slugify</c> yalnız harf/rakam
+    /// bırakır, bir slug nokta İÇEREMEZ (PR-16'da testle kilitlenen değişmez). Dolayısıyla
+    /// <c>/site.css</c> gibi bir istek buraya düşerse — ki statik dosya çözümlemesi bir sebeple
+    /// kaçırırsa düşer — DB'ye hiç gitmeden 404 döneriz.
+    ///
+    /// <para>Bu sertleştirme canlıda yaşanan bir olaydan geldi: statik varlık API'si yanlış
+    /// olduğu için <c>/site.css</c> buraya düştü, tenant çözümlenmemiş olduğundan (uzantılı yollar
+    /// tenant middleware'ini atlar) sorgu <b>500</b> ile patladı. Asıl hata düzeltildi, ama bu yol
+    /// bir daha 500 üretmemeli.</para>
+    /// </summary>
+    private bool DosyaGibi => Slug.Contains('.');
+
     protected override async Task OnInitializedAsync()
     {
+        if (DosyaGibi)
+        {
+            if (Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
         _sayfa = await Icerik.SayfaAsync(Slug);
         if (_sayfa is null && Http is not null)
             Http.Response.StatusCode = StatusCodes.Status404NotFound; // GERÇEK 404 (soft-404 değil)

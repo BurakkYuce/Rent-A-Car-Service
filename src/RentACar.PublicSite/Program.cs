@@ -115,7 +115,12 @@ app.Use(async (ctx, next) =>
 
 app.UseRateLimiter(); // PR-8 — ForwardedHeaders'tan SONRA (gerçek IP partition'ı)
 
-app.UseStaticFiles();
+// PR-19: `UseStaticFiles()` DEĞİL `MapStaticAssets()` — ERP (RentACar.Web) zaten bunu kullanıyor.
+// Neden: statik varlıklar .NET 10'da manifest üzerinden (parmak izi + önceden sıkıştırılmış .gz
+// varyantları) servis ediliyor. Eski API sıkıştırılmış varyantı çözemiyor ve istek statik dosya
+// olmaktan çıkıp Blazor yönlendirmesine düşüyordu → kök-slug catch-all'ı yakalayıp 500 veriyordu.
+// CANLIDA GÖRÜLDÜ: site.css 6,9 KB'dan 16 KB'a çıkınca .gz varyantı üretildi ve SİTE CSS'SİZ KALDI.
+app.MapStaticAssets();
 app.UseAntiforgery();
 app.UseMiddleware<TenantHostResolutionMiddleware>();
 

@@ -1,105 +1,118 @@
 @page "/"
-@using RentACar.Application.Common
+@using RentACar.Application.Branches
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
+@using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 @inject SiteIcerikService Icerik
+@inject BranchService Subeler
 
-<PageTitle>@(_branding?.Marka ?? "RentPro")</PageTitle>
+@* PR-19 — ana sayfa artık bölümleri DİZEN ince bir sayfa. Her bölüm kendi bileşeninde
+   (Components/Shared) ve "sabit anlatı / tenant verisi" ayrımı orada belgeli.
 
-<div class="container">
-    @* PR-15: marka + iletişim + gezinme artık KABUKTA (MainLayout). Burada yalnız sayfanın
-       kendi başlığı kalır — aynı bilgiyi iki kez basmak eski halin en görünür kusuruydu. *@
-    <header class="site-header">
-        <h1>Kiralık Araçlar</h1>
-        <p class="contact">Günlük, haftalık ve aylık fiyatlarımız aşağıda; tarih seçerek
-            müsaitliği ve toplam tutarı hesaplayabilirsiniz.</p>
-        <p class="ust-linkler"><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></p>
-    </header>
+   SIRA bilinçli: önce arama (ziyaretçinin işi), sonra güven, sonra araçlar, sonra süreç/fiyat
+   açıklaması, en sonda SSS + çağrı. Referans projedeki akışın bize uyarlanmış hâli — "yorumlar"
+   ve "kiralama vs satın alma" bölümleri BİLİNÇLİ YOK (bkz. plan Non-Goals). *@
 
-    @* PR-14: kartlar artık SINIF değil İLAN bazlı — personelin sihirbazdan yayınladığı araçlar.
-       Adres slug'dır (/araclar/fiat-egea-manuel-dizel), fiyat ilandan gelir (motor yok). *@
-    @if (_cards is { Count: > 0 })
-    {
-        <div class="grid">
-            @foreach (var c in _cards)
-            {
-                <a class="card" href="@($"/araclar/{c.Slug}")">
-                    @if (c.CoverPhotoId is { } photoId)
-                    {
-                        <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@c.Baslik" />
-                    }
-                    else
-                    {
-                        <div class="card-img-placeholder" aria-hidden="true"></div>
-                    }
-                    <div class="card-body">
-                        <h3>@c.Baslik</h3>
-                        @if (!string.IsNullOrWhiteSpace(c.YilAralik))
+<PageTitle>@(_branding?.Marka ?? "RentPro") — Araç Kiralama</PageTitle>
+
+@* DİKKAT: `KanonikUrl="_kanonik"` yazmak Razor'da DÜZ METİN geçirir (string tipli
+   parametrede tırnak içi literaldir). İlk yazımda öyleydi ve JSON-LD'ye `"url":"_kanonik"`
+   basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU. *@
+<YapisalVeri Marka="_branding" Sorular="_sss" KanonikUrl="@_kanonik" />
+
+<BolumHero Marka="@_branding?.Marka" Subeler="_subeler" />
+
+<BolumGuvenSeridi />
+
+@* Araçlar — VERİYE BAĞLI: ilan yoksa bölüm hiç basılmaz (T2). Yayınlanmamış bir sitede
+   "Şu anda araç yok" yazmaktansa bölümü hiç göstermemek daha iyi; ziyaretçiye yine arama,
+   süreç ve iletişim kalıyor. *@
+@if (_cards is { Count: > 0 })
+{
+    <section class="bolum" id="filo">
+        <div class="container">
+            <h2 class="section-title">Filomuz</h2>
+            <div class="grid">
+                @foreach (var c in _cards)
+                {
+                    <a class="card" href="@($"/araclar/{c.Slug}")">
+                        @if (c.CoverPhotoId is { } photoId)
                         {
-                            <p class="muted small">@c.YilAralik model</p>
+                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@c.Baslik" loading="lazy" />
                         }
-                        <div class="chips">
-                            @* Teknik özellikler: personelin sihirbazda "sitede görünsün" dediği satırlar.
-                               İlk üçü kartta; tamamı detay sayfasında. *@
-                            @foreach (var o in c.Ozellikler.Take(3))
+                        else
+                        {
+                            <div class="card-img-placeholder" aria-hidden="true"></div>
+                        }
+                        <div class="card-body">
+                            <h3>@c.Baslik</h3>
+                            @if (!string.IsNullOrWhiteSpace(c.YilAralik))
                             {
-                                <span class="chip">@o.Deger</span>
+                                <p class="muted small">@c.YilAralik model</p>
                             }
-                            @if (c.Adet > 1)
-                            {
-                                <span class="chip">@c.Adet araç</span>
-                            }
+                            <div class="chips">
+                                @* Teknik özellikler: personelin sihirbazda "sitede görünsün" dediği satırlar.
+                                   İlk üçü kartta; tamamı detay sayfasında. *@
+                                @foreach (var o in c.Ozellikler.Take(3))
+                                {
+                                    <span class="chip">@o.Deger</span>
+                                }
+                                @if (c.Adet > 1)
+                                {
+                                    <span class="chip">@c.Adet araç</span>
+                                }
+                            </div>
+                            <p class="fiyat">
+                                <strong>@c.GunlukFiyat.ToString("N0") ₺</strong>
+                                <span class="muted small">/ gün · @(c.KdvDahil ? "KDV dahil" : "+ KDV")</span>
+                            </p>
                         </div>
-                        <p class="fiyat">
-                            <strong>@c.GunlukFiyat.ToString("N0") ₺</strong>
-                            <span class="muted small">/ gün · @(c.KdvDahil ? "KDV dahil" : "+ KDV")</span>
-                        </p>
-                    </div>
-                </a>
-            }
+                    </a>
+                }
+            </div>
         </div>
-    }
-    else
-    {
-        <p class="empty-state">Şu anda vitrine eklenmiş bir araç bulunmuyor.</p>
-    }
+    </section>
+}
 
-    @* PR-16: SSS özeti — tamamı /sss'te. Adet SssOzetAdet ile sabit (yönetim ekranındaki notla aynı). *@
-    @if (_sss.Count > 0)
-    {
-        <h2 class="section-title">Sık Sorulan Sorular</h2>
-        <div class="sss-liste">
-            @foreach (var k in _sss.Take(SssOzetAdet))
-            {
-                <details class="sss">
-                    <summary>@k.Soru</summary>
-                    @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
-                    {
-                        <p>@p</p>
-                    }
-                </details>
-            }
-        </div>
-        @if (_sss.Count > SssOzetAdet)
-        {
-            <p class="ust-linkler"><a href="/sss">Tüm soruları gör (@_sss.Count)</a></p>
-        }
-    }
-</div>
+<BolumNasilCalisir />
+
+<BolumFiyatNasil KosulSayfasi="@_kosulSayfasi" />
+
+<BolumSss Sorular="_sss" Adet="SssOzetAdet" />
+
+<BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
 
 @code {
-    /// <summary>Ana sayfada gösterilen SSS adedi — yönetim ekranındaki nota karşılık gelir.</summary>
+    /// <summary>Ana sayfada gösterilen SSS adedi — ERP yönetim ekranındaki nota karşılık gelir.</summary>
     public const int SssOzetAdet = 4;
+
+    /// <summary>"Kiralama koşulları" için aranan slug'lar — firma bunlardan birini yazdıysa
+    /// fiyat bölümünden oraya bağlantı verilir; yoksa bağlantı hiç basılmaz (T2).</summary>
+    private static readonly string[] KosulSluglari = ["kiralama-kosullari", "kosullar", "sartlar"];
 
     private IReadOnlyList<FleetShowcaseCard>? _cards;
     private IReadOnlyList<SssSatiri> _sss = [];
     private FleetBranding? _branding;
+    private IReadOnlyList<string> _subeler = [];
+    private string? _kanonik;
+    private string? _kosulSayfasi;
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
         _sss = await Icerik.YayindakiSssAsync();
+
+        // Şube listesi Hero'daki arama kutusu için; boşsa AramaFormu seçim kutusunu hiç basmaz.
+        try { _subeler = [.. (await Subeler.ListAsync()).Select(b => b.Ad)]; }
+        catch { _subeler = []; }
+
+        var host = await Showcase.GetCanonicalHostAsync();
+        _kanonik = host is null ? null : $"https://{host}/";
+
+        var sayfalar = await Icerik.YayindakiSayfalarAsync();
+        _kosulSayfasi = sayfalar.FirstOrDefault(s => KosulSluglari.Contains(s.Slug)) is { } k
+            ? $"/{k.Slug}" : null;
     }
 }

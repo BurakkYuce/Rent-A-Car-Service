@@ -205,11 +205,26 @@ public sealed class FleetShowcaseService(
     private static decimal R(decimal x) => Math.Round(x, 2, MidpointRounding.AwayFromZero);
 
     // ---- Marka / SEO ----
+    //
+    // PR-19 — İSTEK-İÇİ ÖNBELLEK. Ölçümde görüldü: tek bir halka açık sayfa isteğinde marka
+    // BİRDEN ÇOK kez çekiliyor (kabuk üst barı, alt bilgi, sayfa başlığı, JSON-LD…); kanonik host
+    // da hem `App.razor`ın canonical etiketi hem yapısal veri için isteniyor. Servis `AddScoped`
+    // olduğundan örnek istek başına tek → sonraki çağrılar DB'ye gitmez. Veri istek ortasında
+    // değişmez, tutarlılık riski yok.
+    private FleetBranding? _brandingCache;
+    private bool _kanonikCache;
+    private string? _kanonikDeger;
 
-    public Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
-        => branding.GetAsync(tenant.TenantIdOrThrow(), ct);
+    public async Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
+        => _brandingCache ??= await branding.GetAsync(tenant.TenantIdOrThrow(), ct);
 
     /// <summary>PR-9: SEO kanonik host'u (canonical link + sitemap + robots TEK kaynağı).</summary>
-    public Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)
-        => branding.GetCanonicalHostAsync(tenant.TenantIdOrThrow(), ct);
+    public async Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)
+    {
+        // null da GEÇERLİ bir sonuç (site hiç yayında değil) → ayrı bir "çekildi mi" bayrağı gerekir.
+        if (_kanonikCache) return _kanonikDeger;
+        _kanonikDeger = await branding.GetCanonicalHostAsync(tenant.TenantIdOrThrow(), ct);
+        _kanonikCache = true;
+        return _kanonikDeger;
+    }
 }
