@@ -609,3 +609,62 @@ img.card-img, .card-img-placeholder {
 }
 
 .btn-ikincil:hover { background: var(--brand-ink); color: var(--brand); }
+
+/* ---- PR-20: araç detayı (kapak + fiyat kartı) ---- */
+.detay-ust {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  margin-bottom: var(--s4);
+}
+
+/* Dar ekranda tek sütun: fiyat kartı görselin ALTINA iner (karar bilgisi görselden sonra). */
+@media (max-width: 720px) {
+  .detay-ust { grid-template-columns: 1fr; }
+}
+
+.detay-kapak {
+  width: 100%;
+  aspect-ratio: 3/2;
+  object-fit: cover;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.detay-gorsel .galeri { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+
+.fiyat-kart {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  box-shadow: var(--golge);
+  /* Uzun özellik tablosunda fiyat ekranda kalsın (yalnız geniş ekranda). */
+  position: sticky;
+  top: calc(var(--s5) + var(--s2));
+}
+
+@media (max-width: 720px) {
+  .fiyat-kart { position: static; }
+}
+
+.fiyat-kart .fiyat { margin: 0; }
+
+.fiyat-kademe { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+
+.fiyat-kademe li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding-top: .35rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.btn-cta.tam-genislik { text-align: center; width: 100%; }
