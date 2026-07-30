@@ -60,11 +60,11 @@ public static class TenantSettingsEndpoints
             using var ms = new MemoryStream();
             await logo.CopyToAsync(ms);
             var bytes = ms.ToArray();
-            // PR-3: paylaşılan ImageValidation — logo yalnız Png/Jpeg kabul eder (WebP'ye GENİŞLETİLMEDİ,
-            // QuestPDF'in WebP decode desteği doğrulanamadı; VehiclePhotoService'in allow-list'i ayrı).
-            var kind = RentACar.Application.Common.ImageValidation.Detect(bytes);
-            if (kind is not (RentACar.Application.Common.ImageKind.Png or RentACar.Application.Common.ImageKind.Jpeg))
-                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Yalnız PNG/JPG yüklenebilir."));
+            // PR-A: kural TEK kaynakta (LogoKurallari) — tür + bayt + ölçü. Servis de AYNI kuralı
+            // uyguluyor (derinlik); buradaki kontrol kullanıcıya hızlı/anlaşılır hata vermek için.
+            // NOT: JPEG artık kabul edilmiyor — PNG-only (şeffaf zemin), bilinçli daraltma.
+            if (RentACar.Application.Common.LogoKurallari.Reddet(bytes) is { } logoHata)
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(logoHata));
             await svc.SetLogoAsync(bytes);
             return Results.Redirect("/ayarlar?ok=1");
         });
