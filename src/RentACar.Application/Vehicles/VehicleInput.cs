@@ -29,7 +29,7 @@ public sealed class VehicleInput
     public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
     public FiloStatus? FiloDurum { get; set; }
     public int Km { get; set; }
-    public FuelType Yakit { get; set; } = FuelType.Benzin;
+    public FuelType? Yakit { get; set; }   // PR-21: null = "belirtilmedi"
 
     // Parite zenginleştirme (additive, opsiyonel)
     public int? MotorGucu { get; set; }

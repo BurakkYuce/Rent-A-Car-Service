@@ -16,7 +16,8 @@ public sealed class FleetStatusRow
     public string? Segment { get; init; }
     public string? Sipp { get; init; }
     public Vites? Vites { get; init; }
-    public FuelType Yakit { get; init; }
+    /// <summary>PR-21: null = "girilmedi" (araç kaydında yakıt seçilmemiş).</summary>
+    public FuelType? Yakit { get; init; }
     public int Km { get; init; }
     public string? Sube { get; init; }
 
