@@ -43,6 +43,15 @@ var piiKey = builder.Configuration["Pii:HmacKey"];
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(piiKey))
     throw new InvalidOperationException("Pii:HmacKey bu ortamda zorunludur (PII blind-index anahtarı).");
 
+// DataProtection key-ring — Web/Api ile AYNI guard. Bu proje bugün *Enc PII yazmıyor ama key-ring'i
+// ANTIFORGERY token'ları için KULLANIYOR: dizin publish çıktısının içine düşerse her redeploy'da halka
+// açık formlar (talep/arama) açık sekmelerde 400 verir. Ayrıca guard'ın burada OLMAMASI asimetrikti —
+// Web env yokken açılmayı reddederken PublicSite sessizce KENDİ key-ring'ini yaratıyordu; ileride bu
+// projeye PII'ye dokunan bir yol eklendiği anda sessiz ve geri dönülemez cipher kaybı olurdu.
+if (!builder.Environment.IsDevelopment()
+    && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(RentACar.Infrastructure.Security.KeyRingPath.EnvVar)))
+    throw new InvalidOperationException("RACAR_DP_KEYS bu ortamda zorunludur (DataProtection key-ring kalıcı dizini; Web/Api ile AYNI dizin verilmelidir).");
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 
