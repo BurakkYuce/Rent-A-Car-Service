@@ -108,7 +108,16 @@ public sealed class ReservationService(
             || !string.Equals(existing.KampanyaKodu ?? "", input.KampanyaKodu?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)
             || !string.Equals(existing.Kaynak ?? "", input.Kaynak?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)
             || !string.Equals(existing.CikisOfisi ?? "", input.CikisOfisi ?? "", StringComparison.Ordinal);
-        var pr = fiyatDegisti ? await _pricing.PriceAsync(input, ct: ct) : null;
+        // KDV MODU YALNIZ ÜCRET VEYA MOD DEĞİŞTİYSE UYGULANIR. Düzenleme formu ücreti KAYITLI (brüte
+        // normalize edilmiş) değerle doldurup fiyat türünü aynen geri gönderiyor; net modda ("Günlük"/
+        // "Toplam") dönüşümü tekrar uygulamak her kayıtta sessiz %20 zam üretiyordu (1.000 → 1.200 →
+        // 1.440 …). Kullanıcı ücrete de moda da dokunmadıysa saklanan değer zaten brüttür.
+        var ucretVeyaModDegisti =
+            existing.GunlukUcret != input.GunlukUcret
+            || !string.Equals(existing.FiyatTuru ?? "", input.FiyatTuru?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
+        var pr = fiyatDegisti
+            ? await _pricing.PriceAsync(input, kdvModuUygula: ucretVeyaModDegisti, ct: ct)
+            : null;
 
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
@@ -130,7 +139,9 @@ public sealed class ReservationService(
                 r.GunlukUcret = input.GunlukUcret;
                 r.Tutar = pr.Tutar;
                 r.HediyeGun = pr.HediyeGun; r.FaturalananGun = pr.FaturalananGun; r.IskontoTutar = pr.IskontoTutar; r.HaftaSonuFark = pr.HaftaSonuFark;
-                r.KdvOranSnapshot = pr.KdvOranSnapshot;
+                // KDV modu atlandıysa yeni fiyatlama snapshot ÜRETMEZ; mevcut snapshot korunur —
+                // aksi halde tarih düzenlemesi faturanın ayrıştırma oranını sessizce sıfırlardı.
+                r.KdvOranSnapshot = ucretVeyaModDegisti ? pr.KdvOranSnapshot : r.KdvOranSnapshot;
             }
             r.KmLimit = input.KmLimit;
             r.FazlaKmUcret = input.FazlaKmUcret;
