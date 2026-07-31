@@ -56,12 +56,17 @@ public sealed class PricingService(
         int Gun, decimal Tutar, int? HediyeGun, decimal? IskontoTutar, decimal? HaftaSonuFark, int? FaturalananGun,
         decimal? KdvOranSnapshot = null);
 
-    public async Task<PricedRental> PriceAsync(BookingInput input, bool dolulukUygula = true, CancellationToken ct = default)
+    public async Task<PricedRental> PriceAsync(
+        BookingInput input, bool dolulukUygula = true, bool kdvModuUygula = true, CancellationToken ct = default)
     {
         var gun = BookingMath.ComputeGun(input.BasTar, input.BitTar);
 
-        // "Otomatik" fiyat türü: manuel ücret yok sayılır → daima tarife çözümü.
+        // "Otomatik" fiyat türü: manuel ücret tarifeye KARŞI yok sayılır → daima tarife çözümü.
+        // Ama ücret KAYBEDİLMEZ: tarife çözülemezse aşağıda kurtarma değeri olur. Eskiden burada
+        // silinip sonra "fiyat yok" diye reddediliyordu — kullanıcı fiyatı yazmışken hata alıyordu.
         var otomatik = string.Equals(input.FiyatTuru?.Trim(), "Otomatik", StringComparison.OrdinalIgnoreCase);
+        var girilenUcret = input.GunlukUcret;
+        var manuelKurtarma = false;
         if (otomatik) input.GunlukUcret = 0m;
 
         // FAZ 3.A5: kampanya kodu yalnız motor (Otomatik) yolunda uygulanabilir — manuel/legacy fiyat
@@ -131,9 +136,25 @@ public sealed class PricingService(
             }
         }
 
-        // Otomatik seçildi ama tarife çözülemedi → temiz red. Otomatik DEĞİLKEN 0 kalması mevcut davranıştır.
+        // Otomatik seçildi ama tarife çözülemedi. ESKİ davranış: koşulsuz red — kullanıcı fiyatı yazmış
+        // olsa bile "Otomatik"e basınca hata alıyordu (tarife tanımlamamış tenant'ta HER kirada).
+        // YENİ: kullanıcının girdiği ücret NET kabul edilip üzerine KDV eklenir (aşağıdaki "Günlük"
+        // semantiği). Tarife VARSA hâlâ tarife kazanır — bu yalnız tarife YOKKEN devreye giren kurtarma.
         if (otomatik && input.GunlukUcret <= 0)
-            throw new ValidationException("Otomatik tarife bulunamadı; manuel fiyat girin veya tarife tanımlayın.");
+        {
+            // Kampanya kodu YALNIZ tarife matrisiyle çözülür (FAZ 3.A5-B1). Manuel kurtarmada kodu
+            // sessizce yutmak "kod uygulandı" yanılsaması + para kaçağı olurdu → gürültülü red korunur.
+            if (!string.IsNullOrWhiteSpace(input.KampanyaKodu))
+                throw new ValidationException(
+                    "Kampanya kodu yalnız tarife matrisiyle fiyatlanan kirada uygulanır; tarife tanımlayın veya kodu temizleyin.");
+            // Ne tarife ne de girilen ücret var → hâlâ temiz red: sessiz 0-TL sözleşme oluşturulamaz.
+            if (girilenUcret <= 0)
+                throw new ValidationException("Otomatik tarife bulunamadı; günlük ücret girin veya tarife tanımlayın.");
+
+            input.GunlukUcret = girilenUcret;
+            otomatik = false;        // bundan sonrası manuel fiyat yolu (KDV modu uygulanır)
+            manuelKurtarma = true;   // mod "Otomatik" olarak KAYDA geçer; yalnız fiyatlama net+KDV yapar
+        }
 
         // KDV MODU (yalnız Otomatik DEĞİLKEN — Otomatik motor/RateCard brütü zaten çözdü). GunlukUcret DAİMA
         // brüte (KDV-dahil) normalize edilir → ExtendAsync (gün × GunlukUcret) tutarlı; Tutar hep brüt (fatura
@@ -141,11 +162,19 @@ public sealed class PricingService(
         // FAZ 3.A6: gross-up oranı TENANT VARSAYILANI (?? 0.20); NET modlarda kullanılan oran SNAPSHOT
         // olarak döner (fatura ayrıştırması + net-mod guard'ı aynı orandan — oran sonradan değişse bile).
         var varsayilanOran = await _kdvVarsayilan.OranAsync(ct);
-        var netMod = string.Equals(input.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
-                  || string.Equals(input.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
-        var tutar = otomatik ? KdvMath.RoundGross(gun * input.GunlukUcret) : KdvModuUygula(input, gun, varsayilanOran);
+        // Manuel kurtarmada kayda "Otomatik" geçer (kullanıcı onu seçti) ama fiyatlama "Günlük" (net+KDV)
+        // semantiğiyle yapılır → input.FiyatTuru MUTASYONU YOK, mod parametre olarak taşınır.
+        var mod = manuelKurtarma ? "Günlük" : (input.FiyatTuru ?? string.Empty).Trim();
+        var netMod = string.Equals(mod, "Günlük", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(mod, "Toplam", StringComparison.OrdinalIgnoreCase);
+        // kdvModuUygula=false → çağıran ücretin ZATEN brüte normalize edildiğini biliyor (rezervasyon
+        // düzenlemesinde kullanıcı ne ücrete ne moda dokundu). Dönüşümü tekrar uygulamak her kayıtta
+        // sessiz %20 zam üretiyordu — bkz. RepriceGrossUpProbeTests.
+        var tutar = otomatik || !kdvModuUygula
+            ? KdvMath.RoundGross(gun * input.GunlukUcret)
+            : KdvModuUygula(input, gun, varsayilanOran, mod);
         return new PricedRental(gun, tutar, null, null, null, null,
-            KdvOranSnapshot: !otomatik && netMod ? varsayilanOran : null);
+            KdvOranSnapshot: !otomatik && kdvModuUygula && netMod ? varsayilanOran : null);
     }
 
     /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif
@@ -170,9 +199,8 @@ public sealed class PricingService(
     /// DEFTERE girmez (fatura/cari Tutar'ı okur), yalnız uzatmada türetilen günlük + ekran. Yan etki: GunlukUcret
     /// mutasyonu net modlarda idempotent DEĞİL (aynı input'u iki kez fiyatlarsa çift grossup — adversarial Bulgu-2);
     /// mevcut çağıranlar tek kez fiyatlar (rez/teklif update formu FiyatTuru göndermez → default brüt dalı).</summary>
-    private static decimal KdvModuUygula(BookingInput input, int gun, decimal oran)
+    private static decimal KdvModuUygula(BookingInput input, int gun, decimal oran, string mod)
     {
-        var mod = (input.FiyatTuru ?? string.Empty).Trim();
         bool Es(string x) => string.Equals(mod, x, StringComparison.OrdinalIgnoreCase);
 
         if (Es("Günlük")) // NET günlük ücret → brüt
