@@ -11,10 +11,11 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// "Fiyat Türü = Otomatik" tetikleyicisi — bağımsız oracle. Otomatik seçiliyken manuel GunlukUcret
-/// SUNUCU tarafında yok sayılır (tarife matrisi tek gerçek kaynak); tarife çözülemezse (matris yok /
-/// TRY-dışı matris) temiz red. Otomatik DEĞİLKEN eski kurallar aynen: manuel &gt;0 kazanır;
-/// 0 + matris → matris (regresyon). Beklenen değerler ELLE kurulmuş senaryodan:
-/// matris Gün3=240 → 3 gün × 240 = 720 (koddan değil).
+/// tarifeye KARŞI yok sayılır (tarife matrisi tek gerçek kaynak). Tarife çözülemezse (matris yok /
+/// TRY-dışı matris) girilen ücret NET kurtarma değeri olur → +KDV; ücret de yoksa temiz red
+/// (sessiz 0-TL sözleşme oluşmaz — bkz. <see cref="OtomatikFiyatKurtarmaTests"/>).
+/// Otomatik DEĞİLKEN eski kurallar aynen: manuel &gt;0 kazanır; 0 + matris → matris (regresyon).
+/// Beklenen değerler ELLE kurulmuş senaryodan: matris Gün3=240 → 3 gün × 240 = 720 (koddan değil).
 /// </summary>
 [Collection("postgres")]
 public sealed class FiyatOtomatikTests(PostgresFixture fx)
@@ -68,9 +69,25 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         Assert.Equal(720m, r.Bakiye);
     }
 
-    // (b) Otomatik + matris yok → temiz red (sessiz 0-TL kira oluşmaz).
+    // (b) Otomatik + matris yok + GİRİLEN ücret → red DEĞİL: girilen 999 NET kabul edilir, +KDV.
+    // (Eski davranış koşulsuz reddediyordu; kullanıcı fiyatı yazmışken de hata alıyordu.)
     [Fact]
-    public async Task Rental_otomatik_without_matrix_rejected()
+    public async Task Rental_otomatik_without_matrix_girilen_ucrete_kdv_ekler()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var (m, v) = await SeedAsync(scope, matris: false);
+
+        var id = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik"));
+        var r = (await kira.GetAsync(id))!;
+        Assert.Equal(1198.80m, r.GunlukUcret);   // 999 × 1,20 (elle)
+        Assert.Equal(3596.40m, r.Tutar);         // 3 × 1.198,80 (elle)
+    }
+
+    // (b-0) Otomatik + matris yok + ücret de yok → HÂLÂ temiz red (sessiz 0-TL kira oluşmaz).
+    [Fact]
+    public async Task Rental_otomatik_without_matrix_and_without_rate_rejected()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
@@ -78,7 +95,7 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(scope, matris: false);
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik")));
+            () => kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 0m, fiyatTuru: "Otomatik")));
         Assert.Contains("Otomatik tarife", ex.Message);
     }
 
@@ -150,18 +167,19 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         Assert.Equal(720m, r.Tutar);
     }
 
-    // (e) Rezervasyon yolu, (b): Otomatik + matris yok → temiz red.
+    // (e) Rezervasyon yolu, (b) ile AYNI: kurtarma ortak facade'da olduğu için üç create yolu da kapsanır.
     [Fact]
-    public async Task Reservation_otomatik_without_matrix_rejected()
+    public async Task Reservation_otomatik_without_matrix_girilen_ucrete_kdv_ekler()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope, matris: false);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rez.CreateAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik")));
-        Assert.Contains("Otomatik tarife", ex.Message);
+        var id = await rez.CreateAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik"));
+        var r = (await rez.GetAsync(id))!;
+        Assert.Equal(1198.80m, r.GunlukUcret);   // 999 × 1,20 (elle)
+        Assert.Equal(3596.40m, r.Tutar);         // 3 × 1.198,80 (elle)
     }
 
     // (e+) Rezervasyon UPDATE de kapsanır: manuel 500 ile açılan rezervasyon, Otomatik ile
