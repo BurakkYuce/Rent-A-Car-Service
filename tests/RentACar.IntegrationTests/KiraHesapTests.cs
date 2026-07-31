@@ -96,15 +96,32 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         Assert.Equal(200m, r.GunlukUcret);
     }
 
+    // Tarife yok AMA ücret girilmiş → panel artık HATA basmaz, girilen ücreti NET alıp KDV ekler.
     [Fact]
-    public async Task Otomatik_tarife_yok_ok_false()
+    public async Task Otomatik_tarife_yokken_girilen_ucrete_kdv_ekler()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 02", Grup = "YOK" });
-        var r = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(Istek(vehicleId: veh, fiyatTuru: "Otomatik"));
-        Assert.False(r.Ok); // exception değil — panelde nazik mesaj
+        var r = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(
+            Istek(vehicleId: veh, ucret: 100m, fiyatTuru: "Otomatik"));
+        Assert.True(r.Ok);
+        Assert.Equal(120m, r.GunlukUcret);   // 100 × 1,20 (elle)
+        Assert.Equal(360m, r.Tutar);         // 3 × 120 (elle)
+    }
+
+    // Tarife de ücret de yoksa panel HÂLÂ nazik hata basar (exception değil).
+    [Fact]
+    public async Task Otomatik_tarife_ve_ucret_yoksa_ok_false()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 03", Grup = "YOK" });
+        var r = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(
+            Istek(vehicleId: veh, ucret: 0m, fiyatTuru: "Otomatik"));
+        Assert.False(r.Ok);
         Assert.Contains("tarife", r.Hata, StringComparison.OrdinalIgnoreCase);
     }
 
