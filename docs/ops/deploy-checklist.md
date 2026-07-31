@@ -42,7 +42,7 @@ Secret'ları **appsettings.json'a KOYMA** (repo'ya sızar). Env değişkeni veya
 | `ConnectionStrings:Default` | Web + Api | — | **racar_app** ile (NOBYPASSRLS). Eksik → red. |
 | `ConnectionStrings:Migrator` | Web | — | **racar_owner** ile (yalnız migration). Eksik → red. |
 | `Pii:HmacKey` | Web + Api | `openssl rand -base64 48` | PII blind-index (TC arama). **Kaybolursa TC araması bozulur** — YEDEKLE. |
-| `RACAR_DP_KEYS` (env var) | Web + Api | kalıcı dizin yolu, ör. `/var/lib/racar/dp-keys` | DataProtection key-ring KALICI dizini. **Geçici FS'te redeploy = tüm *Enc PII kalıcı çözülemez.** |
+| `RACAR_DP_KEYS` (env var) | Web + Api + **PublicSite** | kalıcı dizin yolu, ör. `/var/lib/racar/dp-keys` | DataProtection key-ring KALICI dizini — **üç binary'ye de AYNI dizin.** Verilmezse her binary kendi ring'ini yaratır (Web'in şifrelediğini Api/PublicSite çözemez); publish çıktısı üzerine yazıldığında ring ile birlikte **tüm *Enc PII kalıcı çözülemez.** Yerelde birebir yaşandı: `dotnet clean` sonrası 29 cipher okunamaz oldu. |
 | `Jwt:Key` | **yalnız Api** | `openssl rand -base64 48` (≥32 bayt, özgün) | API token imzalama. Dev/zayıf anahtar prod'da reddedilir. |
 | `Platform:AdminUser` | Web | — | Platform süper-admin (/platform konsolu) kullanıcı adı. |
 | `Platform:AdminPasswordHash` | Web | app'in hasher'ı (`PlatformCredentials.HashPassword`) | Düz şifre DEĞİL, hash. Üretmek için yardım iste (ya da geçici snippet). |
@@ -85,6 +85,12 @@ dotnet publish src/RentACar.PublicSite -c Release -o /opt/racar/publicsite
 systemd unit (`/etc/systemd/system/racar-publicsite.service`): `ExecStart=/usr/bin/dotnet
 /opt/racar/publicsite/RentACar.PublicSite.dll`, `Environment=ASPNETCORE_URLS=http://127.0.0.1:5230`,
 `User=<appuser>`, `Restart=always`. `systemctl enable --now racar-publicsite`.
+
+**Bu unit'e de ŞART:** `ASPNETCORE_ENVIRONMENT=Production`, `ConnectionStrings__Default` (racar_app),
+`Pii__HmacKey` ve **`RACAR_DP_KEYS=/var/lib/racar/dp-keys`** — Web ile AYNI dizin (§3). En pratiği aynı
+`EnvironmentFile=/etc/racar/racar-web.env`'i kullanmak. PublicSite bu ring'i antiforgery token'ları için
+kullanıyor: ayrı/geçici ring, her redeploy'da açık sekmelerdeki talep ve müsaitlik formlarını 400'e düşürür.
+Eksikse uygulama açılışta reddeder (Web/Api ile aynı guard).
 
 **KRİTİK — port 5230 YALNIZ `127.0.0.1`'e bind (dışarı AÇILMAZ):** PR-5'ten itibaren tenant çözümleme VE
 `PendingVerification→Active` otomatik-flip (özel domain doğrulaması) TAMAMEN gelen isteğin Host header'ına

@@ -62,8 +62,9 @@ public static class DependencyInjection
 
         // Şifreleme (roadmap D1): hassas tenant kimliklerini at-rest şifrele. Key-ring KALICI
         // (PersistKeysToFileSystem + SetApplicationName) → restart/redeploy sonrası aynı anahtarla çözülür.
-        var keysDir = Environment.GetEnvironmentVariable("RACAR_DP_KEYS")
-            ?? Path.Combine(AppContext.BaseDirectory, "dp-keys");
+        // Yol çözümü KeyRingPath'te (test edilebilir): fallback ARTIK bin/ altında DEĞİL — build çıktısına
+        // yazmak `dotnet clean`/redeploy'da key-ring'i siliyor ve *Enc PII kalıcı çözülemez hale geliyordu.
+        var keysDir = RentACar.Infrastructure.Security.KeyRingPath.Resolve();
         Directory.CreateDirectory(keysDir);
         services.AddDataProtection()
             .PersistKeysToFileSystem(new DirectoryInfo(keysDir))
