@@ -19,6 +19,12 @@ kendi kendine yeter: amaç, kanıt, adım adım yapılacaklar (dosya yollu), mig
 > gruplama sırasında ortaya çıkan ek adımlardan geliyor. Tahminler ilk 3-5 faz bittikten sonra
 > yeniden kalibre edilmeli.
 
+## Sıra
+
+**Hangi fazı hangi sırayla yapacağın:** [`SIRA.md`](SIRA.md) — bağımlılıklara göre topolojik
+sıralanmış 68 faz, kümülatif eforuyla. Aşağıdaki tablo ise **modüle göre** gruplu (nerede olduğunu
+bulmak için).
+
 ## Nereden başlanır
 
 1. **[FAZ-00](FAZ-00-bedava-kazanclar.md)** — saatler sürer, migration yok. İçinde bir de **rapor
