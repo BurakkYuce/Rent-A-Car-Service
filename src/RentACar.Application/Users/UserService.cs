@@ -67,4 +67,36 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         var hash = _hasher.Hash(newPassword);
         return await _repository.UpdateAsync(id, u => u.PasswordHash = hash, ct);
     }
+
+    /// <summary>
+    /// FAZ-83 — Kullanıcının KENDİ parolasını, eski parolasını doğrulayarak değiştirmesi.
+    ///
+    /// <para><b>Admin guard'ı BİLİNÇLİ OLARAK YOK</b> (<c>RequireAdmin()</c> çağrılmaz): herhangi
+    /// rol kendi parolasını değiştirebilmeli. Bu, <see cref="ResetPasswordAsync"/>'ten farklı bir
+    /// yetki modelidir ve tam bu yüzden kimlik <b>ASLA parametreden alınmaz</b> —
+    /// <see cref="ICurrentUser.UserId"/>'den okunur. Aksi hâlde giriş yapmış herhangi biri, başka
+    /// bir kullanıcının id'sini geçirerek onun parolasını değiştirebilirdi (yetki yükseltme).
+    /// Bu yüzden metodun <c>id</c> parametresi YOKTUR ve olmamalıdır.</para>
+    ///
+    /// <para>Tenant sınırı ayrıca RLS + global query filter ile korunur: başka tenant'ın
+    /// kullanıcısı <c>FindAsync</c> ile bulunamaz.</para>
+    /// </summary>
+    public async Task<bool> ChangeOwnPasswordAsync(string eskiSifre, string yeniSifre, CancellationToken ct = default)
+    {
+        if (_currentUser.UserId is not { } uid)
+            throw new ValidationException("Oturum bulunamadı.");
+        if (string.IsNullOrWhiteSpace(yeniSifre) || yeniSifre.Length < 6)
+            throw new ValidationException("Parola en az 6 karakter olmalıdır.");
+
+        var user = await _repository.FindAsync(uid, ct)
+            ?? throw new ValidationException("Oturum bulunamadı.");
+
+        // Eski parola doğrulaması: oturumu çalınmış bir tarayıcının parolayı sessizce
+        // değiştirmesini zorlaştıran tek kontrol bu.
+        if (!_hasher.Verify(user.PasswordHash, eskiSifre))
+            throw new ValidationException("Mevcut parola hatalı.");
+
+        var hash = _hasher.Hash(yeniSifre);
+        return await _repository.UpdateAsync(uid, u => u.PasswordHash = hash, ct);
+    }
 }

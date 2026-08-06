@@ -457,6 +457,7 @@ app.MapBelgeSablonEndpoints(); // marka-özel PDF metin şablonları
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();
+app.MapProfileEndpoints();   // FAZ-83: kendi parolanı değiştirme (rol kısıtı YOK)
 app.MapBranchEndpoints();
 app.MapRateCardEndpoints();
 app.MapLocationEndpoints();
