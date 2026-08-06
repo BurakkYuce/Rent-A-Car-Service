@@ -87,7 +87,10 @@
     protected override async Task OnInitializedAsync()
     {
         _list = await Baflar.ListAsync();
-        _persMap = (await Personeller.ListAsync()).ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
+        // ListAsync DEĞİL: o ManageUsers ister ve Operatör rolünde sayfayı 500'e düşürüyordu
+        // (seed kullanıcı Admin olduğu için gözden kaçmıştı — iki rollü duman testi yakaladı).
+        // Burada yalnız ad göstermek için isim lazım; ListForSelectAsync OperationsWrite yeter ve PII taşımaz.
+        _persMap = (await Personeller.ListForSelectAsync()).ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
         _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
         _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
