@@ -15,7 +15,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SearchTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
+    // NOW-GÖRELİ olmak ZORUNDA: sabit tarih (2026-07-01) kullanılıyordu ve takvim ilerleyince
+    // `Bas.AddDays(30)` geçmişe düştü → `TarihPolitikasi.RezervasyonBaslangic` testi patlattı.
+    // Kod değişmeden, yalnız gün dönerek kırmızıya düşen bir zaman bombasıydı.
+    // Whole-second UTC hizası: PG timestamptz µs/100ns farkı (bkz. diğer test dosyaları).
+    private static readonly DateTimeOffset Bas =
+        new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5).AddHours(9);
 
     [Fact]
     public async Task Finds_across_modules()
