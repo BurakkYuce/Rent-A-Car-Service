@@ -1,13 +1,19 @@
 @page "/arac-kredi"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @using RentACar.Application.AracKredileri
+@using RentACar.Application.Vehicles
 @using RentACar.Domain.Enums
 @inject AracKrediService Krediler
+@inject VehicleService Vehicles
 
 <PageTitle>Araç Kredisi — RentPro</PageTitle>
 
 <div class="page-head"><h1>Araç Kredisi Takip</h1><div class="actions"><a href="/listeler/export/arac-kredileri">Excel</a> · <a href="/listeler/export/arac-kredileri?format=csv">CSV</a> · <a href="/listeler/export/arac-kredileri?format=pdf">PDF</a></div></div>
-<p class="muted small">Banka kredisi + taksit planı + kalan bakiye. Banka entegrasyonu yok; defter postlamaz (salt takip).</p>
+@* Bu açıklama eskiden "defter postlamaz (salt takip)" diyordu; taksit ödeme artık GERÇEK gider
+   postluyor (ExpenseType.Finansman) — formun kendi tooltip'i de öyle diyordu. Metin düzeltildi. *@
+<p class="muted small">Banka kredisi + taksit planı + kalan bakiye. Banka entegrasyonu yok.
+    Taksit ödemesi <strong>gerçek gider yazar</strong> (Finansman); krediye araç bağlarsanız bu gider
+    o aracın karnesine işlenir.</p>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -18,6 +24,18 @@
     <summary>Yeni Kredi</summary>
     <form method="post" action="/arac-kredi/create" class="grid-form"><AntiforgeryToken />
         <label>Banka<input name="bankaAdi" required /></label>
+        @* Araç OPSİYONEL: filo geneli krediler araçsız kalır. Seçilirse taksit gideri o araca
+           atfedilir (AracKrediService → AccountLedgerEntry.AccountRef = VehicleId) ve araç
+           karnesinde görünür. Uç bu alanı ZATEN okuyordu; eksik olan yalnız formdu. *@
+        <label>Araç (opsiyonel — taksit gideri bu araca yazılır)
+            <select name="vehicleId">
+                <option value="">— filo geneli —</option>
+                @foreach (var v in _vehicles)
+                {
+                    <option value="@v.Id">@v.Plaka</option>
+                }
+            </select>
+        </label>
         <label>Kredi Tutarı<input name="krediTutari" type="number" step="0.01" min="0" required /></label>
         <label>Yıllık Faiz<input name="faizOran" type="number" step="0.0001" min="0" value="0" /></label>
         <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="360" required /></label>
@@ -29,11 +47,11 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>No</th><th>Banka</th><th class="num">Kredi</th><th class="num">Aylık Taksit</th><th class="num">Ödenen/Toplam</th><th class="num">Kalan Bakiye</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>No</th><th>Banka</th><th>Araç</th><th class="num">Kredi</th><th class="num">Aylık Taksit</th><th class="num">Ödenen/Toplam</th><th class="num">Kalan Bakiye</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Kredi yok.</td></tr>
+            <tr><td colspan="9" class="muted">Kredi yok.</td></tr>
         }
         @foreach (var k in _list)
         {
@@ -41,6 +59,7 @@
             <tr>
                 <td>@k.No</td>
                 <td>@k.BankaAdi</td>
+                <td>@Arac(k.VehicleId)</td>
                 <td class="num">@k.KrediTutari.ToString("N2")</td>
                 <td class="num">@o.AylikTaksit.ToString("N2")</td>
                 <td class="num">@k.OdenenTaksit / @k.TaksitSayisi</td>
@@ -70,7 +89,16 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<AracKredi> _list = [];
+    private IReadOnlyList<RentACar.Domain.Entities.Vehicle> _vehicles = [];
+    private Dictionary<Guid, string> _vehMap = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await Krediler.ListAsync();
+    {
+        _list = await Krediler.ListAsync();
+        _vehicles = await Vehicles.ListAsync();
+        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+    }
+
+    /// <summary>Kredinin bağlı olduğu araç plakası; filo geneli kredide "—".</summary>
+    private string Arac(Guid? id) => id is { } g && _vehMap.TryGetValue(g, out var p) ? p : "—";
 }

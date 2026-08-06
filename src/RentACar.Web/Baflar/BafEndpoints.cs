@@ -37,7 +37,10 @@ public static class BafEndpoints
             var id = FormParse.Id(f["id"].ToString()) ?? Guid.Empty;
             var donusKm = FormParse.Int(f["donusKm"].ToString()) ?? 0;
             var donusYakit = FormParse.Int(f["donusYakit"].ToString());
-            try { await svc.TeslimAlAsync(id, donusKm, donusYakit); return Results.Redirect("/baf"); }
+            // wire-in: servis imzası donusTarihi'ni ZATEN alıyordu (varsayılan: şimdi) ama uç hiç
+            // geçmiyordu → geç girilen teslimlerde tarih gerçek teslim anı değil kayıt anı oluyordu.
+            var donusTarihi = FormParse.Date(f["donusTarihi"].ToString());
+            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi); return Results.Redirect("/baf"); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
