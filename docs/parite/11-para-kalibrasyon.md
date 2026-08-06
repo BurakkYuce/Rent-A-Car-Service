@@ -77,14 +77,19 @@ yapılamadı; model uyumlu olduğu için düşük riskli sayıldı.)
 **Canlı** (`tarifeler.aspx`): gün kademesi alanları `Gun1..Gun6`'nın **yanında** her kademe için
 `Km1..Km6` (km limiti) **ve** `Km1_Ucret..Km6_Ucret` (o kademenin km-aşım ücreti) var.
 
-**Bizde:** `RateCard`'da gün kademesi (`MinGun`/`MaxGun`) **var** ama yalnız `GunlukUcret` tutuyor;
-km limiti araç grubunda **tek ve global** (`VehicleGroup.GunlukKmLimiti` / `AsimKmUcreti`).
+**Bizde:** km limiti araç grubunda **tek ve global** (`VehicleGroup.GunlukKmLimiti` / `AsimKmUcreti`);
+hiçbir tarife varlığında kademe-başına km yok.
 
-> Bu maddeyi yazarken bir hipotezi düzelttik: "canlıda kademe sınırları kullanıcı tanımlı, bizde
-> sabit" **yanlıştı** — `RateCard.MinGun/MaxGun` zaten esnek. Gerçek fark km boyutunda.
+> **İki kez düzeltildi — ikisi de kayda değer:**
+> 1. İlk hipotez "canlıda kademe sınırları kullanıcı tanımlı, bizde sabit" idi → **yanlış**:
+>    `RateCard.MinGun/MaxGun` zaten esnek. Gerçek fark km boyutunda.
+> 2. Sonra bu maddeyi `RateCard` üzerinden yazdık → **yanlış hedef**: `RateCard` **DEPRECATED**
+>    (`PricingService.cs:15,19` — "yeni tarifeler RateMatrix'e", yalnız geriye-uyum fallback'i).
+>    Birincil motor `RentalQuoteEngine` → **`RateMatrix`**, ve `RateMatrix`'te km alanı **hiç yok**.
+>    Km kademesi işi `RateMatrix`'e yapılmalı; deprecated varlığa alan eklemek ölü kod üretirdi.
 
 **Sonuç:** "1-3 gün 200 km/gün, 4-10 gün 300 km/gün" gibi kademeye bağlı km politikası bizde
-kurulamıyor. **Durum:** açık iş (D2).
+kurulamıyor. **Durum:** açık iş — `docs/roadmap/FAZ-71-*` (hedef: `RateMatrix`).
 
 ---
 
