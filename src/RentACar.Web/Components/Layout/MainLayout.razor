@@ -252,6 +252,8 @@
                     <button type="button" class="link theme-toggle" data-theme-toggle aria-label="Tema değiştir" title="Açık/Koyu tema geçişi">
                         <span data-theme-label>Koyu</span>
                     </button>
+                    @* FAZ-83: her rol kendi parolasını değiştirebilir (admin gerekmez). *@
+                    <a class="link" href="/profil/sifre-degistir" title="Kendi parolanızı değiştirin">Şifre</a>
                     <form method="post" action="/auth/logout" class="logout-form"><AntiforgeryToken />
                         <button type="submit" class="link">Çıkış</button>
                     </form>
