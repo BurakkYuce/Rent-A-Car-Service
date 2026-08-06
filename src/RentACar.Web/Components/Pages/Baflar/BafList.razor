@@ -65,6 +65,10 @@
                         <form method="post" action="/baf/teslim-al" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@b.Id" />
                             <input name="donusKm" type="number" min="@b.CikisKm" placeholder="Dönüş KM" required style="width:7rem" />
+                            @* Yakıt ve tarih entity'de ve servis imzasında ZATEN vardı; form hiç
+                               sormuyordu. Tarih boşsa servis "şimdi" kullanır (geriye uyum). *@
+                            <input name="donusYakit" type="number" min="0" max="100" placeholder="Yakıt %" title="Dönüş yakıt yüzdesi (opsiyonel)" style="width:5.5rem" />
+                            <input name="donusTarihi" type="datetime-local" title="Gerçek teslim anı — boş bırakılırsa şimdi" style="width:12rem" />
                             <button type="submit">Teslim Al</button>
                         </form>
                         <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
