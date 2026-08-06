@@ -31,10 +31,20 @@ public static class BookingMath
         return (gun, tutar);
     }
 
-    /// <summary>Kısmi dönem gün eşiği (saat): kalan saat bunu aşarsa +1 gün. Canlı referans sistem
-    /// Saat_Farki_Hesap=3 + ~0.1sa grace → efektif ~2.9sa (kalibrasyon; sınır değeri yaklaşık, ince
-    /// ayar gerekirse bu sabit değişir). Uzatma/geç-dönüş bu kuralı KULLANMAZ (ReturnMath ayrı: ceil).</summary>
-    public const double KismiGunEsigiSaat = 2.9;
+    /// <summary>
+    /// Kısmi dönem gün eşiği (saat): kalan saat bunu <b>bulursa</b> +1 gün.
+    ///
+    /// <para><b>Değer artık tahmin değil, canlının kaynağından ölçüldü</b> (2026-08-06 parite koşusu).
+    /// referans sistem'in `kiralama.aspx` sayfasında gün hesabını yapan fonksiyon `Hizmet_Gun_Bul` (19 çağrı;
+    /// eski `Gun_Hesapla` yalnız 2 yerde kalmış) ve kalan süreyi `calculateTimeDifference` ile
+    /// <b>dakika duyarlı</b> hesaplayıp <c>Saat_Farki_Hesap</c> ile karşılaştırıyor; o alanın canlıdaki
+    /// değeri <b>3</b>. Eski 2.9, fonksiyonun yalnız AYNI-GÜN dalında uygulanan <c>+0.1</c> toleransından
+    /// türetilmiş bir yaklaşımdı; o dal sonucu zaten hep 1 güne sabitlediği için 2.9 pratikte sadece
+    /// [2.9, 3.0) aralığında (6 dakikalık pencere) <b>bize bir gün fazla faturalatıyordu</b>.</para>
+    ///
+    /// Uzatma/geç-dönüş bu kuralı KULLANMAZ (ReturnMath ayrı: ceil).
+    /// </summary>
+    public const double KismiGunEsigiSaat = 3.0;
 
     /// <summary>Gün sayısı: 24-saat TAM blok (floor) + kısmi dönem <see cref="KismiGunEsigiSaat"/>'ı aşarsa
     /// +1; en az 1. Fiyat motoru + kira/rezervasyon/teklif/uzatma-gün'ü kullanır (referans sistem parite).</summary>
