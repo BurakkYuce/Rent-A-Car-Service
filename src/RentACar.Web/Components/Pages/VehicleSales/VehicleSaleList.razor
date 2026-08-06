@@ -37,6 +37,18 @@
         <label>Satış Net<input name="satisNet" type="number" step="0.01" required /></label>
         <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" value="0.20" /></label>
         <label>Noter No<input name="noterNo" /></label>
+        @* Bu dört alan entity'de, input modelinde ve serviste ZATEN vardı; yalnız form hiç
+           sormuyordu (wire-in borcu). Hepsi opsiyonel — boş bırakılabilir. *@
+        <label>Hedef Fiyat<input name="hedefFiyat" type="number" step="0.01" min="0" placeholder="beklenen satış" /></label>
+        <label>Satış KM<input name="satisKm" type="number" min="0" placeholder="satış anındaki km" /></label>
+        <label>Satış Kanalı<input name="satisKanali" list="dl-satis-kanali" placeholder="Galeri / Açık artırma / Bireysel" /></label>
+        <datalist id="dl-satis-kanali">
+            <option value="Galeri"></option>
+            <option value="Açık Artırma"></option>
+            <option value="Bireysel"></option>
+            <option value="Kurumsal"></option>
+        </datalist>
+        <label>Devir<input name="devir" placeholder="noter / trafik devir notu" /></label>
         <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
         <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş bırakılırsa TRY=1; dövizde sabit kur/TCMB'den çözülür" /></label>
         <label>Açıklama<input name="aciklama" /></label>
