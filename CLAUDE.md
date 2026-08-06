@@ -90,7 +90,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 - **Gerçek entegrasyonlar** (e-Fatura/GİB, SMS, gerçek HGS/banka/POS) — hepsi **stub**; kimlik/credential gerektirir, açmadan önce kullanıcıya sor.
 - **Canlı referans sistem kuruş-kalibrasyonu** (fiyat motoru oranlarının canlıyla birebir doğrulanması).
 
-**Eksik (genişlik):** orijinal ~155 ekranın kalan azınlığı (dönem kapanışı ekranı, kimi PDF şablon derinlikleri); repo parite oranı ~%90+ — `docs/parite` eskimiştir, repo gerçeğine bak.
+**Eksik (genişlik) — 2026-08-06 canlı taramasıyla ÖLÇÜLDÜ:** canlıda 156 ekran; bizde **6 tam · 28 kısmi · 48 yok · 57 para-sınıfı · 5 erişilemez · 8 canlıda-bozuk · 4 doğrulanamadı**. Eksiklerin çoğu ekranın hiç olmaması değil **alan derinliği**; çekirdek akış (araç→müşteri→rezervasyon→kira→dönüş→fatura→tahsilat) uçtan uca çalışıyor. **`docs/parite` artık GÜNCEL** — önce `docs/parite/YONETICI-OZETI.md` oku; ekleme reçeteleri `docs/parite/10-ekleme-desenleri.md` (D1–D9). Ham HTML repo dışında (`~/parite-ham/`), erişim yöntemi `docs/parite/README.md`'de.
 
 ## 7. Yerelde çalıştırma (Mac)
 Önkoşul: .NET 10 SDK + PostgreSQL (Homebrew `postgresql@15` çalışıyor).
