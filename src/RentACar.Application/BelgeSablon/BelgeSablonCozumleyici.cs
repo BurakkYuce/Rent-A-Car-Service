@@ -10,7 +10,9 @@ namespace RentACar.Application.BelgeSablon;
 /// </summary>
 public sealed record SablonMetin(
     string? Baslik, string? HukukiMetinSol, string? HukukiMetinSag,
-    string? EkKosullarVarsayilan, string? AltBilgi)
+    string? EkKosullarVarsayilan, string? AltBilgi,
+    // FAZ-80 — fiziksel imza alanı basılsın mı. Şablon YOKSA true (mevcut davranış korunur).
+    bool ImzaAlaniGoster = true)
 {
     public static readonly SablonMetin Bos = new(null, null, null, null, null);
 }
@@ -35,7 +37,8 @@ public sealed class BelgeSablonCozumleyici(IBelgeSablonRepository repository)
         => Map(await repository.FindDefaultAsync(turu, ct));
 
     private static SablonMetin Map(Domain.Entities.BelgeSablon? s) => s is null ? SablonMetin.Bos
-        : new SablonMetin(s.BelgeBasligi, s.HukukiMetinSol, s.HukukiMetinSag, s.EkKosullarVarsayilan, s.AltBilgi);
+        : new SablonMetin(s.BelgeBasligi, s.HukukiMetinSol, s.HukukiMetinSag, s.EkKosullarVarsayilan,
+            s.AltBilgi, s.ImzaAlaniGoster);
 }
 
 /// <summary>Şablon metnindeki {Anahtar} yer-tutucularını değerle değiştirir (render anında). Boş değer →

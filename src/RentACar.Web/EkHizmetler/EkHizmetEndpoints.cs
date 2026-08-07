@@ -17,25 +17,31 @@ public static class EkHizmetEndpoints
 
         grp.MapPost("/create", async (EkHizmetTanimService svc,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? birimUcret, [FromForm] string? kdvOrani) =>
+            [FromForm] string? birimUcret, [FromForm] string? kdvOrani,
+            [FromForm] string? aciklama, [FromForm] string? maxGun) =>
             await Run(() => svc.CreateAsync(new EkHizmetTanimInput
             {
                 Kod = kod,
                 Ad = ad,
                 BirimUcret = FormParse.Dec(birimUcret) ?? 0m,
                 KdvOrani = FormParse.Dec(kdvOrani) ?? 0.20m,
+                Aciklama = aciklama,
+                MaxGun = FormParse.Int(maxGun),
                 Aktif = true
             })));
 
         grp.MapPost("/update", async (EkHizmetTanimService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? birimUcret, [FromForm] string? kdvOrani, [FromForm] bool aktif) =>
+            [FromForm] string? birimUcret, [FromForm] string? kdvOrani,
+            [FromForm] string? aciklama, [FromForm] string? maxGun, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new EkHizmetTanimInput
             {
                 Kod = kod,
                 Ad = ad,
                 BirimUcret = FormParse.Dec(birimUcret) ?? 0m,
                 KdvOrani = FormParse.Dec(kdvOrani) ?? 0.20m,
+                Aciklama = aciklama,
+                MaxGun = FormParse.Int(maxGun),
                 Aktif = aktif
             })));
 
