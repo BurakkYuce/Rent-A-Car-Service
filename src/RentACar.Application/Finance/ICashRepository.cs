@@ -47,7 +47,13 @@ public interface ICashRepository
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
-    Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default);
+    /// <summary>
+    /// Cari ekstresi. <paramref name="filter"/> null/boş → carinin TÜM hareketleri (eski davranış).
+    /// Filtre verilirse görünen satırlar daralır ve <see cref="CariEkstreSonuc.Devir"/> kapsam
+    /// dışında kalan ÖNCEKİ hareketlerin net toplamıyla dolar (yürüyen bakiye doğru devam etsin).
+    /// </summary>
+    Task<CariEkstreSonuc> GetCariStatementAsync(
+        Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>Kira başına kasa/banka işlem SAYISI (ters kayıtlar DAHİL → monoton artan sayaç).
     /// Deterministik tahsilat idempotency anahtarının zamansal bileşeni: yalnız (kira, bakiye)

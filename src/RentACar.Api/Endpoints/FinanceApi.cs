@@ -54,7 +54,7 @@ public static class FinanceApi
             Results.Ok(new { cariId, bakiye = await svc.GetCariBalanceAsync(cariId, ct) }));
 
         grp.MapGet("/customers/{cariId:guid}/statement", async (Guid cariId, CashService svc, CancellationToken ct) =>
-            Results.Ok((await svc.GetStatementAsync(cariId, ct)).Select(LedgerEntryResponse.From)));
+            Results.Ok((await svc.GetStatementAsync(cariId, ct: ct)).Satirlar.Select(LedgerEntryResponse.From)));
 
         // ---- Fatura ----
         grp.MapGet("/invoices", async (InvoiceService svc, CancellationToken ct) =>
