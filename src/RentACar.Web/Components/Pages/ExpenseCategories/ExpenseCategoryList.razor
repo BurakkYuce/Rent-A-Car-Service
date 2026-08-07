@@ -25,17 +25,20 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="4" class="muted">Gider türü tanımlı değil.</td></tr>
+            <tr><td colspan="5" class="muted">Gider türü tanımlı değil.</td></tr>
         }
         @foreach (var c in _list)
         {
             <tr>
                 <td class="mono">@c.Kod</td>
                 <td>@c.Ad</td>
+                @* FAZ-63: Tur alanı entity'de ve düzenleme formunda ZATEN vardı, yalnız
+                   salt-okunur listede gösterilmiyordu. *@
+                <td>@(string.IsNullOrWhiteSpace(c.Tur) ? "—" : c.Tur)</td>
                 <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
