@@ -252,13 +252,58 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
     }
 
-    public async Task<IReadOnlyList<AccountLedgerEntry>> GetCariStatementAsync(Guid cariId, CancellationToken ct = default)
+    public async Task<CariEkstreSonuc> GetCariStatementAsync(
+        Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId)
-            .OrderBy(e => e.EntryDateUtc)
-            .ToListAsync(ct);
+        var taban = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId);
+
+        if (filter is null || filter.BosMu)
+            return new CariEkstreSonuc(0m, await taban.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
+
+        // Tarih DIŞI daraltmalar hem görünen satırlara hem DEVİR'e uygulanır: devir "aynı süzgeçten
+        // geçen önceki hareketlerin toplamı" olmalı, yoksa yürüyen bakiye tutmaz.
+        var suzulmus = taban;
+
+        if (!string.IsNullOrWhiteSpace(filter.Doviz))
+        {
+            var d = filter.Doviz.Trim().ToUpperInvariant();
+            suzulmus = suzulmus.Where(e => e.Amount.Currency.ToUpper() == d);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.SourceType))
+        {
+            var st = filter.SourceType.Trim();
+            suzulmus = suzulmus.Where(e => e.SourceType == st);
+        }
+        if (filter.KiraDurum is { } durum)
+        {
+            // Kira bağı DEFTERDE YOK: tahsilat/ödeme satırının SourceId'si CashTransaction'ı
+            // gösterir, kira bağı orada (RentalId). Kira bağı olmayan satırlar (fatura, ceza,
+            // araç satışı…) bu filtre açıkken listeden düşer — kasıtlı.
+            var kiraIds = db.Rentals.Where(r => r.Durum == durum).Select(r => r.Id);
+            var txIds = db.CashTransactions
+                .Where(t => t.RentalId != null && kiraIds.Contains(t.RentalId.Value))
+                .Select(t => t.Id);
+            suzulmus = suzulmus.Where(e => txIds.Contains(e.SourceId));
+        }
+
+        var devir = 0m;
+        if (filter.Bas is { } bas)
+        {
+            // SignedBase türetilmiş (mapped değil) → SQL'de yazılamaz; Debit/Credit ayrı toplanır.
+            var oncekiler = suzulmus.Where(e => e.EntryDateUtc < bas);
+            var borc = await oncekiler.Where(e => e.Direction == LedgerDirection.Debit)
+                .SumAsync(e => (decimal?)(e.Amount.Amount * e.Amount.Rate), ct) ?? 0m;
+            var alacak = await oncekiler.Where(e => e.Direction == LedgerDirection.Credit)
+                .SumAsync(e => (decimal?)(e.Amount.Amount * e.Amount.Rate), ct) ?? 0m;
+            devir = borc - alacak;
+
+            suzulmus = suzulmus.Where(e => e.EntryDateUtc >= bas);
+        }
+        if (filter.Bit is { } bit) suzulmus = suzulmus.Where(e => e.EntryDateUtc <= bit);
+
+        return new CariEkstreSonuc(devir, await suzulmus.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
     }
 
     public async Task<Dictionary<Guid, int>> GetRentalIslemSayilariAsync(

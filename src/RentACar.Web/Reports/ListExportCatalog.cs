@@ -62,11 +62,17 @@ public static class ListExportCatalog
         : x.KaynakKiraId != null ? "Kira Fark" : x.RentalId != null ? "Kira" : "Serbest";
 
     /// <summary>Cari ekstre (hesap ekstresi) — bir carinin defter satırları + yürüyen bakiye (base para).
-    /// Cari bakiye = Σ (Borç +, Alacak −); pozitif = müşteri borçlu.</summary>
-    public static ExportTable CariEkstre(IReadOnlyList<AccountLedgerEntry> lines)
+    /// Cari bakiye = Σ (Borç +, Alacak −); pozitif = müşteri borçlu.
+    ///
+    /// <para>FAZ-65: <paramref name="devir"/> filtrenin kapsam dışında bıraktığı ÖNCEKİ hareketlerin
+    /// net toplamıdır. Sıfırdan farklıysa ilk satır olarak yazılır ve yürüyen bakiye ondan başlar —
+    /// aksi hâlde tarih-filtreli bir export'ta bakiye kolonu yanlış olurdu.</para></summary>
+    public static ExportTable CariEkstre(IReadOnlyList<AccountLedgerEntry> lines, decimal devir = 0m)
     {
         var rows = new List<object?[]>();
-        decimal bakiye = 0m;
+        decimal bakiye = devir;
+        if (devir != 0m)
+            rows.Add(new object?[] { "", "Devir", "Önceki dönemden devir", devir > 0 ? devir : 0m, devir < 0 ? -devir : 0m, devir });
         foreach (var e in lines.OrderBy(x => x.EntryDateUtc).ThenBy(x => x.SourceType))
         {
             var borc = e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase : 0m;
