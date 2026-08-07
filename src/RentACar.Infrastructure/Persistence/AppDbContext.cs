@@ -125,6 +125,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
     public DbSet<Anket> Anketler => Set<Anket>();
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
+    public DbSet<RezSart> RezSartlar => Set<RezSart>();   // FAZ-25 — müşteri özel talebi (operasyonel not)
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
     public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();
     public DbSet<YetkiGrup> YetkiGruplari => Set<YetkiGrup>(); // PR-D — ekran-izni şablonu
