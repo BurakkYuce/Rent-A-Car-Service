@@ -7,8 +7,13 @@ public sealed record ExpensePosting(Expense Expense, IReadOnlyList<AccountLedger
 
 public interface IExpenseRepository
 {
-    /// <summary>Giderler; <paramref name="sube"/> verilirse yalnız o şubeninkiler (şube-kapsamı; null = tümü).</summary>
-    Task<IReadOnlyList<Expense>> ListAsync(Authorization.BranchScope.BranchFilter kapsam, CancellationToken ct = default);
+    /// <summary>
+    /// Giderler; <paramref name="kapsam"/> şube-kapsamı (Unrestricted = tümü).
+    /// <paramref name="filter"/> null → eski davranış (kapsamdaki tüm giderler); FAZ-63 arama paneli.
+    /// Filtre kapsamı DARALTIR, asla genişletmez.
+    /// </summary>
+    Task<IReadOnlyList<Expense>> ListAsync(
+        Authorization.BranchScope.BranchFilter kapsam, ExpenseFilter? filter = null, CancellationToken ct = default);
     Task<Expense?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
