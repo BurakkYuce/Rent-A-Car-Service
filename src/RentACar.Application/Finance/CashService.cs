@@ -37,8 +37,13 @@ public sealed class CashService(
     public Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default)
         => _repository.GetCariBalanceAsync(cariId, ct);
 
-    public Task<IReadOnlyList<AccountLedgerEntry>> GetStatementAsync(Guid cariId, CancellationToken ct = default)
-        => _repository.GetCariStatementAsync(cariId, ct);
+    /// <summary>
+    /// Cari ekstresi (satırlar + devir). <paramref name="filter"/> null → carinin TÜM hareketleri.
+    /// Devir yalnız tarih alt sınırı verildiğinde dolar; bkz. <see cref="CariEkstreSonuc"/>.
+    /// </summary>
+    public Task<CariEkstreSonuc> GetStatementAsync(
+        Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default)
+        => _repository.GetCariStatementAsync(cariId, filter, ct);
 
     /// <summary>Kira başına işlem SAYISI (ters kayıt dahil, monoton) — deterministik tahsilat
     /// anahtarının zamansal bileşeni. Kayıtsız kira sözlükte yok → TryGetValue→0.</summary>

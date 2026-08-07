@@ -43,7 +43,16 @@ public static class ListExportEndpoints
             {
                 var cariId = FormParse.Id(req.Query["cariId"].ToString());
                 if (cariId is null) return Results.BadRequest("cariId gerekli.");
-                return ExportFile(ListExportCatalog.CariEkstre(await cash.GetStatementAsync(cariId.Value)), format, ex, pdf, "cari-ekstre");
+                // FAZ-65: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
+                var ekstre = await cash.GetStatementAsync(cariId.Value, new CariEkstreFilter
+                {
+                    Bas = FormParse.Date(req.Query["bas"].ToString()),
+                    Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
+                    Doviz = NullIfEmpty(req.Query["doviz"].ToString()),
+                    SourceType = NullIfEmpty(req.Query["kaynak"].ToString()),
+                    KiraDurum = Enum.TryParse<RentalStatus>(req.Query["kiraDurum"].ToString(), out var kd) ? kd : null
+                });
+                return ExportFile(ListExportCatalog.CariEkstre(ekstre.Satirlar, ekstre.Devir), format, ex, pdf, "cari-ekstre");
             }
 
             // Sütun tanımları test-edilebilir katalogda (ListExportCatalog); endpoint yalnız dispatch eder.
