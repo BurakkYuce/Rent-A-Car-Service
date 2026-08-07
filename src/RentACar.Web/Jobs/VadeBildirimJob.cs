@@ -62,9 +62,15 @@ public sealed class VadeBildirimJob(
                 await using (var db = new AppDbContext(options, sys, sys))
                 {
                     await TenantGuc.OpenAsync(db, tenantId, ct); // raw-context GUC açılışı (tek doğru yol)
-                    toplam += await VadeBildirimUretici.RunAsync(db, tenantId, now, ct);
+                    // FAZ-26: koşular günlüğe yazılır (başarı VE hata). Sarmalayıcı üretici kodunu
+                    // DEĞİŞTİRMEZ, dönüş/hata aynen geçer — mevcut davranış birebir korunur.
+                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
+                        JobCalismaKaydedici.VadeBildirim,
+                        () => VadeBildirimUretici.RunAsync(db, tenantId, now, ct), n => n, ct: ct);
                     // FAZ 6.2: bakım-km (≤1000 kalan) + tut/sat (≥2 sinyal) bildirimleri — aynı kapsamlı db.
-                    toplam += await FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct);
+                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
+                        JobCalismaKaydedici.FiloBildirim,
+                        () => FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct), n => n, ct: ct);
                 } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
 
                 // Günlük operasyon özeti WhatsApp (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).

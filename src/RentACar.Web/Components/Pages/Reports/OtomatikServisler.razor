@@ -1,0 +1,131 @@
+@page "/raporlar/otomatik-servisler"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject JobCalismaLogService Loglar
+
+<PageTitle>Otomatik Servisler — RentPro</PageTitle>
+
+<div class="page-head"><h1>Otomatik Servisler (Koşu Günlüğü)</h1></div>
+<p class="muted">Arka planda çalışan işlerin her koşusu: ne zaman başladı, ne kadar sürdü, başarılı
+    mıydı, kaç kayıt üretti. Yalnız <strong>firmaya ait</strong> işler listelenir; platform işleri
+    (TCMB kur çekimi, alan adı süre aşımı) hiçbir firmaya ait olmadığı için burada görünmez.</p>
+
+@* Özet: iş başına SON koşu. "İş hiç koşmadı" ile "koştu ama hata verdi" ayrımını
+   tek bakışta verir — asıl sorulan soru bu. *@
+@if (_son.Count == 0)
+{
+    <p class="muted">Henüz hiçbir otomatik iş koşmadı. İşler açılıştan ~30 sn sonra başlar ve
+        12 saatte bir tekrarlar; dönemsel faturalama ayrıca firma ayarıyla açılmalıdır.</p>
+}
+else
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead><tr><th>İş</th><th>Son Koşu</th><th>Durum</th><th class="num">Üretilen</th></tr></thead>
+        <tbody>
+            @foreach (var s in _son)
+            {
+                <tr>
+                    <td>@Ad(s.JobAdi)</td>
+                    <td>@s.BaslangicUtc.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td><span class="status-pill @(s.Basarili ? "sp-success" : "sp-danger")">@(s.Basarili ? "Başarılı" : "Hata")</span></td>
+                    <td class="num">@(s.SonucSayisi?.ToString() ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+
+<h2 class="dash-h2">Koşu Geçmişi</h2>
+
+<form method="get" class="filter-bar">
+    <label>İş
+        <select name="job">
+            <option value="">— tümü —</option>
+            @foreach (var j in _isAdlari)
+            {
+                <option value="@j" selected="@(j == Job)">@Ad(j)</option>
+            }
+        </select>
+    </label>
+    <label>Baş<input name="bas" type="date" value="@Bas" /></label>
+    <label>Bit<input name="bit" type="date" value="@Bit" /></label>
+    <label>Yalnız hatalı
+        <select name="hata">
+            <option value="" selected="@(string.IsNullOrEmpty(Hatali))">Hayır</option>
+            <option value="1" selected="@(Hatali == "1")">Evet</option>
+        </select>
+    </label>
+    <button type="submit">Filtrele</button>
+    @if (!string.IsNullOrWhiteSpace(Job) || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit) || !string.IsNullOrWhiteSpace(Hatali))
+    {
+        <a class="link" href="/raporlar/otomatik-servisler">Temizle</a>
+    }
+</form>
+
+<p class="muted small">@_list.Count koşu · @_list.Count(r => !r.Basarili) hatalı</p>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Başlangıç</th><th>İş</th><th>Durum</th><th class="num">Süre (ms)</th><th class="num">Üretilen</th><th>Detay</th></tr>
+    </thead>
+    <tbody>
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="6" class="muted">Koşu kaydı yok.</td></tr>
+        }
+        @foreach (var r in _list)
+        {
+            <tr>
+                <td>@r.BaslangicUtc.LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                <td>@Ad(r.JobAdi)</td>
+                <td><span class="status-pill @(r.Basarili ? "sp-success" : "sp-danger")">@(r.Basarili ? "Başarılı" : "Hata")</span></td>
+                <td class="num">@r.SureMs</td>
+                <td class="num">@(r.SonucSayisi?.ToString() ?? "—")</td>
+                <td>@(r.Detay ?? "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "job")] public string? Job { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hatali { get; set; }
+
+    private IReadOnlyList<JobCalismaLog> _list = [];
+    private IReadOnlyList<JobCalismaLog> _son = [];
+    private string[] _isAdlari = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _son = (await Loglar.SonKosularAsync()).OrderBy(s => s.JobAdi).ToList();
+        _isAdlari = _son.Select(s => s.JobAdi).ToArray();
+
+        _list = await Loglar.ListAsync(new JobCalismaLogFilter
+        {
+            JobAdi = Job,
+            Bas = Tarih(Bas),
+            // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
+            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1),
+            YalnizHatali = Hatali == "1" ? true : null
+        });
+    }
+
+    private static DateTimeOffset? Tarih(string? s)
+        => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
+
+    /// <summary>İş adı → okunur etiket. Bilinmeyen ad OLDUĞU GİBİ gösterilir (yeni iş eklenince
+    /// sayfa boş/yanıltıcı görünmesin).</summary>
+    private static string Ad(string jobAdi) => jobAdi switch
+    {
+        "vade-bildirim" => "Vade Bildirimi",
+        "filo-bildirim" => "Filo Bildirimi (Bakım-Km / Tut-Sat)",
+        "donem-fatura" => "Dönemsel Faturalama",
+        _ => jobAdi
+    };
+}
