@@ -16,6 +16,7 @@ using RentACar.Application.Regulation;
 using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -52,7 +53,18 @@ public static class ListExportEndpoints
                 "cariler" => ListExportCatalog.Cariler(await cs.ListAsync()),
                 "faturalar" => ListExportCatalog.Faturalar(await inv.ListAsync(), MusteriResolver(await cs.ListAsync())),
                 "cezalar" => ListExportCatalog.Cezalar(await ps.ListAsync()),
-                "giderler" => ListExportCatalog.Giderler(await es.ListAsync()),
+                // FAZ-63: ekrandaki arama export'a AYNEN taşınır (gördüğün = indirdiğin).
+                // Şube kapsamı servis içinde ayrıca uygulanır — filtre onu genişletemez.
+                "giderler" => ListExportCatalog.Giderler(await es.ListAsync(new ExpenseFilter
+                {
+                    Ara = NullIfEmpty(req.Query["ara"].ToString()),
+                    Plaka = NullIfEmpty(req.Query["plaka"].ToString()),
+                    CariId = FormParse.Id(req.Query["cariId"].ToString()),
+                    Tip = Enum.TryParse<ExpenseType>(req.Query["tip"].ToString(), out var gt) ? gt : null,
+                    Sube = NullIfEmpty(req.Query["sube"].ToString()),
+                    Bas = FormParse.Date(req.Query["bas"].ToString()),
+                    Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
+                })),
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
                 "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
                 "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),
@@ -97,6 +109,9 @@ public static class ListExportEndpoints
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{ad}.xlsx")
         };
     }
+
+    /// <summary>Boş/whitespace sorgu değeri → null (filtre alanı "verilmemiş" sayılsın).</summary>
+    private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
     // FK→ad çözücüler (filo-kiralama/vade export'ları için): liste bir kez çekilip dict'e alınır.
     private static Func<Guid, string?> PlakaResolver(IReadOnlyList<Vehicle> vehicles)
