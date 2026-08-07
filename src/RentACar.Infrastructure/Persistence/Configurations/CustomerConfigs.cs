@@ -164,3 +164,21 @@ internal sealed class SikayetConfig : IEntityTypeConfiguration<Sikayet>
         e.HasIndex(x => new { x.TenantId, x.Tarih });
     }
 }
+
+// ---- RezSart (FAZ-25 — müşteri özel talebi/şartı; tenant-owned, para taşımaz) ----
+internal sealed class RezSartConfig : IEntityTypeConfiguration<RezSart>
+{
+    public void Configure(EntityTypeBuilder<RezSart> e)
+    {
+        e.ToTable("RezSartlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Sart).IsRequired().HasMaxLength(512);
+        e.Property(x => x.Grup).HasMaxLength(64);
+        e.Property(x => x.TeslimEden).HasMaxLength(128);
+        e.HasIndex(x => new { x.TenantId, x.MusteriId });
+        // Durum filtresi (karşılandı/karşılanmadı) bu kolondan türetiliyor → indeksli.
+        e.HasIndex(x => new { x.TenantId, x.KarsilamaTarihi });
+        e.HasIndex(x => new { x.TenantId, x.TalepTarihi });
+    }
+}
