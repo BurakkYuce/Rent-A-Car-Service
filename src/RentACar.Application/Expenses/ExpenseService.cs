@@ -21,8 +21,12 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
 
-    public Task<IReadOnlyList<Expense>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C3: FK-farkındalı kapsam
+    /// <summary>
+    /// Giderler. Şube kapsamı (C3: FK-farkındalı) HER ZAMAN uygulanır; <paramref name="filter"/>
+    /// yalnız kapsam içinde daraltır (FAZ-63 arama paneli). null → eski davranış.
+    /// </summary>
+    public Task<IReadOnlyList<Expense>> ListAsync(ExpenseFilter? filter = null, CancellationToken ct = default)
+        => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), filter, ct);
 
     public async Task<Expense?> GetAsync(Guid id, CancellationToken ct = default)
     {

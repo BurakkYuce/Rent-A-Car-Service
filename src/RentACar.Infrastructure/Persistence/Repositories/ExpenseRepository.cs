@@ -15,17 +15,51 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Expense>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Expense>> ListAsync(
+        RentACar.Application.Authorization.BranchScope.BranchFilter kapsam,
+        RentACar.Application.Expenses.ExpenseFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Expenses.AsNoTracking();
         // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
+        // ÖNCE kapsam, SONRA kullanıcı filtresi — filtre kapsamı genişletemez.
         if (!kapsam.Unrestricted)
         {
             var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
             q = q.Where(x => (kid != null && x.SubeId == kid)
                           || ((kid == null || x.SubeId == null) && kad != null && x.Sube != null && x.Sube.Trim() == kad)); // C5
         }
+
+        if (filter is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var t = filter.Ara.Trim();
+                q = q.Where(x => EF.Functions.ILike(x.No, $"%{t}%")
+                              || (x.EvrakNo != null && EF.Functions.ILike(x.EvrakNo, $"%{t}%"))
+                              || (x.Aciklama != null && EF.Functions.ILike(x.Aciklama, $"%{t}%")));
+            }
+            if (filter.CariId is { } cid) q = q.Where(x => x.CariId == cid);
+            if (filter.Tip is { } tip) q = q.Where(x => x.Tip == tip);
+            if (!string.IsNullOrWhiteSpace(filter.Sube))
+            {
+                var s = filter.Sube.Trim();
+                q = q.Where(x => x.Sube != null && x.Sube.Trim() == s);
+            }
+            if (filter.Bas is { } b) q = q.Where(x => x.Tarih >= b);
+            if (filter.Bit is { } t2) q = q.Where(x => x.Tarih <= t2);
+            if (!string.IsNullOrWhiteSpace(filter.Plaka))
+            {
+                // Plaka Expense'te YOK → araç tablosundan alt-sorgu (tenant filtresi orada da geçerli).
+                // Plakalar DB'de normalize saklanır (büyük harf, boşluksuz: "34AA01"); kullanıcı ise
+                // "34 AA 01" yazar. Arama terimi AYNI normalizasyondan geçmezse hiçbir şey bulunmaz.
+                var p = filter.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => x.VehicleId != null && db.Vehicles
+                    .Where(v => EF.Functions.ILike(v.Plaka, $"%{p}%"))
+                    .Select(v => (Guid?)v.Id).Contains(x.VehicleId));
+            }
+        }
+
         return await q.OrderByDescending(x => x.Tarih).ToListAsync(ct);
     }
 

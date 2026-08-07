@@ -7,7 +7,7 @@
 
 <PageTitle>Giderler — RentPro</PageTitle>
 
-<div class="page-head"><h1>Giderler</h1><div class="actions"><a href="/listeler/export/giderler">Excel</a> · <a href="/listeler/export/giderler?format=csv">CSV</a> · <a href="/listeler/export/giderler?format=pdf">PDF</a></div></div>
+<div class="page-head"><h1>Giderler</h1><div class="actions"><a href="/listeler/export/giderler?@Qs("excel")">Excel</a> · <a href="/listeler/export/giderler?@Qs("csv")">CSV</a> · <a href="/listeler/export/giderler?@Qs("pdf")">PDF</a></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -62,15 +62,59 @@
     </form>
 </details>
 
+@* Arama paneli (canlı gider_ara.aspx karşılığı). GET formu: JS yok, URL paylaşılabilir.
+   Filtreleme SUNUCUDA/SQL'de — liste büyüdükçe bellek-içi süzmek pahalıya gelirdi. *@
+<form method="get" class="filter-bar">
+    <label>Ara<input name="ara" value="@Ara" placeholder="gider no / evrak no / açıklama" /></label>
+    <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 AB" /></label>
+    <label>Tedarikçi
+        <select name="cariId">
+            <option value="">— tümü —</option>
+            @foreach (var c in _customers)
+            {
+                <option value="@c.Id" selected="@(c.Id.ToString() == CariId)">@c.DisplayName</option>
+            }
+        </select>
+    </label>
+    <label>Gider Türü
+        <select name="tip">
+            <option value="">— tümü —</option>
+            @foreach (var t in Enum.GetValues<ExpenseType>())
+            {
+                <option value="@t" selected="@(t.ToString() == Tip)">@t</option>
+            }
+        </select>
+    </label>
+    <label>Ofis / Şube
+        <select name="sube">
+            <option value="">— tümü —</option>
+            @foreach (var s in _subeOpts)
+            {
+                <option value="@s" selected="@(s == Sube)">@s</option>
+            }
+        </select>
+    </label>
+    <label>Tarih Baş<input name="bas" type="date" value="@Bas" /></label>
+    <label>Tarih Bit<input name="bit" type="date" value="@Bit" /></label>
+    <button type="submit">Ara</button>
+    @if (FiltreVar)
+    {
+        <a class="link" href="/giderler">Temizle</a>
+    }
+</form>
+
+<p class="muted small">@_list.Count gider · Net @_list.Sum(e => e.NetTutar).ToString("N2")
+    · KDV @_list.Sum(e => e.KdvTutar).ToString("N2") · Toplam @_list.Sum(e => e.GenelToplam).ToString("N2")</p>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>No</th><th>Tür</th><th>Tarih</th><th>Araç/Tedarikçi</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Ödeme</th></tr>
+        <tr><th>No</th><th>Tür</th><th>Tarih</th><th>Araç/Tedarikçi</th><th>Şube</th><th>Evrak No</th><th>Açıklama</th><th class="num">Net</th><th class="num">KDV</th><th class="num">Toplam</th><th>Ödeme</th></tr>
     </thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Gider yok.</td></tr>
+            <tr><td colspan="11" class="muted">@(FiltreVar ? "Aramaya uyan gider yok." : "Gider yok.")</td></tr>
         }
         @foreach (var e in _list)
         {
@@ -79,9 +123,12 @@
                 <td>@e.Tip</td>
                 <td>@e.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>@RefLabel(e)</td>
-                <td>@e.NetTutar.ToString("N2")</td>
-                <td>@e.KdvTutar.ToString("N2")</td>
-                <td>@e.GenelToplam.ToString("N2")</td>
+                <td>@(e.Sube ?? "—")</td>
+                <td>@(e.EvrakNo ?? "—")</td>
+                <td>@(e.Aciklama ?? "—")</td>
+                <td class="num">@e.NetTutar.ToString("N2")</td>
+                <td class="num">@e.KdvTutar.ToString("N2")</td>
+                <td class="num">@e.GenelToplam.ToString("N2")</td>
                 <td>@e.OdemeYontemi</td>
             </tr>
         }
@@ -91,6 +138,13 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    [SupplyParameterFromQuery(Name = "cariId")] public string? CariId { get; set; }
+    [SupplyParameterFromQuery(Name = "tip")] public string? Tip { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<Expense> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
@@ -99,14 +153,47 @@
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
 
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(Plaka)
+        || !string.IsNullOrWhiteSpace(CariId) || !string.IsNullOrWhiteSpace(Tip)
+        || !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit);
+
     protected override async Task OnInitializedAsync()
     {
-        _list = await Expenses.ListAsync();
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
         _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
+
+        _list = await Expenses.ListAsync(new ExpenseFilter
+        {
+            Ara = Ara,
+            Plaka = Plaka,
+            CariId = Guid.TryParse(CariId, out var cid) ? cid : null,
+            Tip = Enum.TryParse<ExpenseType>(Tip, out var t) ? t : null,
+            Sube = Sube,
+            Bas = Tarih(Bas),
+            // Üst sınır GÜN SONUNA genişletilir: tarih girişi 00:00'a düşüyor, aksi hâlde
+            // "bit" günündeki giderler dışarıda kalırdı.
+            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
+        });
+    }
+
+    private static DateTimeOffset? Tarih(string? s)
+        => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
+
+    /// <summary>Aramayı export bağlantılarına aynen taşır (ekranda gördüğün = indirdiğin).</summary>
+    private string Qs(string format)
+    {
+        var p = new List<string> { "format=" + format };
+        void Ekle(string ad, string? deger)
+        {
+            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+        }
+        Ekle("ara", Ara); Ekle("plaka", Plaka); Ekle("cariId", CariId);
+        Ekle("tip", Tip); Ekle("sube", Sube); Ekle("bas", Bas); Ekle("bit", Bit);
+        return string.Join("&", p);
     }
 
     private string RefLabel(Expense e)
