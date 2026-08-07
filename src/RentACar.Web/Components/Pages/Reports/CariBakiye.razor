@@ -8,8 +8,8 @@
     <h1>Cari Bakiye & Yaşlandırma</h1>
     <div class="actions">
         Bakiye:
-        <a href="/raporlar/export/cari-bakiye?format=excel">Excel</a> ·
-        <a href="/raporlar/export/cari-bakiye?format=csv">CSV</a> · <a href="/raporlar/export/cari-bakiye?format=pdf">PDF</a> &nbsp;|&nbsp; Yaşlandırma:
+        <a href="/raporlar/export/cari-bakiye?@Qs("excel")">Excel</a> ·
+        <a href="/raporlar/export/cari-bakiye?@Qs("csv")">CSV</a> · <a href="/raporlar/export/cari-bakiye?@Qs("pdf")">PDF</a> &nbsp;|&nbsp; Yaşlandırma:
         <a href="/raporlar/export/yaslandirma?format=excel">Excel</a> ·
         <a href="/raporlar/export/yaslandirma?format=csv">CSV</a> · <a href="/raporlar/export/yaslandirma?format=pdf">PDF</a>
     </div>
@@ -31,19 +31,76 @@
 </div>
 
 <h2>Cari Bakiyeleri</h2>
+
+@* Filtre GET formu: JS yok, URL paylaşılabilir. Sunucu tarafı filtreleme —
+   Excel/CSV/PDF bağlantıları AYNI filtreyi taşır (ekranda gördüğün = indirdiğin). *@
+<form method="get" class="filter-bar">
+    <label>Cari Ara<input name="ara" value="@Ara" placeholder="ad / telefon / mail / vergi no" /></label>
+    <label>Özel Kod
+        <select name="ozelKod">
+            <option value="">— tümü —</option>
+            @foreach (var o in _ozelKodlar) { <option value="@o" selected="@(o == OzelKod)">@o</option> }
+        </select>
+    </label>
+    <label>Sınıf
+        <select name="sinif">
+            <option value="">— tümü —</option>
+            @foreach (var o in _siniflar) { <option value="@o" selected="@(o == Sinif)">@o</option> }
+        </select>
+    </label>
+    <label>Döviz
+        <select name="doviz">
+            <option value="">— tümü —</option>
+            @foreach (var o in _dovizler) { <option value="@o" selected="@(o == Doviz)">@o</option> }
+        </select>
+    </label>
+    <label>Cari Tipi
+        <select name="tip">
+            <option value="" selected="@(string.IsNullOrEmpty(Tip))">— tümü —</option>
+            <option value="kurumsal" selected="@(Tip == "kurumsal")">Firma (kurumsal)</option>
+            <option value="bireysel" selected="@(Tip == "bireysel")">Bireysel</option>
+        </select>
+    </label>
+    <label>Bakiye Türü
+        <select name="bakiye">
+            <option value="" selected="@(string.IsNullOrEmpty(BakiyeTuru))">— tümü —</option>
+            <option value="borclu" selected="@(BakiyeTuru == "borclu")">Borçlu (bizim alacağımız)</option>
+            <option value="alacakli" selected="@(BakiyeTuru == "alacakli")">Alacaklı (bizim borcumuz)</option>
+        </select>
+    </label>
+    <label>Min Tutar<input name="min" type="number" step="0.01" min="0" value="@Min" /></label>
+    <button type="submit">Filtrele</button>
+    @if (FiltreVar)
+    {
+        <a class="link" href="/raporlar/cari-bakiye">Temizle</a>
+    }
+</form>
+
+<p class="muted small">@_balances.Count cari · Borç toplamı @_balances.Sum(b => b.ToplamBorc).ToString("N2") ₺
+    · Alacak toplamı @_balances.Sum(b => b.ToplamAlacak).ToString("N2") ₺</p>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Cari</th><th>Bakiye</th><th></th></tr></thead>
+    <thead><tr><th>Cari</th><th>Telefon</th><th>Mail Adresi</th><th>Banka</th><th>Döviz</th>
+        <th class="num">Borç</th><th class="num">Alacak</th><th class="num">Bakiye</th><th></th></tr></thead>
     <tbody>
         @if (_balances.Count == 0)
         {
-            <tr><td colspan="3" class="muted">Bakiyeli cari yok.</td></tr>
+            <tr><td colspan="9" class="muted">@(FiltreVar ? "Filtreye uyan bakiyeli cari yok." : "Bakiyeli cari yok.")</td></tr>
         }
         @foreach (var b in _balances)
         {
             <tr>
                 <td>@b.Ad</td>
-                <td class="@(b.Bakiye > 0 ? "neg" : "pos")">@b.Bakiye.ToString("N2")</td>
+                <td>@(b.Telefon ?? "—")</td>
+                <td>@(b.Email ?? "—")</td>
+                <td>@(b.Banka ?? "—")</td>
+                <td>@(b.Doviz ?? "—")</td>
+                @* Brüt Borç/Alacak ayrı: net'te "1.000 borç − 1.000 tahsilat" ile
+                   "hiç hareket yok" aynı görünüyordu. *@
+                <td class="num">@Cell(b.ToplamBorc)</td>
+                <td class="num">@Cell(b.ToplamAlacak)</td>
+                <td class="num @(b.Bakiye > 0 ? "neg" : "pos")">@b.Bakiye.ToString("N2")</td>
                 <td><a href="/cariler/@b.CariId/ekstre">Ekstre →</a></td>
             </tr>
         }
@@ -76,18 +133,66 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "ozelKod")] public string? OzelKod { get; set; }
+    [SupplyParameterFromQuery(Name = "sinif")] public string? Sinif { get; set; }
+    [SupplyParameterFromQuery(Name = "doviz")] public string? Doviz { get; set; }
+    [SupplyParameterFromQuery(Name = "tip")] public string? Tip { get; set; }
+    [SupplyParameterFromQuery(Name = "bakiye")] public string? BakiyeTuru { get; set; }
+    [SupplyParameterFromQuery(Name = "min")] public decimal? Min { get; set; }
+
     private IReadOnlyList<CariBalanceDto> _balances = [];
     private IReadOnlyList<AgingRowDto> _aging = [];
     private decimal _borcluToplam;
     private decimal _alacakliToplam;
+    private string[] _ozelKodlar = [];
+    private string[] _siniflar = [];
+    private string[] _dovizler = [];
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(OzelKod)
+        || !string.IsNullOrWhiteSpace(Sinif) || !string.IsNullOrWhiteSpace(Doviz)
+        || !string.IsNullOrWhiteSpace(Tip) || !string.IsNullOrWhiteSpace(BakiyeTuru) || Min is not null;
+
+    /// <summary>Filtreyi export bağlantılarına aynen taşır (ekranda gördüğün = indirdiğin).</summary>
+    private string Qs(string format)
+    {
+        var p = new List<string> { "format=" + format };
+        void Ekle(string ad, string? deger)
+        {
+            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+        }
+        Ekle("ara", Ara); Ekle("ozelKod", OzelKod); Ekle("sinif", Sinif); Ekle("doviz", Doviz);
+        Ekle("tip", Tip); Ekle("bakiye", BakiyeTuru);
+        if (Min is { } m) p.Add("min=" + m.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return string.Join("&", p);
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        _balances = await Reports.GetCariBalancesAsync();
+        _balances = await Reports.GetCariBalancesAsync(new CariBakiyeFilter
+        {
+            Ara = Ara, OzelKod = OzelKod, Sinif = Sinif, Doviz = Doviz,
+            Kurumsal = Tip switch { "kurumsal" => true, "bireysel" => false, _ => (bool?)null },
+            BakiyeTuru = BakiyeTuru, MinTutar = Min
+        });
         _aging = await Reports.GetAgingAsync(DateTimeOffset.UtcNow);
-        _borcluToplam = _balances.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
-        _alacakliToplam = -_balances.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
+
+        // KART toplamları FİLTREDEN BAĞIMSIZ: "toplam alacağımız" firmanın geneli için bir
+        // rakamdır; filtrelenmiş alt kümenin toplamı olarak göstermek yanıltıcı olur.
+        var tumu = await Reports.GetCariBalancesAsync();
+        _borcluToplam = tumu.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
+        _alacakliToplam = -tumu.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
+
+        // Açılır liste seçenekleri TÜM carilerden (filtre uygulanmış listeden türetilseydi
+        // bir seçim yapıldıktan sonra diğer seçenekler kaybolurdu).
+        _ozelKodlar = Secenek(tumu, b => b.OzelKod);
+        _siniflar = Secenek(tumu, b => b.Sinif);
+        _dovizler = Secenek(tumu, b => b.Doviz);
     }
+
+    private static string[] Secenek(IEnumerable<CariBalanceDto> kaynak, Func<CariBalanceDto, string?> sec)
+        => kaynak.Select(sec).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToArray();
 
     private static string Cell(decimal v) => v == 0m ? "" : v.ToString("N2");
 }

@@ -35,7 +35,18 @@ public static class ReportExportEndpoints
                 "karlilik-segment" => KarlilikOzet(await rs.GetKarlilikOzetAsync("segment", from, to)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
                 "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to)),
-                "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync()),
+                // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
+                "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync(new CariBakiyeFilter
+                {
+                    Ara = NullIfEmpty(req.Query["ara"].ToString()),
+                    OzelKod = NullIfEmpty(req.Query["ozelKod"].ToString()),
+                    Sinif = NullIfEmpty(req.Query["sinif"].ToString()),
+                    Doviz = NullIfEmpty(req.Query["doviz"].ToString()),
+                    Kurumsal = req.Query["tip"].ToString() switch
+                    { "kurumsal" => true, "bireysel" => false, _ => (bool?)null },
+                    BakiyeTuru = NullIfEmpty(req.Query["bakiye"].ToString()),
+                    MinTutar = FormParse.Dec(req.Query["min"].ToString())
+                })),
                 "yaslandirma" => Aging(await rs.GetAgingAsync(asOf)),
                 "doluluk" => Doluluk(await rs.GetDolulukAsync(from ?? gun.AddMonths(-1), to ?? gun)),
                 "filo" => Filo(await rs.GetFleetUtilizationAsync()),
@@ -114,8 +125,10 @@ public static class ReportExportEndpoints
             lines.Select(l => new object?[] { l.Tarih, l.SourceType, l.Aciklama, l.Borc, l.Alacak, l.YuruyenBakiye }).ToList());
 
     private static Table CariBakiye(IReadOnlyList<CariBalanceDto> rows)
-        => new("Cari Bakiye", new[] { "Cari", "Bakiye" },
-            rows.Select(c => new object?[] { c.Ad, c.Bakiye }).ToList());
+        => new("Cari Bakiye",
+            new[] { "Cari", "Telefon", "Mail Adresi", "Banka", "Döviz", "Borç", "Alacak", "Bakiye" },
+            rows.Select(c => new object?[]
+            { c.Ad, c.Telefon, c.Email, c.Banka, c.Doviz, c.ToplamBorc, c.ToplamAlacak, c.Bakiye }).ToList());
 
     private static Table Aging(IReadOnlyList<AgingRowDto> rows)
         => new("Yaşlandırma", new[] { "Cari", "0-30", "31-60", "61-90", "90+", "Toplam" },
