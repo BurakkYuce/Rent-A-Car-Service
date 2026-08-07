@@ -147,6 +147,7 @@ public static class DependencyInjection
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
         services.AddScoped<RentACar.Application.BrokerYasaklari.IBrokerYasakRepository, BrokerYasakRepository>();
         services.AddScoped<RentACar.Application.RezSartlar.IRezSartRepository, RezSartRepository>();
+        services.AddScoped<RentACar.Application.Jobs.IJobCalismaLogRepository, JobCalismaLogRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsRepository,
             Persistence.Repositories.TenantSettingsRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantDomainRepository,
