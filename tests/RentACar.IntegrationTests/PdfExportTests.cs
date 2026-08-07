@@ -147,6 +147,42 @@ public sealed class PdfExportTests
     }
 
     // 1x1 saydam PNG (logo render yolunu doğrular — geçerli görsel byte'ları).
+    /// <summary>
+    /// FAZ-80 — şablonun "fiziksel imza alanı" anahtarı PDF'e gerçekten yansıyor mu.
+    ///
+    /// <para><b>Oracle neden metin araması değil:</b> QuestPDF içerik akışlarını sıkıştırır ve
+    /// yazıtiplerini alt-kümeleyerek glif kimlikleriyle yazar — üretilen baytlarda "İMZA" diye bir
+    /// dizi ARAMAK mümkün değil (bulunamaması bir şey kanıtlamazdı). Bunun yerine ölçülebilir ve
+    /// yanıltmayan üç iddia kuruluyor: (1) her iki çıktı da geçerli PDF, (2) imza bloğu kapalıyken
+    /// çıktı KÜÇÜLÜYOR (blok gerçekten basılmıyor), (3) parametre HİÇ verilmediğinde çıktı, açık
+    /// hâlle aynı boyutta — yani varsayılan davranış değişmedi.</para>
+    /// </summary>
+    [Fact]
+    public void Sablon_imza_alani_kapaliysa_sozlesme_PDFi_KUCULUR_varsayilan_DEGISMEZ()
+    {
+        var svc = new PdfExportService();
+
+        var acik = svc.Contract(Sozlesme(imza: true));
+        var kapali = svc.Contract(Sozlesme(imza: false));
+        var varsayilan = svc.Contract(OrnekSozlesme.Ornek());   // parametre verilmez → true
+
+        Assert.True(IsPdf(acik));
+        Assert.True(IsPdf(kapali));
+        Assert.True(kapali.Length < acik.Length,
+            $"İmza bloğu kapalıyken PDF küçülmeliydi: açık={acik.Length}, kapalı={kapali.Length}");
+
+        // Varsayılan (şablonsuz) yol AÇIK hâlle aynı içeriği üretmeli — regresyon çiti.
+        var varsayilanAcik = svc.Contract(OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = true });
+        Assert.Equal(varsayilanAcik.Length, varsayilan.Length);
+        // …ve kapatıldığında o da küçülmeli (örnek sözleşme yolu da anahtarı gerçekten okuyor).
+        Assert.True(svc.Contract(OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = false }).Length
+                    < varsayilan.Length);
+    }
+
+    /// <summary>İmza anahtarı dışında HER ŞEYİ aynı olan iki sözleşme görünümü (tek değişken).</summary>
+    private static RentACar.Application.Bookings.SozlesmeView Sozlesme(bool imza)
+        => OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = imza };
+
     private static readonly byte[] TinyPng = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
 }

@@ -22,6 +22,15 @@ public class EkHizmetTanim : ITenantOwned, IAuditable
     /// <summary>KDV oranı (0..1, ör. 0.20 = %20).</summary>
     public decimal KdvOrani { get; set; } = 0.20m;
 
+    /// <summary>Pazarlama/hukuki açıklama metni — kira formunda ipucu olarak gösterilir.
+    /// Fiyata veya hesaba ETKİSİ YOKTUR.</summary>
+    public string? Aciklama { get; set; }
+
+    /// <summary>Bu hizmetin makul üst gün sınırı (ör. "Genç Sürücü maks 30 gün"). null = sınırsız.
+    /// BLOKAJ DEĞİL, bilgi amaçlıdır: miktar alanı yine serbestçe girilir — sınırı kurala
+    /// çevirmek fiyat motorunu ilgilendiren ayrı bir karardır.</summary>
+    public int? MaxGun { get; set; }
+
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

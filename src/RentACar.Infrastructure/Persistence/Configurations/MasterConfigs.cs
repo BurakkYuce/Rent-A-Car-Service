@@ -209,6 +209,7 @@ internal sealed class EkHizmetTanimConfig : IEntityTypeConfiguration<EkHizmetTan
         e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
         e.Property(x => x.BirimUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
+        e.Property(x => x.Aciklama).HasMaxLength(512);   // FAZ-80
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
