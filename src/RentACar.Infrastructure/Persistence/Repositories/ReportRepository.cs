@@ -65,6 +65,21 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
+    /// <summary>
+    /// FAZ-62 — cari kart bilgileri. PII kolonları (TC/ehliyet/pasaport) BİLİNÇLİ olarak
+    /// çekilmiyor: bakiye raporunun onlara ihtiyacı yok ve çözme maliyeti/riski gereksiz.
+    /// Telefon/e-posta şifreli değil (Customer'da düz kolonlar).
+    /// </summary>
+    public async Task<IReadOnlyList<CariKartDto>> GetCariKartlariAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Customers.AsNoTracking()
+            .Select(c => new CariKartDto(
+                c.Id, c.CepTel, c.Email, c.BankaAdi, c.Doviz,
+                c.OzelCariTip, c.Sinif, c.Tip == CariType.Kurumsal, c.Pasif, c.VergiNo))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

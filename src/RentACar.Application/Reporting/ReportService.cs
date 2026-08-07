@@ -589,16 +589,69 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             rows.Select(r => r.RentalId).Distinct().Count());
     }
 
-    /// <summary>Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.</summary>
-    public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Tüm cariler için net bakiye (Σ Borç − Σ Alacak), sıfır olmayanlar, borçtan-alacağa sıralı.
+    ///
+    /// <para>FAZ-62: net bakiye hesabı AYNEN korundu (<c>Σ SignedBase</c>); yanına brüt Borç/Alacak
+    /// toplamları ve cari kart bilgileri eklendi. <paramref name="filter"/> null iken davranış
+    /// öncekiyle BİREBİR aynıdır — mevcut çağrılar (API, export) daralmaz.</para>
+    ///
+    /// <para>Sıfır-bakiye elemesi filtreden ÖNCE uygulanır (rapor "bakiyeli cariler" raporu);
+    /// hareketi olup net'i sıfırlanan cari yine listelenmez, ama artık brüt Borç/Alacak sütunlarıyla
+    /// "hiç hareket yok" durumundan ayrılabilir hâle geldiği için bu ayrım kaybolmuyor.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<CariBalanceDto>> GetCariBalancesAsync(
+        CariBakiyeFilter? filter = null, CancellationToken ct = default)
     {
         var rows = await _repository.GetCariLedgerRowsAsync(asOf: null, ct);
-        return rows
+        var kartlar = (await _repository.GetCariKartlariAsync(ct)).ToDictionary(k => k.CariId);
+
+        var liste = rows
             .GroupBy(r => (r.CariId, r.Ad))
-            .Select(g => new CariBalanceDto(g.Key.CariId, g.Key.Ad, g.Sum(Signed)))
+            .Select(g =>
+            {
+                kartlar.TryGetValue(g.Key.CariId, out var k);
+                return new CariBalanceDto(
+                    g.Key.CariId, g.Key.Ad, g.Sum(Signed),
+                    ToplamBorc: g.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Base),
+                    ToplamAlacak: g.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Base),
+                    Telefon: k?.Telefon, Email: k?.Email, Banka: k?.Banka, Doviz: k?.Doviz,
+                    OzelKod: k?.OzelKod, Sinif: k?.Sinif,
+                    Kurumsal: k?.Kurumsal ?? false, Pasif: k?.Pasif ?? false);
+            })
             .Where(b => b.Bakiye != 0m)
             .OrderByDescending(b => b.Bakiye)
             .ToList();
+
+        if (filter is null) return liste;
+
+        var vergiNolar = kartlar.ToDictionary(x => x.Key, x => x.Value.VergiNo);
+        IEnumerable<CariBalanceDto> q = liste;
+
+        if (Dolu(filter.Ara))
+        {
+            var t = filter.Ara!.Trim();
+            q = q.Where(b => Icerir(b.Ad, t) || Icerir(b.Telefon, t) || Icerir(b.Email, t)
+                             || Icerir(vergiNolar.GetValueOrDefault(b.CariId), t));
+        }
+        if (Dolu(filter.OzelKod)) q = q.Where(b => Esit(b.OzelKod, filter.OzelKod));
+        if (Dolu(filter.Sinif)) q = q.Where(b => Esit(b.Sinif, filter.Sinif));
+        if (Dolu(filter.Doviz)) q = q.Where(b => Esit(b.Doviz, filter.Doviz));
+        if (filter.Kurumsal is { } kur) q = q.Where(b => b.Kurumsal == kur);
+        if (string.Equals(filter.BakiyeTuru, "borclu", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(b => b.Bakiye > 0m);
+        else if (string.Equals(filter.BakiyeTuru, "alacakli", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(b => b.Bakiye < 0m);
+        // Min tutar MUTLAK bakiyeye uygulanır: −5.000'lik bir alacaklı cariyi "küçük" saymak yanlış olur.
+        if (filter.MinTutar is { } min) q = q.Where(b => Math.Abs(b.Bakiye) >= min);
+
+        return q.ToList();
+
+        static bool Dolu(string? s) => !string.IsNullOrWhiteSpace(s);
+        static bool Icerir(string? kaynak, string aranan)
+            => kaynak is not null && kaynak.Contains(aranan, StringComparison.OrdinalIgnoreCase);
+        static bool Esit(string? a, string? b)
+            => string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
