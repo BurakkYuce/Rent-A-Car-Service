@@ -22,6 +22,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RezSartTests(PostgresFixture fx)
 {
+    /// <summary>Tam saniyeye hizalı "şimdi" — PG µs/Linux 100ns tuzağı (bkz. <see cref="TestZaman"/>).</summary>
+    private static DateTimeOffset Simdi() => TestZaman.Simdi();
+
     private static async Task<Guid> MusteriAsync(IServiceProvider sp, string ad = "Talep", string soyad = "Sahibi")
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CariType.Bireysel, Ad = ad, Soyad = soyad });
@@ -128,8 +131,8 @@ public sealed class RezSartTests(PostgresFixture fx)
         var m2 = await MusteriAsync(sp, "Iki", "Musteri");
         var svc = sp.GetRequiredService<RezSartService>();
 
-        var dun = DateTimeOffset.UtcNow.AddDays(-1);
-        var geven = DateTimeOffset.UtcNow.AddDays(-10);
+        var dun = Simdi().AddDays(-1);
+        var geven = Simdi().AddDays(-10);
         await svc.CreateAsync(new RezSartInput { MusteriId = m1, Sart = "Dünkü", TalepTarihi = dun });
         await svc.CreateAsync(new RezSartInput { MusteriId = m1, Sart = "Eski", TalepTarihi = geven });
         await svc.CreateAsync(new RezSartInput { MusteriId = m2, Sart = "Diğer müşteri" });
@@ -174,7 +177,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         var m = await MusteriAsync(sp);
         var svc = sp.GetRequiredService<RezSartService>();
 
-        var eski = DateTimeOffset.UtcNow.AddDays(-20);
+        var eski = Simdi().AddDays(-20);
         var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Eski talep", TalepTarihi = eski });
         await svc.UpdateAsync(id, new RezSartInput { MusteriId = m, Sart = "Düzeltildi" });   // TalepTarihi YOK
 
