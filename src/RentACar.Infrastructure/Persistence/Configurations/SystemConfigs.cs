@@ -35,3 +35,19 @@ internal sealed class TenantSequenceConfig : IEntityTypeConfiguration<TenantSequ
         e.Property(x => x.Name).HasMaxLength(64);
     }
 }
+
+// ---- JobCalismaLog (FAZ-26 — otomatik servis koşu günlüğü; tenant-owned, append-only) ----
+internal sealed class JobCalismaLogConfig : IEntityTypeConfiguration<JobCalismaLog>
+{
+    public void Configure(EntityTypeBuilder<JobCalismaLog> e)
+    {
+        e.ToTable("JobCalismaLoglari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.JobAdi).IsRequired().HasMaxLength(64);
+        e.Property(x => x.Detay).HasMaxLength(512);
+        e.Ignore(x => x.SureMs);   // türetilmiş — saklanmaz
+        e.HasIndex(x => new { x.TenantId, x.BaslangicUtc });
+        e.HasIndex(x => new { x.TenantId, x.JobAdi, x.BaslangicUtc });
+    }
+}
