@@ -25,8 +25,47 @@ public sealed record CashboxSummaryDto(
 public sealed record CariLedgerRowDto(
     Guid CariId, string Ad, LedgerDirection Direction, decimal Base, DateTimeOffset Tarih);
 
-/// <summary>Cari bakiye satırı. Pozitif = müşteri borçlu (alacağımız).</summary>
-public sealed record CariBalanceDto(Guid CariId, string Ad, decimal Bakiye);
+/// <summary>
+/// Cari bakiye satırı. <paramref name="Bakiye"/> pozitif = müşteri borçlu (alacağımız).
+///
+/// <para>FAZ-62: net bakiyenin YANINA brüt <paramref name="ToplamBorc"/>/<paramref name="ToplamAlacak"/>
+/// eklendi. Net hesabı DEĞİŞMEDİ (<c>Σ SignedBase</c>); ikisi ayrı görünüyor çünkü "1.000 borç −
+/// 1.000 tahsilat" ile "hiç hareket yok" net'te aynı (0) görünüyordu. Kart bilgileri (telefon/mail/
+/// banka/döviz…) filtre ve iletişim için taşınır — defter matematiğine GİRMEZ.</para>
+/// </summary>
+public sealed record CariBalanceDto(
+    Guid CariId, string Ad, decimal Bakiye,
+    decimal ToplamBorc = 0m, decimal ToplamAlacak = 0m,
+    string? Telefon = null, string? Email = null, string? Banka = null,
+    string? Doviz = null, string? OzelKod = null, string? Sinif = null,
+    bool Kurumsal = false, bool Pasif = false);
+
+/// <summary>Cari kart bilgileri (bakiye raporunun kolon/filtre ihtiyacı). Defter DEĞİL.</summary>
+public sealed record CariKartDto(
+    Guid CariId, string? Telefon, string? Email, string? Banka, string? Doviz,
+    string? OzelKod, string? Sinif, bool Kurumsal, bool Pasif, string? VergiNo);
+
+/// <summary>
+/// Cari bakiye listesi filtresi. Tüm alanlar opsiyonel; boş filtre = mevcut davranış (tüm bakiyeli
+/// cariler) — filtre eklenmiş olması eski çağrıları daraltmaz.
+/// </summary>
+public sealed class CariBakiyeFilter
+{
+    /// <summary>Ad / telefon / e-posta / vergi no içinde geçen metin (küçük-büyük harf duyarsız).</summary>
+    public string? Ara { get; set; }
+    /// <summary>Özel cari tipi (Yurtiçi/Yurtdışı/2.El/Grup İçi/Standart).</summary>
+    public string? OzelKod { get; set; }
+    /// <summary>Müşteri sınıfı/segmenti.</summary>
+    public string? Sinif { get; set; }
+    /// <summary>Cari varsayılan dövizi (TL/EURO/USD).</summary>
+    public string? Doviz { get; set; }
+    /// <summary><c>true</c> = yalnız kurumsal, <c>false</c> = yalnız bireysel, <c>null</c> = hepsi.</summary>
+    public bool? Kurumsal { get; set; }
+    /// <summary>"borclu" = yalnız bakiyesi pozitif, "alacakli" = yalnız negatif, boş = hepsi.</summary>
+    public string? BakiyeTuru { get; set; }
+    /// <summary>Mutlak bakiye alt sınırı (küçük bakiyeleri gizlemek için).</summary>
+    public decimal? MinTutar { get; set; }
+}
 
 /// <summary>
 /// Cari borç yaşlandırma (v1: BRÜT borç — tahsilat FIFO mahsubu yok). Borç (Debit) satırları

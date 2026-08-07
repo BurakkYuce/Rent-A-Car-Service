@@ -23,8 +23,20 @@ public static class ReportsApi
         grp.MapGet("/gelir-gider", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetGelirGiderAsync(from, to, ct)));
 
-        grp.MapGet("/cari-bakiye", async (ReportService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetCariBalancesAsync(ct)));
+        // FAZ-62: filtre parametreleri opsiyonel — hiçbiri verilmezse davranış eskisiyle AYNI.
+        // `min` string alınır: boş "?min=" ile gelen istek decimal? bağlamasında 400 verirdi.
+        grp.MapGet("/cari-bakiye", async (
+            ReportService svc, CancellationToken ct,
+            string? ara = null, string? ozelKod = null, string? sinif = null, string? doviz = null,
+            string? tip = null, string? bakiye = null, string? min = null) =>
+            Results.Ok(await svc.GetCariBalancesAsync(new CariBakiyeFilter
+            {
+                Ara = ara, OzelKod = ozelKod, Sinif = sinif, Doviz = doviz,
+                Kurumsal = tip switch { "kurumsal" => true, "bireysel" => false, _ => (bool?)null },
+                BakiyeTuru = bakiye,
+                MinTutar = decimal.TryParse(min, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var m) ? m : null
+            }, ct)));
 
         grp.MapGet("/aging", async (DateTimeOffset? asOf, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetAgingAsync(asOf ?? DateTimeOffset.UtcNow, ct)));
