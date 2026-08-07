@@ -20,6 +20,13 @@ public interface IReportRepository
     Task<IReadOnlyList<CariLedgerRowDto>> GetCariLedgerRowsAsync(
         DateTimeOffset? asOf, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-62 — cari kart bilgileri (telefon/mail/banka/döviz/özel kod/sınıf). Bakiye raporunun
+    /// kolon ve filtre ihtiyacı için; defter matematiğinden AYRI tutulur ki bakiye hesabı kart
+    /// alanlarındaki bir değişiklikten etkilenmesin.
+    /// </summary>
+    Task<IReadOnlyList<CariKartDto>> GetCariKartlariAsync(CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 
