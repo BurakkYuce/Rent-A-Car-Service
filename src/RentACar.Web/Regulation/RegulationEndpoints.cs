@@ -23,34 +23,52 @@ public static class RegulationEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/mtv", async (RegulationService svc,
+        grp.MapPost("/mtv", async (RegulationService svc, HttpRequest req,
             [FromForm] Guid vehicleId, [FromForm] string donem, [FromForm] decimal tutar, [FromForm] DateTimeOffset vade) =>
         {
-            try { await svc.AddMtvAsync(vehicleId, donem, tutar, vade); return Results.Redirect("/regulasyon"); }
+            try { await svc.AddMtvAsync(vehicleId, donem, tutar, vade, FormParse.Str(req.Form, "aciklama")); return Results.Redirect("/regulasyon"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/muayene", async (RegulationService svc,
+        grp.MapPost("/muayene", async (RegulationService svc, HttpRequest req,
             [FromForm] Guid vehicleId, [FromForm] DateTimeOffset muayeneTarihi, [FromForm] DateTimeOffset bitis, [FromForm] decimal ucret) =>
         {
-            try { await svc.AddInspectionAsync(vehicleId, muayeneTarihi, bitis, ucret); return Results.Redirect("/regulasyon"); }
+            try
+            {
+                await svc.AddInspectionAsync(vehicleId, muayeneTarihi, bitis, ucret,
+                    FormParse.Int(FormParse.Str(req.Form, "islemKm")), FormParse.Str(req.Form, "aciklama"));
+                return Results.Redirect("/regulasyon");
+            }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         // MTV ödeme→defter (roadmap J1): FinanceWrite (mali işlem).
         var ode = app.MapGroup("/regulasyon-odeme").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
-        ode.MapPost("/mtv", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap) =>
+        // FAZ-14: kısmi tutar + evrak/işlem-yapan/kasa bilgileri. Tutar BOŞ bırakılırsa kalanın
+        // tamamı ödenir (eski davranış). Opsiyonel sayısal alanlar "" ile 400 vermesin diye
+        // string? alınıp FormParse ile çevrilir.
+        ode.MapPost("/mtv", async (RegulationService svc, HttpRequest req, [FromForm] Guid id, [FromForm] string? hesap) =>
         {
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
-            try { await svc.MtvOdeAsync(id, h); return Results.Redirect("/regulasyon?ok=1"); }
+            try
+            {
+                await svc.MtvOdeAsync(id, h, odemeTarih: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
+                    odeme: OdemeGirdisi(req.Form));
+                return Results.Redirect("/regulasyon?ok=1");
+            }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        ode.MapPost("/muayene", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? ceza) =>
+        ode.MapPost("/muayene", async (RegulationService svc, HttpRequest req, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? ceza) =>
         {
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var c = FormParse.Dec(ceza) ?? 0m;
-            try { await svc.MuayeneOdeAsync(id, h, c); return Results.Redirect("/regulasyon?ok=1"); }
+            try
+            {
+                await svc.MuayeneOdeAsync(id, h, c, odemeTarih: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
+                    odeme: OdemeGirdisi(req.Form));
+                return Results.Redirect("/regulasyon?ok=1");
+            }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -65,4 +83,16 @@ public static class RegulationEndpoints
 
         return app;
     }
+
+    /// <summary>Kısmi ödeme form alanları (FAZ-14). Tutar boşsa null → kalanın tamamı ödenir.</summary>
+    private static RegulasyonOdemeInput OdemeGirdisi(IFormCollection f) => new()
+    {
+        Tutar = FormParse.Dec(FormParse.Str(f, "tutar")),
+        EvrakNo = FormParse.Str(f, "evrakNo"),
+        IslemYapan = FormParse.Str(f, "islemYapan"),
+        Aciklama = FormParse.Str(f, "odemeAciklama"),
+        KasaKodu = FormParse.Str(f, "kasaKodu"),
+        HesapNo = FormParse.Str(f, "hesapNo"),
+        IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
+    };
 }

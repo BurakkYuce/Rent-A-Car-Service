@@ -36,6 +36,8 @@ internal sealed class MtvRecordConfig : IEntityTypeConfiguration<MtvRecord>
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Donem).IsRequired().HasMaxLength(16);
         e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kalan).HasColumnType("numeric(19,4)");   // FAZ-14 kısmi ödeme bakiyesi
+        e.Property(x => x.Aciklama).HasMaxLength(512);
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         e.HasIndex(x => new { x.TenantId, x.Vade });
     }
@@ -50,6 +52,8 @@ internal sealed class InspectionRecordConfig : IEntityTypeConfiguration<Inspecti
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Ucret).HasColumnType("numeric(19,4)");
         e.Property(x => x.Ceza).HasColumnType("numeric(19,4)"); // roadmap J2
+        e.Property(x => x.Kalan).HasColumnType("numeric(19,4)");   // FAZ-14 kısmi ödeme bakiyesi
+        e.Property(x => x.Aciklama).HasMaxLength(512);
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         e.HasIndex(x => new { x.TenantId, x.Bitis });
     }
@@ -71,5 +75,62 @@ internal sealed class PenaltyConfig : IEntityTypeConfiguration<Penalty>
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.CariId });
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
+    }
+}
+
+// ---- FAZ-14 kısmi ödeme çocukları (MALİ BELGE: app'e yalnız SELECT/INSERT verilir) ----
+
+internal sealed class MtvOdemeConfig : IEntityTypeConfiguration<MtvOdeme>
+{
+    public void Configure(EntityTypeBuilder<MtvOdeme> e)
+    {
+        e.ToTable("MtvOdemeleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<MtvRecord>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.MtvId })
+            .HasPrincipalKey(m => new { m.TenantId, m.Id })
+            .OnDelete(DeleteBehavior.Restrict);   // ödemesi olan kayıt silinemez
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KalanSonrasi).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Hesap).HasConversion<int>();
+        e.Property(x => x.KasaKodu).HasMaxLength(64);
+        e.Property(x => x.HesapNo).HasMaxLength(64);
+        e.Property(x => x.EvrakNo).HasMaxLength(64);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        // Sıra benzersizliği: satır kilidi yarışı kaçarsa DB tutar (aynı sıra iki kez yazılamaz).
+        e.HasIndex(x => new { x.TenantId, x.MtvId, x.Sira }).IsUnique();
+        // Çift-submit: aynı işlem anahtarıyla ikinci ödeme yazılamaz (Expense deseni).
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari })
+            .IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL");
+    }
+}
+
+internal sealed class MuayeneOdemeConfig : IEntityTypeConfiguration<MuayeneOdeme>
+{
+    public void Configure(EntityTypeBuilder<MuayeneOdeme> e)
+    {
+        e.ToTable("MuayeneOdemeleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<InspectionRecord>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.InspectionId })
+            .HasPrincipalKey(m => new { m.TenantId, m.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Ceza).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KalanSonrasi).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Hesap).HasConversion<int>();
+        e.Property(x => x.KasaKodu).HasMaxLength(64);
+        e.Property(x => x.HesapNo).HasMaxLength(64);
+        e.Property(x => x.EvrakNo).HasMaxLength(64);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.HasIndex(x => new { x.TenantId, x.InspectionId, x.Sira }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari })
+            .IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL");
     }
 }
