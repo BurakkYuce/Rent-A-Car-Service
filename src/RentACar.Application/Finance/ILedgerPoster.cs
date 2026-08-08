@@ -9,4 +9,13 @@ namespace RentACar.Application.Finance;
 public interface ILedgerPoster
 {
     Task PostAsync(IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-59 — defter kümesiyle AYNI transaction'da bir de defter-DIŞI künye kaydı yazar
+    /// (ör. <c>CariVirmanBilgi</c>). İkisi birlikte commit olur: çift-submit'te unique kısıt
+    /// hangisinde çarparsa çarpsın ikisi de geri alınır → "defter var, künye yok" ya da tersi
+    /// bir durum oluşamaz.
+    /// </summary>
+    Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T ekKayit,
+        CancellationToken ct = default) where T : class;
 }
