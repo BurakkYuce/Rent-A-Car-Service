@@ -300,6 +300,50 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/toplu-gider?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
+        // FAZ-30 — dönem faturası/tahsilatı ELLE tetikleme (seçili dönemler).
+        grp.MapPost("/otomatik-tahsilat/calistir", async (
+            RentACar.Application.FaturaDonemleri.OtomatikTahsilatService svc, HttpRequest req) =>
+        {
+            if (!req.HasFormContentType) return Results.BadRequest();
+            var f = req.Form;
+            var geri = "/otomatik-tahsilat";
+            try
+            {
+                // "rentalId:donemSira" çiftleri. Bozuk değer SESSİZCE ATLANMAZ — sessiz eleme
+                // kullanıcının çalıştırdığını sandığı dönemin atlanması demekti.
+                var secim = new List<(Guid, int)>();
+                foreach (var ham in f["secili"])
+                {
+                    var p = (ham ?? string.Empty).Split(':');
+                    if (p.Length != 2 || FormParse.Id(p[0]) is not { } rid || FormParse.Int(p[1]) is not { } sira)
+                        throw new ValidationException("Seçim okunamadı; listeyi yenileyip tekrar deneyin.");
+                    secim.Add((rid, sira));
+                }
+                // Hesap SESSİZCE Kasa'ya düşmez (adversarial L2): servisteki Kasa/Banka çiti
+                // web yolundan erişilemez hâle geliyordu.
+                var hesapMetin = f["hesap"].ToString();
+                if (!string.Equals(hesapMetin, "Kasa", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(hesapMetin, "Banka", StringComparison.OrdinalIgnoreCase))
+                    throw new ValidationException("Hesap Kasa ya da Banka olmalıdır.");
+                var hesap = ParseHesap(hesapMetin);
+
+                var sonuc = await svc.CalistirAsync(secim, f["tahsilat"].ToString() is "true" or "on", hesap);
+
+                var q = $"{geri}?ok={Uri.EscapeDataString($"{sonuc.Kesilen} dönem kesildi, {sonuc.Tahsilat} tahsilat yazıldı.")}";
+                if (sonuc.Atlananlar.Count > 0)
+                {
+                    // URL sınırı yüzünden ilk 10 gösterilir ama KALANI SAYILIR (adversarial M3):
+                    // sessizce yutmak "atlanan yok" gibi okunuyordu.
+                    var goster = RentACar.Application.FaturaDonemleri.OtomatikTahsilatService
+                        .AtlananGoster(sonuc.Atlananlar);
+                    q += "&atlanan=" + Uri.EscapeDataString(string.Join("|", goster));
+                }
+                return Results.Redirect(q);
+            }
+            catch (ValidationException ex)
+            { return Results.Redirect(HataUrl(geri, ex.Message)); }
+        });
+
         // FAZ-29 — tek cari, ekstresinden seçilen BORÇ kalemlerini toplu kapatma.
         grp.MapPost("/tek-cari-kapat", async (CashService svc, HttpRequest req) =>
         {
