@@ -28,6 +28,89 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().Include(i => i.Lines).FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
+    /// <summary>
+    /// FAZ-52 — fatura satırı × fatura × cari × kira × araç × rezervasyon birleşimi.
+    ///
+    /// <para>Kira/araç/rezervasyon bağı OPSİYONELDİR: serbest (manuel) faturanın kirası yoktur →
+    /// LEFT JOIN. Bunları INNER JOIN yapmak manuel faturaları listeden sessizce düşürürdü.</para>
+    ///
+    /// <para>Para alanları satırdan OLDUĞU GİBİ okunur (yeniden hesap yok).</para>
+    /// </summary>
+    public async Task<IReadOnlyList<FaturaSatirDto>> ListLinesAsync(
+        FaturaSatirFilter? filter = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q =
+            from l in db.InvoiceLines.AsNoTracking()
+            join i in db.Invoices.AsNoTracking() on l.InvoiceId equals i.Id
+            join c in db.Customers.AsNoTracking() on i.CariId equals c.Id into cg
+            from c in cg.DefaultIfEmpty()
+            join r in db.Rentals.AsNoTracking() on i.RentalId equals (Guid?)r.Id into rg
+            from r in rg.DefaultIfEmpty()
+            join v in db.Vehicles.AsNoTracking() on (Guid?)r.VehicleId equals (Guid?)v.Id into vg
+            from v in vg.DefaultIfEmpty()
+            join rez in db.Reservations.AsNoTracking() on r.ReservationId equals (Guid?)rez.Id into rezg
+            from rez in rezg.DefaultIfEmpty()
+            select new { l, i, c, r, v, rez };
+
+        if (filter is not null)
+        {
+            if (filter.CariId is { } cid) q = q.Where(x => x.i.CariId == cid);
+            if (filter.Bas is { } b) q = q.Where(x => x.i.Tarih >= b);
+            if (filter.Bit is { } t) q = q.Where(x => x.i.Tarih <= t);
+            if (filter.IptalleriGizle) q = q.Where(x => x.i.Durum != InvoiceStatus.Iptal);
+            if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            {
+                var o = filter.Ofis.Trim();
+                q = q.Where(x => x.r != null && x.r.CikisOfisi != null && x.r.CikisOfisi.Trim() == o);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var a = filter.Ara.Trim();
+                q = q.Where(x => EF.Functions.ILike(x.i.No, $"%{a}%")
+                              || EF.Functions.ILike(x.l.Aciklama, $"%{a}%")
+                              || (x.r != null && EF.Functions.ILike(x.r.SozlesmeNo, $"%{a}%")));
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Plaka))
+            {
+                // Plakalar normalize saklanıyor ("34AA01"); arama terimi de normalize edilmeli (FAZ-63 dersi).
+                var p = filter.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => x.v != null && EF.Functions.ILike(x.v.Plaka, $"%{p}%"));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
+        var rows = await q
+            .OrderByDescending(x => x.i.Tarih).ThenBy(x => x.i.No)
+            .Take(limit)
+            .Select(x => new
+            {
+                x.i.Id, x.i.No, x.i.Tarih, x.i.VadeTarihi, x.i.Durum, x.i.IadeMi, x.i.ManuelMi,
+                x.i.Currency, x.i.Kur, x.i.CariId,
+                CariAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                    ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
+                CariSehir = x.c == null ? null : x.c.Il,
+                CariEmail = x.c == null ? null : x.c.Email,
+                CariVergiNo = x.c == null ? null : x.c.VergiNo,
+                x.l.Aciklama, x.l.Miktar, x.l.BirimNetFiyat, x.l.KdvOrani,
+                x.l.SatirNet, x.l.SatirKdv, x.l.SatirToplam,
+                RentalId = (Guid?)(x.r == null ? null : x.r.Id),
+                SozlesmeNo = x.r == null ? null : x.r.SozlesmeNo,
+                Plaka = x.v == null ? null : x.v.Plaka,
+                CikisOfisi = x.r == null ? null : x.r.CikisOfisi,
+                RezKaynak = x.rez == null ? null : x.rez.Kaynak
+            })
+            .ToListAsync(ct);
+
+        return rows.Select(x => new FaturaSatirDto(
+            x.Id, x.No, x.Tarih, x.VadeTarihi, x.Durum, x.IadeMi, x.ManuelMi, x.Currency, x.Kur,
+            x.CariId, string.IsNullOrWhiteSpace(x.CariAd) ? "(bilinmeyen cari)" : x.CariAd!.Trim(),
+            x.CariSehir, x.CariEmail, x.CariVergiNo,
+            x.Aciklama, x.Miktar, x.BirimNetFiyat, x.KdvOrani, x.SatirNet, x.SatirKdv, x.SatirToplam,
+            x.RentalId, x.SozlesmeNo, x.Plaka, x.CikisOfisi, x.RezKaynak)).ToList();
+    }
+
     public async Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
