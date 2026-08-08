@@ -16,13 +16,14 @@ namespace RentACar.Application.Customers;
 /// </summary>
 public sealed class CustomerService(
     ICustomerRepository repository, ISecretProtector secrets, IPiiHasher pii, ITenantContext tenant,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser, IPasswordHasher hasher)
 {
     private readonly ICustomerRepository _repository = repository;
     private readonly ISecretProtector _secrets = secrets;
     private readonly IPiiHasher _pii = pii;
     private readonly ITenantContext _tenant = tenant;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly IPasswordHasher _hasher = hasher;   // FAZ-40: portal şifresi tek yönlü özet
 
     /// <summary>Blind-index tuzu için tenant (PII yazan/arayan akışlar daima kimlikli).</summary>
     private Guid TenantId => _tenant.TenantId
@@ -196,7 +197,52 @@ public sealed class CustomerService(
         BankaIban = string.IsNullOrWhiteSpace(input.BankaIban) ? null : input.BankaIban.Trim().ToUpperInvariant(),
         BankaAdi = Trim(input.BankaAdi),
         FaturaAdresi = Trim(input.FaturaAdresi),
-        FaturaUnvan = Trim(input.FaturaUnvan)
+        FaturaUnvan = Trim(input.FaturaUnvan),
+        // FAZ-40: Normalize KOPYA KURUCUDUR — yeni alan buraya DA yazılmalı (BelgeSablon dersi).
+        Ulke = Trim(input.Ulke),
+        Tel2 = Trim(input.Tel2),
+        OzelKod = Trim(input.OzelKod),
+        EntegrasyonKodu = Trim(input.EntegrasyonKodu),
+        Aciklama = Trim(input.Aciklama),
+        RiskIzin = Trim(input.RiskIzin),
+        DogumYeri = Trim(input.DogumYeri),
+        PasaportYeri = Trim(input.PasaportYeri),
+        KurumsalNo = Trim(input.KurumsalNo),
+        UyariSerbest = Trim(input.UyariSerbest),
+        TevkifatKodu = Trim(input.TevkifatKodu),
+        FaturaKiralayanIsim = Trim(input.FaturaKiralayanIsim),
+        IsAdresi = Trim(input.IsAdresi),
+        IsTelefonu = Trim(input.IsTelefonu),
+        KayitliIl = Trim(input.KayitliIl),
+        KayitliIlce = Trim(input.KayitliIlce),
+        MahalleKoy = Trim(input.MahalleKoy),
+        SeriNo = Trim(input.SeriNo),
+        CiltNo = Trim(input.CiltNo),
+        AileSira = Trim(input.AileSira),
+        SiraNo = Trim(input.SiraNo),
+        TcDogrulama = input.TcDogrulama,
+        FaturaAdresFarkli = input.FaturaAdresFarkli,
+        FaturaTekSatir = input.FaturaTekSatir,
+        DogumGunuTakip = input.DogumGunuTakip,
+        AnonimAd = input.AnonimAd,
+        AnonimTc = input.AnonimTc,
+        AnonimTelefon = input.AnonimTelefon,
+        AnonimMail = input.AnonimMail,
+        AnonimAdres = input.AnonimAdres,
+        AnonimBelge = input.AnonimBelge,
+        BakiyeGor = input.BakiyeGor,
+        AracVerilmez = input.AracVerilmez,
+        YasEhliyetSerbest = input.YasEhliyetSerbest,
+        MerkezKurumsal = input.MerkezKurumsal,
+        Broker = input.Broker,
+        FindexZorunlu = input.FindexZorunlu,
+        BayiKomisyon = input.BayiKomisyon,
+        PasaportTarihi = input.PasaportTarihi,
+        WebIndirim = input.WebIndirim,
+        KaraZamani = input.KaraZamani,
+        IslemSubeId = input.IslemSubeId,
+        FirmaId = input.FirmaId,
+        Sifre = Trim(input.Sifre)
     };
 
     private void Apply(Customer c, CustomerInput n)
@@ -268,6 +314,52 @@ public sealed class CustomerService(
         c.BankaAdi = n.BankaAdi;
         c.FaturaAdresi = n.FaturaAdresi;
         c.FaturaUnvan = n.FaturaUnvan;
+        c.Ulke = n.Ulke;
+        c.Tel2 = n.Tel2;
+        c.OzelKod = n.OzelKod;
+        c.EntegrasyonKodu = n.EntegrasyonKodu;
+        c.Aciklama = n.Aciklama;
+        c.RiskIzin = n.RiskIzin;
+        c.DogumYeri = n.DogumYeri;
+        c.PasaportYeri = n.PasaportYeri;
+        c.KurumsalNo = n.KurumsalNo;
+        c.UyariSerbest = n.UyariSerbest;
+        c.TevkifatKodu = n.TevkifatKodu;
+        c.FaturaKiralayanIsim = n.FaturaKiralayanIsim;
+        c.IsAdresi = n.IsAdresi;
+        c.IsTelefonu = n.IsTelefonu;
+        c.KayitliIl = n.KayitliIl;
+        c.KayitliIlce = n.KayitliIlce;
+        c.MahalleKoy = n.MahalleKoy;
+        c.SeriNo = n.SeriNo;
+        c.CiltNo = n.CiltNo;
+        c.AileSira = n.AileSira;
+        c.SiraNo = n.SiraNo;
+        c.TcDogrulama = n.TcDogrulama;
+        c.FaturaAdresFarkli = n.FaturaAdresFarkli;
+        c.FaturaTekSatir = n.FaturaTekSatir;
+        c.DogumGunuTakip = n.DogumGunuTakip;
+        c.AnonimAd = n.AnonimAd;
+        c.AnonimTc = n.AnonimTc;
+        c.AnonimTelefon = n.AnonimTelefon;
+        c.AnonimMail = n.AnonimMail;
+        c.AnonimAdres = n.AnonimAdres;
+        c.AnonimBelge = n.AnonimBelge;
+        c.BakiyeGor = n.BakiyeGor;
+        c.AracVerilmez = n.AracVerilmez;
+        c.YasEhliyetSerbest = n.YasEhliyetSerbest;
+        c.MerkezKurumsal = n.MerkezKurumsal;
+        c.Broker = n.Broker;
+        c.FindexZorunlu = n.FindexZorunlu;
+        c.BayiKomisyon = n.BayiKomisyon;
+        c.PasaportTarihi = n.PasaportTarihi;
+        c.WebIndirim = n.WebIndirim;
+        c.KaraZamani = n.KaraZamani;
+        c.IslemSubeId = n.IslemSubeId;
+        c.FirmaId = n.FirmaId;
+        // ŞİFRE: boş = "değiştirme". Her kaydetmede sıfırlansaydı portal erişimi sessizce
+        // kaybolurdu (TarifeGrubu dersi). Düz metin kolona ASLA yazılmaz.
+        if (!string.IsNullOrWhiteSpace(n.Sifre)) c.SifreHash = _hasher.Hash(n.Sifre!);
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

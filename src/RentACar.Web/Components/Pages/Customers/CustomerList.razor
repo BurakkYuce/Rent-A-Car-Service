@@ -68,6 +68,16 @@
         <option value="">Kara Liste (tümü)</option>
         <option value="true" selected="@(Kara == "true")">Kara listede</option>
     </select>
+    @* FAZ-40: Pasif filtresi YOKTU — pasif cariler listeden ayıklanamıyordu. *@
+    <select name="pasifF">
+        <option value="">Durum (tümü)</option>
+        <option value="false" selected="@(PasifF == "false")">Aktif</option>
+        <option value="true" selected="@(PasifF == "true")">Pasif</option>
+    </select>
+    <select name="avF">
+        <option value="">Araç Verilmez (tümü)</option>
+        <option value="true" selected="@(AvF == "true")">İşaretli</option>
+    </select>
     <button type="submit">Filtrele</button>
     @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Tip) || !string.IsNullOrEmpty(Iys) || !string.IsNullOrEmpty(UyariF) || !string.IsNullOrEmpty(Kara))
     {
@@ -81,13 +91,15 @@
     <thead>
         <tr>
             <th>Tür</th><th>Ad / Ünvan</th><th>TC / Vergi No</th><th>Telefon</th>
+            <th>GSM 2</th><th>İlçe</th><th>Temsilci</th><th>Entegrasyon</th><th>Özel Kod</th>
+            <th>Sınıf</th><th class="num">Vade (gün)</th>
             <th>Kaynak</th><th>Kira</th><th>Ciro</th><th>Son Kira</th><th>Durum</th><th></th>
         </tr>
     </thead>
     <tbody>
         @if (_page.Items.Count == 0)
         {
-            <tr><td colspan="10" class="muted">Kayıtlı cari yok.</td></tr>
+            <tr><td colspan="18" class="muted">Kayıtlı cari yok.</td></tr>
         }
         @foreach (var c in _page.Items)
         {
@@ -96,6 +108,13 @@
                 <td><a href="/cariler/@c.Id">@c.DisplayName</a></td>
                 <td>@(c.Tip == CariType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
                 <td>@c.CepTel</td>
+                <td>@(c.Gsm2 ?? "—")</td>
+                <td>@(c.Ilce ?? "—")</td>
+                <td>@(c.MusteriTemsilcisi ?? "—")</td>
+                <td>@(c.EntegrasyonKodu ?? "—")</td>
+                <td>@(c.OzelKod ?? "—")</td>
+                <td>@(c.Sinif ?? "—")</td>
+                <td class="num">@(c.VadeGun?.ToString() ?? "—")</td>
                 <td>@c.Kaynak</td>
                 <td class="num">@c.KiraAdet</td>
                 <td class="num">@c.Ciro.ToString("N2")</td>
@@ -105,6 +124,9 @@
                     @if (c.Uyari) { <span class="badge warn">Uyarı</span> }
                     @if (c.IysIzinli) { <span class="badge">İYS</span> }
                     @if (c.Pasif) { <span class="badge">Pasif</span> }
+                    @* Operasyonel uyarı: kira açılışında görülmesi gereken bayrak. *@
+                    @if (c.AracVerilmez) { <span class="badge danger">Araç Verilmez</span> }
+                    @if (!string.IsNullOrWhiteSpace(c.UyariNedeni)) { <span class="badge warn" title="@c.UyariNedeni">Not</span> }
                 </td>
                 <td class="row-actions">
                     <a href="/cariler/@c.Id/detay" class="link">Detay</a>
@@ -138,6 +160,9 @@
     [SupplyParameterFromQuery(Name = "kara")] public string? Kara { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
 
+    [SupplyParameterFromQuery(Name = "pasifF")] public string? PasifF { get; set; }
+    [SupplyParameterFromQuery(Name = "avF")] public string? AvF { get; set; }
+
     private PagedResult<CustomerRow> _page = new([], 0, 1, 20);
     private List<string> _ilOpts = [], _ilceOpts = [];
 
@@ -150,6 +175,8 @@
             IysIzinli = Iys switch { "true" => true, "false" => false, _ => null },
             Uyari = UyariF == "true" ? true : null,
             KaraListe = Kara == "true" ? true : null,
+            Pasif = PasifF switch { "true" => true, "false" => false, _ => null },
+            AracVerilmez = AvF == "true" ? true : null,
             Page = Page ?? 1
         });
 

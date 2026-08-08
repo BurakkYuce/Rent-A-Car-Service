@@ -28,4 +28,20 @@ public sealed class CustomerRow
     /// <summary>İptal olmayan kiraların GenelToplam toplamı (ciro).</summary>
     public decimal Ciro { get; init; }
     public DateTimeOffset? SonKira { get; init; }
+
+    // ---- FAZ-40: entity'de ZATEN VAR ama projeksiyona girmiyordu (D3 — en ucuz sınıf) ----
+    public string? MusteriTemsilcisi { get; init; }
+    public DateTimeOffset? DogumTarihi { get; init; }
+    public int? VadeGun { get; init; }
+    public string? UyariNedeni { get; init; }
+    public string? Gsm2 { get; init; }
+    public string? Adres { get; init; }
+    public string? Ilce { get; init; }
+    /// <summary>FAZ-40 yeni alanları — listede arama/ayırt etme için.</summary>
+    public string? EntegrasyonKodu { get; init; }
+    public string? OzelKod { get; init; }
+    public string? Ulke { get; init; }
+    public string? Sinif { get; init; }
+    /// <summary>Operasyonel uyarı: bu cariye araç verilmez.</summary>
+    public bool AracVerilmez { get; init; }
 }
