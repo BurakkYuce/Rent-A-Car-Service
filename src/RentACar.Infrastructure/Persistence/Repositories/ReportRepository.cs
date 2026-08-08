@@ -350,6 +350,94 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             x.SistemKalemi)).ToList();
     }
 
+    public async Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
+        KarsilastirmaliAnalizFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var tablo = string.Equals(filter.Tablo, "Rezervasyon", StringComparison.OrdinalIgnoreCase)
+            ? "Rezervasyon" : "Kira";
+        var gunMu = string.Equals(filter.VeriTuru, "Gun", StringComparison.OrdinalIgnoreCase);
+        var kirilim = filter.Kirilim switch
+        {
+            "RezKaynagi" => "RezKaynagi",
+            "CikisNoktasi" => "CikisNoktasi",
+            _ => "AracGrubu"
+        };
+
+        // Varsayılan pencere: son 12 ayın BAŞI (ayın 1'i) → bugün. Kullanıcı verirse o kullanılır.
+        var bit = filter.Bit ?? DateTimeOffset.UtcNow;
+        var bas = filter.Bas ?? new DateTimeOffset(
+            new DateTime(bit.UtcDateTime.Year, bit.UtcDateTime.Month, 1).AddMonths(-11), TimeSpan.Zero);
+
+        // Araç grubu kırılımı için plaka→grup eşlemesi gerekiyor (Vehicle.Grup METİN alanı).
+        var aracGrup = kirilim == "AracGrubu"
+            ? await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Grup })
+                .ToDictionaryAsync(v => v.Id, v => v.Grup, ct)
+            : [];
+
+        List<(DateTimeOffset Tarih, string Kirilim, decimal Deger)> ham;
+        if (tablo == "Rezervasyon")
+        {
+            var q = db.Reservations.AsNoTracking().Where(r => r.Durum != ReservationStatus.Iptal);
+            q = q.Where(r => r.BasTar >= bas && r.BasTar <= bit);
+            if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            {
+                var o = filter.Ofis.Trim();
+                q = q.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == o);
+            }
+            var rows = await q.Select(r => new { r.BasTar, r.Gun, r.Kaynak, r.CikisOfisi, r.VehicleId })
+                .ToListAsync(ct);
+            ham = rows.Select(r => (r.BasTar, Kirilim: kirilim switch
+            {
+                "RezKaynagi" => r.Kaynak,
+                "CikisNoktasi" => r.CikisOfisi,
+                _ => aracGrup.GetValueOrDefault(r.VehicleId)
+            } ?? "", Deger: gunMu ? r.Gun : 1m)).ToList();
+        }
+        else
+        {
+            var q = db.Rentals.AsNoTracking().Where(r => r.Durum != RentalStatus.Iptal);
+            q = q.Where(r => r.BasTar >= bas && r.BasTar <= bit);
+            if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            {
+                var o = filter.Ofis.Trim();
+                q = q.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == o);
+            }
+            var rows = await q.Select(r => new { r.BasTar, r.Gun, r.Kaynak, r.CikisOfisi, r.VehicleId })
+                .ToListAsync(ct);
+            ham = rows.Select(r => (r.BasTar, Kirilim: kirilim switch
+            {
+                "RezKaynagi" => r.Kaynak,
+                "CikisNoktasi" => r.CikisOfisi,
+                _ => aracGrup.GetValueOrDefault(r.VehicleId)
+            } ?? "", Deger: gunMu ? r.Gun : 1m)).ToList();
+        }
+
+        // Ay kolonları pencereden ÜRETİLİR (veriden değil): veri olmayan ay da kolon olarak görünür,
+        // aksi hâlde "o ay hiç iş yok" bilgisi grid'den sessizce kaybolurdu.
+        var aylar = new List<string>();
+        var imlec = new DateTime(bas.UtcDateTime.Year, bas.UtcDateTime.Month, 1);
+        var sonAy = new DateTime(bit.UtcDateTime.Year, bit.UtcDateTime.Month, 1);
+        while (imlec <= sonAy && aylar.Count < 120)   // üst sınır: absürt aralıkta kolon patlamasın
+        {
+            aylar.Add(imlec.ToString("yyyy-MM"));
+            imlec = imlec.AddMonths(1);
+        }
+
+        var satirlar = ham
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Kirilim) ? "(belirtilmemiş)" : x.Kirilim.Trim())
+            .Select(g => new KarsilastirmaliSatirDto(
+                g.Key,
+                g.GroupBy(x => x.Tarih.UtcDateTime.ToString("yyyy-MM"))
+                 .ToDictionary(a => a.Key, a => a.Sum(x => x.Deger))))
+            .OrderByDescending(s => s.Toplam).ThenBy(s => s.Kirilim)
+            .ToList();
+
+        return new KarsilastirmaliAnalizDto(aylar, satirlar, tablo,
+            gunMu ? "Gun" : "Adet", kirilim);
+    }
+
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
