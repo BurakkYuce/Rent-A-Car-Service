@@ -195,4 +195,34 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         Assert.Equal("EURO", c.Doviz);
         Assert.Equal("Sadece Tevkifatlı", c.TevkifatDurum);
     }
+
+    /// <summary>
+    /// FAZ-13 — dropdown seçim listesi: görünen ad ListAsync ile BİREBİR aynı, ama PII taşımaz.
+    /// (ListAsync her carinin TC/ehliyet/pasaport cipher'ını çözer; açılır liste için gereksiz.
+    /// Canlı duman testinde bayat anahtar-halkası yüzünden sayfa başına yüzlerce
+    /// "Cipher çözülemedi" uyarısı ürettiği ölçüldü.)
+    /// </summary>
+    [Fact]
+    public async Task Secim_listesi_PIIsiz_ve_ad_ListAsync_ile_ayni()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenant);
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
+
+        await svc.CreateAsync(new CustomerInput
+        { Tip = CariType.Bireysel, Ad = "Selim", Soyad = "Kaya", TcKimlik = "10000000146" });
+        await svc.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Kaya Filo A.Ş." });
+
+        var secim = await svc.ListSecimAsync();
+        var tam = await svc.ListAsync();
+        Assert.Equal(tam.Select(x => x.DisplayName).OrderBy(x => x),
+                     secim.Select(x => x.Ad).OrderBy(x => x));
+        Assert.Contains(secim, x => x.Ad == "Selim Kaya");
+        Assert.Contains(secim, x => x.Ad == "Kaya Filo A.Ş.");
+
+        // Tenant izolasyonu (racar_app + RLS): başka tenant hiçbir ad görmez.
+        using var digeri = host.ScopeFor(Guid.NewGuid());
+        Assert.Empty(await digeri.ServiceProvider.GetRequiredService<CustomerService>().ListSecimAsync());
+    }
 }
