@@ -44,6 +44,22 @@ internal sealed class VehicleConfig : IEntityTypeConfiguration<Vehicle>
         e.Property(x => x.OzelKod3).HasMaxLength(64);
         e.Property(x => x.OzelKod4).HasMaxLength(64);
         e.Property(x => x.OzelKod5).HasMaxLength(64);
+        // FAZ-28 detay alanları
+        e.Property(x => x.BelgeNo).HasMaxLength(64);
+        e.Property(x => x.RuhsatSahibi).HasMaxLength(128);
+        e.Property(x => x.SozNo).HasMaxLength(64);
+        e.Property(x => x.AraciAlan).HasMaxLength(128);
+        e.Property(x => x.Kiralayan).HasMaxLength(128);
+        e.Property(x => x.AssistanFirma).HasMaxLength(128);
+        e.Property(x => x.TsbKodu).HasMaxLength(32);
+        e.Property(x => x.OdemeSekli).HasMaxLength(64);
+        e.Property(x => x.PasifSebep).HasMaxLength(256);
+        e.Property(x => x.SonDurum).HasMaxLength(256);
+        e.Property(x => x.HgsFirma).HasMaxLength(128);
+        e.Property(x => x.KiraFiyat).HasColumnType("numeric(19,4)");
+        e.Property(x => x.TsbKaskoDegeri).HasColumnType("numeric(19,4)");
+        e.Property(x => x.AlisEuroFiyat).HasColumnType("numeric(19,4)");
+        e.Property(x => x.SatisEuroFiyat).HasColumnType("numeric(19,4)");
         e.Property(x => x.AlimBedeli).HasColumnType("numeric(19,4)");
         e.Property(x => x.AlisVergisiz).HasColumnType("numeric(19,4)");
         e.Property(x => x.AlisOtv).HasColumnType("numeric(19,4)");
@@ -66,6 +82,7 @@ internal sealed class VehicleSaleConfig : IEntityTypeConfiguration<VehicleSale>
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.No).IsRequired().HasMaxLength(32);
         e.Property(x => x.NoterNo).HasMaxLength(64);
+        e.Property(x => x.IhaleFirmasi).HasMaxLength(128);   // FAZ-28
         e.Property(x => x.SatisNet).HasColumnType("numeric(19,4)");
         e.Property(x => x.KdvOrani).HasColumnType("numeric(9,4)");
         e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");

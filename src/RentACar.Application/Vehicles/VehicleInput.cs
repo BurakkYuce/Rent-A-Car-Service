@@ -53,6 +53,31 @@ public sealed class VehicleInput
     public string? OzelKod4 { get; set; }
     public string? OzelKod5 { get; set; }
 
+    // ---- FAZ-28 detay alanları (bilgi; fiyat/defter/müsaitlik hesabına girmez) ----
+    public string? BelgeNo { get; set; }
+    public string? RuhsatSahibi { get; set; }
+    public string? SozNo { get; set; }
+    public string? AraciAlan { get; set; }
+    public string? Kiralayan { get; set; }
+    public string? AssistanFirma { get; set; }
+    public string? TsbKodu { get; set; }
+    public string? OdemeSekli { get; set; }
+    public string? PasifSebep { get; set; }
+    public string? SonDurum { get; set; }
+    public string? HgsFirma { get; set; }
+    public int? SonTeslimKm { get; set; }
+    public int? KiraGun { get; set; }
+    public int? DisKmLimit { get; set; }
+    public decimal? KiraFiyat { get; set; }
+    public decimal? TsbKaskoDegeri { get; set; }
+    public decimal? AlisEuroFiyat { get; set; }
+    public decimal? SatisEuroFiyat { get; set; }
+    public DateTimeOffset? SonTeslimTarihi { get; set; }
+    public DateTimeOffset? KiraBitTar { get; set; }
+    public DateTimeOffset? KiraBekTar { get; set; }
+    public Guid? KiraMusteriId { get; set; }
+    public bool? AlisEuro { get; set; }
+
     // roadmap G1
     public string? HgsNo { get; set; }
     public string? OgsNo { get; set; }

@@ -50,6 +50,17 @@ public sealed class VehicleService(
         return _repository.SearchAsync(filter, ct);
     }
 
+
+    /// <summary>
+    /// FAZ-28 — detaylı araç listesi. Aracın kendi alanlarına ek olarak kredi bankası, muayene,
+    /// kasko/trafik bitişi, satış-ihale bilgisi ve AKTİF kira (canlı çözülür) döner.
+    /// Şube kapsamı burada UYGULANMAZ: liste zaten `ListAsync` gibi tüm filoyu gösteren bir
+    /// yönetim görünümü ve sayfa Admin/Yönetici kapılı.
+    /// </summary>
+    public Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+        VehicleDetayFilter? filter = null, CancellationToken ct = default)
+        => _repository.ListDetayAsync(filter, ct);
+
     public async Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var v = await _repository.FindAsync(id, ct);
@@ -216,6 +227,30 @@ public sealed class VehicleService(
         v.OzelKod3 = Trim(input.OzelKod3);
         v.OzelKod4 = Trim(input.OzelKod4);
         v.OzelKod5 = Trim(input.OzelKod5);
+        // FAZ-28 detay alanları
+        v.BelgeNo = Trim(input.BelgeNo);
+        v.RuhsatSahibi = Trim(input.RuhsatSahibi);
+        v.SozNo = Trim(input.SozNo);
+        v.AraciAlan = Trim(input.AraciAlan);
+        v.Kiralayan = Trim(input.Kiralayan);
+        v.AssistanFirma = Trim(input.AssistanFirma);
+        v.TsbKodu = Trim(input.TsbKodu);
+        v.OdemeSekli = Trim(input.OdemeSekli);
+        v.PasifSebep = Trim(input.PasifSebep);
+        v.SonDurum = Trim(input.SonDurum);
+        v.HgsFirma = Trim(input.HgsFirma);
+        v.SonTeslimKm = input.SonTeslimKm;
+        v.KiraGun = input.KiraGun;
+        v.DisKmLimit = input.DisKmLimit;
+        v.KiraFiyat = input.KiraFiyat;
+        v.TsbKaskoDegeri = input.TsbKaskoDegeri;
+        v.AlisEuroFiyat = input.AlisEuroFiyat;
+        v.SatisEuroFiyat = input.SatisEuroFiyat;
+        v.SonTeslimTarihi = input.SonTeslimTarihi;
+        v.KiraBitTar = input.KiraBitTar;
+        v.KiraBekTar = input.KiraBekTar;
+        v.KiraMusteriId = input.KiraMusteriId;
+        v.AlisEuro = input.AlisEuro;
         // roadmap G1
         v.HgsNo = Trim(input.HgsNo);
         v.OgsNo = Trim(input.OgsNo);
