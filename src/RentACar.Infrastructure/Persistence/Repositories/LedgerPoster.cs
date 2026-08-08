@@ -15,7 +15,14 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task PostAsync(IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+    public Task PostAsync(IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+        => YazAsync(entries, null, ct);
+
+    public Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T ekKayit,
+        CancellationToken ct = default) where T : class
+        => YazAsync(entries, ekKayit, ct);
+
+    private async Task YazAsync(IReadOnlyList<AccountLedgerEntry> entries, object? ekKayit, CancellationToken ct)
     {
         if (entries.Count == 0) return;
 
@@ -29,6 +36,8 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             db.AccountLedgerEntries.AddRange(entries);
+            // Künye AYNI transaction'da: biri yazılıp diğeri yazılmadan kalamaz.
+            if (ekKayit is not null) db.Add(ekKayit);
             try
             {
                 await db.SaveChangesAsync(ct);

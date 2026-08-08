@@ -52,6 +52,12 @@ public interface ICashRepository
     /// Filtre verilirse görünen satırlar daralır ve <see cref="CariEkstreSonuc.Devir"/> kapsam
     /// dışında kalan ÖNCEKİ hareketlerin net toplamıyla dolar (yürüyen bakiye doğru devam etsin).
     /// </summary>
+    /// <summary>
+    /// FAZ-59 — cari↔cari virman geçmişi: künye tablosu + DEFTERDEN okunan tutar (tek kaynak).
+    /// </summary>
+    Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
+        CariVirmanFilter? filter = null, CancellationToken ct = default);
+
     Task<CariEkstreSonuc> GetCariStatementAsync(
         Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default);
 
