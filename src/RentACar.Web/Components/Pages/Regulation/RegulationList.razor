@@ -22,13 +22,23 @@
     <label>Döviz<select name="doviz">@foreach (var d in Dovizler){<option value="@d">@d</option>}</select></label>
     <label>Poliçe No<input name="policeNo" /></label>
     <ComboBox Name="firma" Label="Firma" Options="_firmaOpts" />
+    @* FAZ-15 sigorta değer tabanı — BİLGİ alanları; hiçbir hesaba/deftere girmez. *@
+    <label>Araç Değeri<input name="aracDegeri" type="number" step="0.01" min="0" title="Kasko araç değeri (bilgi)" /></label>
+    <label>İMM Değeri<input name="immDegeri" type="number" step="0.01" min="0" title="İhtiyari Mali Mesuliyet teminatı (bilgi)" /></label>
+    <label>Aksesuar Değeri<input name="aksesuarDegeri" type="number" step="0.01" min="0" title="Aksesuar teminatı (bilgi)" /></label>
     <button type="submit">Ekle</button>
 </form>
+<p class="muted small">Araç/İMM/Aksesuar değeri ve Kalan yalnızca <strong>bilgi</strong> alanlarıdır: muhasebe defterine
+yazılmaz, gelir-gider ve cari bakiyeyi etkilemez. Kalan, poliçe ödendiğinde otomatik 0'a düşer.</p>
 <div class="table-scroll">
-<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Tip</th><th>Bitiş</th><th>Prim</th><th>Döviz</th><th>Firma</th><th>Ödendi</th><th></th></tr></thead><tbody>
+<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Tip</th><th>Bitiş</th><th class="num">Prim</th><th>Döviz</th><th>Firma</th><th class="num">Araç Değ.</th><th class="num">İMM</th><th class="num">Aksesuar</th><th class="num">Kalan</th><th>Ödendi</th><th></th></tr></thead><tbody>
 @foreach (var s in _ins)
 {
-    <tr><td>@Plaka(s.VehicleId)</td><td>@s.Tip</td><td>@s.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@s.Prim.ToString("N2")</td><td>@s.Currency</td><td>@s.Firma</td>
+    <tr><td>@Plaka(s.VehicleId)</td><td>@s.Tip</td><td>@s.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td class="num">@s.Prim.ToString("N2")</td><td>@s.Currency</td><td>@s.Firma</td>
+        <td class="num">@(s.AracDegeri?.ToString("N2") ?? "—")</td>
+        <td class="num">@(s.ImmDegeri?.ToString("N2") ?? "—")</td>
+        <td class="num">@(s.AksesuarDegeri?.ToString("N2") ?? "—")</td>
+        <td class="num">@s.Kalan.ToString("N2")</td>
         <td>@(s.Odendi ? "Evet" : "Hayır")</td>
         <td>
             @if (!s.Odendi)
@@ -45,6 +55,69 @@
                     <button type="submit">Öde</button>
                 </form>
             }
+        </td>
+    </tr>
+}
+</tbody></table>
+</div>
+
+<h3 id="zeyil">Zeyil (Poliçe Ekleri)</h3>
+<p class="muted small">Zeyil = poliçe eki (zam/tenzil/değişiklik). Kayıtlar <strong>bilgi ve geçmiş</strong> amaçlıdır:
+Değer/Brüt/Net/Fon-Vergi tutarları <strong>muhasebe defterine yazılmaz</strong>, gelir-gider ve cari bakiyeyi
+değiştirmez ve poliçenin Kalan bakiyesine eklenmez. Zeyil primi tahsil/ödeme yapıldığında normal
+Kasa/Banka akışı kullanılır — iki yolu birden açmak çift-sayım üretirdi.</p>
+@if (_ins.Count == 0)
+{
+    <p class="muted">Önce bir sigorta poliçesi ekleyin; zeyil bir poliçeye bağlanır.</p>
+}
+else
+{
+    <form method="post" action="/regulasyon/zeyil" class="grid-form"><AntiforgeryToken />
+        <label>Poliçe<select name="policyId" required>
+            <option value="">— seç —</option>
+            @foreach (var p in _ins)
+            {
+                <option value="@p.Id">@PoliceEtiket(p)</option>
+            }
+        </select></label>
+        <label>Zeyil No<input name="zeyilNo" maxlength="32" required /></label>
+        <label>Tarih<input name="tarih" type="date" required /></label>
+        <label>Tanzim<input name="tanzim" type="date" /></label>
+        <label>Değer<input name="deger" type="number" step="0.01" min="0" title="Zeyille değişen sigorta değeri (bilgi)" /></label>
+        @* Brüt/Net/Fon-Vergi tenzil (iade) zeylinde NEGATİF olabilir → min yok. *@
+        <label>Brüt<input name="brut" type="number" step="0.01" title="Brüt prim farkı — tenzil zeylinde negatif (bilgi)" /></label>
+        <label>Net<input name="net" type="number" step="0.01" title="Net prim farkı (bilgi)" /></label>
+        <label>Fon+Vergi<input name="fonVergi" type="number" step="0.01" title="Fon ve vergi payı (bilgi)" /></label>
+        <ComboBox Name="tipi" Label="Tipi" Options="_zeyilTipiOpts" Extra="@(new Dictionary<string, object> { ["maxlength"] = "64" })" />
+        <label class="u-col-full">Neden<input name="neden" maxlength="512" /></label>
+        <button type="submit">Zeyil Ekle</button>
+    </form>
+}
+<div class="table-scroll">
+<table class="grid tr-grid"><thead><tr><th>Poliçe</th><th>Zeyil No</th><th>Tarih</th><th>Tanzim</th><th class="num">Değer</th><th class="num">Brüt</th><th class="num">Net</th><th class="num">Fon-Vergi</th><th>Tipi</th><th>Neden</th><th></th></tr></thead><tbody>
+@if (_zeyil.Count == 0)
+{
+    <tr><td colspan="11" class="muted">Zeyil kaydı yok.</td></tr>
+}
+@foreach (var z in _zeyil)
+{
+    <tr>
+        <td>@PoliceEtiket(z.PolicyId)</td>
+        <td>@z.ZeyilNo</td>
+        <td>@z.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+        <td>@(z.Tanzim?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+        <td class="num">@z.Deger.ToString("N2")</td>
+        <td class="num">@z.Brut.ToString("N2")</td>
+        <td class="num">@z.Net.ToString("N2")</td>
+        <td class="num">@z.FonVergi.ToString("N2")</td>
+        <td>@(z.Tipi ?? "—")</td>
+        <td>@(z.Neden ?? "—")</td>
+        <td>
+            @* Zeyil mali belge değil (defter kaydı üretmez) → doğrudan silinebilir, ters kayıt gerekmez. *@
+            <form method="post" action="/regulasyon/zeyil/sil" class="inline-form"><AntiforgeryToken />
+                <input type="hidden" name="id" value="@z.Id" />
+                <button type="submit" class="danger">Sil</button>
+            </form>
         </td>
     </tr>
 }
@@ -164,6 +237,9 @@
     private static readonly string[] Dovizler = ["TRY", "EUR", "USD", "GBP"];
 
     private IReadOnlyList<InsurancePolicy> _ins = [];
+    private IReadOnlyList<InsurancePolicyZeyil> _zeyil = [];
+    private Dictionary<Guid, InsurancePolicy> _insMap = new();
+    private List<string> _zeyilTipiOpts = [];
     private IReadOnlyList<MtvRecord> _mtv = [];
     private IReadOnlyList<InspectionRecord> _insp = [];
     private Dictionary<Guid, IReadOnlyList<MtvOdeme>> _mtvOdeme = new();
@@ -175,6 +251,9 @@
     protected override async Task OnInitializedAsync()
     {
         _ins = await Reg.ListInsuranceAsync();
+        _insMap = _ins.ToDictionary(p => p.Id);
+        // FAZ-15: zeyiller TEK sorguda (poliçe başına sorgu atmamak için — MTV ödeme geçmişi deseni).
+        _zeyil = await Reg.ListZeyilHepsiAsync();
         _mtv = await Reg.ListMtvAsync();
         _insp = await Reg.ListInspectionAsync();
 
@@ -197,9 +276,26 @@
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture)
             .ToList();
+
+        // Zeyil tipi seç-veya-yaz önerileri: yaygın tipler ∪ mevcut kayıtların distinct'i.
+        // Sabit liste DEĞİL (canlıda da serbest metin) → ComboBox, <select> değil.
+        _zeyilTipiOpts = new[] { "Zam", "Tenzil", "Değişiklik", "İptal", "Yenileme" }
+            .Concat(_zeyil.Select(z => z.Tipi))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture)
+            .ToList();
     }
 
     private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+
+    /// <summary>Poliçe etiketi: plaka · tip · poliçe no (zeyil formunda/listesinde ayırt edici).</summary>
+    private string PoliceEtiket(InsurancePolicy p)
+        => $"{Plaka(p.VehicleId)} · {p.Tip}" + (string.IsNullOrWhiteSpace(p.PoliceNo) ? "" : $" · {p.PoliceNo}");
+
+    private string PoliceEtiket(Guid policyId)
+        => _insMap.TryGetValue(policyId, out var p) ? PoliceEtiket(p) : "—";
 
     private RenderFragment VehicleSelect(string name) =>@<select name="@name" required>
         <option value="">— seç —</option>

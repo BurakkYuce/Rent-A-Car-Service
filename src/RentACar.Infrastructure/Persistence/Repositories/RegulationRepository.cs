@@ -227,6 +227,10 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
             rec.Odendi = true;
             rec.ZeyilPrim = zeyilPrim;
+            // FAZ-15: Kalan BİLGİ alanı; ödeme poliçenin tamamını (prim + zeyil ek prim) kapattığı
+            // için 0'a düşer. Defter kaydıyla AYNI transaction'da yazılır → ekrandaki bakiye ile
+            // defter arasında yarış penceresi kalmaz.
+            rec.Kalan = 0m;
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
             db.AccountLedgerEntries.AddRange(entries);
 
@@ -241,6 +245,49 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
                 throw new ValidationException("Sigorta zaten ödendi.");
             }
         }, ct);
+    }
+
+    // ---- FAZ-15 zeyil (poliçe eki): saf CRUD, defter YOK ----
+
+    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilAsync(Guid policyId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.InsurancePolicyZeyilleri.AsNoTracking()
+            .Where(x => x.PolicyId == policyId)
+            .OrderBy(x => x.Tarih).ThenBy(x => x.ZeyilNo).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilHepsiAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.InsurancePolicyZeyilleri.AsNoTracking()
+            .OrderBy(x => x.PolicyId).ThenBy(x => x.Tarih).ThenBy(x => x.ZeyilNo).ToListAsync(ct);
+    }
+
+    public async Task AddZeyilAsync(InsurancePolicyZeyil zeyil, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        db.InsurancePolicyZeyilleri.Add(zeyil);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // (TenantId, PolicyId, ZeyilNo) unique — çift gönderim/mükerrer no 500 değil temiz red.
+            throw new ValidationException($"Bu poliçede '{zeyil.ZeyilNo}' numaralı zeyil zaten var.");
+        }
+    }
+
+    public async Task<bool> DeleteZeyilAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // Tenant sınırı: global query filter + RLS → başka tenant'ın satırı BULUNAMAZ (false).
+        var rec = await db.InsurancePolicyZeyilleri.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (rec is null) return false;
+        db.InsurancePolicyZeyilleri.Remove(rec);
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)
