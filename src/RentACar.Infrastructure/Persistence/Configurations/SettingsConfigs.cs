@@ -24,6 +24,15 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.FirmaEmail).HasMaxLength(128);
         e.Property(x => x.FirmaMobilTel).HasMaxLength(64);
         e.Property(x => x.FirmaMarka).HasMaxLength(128);
+        // FAZ-81 renk kodları: "#rrggbb" → 7 karakter
+        e.Property(x => x.RenkGecikenler).HasMaxLength(7);
+        e.Property(x => x.RenkBugunDonecekler).HasMaxLength(7);
+        e.Property(x => x.RenkBugunCikacaklar).HasMaxLength(7);
+        e.Property(x => x.RenkOpsiyonlu).HasMaxLength(7);
+        e.Property(x => x.RenkLimitBakiye).HasMaxLength(7);
+        e.Property(x => x.RenkAlacakli).HasMaxLength(7);
+        e.Property(x => x.RenkRezAtananPlaka).HasMaxLength(7);
+        e.Property(x => x.RenkKiralanmayan).HasMaxLength(7);
         e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
         e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
         e.Property(x => x.SmsBaslik).HasMaxLength(64);

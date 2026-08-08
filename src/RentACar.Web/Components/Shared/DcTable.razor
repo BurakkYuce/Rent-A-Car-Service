@@ -12,7 +12,7 @@
             }
             @foreach (var r in Rows)
             {
-                <tr>
+                <tr style="@RowStyle">
                     <td>@r.Tar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                     <td>@r.Ad</td>
                     <td class="mono">
@@ -31,4 +31,6 @@
     [Parameter] public IReadOnlyList<DcRow> Rows { get; set; } = [];
     [Parameter] public string Empty { get; set; } = "Kayıt yok.";
     [Parameter] public RenderFragment<DcRow>? Islem { get; set; }
+    /// <summary>FAZ-81 — satıra uygulanacak satır-içi stil (tenant renk kodu vurgusu). Boş → vurgu yok.</summary>
+    [Parameter] public string? RowStyle { get; set; }
 }

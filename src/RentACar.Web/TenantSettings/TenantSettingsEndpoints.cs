@@ -8,6 +8,15 @@ namespace RentACar.Web.TenantSettings;
 /// mevcut korunur (servis). IFormCollection (opsiyonel alanlar boş string → servis null'a çevirir).</summary>
 public static class TenantSettingsEndpoints
 {
+    /// <summary>FAZ-81 — "Varsayılan" kutusu işaretliyse null, değilse seçilen renk.</summary>
+    private static string? Renk(IFormCollection f, string alan)
+    {
+        var vars_ = f[alan + "Vars"];
+        if (vars_.Count > 0 && vars_[^1] is "true" or "on" or "True") return null;
+        var v = f[alan].ToString();
+        return string.IsNullOrWhiteSpace(v) ? null : v;
+    }
+
     public static IEndpointRouteBuilder MapTenantSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/ayarlar").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
@@ -33,6 +42,16 @@ public static class TenantSettingsEndpoints
                 PosApiKey = f["posApiKey"].ToString(),
                 // roadmap M1
                 LogoUrl = f["logoUrl"].ToString(),
+                // FAZ-81 renk kodları. "Varsayılan" kutusu işaretliyse NULL gider —
+                // type="color" boş gönderemediği için "varsayılana dön" ancak böyle ifade edilir.
+                RenkGecikenler = Renk(f, "renkGecikenler"),
+                RenkBugunDonecekler = Renk(f, "renkBugunDonecekler"),
+                RenkBugunCikacaklar = Renk(f, "renkBugunCikacaklar"),
+                RenkOpsiyonlu = Renk(f, "renkOpsiyonlu"),
+                RenkLimitBakiye = Renk(f, "renkLimitBakiye"),
+                RenkAlacakli = Renk(f, "renkAlacakli"),
+                RenkRezAtananPlaka = Renk(f, "renkRezAtananPlaka"),
+                RenkKiralanmayan = Renk(f, "renkKiralanmayan"),
                 VarsayilanDoviz = f["varsayilanDoviz"].ToString(),
                 VarsayilanKdvOrani = FormParse.Dec(f["varsayilanKdvOrani"].ToString()),
                 VarsayilanGrupId = FormParse.Id(f["varsayilanGrupId"].ToString()), // PR-10
