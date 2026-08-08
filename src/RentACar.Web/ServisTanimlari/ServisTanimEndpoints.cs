@@ -13,17 +13,36 @@ public static class ServisTanimEndpoints
     {
         var grp = app.MapGroup("/servis-tanimlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (ServisTanimService svc,
+        grp.MapPost("/create", async (ServisTanimService svc, HttpRequest req,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama) =>
-            await Run(() => svc.CreateAsync(new ServisTanimInput { Kod = kod, AracTipi = aracTipi, BakimKm = bakimKm, Aciklama = aciklama, Aktif = true })));
+            await Run(() => svc.CreateAsync(Build(req.Form, kod, aracTipi, bakimKm, aciklama, true))));
 
-        grp.MapPost("/update", async (ServisTanimService svc, [FromForm] Guid id,
+        grp.MapPost("/update", async (ServisTanimService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new ServisTanimInput { Kod = kod, AracTipi = aracTipi, BakimKm = bakimKm, Aciklama = aciklama, Aktif = aktif })));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, aracTipi, bakimKm, aciklama, aktif))));
 
         grp.MapPost("/delete", async (ServisTanimService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id)));
+
+        // FAZ-14 C: öneriyi KABUL et — öneri sayfası hiçbir şey yazmaz, kayıt bu uçta doğar.
+        // Kod/KM kullanıcı tarafından düzenlenebilir olduğu için formdan gelir (önerinin
+        // kendisinden değil) — kullanıcı ne gördüyse o kaydedilir.
+        grp.MapPost("/oneri-kabul", async (ServisTanimService svc, HttpRequest req) =>
+            await Run(() => svc.CreateAsync(Build(
+                req.Form,
+                req.Form["kod"].ToString(),
+                req.Form["aracTipi"].ToString(),
+                FormParse.Int(FormParse.Str(req.Form, "bakimKm")) ?? 0,
+                FormParse.Str(req.Form, "aciklama"), true))));
+
         return app;
     }
+
+    private static ServisTanimInput Build(IFormCollection f, string kod, string aracTipi, int bakimKm, string? aciklama, bool aktif) => new()
+    {
+        Kod = kod, AracTipi = aracTipi, BakimKm = bakimKm, Aciklama = aciklama, Aktif = aktif,
+        Marka = FormParse.Str(f, "marka"), Tip = FormParse.Str(f, "tip"),
+        Yakit = FormParse.Str(f, "yakit"), Vites = FormParse.Str(f, "vites")
+    };
 
     private static async Task<IResult> Run(Func<Task> action)
     {
