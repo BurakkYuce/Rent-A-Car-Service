@@ -741,6 +741,13 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         EkHizmetDetayFilter? filter = null, CancellationToken ct = default)
         => _repository.GetEkHizmetDetayRowsAsync(filter, ct);
 
+    /// <summary>
+    /// FAZ-27 — karşılaştırmalı durum analizi (hacim pivotu). Salt okuma; tutar üretmez.
+    /// </summary>
+    public Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
+        KarsilastirmaliAnalizFilter? filter = null, CancellationToken ct = default)
+        => _repository.GetKarsilastirmaliAnalizAsync(filter ?? new KarsilastirmaliAnalizFilter(), ct);
+
     /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
     public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
     {

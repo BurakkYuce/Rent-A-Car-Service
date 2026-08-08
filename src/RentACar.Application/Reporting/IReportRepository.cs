@@ -48,6 +48,13 @@ public interface IReportRepository
     Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayRowsAsync(
         EkHizmetDetayFilter? filter, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-27 — karşılaştırmalı hacim pivotu (kira/rezervasyon × adet/gün × kırılım × ay).
+    /// Tutar üretmez.
+    /// </summary>
+    Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
+        KarsilastirmaliAnalizFilter filter, CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 
