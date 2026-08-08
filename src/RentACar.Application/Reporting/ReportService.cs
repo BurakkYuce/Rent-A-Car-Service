@@ -1012,10 +1012,90 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     public Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipAsync(
         DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null,
         CancellationToken ct = default)
+        => GetAracDurumTakipAsync(new AracDurumTakipFilter { Sube = sube }, from, to, ct);
+
+    /// <summary>
+    /// FAZ-12 — araç durum-takip GÜN kırılımı, tam filtreyle. Şube-only kısayolu (yukarıdaki aşırı
+    /// yükleme) bunu çağırır; davranışı filtresiz çağrıda BİREBİR eskisi gibidir.
+    /// </summary>
+    public Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipAsync(
+        AracDurumTakipFilter filtre, DateTimeOffset? from = null, DateTimeOffset? to = null,
+        CancellationToken ct = default)
+    {
+        var (bas, bit) = TakipPencere(from, to);
+        return _repository.GetAracDurumTakipRowsAsync(bas, bit, filtre, ct);
+    }
+
+    /// <summary>
+    /// FAZ-12 Bölüm A — araç durum-takip ARAÇ kırılımı: araç başına dolu/bakım/baf/boş GÜN.
+    /// Gün kırılımıyla aynı pencere ve aynı araç süzgecini kullanır (iki görünüm ayrışmaz).
+    /// </summary>
+    public Task<IReadOnlyList<AracDurumTakipAracRow>> GetAracDurumTakipAracBazliAsync(
+        AracDurumTakipFilter? filtre = null, DateTimeOffset? from = null, DateTimeOffset? to = null,
+        CancellationToken ct = default)
+    {
+        var (bas, bit) = TakipPencere(from, to);
+        return _repository.GetAracDurumTakipAracBazliRowsAsync(bas, bit, filtre, ct);
+    }
+
+    /// <summary>Varsayılan pencere: son 30 gün (bitiş dahil) — iki görünüm için TEK yerde.</summary>
+    private static (DateTimeOffset Bas, DateTimeOffset Bit) TakipPencere(DateTimeOffset? from, DateTimeOffset? to)
     {
         var bit = to ?? DateTimeOffset.UtcNow;
-        var bas = from ?? bit.AddDays(-29);
-        return _repository.GetAracDurumTakipRowsAsync(bas, bit, sube, ct);
+        return (from ?? bit.AddDays(-29), bit);
+    }
+
+    /// <summary>
+    /// FAZ-12 Bölüm B — araç günlük durum: verilen GÜNDE aktif kiraların araç-bazlı günlük gelir
+    /// kesiti (varsayılan bugün). <b>PROJEKSİYONDUR</b> — sözleşme tutarının faturalanan gün
+    /// sayısına düz bölümü; deftere yazılmaz, P&amp;L raporlarına girmez.
+    /// </summary>
+    public Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumAsync(
+        DateTimeOffset? gun = null, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default)
+        => _repository.GetAracGunlukDurumRowsAsync(gun ?? DateTimeOffset.UtcNow, filtre, ct);
+
+    /// <summary>
+    /// FAZ-12 Bölüm C (KARARLAR.md "Seçenek B") — ek hizmet raporunun ARAÇ bazlı pivot modu:
+    /// satır = araç, sütun = hizmet adı, hücre = brüt. Ad-bazlı özet
+    /// (<see cref="GetEkHizmetRaporuAsync"/>) DEĞİŞMEZ; bu onun yerine geçmez.
+    ///
+    /// <para>Değişmez: pivotun genel toplamı aynı pencerede özetin <c>ToplamBrut</c>'una EŞİTTİR —
+    /// pivot para üretmez, var olanı başka eksende dizer.</para>
+    /// </summary>
+    public async Task<EkHizmetAracPivotDto> GetEkHizmetAracPivotAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetEkHizmetAracSalesRowsAsync(from, to, ct);
+        if (rows.Count == 0) return new EkHizmetAracPivotDto([], [], [], 0m);
+
+        // Sütun sırası: en çok satan hizmet solda (canlıdaki sabit ~25 kolonun dinamik karşılığı).
+        var kolonlar = rows.GroupBy(r => r.Ad)
+            .Select(g => (Ad: g.Key, Brut: g.Sum(x => x.Brut)))
+            .OrderByDescending(x => x.Brut).ThenBy(x => x.Ad, StringComparer.CurrentCulture)
+            .Select(x => x.Ad).ToList();
+        var kolonIndeks = kolonlar.Select((ad, i) => (ad, i)).ToDictionary(x => x.ad, x => x.i);
+
+        // Araç kimliği null (silinmiş araç) satırları TEK mutabakat satırında toplanır — atılsalardı
+        // pivot toplamı özetten kayardı.
+        var satirlar = rows
+            .GroupBy(r => r.VehicleId)
+            .Select(g =>
+            {
+                var ilk = g.First();
+                var hucreler = new decimal[kolonlar.Count];
+                foreach (var r in g) hucreler[kolonIndeks[r.Ad]] += r.Brut;
+                return new EkHizmetAracPivotSatir(
+                    g.Key, ilk.Plaka, ilk.Grup, ilk.Sipp,
+                    hucreler, g.Sum(r => r.Brut), g.Count());
+            })
+            .OrderByDescending(s => s.Toplam).ThenBy(s => s.Plaka, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var kolonToplam = kolonlar
+            .Select((_, i) => satirlar.Sum(s => s.Hucreler[i]))
+            .ToList();
+
+        return new EkHizmetAracPivotDto(kolonlar, satirlar, kolonToplam, satirlar.Sum(s => s.Toplam));
     }
 
     /// <summary>Müşteri CRM segment (roadmap N3): kira sayısı/ciro/segment.</summary>

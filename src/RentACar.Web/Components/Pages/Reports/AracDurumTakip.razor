@@ -2,73 +2,236 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @inject ReportService Reports
 @inject BranchService Subeler
+@inject VehicleService Araclar
 
 <PageTitle>Araç Durum Takip — RentPro</PageTitle>
 
 <div class="page-head">
-    <h1>Araç Durum Takip (Gün Kırılımı)</h1>
+    <h1>Araç Durum Takip (@(AracModu ? "Araç Kırılımı" : "Gün Kırılımı"))</h1>
     <div class="actions">
-        <a href="/raporlar/export/arac-durum-takip?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-        <a href="/raporlar/export/arac-durum-takip?format=csv&amp;from=@From&amp;to=@To">CSV</a>
+        <a href="/raporlar/export/@(AracModu ? "arac-durum-takip-arac" : "arac-durum-takip")?format=excel&amp;@ExportQs">Excel</a> ·
+        <a href="/raporlar/export/@(AracModu ? "arac-durum-takip-arac" : "arac-durum-takip")?format=csv&amp;@ExportQs">CSV</a>
     </div>
 </div>
-<p class="muted">Her gün için filo dağılımı: dolu (kirada) / bakım (serviste) / boş. Varsayılan son 30 gün.
-    Şube seçilirse kira, servis ve BAF sayımlarının <strong>hepsi</strong> o şubenin araçlarından gelir
-    (tek atıf kuralı). <strong>BAF</strong> kolonu bilgi amaçlıdır — bir araç hem kirada hem tahsisli
-    olabileceği için "Boş" hesabına girmez.</p>
+
+@* FAZ-12 Bölüm A — canlı arac_durum_takip.aspx satırı ARAÇ'tır; gün kırılımı onun transpozu.
+   İkisi de aynı ham veriden (araç × gün durumu) türer, biri diğerinin yerine geçmez. *@
+<p class="muted small"><strong>Görünüm:</strong>
+    <a href="@ViewUrl(null)">@(AracModu ? Plain("Gün") : Bold("Gün"))</a> ·
+    <a href="@ViewUrl("arac")">@(AracModu ? Bold("Araç") : Plain("Araç"))</a>
+</p>
+
+@if (AracModu)
+{
+    <p class="muted">Seçilen aralıkta <strong>her aracın</strong> kaç gün dolu / bakımda / bafta (personel
+        zimmetinde) / boş geçtiği. Kovalar <strong>çakışmaz</strong>: bir gün tek kovaya sayılır
+        (öncelik Dolu &gt; Bakım &gt; Baf &gt; Boş), bu yüzden dördünün toplamı daima aralık gün
+        sayısına eşittir. Sayım raporudur, tutar içermez.</p>
+}
+else
+{
+    <p class="muted">Her gün için filo dağılımı: dolu (kirada) / bakım (serviste) / boş. Varsayılan son 30 gün.
+        Şube seçilirse kira, servis ve BAF sayımlarının <strong>hepsi</strong> o şubenin araçlarından gelir
+        (tek atıf kuralı). <strong>Açık BAF</strong> kolonu bilgi amaçlıdır — o gün açık olan BAF <em>kaydı</em>
+        sayısıdır (araç-gün değil) ve bir araç hem kirada hem tahsisli olabileceği için "Boş" hesabına girmez.</p>
+}
 
 <form method="get" class="filter-bar">
+    @if (AracModu) { <input type="hidden" name="gorunum" value="arac" /> }
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
-    <label>Şube
+    <label>Şube (Ofis)
         <select name="sube">
             <option value="">— tümü —</option>
             @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
         </select>
     </label>
+    <label>Araç Sahibi
+        <select name="aracSahibi">
+            <option value="">— tümü —</option>
+            @foreach (var o in _sahipOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
+        </select>
+    </label>
+    <label>Grup
+        <select name="grup">
+            <option value="">— tümü —</option>
+            @foreach (var o in _grupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
+        </select>
+    </label>
+    <label>SIPP
+        <select name="sipp">
+            <option value="">— tümü —</option>
+            @foreach (var o in _sippOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
+        </select>
+    </label>
+    <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 ABC" /></label>
     <button type="submit">Göster</button>
-    @if (!string.IsNullOrWhiteSpace(Sube)) { <a class="link" href="/raporlar/arac-durum-takip">Temizle</a> }
+    @if (FiltreVar) { <a class="link" href="@ViewUrl(Gorunum, temiz: true)">Temizle</a> }
 </form>
 
-<div class="table-scroll">
-<table class="grid tr-grid">
-    <thead><tr><th>Gün</th><th class="num">Toplam</th><th class="num">Dolu</th><th class="num">Bakım</th><th class="num">Boş</th><th class="num">Açık BAF</th></tr></thead>
-    <tbody>
-        @if (_rows.Count == 0)
+@if (AracModu)
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead><tr><th>Plaka</th><th>SIPP</th><th>Grup</th><th>Şube</th><th>Araç Sahibi</th>
+            <th class="num">Aralık Gün</th><th class="num">Dolu Gün</th><th class="num">Bakım Gün</th>
+            <th class="num">Baf Gün</th><th class="num">Boş Gün</th><th class="num">Doluluk %</th></tr></thead>
+        <tbody>
+            @if (_aracRows.Count == 0)
+            {
+                <tr><td colspan="11" class="muted">Filtreye uyan araç yok.</td></tr>
+            }
+            @foreach (var r in _aracRows)
+            {
+                <tr>
+                    <td>@r.Plaka</td>
+                    <td>@(r.Sipp ?? "—")</td>
+                    <td>@(r.Grup ?? "—")</td>
+                    <td>@(r.Sube ?? "—")</td>
+                    <td>@(r.AracSahibi ?? "—")</td>
+                    <td class="num">@r.ToplamGun</td>
+                    <td class="num">@r.DoluGun</td>
+                    <td class="num">@r.BakimGun</td>
+                    <td class="num muted">@r.BafGun</td>
+                    <td class="num">@r.BosGun</td>
+                    <td class="num">@(r.ToplamGun == 0 ? "—" : (100m * r.DoluGun / r.ToplamGun).ToString("N1"))</td>
+                </tr>
+            }
+        </tbody>
+        @if (_aracRows.Count > 0)
         {
-            <tr><td colspan="6" class="muted">@(string.IsNullOrWhiteSpace(Sube) ? "Kayıt yok." : "Bu şubede araç yok.")</td></tr>
+            <tfoot>
+                <tr>
+                    <th colspan="5">TOPLAM (@_aracRows.Count araç)</th>
+                    <th class="num">@_aracRows.Sum(r => r.ToplamGun)</th>
+                    <th class="num">@_aracRows.Sum(r => r.DoluGun)</th>
+                    <th class="num">@_aracRows.Sum(r => r.BakimGun)</th>
+                    <th class="num">@_aracRows.Sum(r => r.BafGun)</th>
+                    <th class="num">@_aracRows.Sum(r => r.BosGun)</th>
+                    <th class="num"></th>
+                </tr>
+            </tfoot>
         }
-        @foreach (var r in _rows)
-        {
-            <tr>
-                <td>@r.Gun.ToString("yyyy-MM-dd")</td>
-                <td class="num">@r.ToplamArac</td>
-                <td class="num">@r.Dolu</td>
-                <td class="num">@r.Bakim</td>
-                <td class="num">@r.Bos</td>
-                <td class="num muted">@r.ToplamBaf</td>
-            </tr>
-        }
-    </tbody>
-</table>
-</div>
+    </table>
+    </div>
+}
+else
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead><tr><th>Gün</th><th class="num">Toplam</th><th class="num">Dolu</th><th class="num">Bakım</th><th class="num">Boş</th><th class="num">Açık BAF</th></tr></thead>
+        <tbody>
+            @if (_rows.Count == 0)
+            {
+                <tr><td colspan="6" class="muted">@(FiltreVar ? "Filtreye uyan araç yok." : "Kayıt yok.")</td></tr>
+            }
+            @foreach (var r in _rows)
+            {
+                <tr>
+                    <td>@r.Gun.ToString("yyyy-MM-dd")</td>
+                    <td class="num">@r.ToplamArac</td>
+                    <td class="num">@r.Dolu</td>
+                    <td class="num">@r.Bakim</td>
+                    <td class="num">@r.Bos</td>
+                    <td class="num muted">@r.ToplamBaf</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
 
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "aracSahibi")] public string? AracSahibi { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "sipp")] public string? Sipp { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    [SupplyParameterFromQuery(Name = "gorunum")] public string? Gorunum { get; set; }
 
     private IReadOnlyList<AracDurumTakipRow> _rows = [];
-    private string[] _subeOpts = [];
+    private IReadOnlyList<AracDurumTakipAracRow> _aracRows = [];
+    private string[] _subeOpts = [], _sahipOpts = [], _grupOpts = [], _sippOpts = [];
+
+    private bool AracModu => Gorunum == "arac";
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(AracSahibi)
+        || !string.IsNullOrWhiteSpace(Grup) || !string.IsNullOrWhiteSpace(Sipp) || !string.IsNullOrWhiteSpace(Plaka);
 
     protected override async Task OnInitializedAsync()
     {
         var from = ParseDate(From);
         var to = ParseDate(To);
-        _rows = await Reports.GetAracDurumTakipAsync(from, to, Sube);
+        var filtre = new AracDurumTakipFilter
+        {
+            Sube = Sube, AracSahibi = AracSahibi, Grup = Grup, Sipp = Sipp, Plaka = Plaka
+        };
+
+        if (AracModu) _aracRows = await Reports.GetAracDurumTakipAracBazliAsync(filtre, from, to);
+        else _rows = await Reports.GetAracDurumTakipAsync(filtre, from, to);
+
+        // Seçenekler FİLTRESİZ kaynaktan türetilir — filtrelenmiş listeden türetilseydi bir seçim
+        // sonrası diğer seçenekler kaybolur ve filtre kendini kilitlerdi.
         _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        var tumArac = await Araclar.ListAsync();
+        _sahipOpts = Opts(tumArac.Select(v => v.AracSahibi));
+        _grupOpts = Opts(tumArac.Select(v => v.Grup));
+        _sippOpts = Opts(tumArac.Select(v => v.Sipp));
     }
+
+    private static string[] Opts(IEnumerable<string?> src) => src
+        .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();
 
     private static DateTimeOffset? ParseDate(string? s)
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+
+    /// <summary>Görünüm anahtarı URL'i — tarih ve filtreler KORUNUR (temiz=true yalnız tarihi tutar).</summary>
+    private string ViewUrl(string? gorunum, bool temiz = false)
+    {
+        var qs = new List<string>();
+        void Ekle(string ad, string? deger)
+        {
+            if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+        }
+        Ekle("from", From);
+        Ekle("to", To);
+        if (!temiz)
+        {
+            Ekle("sube", Sube);
+            Ekle("aracSahibi", AracSahibi);
+            Ekle("grup", Grup);
+            Ekle("sipp", Sipp);
+            Ekle("plaka", Plaka);
+        }
+        Ekle("gorunum", gorunum);
+        return "/raporlar/arac-durum-takip" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+    }
+
+    /// <summary>Export bağlantısının sorgu dizesi (ekrandaki seçim export'a AYNEN taşınır).</summary>
+    private string ExportQs
+    {
+        get
+        {
+            var qs = new List<string>();
+            void Ekle(string ad, string? deger)
+            {
+                if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            }
+            Ekle("from", From);
+            Ekle("to", To);
+            Ekle("sube", Sube);
+            Ekle("aracSahibi", AracSahibi);
+            Ekle("grup", Grup);
+            Ekle("sipp", Sipp);
+            Ekle("plaka", Plaka);
+            return string.Join("&", qs);
+        }
+    }
+
+    private static MarkupString Bold(string s) => new($"<strong>{s}</strong>");
+    private static MarkupString Plain(string s) => new(s);
 }
