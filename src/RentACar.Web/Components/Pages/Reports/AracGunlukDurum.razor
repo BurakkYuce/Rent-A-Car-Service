@@ -1,0 +1,182 @@
+@page "/raporlar/arac-gunluk-durum"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@inject ReportService Reports
+@inject VehicleService Araclar
+@inject LocationService Ofisler
+
+<PageTitle>Araç Günlük Durum — RentPro</PageTitle>
+
+<div class="page-head">
+    <h1>Araç Günlük Durum</h1>
+    <div class="actions">
+        <a href="/raporlar/export/arac-gunluk-durum?format=excel&amp;@ExportQs">Excel</a> ·
+        <a href="/raporlar/export/arac-gunluk-durum?format=csv&amp;@ExportQs">CSV</a>
+    </div>
+</div>
+
+@* FAZ-12 Bölüm B — canlı arac_gunluk_durum.aspx: tarih ARALIĞI yoktur, TEK GÜNÜN kesitidir. *@
+<p class="muted">Seçilen günde <strong>kirada olan</strong> araçların o güne düşen kira/hizmet payı.
+    Varsayılan bugün.</p>
+<p class="muted small"><strong>Bu bir projeksiyondur, muhasebe kaydı değildir.</strong> Sözleşme
+    tutarı faturalanan gün sayısına düz bölünür; hiçbir yere postlanmaz. Gerçekleşen gelir/gider
+    yalnız defterden okunur — <a class="link" href="/raporlar/karlilik">Kârlılık</a> ve
+    <a class="link" href="/raporlar/filo-analiz">Filo Analiz</a> raporlarına bakın. Tutarlar baz para (₺):
+    kira payı sözleşme kuruyla (KurSnapshot) çevrilir, ek hizmet kalemleri zaten ₺ tutulur.</p>
+
+<form method="get" class="filter-bar">
+    <label>Gün<input name="gun" type="date" value="@Gun" /></label>
+    <label>Çıkış Ofisi
+        <select name="ofis">
+            <option value="">— tümü —</option>
+            @foreach (var o in _ofisOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+        </select>
+    </label>
+    <label>Araç Grubu
+        <select name="grup">
+            <option value="">— tümü —</option>
+            @foreach (var o in _grupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
+        </select>
+    </label>
+    <label>SIPP
+        <select name="sipp">
+            <option value="">— tümü —</option>
+            @foreach (var o in _sippOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
+        </select>
+    </label>
+    <label>Araç Sahibi
+        <select name="aracSahibi">
+            <option value="">— tümü —</option>
+            @foreach (var o in _sahipOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
+        </select>
+    </label>
+    <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 ABC" /></label>
+    <button type="submit">Göster</button>
+    @if (FiltreVar) { <a class="link" href="/raporlar/arac-gunluk-durum?gun=@Gun">Temizle</a> }
+</form>
+
+<div class="cards">
+    <div class="card">
+        <div class="card-num">@_rows.Count</div>
+        <div class="card-label">Kirada araç (@GunEtiket)</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_rows.Sum(r => r.GunlukKira).ToString("N2")</div>
+        <div class="card-label">Günlük Kira ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_rows.Sum(r => r.GunlukHizmet).ToString("N2")</div>
+        <div class="card-label">Günlük Hizmet ₺</div>
+    </div>
+    <div class="card">
+        <div class="card-num">@_rows.Sum(r => r.GunlukToplam).ToString("N2")</div>
+        <div class="card-label">Günlük Toplam ₺</div>
+    </div>
+</div>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Plaka</th><th>SIPP</th><th>Araç Grubu</th><th>Araç Sahibi</th><th>Çıkış Ofisi</th>
+            <th>Sözleşme</th><th>Müşteri</th><th>Baş. Tar.</th><th>Bitiş Tar.</th><th class="num">Gün</th>
+            <th class="num">Günlük Kira</th><th class="num">Günlük Hizmet</th><th class="num">Günlük Toplam</th></tr>
+    </thead>
+    <tbody>
+        @if (_rows.Count == 0)
+        {
+            <tr><td colspan="13" class="muted">Bu günde kirada araç yok.</td></tr>
+        }
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td><a class="link" href="/araclar/@r.VehicleId">@r.Plaka</a></td>
+                <td>@(r.Sipp ?? "—")</td>
+                <td>@(r.Grup ?? "—")</td>
+                <td>@(r.AracSahibi ?? "—")</td>
+                <td>@(r.CikisOfisi ?? "—")</td>
+                <td class="mono"><a class="link" href="/kiralar/@r.RentalId">@r.SozlesmeNo</a></td>
+                <td>@r.Musteri</td>
+                <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td class="num">@r.Gun</td>
+                <td class="num">@r.GunlukKira.ToString("N2")</td>
+                <td class="num">@r.GunlukHizmet.ToString("N2")</td>
+                <td class="num">@r.GunlukToplam.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+    @if (_rows.Count > 0)
+    {
+        <tfoot>
+            <tr>
+                <th colspan="10">TOPLAM</th>
+                <th class="num">@_rows.Sum(r => r.GunlukKira).ToString("N2")</th>
+                <th class="num">@_rows.Sum(r => r.GunlukHizmet).ToString("N2")</th>
+                <th class="num">@_rows.Sum(r => r.GunlukToplam).ToString("N2")</th>
+            </tr>
+        </tfoot>
+    }
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "gun")] public string? Gun { get; set; }
+    [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "sipp")] public string? Sipp { get; set; }
+    [SupplyParameterFromQuery(Name = "aracSahibi")] public string? AracSahibi { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+
+    private IReadOnlyList<AracGunlukDurumRow> _rows = [];
+    private string[] _ofisOpts = [], _grupOpts = [], _sippOpts = [], _sahipOpts = [];
+    private string GunEtiket = string.Empty;
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Ofis) || !string.IsNullOrWhiteSpace(Grup)
+        || !string.IsNullOrWhiteSpace(Sipp) || !string.IsNullOrWhiteSpace(AracSahibi)
+        || !string.IsNullOrWhiteSpace(Plaka);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var gun = ParseDate(Gun) ?? new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        GunEtiket = gun.ToString("dd.MM.yyyy");
+
+        _rows = await Reports.GetAracGunlukDurumAsync(gun, new AracGunlukDurumFilter
+        {
+            Plaka = Plaka, Grup = Grup, Sipp = Sipp, AracSahibi = AracSahibi, Ofis = Ofis
+        });
+
+        // Seçenekler FİLTRESİZ kaynaktan — filtrelenmiş listeden türetilseydi bir seçim sonrası
+        // diğer seçenekler kaybolur ve filtre kendini kilitlerdi.
+        _ofisOpts = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        var tumArac = await Araclar.ListAsync();
+        _grupOpts = Opts(tumArac.Select(v => v.Grup));
+        _sippOpts = Opts(tumArac.Select(v => v.Sipp));
+        _sahipOpts = Opts(tumArac.Select(v => v.AracSahibi));
+    }
+
+    private static string[] Opts(IEnumerable<string?> src) => src
+        .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();
+
+    private static DateTimeOffset? ParseDate(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+
+    private string ExportQs
+    {
+        get
+        {
+            var qs = new List<string>();
+            void Ekle(string ad, string? deger)
+            {
+                if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            }
+            Ekle("gun", Gun);
+            Ekle("ofis", Ofis);
+            Ekle("grup", Grup);
+            Ekle("sipp", Sipp);
+            Ekle("aracSahibi", AracSahibi);
+            Ekle("plaka", Plaka);
+            return string.Join("&", qs);
+        }
+    }
+}

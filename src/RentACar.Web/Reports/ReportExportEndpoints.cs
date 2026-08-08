@@ -67,10 +67,24 @@ public static class ReportExportEndpoints
                 "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(
                     new RentACar.Application.Reporting.RezervasyonKaynakFilter { Bas = from, Bit = to })),
                 "fatura-donem" => FaturaDonem(await rs.GetFaturaDonemAsync(from, to)),
-                "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(from, to)),
+                "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(
+                    AracTakipFiltre(req), from, to)),
+                // FAZ-12 Bölüm A/B — ekrandaki görünüm ve filtre export'a AYNEN taşınır.
+                "arac-durum-takip-arac" => AracDurumTakipArac(await rs.GetAracDurumTakipAracBazliAsync(
+                    AracTakipFiltre(req), from, to)),
+                "arac-gunluk-durum" => AracGunlukDurum(await rs.GetAracGunlukDurumAsync(
+                    FormParse.Date(req.Query["gun"].ToString()),
+                    new AracGunlukDurumFilter
+                    {
+                        Plaka = plaka, Grup = grup, Sipp = NullIfEmpty(req.Query["sipp"].ToString()),
+                        AracSahibi = NullIfEmpty(req.Query["aracSahibi"].ToString()),
+                        Ofis = NullIfEmpty(req.Query["ofis"].ToString())
+                    })),
                 "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),
                 "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
                 "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
+                // FAZ-12 Bölüm C — araç-bazlı pivot (ad-bazlı özet export'u DEĞİŞMEDİ).
+                "ek-hizmet-arac" => EkHizmetAracPivot(await rs.GetEkHizmetAracPivotAsync(from, to)),
                 "tahsilat-fatura" => TahsilatFatura(await rs.GetTahsilatFaturaAsync(from, to)),
                 // Araç karnesi (vehicleId zorunlu; bulunamayan/başka-tenant araç → null → 404) + filo analiz.
                 "arac-karne" => ToTable(KarneExportKatalog.AracKarne(await rs.GetAracKarneAsync(
@@ -204,6 +218,64 @@ public static class ReportExportEndpoints
     private static Table AracDurumTakip(IReadOnlyList<AracDurumTakipRow> rows)
         => new("Araç Durum Takip", new[] { "Gün", "Toplam", "Dolu", "Bakım", "Boş" },
             rows.Select(r => new object?[] { r.Gun.ToString("yyyy-MM-dd"), r.ToplamArac, r.Dolu, r.Bakim, r.Bos }).ToList());
+
+    /// <summary>FAZ-12 — ekrandaki araç süzgeci (gün ve araç görünümü ORTAK kullanır).</summary>
+    private static AracDurumTakipFilter AracTakipFiltre(HttpRequest req) => new()
+    {
+        Sube = NullIfEmpty(req.Query["sube"].ToString()),
+        AracSahibi = NullIfEmpty(req.Query["aracSahibi"].ToString()),
+        Grup = NullIfEmpty(req.Query["grup"].ToString()),
+        Sipp = NullIfEmpty(req.Query["sipp"].ToString()),
+        Plaka = NullIfEmpty(req.Query["plaka"].ToString())
+    };
+
+    private static Table AracDurumTakipArac(IReadOnlyList<AracDurumTakipAracRow> rows)
+        => new("Araç Durum Takip (Araç)",
+            new[] { "Plaka", "SIPP", "Grup", "Şube", "Araç Sahibi", "Aralık Gün", "Dolu Gün", "Bakım Gün", "Baf Gün", "Boş Gün" },
+            rows.Select(r => new object?[]
+            { r.Plaka, r.Sipp, r.Grup, r.Sube, r.AracSahibi, r.ToplamGun, r.DoluGun, r.BakimGun, r.BafGun, r.BosGun }).ToList());
+
+    private static Table AracGunlukDurum(IReadOnlyList<AracGunlukDurumRow> rows)
+    {
+        var liste = rows.Select(r => new object?[]
+        {
+            r.Plaka, r.Sipp, r.Grup, r.AracSahibi, r.CikisOfisi, r.SozlesmeNo, r.Musteri,
+            r.BasTar.ToString("yyyy-MM-dd"), r.BitTar.ToString("yyyy-MM-dd"), r.Gun,
+            r.GunlukKira, r.GunlukHizmet, r.GunlukToplam
+        }).ToList();
+        if (liste.Count > 0)
+            liste.Add(new object?[] { "TOPLAM", null, null, null, null, null, null, null, null, null,
+                rows.Sum(r => r.GunlukKira), rows.Sum(r => r.GunlukHizmet), rows.Sum(r => r.GunlukToplam) });
+        return new Table("Araç Günlük Durum",
+            new[] { "Plaka", "SIPP", "Araç Grubu", "Araç Sahibi", "Çıkış Ofisi", "Sözleşme", "Müşteri",
+                "Baş. Tar.", "Bitiş Tar.", "Gün", "Günlük Kira", "Günlük Hizmet", "Günlük Toplam" },
+            liste);
+    }
+
+    /// <summary>FAZ-12 Bölüm C — araç × hizmet pivotu; sütunlar veriden gelir (dinamik başlık).</summary>
+    private static Table EkHizmetAracPivot(EkHizmetAracPivotDto d)
+    {
+        var headers = new List<string> { "Plaka", "Grup", "SIPP" };
+        headers.AddRange(d.Kolonlar);
+        headers.Add("Toplam");
+
+        var rows = d.Satirlar.Select(s =>
+        {
+            var hucre = new List<object?> { s.Plaka, s.Grup, s.Sipp };
+            hucre.AddRange(s.Hucreler.Cast<object?>());
+            hucre.Add(s.Toplam);
+            return hucre.ToArray();
+        }).ToList();
+
+        if (rows.Count > 0)
+        {
+            var toplam = new List<object?> { "TOPLAM", null, null };
+            toplam.AddRange(d.KolonToplam.Cast<object?>());
+            toplam.Add(d.GenelToplam);
+            rows.Add(toplam.ToArray());
+        }
+        return new Table("Ek Hizmet (Araç)", headers, rows);
+    }
 
     private static Table Gunluk(GunlukFaaliyetDto d)
         => KV("Günlük Faaliyet", ("Yeni Rezervasyon", d.YeniRezervasyon), ("Yeni Kira", d.YeniKira),

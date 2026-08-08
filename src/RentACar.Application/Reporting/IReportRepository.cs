@@ -119,7 +119,24 @@ public interface IReportRepository
 
     /// <summary>Araç durum-takip (roadmap H3): [from,to] her gün için dolu/bakım/boş sayısı (gün kırılımı).</summary>
     Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default);
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-12 Bölüm A — araç durum-takip ARAÇ kırılımı: [from,to] aralığında araç başına
+    /// dolu/bakım/baf/boş GÜN sayısı. Gün kırılımıyla (<see cref="GetAracDurumTakipRowsAsync"/>)
+    /// aynı ham veriden türer; o sorgu DEĞİŞMEZ. Filtreye uyan araç yoksa boş liste.
+    /// </summary>
+    Task<IReadOnlyList<AracDurumTakipAracRow>> GetAracDurumTakipAracBazliRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-12 Bölüm B — verilen GÜNDE aktif olan kiraların araç-bazlı günlük gelir kesiti.
+    /// Aktiflik kuralı gün kırılımının "Dolu" kovasıyla BİREBİR aynıdır
+    /// (<c>BasTar.Date &lt;= gün &lt;= (GercekDonusTar ?? BitTar).Date</c>, İptal hariç) — iki rapor
+    /// aynı aracı aynı gün farklı anlatmasın. Tutarlar PROJEKSİYON, deftere yazılmaz.
+    /// </summary>
+    Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumRowsAsync(
+        DateTimeOffset gun, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default);
 
     /// <summary>Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).</summary>
     Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default);
@@ -146,6 +163,13 @@ public interface IReportRepository
     /// Ek hizmet satış raporu (Extralar_Raporu) için ham satırlar.
     /// </summary>
     Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-12 Bölüm C — aynı ek hizmet kalemleri, ARAÇ kimliği çözülmüş hâlde (araç-bazlı pivot için).
+    /// Pencere tanımı <see cref="GetEkHizmetSalesRowsAsync"/> ile BİREBİR aynıdır; o sorgu DEĞİŞMEZ.
+    /// </summary>
+    Task<IReadOnlyList<EkHizmetAracSalesRow>> GetEkHizmetAracSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
