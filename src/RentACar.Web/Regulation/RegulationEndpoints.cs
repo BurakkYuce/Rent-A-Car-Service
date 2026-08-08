@@ -14,13 +14,51 @@ public static class RegulationEndpoints
     {
         var grp = app.MapGroup("/regulasyon").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/sigorta", async (RegulationService svc,
+        grp.MapPost("/sigorta", async (RegulationService svc, HttpRequest req,
             [FromForm] Guid vehicleId, [FromForm] InsuranceType tip,
             [FromForm] DateTimeOffset baslangic, [FromForm] DateTimeOffset bitis, [FromForm] decimal prim,
             [FromForm] string? policeNo, [FromForm] string? firma, [FromForm] string? acenta, [FromForm] string? doviz) =>
         {
-            try { await svc.AddInsuranceAsync(vehicleId, tip, baslangic, bitis, prim, policeNo, firma, acenta, doviz); return Results.Redirect("/regulasyon"); }
+            try
+            {
+                // FAZ-15 değer tabanı: opsiyonel decimal alanlar "" ile 400 verir → string? + FormParse.
+                await svc.AddInsuranceAsync(vehicleId, tip, baslangic, bitis, prim, policeNo, firma, acenta, doviz,
+                    FormParse.Dec(FormParse.Str(req.Form, "aracDegeri")),
+                    FormParse.Dec(FormParse.Str(req.Form, "immDegeri")),
+                    FormParse.Dec(FormParse.Str(req.Form, "aksesuarDegeri")));
+                return Results.Redirect("/regulasyon");
+            }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        // FAZ-15 zeyil (poliçe eki) — OperationsWrite grubunda: BİLGİ kaydıdır, deftere yazmaz,
+        // bu yüzden FinanceWrite gerektirmez (mali uçlar ayrı /regulasyon-odeme grubunda).
+        grp.MapPost("/zeyil", async (RegulationService svc, HttpRequest req, [FromForm] Guid policyId) =>
+        {
+            try
+            {
+                await svc.AddZeyilAsync(new ZeyilInput
+                {
+                    PolicyId = policyId,
+                    ZeyilNo = FormParse.Str(req.Form, "zeyilNo"),
+                    Tarih = FormParse.Date(FormParse.Str(req.Form, "tarih")),
+                    Tanzim = FormParse.Date(FormParse.Str(req.Form, "tanzim")),
+                    Deger = FormParse.Dec(FormParse.Str(req.Form, "deger")),
+                    Brut = FormParse.Dec(FormParse.Str(req.Form, "brut")),
+                    Net = FormParse.Dec(FormParse.Str(req.Form, "net")),
+                    FonVergi = FormParse.Dec(FormParse.Str(req.Form, "fonVergi")),
+                    Tipi = FormParse.Str(req.Form, "tipi"),
+                    Neden = FormParse.Str(req.Form, "neden")
+                });
+                return Results.Redirect("/regulasyon#zeyil");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}#zeyil"); }
+        });
+
+        grp.MapPost("/zeyil/sil", async (RegulationService svc, [FromForm] Guid id) =>
+        {
+            try { await svc.DeleteZeyilAsync(id); return Results.Redirect("/regulasyon#zeyil"); }
+            catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}#zeyil"); }
         });
 
         grp.MapPost("/mtv", async (RegulationService svc, HttpRequest req,
