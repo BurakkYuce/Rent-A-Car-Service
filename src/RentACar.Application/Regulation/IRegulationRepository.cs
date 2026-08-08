@@ -65,6 +65,20 @@ public interface IRegulationRepository
 
     /// <summary>Birleşik vade kaynakları: sigorta(Bitiş) + ödenmemiş MTV(Vade) + muayene(Bitiş).</summary>
     Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default);
+
+    // ---- FAZ-15 zeyil (poliçe eki) — BİLGİ/GEÇMİŞ; hiçbir defter kaydı üretmez ----
+
+    /// <summary>Bir poliçenin zeyil geçmişi (tarih, sonra zeyil no).</summary>
+    Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilAsync(Guid policyId, CancellationToken ct = default);
+
+    /// <summary>Tenant'ın TÜM zeyilleri (liste sayfası poliçe başına sorgu atmasın).</summary>
+    Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilHepsiAsync(CancellationToken ct = default);
+
+    /// <summary>Zeyil ekler. Aynı poliçede aynı <c>ZeyilNo</c> → temiz doğrulama hatası (unique index).</summary>
+    Task AddZeyilAsync(InsurancePolicyZeyil zeyil, CancellationToken ct = default);
+
+    /// <summary>Zeyil siler. Bulunamazsa (veya başka tenant'ınsa) false.</summary>
+    Task<bool> DeleteZeyilAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>Kısmi ödeme sonucu — çağıran (ve test) ödeme sonrası durumu koddan değil BURADAN okur.</summary>

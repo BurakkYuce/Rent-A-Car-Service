@@ -108,6 +108,8 @@ public sealed class AppDbContext : DbContext
     /// <summary>FAZ-29 — kapatma tahsisleri (hangi tahsilat hangi borç kalemini kapattı).</summary>
     public DbSet<KapatmaTahsis> KapatmaTahsisleri => Set<KapatmaTahsis>();
     public DbSet<InsurancePolicy> InsurancePolicies => Set<InsurancePolicy>();
+    /// <summary>FAZ-15 — poliçe zeyilleri (BİLGİ/GEÇMİŞ; deftere yazmaz).</summary>
+    public DbSet<InsurancePolicyZeyil> InsurancePolicyZeyilleri => Set<InsurancePolicyZeyil>();
     public DbSet<MtvRecord> MtvRecords => Set<MtvRecord>();
     public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();
     public DbSet<MtvOdeme> MtvOdemeleri => Set<MtvOdeme>();                 // FAZ-14 kısmi ödeme

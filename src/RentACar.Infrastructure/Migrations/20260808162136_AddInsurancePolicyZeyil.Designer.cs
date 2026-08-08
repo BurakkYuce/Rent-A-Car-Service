@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808162136_AddInsurancePolicyZeyil")]
+    partial class AddInsurancePolicyZeyil
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4563,54 +4566,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<int?>("KiraSuresi")
                         .HasColumnType("integer");
-
-                    b.Property<int?>("Km1")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km1Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("Km2")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km2Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("Km3")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km3Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("Km4")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km4Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("Km5")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km5Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("Km6")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Km6Ucret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("KmAylik")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("KmAylikUcret")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int?>("KmHaftalik")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("KmHaftalikUcret")
-                        .HasColumnType("numeric(19,4)");
 
                     b.Property<string>("Kod")
                         .IsRequired()

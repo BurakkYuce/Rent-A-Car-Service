@@ -21,9 +21,45 @@ internal sealed class InsurancePolicyConfig : IEntityTypeConfiguration<Insurance
         e.Property(x => x.Acenta).HasMaxLength(128);
         e.Property(x => x.Prim).HasColumnType("numeric(19,4)");
         e.Property(x => x.ZeyilPrim).HasColumnType("numeric(19,4)"); // roadmap J3
+        // FAZ-15 bilgi alanları (deftere girmez) + poliçe bakiyesi.
+        e.Property(x => x.AracDegeri).HasColumnType("numeric(19,4)");
+        e.Property(x => x.ImmDegeri).HasColumnType("numeric(19,4)");
+        e.Property(x => x.AksesuarDegeri).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kalan).HasColumnType("numeric(19,4)");
         e.Property(x => x.Currency).HasMaxLength(3);
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         e.HasIndex(x => new { x.TenantId, x.Bitis });
+        // Zeyil composite tenant-FK'sinin hedefi (TenantId, Id) — tenant sınırını FK'nin
+        // KENDİSİ taşır; başka tenant'ın poliçesine zeyil bağlanamaz.
+        e.HasAlternateKey(x => new { x.TenantId, x.Id });
+    }
+}
+
+/// <summary>
+/// FAZ-15 — poliçe zeyli (poliçe eki). Mali belge DEĞİL: deftere hiç yazmaz, yalnız bilgi/geçmiş
+/// tutar → değişmezlik trigger'ı YOK, tam CRUD (yanlış girilen zeyil silinebilmeli).
+/// </summary>
+internal sealed class InsurancePolicyZeyilConfig : IEntityTypeConfiguration<InsurancePolicyZeyil>
+{
+    public void Configure(EntityTypeBuilder<InsurancePolicyZeyil> e)
+    {
+        e.ToTable("InsurancePolicyZeyilleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<InsurancePolicy>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.PolicyId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .OnDelete(DeleteBehavior.Cascade);   // poliçe silinirse ekleri de gider (bilgi kaydı)
+        e.Property(x => x.ZeyilNo).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Deger).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Brut).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Net).HasColumnType("numeric(19,4)");
+        e.Property(x => x.FonVergi).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Tipi).HasMaxLength(64);
+        e.Property(x => x.Neden).HasMaxLength(512);
+        // Doğal anahtar: aynı poliçeye aynı zeyil no iki kez girilemez (mükerrer geçmiş satırı).
+        e.HasIndex(x => new { x.TenantId, x.PolicyId, x.ZeyilNo }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
     }
 }
 
