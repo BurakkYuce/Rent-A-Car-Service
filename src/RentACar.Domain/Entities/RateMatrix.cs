@@ -55,6 +55,43 @@ public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
     public decimal? GunHaftalik { get; set; }
     public decimal? GunAylik { get; set; }
 
+    // ---- FAZ-71 — KADEME BAZLI KM LİMİTİ + AŞIM ÜCRETİ ----
+    // Canlı TürevRent'te her gün-kademesinin KENDİ km limiti ve KENDİ aşım ücreti var; bizde bu
+    // değer araç grubunda TEK/GLOBAL'di (VehicleGroup.GunlukKmLimiti/AsimKmUcreti).
+    //
+    // KULLANICI KARARI 1 — Km değeri GÜNLÜK limittir, kira gününe ÇARPILIR:
+    //   "günlük 200 girdin ve 5 günlük kiralama → müşteri 1000 km katedene kadar ek km çıkmaz."
+    //   Mevcut VehicleGroup.GunlukKmLimiti ile AYNI dil; iki yer farklı kural konuşmaz.
+    //
+    // KULLANICI KARARI 2 — uzun dönem için AYRI alanlar: canlı yalnız 6 kademe tanımlıyor ama bizim
+    // fiyat kademelerimiz 7 gün + haftalık(8-29) + aylık(30+) diye devam ediyor. Bu kademeleri
+    // Km6'ya düşürmek yerine KENDİ km alanları verildi — uzun kirada limit "son kademeden miras"
+    // kalmaz, operatör açıkça belirler.
+    //
+    // KAPSAM SINIRI: bunlar YALNIZ ön-izleme tahminini besler. KM-aşım PARASININ tek otoritesi
+    // dönüş-zamanı hesabıdır (ReturnMath, KURAL A); bu alanlar RentalContract.KmLimit/FazlaKmUcret'i
+    // DOLDURMAZ ve deftere hiçbir şey yazmaz.
+
+    public int? Km1 { get; set; }
+    public int? Km2 { get; set; }
+    public int? Km3 { get; set; }
+    public int? Km4 { get; set; }
+    public int? Km5 { get; set; }
+    public int? Km6 { get; set; }
+    public decimal? Km1Ucret { get; set; }
+    public decimal? Km2Ucret { get; set; }
+    public decimal? Km3Ucret { get; set; }
+    public decimal? Km4Ucret { get; set; }
+    public decimal? Km5Ucret { get; set; }
+    public decimal? Km6Ucret { get; set; }
+
+    /// <summary>Haftalık kademe (8-29 gün) günlük km limiti. Null → Km6'ya, o da boşsa gruba düşer.</summary>
+    public int? KmHaftalik { get; set; }
+    public decimal? KmHaftalikUcret { get; set; }
+    /// <summary>Aylık kademe (30+ gün) günlük km limiti. Null → KmHaftalik → Km6 → grup.</summary>
+    public int? KmAylik { get; set; }
+    public decimal? KmAylikUcret { get; set; }
+
     /// <summary>Karşılaştırma sistemi (rakip) dinamik indirim oranı % (canlı Max_Esneklik).
     /// A6 KARARI: fiyat GİRDİSİ DEĞİLDİR (motor okumaz) — salt-görünüm rakip-kıyas notu; kolon parite için kalır.</summary>
     public decimal? MaxEsneklik { get; set; }
