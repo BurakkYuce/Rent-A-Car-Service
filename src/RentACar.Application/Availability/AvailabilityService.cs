@@ -30,4 +30,20 @@ public sealed class AvailabilityService(IAvailabilityRepository repository, ICur
 
         return await _repository.GetAvailableAsync(from, to, effectiveGrup, effectiveSube, kapsam, ct);
     }
+
+    /// <summary>
+    /// FAZ-19 — müsait araçların SON kullanım bilgisi (boştaki süre + son müşteri).
+    /// Aracın kendi kapsam/izolasyonu üstteki müsaitlik sorgusunda uygulanmıştır; bu çağrı yalnız
+    /// ZATEN gösterilen araçları zenginleştirir, yeni araç GETİRMEZ.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid, SonKullanimRow>> SonKullanimAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
+        => (await _repository.GetSonKullanimAsync(vehicleIds, ct)).ToDictionary(x => x.VehicleId);
+
+    /// <summary>Boştaki gün sayısı (son dönüşten bugüne, kapsayıcı DEĞİL — aynı gün 0).</summary>
+    public static int BostaGun(DateTimeOffset sonDonus, DateTimeOffset now)
+    {
+        var g = (now.UtcDateTime.Date - sonDonus.UtcDateTime.Date).Days;
+        return g < 0 ? 0 : g;
+    }
 }

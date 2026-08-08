@@ -69,6 +69,12 @@ public sealed class KiraFormVm
     public string? Vto { get; set; }
     public string? Vgrup { get; set; }
 
+    /// <summary>
+    /// FAZ-19: müsaitlik listesindeki "Kirala" linkinden gelen araç ön-seçimi (?varac=).
+    /// Yalnız YENİ kira formunda anlamlıdır; düzenlemede sözleşmenin kendi aracı gösterilir.
+    /// </summary>
+    public Guid? Varac { get; set; }
+
     // Sabit seçenek listeleri (RentalList ile aynı — referans sistem parite)
     public static readonly string[] KiralamaTurleri = ["Kısa Kiralama", "Uzun Kiralama", "İkame", "Aylık"];
     public static readonly string[] FaturalamaTipleri = ["Müşteri Ödemeli", "Full Credit", "Extralar Müşteriye Ait", "Drop Dahil", "Diğer"];

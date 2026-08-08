@@ -49,4 +49,41 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
             .OrderBy(v => v.Plaka)
             .ToListAsync(ct);
     }
+
+    public async Task<IReadOnlyList<SonKullanimRow>> GetSonKullanimAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
+    {
+        if (vehicleIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var now = DateTimeOffset.UtcNow;
+
+        // Efektif dönüş = gerçek dönüş ?? planlı bitiş. İptal kiralar hariç; GELECEKTE biten kira
+        // "son kullanım" değildir (araç hâlâ o kirada olabilir) → yalnız geçmiş.
+        var ham = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentACar.Domain.Enums.RentalStatus.Iptal && vehicleIds.Contains(r.VehicleId))
+            .Select(r => new { r.VehicleId, r.MusteriId, Bit = r.GercekDonusTar ?? r.BitTar })
+            .Where(r => r.Bit <= now)
+            .ToListAsync(ct);
+        if (ham.Count == 0) return [];
+
+        var son = ham.GroupBy(r => r.VehicleId)
+            .Select(g => g.OrderByDescending(r => r.Bit).First())
+            .ToList();
+
+        // Müşteri adları TEK sorguda (araç başına sorgu atmak N+1 olurdu).
+        var cariIdler = son.Select(x => x.MusteriId).Distinct().ToList();
+        var cariler = await db.Customers.AsNoTracking()
+            .Where(c => cariIdler.Contains(c.Id))
+            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad })
+            .ToListAsync(ct);
+        var adlar = cariler.ToDictionary(
+            c => c.Id,
+            c => c.Tip == RentACar.Domain.Enums.CariType.Kurumsal
+                ? c.Unvan
+                : $"{c.Ad} {c.Soyad}".Trim());
+
+        return son
+            .Select(x => new SonKullanimRow(x.VehicleId, x.Bit, adlar.GetValueOrDefault(x.MusteriId)))
+            .ToList();
+    }
 }
