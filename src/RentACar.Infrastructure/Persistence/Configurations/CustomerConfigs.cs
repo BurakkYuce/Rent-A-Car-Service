@@ -114,7 +114,30 @@ internal sealed class PersonelConfig : IEntityTypeConfiguration<Personel>
         e.Property(x => x.SurucuBelgeNo).HasMaxLength(64);
         e.Property(x => x.MaasEnc).HasMaxLength(1024);
         e.Property(x => x.Sube).HasMaxLength(128);
+        // FAZ-40 derinlik
+        e.Property(x => x.GorevTanimi).HasMaxLength(64);
+        e.Property(x => x.Adres).HasMaxLength(512);
+        e.Property(x => x.EvTelefonu).HasMaxLength(32);
+        e.Property(x => x.IsTelefonu).HasMaxLength(32);
+        e.Property(x => x.CepTel).HasMaxLength(32);
+        e.Property(x => x.MailAdresi).HasMaxLength(128);
+        e.Property(x => x.Referans).HasMaxLength(256);
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        e.Property(x => x.SSinifi).HasMaxLength(16);
+        e.Property(x => x.SVerilisYeri).HasMaxLength(128);
+        e.Property(x => x.DogumYeri).HasMaxLength(128);
+        e.Property(x => x.BabaAdi).HasMaxLength(128);
+        e.Property(x => x.AnaAdi).HasMaxLength(128);
+        e.Property(x => x.Il).HasMaxLength(64);
+        e.Property(x => x.Ilce).HasMaxLength(64);
+        e.Property(x => x.Mahalle).HasMaxLength(128);
+        e.Property(x => x.CiltNo).HasMaxLength(32);
+        e.Property(x => x.AileSiraNo).HasMaxLength(32);
+        e.Property(x => x.SiraNo).HasMaxLength(32);
+        e.Property(x => x.KanGrubu).HasMaxLength(8);
+        e.Property(x => x.RacTabletNo).HasMaxLength(32);
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.GorevTanimi });
     }
 }
 
