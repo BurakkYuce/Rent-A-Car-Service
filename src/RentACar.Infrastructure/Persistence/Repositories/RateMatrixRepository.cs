@@ -3,6 +3,7 @@ using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.RateMatrices;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -82,5 +83,46 @@ public sealed class RateMatrixRepository(IDbContextFactory<AppDbContext> factory
         db.RateMatrices.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task<int> DeleteManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return 0;
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        // ADVERSARIAL H1 — KİLİTLİ YENİDEN OKUMA ŞART.
+        // Kilitsiz bir "SELECT … WHERE OnayDurumu=Bekliyor" TOCTOU penceresini KAPATMIYORDU:
+        // EF'in ürettiği DELETE yalnız "Id = @p" yüklemini taşır, READ COMMITTED'da rakip
+        // oturum satırı onaylayıp COMMIT edince PostgreSQL yalnız Id'yi yeniden değerlendirir
+        // ve ARTIK ONAYLI olan satır silinirdi (probe ile ampirik kanıtlandı).
+        // FOR UPDATE ile: kilit serbest kaldığında PG yüklemi satırın YENİ sürümüne göre
+        // yeniden değerlendirir → onaylanan satır adaylıktan DÜŞER.
+        //
+        // ExecuteDeleteAsync ile çözülmedi: o yol SaveChanges'i atlar, AuditSaveChangesInterceptor
+        // çalışmaz ve toplu silme İZSİZ kalırdı.
+        var idListe = ids as Guid[] ?? [.. ids];
+        var bekliyor = (int)TarifeOnayDurumu.Bekliyor;
+        var kilitli = await db.Database.SqlQuery<Guid>(
+            $"""SELECT "Id" AS "Value" FROM "TarifeMatris" WHERE "Id" = ANY({idListe}) AND "OnayDurumu" = {bekliyor} FOR UPDATE""")
+            .ToListAsync(ct);
+        if (kilitli.Count == 0) { await tx.CommitAsync(ct); return 0; }
+
+        var rows = await db.RateMatrices.Where(r => kilitli.Contains(r.Id)).ToListAsync(ct);
+        db.RateMatrices.RemoveRange(rows);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);   // tek transaction — yarım parti kalmaz
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Satırlar araya giren bir oturumca silinmiş: 500 yerine anlaşılır red (ADVERSARIAL L1).
+            await tx.RollbackAsync(ct);
+            throw new ValidationException("Tarife satırları başka bir oturumda değişti; listeyi yenileyip tekrar deneyin.");
+        }
+
+        await tx.CommitAsync(ct);
+        return rows.Count;
     }
 }

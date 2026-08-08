@@ -1,4 +1,7 @@
 using RentACar.Application.Authorization;
+using RentACar.Application.Common;
+using RentACar.Application.RateMatrices;
+using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Import;
@@ -43,6 +46,27 @@ public static class ImportEndpoints
                 ? ""
                 : "&hatalar=" + Uri.EscapeDataString(string.Join("|", r.Hatalar.Take(5)));
             return Results.Redirect($"/tarife-aktar?eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}{hatalar}");
+        });
+
+        // FAZ-31 — bir rezervasyon kaynağının BEKLEYEN tarife satırlarını toplu sil. Onaylı
+        // tarifeler servis çitiyle korunuyor (fiyat motoru yalnız onaylıyı kullanır) — uç bu
+        // kararı gevşetemesin diye durum parametresi DIŞARIDAN alınmaz, sabit gönderilir.
+        tarife.MapPost("/kanal-sil", async (RateMatrixService svc, HttpRequest req) =>
+        {
+            // Form olmayan bir POST'ta req.Form InvalidOperationException atar → 500 (adversarial L1).
+            if (!req.HasFormContentType) return Results.BadRequest();
+
+            var kanal = FormParse.Str(req.Form, "kanal");
+            var geri = $"/tarife-aktar?kanal={Uri.EscapeDataString(kanal ?? "")}";
+            try
+            {
+                var n = await svc.DeleteByKanalAsync(kanal, TarifeOnayDurumu.Bekliyor);
+                return Results.Redirect($"{geri}&mesaj={Uri.EscapeDataString($"{n} bekleyen tarife satırı silindi.")}");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"{geri}&mesaj={Uri.EscapeDataString(ex.Message)}");
+            }
         });
 
         return app;
