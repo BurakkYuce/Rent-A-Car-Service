@@ -279,3 +279,21 @@ internal sealed class DisHizmetAlimiConfig : IEntityTypeConfiguration<DisHizmetA
             .HasFilter("\"IslemAnahtari\" IS NOT NULL"); // çift-submit çiti (kısmi unique)
     }
 }
+
+// ---- CariVirmanBilgi (FAZ-59 — virman künyesi; PARA TAŞIMAZ, mali belge DEĞİL) ----
+internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirmanBilgi>
+{
+    public void Configure(EntityTypeBuilder<CariVirmanBilgi> e)
+    {
+        e.ToTable("CariVirmanBilgileri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();   // defterdeki SourceId ile AYNI
+        e.Property(x => x.MakbuzNo).HasMaxLength(32);
+        e.Property(x => x.Sube).HasMaxLength(128);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+        e.HasIndex(x => new { x.TenantId, x.KaynakCariId });
+        e.HasIndex(x => new { x.TenantId, x.HedefCariId });
+    }
+}

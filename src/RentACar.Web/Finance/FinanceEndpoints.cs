@@ -197,7 +197,12 @@ public static class FinanceEndpoints
             {
                 await svc.TransferBetweenCariAsync(kaynak, hedef, tutar,
                     string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, kur,
-                    string.IsNullOrWhiteSpace(aciklama) ? null : aciklama, anahtar);
+                    string.IsNullOrWhiteSpace(aciklama) ? null : aciklama, anahtar,
+                    // FAZ-59 künye alanları. "İşlem Yapan" formdan ALINMAZ — oturumdan yazılır.
+                    tarih: FormParse.Date(f["tarih"].ToString()),
+                    vade: FormParse.Date(f["vade"].ToString()),
+                    makbuzNo: f["makbuzNo"].ToString(),
+                    sube: f["sube"].ToString());
                 return Results.Redirect("/cari-virman?ok=1");
             }
             catch (ValidationException ex) { return Results.Redirect($"/cari-virman?hata={Uri.EscapeDataString(ex.Message)}"); }

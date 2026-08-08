@@ -41,6 +41,16 @@ public sealed class CashService(
     /// Cari ekstresi (satırlar + devir). <paramref name="filter"/> null → carinin TÜM hareketleri.
     /// Devir yalnız tarih alt sınırı verildiğinde dolar; bkz. <see cref="CariEkstreSonuc"/>.
     /// </summary>
+    /// <summary>
+    /// FAZ-59 — cari↔cari virman geçmişi (tüm cariler). Salt okuma; tutar defterden gelir.
+    /// </summary>
+    public Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
+        CariVirmanFilter? filter = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ViewReports);
+        return _repository.ListCariVirmanlarAsync(filter, ct);
+    }
+
     public Task<CariEkstreSonuc> GetStatementAsync(
         Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default)
         => _repository.GetCariStatementAsync(cariId, filter, ct);
@@ -214,7 +224,10 @@ public sealed class CashService(
     public async Task TransferBetweenCariAsync(
         Guid kaynakCariId, Guid hedefCariId, decimal tutar,
         string? doviz = "TRY", decimal? kur = null, string? aciklama = null,
-        Guid? islemAnahtari = null, CancellationToken ct = default)
+        Guid? islemAnahtari = null, CancellationToken ct = default,
+        // FAZ-59 künye alanları — PARAYA DOKUNMAZ, ayrı tabloya yazılır.
+        DateTimeOffset? tarih = null, DateTimeOffset? vade = null,
+        string? makbuzNo = null, string? sube = null)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (kaynakCariId == Guid.Empty || hedefCariId == Guid.Empty)
@@ -223,7 +236,14 @@ public sealed class CashService(
             throw new ValidationException("Kaynak ve hedef cari farklı olmalıdır.");
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
 
-        await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (cari virman bugün tarihli)
+        // FAZ-59: tarih artık ELLE girilebiliyor (önce her zaman "şimdi"ydi). Dolayısıyla dönem
+        // kilidi de VERİLEN tarihe göre kontrol edilmeli — yoksa kapalı bir döneme geriye dönük
+        // virman atılabilirdi. Gelecek tarih para kaydında yasak (TarihPolitikasi).
+        var islemTarihi = tarih ?? DateTimeOffset.UtcNow;
+        TarihPolitikasi.ParaTarihi(islemTarihi, "Virman");
+        if (vade is { } v && v < islemTarihi.Date)
+            throw new ValidationException("Vade tarihi virman tarihinden önce olamaz.");
+        await _lock.EnsureOpenAsync(islemTarihi, ct);
         // L2: her iki cari tenant içinde GERÇEKTEN var olmalı (FindAsync RLS+query-filter → yoksa null).
         // Aksi halde bakiye var-olmayan bir "hayalet" cari ekstresine taşınırdı (tenant-içi bütünlük).
         if (await _customers.FindAsync(kaynakCariId, ct) is null)
@@ -234,15 +254,26 @@ public sealed class CashService(
         var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? "Cari virman";
-        await _ledger.PostAsync(
+        // Künye defterle AYNI transaction'da yazılır: "defter var künye yok" durumu oluşamaz.
+        // Künye PARA TAŞIMAZ — tutar/döviz/kur yalnız defterde (tek kaynak).
+        var kunye = new CariVirmanBilgi
+        {
+            Id = sourceId, KaynakCariId = kaynakCariId, HedefCariId = hedefCariId,
+            Tarih = islemTarihi, Vade = vade,
+            MakbuzNo = Kirp(makbuzNo), Sube = Kirp(sube),
+            IslemYapan = _currentUser.UserName, Aciklama = Kirp(aciklama)
+        };
+        await _ledger.PostWithAsync(
         [
-            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari,
+            new AccountLedgerEntry { EntryDateUtc = islemTarihi, AccountType = LedgerAccountType.Cari,
                 AccountRef = hedefCariId, Direction = LedgerDirection.Debit, Amount = money,
                 SourceType = "CariVirman", SourceId = sourceId, Description = desc },
-            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari,
+            new AccountLedgerEntry { EntryDateUtc = islemTarihi, AccountType = LedgerAccountType.Cari,
                 AccountRef = kaynakCariId, Direction = LedgerDirection.Credit, Amount = money,
                 SourceType = "CariVirman", SourceId = sourceId, Description = desc }
-        ], ct);
+        ], kunye, ct);
+
+        static string? Kirp(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
     }
 
     public async Task<Guid> ReverseAsync(Guid cashTransactionId, CancellationToken ct = default)
