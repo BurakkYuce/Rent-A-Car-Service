@@ -191,3 +191,19 @@ bir para hatası kaynağıdır, zorunlu adversarial ister.
 - **BLOKE (kimlik/credential gerekir, açmadan önce kullanıcıya sorulur):** e-Fatura/GİB XML aktarımı
   (FAZ-54, FAZ-55'in entegratör kısmı), XML broker/acente entegrasyonu (FAZ-49 D8 listesi),
   SMS/HGS/banka-POS.
+
+---
+
+## ÇALIŞMA DÜZENİ (2026-08-08 kullanıcı kararı)
+
+- **Bloke entegrasyonlar** (e-Fatura/GİB XML, SMS, gerçek HGS, banka/POS, XML broker):
+  **stub/port hazırlanır**, gerçek bağlantı credential geldiğinde tek sınıf değişimiyle açılır.
+  Ekranlar kimlik beklemeden tamamlanır. **Şifre/credential sohbete YAZILMAZ** — geldiğinde
+  konfigürasyona nasıl konacağı ayrıca anlatılır.
+- **FAZ-74 rotatif kredi:** güvenli-red. Kalem-toplama yapısı kurulur; "Rotatif" seçilirse
+  anlaşılır mesajla reddedilir. Formül gelince küçük takip-PR.
+- **Paralellik:** aynı anda 3-4 faz geliştirilir (farklı kollardan), **merge SIRAYLA** yapılır —
+  migration içeren her faz `AppDbContextModelSnapshot.cs`'i değiştirdiği için eşzamanlı merge
+  snapshot çakışması üretir (bilinen tuzak).
+- **PR düzeni:** faz başına ayrı PR, kendi CI'ı ve kendi canlı duman testiyle. Bir şey ters
+  giderse tek faz geri alınır.
