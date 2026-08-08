@@ -36,6 +36,42 @@ public class Location : ITenantOwned, IAuditable, IBranchScoped
     string? IBranchScoped.SubeAdi => Sube;
     Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
 
+    // ---- FAZ-22 derinlik (additive, hepsi nullable — mevcut kayıtlar etkilenmez) ----
+
+    /// <summary>Web/yabancı müşteri için İngilizce ad.</summary>
+    public string? IngilizceAd { get; set; }
+    /// <summary>Buluşma noktası ("Ofis Teslim" / "Havalimanı Karşılama" / "Shuttle"…).</summary>
+    public string? BulusmaNoktasi { get; set; }
+    /// <summary>Havalimanı IATA kodu (ör. IST, SAW). Havalimanı olmayan ofiste boş.</summary>
+    public string? Iata { get; set; }
+    /// <summary>Halka açık sitede GİZLE — açılır listelerde görünmeye devam eder (operasyon kullanır).</summary>
+    public bool WebdeGizle { get; set; }
+    /// <summary>Lokasyon türü ("Havalimanı" / "Şehir Merkezi" / "Otel"…).</summary>
+    public string? LokasyonTuru { get; set; }
+    public string? BinaNo { get; set; }
+    /// <summary>Yol tarifi (serbest metin).</summary>
+    public string? Tarif { get; set; }
+    public string? Ulke { get; set; }
+    public string? PostaKodu { get; set; }
+    /// <summary>Harita konumu — "enlem,boylam" ya da harita bağlantısı (serbest metin).</summary>
+    public string? MapsKonumu { get; set; }
+    public string? EkAciklama { get; set; }
+    /// <summary>Halka açık sitede sıralama (küçük önce). Boş = ada göre.</summary>
+    public int? WebSira { get; set; }
+    /// <summary>Drop karşılama türü (bu ofise bırakışta karşılama biçimi).</summary>
+    public string? DropKarsilamaTuru { get; set; }
+    /// <summary>Drop çalışma şekli.</summary>
+    public string? DropCalismaSekli { get; set; }
+    public string? OzelMail { get; set; }
+    public string? OzelTelefon { get; set; }
+
+    /// <summary>
+    /// Haftalık çalışma saatleri — 7 satır (Pzt…Paz), JSONB tek kolon. Canlıdaki 14 ayrı sütun
+    /// yerine tek kolonda modellendi: gün eklemek/çıkarmak şema değişikliği gerektirmesin.
+    /// Serbest metin <see cref="CalismaSaatleri"/> KORUNUR (geriye uyum; biri görüntü, biri yapılı veri).
+    /// </summary>
+    public List<GunSaat> HaftalikCalismaSaatleri { get; set; } = [];
+
     /// <summary>Pasif ofisler açılır listelerde gizlenir ama kayıtlar korunur.</summary>
     public bool Aktif { get; set; } = true;
 

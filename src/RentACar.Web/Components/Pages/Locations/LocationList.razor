@@ -25,27 +25,71 @@
         <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="07:00-23:00" /></label>
         <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" /></label>
         <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
+
+        <label>İngilizce Ad<input name="ingilizceAd" maxlength="128" /></label>
+        <ComboBox Name="lokasyonTuru" Label="Lokasyon Türü" Options="LokasyonTurleri" Placeholder="(opsiyonel)" ListId="dl-loktur-new" />
+        <ComboBox Name="bulusmaNoktasi" Label="Buluşma Noktası" Options="BulusmaNoktalari" Placeholder="(opsiyonel)" ListId="dl-bulusma-new" />
+        <label>IATA<input name="iata" maxlength="8" placeholder="IST" /></label>
+        <label>Bina No<input name="binaNo" maxlength="32" /></label>
+        <label>Ülke<input name="ulke" maxlength="64" /></label>
+        <label>Posta Kodu<input name="postaKodu" maxlength="16" /></label>
+        <label>Harita Konumu<input name="mapsKonumu" maxlength="256" placeholder="41.2753,28.7519" /></label>
+        <label>Web Sıra<input name="webSira" type="number" min="0" /></label>
+        <label class="kf-inline"><input type="checkbox" name="webdeGizle" value="true" /> Web'de Gizle</label>
+        <ComboBox Name="dropKarsilamaTuru" Label="Drop Karşılama Türü" Options="KarsilamaTurleri" Placeholder="(opsiyonel)" ListId="dl-dropk-new" />
+        <label>Drop Çalışma Şekli<input name="dropCalismaSekli" maxlength="64" /></label>
+        <label>Özel Mail<input name="ozelMail" type="email" maxlength="128" /></label>
+        <label>Özel Telefon<input name="ozelTelefon" maxlength="32" /></label>
+        <label class="u-col-full">Yol Tarifi<input name="tarif" maxlength="1024" /></label>
+        <label class="u-col-full">Ek Açıklama<input name="ekAciklama" maxlength="1024" /></label>
+
+        <div class="u-col-full">
+            @* Haftalık saatler: serbest metin "Çalışma Saatleri" alanı KORUNUYOR (geriye uyum);
+               bu tablo yapılı veridir. Checkbox işaretsizse tarayıcı alanı GÖNDERMEZ → sunucu
+               varlık kontrolüyle okur. *@
+            <div class="muted small">Haftalık Çalışma Saatleri (boş bırakılan gün kapalı sayılır)</div>
+            <table class="grid tr-grid">
+                <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
+                <tbody>
+                    @for (var g = 1; g <= 7; g++)
+                    {
+                        var gun = g;
+                        <tr>
+                            <td>@GunAdi(gun)</td>
+                            <td><input name="gun@(gun)Acilis" type="time" /></td>
+                            <td><input name="gun@(gun)Kapanis" type="time" /></td>
+                            <td><input type="checkbox" name="gun@(gun)Kapali" value="true" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Telefon</th><th>Çalışma</th><th>Teslim Ücreti</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>İngilizce Ad</th><th>IATA</th><th>Tür</th><th>Telefon</th><th>Çalışma</th><th>Haftalık</th><th>Teslim Ücreti</th><th>Şube</th><th>Web</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Ofis tanımlı değil.</td></tr>
+            <tr><td colspan="13" class="muted">Ofis tanımlı değil.</td></tr>
         }
         @foreach (var l in _list)
         {
             <tr>
                 <td class="mono">@l.Kod</td>
                 <td>@l.Ad</td>
+                <td>@l.IngilizceAd</td>
+                <td class="mono">@l.Iata</td>
+                <td>@l.LokasyonTuru</td>
                 <td>@l.Telefon</td>
                 <td>@l.CalismaSaatleri</td>
+                <td class="small">@HaftaOzet(l)</td>
                 <td>@(l.TeslimUcreti.HasValue ? l.TeslimUcreti.Value.ToString("N2") : "")</td>
                 <td>@l.Sube</td>
+                <td>@(l.WebdeGizle ? "Gizli" : "Görünür")</td>
                 <td>@(l.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -60,6 +104,43 @@
                             <label>Çalışma Saatleri<input name="calismaSaatleri" value="@l.CalismaSaatleri" /></label>
                             <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" value="@l.TeslimUcreti" /></label>
                             <ComboBox Name="sube" Label="Şube" Value="@l.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+
+                            <label>İngilizce Ad<input name="ingilizceAd" value="@l.IngilizceAd" maxlength="128" /></label>
+                            <ComboBox Name="lokasyonTuru" Label="Lokasyon Türü" Value="@l.LokasyonTuru" Options="LokasyonTurleri" ListId="dl-loktur-edit" />
+                            <ComboBox Name="bulusmaNoktasi" Label="Buluşma Noktası" Value="@l.BulusmaNoktasi" Options="BulusmaNoktalari" ListId="dl-bulusma-edit" />
+                            <label>IATA<input name="iata" value="@l.Iata" maxlength="8" /></label>
+                            <label>Bina No<input name="binaNo" value="@l.BinaNo" maxlength="32" /></label>
+                            <label>Ülke<input name="ulke" value="@l.Ulke" maxlength="64" /></label>
+                            <label>Posta Kodu<input name="postaKodu" value="@l.PostaKodu" maxlength="16" /></label>
+                            <label>Harita Konumu<input name="mapsKonumu" value="@l.MapsKonumu" maxlength="256" /></label>
+                            <label>Web Sıra<input name="webSira" type="number" min="0" value="@l.WebSira" /></label>
+                            <label class="kf-inline"><input type="checkbox" name="webdeGizle" value="true" checked="@l.WebdeGizle" /> Web'de Gizle</label>
+                            <ComboBox Name="dropKarsilamaTuru" Label="Drop Karşılama Türü" Value="@l.DropKarsilamaTuru" Options="KarsilamaTurleri" ListId="dl-dropk-edit" />
+                            <label>Drop Çalışma Şekli<input name="dropCalismaSekli" value="@l.DropCalismaSekli" maxlength="64" /></label>
+                            <label>Özel Mail<input name="ozelMail" type="email" value="@l.OzelMail" maxlength="128" /></label>
+                            <label>Özel Telefon<input name="ozelTelefon" value="@l.OzelTelefon" maxlength="32" /></label>
+                            <label class="u-col-full">Yol Tarifi<input name="tarif" value="@l.Tarif" maxlength="1024" /></label>
+                            <label class="u-col-full">Ek Açıklama<input name="ekAciklama" value="@l.EkAciklama" maxlength="1024" /></label>
+
+                            <div class="u-col-full">
+                                <div class="muted small">Haftalık Çalışma Saatleri</div>
+                                <table class="grid tr-grid">
+                                    <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
+                                    <tbody>
+                                        @for (var g = 1; g <= 7; g++)
+                                        {
+                                            var gun = g;
+                                            var kayit = l.HaftalikCalismaSaatleri.FirstOrDefault(x => x.Gun == gun);
+                                            <tr>
+                                                <td>@GunAdi(gun)</td>
+                                                <td><input name="gun@(gun)Acilis" type="time" value="@kayit?.Acilis" /></td>
+                                                <td><input name="gun@(gun)Kapanis" type="time" value="@kayit?.Kapanis" /></td>
+                                                <td><input type="checkbox" name="gun@(gun)Kapali" value="true" checked="@(kayit?.Kapali == true)" /></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@l.Aktif">Aktif</option>
@@ -85,6 +166,24 @@
 
     private IReadOnlyList<Location> _list = [];
     private List<string> _subeOpts = [];
+
+    // Seç-veya-yaz önerileri (master tablo yok — canlıda da serbest metin).
+    private static readonly List<string> LokasyonTurleri = ["Havalimanı", "Şehir Merkezi", "Otel", "Şube", "Otogar", "Tren Garı"];
+    private static readonly List<string> BulusmaNoktalari = ["Ofis Teslim", "Havalimanı Karşılama", "Shuttle", "Adrese Teslim"];
+    private static readonly List<string> KarsilamaTurleri = ["Ofiste", "Karşılamalı", "Vale", "Yok"];
+
+    private static string GunAdi(int gun) => gun switch
+    {
+        1 => "Pazartesi", 2 => "Salı", 3 => "Çarşamba", 4 => "Perşembe",
+        5 => "Cuma", 6 => "Cumartesi", _ => "Pazar"
+    };
+
+    /// <summary>Grid özeti: kaç gün açık (7 satırın tamamı boşsa "—").</summary>
+    private static string HaftaOzet(Location l)
+    {
+        var acik = l.HaftalikCalismaSaatleri.Count(x => !x.Kapali);
+        return acik == 0 ? "—" : $"{acik}/7 gün";
+    }
 
     protected override async Task OnInitializedAsync()
     {
