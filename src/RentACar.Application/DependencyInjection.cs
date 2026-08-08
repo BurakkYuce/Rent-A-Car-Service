@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<Crm.SikayetService>();
         services.AddScoped<Crm.AssistansTalepService>();   // FAZ-44
         services.AddScoped<FiloPlan.FiloPlanService>();    // FAZ-19
+        services.AddScoped<MusteriTaksitleri.MusteriTaksitService>();   // FAZ-66
         services.AddScoped<Search.SearchService>();
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
