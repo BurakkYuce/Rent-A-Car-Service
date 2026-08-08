@@ -22,6 +22,13 @@ public interface IVehicleRepository
     Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
         VehicleDetayFilter? filter = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-11 — verilen araçlar için diğer tablolardan çözülen liste ek bilgisi (aktif kira sözleşme
+    /// no, açık servis/BAF/satış bayrakları, kasko, kredi). Yalnız GÖRÜNEN sayfa için çağrılır.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListeEkAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
+
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> PlakaExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default);

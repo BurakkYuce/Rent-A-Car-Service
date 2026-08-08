@@ -2,16 +2,48 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject CalendarService Calendar
 @inject VehicleService Vehicles
+@inject BranchService Subeler
 
 <PageTitle>Rezervasyon Takvimi — RentPro</PageTitle>
 
 <div class="page-head"><h1>Rezervasyon Takvimi</h1><div class="actions"></div></div>
 
 <div class="filter-bar">
-    <a href="/takvim?ay=@_prev">← @_prevLabel</a>
+    <a href="@AyUrl(_prev)">← @_prevLabel</a>
     <strong>@_monthStart.ToString("MMMM yyyy")</strong>
-    <a href="/takvim?ay=@_next">@_nextLabel →</a>
+    <a href="@AyUrl(_next)">@_nextLabel →</a>
 </div>
+
+@* FAZ-11: canlı arac_rac_takvim'in AracGrubu/Bölge/arama filtreleri. Doluluk sorgusu
+   (CalendarService.GetOccupancyAsync) DEĞİŞMEZ — yalnız gösterilecek ARAÇ kümesi daraltılır;
+   böylece takvimin doğruluğu tek bir kaynaktan gelmeye devam eder. *@
+<div class="filter-panel">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="ay" value="@Ay" />
+        <input name="plaka" value="@Plaka" placeholder="Plaka / marka ara" />
+        <input name="grup" value="@Grup" list="takvim-grup-list" placeholder="Grup" />
+        <select name="sube">
+            <option value="">Şube / bölge (tümü)</option>
+            @foreach (var b in _subeAdlari)
+            {
+                <option value="@b" selected="@(Sube == b)">@b</option>
+            }
+        </select>
+        <button type="submit">Filtrele</button>
+        <span class="count-badge">Araç: @_vehicles.Count</span>
+        @if (!string.IsNullOrEmpty(Plaka) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Sube))
+        {
+            <a href="@("/takvim?ay=" + Uri.EscapeDataString(_monthStart.ToString("yyyy-MM")))" class="link">Temizle</a>
+        }
+    </form>
+</div>
+
+<datalist id="takvim-grup-list">
+    @foreach (var g in _grupAdlari)
+    {
+        <option value="@g"></option>
+    }
+</datalist>
 
 <div class="cal-legend">
     <span><i class="cal rez" style="border:1px solid #e2e5ea;background:#fde68a"></i> Rezervasyon</span>
@@ -58,11 +90,17 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "ay")] public string? Ay { get; set; }
+    // FAZ-11 araç kümesi filtreleri
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private DateTime _monthStart;
     private int _days;
     private string _prev = "", _next = "", _prevLabel = "", _nextLabel = "";
     private IReadOnlyList<Vehicle> _vehicles = [];
+    private IReadOnlyList<string> _subeAdlari = [];
+    private IReadOnlyList<string> _grupAdlari = [];
     // (VehicleId, gün) → tip; çakışmada Kira önceliklidir.
     private readonly Dictionary<(Guid, int), string> _grid = new();
 
@@ -81,7 +119,23 @@
         var from = new DateTimeOffset(_monthStart, TimeSpan.Zero);
         var to = new DateTimeOffset(_monthStart.AddMonths(1), TimeSpan.Zero);
 
-        _vehicles = await Vehicles.ListAsync();
+        // FAZ-11: araç kümesi filtreli çekilir. PageSize 500 — takvim satır satır çizilen bir
+        // ızgara; daha fazlası zaten okunamaz, sessizce kırpmak yerine kullanıcı filtreye yönlendirilir.
+        var filtre = new VehicleFilter
+        {
+            Query = string.IsNullOrWhiteSpace(Plaka) ? null : Plaka,
+            Grup = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
+            Sube = string.IsNullOrWhiteSpace(Sube) ? null : Sube,
+            Page = 1, PageSize = 200
+        };
+        _vehicles = (await Vehicles.SearchAsync(filtre)).Items;
+
+        // Filtre kutularının önerileri: şube master + araçlarda geçen grup adları.
+        _subeAdlari = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _grupAdlari = (await Vehicles.ListAsync()).Select(v => v.Grup)
+            .Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(g => g, StringComparer.CurrentCulture).ToList();
+
         var spans = await Calendar.GetOccupancyAsync(from, to);
 
         foreach (var s in spans)
@@ -100,6 +154,17 @@
                 }
             }
         }
+    }
+
+    /// <summary>Ay gezinme bağlantısı — aktif araç filtrelerini KORUR (ay değiştirince filtre
+    /// sıfırlansaydı kullanıcı her ayda filtreyi yeniden kurardı).</summary>
+    private string AyUrl(string ay)
+    {
+        var qs = new List<string> { $"ay={Uri.EscapeDataString(ay)}" };
+        if (!string.IsNullOrEmpty(Plaka)) qs.Add($"plaka={Uri.EscapeDataString(Plaka)}");
+        if (!string.IsNullOrEmpty(Grup)) qs.Add($"grup={Uri.EscapeDataString(Grup)}");
+        if (!string.IsNullOrEmpty(Sube)) qs.Add($"sube={Uri.EscapeDataString(Sube)}");
+        return "/takvim?" + string.Join("&", qs);
     }
 
     private string? Occupancy(Guid vehicleId, DateTime date)

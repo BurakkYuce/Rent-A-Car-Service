@@ -1,5 +1,6 @@
 @page "/vehicles"
 @attribute [Authorize]
+@using System.Globalization
 @inject VehicleService Vehicles
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
@@ -13,9 +14,10 @@
 @* Zengin araç listesi: aracı ayırt etmeye yeten tüm sütunlar tek tabloda; dar ekranda yatay kaydırılır. *@
 @* .model-grup / .view-toggle stilleri app.css'e taşındı (merkezi tema; gerçek token'larla). *@
 <style>
-    /* Araç tablosu yalnız burada 1750px'e taşar → sayfa-özel yatay kaydırma sarmalayıcısı. */
+    /* Araç tablosu yalnız burada taşar → sayfa-özel yatay kaydırma sarmalayıcısı.
+       FAZ-11 ile kolon sayısı arttı (alış/filo/belge/lastik/GPS + çözülen kira-servis-kredi). */
     .arac-grid-wrap { overflow-x: auto; width: 100%; }
-    .arac-grid-wrap table { min-width: 1750px; }
+    .arac-grid-wrap table { min-width: 3200px; }
     .arac-grid-wrap th, .arac-grid-wrap td { white-space: nowrap; }
 </style>
 
@@ -106,7 +108,14 @@
 <div class="filter-panel">
     <form method="get" class="filter-bar">
         <input name="q" value="@Q" placeholder="Plaka / marka ara" />
-        <input name="grup" value="@Grup" list="arac-grup-list" placeholder="Grup" />
+        @* FAZ-11 "Grup Türü" anahtarı: aynı kutu Grup ya da SIPP kodunu arar (canlı parite).
+           SIPP seçiliyken datalist grup adları önerirdi → yalnız Grup modunda bağlanır. *@
+        <select name="grupTuru">
+            <option value="Grup" selected="@(GrupTuru != "Sipp")">Grup</option>
+            <option value="Sipp" selected="@(GrupTuru == "Sipp")">SIPP</option>
+        </select>
+        <input name="grup" value="@Grup" list="@(GrupTuru == "Sipp" ? null : "arac-grup-list")"
+               placeholder="@(GrupTuru == "Sipp" ? "SIPP (ör. CDMD)" : "Grup")" />
         <select name="durum">
             <option value="">Durum (tümü)</option>
             @foreach (var s in Enum.GetValues<VehicleStatus>())
@@ -114,9 +123,36 @@
                 <option value="@s" selected="@(Durum == s.ToString())">@s</option>
             }
         </select>
+        @* Canlıdaki "Ofis" filtresi bizde ŞUBE'dir — araç kaydında ayrı bir ofis alanı yok. *@
+        <select name="sube">
+            <option value="">Şube (tümü)</option>
+            @foreach (var b in _subeOpts)
+            {
+                <option value="@b" selected="@(Sube == b)">@b</option>
+            }
+        </select>
+        @* Araç sahibi: TAHMİN yerine SEÇİM. "Sahibi dolu = dış araç" varsayımı canlı veride
+           çürüdü (tüm kayıtlarda alan "Bizim" metniyle doluydu) → sahipler listeden seçilir,
+           ayrıca "girilmemiş" kovası veri eksiğini avlamak için ayrı seçenektir. *@
+        <select name="sahip">
+            <option value="">Araç sahibi (hepsi)</option>
+            <option value="@SahipBosKod" selected="@(Sahip == SahipBosKod)">(sahibi girilmemiş)</option>
+            @foreach (var s in _sahipOpts)
+            {
+                <option value="@s" selected="@(Sahip == s)">@s</option>
+            }
+        </select>
+        <select name="tarihTuru" title="Tarih aralığının uygulanacağı alan">
+            <option value="">Tarih türü (yok)</option>
+            <option value="FiloGiris" selected="@(TarihTuru == "FiloGiris")">Filo Giriş</option>
+            <option value="FiloCikis" selected="@(TarihTuru == "FiloCikis")">Filo Çıkış</option>
+            <option value="Tescil" selected="@(TarihTuru == "Tescil")">İlk Tescil</option>
+        </select>
+        <input name="tarihBas" type="date" value="@TarihBas" title="Aralık başlangıcı" />
+        <input name="tarihBit" type="date" value="@TarihBit" title="Aralık bitişi (gün dahil)" />
         <button type="submit">Filtrele</button>
         <span class="count-badge">Kayıt: @_page.Total</span>
-        @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Durum))
+        @if (_filtreVar)
         {
             <a href="/vehicles" class="link">Temizle</a>
         }
@@ -203,16 +239,26 @@ else
             <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
             <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th>KM</th><th>Şube</th><th>Durum</th>
             <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th>Motor Gücü</th><th>Araç Sahibi</th>
-            <th>HGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th><th></th>
+            <th>HGS No</th><th>OGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th>
+            @* --- FAZ-11: canlı arac_listesi kolonları (hepsi araç kartının kendi alanları) --- *@
+            <th class="num">Alış Bedeli</th><th>Filo Giriş</th><th>Filo Çıkış</th><th>İlk Tescil</th>
+            <th>Alınan Firma</th><th>Ruhsat No</th><th class="num">2.El Değeri</th>
+            <th class="num">Kasko Değeri</th><th>Yedek Anahtar</th><th>Kar Lastiği</th><th>Lastik Bilgisi</th>
+            <th>Z-İzni</th><th>Statü</th><th>Lokasyon</th><th>GPS Takip No</th><th>Teyp Kodu</th><th>Açıklama</th>
+            @* --- FAZ-11: diğer tablolardan CANLI çözülen kolonlar --- *@
+            <th>Aktif Söz. No</th><th>Servis</th><th>BAF</th><th>Satış</th>
+            <th>Kasko Bitiş</th><th class="num">Kasko Primi</th><th>Kredi Kuruluşu</th><th>Kredi Son Tarih</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
         @if (_page.Items.Count == 0)
         {
-            <tr><td colspan="23" class="muted">Kayıtlı araç yok.</td></tr>
+            <tr><td colspan="49" class="muted">Kayıtlı araç yok.</td></tr>
         }
         @foreach (var v in _page.Items)
         {
+            var ek = _ek.GetValueOrDefault(v.Id);
             <tr>
                 <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
                 <td>@v.Marka</td>
@@ -234,8 +280,34 @@ else
                 <td class="num">@v.MotorGucu</td>
                 <td>@v.AracSahibi</td>
                 <td>@v.HgsNo</td>
+                <td>@v.OgsNo</td>
                 <td>@v.KasaTipi</td>
                 <td class="num">@v.SonBakimKm</td>
+                <td class="num">@Para(v.AlimBedeli)</td>
+                <td>@Gun(v.FiloGirisTarih)</td>
+                <td>@Gun(v.FiloCikisTarih)</td>
+                <td>@Gun(v.TescilTarihi)</td>
+                <td>@v.AlimYapilanFirma</td>
+                <td>@v.RuhsatNo</td>
+                <td class="num">@Para(v.IkinciElDeger)</td>
+                <td class="num">@Para(v.TsbKaskoDegeri)</td>
+                <td>@(v.YedekAnahtar ? "Var" : "—")</td>
+                <td>@(v.KarLastigi ? "Var" : "—")</td>
+                <td>@v.LastikDurumu</td>
+                <td>@(v.ZIzni ? "Var" : "—")</td>
+                <td>@v.SonDurum</td>
+                <td>@v.Konum</td>
+                <td>@v.TakipNo</td>
+                <td>@v.TeypKodu</td>
+                <td>@v.Aciklama</td>
+                <td>@(ek?.AktifKiraSozlesmeNo ?? "—")</td>
+                <td>@(ek?.AcikServis == true ? "Açık" : "—")</td>
+                <td>@(ek?.AcikBaf == true ? "Tahsisli" : "—")</td>
+                <td>@(ek?.SatisVar == true ? "Var" : "—")</td>
+                <td>@Gun(ek?.KaskoBitis)</td>
+                <td class="num">@Para(ek?.KaskoPrim)</td>
+                <td>@ek?.KrediKurulusu</td>
+                <td>@Gun(ek?.KrediSonTarih)</td>
                 <td>
                     <a href="/araclar/@v.Id" class="link">Detay</a>
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
@@ -269,8 +341,22 @@ else
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
     [SupplyParameterFromQuery(Name = "gorunum")] public string? Gorunum { get; set; }
+    // FAZ-11 filtreleri
+    [SupplyParameterFromQuery(Name = "grupTuru")] public string? GrupTuru { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "sahip")] public string? Sahip { get; set; }
+    [SupplyParameterFromQuery(Name = "tarihTuru")] public string? TarihTuru { get; set; }
+    [SupplyParameterFromQuery(Name = "tarihBas")] public string? TarihBas { get; set; }
+    [SupplyParameterFromQuery(Name = "tarihBit")] public string? TarihBit { get; set; }
 
     private bool _grupluMod;
+    private bool _filtreVar;
+    private IReadOnlyDictionary<Guid, VehicleListeEk> _ek = new Dictionary<Guid, VehicleListeEk>();
+    private List<string> _sahipOpts = [];
+
+    /// <summary>"Sahibi girilmemiş" kovasının query değeri. Gerçek bir sahip adıyla çakışmasın
+    /// diye parantezli/normal metinde geçmeyecek bir kod seçildi.</summary>
+    private const string SahipBosKod = "-bos-";
     private List<ModelGrup> _modelGruplari = [];
     private int _grupToplam;
 
@@ -291,26 +377,48 @@ else
         sources.SelectMany(s => s).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
+    /// <summary>Sayfa filtrelerini tek yerden kurar — liste ile gruplu görünüm ASLA ayrışmasın
+    /// (eskiden iki ayrı kopya vardı; yeni bir filtre eklenince biri güncellenmeden kalırdı).</summary>
+    private VehicleFilter Filtre(int page, int pageSize) => new()
+    {
+        Query = Q,
+        Grup = Grup,
+        GrupTuru = Enum.TryParse<AracGrupTuru>(GrupTuru, ignoreCase: true, out var gt) ? gt : AracGrupTuru.Grup,
+        Sube = string.IsNullOrWhiteSpace(Sube) ? null : Sube,
+        Sahiplik = Sahip == SahipBosKod ? AracSahiplik.Girilmemis : AracSahiplik.Hepsi,
+        AracSahibi = Sahip == SahipBosKod || string.IsNullOrWhiteSpace(Sahip) ? null : Sahip,
+        TarihTuru = Enum.TryParse<AracTarihTuru>(TarihTuru, ignoreCase: true, out var tt) ? tt : AracTarihTuru.Yok,
+        TarihBas = Tarih(TarihBas),
+        TarihBit = Tarih(TarihBit),
+        Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null,
+        Page = page,
+        PageSize = pageSize
+    };
+
+    /// <summary>Filtre kutusundaki "yyyy-MM-dd" → o günün YEREL gece yarısı (UTC'ye çevrilmiş).
+    /// Tarih alanları forma da yerel gün olarak girildiği için (FormParse.Date) aralık da aynı
+    /// çerçevede kurulmalı; UTC gece yarısı almak sınır günlerde bir gün kaydırırdı.</summary>
+    private static DateTimeOffset? Tarih(string? s)
+        => DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? new DateTimeOffset(d.Date, TimeZoneInfo.Local.GetUtcOffset(d.Date)).ToUniversalTime()
+            : null;
+
     protected override async Task OnInitializedAsync()
     {
-        var filter = new VehicleFilter
-        {
-            Query = Q, Grup = Grup, Page = Page ?? 1,
-            Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null
-        };
-        _page = await Vehicles.SearchAsync(filter);
+        _filtreVar = !string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Grup) || !string.IsNullOrEmpty(Durum)
+            || !string.IsNullOrEmpty(Sube) || !string.IsNullOrEmpty(Sahip)
+            || !string.IsNullOrEmpty(TarihTuru) || !string.IsNullOrEmpty(GrupTuru);
+
+        _page = await Vehicles.SearchAsync(Filtre(Page ?? 1, 20));
+        // Ek bilgi YALNIZ görünen sayfa için (20 satır) — tüm filo taranmaz.
+        _ek = await Vehicles.ListeEkAsync(_page.Items.Select(v => v.Id).ToList());
 
         // Modele göre gruplu görünüm: aynı filtreyle (SearchAsync semantiği) ilk 200 aracı çek, Marka+Tip
         // bazında grupla. Sayfalama yok (grup üzerinde <details>); 200 üstü net not (sessiz kırpma yok).
         _grupluMod = string.Equals(Gorunum, "grup", StringComparison.OrdinalIgnoreCase);
         if (_grupluMod)
         {
-            var grupFiltre = new VehicleFilter
-            {
-                Query = Q, Grup = Grup, Page = 1, PageSize = 200,
-                Durum = Enum.TryParse<VehicleStatus>(Durum, out var gd) ? gd : null
-            };
-            var grupSonuc = await Vehicles.SearchAsync(grupFiltre);
+            var grupSonuc = await Vehicles.SearchAsync(Filtre(1, 200));
             _grupToplam = grupSonuc.Total;
             _modelGruplari = grupSonuc.Items
                 .GroupBy(v => $"{(v.Marka ?? "").Trim()}|{(v.Tip ?? "").Trim()}".ToLowerInvariant())
@@ -352,6 +460,9 @@ else
         _segmentOpts = Opts(segmentler.Select(s => s.Ad), all.Select(v => v.Segment));
         _renkOpts = Opts(renkler.Select(r => r.Ad), all.Select(v => v.Renk));
         _subeOpts = Opts(_subeler.Select(s => s.Ad), all.Select(v => v.Sube));
+        // FAZ-11 araç sahibi filtresi: kayıtlarda GEÇEN sahipler (master listesi değil — filtre,
+        // tanımlı ama hiç kullanılmamış bir sahibi göstererek boş sonuç vaat etmemeli).
+        _sahipOpts = Opts(all.Select(v => v.AracSahibi));
 
         // Model yılı: gelecek yıl → ~30 yıl geriye (seç-veya-yaz; asıl sınır server doğrulaması).
         var maxYil = DateTimeOffset.UtcNow.Year + 1;
@@ -361,23 +472,43 @@ else
         _doluluk = _toplam == 0 ? 0 : (int)Math.Round(100.0 * (_toplam - _musait) / _toplam);
     }
 
-    private string PageUrl(int p)
+    /// <summary>Aktif filtrelerin query-string'i — sayfalama ve görünüm anahtarı ORTAK kullanır.
+    /// Tek yerde tutulmazsa yeni bir filtre eklendiğinde "2. sayfaya geçince filtre kayboldu"
+    /// hatası doğar (bu sayfada iki ayrı kopya vardı).</summary>
+    private List<string> FiltreQs()
     {
-        var qs = new List<string> { $"page={p}" };
+        var qs = new List<string>();
         if (!string.IsNullOrEmpty(Q)) qs.Add($"q={Uri.EscapeDataString(Q)}");
         if (!string.IsNullOrEmpty(Grup)) qs.Add($"grup={Uri.EscapeDataString(Grup)}");
+        if (!string.IsNullOrEmpty(GrupTuru)) qs.Add($"grupTuru={Uri.EscapeDataString(GrupTuru)}");
         if (!string.IsNullOrEmpty(Durum)) qs.Add($"durum={Durum}");
+        if (!string.IsNullOrEmpty(Sube)) qs.Add($"sube={Uri.EscapeDataString(Sube)}");
+        if (!string.IsNullOrEmpty(Sahip)) qs.Add($"sahip={Uri.EscapeDataString(Sahip)}");
+        if (!string.IsNullOrEmpty(TarihTuru)) qs.Add($"tarihTuru={Uri.EscapeDataString(TarihTuru)}");
+        if (!string.IsNullOrEmpty(TarihBas)) qs.Add($"tarihBas={Uri.EscapeDataString(TarihBas)}");
+        if (!string.IsNullOrEmpty(TarihBit)) qs.Add($"tarihBit={Uri.EscapeDataString(TarihBit)}");
+        return qs;
+    }
+
+    private string PageUrl(int p)
+    {
+        var qs = FiltreQs();
+        qs.Insert(0, $"page={p}");
         return "/vehicles?" + string.Join("&", qs);
     }
 
     // Görünüm anahtarı URL'i (mevcut filtreleri korur; gorunum=null → düz liste).
     private string ViewUrl(string? gorunum)
     {
-        var qs = new List<string>();
-        if (!string.IsNullOrEmpty(Q)) qs.Add($"q={Uri.EscapeDataString(Q)}");
-        if (!string.IsNullOrEmpty(Grup)) qs.Add($"grup={Uri.EscapeDataString(Grup)}");
-        if (!string.IsNullOrEmpty(Durum)) qs.Add($"durum={Durum}");
+        var qs = FiltreQs();
         if (gorunum is not null) qs.Add($"gorunum={gorunum}");
         return "/vehicles" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
     }
+
+    /// <summary>Para gösterimi (kültüre duyarlı, binlik ayraçlı); null → "—".</summary>
+    private static string Para(decimal? d) => d?.ToString("N2") ?? "—";
+
+    /// <summary>Tarih gösterimi: depolanan UTC anı YEREL güne çevirir (VehicleEdit'teki Gun()
+    /// yardımcısıyla aynı çerçeve — tarihler yerel gün olarak yazılıyor).</summary>
+    private static string Gun(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
 }
