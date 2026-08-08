@@ -13,6 +13,16 @@ internal sealed class RateCardConfig : IEntityTypeConfiguration<RateCard>
     public void Configure(EntityTypeBuilder<RateCard> e)
     {
         e.ToTable("RateCards");
+        // FAZ-72: tarife grubu referansı — composite tenant-FK (çapraz-tenant referans imkansız).
+        //
+        // DeleteBehavior.Restrict, SetNull DEĞİL: composite FK'de SET NULL, kolonların HEPSİNİ
+        // (TenantId dahil) NULL'a çekmeye çalışır ve TenantId NOT NULL olduğu için silme 23502 ile
+        // patlar. İstenen "bağ kopsun, satır kalsın" davranışı bu yüzden UYGULAMA tarafında,
+        // silme ile AYNI transaction'da yapılıyor (TarifeGrubuRepository.DeleteAsync).
+        e.HasOne<TarifeGrubu>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.TarifeGrubuId })
+            .HasPrincipalKey(g => new { g.TenantId, g.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
@@ -174,6 +184,23 @@ internal sealed class DolulukFiyatKuralConfig : IEntityTypeConfiguration<Doluluk
         e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
         e.Property(x => x.AracGrupKod).HasMaxLength(32);
         e.Property(x => x.CarpanYuzde).HasColumnType("numeric(9,4)");
+        e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+    }
+}
+
+// ---- TarifeGrubu (FAZ-72 — fiyat grubu master; tenant-owned, defter postalamaz) ----
+internal sealed class TarifeGrubuConfig : IEntityTypeConfiguration<TarifeGrubu>
+{
+    public void Configure(EntityTypeBuilder<TarifeGrubu> e)
+    {
+        e.ToTable("TarifeGruplari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Oran).HasColumnType("numeric(9,4)");
+        e.Property(x => x.KullaniciAdi).HasMaxLength(128);
+        e.Property(x => x.SifreHash).HasMaxLength(256);
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }

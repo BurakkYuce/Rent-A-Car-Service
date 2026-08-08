@@ -35,6 +35,24 @@ public class RateCard : ITenantOwned, IAuditable
 
     public bool Aktif { get; set; } = true;
 
+
+    // ---- FAZ-72: teminat/görünürlük bayrakları + tarife grubu referansı ----
+    // Hepsi BİLGİ amaçlıdır: RateCard fiyat motorunda zaten DEPRECATED-fallback konumunda ve bu
+    // alanlar hiçbir hesaba girmez. Ekran canlıdaki tarifeler.aspx'in doğrudan karşılığıdır.
+    /// <summary>SCDW (muafiyet azaltma) fiyata dahil mi.</summary>
+    public bool ScdwDahil { get; set; }
+    /// <summary>Mini hasar teminatı dahil mi.</summary>
+    public bool MiniHasarDahil { get; set; }
+    /// <summary>Hırsızlık teminatı dahil mi.</summary>
+    public bool HirsizlikDahil { get; set; }
+    /// <summary>SCDW zorunlu mu (müşteri reddedemez).</summary>
+    public bool ScdwZorunlu { get; set; }
+    /// <summary>true → satır listelerde/tekliflerde GİZLENİR. Varsayılan false (görünür).</summary>
+    public bool Gosterme { get; set; }
+    /// <summary>Opsiyonel tarife grubu referansı. Grup silinirse NULL'a düşer (ON DELETE SET NULL) —
+    /// tarife satırı silinmez, yalnız bağı kopar.</summary>
+    public Guid? TarifeGrubuId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
