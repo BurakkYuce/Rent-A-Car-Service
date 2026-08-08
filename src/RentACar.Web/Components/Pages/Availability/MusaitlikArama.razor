@@ -21,6 +21,7 @@
     <label>Bitiş<input name="to" type="date" value="@To" required /></label>
     <ComboBox Name="grup" Label="Grup" Value="@Grup" Options="_grupOpts" Placeholder="(tümü)" />
     <ComboBox Name="sube" Label="Şube" Value="@Sube" Options="_subeOpts" Placeholder="(tümü)" />
+    <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 AA (boşluk serbest)" /></label>
     <button type="submit">Ara</button>
 </form>
 
@@ -29,24 +30,48 @@
     <p class="muted">@From – @To arası @_list.Count müsait araç.</p>
     <div class="table-scroll">
     <table class="grid tr-grid">
-        <thead><tr><th>Plaka</th><th>Marka</th><th>Grup</th><th>Şube</th><th class="num">Günlük</th><th class="num">Toplam</th><th>Döviz</th><th></th></tr></thead>
+        <thead><tr><th>Plaka</th><th>Marka</th><th>Tipi</th><th class="num">Yılı</th><th>Yakıt</th>
+            <th>Vites</th><th>Renk</th><th>SIPP</th><th>Grup</th><th>Şube</th><th>Kar Lastiği</th><th>Temizlik</th><th>Özel Kod 1</th>
+            <th class="num">Son Km</th><th class="num">Boşta (gün)</th><th>Son Müşteri</th>
+            <th class="num">Günlük</th><th class="num">Toplam</th><th>Döviz</th><th></th></tr></thead>
         <tbody>
             @if (_list.Count == 0)
             {
-                <tr><td colspan="8" class="muted">Bu aralıkta müsait araç yok.</td></tr>
+                <tr><td colspan="20" class="muted">Bu aralıkta müsait araç yok.</td></tr>
             }
             @foreach (var v in _list)
             {
                 var f = Fiyat(v.Grup);
+                var son = _son.GetValueOrDefault(v.Id);
                 <tr>
-                    <td>@v.Plaka</td>
+                    <td class="mono">@v.Plaka</td>
                     <td>@v.Marka</td>
+                    <td>@v.Tip</td>
+                    <td class="num">@(v.ModelYili?.ToString() ?? "—")</td>
+                    <td>@(v.Yakit?.ToString() ?? "—")</td>
+                    <td>@(v.Vites?.ToString() ?? "—")</td>
+                    <td>@(v.Renk ?? "—")</td>
+                    <td class="mono">@(v.Sipp ?? "—")</td>
                     <td>@v.Grup</td>
                     <td>@v.Sube</td>
+                    @* Canlıdaki "Lokasyon" kolonunun Vehicle'da karşılığı YOK (araçta yalnız Sube
+                       var); uydurulmuş bir alan eklemek yerine gerçekten var olan operasyonel
+                       bayraklar konuldu. Lokasyon istenirse ayrı bir alan işidir. *@
+                    <td>@(v.KarLastigi ? "Var" : "—")</td>
+                    <td>@(v.Temizlik ? "Temiz" : "—")</td>
+                    <td>@(v.OzelKod1 ?? "—")</td>
+                    <td class="num">@v.Km.ToString("N0")</td>
+                    @* Boşta gün = son TAMAMLANMIŞ kiranın dönüşünden bugüne. Hiç kiralanmamış araçta
+                       "—" yazılır; 0 yazmak "dün döndü" ile karışırdı. *@
+                    <td class="num">@(son is null ? "—" : AvailabilityService.BostaGun(son.SonDonus, _now).ToString())</td>
+                    <td>@(son?.MusteriAd ?? "—")</td>
                     <td class="num">@(f is null ? "—" : f.Value.Gunluk.ToString("N2"))</td>
                     <td class="num">@(f is null ? "—" : f.Value.Toplam.ToString("N2"))</td>
                     <td>@(f?.Para)</td>
-                    <td><a href="/rezervasyonlar">Rezervasyon →</a></td>
+                    <td>
+                        @* Kirala: araç + tarihler kira formuna taşınır (?varac=&vfrom=&vto=). *@
+                        <a href="@KiralaLink(v.Id)">Kirala →</a>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -59,8 +84,11 @@
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
     [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
 
     private IReadOnlyList<Vehicle> _list = [];
+    private IReadOnlyDictionary<Guid, SonKullanimRow> _son = new Dictionary<Guid, SonKullanimRow>();
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
     private readonly Dictionary<string, (decimal Gunluk, decimal Toplam, string Para)> _fiyat = new(StringComparer.OrdinalIgnoreCase);
     private bool _searched;
     private string? Hata;
@@ -83,6 +111,17 @@
         try
         {
             _list = await Availability.FindAvailableAsync(from.Value, to.Value, Grup, Sube);
+
+            // Plaka süzgeci LİSTE ÜZERİNDE: müsaitlik sorgusunun kapsam/izolasyon kuralları
+            // dokunulmadan kalsın. Terim normalize edilir (DB'de plaka boşluksuz saklanıyor).
+            if (!string.IsNullOrWhiteSpace(Plaka))
+            {
+                var p = new string(Plaka.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+                if (p.Length > 0)
+                    _list = _list.Where(v => v.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            _son = await Availability.SonKullanimAsync(_list.Select(v => v.Id).ToList());
             // roadmap G4: her müsait grup için fiyat motorundan teklif (kanal=null booking akışı).
             foreach (var grup in _list.Select(v => v.Grup)
                 .Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -101,6 +140,16 @@
             Hata = ex.Message;
             _searched = false;
         }
+    }
+
+    /// <summary>Kira formuna araç + tarih taşıyan bağlantı (mega-form ?varac/?vfrom/?vto okur).</summary>
+    private string KiralaLink(Guid vehicleId)
+    {
+        var q = new List<string> { $"varac={vehicleId}" };
+        if (!string.IsNullOrWhiteSpace(From)) q.Add($"vfrom={Uri.EscapeDataString(From)}");
+        if (!string.IsNullOrWhiteSpace(To)) q.Add($"vto={Uri.EscapeDataString(To)}");
+        if (!string.IsNullOrWhiteSpace(Grup)) q.Add($"vgrup={Uri.EscapeDataString(Grup)}");
+        return "/kiralar/yeni?" + string.Join("&", q);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

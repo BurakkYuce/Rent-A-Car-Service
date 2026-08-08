@@ -129,6 +129,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Anket> Anketler => Set<Anket>();
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
     public DbSet<AssistansTalep> AssistansTalepleri => Set<AssistansTalep>();   // FAZ-44 — yol yardım
+    public DbSet<FiloPlanHedefi> FiloPlanHedefleri => Set<FiloPlanHedefi>();   // FAZ-19 — kapasite planı
     public DbSet<RezSart> RezSartlar => Set<RezSart>();   // FAZ-25 — müşteri özel talebi (operasyonel not)
     public DbSet<JobCalismaLog> JobCalismaLoglari => Set<JobCalismaLog>();   // FAZ-26 — otomatik servis koşu günlüğü
     public DbSet<CariVirmanBilgi> CariVirmanBilgileri => Set<CariVirmanBilgi>();   // FAZ-59 — virman künyesi (para taşımaz)

@@ -218,6 +218,7 @@ else
     [SupplyParameterFromQuery(Name = "vfrom")] public string? Vfrom { get; set; }
     [SupplyParameterFromQuery(Name = "vto")] public string? Vto { get; set; }
     [SupplyParameterFromQuery(Name = "vgrup")] public string? Vgrup { get; set; }
+    [SupplyParameterFromQuery(Name = "varac")] public string? Varac { get; set; }   // FAZ-19 ön-seçim
     [SupplyParameterFromQuery(Name = "musteriId")] public string? MusteriIdQ { get; set; }
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
@@ -279,6 +280,7 @@ else
                     plaka!, _vm.Rental!.BasTar, _vm.Rental!.GercekDonusTar ?? _vm.Rental!.BitTar);
         }
         _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
+        _vm.Varac = Guid.TryParse(Varac, out var varacId) ? varacId : null;
         _vm.QMusteriId = Guid.TryParse(MusteriIdQ, out var qm) ? qm : null; // müsaitlik yenilemesinde seçim korunur
 
         if (_vm.Edit)
