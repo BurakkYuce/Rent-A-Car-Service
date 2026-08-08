@@ -145,7 +145,29 @@ public static class VehicleEndpoints
         Rehin = Flag(f, "rehin"),
         SonBakimTarih = FormParse.Date(FormParse.Str(f, "sonBakimTarih")),
         SonBakimKm = FormParse.Int(FormParse.Str(f, "sonBakimKm")),
-        LastikDurumu = FormParse.Str(f, "lastikDurumu")
+        LastikDurumu = FormParse.Str(f, "lastikDurumu"),
+        // FAZ-10 araç kartı derinliği — opsiyonel sayı/tarih alanları string alınıp FormParse ile
+        // çevrilir (boş "" değer-tipli bind'de 400 verirdi — CLAUDE.md §5 tuzağı).
+        TsrbMarkaKodu = FormParse.Str(f, "tsrbMarkaKodu"),
+        TsrbTipKodu = FormParse.Str(f, "tsrbTipKodu"),
+        AltGrupAdi = FormParse.Str(f, "altGrupAdi"),
+        EntegrasyonKodu = FormParse.Str(f, "entegrasyonKodu"),
+        TeypKodu = FormParse.Str(f, "teypKodu"),
+        TakipMarka = FormParse.Str(f, "takipMarka"),
+        TakipNo = FormParse.Str(f, "takipNo"),
+        SahipGrup = FormParse.Str(f, "sahipGrup"),
+        AracSahibiNo = FormParse.Str(f, "aracSahibiNo"),
+        AracSahibi2 = FormParse.Str(f, "aracSahibi2"),
+        KrediFirma = FormParse.Str(f, "krediFirma"),
+        KapatmaTarih = FormParse.Date(FormParse.Str(f, "kapatmaTarih")),
+        CikmasiPlananTarih = FormParse.Date(FormParse.Str(f, "cikmasiPlananTarih")),
+        AracSatisKm = FormParse.Int(FormParse.Str(f, "aracSatisKm")),
+        Aciklama = FormParse.Str(f, "aciklama"),
+        Konum = FormParse.Str(f, "konum"),
+        AlimBedeliKur = FormParse.Dec(FormParse.Str(f, "alimBedeliKur")),
+        Arac2FiyatKur = FormParse.Dec(FormParse.Str(f, "arac2FiyatKur")),
+        SimdiKur = FormParse.Dec(FormParse.Str(f, "simdiKur")),
+        AylikMaliyetDoviz = FormParse.Dec(FormParse.Str(f, "aylikMaliyetDoviz"))
     };
 
     /// <summary>Checkbox: değer "true"/"on" ise true; yoksa false.</summary>
