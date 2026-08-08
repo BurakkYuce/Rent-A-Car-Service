@@ -35,7 +35,11 @@ public static class RateMatrixEndpoints
         Aciklama = FormParse.Str(f, "aciklama"),
         Kanal = FormParse.Str(f, "kanal"),
         Sube = FormParse.Str(f, "sube"),
+        // FAZ-70: CokluSecim aynı adı taşıyan birden çok alan gönderir; StringValues.ToString()
+        // bunları virgülle birleştirir → servis Csv() ile normalize eder.
         Lokasyon = FormParse.Str(f, "lokasyon"),
+        Turu = FormParse.Str(f, "turu"),
+        KiraSuresi = FormParse.Int(FormParse.Str(f, "kiraSuresi")),
         AracGrupKod = FormParse.Str(f, "aracGrupKod"),
         ParaBirimi = FormParse.Str(f, "paraBirimi"),
         BasTar = FormParse.Date(FormParse.Str(f, "basTar")),

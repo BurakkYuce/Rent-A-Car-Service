@@ -66,6 +66,20 @@ public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
 
     public bool Aktif { get; set; } = true;
 
+
+    // ---- FAZ-70 ----
+    /// <summary>Satır etiketi: "Fiyat" / "Kampanya". SALT ETİKET — motor davranışını DEĞİŞTİRMEZ,
+    /// yalnız listede ayırt etmeye yarar.</summary>
+    public string? Turu { get; set; }
+
+    /// <summary>
+    /// Max Kira Kapsamı (gün). Bu satır YALNIZ süresi bu değeri aşmayan kiralarda geçerlidir;
+    /// aşıldığında satır ADAYLIKTAN ELENİR ve motor sıradaki uygun satıra düşer (yeni bir RED yolu
+    /// açılmaz — eşleşen satır kalmazsa mevcut "tarife bulunamadı" akışı işler).
+    /// null = sınırsız.
+    /// </summary>
+    public int? KiraSuresi { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

@@ -22,9 +22,13 @@ public class BrokerYasak : ITenantOwned, IAuditable
     // Kapsam (boş alan → o boyutta "tümü")
     /// <summary>Kaynak = broker/kanal (rez kaynağı). Boş → tüm kaynaklar.</summary>
     public string? Kaynak { get; set; }
-    /// <summary>Araç grubu kodu. Boş → tüm gruplar.</summary>
+    /// <summary>
+    /// Araç grubu kod(lar)ı — VİRGÜLLE AYRILMIŞ çoklu değer (ör. "EKO,STD,LUX"). Boş → tüm gruplar.
+    /// Tek değer yazılmış eski kayıtlar tek-elemanlı liste sayılır (geriye uyumlu).
+    /// Okuma için <c>BrokerYasakService.KapsarMi</c>.
+    /// </summary>
     public string? AracGrupKod { get; set; }
-    /// <summary>Bölge / şehir. Boş → tüm bölgeler.</summary>
+    /// <summary>Bölge / şehir — VİRGÜLLE AYRILMIŞ çoklu değer. Boş → tüm bölgeler.</summary>
     public string? Bolge { get; set; }
 
     // Kısıt
