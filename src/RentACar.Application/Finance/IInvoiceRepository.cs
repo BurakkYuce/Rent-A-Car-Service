@@ -7,6 +7,13 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default);
     Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-52 — fatura SATIRI seviyesinde birleştirilmiş liste (fatura × cari × kira × araç ×
+    /// rezervasyon). Salt okuma; para satırdan OLDUĞU GİBİ alınır, yeniden hesaplanmaz.
+    /// </summary>
+    Task<IReadOnlyList<FaturaSatirDto>> ListLinesAsync(
+        FaturaSatirFilter? filter = null, CancellationToken ct = default);
+
     /// <summary>Bir kiranın TÜM faturaları: base (RentalId) + fark (KaynakKiraId) + bunların iadeleri —
     /// iptal/iade DAHİL (görsel liste; durum rozetiyle ayrışır). Kira formu "Faturalar" alt-sekmesi.</summary>
     Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default);
