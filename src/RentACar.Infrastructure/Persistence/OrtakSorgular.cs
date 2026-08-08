@@ -150,8 +150,10 @@ public static class OrtakSorgular
 
         // FAZ-76 rapor kolonu: aracın SON servis kaydı (iptal hariç) — "ne zaman/kaç km'de
         // bakıma girdi" bilgisi. Bildirim üreticisi bu kolonu kullanmaz.
+        // FAZ-16: Rezerve de hariç — henüz bakıma GİRMEMİŞ bir randevu "son servis" olamaz
+        // (ileri tarihli randevu, gerçekleşmiş son bakımı ekranda gizlerdi).
         var sonServis = (await db.ServiceRecords.AsNoTracking()
-                .Where(r => r.Durum != ServisDurum.Iptal)
+                .Where(r => r.Durum != ServisDurum.Iptal && r.Durum != ServisDurum.Rezerve)
                 .Select(r => new { r.VehicleId, r.GirisTarihi, r.GirisKm })
                 .ToListAsync(ct))
             .GroupBy(r => r.VehicleId)
