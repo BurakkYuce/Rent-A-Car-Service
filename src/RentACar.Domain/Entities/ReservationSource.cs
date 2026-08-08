@@ -17,6 +17,23 @@ public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
     public string Ad { get; set; } = string.Empty;
     public bool Aktif { get; set; } = true;
 
+    /// <summary>Kaynağın arkasındaki tedarikçi/acente adı (ör. "Rentalcars", "Booking").</summary>
+    public string? Tedarikci { get; set; }
+
+    // FAZ-24 — ORAN ALANLARI YÜZDEDİR (12,5 = %12,5), oransal katsayı DEĞİL. Bu faz alanları
+    // yalnız KAYDEDER: hiçbir fiyat/komisyon/karlılık hesabı bunları OKUMAZ. "Hangi hesaba,
+    // ne zaman girecek" ayrı bir para incelemesidir (bkz. docs/roadmap/FAZ-24…). Bir tüketici
+    // eklenmeden önce yüzde/katsayı birimi ve geçmişe etki sorusu cevaplanmalıdır.
+
+    /// <summary>Kira bedeli üzerinden tedarikçi oranı — YÜZDE (12,5 = %12,5). Hesaba girmez.</summary>
+    public decimal? KiraOrani { get; set; }
+
+    /// <summary>Ek hizmet bedeli üzerinden tedarikçi oranı — YÜZDE. Hesaba girmez.</summary>
+    public decimal? HizmetOrani { get; set; }
+
+    /// <summary>Drop (tek yön) bedeli üzerinden tedarikçi oranı — YÜZDE. Hesaba girmez.</summary>
+    public decimal? DropOrani { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }
