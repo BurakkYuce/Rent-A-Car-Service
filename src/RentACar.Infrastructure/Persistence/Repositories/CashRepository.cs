@@ -252,6 +252,66 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
     }
 
+    /// <summary>
+    /// FAZ-59 — cari virman geçmişi. Künye tablosu sürücüdür; TUTAR defterin DEBIT bacağından
+    /// okunur (künye para taşımaz → listedeki rakam ile carinin ekstresi ayrışamaz).
+    ///
+    /// <para>Künyesi olmayan ESKİ virmanlar (bu faz öncesi yazılmış defter satırları) listede
+    /// GÖRÜNMEZ — künye tablosu o kayıtlar için hiç doldurulmadı. Bunları geriye dönük üretmek
+    /// vade/makbuz/şube alanlarını UYDURMAK olurdu; boş künyeyle listelemek de "bilgi girilmemiş"
+    /// ile "kayıt eski" ayrımını kaybettirirdi. Ekranda bu durum açıkça yazılıdır.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
+        CariVirmanFilter? filter = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.CariVirmanBilgileri.AsNoTracking();
+        if (filter is not null)
+        {
+            if (filter.CariId is { } c) q = q.Where(x => x.KaynakCariId == c || x.HedefCariId == c);
+            if (filter.Bas is { } b) q = q.Where(x => x.Tarih >= b);
+            if (filter.Bit is { } t) q = q.Where(x => x.Tarih <= t);
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var a = filter.Ara.Trim();
+                q = q.Where(x => (x.MakbuzNo != null && EF.Functions.ILike(x.MakbuzNo, $"%{a}%"))
+                              || (x.Aciklama != null && EF.Functions.ILike(x.Aciklama, $"%{a}%"))
+                              || (x.Sube != null && EF.Functions.ILike(x.Sube, $"%{a}%")));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 1000, 1, 10000);
+        var kunyeler = await q.OrderByDescending(x => x.Tarih).Take(limit).ToListAsync(ct);
+        if (kunyeler.Count == 0) return [];
+
+        var idler = kunyeler.Select(k => k.Id).ToList();
+        // Tutar DEFTERDEN: virmanın Debit bacağı (hedef cariye giren tutar) işlemin tutarıdır.
+        var tutarlar = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.SourceType == "CariVirman" && e.Direction == LedgerDirection.Debit
+                        && idler.Contains(e.SourceId))
+            .Select(e => new { e.SourceId, e.Amount.Amount, e.Amount.Currency, e.Amount.Rate })
+            .ToListAsync(ct);
+        var tutarMap = tutarlar.GroupBy(x => x.SourceId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var cariIds = kunyeler.SelectMany(k => new[] { k.KaynakCariId, k.HedefCariId }).Distinct().ToList();
+        var adlar = (await db.Customers.AsNoTracking().Where(c => cariIds.Contains(c.Id)).ToListAsync(ct))
+            .ToDictionary(c => c.Id, c => c.DisplayName);
+        string Ad(Guid id) => adlar.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
+            ? n : "(bilinmeyen cari)";
+
+        return kunyeler.Select(k =>
+        {
+            tutarMap.TryGetValue(k.Id, out var t);
+            return new CariVirmanSatirDto(
+                k.Id, k.Tarih, k.Vade,
+                k.KaynakCariId, Ad(k.KaynakCariId), k.HedefCariId, Ad(k.HedefCariId),
+                t?.Amount ?? 0m, t?.Currency ?? "TRY", t?.Rate ?? 1m,
+                k.MakbuzNo, k.Sube, k.IslemYapan, k.Aciklama);
+        }).ToList();
+    }
+
     public async Task<CariEkstreSonuc> GetCariStatementAsync(
         Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default)
     {
