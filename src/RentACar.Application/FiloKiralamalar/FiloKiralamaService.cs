@@ -15,8 +15,10 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
     private readonly IFiloKiralamaRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
-    public Task<IReadOnlyList<FiloKiralama>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+    /// <summary>Sözleşmeler; <paramref name="filter"/> null → tüm kayıtlar (FAZ-21 öncesi davranış).</summary>
+    public Task<IReadOnlyList<FiloKiralama>> ListAsync(
+        FiloKiralamaFilter? filter = null, CancellationToken ct = default)
+        => _repository.ListAsync(filter, ct);
 
     public Task<FiloKiralama?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -45,11 +47,65 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
             ToplamKmLimiti = input.ToplamKmLimiti,
             DamgaVergisi = input.DamgaVergisi,
             Durum = FiloKiraDurum.Aktif,
-            Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim()
+            Aciklama = Metin(input.Aciklama),
+            // FAZ-21 künye alanları — taksit planına GİRMEZ.
+            SatisTemsilcisi = Metin(input.SatisTemsilcisi),
+            FaturaTuru = Metin(input.FaturaTuru),
+            SozlesmeTarihi = input.SozlesmeTarihi,
+            ImzaTarih = input.ImzaTarih,
+            MakbuzNo = Metin(input.MakbuzNo),
+            DosyaNo = Metin(input.DosyaNo),
+            SozlesmeNo = Metin(input.SozlesmeNo),
+            VadeGun = input.VadeGun,
+            FiyatTuru = Metin(input.FiyatTuru),
+            Kaynak = Metin(input.Kaynak),
+            CikisKm = input.CikisKm,
+            ToplamKm = input.ToplamKm
         };
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
+
+    /// <summary>
+    /// Sözleşme KÜNYESİNİ günceller. Para/süre alanları <see cref="FiloKiralamaMetaInput"/> tipinde
+    /// BULUNMAZ → taksit planı bu yoldan sessizce değiştirilemez (RentalUpdateInput deseni).
+    /// İptal edilmiş sözleşme düzenlenemez: kapanmış bir belgenin künyesini değiştirmek geçmişi bozar.
+    /// </summary>
+    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (input.VadeGun is < 0) throw new ValidationException("Vade günü negatif olamaz.");
+        if (input.CikisKm is < 0 || input.ToplamKm is < 0) throw new ValidationException("Kilometre negatif olamaz.");
+        if (input.ToplamKmLimiti is < 0) throw new ValidationException("KM limiti negatif olamaz.");
+        if (input.CikisKm is { } c && input.ToplamKm is { } t && t < c)
+            throw new ValidationException("Toplam KM, çıkış KM'sinden küçük olamaz.");
+
+        var mevcut = await _repository.FindAsync(id, ct)
+            ?? throw new ValidationException("Sözleşme bulunamadı.");
+        if (mevcut.Durum == FiloKiraDurum.Iptal)
+            throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
+
+        return await _repository.UpdateAsync(id, row =>
+        {
+            row.SatisTemsilcisi = Metin(input.SatisTemsilcisi);
+            row.FaturaTuru = Metin(input.FaturaTuru);
+            row.SozlesmeTarihi = input.SozlesmeTarihi;
+            row.ImzaTarih = input.ImzaTarih;
+            row.MakbuzNo = Metin(input.MakbuzNo);
+            row.DosyaNo = Metin(input.DosyaNo);
+            row.SozlesmeNo = Metin(input.SozlesmeNo);
+            row.VadeGun = input.VadeGun;
+            row.FiyatTuru = Metin(input.FiyatTuru);
+            row.Kaynak = Metin(input.Kaynak);
+            row.CikisKm = input.CikisKm;
+            row.ToplamKm = input.ToplamKm;
+            row.ToplamKmLimiti = input.ToplamKmLimiti;
+            row.Aciklama = Metin(input.Aciklama);
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    private static string? Metin(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {

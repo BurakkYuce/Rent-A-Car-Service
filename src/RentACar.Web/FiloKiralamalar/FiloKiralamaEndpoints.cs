@@ -29,9 +29,49 @@ public static class FiloKiralamaEndpoints
                 Kur = FormParse.Dec(S("kur")) ?? 1m,
                 ToplamKmLimiti = FormParse.Int(S("toplamKmLimiti")),
                 DamgaVergisi = FormParse.Dec(S("damgaVergisi")),
-                Aciklama = S("aciklama")
+                Aciklama = S("aciklama"),
+                // FAZ-21 künye alanları
+                SatisTemsilcisi = S("satisTemsilcisi"),
+                FaturaTuru = S("faturaTuru"),
+                SozlesmeTarihi = FormParse.Date(S("sozlesmeTarihi")),
+                ImzaTarih = FormParse.Date(S("imzaTarih")),
+                MakbuzNo = S("makbuzNo"),
+                DosyaNo = S("dosyaNo"),
+                SozlesmeNo = S("sozlesmeNo"),
+                VadeGun = FormParse.Int(S("vadeGun")),
+                FiyatTuru = S("fiyatTuru"),
+                Kaynak = S("kaynak"),
+                CikisKm = FormParse.Int(S("cikisKm")),
+                ToplamKm = FormParse.Int(S("toplamKm"))
             };
             try { await svc.CreateAsync(input); return Results.Redirect("/filo-kiralama?ok=1"); }
+            catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        // FAZ-21: KÜNYE güncelleme. Para/süre alanları giriş TİPİNDE yok → bu uçtan taksit planı
+        // değiştirilemez (yol kapalı, "unutulmuş bir alan" riski yok).
+        grp.MapPost("/guncelle", async (FiloKiralamaService svc, HttpRequest req, [FromForm] Guid id) =>
+        {
+            var f = req.Form;
+            string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
+            var input = new FiloKiralamaMetaInput
+            {
+                SatisTemsilcisi = S("satisTemsilcisi"),
+                FaturaTuru = S("faturaTuru"),
+                SozlesmeTarihi = FormParse.Date(S("sozlesmeTarihi")),
+                ImzaTarih = FormParse.Date(S("imzaTarih")),
+                MakbuzNo = S("makbuzNo"),
+                DosyaNo = S("dosyaNo"),
+                SozlesmeNo = S("sozlesmeNo"),
+                VadeGun = FormParse.Int(S("vadeGun")),
+                FiyatTuru = S("fiyatTuru"),
+                Kaynak = S("kaynak"),
+                CikisKm = FormParse.Int(S("cikisKm")),
+                ToplamKm = FormParse.Int(S("toplamKm")),
+                ToplamKmLimiti = FormParse.Int(S("toplamKmLimiti")),
+                Aciklama = S("aciklama")
+            };
+            try { await svc.UpdateMetaAsync(id, input); return Results.Redirect("/filo-kiralama?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
