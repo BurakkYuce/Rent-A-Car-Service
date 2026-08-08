@@ -1,14 +1,34 @@
 @page "/arac-durum"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject FleetStatusService Fleet
+@inject BranchService Subeler
+@inject PersonelService Personeller
 
 <PageTitle>Araç Güncel Durum — RentPro</PageTitle>
 @* Canlı operasyon panosu: statik SSR olduğundan sayfa 60 sn'de bir otomatik yenilenir → araç durumu güncel görünür. *@
 <HeadContent><meta http-equiv="refresh" content="60" /></HeadContent>
 
+<style>
+    /* FAZ-11 ile grid aksiyon konsoluna döndü ve genişledi → sayfa-özel yatay kaydırma
+       (VehicleList'teki .arac-grid-wrap deseniyle aynı). */
+    .durum-grid-wrap { overflow-x: auto; width: 100%; }
+    .durum-grid-wrap table { min-width: 2000px; }
+    .durum-grid-wrap th, .durum-grid-wrap td { white-space: nowrap; }
+    .satir-aksiyon { display: flex; gap: .25rem; align-items: center; }
+    .satir-aksiyon form { display: inline-flex; gap: .25rem; align-items: center; margin: 0; }
+    .satir-aksiyon select { max-width: 9rem; }
+</style>
+
 <div class="page-head"><h1>Araç Güncel Durum</h1><div class="actions"><span class="muted small">60 sn'de bir otomatik yenilenir</span></div></div>
-<p class="muted small">Filonun anlık görünümü: her aracın operasyonel durumu, filo statüsü ve (kiradaysa)
-    aktif kira özeti tek tabloda. Operatör yalnız kendi şubesini görür.</p>
+<p class="muted small">Filonun anlık görünümü: her aracın operasyonel durumu, filo statüsü ve (varsa)
+    aktif kira / açık servis / BAF tahsisi / sıradaki rezervasyon tek tabloda. Sağdaki
+    <strong>işlem</strong> kolonundan satırdan çıkmadan kira, servis veya personel tahsisi
+    başlatılır. Operatör yalnız kendi şubesini görür.</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
 
 <div class="filter-panel">
 <form method="get" class="filter-bar">
@@ -25,6 +45,15 @@
         @foreach (var f in Enum.GetValues<FiloStatus>())
         {
             <option value="@f" selected="@(Filo == f.ToString())">@f</option>
+        }
+    </select>
+    @* Canlıdaki "Ofis" filtresi: bizde araç kaydının ofis alanı YOK, kapsam ŞUBE üzerinden
+       yürür (Sube + SubeId) — bu yüzden select şube master'ından beslenir. *@
+    <select name="sube">
+        <option value="">Şube (tümü)</option>
+        @foreach (var b in _subeAdlari)
+        {
+            <option value="@b" selected="@(Sube == b)">@b</option>
         }
     </select>
     <select name="vites">
@@ -48,25 +77,54 @@
         <option value="true" selected="@(Kirada == "true")">Yalnız kirada</option>
         <option value="false" selected="@(Kirada == "false")">Yalnız boşta</option>
     </select>
+    <input name="pasifSebep" value="@PasifSebep" placeholder="Pasif sebebi" list="durum-pasif-sebep" />
+    <input name="hgs" value="@Hgs" placeholder="HGS / OGS no" />
+    <input name="gps" value="@Gps" placeholder="GPS takip no" />
+    <select name="karLastigi">
+        <option value="">Kar lastiği (tümü)</option>
+        <option value="true" selected="@(KarLastigi == "true")">Takılı</option>
+        <option value="false" selected="@(KarLastigi == "false")">Takılı değil</option>
+    </select>
+    <select name="webRez">
+        <option value="">Web rez. (tümü)</option>
+        <option value="true" selected="@(WebRez == "true")">Web'e kapalı</option>
+        <option value="false" selected="@(WebRez == "false")">Web'e açık</option>
+    </select>
+    <select name="ofisRez">
+        <option value="">Ofis rez. (tümü)</option>
+        <option value="true" selected="@(OfisRez == "true")">Ofise kapalı</option>
+        <option value="false" selected="@(OfisRez == "false")">Ofise açık</option>
+    </select>
     <button type="submit">Filtrele</button>
     <a href="/arac-durum" class="link">Temizle</a>
 </form>
 </div>
 
-<p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada</p>
+@* Pasif sebebi serbest metin (FAZ-10) → seç-veya-yaz: mevcut kayıtlardan beslenen öneri listesi. *@
+<datalist id="durum-pasif-sebep">
+    @foreach (var s in _pasifSebepOpts)
+    {
+        <option value="@s"></option>
+    }
+</datalist>
 
-<div class="table-scroll">
+<p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada • @_rows.Count(r => r.Serviste) serviste • @_rows.Count(r => r.Bafta) BAF'ta</p>
+
+<div class="durum-grid-wrap">
 <table class="grid tr-grid">
     <thead>
         <tr>
             <th>Plaka</th><th>Marka/Tip</th><th>Grup</th><th>Filo</th><th>Durum</th>
-            <th>Müşteri (aktif kira)</th><th>Bitiş</th><th>Bakiye</th><th>KM</th><th>Şube</th>
+            <th>Söz. No</th><th>Ad Soyad</th><th>Cep Tel</th><th>Bitiş</th><th>Kira Kalan</th><th>Bakiye</th>
+            <th>Sıradaki Rez.</th><th>Servis</th><th>BAF</th><th>Dosya No</th>
+            <th>Pasif Sebebi</th><th>Konum</th><th>GPS</th><th>HGS/OGS</th><th>Kar L.</th><th>Rez. Kapalı</th>
+            <th>KM</th><th>Şube</th><th>İşlem</th>
         </tr>
     </thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="10" class="muted">Kayıt yok.</td></tr>
+            <tr><td colspan="24" class="muted">Kayıt yok.</td></tr>
         }
         @foreach (var r in _rows)
         {
@@ -75,12 +133,81 @@
                 <td>@r.Marka @r.Tip</td>
                 <td>@r.Grup</td>
                 <td>@(r.FiloDurum?.ToString() ?? "—")</td>
-                <td>@r.Durum</td>
+                <td><StatusBadge Durum="@r.Durum" /></td>
+                <td>@(r.KiraSozlesmeNo ?? "—")</td>
                 <td>@(r.MusteriAd ?? "—")</td>
+                <td>@(r.MusteriTel ?? "—")</td>
                 <td>@(r.KiraBitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td class="num">@KalanMetin(r.KiraKalanGun)</td>
                 <td class="num">@(r.KiraBakiye?.ToString("N2") ?? "—")</td>
+                <td>@(r.RezMusteriAd is null ? "—" : $"{r.RezMusteriAd} ({r.RezBasTar?.LocalDateTime:dd.MM})")</td>
+                <td>@(r.AcikServisNo is null ? "—" : $"{r.AcikServisNo} {r.ServisAtolye}".Trim())</td>
+                <td>@(r.AktifBafNo is null ? "—" : $"{r.AktifBafNo} {r.BafPersonelAd}".Trim())</td>
+                <td>@(r.DosyaNo ?? "—")</td>
+                <td>@(r.PasifSebep ?? "—")</td>
+                <td>@(r.Konum ?? "—")</td>
+                <td>@(r.TakipNo ?? "—")</td>
+                <td>@(r.HgsNo ?? "—")</td>
+                <td>@(r.KarLastigi ? "Var" : "—")</td>
+                <td>@RezKapaliMetin(r)</td>
                 <td class="num">@r.Km</td>
                 <td>@r.Sube</td>
+                <td>
+                    @* Satır-içi aksiyon konsolu. YENİ UÇ YOK: mevcut /servisler/create ve /baf/create
+                       uçlarına post edilir, "Kirala" ise kira mega-formuna araç ön-seçili gider
+                       (o bir GET sayfası — POST edilecek bir uç değil).
+                       İç içe form YASAK: bu hücrelerdeki formlar sayfadaki filtre formunun DIŞINDA. *@
+                    <div class="satir-aksiyon">
+                        @if (!r.Kirada && r.Durum != VehicleStatus.Satildi)
+                        {
+                            <a class="link" href="/kiralar/yeni?varac=@r.VehicleId" title="Bu araçla yeni kira sözleşmesi">Kirala</a>
+                        }
+                        @if (!r.Serviste)
+                        {
+                            <form method="post" action="/servisler/create"
+                                  data-confirm="@($"{r.Plaka} için servis kaydı açılsın mı?")"><AntiforgeryToken />
+                                <input type="hidden" name="vehicleId" value="@r.VehicleId" />
+                                @* Giriş KM aracın güncel odometresidir; kullanıcı servis ekranından düzeltebilir. *@
+                                <input type="hidden" name="girisKm" value="@r.Km" />
+                                <input type="hidden" name="hasarSorumlu" value="@HasarSorumlu.Yok" />
+                                <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından açıldı" />
+                                <select name="tip" title="Servis türü">
+                                    @foreach (var t in Enum.GetValues<ServisTipi>())
+                                    {
+                                        <option value="@t">@t</option>
+                                    }
+                                </select>
+                                <button type="submit" class="link">Servis</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="muted small" title="Açık servis kaydı var">Serviste</span>
+                        }
+                        @if (!r.Bafta && !r.Kirada && _personeller.Count > 0)
+                        {
+                            <form method="post" action="/baf/create"
+                                  data-confirm="@($"{r.Plaka} personele tahsis edilsin mi?")"><AntiforgeryToken />
+                                <input type="hidden" name="vehicleId" value="@r.VehicleId" />
+                                <input type="hidden" name="cikisKm" value="@r.Km" />
+                                <input type="hidden" name="sube" value="@r.Sube" />
+                                <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından tahsis" />
+                                <select name="personelId" required title="Tahsis edilecek personel">
+                                    <option value="">BAF personeli…</option>
+                                    @foreach (var p in _personeller)
+                                    {
+                                        <option value="@p.Id">@p.Ad @p.Soyad</option>
+                                    }
+                                </select>
+                                <button type="submit" class="link">Tahsis</button>
+                            </form>
+                        }
+                        else if (r.Bafta)
+                        {
+                            <span class="muted small" title="Açık BAF tahsisi var">BAF'ta</span>
+                        }
+                    </div>
+                </td>
             </tr>
         }
     </tbody>
@@ -88,6 +215,7 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
     [SupplyParameterFromQuery(Name = "filo")] public string? Filo { get; set; }
@@ -96,8 +224,20 @@
     [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
     [SupplyParameterFromQuery(Name = "marka")] public string? Marka { get; set; }
     [SupplyParameterFromQuery(Name = "kirada")] public string? Kirada { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "pasifSebep")] public string? PasifSebep { get; set; }
+    [SupplyParameterFromQuery(Name = "hgs")] public string? Hgs { get; set; }
+    [SupplyParameterFromQuery(Name = "gps")] public string? Gps { get; set; }
+    [SupplyParameterFromQuery(Name = "karLastigi")] public string? KarLastigi { get; set; }
+    [SupplyParameterFromQuery(Name = "webRez")] public string? WebRez { get; set; }
+    [SupplyParameterFromQuery(Name = "ofisRez")] public string? OfisRez { get; set; }
 
     private IReadOnlyList<FleetStatusRow> _rows = [];
+    private IReadOnlyList<string> _subeAdlari = [];
+    private IReadOnlyList<string> _pasifSebepOpts = [];
+    private IReadOnlyList<PersonelSecim> _personeller = [];
+
+    private static bool? Bayrak(string? s) => s switch { "true" => true, "false" => false, _ => null };
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,8 +250,44 @@
             Yakit = Enum.TryParse<FuelType>(Yakit, out var yk) ? yk : null,
             Grup = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
             Marka = string.IsNullOrWhiteSpace(Marka) ? null : Marka,
+            Sube = string.IsNullOrWhiteSpace(Sube) ? null : Sube,
+            PasifSebep = string.IsNullOrWhiteSpace(PasifSebep) ? null : PasifSebep,
+            HgsNo = string.IsNullOrWhiteSpace(Hgs) ? null : Hgs,
+            TakipNo = string.IsNullOrWhiteSpace(Gps) ? null : Gps,
+            KarLastigi = Bayrak(KarLastigi),
+            WebRezKapat = Bayrak(WebRez),
+            OfisRezKapat = Bayrak(OfisRez),
             KiradaMi = Kirada switch { "true" => true, "false" => false, _ => null }
         };
         _rows = await Fleet.QueryAsync(filter);
+
+        _subeAdlari = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        // Pasif sebebi serbest metindir (master tablosu yok) → öneriler mevcut satırlardan beslenir.
+        // Bilinçli sınır: sebep filtresi uygulanmışken liste o sebebe daralır. Tam listeyi ayrıca
+        // sorgulamak, 60 sn'de bir kendini yenileyen bu sayfada tüm filo sorgusunu İKİYE katlardı.
+        _pasifSebepOpts = _rows.Select(r => r.PasifSebep).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture).ToList();
+
+        // ListAsync DEĞİL: o ManageUsers ister ve Operatör rolünde sayfayı 500'e düşürür
+        // (BafList.razor'da aynı tuzağa düşülmüştü). ListForSelectAsync OperationsWrite yeter, PII taşımaz.
+        _personeller = await Personeller.ListForSelectAsync();
+    }
+
+    /// <summary>Kalan gün metni: 0 = "bugün", negatif = gecikme (operatörün en çok baktığı bilgi).</summary>
+    private static string KalanMetin(int? kalan) => kalan switch
+    {
+        null => "—",
+        0 => "bugün",
+        < 0 => $"{-kalan.Value} gün gecikme",
+        _ => $"{kalan} gün"
+    };
+
+    private static string RezKapaliMetin(FleetStatusRow r)
+    {
+        if (r.WebRezKapat && r.OfisRezKapat) return "Web+Ofis";
+        if (r.WebRezKapat) return "Web";
+        if (r.OfisRezKapat) return "Ofis";
+        return "—";
     }
 }

@@ -18,4 +18,18 @@ public sealed class FleetStatusFilter
     public Authorization.BranchScope.BranchFilter Kapsam { get; set; }
     /// <summary>true → yalnız kirada; false → yalnız kirada olmayan; null → tümü.</summary>
     public bool? KiradaMi { get; set; }
+
+    // ---- FAZ-11 ----
+    /// <summary>Pasife alma gerekçesi (FAZ-10 alanı) — İÇEREN arama; canlıda serbest metin girilir.</summary>
+    public string? PasifSebep { get; set; }
+    /// <summary>HGS/OGS etiket no — içeren arama (etiketi elindeki operatör aracı bulabilsin).</summary>
+    public string? HgsNo { get; set; }
+    /// <summary>GPS takip cihazı no (FAZ-10 <c>TakipNo</c>) — içeren arama.</summary>
+    public string? TakipNo { get; set; }
+    /// <summary>true → yalnız kar lastiği takılı; false → yalnız takılı olmayan; null → tümü.</summary>
+    public bool? KarLastigi { get; set; }
+    /// <summary>true → yalnız web rezervasyonuna KAPALI araçlar; false → yalnız açık olanlar.</summary>
+    public bool? WebRezKapat { get; set; }
+    /// <summary>true → yalnız ofis rezervasyonuna KAPALI araçlar; false → yalnız açık olanlar.</summary>
+    public bool? OfisRezKapat { get; set; }
 }
