@@ -118,8 +118,17 @@ internal sealed class FiloKiralamaConfig : IEntityTypeConfiguration<FiloKiralama
         e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
         e.Property(x => x.Aciklama).HasMaxLength(512);
         e.Property(x => x.Durum).HasConversion<int>();
+        // FAZ-21 sözleşme meta-alanları
+        e.Property(x => x.SatisTemsilcisi).HasMaxLength(128);
+        e.Property(x => x.FaturaTuru).HasMaxLength(32);
+        e.Property(x => x.MakbuzNo).HasMaxLength(32);
+        e.Property(x => x.DosyaNo).HasMaxLength(32);
+        e.Property(x => x.SozlesmeNo).HasMaxLength(32);
+        e.Property(x => x.FiyatTuru).HasMaxLength(32);
+        e.Property(x => x.Kaynak).HasMaxLength(64);
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.MusteriId });
+        e.HasIndex(x => new { x.TenantId, x.BasTar });   // FAZ-21 tarih filtresi
     }
 }
 
