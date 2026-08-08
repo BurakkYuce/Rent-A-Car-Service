@@ -27,6 +27,13 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<CariKartDto>> GetCariKartlariAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-61 — extre özeti satırları: fatura × cari × kira × araç. İptal faturalar HARİÇ.
+    /// Tutar BRÜT (fatura-bazlı tahsilat mahsubu sistemde yok — bkz. <see cref="ExtreOzetiRowDto"/>).
+    /// </summary>
+    Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiRowsAsync(
+        ExtreOzetiFilter? filter, DateTimeOffset asOf, CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 

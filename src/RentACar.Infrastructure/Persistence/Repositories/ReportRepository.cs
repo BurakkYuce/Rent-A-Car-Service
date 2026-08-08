@@ -80,6 +80,65 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiRowsAsync(
+        ExtreOzetiFilter? filter, DateTimeOffset asOf, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Kira/araç bağı OPSİYONEL (manuel fatura kirasız) → LEFT JOIN. INNER olsaydı manuel
+        // faturalar sessizce düşerdi. İPTAL faturalar hiç alınmaz (borç değil).
+        var q =
+            from i in db.Invoices.AsNoTracking().Where(x => x.Durum != InvoiceStatus.Iptal)
+            join c in db.Customers.AsNoTracking() on i.CariId equals c.Id into cg
+            from c in cg.DefaultIfEmpty()
+            join r in db.Rentals.AsNoTracking() on i.RentalId equals (Guid?)r.Id into rg
+            from r in rg.DefaultIfEmpty()
+            join v in db.Vehicles.AsNoTracking() on (Guid?)r.VehicleId equals (Guid?)v.Id into vg
+            from v in vg.DefaultIfEmpty()
+            select new { i, c, r, v };
+
+        if (filter is not null)
+        {
+            if (filter.CariId is { } cid) q = q.Where(x => x.i.CariId == cid);
+            if (filter.Bas is { } b) q = q.Where(x => x.i.Tarih >= b);
+            if (filter.Bit is { } t) q = q.Where(x => x.i.Tarih <= t);
+            if (filter.YalnizGecikmis) q = q.Where(x => x.i.VadeTarihi != null && x.i.VadeTarihi < asOf);
+            if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            {
+                var o = filter.Ofis.Trim();
+                q = q.Where(x => x.r != null && x.r.CikisOfisi != null && x.r.CikisOfisi.Trim() == o);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Plaka))
+            {
+                var p = filter.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => x.v != null && EF.Functions.ILike(x.v.Plaka, $"%{p}%"));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
+        var rows = await q
+            // Vadesi olanlar önce ve en erken vade üstte; vadesizler sona.
+            .OrderBy(x => x.i.VadeTarihi == null).ThenBy(x => x.i.VadeTarihi).ThenBy(x => x.i.No)
+            .Take(limit)
+            .Select(x => new
+            {
+                x.i.Id, x.i.No, x.i.Tarih, x.i.VadeTarihi, x.i.CariId, x.i.GenelToplam,
+                x.i.Currency, x.i.Kur, x.i.IadeMi,
+                CariAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                    ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
+                Plaka = x.v == null ? null : x.v.Plaka,
+                SozlesmeNo = x.r == null ? null : x.r.SozlesmeNo,
+                CikisOfisi = x.r == null ? null : x.r.CikisOfisi
+            })
+            .ToListAsync(ct);
+
+        return rows.Select(x => new ExtreOzetiRowDto(
+            x.Id, x.No, x.Tarih, x.VadeTarihi, x.CariId,
+            string.IsNullOrWhiteSpace(x.CariAd) ? "(bilinmeyen cari)" : x.CariAd!.Trim(),
+            x.Plaka, x.SozlesmeNo, x.CikisOfisi,
+            x.GenelToplam, x.Currency, x.Kur, x.IadeMi)).ToList();
+    }
+
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
