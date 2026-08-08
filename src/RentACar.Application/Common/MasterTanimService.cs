@@ -48,7 +48,14 @@ public abstract class MasterTanimService<T>(
         return ok;
     }
 
-    protected async Task<Guid> CreateCoreAsync(string? kod, string? ad, bool aktif, CancellationToken ct = default)
+    /// <param name="ekAlanlar">
+    /// Kod/Ad/Aktif ÜÇLÜSÜNÜN DIŞINDAKİ alanları yazan isteğe bağlı kanca (FAZ-24). Taban hâlâ
+    /// ince: ortak gövde (guard, normalizasyon, benzersizlik, cache) burada; entity'ye özgü
+    /// alanlar alt sınıfın kancasında. <b>Aynı kanca Update yolunda da verilmelidir</b> — yalnız
+    /// birine yazmak alanın sessizce düşmesine yol açar (kopya-kurucu tuzağı).
+    /// </param>
+    protected async Task<Guid> CreateCoreAsync(string? kod, string? ad, bool aktif,
+        CancellationToken ct = default, Action<T>? ekAlanlar = null)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var (k, a) = Normalize(kod, ad);
@@ -57,12 +64,15 @@ public abstract class MasterTanimService<T>(
             throw new ValidationException($"'{k}' kodlu {_adTekil} zaten var.");
 
         var entity = new T { Kod = k, Ad = a, Aktif = aktif };
+        ekAlanlar?.Invoke(entity);
         await _repository.CreateAsync(entity, ct);
         _cache.Invalidate(_cacheKey);
         return entity.Id;
     }
 
-    protected async Task<bool> UpdateCoreAsync(Guid id, string? kod, string? ad, bool aktif, CancellationToken ct = default)
+    /// <param name="ekAlanlar">Bkz. <see cref="CreateCoreAsync"/> — iki yolda da verilmelidir.</param>
+    protected async Task<bool> UpdateCoreAsync(Guid id, string? kod, string? ad, bool aktif,
+        CancellationToken ct = default, Action<T>? ekAlanlar = null)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var (k, a) = Normalize(kod, ad);
@@ -75,6 +85,7 @@ public abstract class MasterTanimService<T>(
             entity.Kod = k;
             entity.Ad = a;
             entity.Aktif = aktif;
+            ekAlanlar?.Invoke(entity);
             entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
         _cache.Invalidate(_cacheKey);
