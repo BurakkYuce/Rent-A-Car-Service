@@ -23,6 +23,24 @@ public sealed class RegulasyonOdemeInput
     public Guid? IslemAnahtari { get; set; }
 }
 
+/// <summary>
+/// FAZ-15 zeyil (poliçe eki) girdisi. TÜM tutar alanları <b>BİLGİ</b>dir — deftere yazılmaz
+/// (bkz. <see cref="RentACar.Domain.Entities.InsurancePolicyZeyil"/>).
+/// </summary>
+public sealed class ZeyilInput
+{
+    public Guid PolicyId { get; set; }
+    public string? ZeyilNo { get; set; }
+    public DateTimeOffset? Tarih { get; set; }
+    public DateTimeOffset? Tanzim { get; set; }
+    public decimal? Deger { get; set; }
+    public decimal? Brut { get; set; }
+    public decimal? Net { get; set; }
+    public decimal? FonVergi { get; set; }
+    public string? Tipi { get; set; }
+    public string? Neden { get; set; }
+}
+
 /// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı) + MTV ödeme→defter (J1).</summary>
 public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
     RentACar.Application.Kur.KurCozucu kurCozucu)
@@ -42,14 +60,25 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     public Task<IReadOnlyList<InspectionRecord>> ListInspectionAsync(CancellationToken ct = default)
         => _repository.ListInspectionAsync(ct);
 
+    /// <summary>
+    /// Poliçe ekler. <paramref name="aracDegeri"/>/<paramref name="immDegeri"/>/
+    /// <paramref name="aksesuarDegeri"/> FAZ-15 sigorta değer tabanıdır ve <b>BİLGİ ALANIDIR</b>
+    /// (KARARLAR.md genel politikası) — deftere yazmaz, hiçbir hesaba/tavana girmez.
+    /// <c>Kalan</c> açılışta <c>= prim</c> olur (ödeme onu 0'a düşürür).
+    /// </summary>
     public async Task<Guid> AddInsuranceAsync(
         Guid vehicleId, InsuranceType tip, DateTimeOffset baslangic, DateTimeOffset bitis,
         decimal prim, string? policeNo, string? firma, string? acenta,
-        string? doviz = "TRY", CancellationToken ct = default)
+        string? doviz = "TRY", decimal? aracDegeri = null, decimal? immDegeri = null,
+        decimal? aksesuarDegeri = null, CancellationToken ct = default)
     {
         RequireVehicle(vehicleId);
         if (bitis <= baslangic) throw new ValidationException("Bitiş başlangıçtan sonra olmalıdır.");
         if (prim < 0) throw new ValidationException("Prim negatif olamaz.");
+        // Teminat değerleri negatif olamaz (bilgi alanı da olsa saçma değer ekranı bozar).
+        if (aracDegeri is < 0m) throw new ValidationException("Araç değeri negatif olamaz.");
+        if (immDegeri is < 0m) throw new ValidationException("İMM değeri negatif olamaz.");
+        if (aksesuarDegeri is < 0m) throw new ValidationException("Aksesuar değeri negatif olamaz.");
         // Çok-döviz: ithal araç poliçesi EUR/USD olabilir → Currency create'te set edilir; ödemede
         // (SigortaOdeAsync) kur ile baz tutara çevrilir. Boş → TRY (yerel poliçe). Beyaz-liste dışı
         // reddedilir (adversarial Low: crafted POST'la çöp/uzun döviz → 3-hane kolon DbUpdateException).
@@ -59,7 +88,9 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var p = new InsurancePolicy
         {
             VehicleId = vehicleId, Tip = tip, Baslangic = baslangic, Bitis = bitis,
-            Prim = prim, Currency = currency, PoliceNo = Trim(policeNo), Firma = Trim(firma), Acenta = Trim(acenta)
+            Prim = prim, Currency = currency, PoliceNo = Trim(policeNo), Firma = Trim(firma), Acenta = Trim(acenta),
+            AracDegeri = aracDegeri, ImmDegeri = immDegeri, AksesuarDegeri = aksesuarDegeri,
+            Kalan = prim   // FAZ-15: bilgi amaçlı bakiye; ödeme 0'a düşürür (zeyil DEĞİŞTİRMEZ)
         };
         await _repository.AddInsuranceAsync(p, ct);
         return p.Id;
@@ -307,6 +338,78 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc }
         ], ct);
     }
+
+    // ---- FAZ-15: poliçe zeyli (poliçe eki) ----
+
+    /// <summary>Bir poliçenin zeyil geçmişi.</summary>
+    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilAsync(Guid policyId, CancellationToken ct = default)
+        => _repository.ListZeyilAsync(policyId, ct);
+
+    /// <summary>Tenant'ın tüm zeyilleri (liste ekranı için tek sorgu).</summary>
+    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilHepsiAsync(CancellationToken ct = default)
+        => _repository.ListZeyilHepsiAsync(ct);
+
+    /// <summary>
+    /// Zeyil ekler (OperationsWrite). <b>DEFTERE HİÇBİR ŞEY YAZMAZ</b> — bu bilinçli bir karardır
+    /// (KARARLAR.md "yeni tutar alanları deftere yazmaz"): gerçek para hareketi Kasa/Banka
+    /// tahsilat-ödeme akışından geçer, ikinci bir yol çift-sayım üretirdi. Bu yüzden burada
+    /// ne <c>IPeriodLockGuard</c> ne de <c>KurCozucu</c> çağrılır — mali bir işlem değildir.
+    /// Poliçenin <c>Kalan</c>'ına da DOKUNMAZ (bkz. <c>InsurancePolicy.Kalan</c>).
+    /// </summary>
+    public async Task<Guid> AddZeyilAsync(ZeyilInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+
+        // Poliçe DOĞRULAMASI tenant sınırını da kurar: FindInsuranceAsync global query filter +
+        // RLS arkasında çalışır → başka tenant'ın poliçe id'si "bulunamadı" ile reddedilir.
+        _ = await _repository.FindInsuranceAsync(input.PolicyId, ct)
+            ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
+
+        var no = Trim(input.ZeyilNo) ?? throw new ValidationException("Zeyil no zorunludur.");
+        if (no.Length > 32) throw new ValidationException("Zeyil no en fazla 32 karakter olabilir.");
+        if (input.Tarih is not { } tarih) throw new ValidationException("Zeyil tarihi zorunludur.");
+        // Uzunluklar SUNUCUDA da doğrulanır: formdaki maxlength yalnız tarayıcı çiti; elle
+        // hazırlanmış POST kolon sınırını aşınca DbUpdateException → 500 verirdi (temiz red şart).
+        var tipi = Trim(input.Tipi);
+        if (tipi is { Length: > 64 }) throw new ValidationException("Zeyil tipi en fazla 64 karakter olabilir.");
+        var neden = Trim(input.Neden);
+        if (neden is { Length: > 512 }) throw new ValidationException("Zeyil nedeni en fazla 512 karakter olabilir.");
+        // Değer bir TEMİNAT tabanıdır → negatif olamaz. Brüt/Net/Fon-Vergi ise tenzil (iade)
+        // zeylinde negatiftir; bilgi alanı olduğu için işaret serbest (yön hatası üretemez).
+        var deger = Yuvarla(input.Deger);
+        if (deger < 0m) throw new ValidationException("Zeyil değeri negatif olamaz.");
+
+        var z = new InsurancePolicyZeyil
+        {
+            PolicyId = input.PolicyId,
+            ZeyilNo = no,
+            Tarih = tarih,
+            Tanzim = input.Tanzim,
+            Deger = deger,
+            Brut = Yuvarla(input.Brut),
+            Net = Yuvarla(input.Net),
+            FonVergi = Yuvarla(input.FonVergi),
+            Tipi = tipi,
+            Neden = neden
+        };
+        await _repository.AddZeyilAsync(z, ct);
+        return z.Id;
+    }
+
+    /// <summary>
+    /// Zeyil siler (OperationsWrite). Zeyil mali belge değildir (defter kaydı üretmez) → yanlış
+    /// giriş SİLİNEBİLİR; ters kayıt gerektirmez. Bulunamazsa temiz doğrulama hatası.
+    /// </summary>
+    public async Task DeleteZeyilAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!await _repository.DeleteZeyilAsync(id, ct))
+            throw new ValidationException("Zeyil kaydı bulunamadı.");
+    }
+
+    /// <summary>Para alanı normalizasyonu — kolon numeric(19,4); null → 0.</summary>
+    private static decimal Yuvarla(decimal? v)
+        => v is { } d ? decimal.Round(d, 4, MidpointRounding.AwayFromZero) : 0m;
 
     private static void RequireVehicle(Guid vehicleId)
     {
