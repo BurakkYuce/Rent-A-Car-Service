@@ -104,6 +104,15 @@ internal sealed class RateMatrixConfig : IEntityTypeConfiguration<RateMatrix>
         e.Property(x => x.Gun7).HasColumnType("numeric(19,4)");
         e.Property(x => x.GunHaftalik).HasColumnType("numeric(19,4)"); // FAZ 3.A1 uzun-dönem kademeleri
         e.Property(x => x.GunAylik).HasColumnType("numeric(19,4)");
+        // FAZ-71 — kademe bazlı km aşım ücretleri (limitler int, kolon tipi varsayılan).
+        e.Property(x => x.Km1Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Km2Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Km3Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Km4Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Km5Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Km6Ucret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KmHaftalikUcret).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KmAylikUcret).HasColumnType("numeric(19,4)");
         e.Property(x => x.MaxEsneklik).HasColumnType("numeric(9,4)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }

@@ -30,6 +30,24 @@ public sealed class RateMatrixInput
     public decimal? GunHaftalik { get; set; }
     public decimal? GunAylik { get; set; }
 
+    // FAZ-71 — kademe bazlı km limiti (GÜNLÜK, gün sayısına çarpılır) + aşım ücreti.
+    public int? Km1 { get; set; }
+    public int? Km2 { get; set; }
+    public int? Km3 { get; set; }
+    public int? Km4 { get; set; }
+    public int? Km5 { get; set; }
+    public int? Km6 { get; set; }
+    public decimal? Km1Ucret { get; set; }
+    public decimal? Km2Ucret { get; set; }
+    public decimal? Km3Ucret { get; set; }
+    public decimal? Km4Ucret { get; set; }
+    public decimal? Km5Ucret { get; set; }
+    public decimal? Km6Ucret { get; set; }
+    public int? KmHaftalik { get; set; }
+    public decimal? KmHaftalikUcret { get; set; }
+    public int? KmAylik { get; set; }
+    public decimal? KmAylikUcret { get; set; }
+
     public decimal? MaxEsneklik { get; set; }
 
     public TarifeOnayDurumu OnayDurumu { get; set; } = TarifeOnayDurumu.Bekliyor;
