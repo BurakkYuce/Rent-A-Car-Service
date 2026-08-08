@@ -699,3 +699,17 @@ span.flatpickr-weekday { font-weight: 600; }
 .photo-actions form { margin: 0; }
 .photo-actions button { padding: .2rem .5rem; }
 .import-card form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin: var(--space-3) 0; }
+
+/* FAZ-16 — `.grid-form` içindeki ALAN GRUPLARI (fieldset + legend). Bu desen Ayarlar.razor'da
+   zaten kullanılıyordu ama TANIMSIZDI: 4-kolonlu grid'de grup tek bir kolona sıkışıyordu. Grup
+   artık tam satır kaplar ve kendi içinde otomatik ızgara kurar (mega-form .kf-panel deseniyle
+   aynı minmax). Servis ekranındaki kaza/fatura/ödeme blokları bunu kullanır. */
+.grid-form fieldset { grid-column: 1 / -1; display: grid; gap: .75rem;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    border: 1px solid var(--line); border-radius: .5rem; padding: .5rem .75rem .8rem; margin: 0; }
+.grid-form fieldset > legend { font-size: .78rem; color: var(--muted); padding: 0 .3rem; }
+.grid-form fieldset > p, .grid-form fieldset > datalist { grid-column: 1 / -1; }
+/* Satır-içi checkbox etiketi: `.grid-form label` dikey akış dayatıyor, `.check` yatay olmalı. */
+.grid-form label.check { flex-direction: row; align-items: center; gap: .4rem; }
+/* Seçili liste filtresi bağlantısı (servis durum sekmeleri). */
+.link.aktif { font-weight: 700; text-decoration: underline; }

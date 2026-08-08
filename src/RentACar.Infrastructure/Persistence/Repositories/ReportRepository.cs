@@ -836,8 +836,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // FAZ-76 DÜZELTME: İPTAL servis kayıtları "Bakım" günü olarak SAYILIYORDU. Diğer benzer
         // sorgularda bu filtre vardı; burada eksikti → iptal edilen bir servis aracı günlerce
         // bakımdaymış gibi gösteriyor ve "Boş" sayısını düşürüyordu.
+        // FAZ-16: REZERVE (planlanmış randevu) de aynı sebeple hariç — araç henüz servise girmedi.
         var servisler = await db.ServiceRecords.AsNoTracking()
-            .Where(s => s.Durum != ServisDurum.Iptal && kume.Contains(s.VehicleId))
+            .Where(s => s.Durum != ServisDurum.Iptal && s.Durum != ServisDurum.Rezerve && kume.Contains(s.VehicleId))
             .Select(s => new { s.GirisTarihi, Cikis = s.CikisTarihi })
             .ToListAsync(ct);
 
@@ -882,9 +883,10 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(r => new { r.VehicleId, r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
             .ToListAsync(ct);
 
-        // Servis: İptal hariç (FAZ-76 düzeltmesi); çıkışsız servis hâlâ devam ediyor → aralık sonuna dek.
+        // Servis: İptal (FAZ-76) ve Rezerve (FAZ-16 — henüz gerçekleşmemiş randevu) hariç;
+        // çıkışsız servis hâlâ devam ediyor → aralık sonuna dek.
         var servisler = await db.ServiceRecords.AsNoTracking()
-            .Where(s => s.Durum != ServisDurum.Iptal && kume.Contains(s.VehicleId))
+            .Where(s => s.Durum != ServisDurum.Iptal && s.Durum != ServisDurum.Rezerve && kume.Contains(s.VehicleId))
             .Select(s => new { s.VehicleId, s.GirisTarihi, Cikis = s.CikisTarihi })
             .ToListAsync(ct);
 
@@ -1575,7 +1577,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var aktifKiralar = kiralar.Where(r => r.Durum != RentalStatus.Iptal).ToList();
         var kiraAraliklari = aktifKiralar
             .Select(r => new DolulukKiraRowDto(r.BasTar, r.GercekDonusTar ?? r.BitTar)).ToList();
-        var servisAraliklari = servisKayitlari.Where(s => s.Durum != ServisDurum.Iptal)
+        // İptal (FAZ-76) ve Rezerve (FAZ-16: gerçekleşmemiş randevu) bakım günü SAYILMAZ.
+        var servisAraliklari = servisKayitlari
+            .Where(s => s.Durum is not (ServisDurum.Iptal or ServisDurum.Rezerve))
             .Select(s => new AracServisGunRow(s.GirisTarihi, s.CikisTarihi)).ToList();
         var katedilenKm = aktifKiralar.Where(r => r.CikisKm != null && r.DonusKm != null)
             .Sum(r => r.DonusKm!.Value - r.CikisKm!.Value);

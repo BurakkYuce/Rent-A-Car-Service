@@ -8,10 +8,18 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.ServiceRecords;
 
 /// <summary>
-/// Servis/bakım: kayıt (kalemlerle) + durum akışı (Açık → Serviste → Tamamlandi / Iptal) +
+/// Servis/bakım: kayıt (kalemlerle) + durum akışı (Rezerve → Açık → Serviste → Tamamlandi / Iptal) +
 /// araç durumu kuplajı (servise alınınca Serviste, çıkınca Musait). İşçilik kalemleri eklenir.
 /// Mali belge değildir (maliyet bilgilendirme); gerçek gider Gider dilimine bağlanır (follow-up).
 /// Hasar rücu: tamamlanmış servis maliyeti kusur-oranıyla cari'ye yansıtılır (J4).
+///
+/// <para><b>FAZ-16 KİLİTLİ KARAR (docs/roadmap/KARARLAR.md "FAZ-16"):</b> kaza/fatura/ödeme
+/// blokları BİLGİDİR — <b>defterle BAĞLANMAZ</b>. Bu servis, o alanlar için hiçbir
+/// <c>AccountLedgerEntry</c> üretmez, dönem kilidine ve <c>KurCozucu</c>'ya uğramaz. Gerçek
+/// maliyet Giderler ekranından girilmeye devam eder; iki yazma yolu açmak ÇİFT-SAYIM olurdu
+/// (raporlar P&amp;L'i yalnız defterden okur). Deftere giden TEK sayı, aşağıdaki
+/// <see cref="YansitAsync"/> rücusudur ve o da <c>ToplamIscilik</c> (Σ kalem NET) üzerinden gider —
+/// yeni fatura/ödeme alanlarına DOKUNMAZ.</para>
 /// </summary>
 public sealed class ServiceRecordService(
     IServiceRecordRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
@@ -32,33 +40,70 @@ public sealed class ServiceRecordService(
         if (input.VehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");
         if (input.GirisKm < 0) throw new ValidationException("Giriş KM negatif olamaz.");
         if (input.KusurOrani is < 0 or > 1) throw new ValidationException("Kusur oranı 0 ile 1 arasında olmalıdır.");
-        foreach (var l in input.Lines)
-        {
-            if (string.IsNullOrWhiteSpace(l.Aciklama)) throw new ValidationException("Kalem açıklaması zorunludur.");
-            if (l.Tutar < 0) throw new ValidationException("Kalem tutarı negatif olamaz.");
-        }
+        BilgiDogrula(input);
+        var kalemler = input.Lines.Select(KalemHazirla).ToList();
 
         var record = new ServiceRecord
         {
             VehicleId = input.VehicleId,
             Tip = input.Tip,
-            Durum = ServisDurum.Acik,
-            AtolyeAdi = input.AtolyeAdi,
-            GirisTarihi = input.GirisTarihi ?? DateTimeOffset.UtcNow,
+            // FAZ-16: rezervasyon = planlanmış randevu; araç servise GİRMEZ (Create zaten araç
+            // durumuna dokunmuyor), "Servise Al" ile Açık'a döner.
+            Durum = input.Rezervasyon ? ServisDurum.Rezerve : ServisDurum.Acik,
+            // Rezervasyonda giriş tarihi henüz GERÇEKLEŞMEDİ; listeyi randevu gününe göre
+            // sıralayabilmek için plan başlangıcına düşürülür ("Servise Al" gerçek anla ezer).
+            GirisTarihi = input.GirisTarihi
+                ?? (input.Rezervasyon ? input.PlanBasTarihi : null)
+                ?? DateTimeOffset.UtcNow,
             GirisKm = input.GirisKm,
             HasarSorumlu = input.HasarSorumlu,
             KusurOrani = input.KusurOrani,
-            Aciklama = input.Aciklama,
-            Lines = input.Lines.Select(l => new ServiceLine { Aciklama = l.Aciklama.Trim(), Tutar = l.Tutar }).ToList()
+            Lines = kalemler
         };
+        BilgiUygula(record, input);
         await _repository.CreateAsync(record, ct);
         return record.Id;
+    }
+
+    /// <summary>
+    /// FAZ-16 — servis kaydının BİLGİ bloklarını (kaza/fatura/ödeme/yakıt/plan) günceller.
+    /// <para><b>Defter etkisi YOKTUR</b> — bilinçli (KARARLAR.md FAZ-16). Fatura genellikle servis
+    /// bittikten sonra gelir; bu yüzden kapanmış kayıtta da güncellenebilir. Durum/KM/işçilik/
+    /// yansıtma alanları <see cref="ServiceRecordBilgiInput"/>'ta OLMADIĞI için bu yolla değişemez.</para>
+    /// </summary>
+    public Task<bool> BilgiGuncelleAsync(Guid id, ServiceRecordBilgiInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        BilgiDogrula(input);
+        return _repository.UpdateBilgiAsync(id, r => BilgiUygula(r, input), ct);
+    }
+
+    /// <summary>
+    /// FAZ-16 — "Servise Al": Rezerve → Açık. Randevu gerçekleşti; GERÇEK giriş anı ve (verildiyse)
+    /// giriş KM'si o an yazılır — plan penceresi (PlanBas/PlanBit) DEĞİŞMEZ ki plan-gerçek farkı
+    /// ölçülebilsin. Araç durumu burada değişmez (Açık = "sırada"; araç ancak "Servise Başla" ile
+    /// Serviste'ye geçer — mevcut davranışla birebir).
+    /// </summary>
+    public Task<bool> ServiseAlAsync(Guid id, int? girisKm = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (girisKm is < 0) throw new ValidationException("Giriş KM negatif olamaz.");
+        return _repository.TransitionAsync(id, r =>
+        {
+            if (r.Durum != ServisDurum.Rezerve)
+                throw new ValidationException("Yalnız 'Rezerve' kayıt servise alınabilir.");
+            r.Durum = ServisDurum.Acik;
+            r.GirisTarihi = DateTimeOffset.UtcNow;
+            if (girisKm is int km) r.GirisKm = km;
+        }, setVehicleTo: null, onlyWhenVehicleIs: null, ct: ct);
     }
 
     /// <summary>Açık → Serviste; araç Serviste'ye geçer.</summary>
     public Task<bool> BaslatAsync(Guid id, CancellationToken ct = default)
         => _repository.TransitionAsync(id, r =>
         {
+            // Rezerve buraya DÜŞEMEZ: önce "Servise Al" ile Açık'a gelmesi gerekir (randevu
+            // gerçekleşmeden araç bakımda görünmesin).
             if (r.Durum != ServisDurum.Acik)
                 throw new ValidationException("Yalnız 'Açık' servis başlatılabilir.");
             r.Durum = ServisDurum.Serviste;
@@ -82,26 +127,34 @@ public sealed class ServiceRecordService(
         { VehicleId = r.VehicleId, Tarih = r.CikisTarihi!.Value, Km = cikisKm, Kaynak = KmLogKaynak.Servis },
         ct: ct);
 
-    /// <summary>Açık/Serviste → Iptal; araç Serviste'den çıktıysa Musait'e döner.</summary>
+    /// <summary>Rezerve/Açık/Serviste → Iptal; araç Serviste'den çıktıysa Musait'e döner.</summary>
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
         => _repository.TransitionAsync(id, r =>
         {
+            // Rezerve de iptal edilebilir (randevu iptali). İptal kayıtları bakım günü SAYILMAZ
+            // (FAZ-76 düzeltmesi) — Rezerve de aynı şekilde sayılmaz.
             if (r.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
                 throw new ValidationException("Kapanmış servis iptal edilemez.");
             r.Durum = ServisDurum.Iptal;
         }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste, ct: ct);
 
-    public async Task<bool> KalemEkleAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(aciklama)) throw new ValidationException("Kalem açıklaması zorunludur.");
-        if (tutar < 0) throw new ValidationException("Kalem tutarı negatif olamaz.");
-        return await _repository.AddLineAsync(id, aciklama.Trim(), tutar, ct);
-    }
+    /// <summary>Serbest tutarlı kalem (eski imza — bileşensiz kullanım korunur).</summary>
+    public Task<bool> KalemEkleAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
+        => KalemEkleAsync(id, new ServiceLineInput { Aciklama = aciklama, Tutar = tutar }, ct);
+
+    /// <summary>
+    /// FAZ-16 — kalem ekleme (birim fiyat/miktar/indirim/KDV bileşenleriyle). Tutar verilmezse
+    /// bileşenlerden TÜRETİLİR; her hâlde KDV HARİÇ nettir (ToplamIscilik'in anlamı korunur).
+    /// </summary>
+    public Task<bool> KalemEkleAsync(Guid id, ServiceLineInput kalem, CancellationToken ct = default)
+        => _repository.AddLineAsync(id, KalemHazirla(kalem), ct);
 
     /// <summary>
     /// Servis maliyetini hasar rücu olarak cari'ye yansıt (roadmap J4): DENGELİ defter — Borç Cari /
     /// Alacak Gelir. Yansıtılan = ToplamIscilik × KusurOrani. Yalnız Tamamlanmış + sorumlusu Müşteri/Sigorta +
     /// kusur>0 + henüz yansıtılmamış. FinanceWrite + dönem-kilidi + idempotency (SourceId=serviceId).
+    /// <para>FAZ-16 notu: taban HÂLÂ <c>ToplamIscilik</c>'tir — yeni <c>FaturaTutar</c>/<c>Odeme</c>
+    /// alanları bu hesaba GİRMEZ (bilgi alanı; girseydi rücu sessizce şişerdi).</para>
     /// </summary>
     public async Task YansitAsync(Guid serviceId, Guid cariId, DateTimeOffset? tarih = null,
         string? doviz = "TRY", decimal? kur = null, CancellationToken ct = default)
@@ -133,5 +186,94 @@ public sealed class ServiceRecordService(
             new AccountLedgerEntry { EntryDateUtc = entryDate, AccountType = LedgerAccountType.Gelir, AccountRef = null,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "ServisYansitma", SourceId = serviceId, Description = desc }
         ], ct);
+    }
+
+    // ==================== FAZ-16 yardımcıları ====================
+
+    private static string? Kirp(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>Kalem girdisini doğrular ve kalıcı satıra çevirir (tutar gerekiyorsa türetilir).</summary>
+    private static ServiceLine KalemHazirla(ServiceLineInput l)
+    {
+        if (string.IsNullOrWhiteSpace(l.Aciklama)) throw new ValidationException("Kalem açıklaması zorunludur.");
+        if (l.BirimFiyat is < 0m) throw new ValidationException("Kalem birim fiyatı negatif olamaz.");
+        if (l.Miktar is < 0m) throw new ValidationException("Kalem miktarı negatif olamaz.");
+        if (l.Indirim is < 0m) throw new ValidationException("Kalem indirimi negatif olamaz.");
+        if (l.KdvOran is < 0m or > 1m) throw new ValidationException("Kalem KDV oranı 0 ile 1 arasında olmalıdır.");
+
+        // Miktar yalnız birim fiyatla anlam kazanır; verilmediyse 1 KALICI yazılır ki satırın
+        // bileşenleri kendi içinde tutarlı olsun (ızgarada "boş × 250" görünmesin).
+        var miktar = l.BirimFiyat is null ? l.Miktar : l.Miktar ?? 1m;
+
+        var tutar = l.Tutar ?? (l.BirimFiyat is { } bf
+            ? ServisKalemHesap.Net(bf, miktar, l.Indirim)
+            : throw new ValidationException("Kalem tutarı ya da birim fiyat girilmelidir."));
+        if (tutar < 0m)
+            throw new ValidationException("Kalem tutarı negatif olamaz (indirim satır brütünü aşıyor).");
+
+        return new ServiceLine
+        {
+            Aciklama = l.Aciklama.Trim(), Tutar = tutar,
+            BirimFiyat = l.BirimFiyat, Miktar = miktar, Indirim = l.Indirim, KdvOran = l.KdvOran
+        };
+    }
+
+    /// <summary>BİLGİ bloklarının doğrulaması. Para hareketi YOK — yalnız "saçma değer" reddi.</summary>
+    private static void BilgiDogrula(ServiceRecordBilgiInput b)
+    {
+        if (b.DegerKaybi is < 0m) throw new ValidationException("Değer kaybı negatif olamaz.");
+        if (b.FaturaTutar is < 0m) throw new ValidationException("Fatura tutarı negatif olamaz.");
+        if (b.FaturaKdv is < 0m) throw new ValidationException("Fatura KDV'si negatif olamaz.");
+        if (b.Odeme is < 0m) throw new ValidationException("Ödeme tutarı negatif olamaz.");
+        if (b.OdemeKur is <= 0m) throw new ValidationException("Ödeme kuru pozitif olmalıdır.");
+        if (Kirp(b.OdemeDoviz) is { Length: not 3 })
+            throw new ValidationException("Ödeme dövizi 3 harfli olmalıdır (ör. TRY).");
+        // Yakıt ölçeği kira sözleşmesiyle AYNI (0-12); iki ekranda iki ölçek olması karşılaştırmayı bozar.
+        if (b.CikisYakit is < 0 or > 12) throw new ValidationException("Çıkış yakıt seviyesi 0 ile 12 arasında olmalıdır.");
+        if (b.DonusYakit is < 0 or > 12) throw new ValidationException("Dönüş yakıt seviyesi 0 ile 12 arasında olmalıdır.");
+        // Belge tarihleri geleceğe yazılamaz (TarihPolitikasi para-tarihi kuralı, 1 gün TZ toleransı).
+        TarihPolitikasi.ParaTarihi(b.KazaTarihi, "Kaza");
+        TarihPolitikasi.ParaTarihi(b.FaturaTarihi, "Fatura");
+        TarihPolitikasi.ParaTarihi(b.OdemeTarihi, "Ödeme");
+        // Plan penceresi GELECEĞE açıktır (randevu) — yalnız sıra kontrolü yapılır.
+        if (b.PlanBasTarihi is { } pb && b.PlanBitTarihi is { } pt && pt < pb)
+            throw new ValidationException("Plan bitiş tarihi başlangıçtan önce olamaz.");
+    }
+
+    private static void BilgiUygula(ServiceRecord r, ServiceRecordBilgiInput b)
+    {
+        r.AtolyeAdi = Kirp(b.AtolyeAdi);
+        r.Aciklama = Kirp(b.Aciklama);
+
+        r.BeyanTuru = Kirp(b.BeyanTuru);
+        r.KarsiPlaka = Kirp(b.KarsiPlaka)?.ToUpperInvariant();
+        r.KarsiTrafikSigortasi = Kirp(b.KarsiTrafikSigortasi);
+        r.KazaTarihi = b.KazaTarihi;
+        r.KazaSorumlusu = Kirp(b.KazaSorumlusu);
+        r.HasarDosyaNo = Kirp(b.HasarDosyaNo);
+        r.DegerKaybi = b.DegerKaybi;
+
+        r.FaturaTarihi = b.FaturaTarihi;
+        r.FaturaNo = Kirp(b.FaturaNo);
+        r.FaturaTutar = b.FaturaTutar;
+        r.FaturaKdv = b.FaturaKdv;
+        // TÜRETİLİR (kullanıcıdan alınmaz): matrah + KDV. İkisi de boşsa toplam da boş kalır —
+        // 0,00 yazmak "fatura var, tutarı sıfır" yalanı olurdu.
+        r.FaturaGenelToplam = b.FaturaTutar is null && b.FaturaKdv is null
+            ? null
+            : ServisKalemHesap.Yuvarla((b.FaturaTutar ?? 0m) + (b.FaturaKdv ?? 0m));
+
+        r.OdemeTarihi = b.OdemeTarihi;
+        r.Odeme = b.Odeme;
+        r.OdemeDoviz = Kirp(b.OdemeDoviz)?.ToUpperInvariant();
+        r.OdemeKur = b.OdemeKur;
+        r.OdemeTuru = b.OdemeTuru;
+        r.KasaKodu = Kirp(b.KasaKodu);
+        r.HesapNo = Kirp(b.HesapNo);
+
+        r.CikisYakit = b.CikisYakit;
+        r.DonusYakit = b.DonusYakit;
+        r.PlanBasTarihi = b.PlanBasTarihi;
+        r.PlanBitTarihi = b.PlanBitTarihi;
     }
 }
