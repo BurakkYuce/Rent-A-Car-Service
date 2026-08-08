@@ -40,6 +40,48 @@ public sealed record CariBalanceDto(
     string? Doviz = null, string? OzelKod = null, string? Sinif = null,
     bool Kurumsal = false, bool Pasif = false);
 
+/// <summary>
+/// FAZ-61 — Extre özeti satırı: FATURA seviyesinde müşteri + plaka + vade görünümü.
+///
+/// <para><b>"Açık tutar" DEĞİL, BRÜT tutardır.</b> Sistemde fatura-bazlı tahsilat mahsubu YOKTUR:
+/// tahsilatlar cari bakiyesine yazılır, tek tek faturalara kapatılmaz. Dolayısıyla "bu faturanın
+/// ne kadarı ödendi" sorusunun veriye dayalı bir cevabı yok. Yaşlandırma raporu da aynı gerekçeyle
+/// brüt çalışır. Uydurulmuş bir mahsup yerine brüt gösterilir ve ekranda bu açıkça yazılır;
+/// carinin gerçek net durumu <c>CariBalanceDto</c>'dadır.</para>
+///
+/// <para>İade faturaları NEGATİF işaretlidir (DB'de pozitif saklanırlar).</para>
+/// </summary>
+public sealed record ExtreOzetiRowDto(
+    Guid FaturaId, string FaturaNo, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi,
+    Guid CariId, string CariAd, string? Plaka, string? SozlesmeNo, string? CikisOfisi,
+    decimal Tutar, string Doviz, decimal Kur, bool IadeMi)
+{
+    /// <summary>İade işaretli brüt tutar (kaynak dövizinde).</summary>
+    public decimal IsaretliTutar => IadeMi ? -Tutar : Tutar;
+    /// <summary>İade işaretli brüt tutarın TL karşılığı.</summary>
+    public decimal IsaretliTutarTl => IsaretliTutar * Kur;
+
+    /// <summary>Vadeye kalan/geçen gün (asOf'a göre). Vade yoksa null. Negatif = gecikmiş.</summary>
+    public int? KalanGun(DateTimeOffset asOf)
+        => VadeTarihi is { } v ? (v.UtcDateTime.Date - asOf.UtcDateTime.Date).Days : null;
+}
+
+/// <summary>Extre özeti filtresi.</summary>
+public sealed class ExtreOzetiFilter
+{
+    public Guid? CariId { get; set; }
+    /// <summary>Kiranın çıkış ofisi (tam eşleşme). Kirasız (manuel) faturaları eler.</summary>
+    public string? Ofis { get; set; }
+    /// <summary>Plaka (kısmi).</summary>
+    public string? Plaka { get; set; }
+    /// <summary>Fatura tarihi alt/üst sınırı.</summary>
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary><c>true</c> → yalnız vadesi GEÇMİŞ faturalar (vade &lt; asOf). Vadesiz kayıtlar düşer.</summary>
+    public bool YalnizGecikmis { get; set; }
+    public int EnFazla { get; set; } = 2000;
+}
+
 /// <summary>Cari kart bilgileri (bakiye raporunun kolon/filtre ihtiyacı). Defter DEĞİL.</summary>
 public sealed record CariKartDto(
     Guid CariId, string? Telefon, string? Email, string? Banka, string? Doviz,
