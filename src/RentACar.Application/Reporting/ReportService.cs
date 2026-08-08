@@ -719,6 +719,42 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         return hi >= lo ? (hi - lo).Days + 1 : 0;
     }
 
+    /// <summary>
+    /// FAZ-75 — sigorta/muayene birleşik envanteri. Filtre yalnız DARALTIR; kayıt üretmez.
+    /// </summary>
+    public async Task<IReadOnlyList<SigortaMuayeneRow>> GetSigortaMuayeneAsync(
+        SigortaMuayeneFilter? filtre = null, CancellationToken ct = default)
+    {
+        // Yetki: rapor sayfası zaten rol-kapılı (Authorize) ve bu servis diğer raporlarla AYNI
+        // yüzeyde — ReportService'te guard yok, tutarlılık için burada da yok.
+        var rows = await _repository.GetSigortaMuayeneRowsAsync(ct);
+        var f = filtre ?? new SigortaMuayeneFilter();
+
+        IEnumerable<SigortaMuayeneRow> q = rows;
+        if (!string.IsNullOrWhiteSpace(f.AracSahibi))
+            q = q.Where(r => Common.TurkishText.EqualsIgnoreTurkishCase(r.AracSahibi, f.AracSahibi));
+        if (!string.IsNullOrWhiteSpace(f.Plaka))
+        {
+            // Plaka DB'de normalize (34AA01); arama terimi de normalize edilir (FAZ-63 dersi).
+            var p = new string(f.Plaka.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+            if (p.Length > 0) q = q.Where(r => r.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase));
+        }
+        if (f.Tur != SigortaMuayeneTur.Hepsi)
+        {
+            // Tür seçilince o belgesi OLMAYAN araç da görünmeli (eksik belge raporun asıl konusu);
+            // bu yüzden tür filtresi satırı ELEMEZ, yalnız BitisEnGec ile birlikte anlam kazanır.
+            if (f.BitisEnGec is { } enGec)
+                q = q.Where(r => r.Bitis(f.Tur) is null || r.Bitis(f.Tur) <= enGec);
+        }
+        else if (f.BitisEnGec is { } enGec2)
+        {
+            // Tür seçilmemişse HERHANGİ bir belgesi o tarihten önce bitenler.
+            q = q.Where(r => new[] { r.TrafikBitis, r.KaskoBitis, r.MuayeneBitis, r.MtvVade, r.ZIzniBitis, r.SeyrusiferBitis }
+                .Any(b => b is not null && b <= enGec2));
+        }
+        return q.ToList();
+    }
+
     // ------------------------------------------------------------------
     // FAZ-77 — filo & doluluk grafik derinliği
     // ------------------------------------------------------------------

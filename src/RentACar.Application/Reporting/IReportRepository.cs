@@ -55,6 +55,12 @@ public interface IReportRepository
     Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
         KarsilastirmaliAnalizFilter filter, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-75 — araç başına belge/vade envanteri (Trafik/Kasko/MTV/Muayene + araç master).
+    /// TÜM araçlar döner (belgesiz araç da satır alır — eksik belge görünmelidir).
+    /// </summary>
+    Task<IReadOnlyList<SigortaMuayeneRow>> GetSigortaMuayeneRowsAsync(CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 

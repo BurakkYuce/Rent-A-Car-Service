@@ -468,6 +468,51 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
     private static string Etiket(string? s) => string.IsNullOrWhiteSpace(s) ? Atanmamis : s.Trim();
 
+    public async Task<IReadOnlyList<SigortaMuayeneRow>> GetSigortaMuayeneRowsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // TÜM araçlar (satılmış/pasif dahil): belge envanteri, kiralanabilirlik değil. Eksik belge
+        // görünmediğinde rapor işe yaramaz.
+        var araclar = await db.Vehicles.AsNoTracking().ToListAsync(ct);
+        if (araclar.Count == 0) return [];
+
+        // Araç başına EN GEÇ biten poliçe/muayene alınır (yenilenmiş belgede eski satır değil,
+        // GEÇERLİ olan görünmeli).
+        var policeler = await db.InsurancePolicies.AsNoTracking()
+            .Select(p => new { p.VehicleId, p.Tip, p.Bitis }).ToListAsync(ct);
+        var muayeneler = await db.InspectionRecords.AsNoTracking()
+            .Select(m => new { m.VehicleId, m.Bitis }).ToListAsync(ct);
+        // MTV: ÖDENMEMİŞ olanın en yakın vadesi; hepsi ödendiyse en geç vade (bilgi).
+        var mtvler = await db.MtvRecords.AsNoTracking()
+            .Select(m => new { m.VehicleId, m.Vade, m.Odendi }).ToListAsync(ct);
+
+        DateTimeOffset? SonPolice(Guid vid, RentACar.Domain.Enums.InsuranceType tip)
+            => policeler.Where(p => p.VehicleId == vid && p.Tip == tip)
+                .Select(p => (DateTimeOffset?)p.Bitis).DefaultIfEmpty(null).Max();
+
+        return araclar.Select(v =>
+        {
+            var mtvAcik = mtvler.Where(m => m.VehicleId == v.Id && !m.Odendi).ToList();
+            var mtvHepsi = mtvler.Where(m => m.VehicleId == v.Id).ToList();
+            DateTimeOffset? mtvVade = mtvAcik.Count > 0
+                ? mtvAcik.Min(m => m.Vade)
+                : mtvHepsi.Count > 0 ? mtvHepsi.Max(m => m.Vade) : null;
+
+            return new SigortaMuayeneRow(
+                v.Id, v.Plaka, v.Marka, v.Tip, v.ModelYili,
+                v.Yakit?.ToString(), v.Vites?.ToString(), v.Sube, v.Grup,
+                v.SasiNo, v.MotorNo, v.AracSahibi, v.BelgeNo, v.Kimde,
+                SonPolice(v.Id, RentACar.Domain.Enums.InsuranceType.Trafik),
+                SonPolice(v.Id, RentACar.Domain.Enums.InsuranceType.Kasko),
+                muayeneler.Where(m => m.VehicleId == v.Id).Select(m => (DateTimeOffset?)m.Bitis).DefaultIfEmpty(null).Max(),
+                mtvVade, mtvAcik.Count == 0 && mtvHepsi.Count > 0,
+                v.ZIzni, v.ZIzniBitis, v.SeyrusiferBitis);
+        })
+        .OrderBy(r => r.Plaka, StringComparer.CurrentCulture)
+        .ToList();
+    }
+
     public async Task<FiloSubeHamPaket> GetFiloSubeHamAsync(
         DateTimeOffset pencereBas, DateTimeOffset pencereBit, CancellationToken ct = default)
     {

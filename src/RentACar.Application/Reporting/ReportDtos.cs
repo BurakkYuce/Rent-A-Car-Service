@@ -630,3 +630,53 @@ public sealed record AylikGelirGiderNokta(DateTimeOffset AyBas, decimal Gelir, d
 
 /// <summary>Filo tut/sat hamı: araç-başına son-12-ay / önceki-12-ay gider (defter, base) ve km.</summary>
 public sealed record FiloTutSatRow(Guid VehicleId, decimal Gider12, decimal GiderOnceki12, int Km12, int KmOnceki12);
+
+
+// ---------------------------------------------------------------------------
+// FAZ-75 — sigorta/muayene birleşik rapor (salt okuma; para toplamı YOK)
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Araç başına belge/vade özeti: Trafik + Kasko + MTV + Muayene + Z-izni/Seyrüsefer TEK satırda.
+///
+/// <para><b>Mevcut <c>/vade</c> panosunun yerine GEÇMEZ:</b> orası "yaklaşan vadeler" akışıdır
+/// (kova + kalan gün), burası araç bazlı BELGE ENVANTERİDİR — her araç bir satır, boş belgeler de
+/// görünür. İki farklı soru.</para>
+/// </summary>
+public sealed record SigortaMuayeneRow(
+    Guid VehicleId, string Plaka, string? Marka, string? Tip, int? ModelYili,
+    string? Yakit, string? Vites, string? Sube, string? Grup,
+    string? SasiNo, string? MotorNo, string? AracSahibi, string? BelgeNo, string? Kimde,
+    DateTimeOffset? TrafikBitis, DateTimeOffset? KaskoBitis,
+    DateTimeOffset? MuayeneBitis, DateTimeOffset? MtvVade, bool MtvOdendi,
+    bool ZIzni, DateTimeOffset? ZIzniBitis, DateTimeOffset? SeyrusiferBitis)
+{
+    /// <summary>Verilen türün bitişi (filtre/sıralama için) — yoksa null.</summary>
+    public DateTimeOffset? Bitis(SigortaMuayeneTur tur) => tur switch
+    {
+        SigortaMuayeneTur.Trafik => TrafikBitis,
+        SigortaMuayeneTur.Kasko => KaskoBitis,
+        SigortaMuayeneTur.Muayene => MuayeneBitis,
+        SigortaMuayeneTur.Mtv => MtvVade,
+        SigortaMuayeneTur.ZIzni => ZIzniBitis,
+        SigortaMuayeneTur.Seyrusefer => SeyrusiferBitis,
+        _ => null
+    };
+}
+
+/// <summary>Birleşik rapor tür filtresi.</summary>
+public enum SigortaMuayeneTur
+{
+    Hepsi = 0, Trafik = 1, Kasko = 2, Muayene = 3, Mtv = 4, ZIzni = 5, Seyrusefer = 6
+}
+
+/// <summary>Birleşik rapor filtresi. <c>AracSahibi</c> boş = tümü.</summary>
+public sealed class SigortaMuayeneFilter
+{
+    public SigortaMuayeneTur Tur { get; set; } = SigortaMuayeneTur.Hepsi;
+    /// <summary>Araç sahibi (serbest metin, harf duyarsız). Canlıdaki "Bizim/Dış" ayrımı bu alandan.</summary>
+    public string? AracSahibi { get; set; }
+    public string? Plaka { get; set; }
+    /// <summary>Yalnız seçilen türün bitişi bu tarihten ÖNCE olanlar (vade taraması).</summary>
+    public DateTimeOffset? BitisEnGec { get; set; }
+}

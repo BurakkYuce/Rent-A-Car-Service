@@ -45,7 +45,6 @@ internal sealed class VehicleConfig : IEntityTypeConfiguration<Vehicle>
         e.Property(x => x.OzelKod4).HasMaxLength(64);
         e.Property(x => x.OzelKod5).HasMaxLength(64);
         // FAZ-28 detay alanları
-        e.Property(x => x.BelgeNo).HasMaxLength(64);
         e.Property(x => x.RuhsatSahibi).HasMaxLength(128);
         e.Property(x => x.SozNo).HasMaxLength(64);
         e.Property(x => x.AraciAlan).HasMaxLength(128);
@@ -69,6 +68,9 @@ internal sealed class VehicleConfig : IEntityTypeConfiguration<Vehicle>
         e.Property(x => x.IkinciElDeger).HasColumnType("numeric(19,4)");
         // Plaka tenant içinde benzersiz (doğal iş anahtarı).
         e.HasIndex(x => new { x.TenantId, x.Plaka }).IsUnique();
+        // FAZ-75 belge takibi
+        e.Property(x => x.Kimde).HasMaxLength(128);
+
     }
 }
 

@@ -200,6 +200,16 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     public bool OfisRezKapat { get; set; }
     /// <summary>Z raporu/izin (özel kullanım izni).</summary>
     public bool ZIzni { get; set; }
+
+    // ---- FAZ-75: belge takibi (additive). ZIzni BOOL'u geriye uyum için KALIR — bayrak "var mı",
+    // ZIzniBitis "ne zamana kadar geçerli"dir; ikisi farklı soruları yanıtlar.
+    // BelgeNo ZATEN VARDI (yukarıda) — tekrar eklenmedi.
+    /// <summary>Belge fiziken kimde (şoför/ofis/kasa).</summary>
+    public string? Kimde { get; set; }
+    /// <summary>Seyrüsefer belgesi bitiş tarihi.</summary>
+    public DateTimeOffset? SeyrusiferBitis { get; set; }
+    /// <summary>Z-izni bitiş tarihi.</summary>
+    public DateTimeOffset? ZIzniBitis { get; set; }
     /// <summary>UTTS (ulusal taşıt tanıma) takılı.</summary>
     public bool Utts { get; set; }
     /// <summary>Kar/kış lastiği takılı.</summary>
