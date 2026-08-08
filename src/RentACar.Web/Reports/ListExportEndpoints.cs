@@ -74,6 +74,18 @@ public static class ListExportEndpoints
                     Bas = FormParse.Date(req.Query["bas"].ToString()),
                     Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
                 })),
+                // FAZ-52: fatura satır detayı — ekrandaki filtre export'a AYNEN taşınır.
+                "fatura-detaylari" => ListExportCatalog.FaturaDetaylari(await inv.ListLinesAsync(
+                    new RentACar.Application.Finance.FaturaSatirFilter
+                    {
+                        CariId = FormParse.Id(req.Query["cariId"].ToString()),
+                        Ara = NullIfEmpty(req.Query["ara"].ToString()),
+                        Plaka = NullIfEmpty(req.Query["plaka"].ToString()),
+                        Ofis = NullIfEmpty(req.Query["ofis"].ToString()),
+                        Bas = FormParse.Date(req.Query["bas"].ToString()),
+                        Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
+                        IptalleriGizle = req.Query["iptal"].ToString() == "gizle"
+                    })),
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
                 "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
                 "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),

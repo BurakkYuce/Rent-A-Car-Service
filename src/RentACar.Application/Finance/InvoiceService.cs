@@ -33,6 +33,17 @@ public sealed class InvoiceService(
     public Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default)
         => repository.ListAsync(ct);
 
+    /// <summary>
+    /// FAZ-52 — fatura SATIRI seviyesinde birleştirilmiş liste (canlı fatura_detay_listesi.aspx).
+    /// Salt okuma; <see cref="Permission.ViewReports"/> ister (fatura listesi gibi finans görünümü).
+    /// </summary>
+    public Task<IReadOnlyList<FaturaSatirDto>> ListLinesAsync(
+        FaturaSatirFilter? filter = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ViewReports);
+        return repository.ListLinesAsync(filter, ct);
+    }
+
     public Task<Invoice?> GetAsync(Guid id, CancellationToken ct = default)
         => repository.FindAsync(id, ct);
 

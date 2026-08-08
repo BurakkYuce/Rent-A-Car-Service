@@ -83,6 +83,23 @@ public static class ListExportCatalog
         return new ExportTable("Cari Ekstre", ["Tarih", "Kaynak", "Açıklama", "Borç", "Alacak", "Bakiye"], rows);
     }
 
+    /// <summary>FAZ-52 — fatura DETAY (satır) listesi. Tutarlar faturanın kesildiği andaki
+    /// değerlerdir; burada yeniden hesaplanmaz. İptal satırları da yazılır (Durum kolonuyla ayrışır)
+    /// — ekranda görünen ile indirilen aynı küme olmalı.</summary>
+    public static ExportTable FaturaDetaylari(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows) => new(
+        "Fatura Detay",
+        ["Fatura No", "Tarih", "Vade", "Durum", "Cari", "Şehir", "Mail", "Vergi No",
+         "Açıklama", "Miktar", "Birim Net", "KDV Oranı", "Satır Net", "Satır KDV", "Satır Toplam",
+         "Döviz", "Kur", "Plaka", "Sözleşme No", "Çıkış Ofisi", "Rez. Kaynağı"],
+        rows.Select(r => new object?[]
+        {
+            r.FaturaNo, r.Tarih.ToString("yyyy-MM-dd"), r.VadeTarihi?.ToString("yyyy-MM-dd"),
+            r.Iptal ? "İptal" : r.IadeMi ? "İade" : "Geçerli",
+            r.CariAd, r.CariSehir, r.CariEmail, r.CariVergiNo,
+            r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani, r.SatirNet, r.SatirKdv, r.SatirToplam,
+            r.Doviz, r.Kur, r.Plaka, r.SozlesmeNo, r.CikisOfisi, r.RezervasyonKaynagi
+        }).ToList());
+
     public static ExportTable Cezalar(IReadOnlyList<Penalty> c) => new(
         "Cezalar",
         ["No", "Ceza Türü", "Tebliğ Tarihi", "Vade", "Tutar", "Durum", "Sebep"],
