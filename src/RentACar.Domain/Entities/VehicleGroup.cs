@@ -1,4 +1,5 @@
 using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Domain.Entities;
 
@@ -78,6 +79,23 @@ public class VehicleGroup : ITenantOwned, IAuditable
     public int? WebSira { get; set; }
     /// <summary>Upgrade sıralaması (yükseltme önceliği).</summary>
     public int? UpgradeSira { get; set; }
+
+    // ---- FAZ-20 sözlük derinliği (canlı arac_grubu.aspx) ----
+    /// <summary>Provizyon tutarının dövizi (3 harf, ör. "EUR"). Boş → firma varsayılanı.
+    /// Kur BURADA tutulmaz — kur tek kaynaktan (/kurlar) gelir.</summary>
+    public string? ProvizyonDoviz { get; set; }
+    /// <summary>İkinci provizyon tutarının dövizi.</summary>
+    public string? Provizyon2Doviz { get; set; }
+    /// <summary>Grubun tipik yakıt türü (bilgi/filtre amaçlı; aracın kendi yakıtı ayrıdır).</summary>
+    public FuelType? YakitTuru { get; set; }
+    /// <summary>Grubun tipik vitesi (bilgi/filtre amaçlı; aracın kendi vitesi ayrıdır).</summary>
+    public Vites? Vites { get; set; }
+    /// <summary>Dış entegrasyon eşleme kodu (broker/OTA kanal kodu).</summary>
+    public string? EntegrasyonKod1 { get; set; }
+    /// <summary>Web sitesi/kanal tarafındaki grup kimliği.</summary>
+    public string? WebId { get; set; }
+    /// <summary>Servis/rezervasyon sağlayıcısındaki grup kimliği.</summary>
+    public string? ServisId { get; set; }
 
     public bool Aktif { get; set; } = true;
 

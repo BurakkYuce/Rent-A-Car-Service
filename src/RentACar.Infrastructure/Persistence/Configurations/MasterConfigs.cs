@@ -364,6 +364,9 @@ internal sealed class FinancialAccountConfig : IEntityTypeConfiguration<Financia
         e.Property(x => x.HesapNo).HasMaxLength(64);  // roadmap K1
         e.Property(x => x.Banka).HasMaxLength(128);   // roadmap K1
         e.Property(x => x.Sube).HasMaxLength(128);    // roadmap K1
+        // FAZ-20 sözlük derinliği
+        e.Property(x => x.OzelKod).HasMaxLength(32);
+        e.Property(x => x.UyariMailListesi).HasMaxLength(512);
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
@@ -394,6 +397,7 @@ internal sealed class CurrencyConfig : IEntityTypeConfiguration<Currency>
         e.Property(x => x.Kod).IsRequired().HasMaxLength(3);
         e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
         e.Property(x => x.Sembol).HasMaxLength(8);
+        e.Property(x => x.Ulke).HasMaxLength(64);   // FAZ-20
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }

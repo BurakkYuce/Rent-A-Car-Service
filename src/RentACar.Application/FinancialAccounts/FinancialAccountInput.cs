@@ -11,5 +11,11 @@ public sealed class FinancialAccountInput
     public string? HesapNo { get; set; }
     public string? Banka { get; set; }
     public string? Sube { get; set; }
+
+    // ---- FAZ-20 ----
+    public bool HediyeCek { get; set; }
+    public string? OzelKod { get; set; }
+    /// <summary>Virgülle ayrılmış e-posta listesi. YALNIZ ALAN — gönderim mantığına bağlı değil.</summary>
+    public string? UyariMailListesi { get; set; }
     public bool Aktif { get; set; } = true;
 }

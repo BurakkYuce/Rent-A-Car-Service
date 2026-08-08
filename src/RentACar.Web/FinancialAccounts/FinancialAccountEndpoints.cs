@@ -15,15 +15,21 @@ public static class FinancialAccountEndpoints
 
         grp.MapPost("/create", async (FinancialAccountService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz,
-            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube) =>
+            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube,
+            [FromForm] string? hediyeCek, [FromForm] string? ozelKod, [FromForm] string? uyariMailListesi) =>
             await Run(() => svc.CreateAsync(new FinancialAccountInput
-            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube, Aktif = true })));
+            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube,
+              HediyeCek = hediyeCek is "true" or "on" or "True", OzelKod = ozelKod, UyariMailListesi = uyariMailListesi,
+              Aktif = true })));
 
         grp.MapPost("/update", async (FinancialAccountService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz,
-            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube, [FromForm] bool aktif) =>
+            [FromForm] string? iban, [FromForm] string? hesapNo, [FromForm] string? banka, [FromForm] string? sube,
+            [FromForm] string? hediyeCek, [FromForm] string? ozelKod, [FromForm] string? uyariMailListesi, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new FinancialAccountInput
-            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube, Aktif = aktif })));
+            { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube,
+              HediyeCek = hediyeCek is "true" or "on" or "True", OzelKod = ozelKod, UyariMailListesi = uyariMailListesi,
+              Aktif = aktif })));
 
         grp.MapPost("/delete", async (FinancialAccountService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));

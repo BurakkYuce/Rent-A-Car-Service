@@ -16,6 +16,10 @@ public class Currency : ITenantOwned, IAuditable
     public string Kod { get; set; } = string.Empty;
     public string Ad { get; set; } = string.Empty;
     public string? Sembol { get; set; }
+    /// <summary>FAZ-20 — para biriminin ülkesi (bilgi amaçlı). KUR ALANI BİLİNÇLİ OLARAK YOK:
+    /// kur /kurlar akışından (TCMB + tenant sabitleme) TEK kaynaklı yönetilir; buraya ikinci bir
+    /// kur alanı koymak çift-kaynak yaratırdı.</summary>
+    public string? Ulke { get; set; }
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
