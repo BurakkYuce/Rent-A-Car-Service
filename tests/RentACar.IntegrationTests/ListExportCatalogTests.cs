@@ -244,13 +244,21 @@ public sealed class ListExportCatalogTests
     public void DropTanimlari_projeksiyon()
     {
         var d = new DropTanim { Lokasyon = "IST", Sube = "Merkez", KarsilamaSekli = "Kapıda", CalismaSekli = "7/24",
-            OzelIletisim = "x", Ucret = 500m, Aktif = true };
+            OzelIletisim = "x", Ucret = 500m, Aktif = true,
+            CikisLokasyon = "SAW", MinGun = 5, Drop2 = 120m, ManSuresi = 45 };
         var t = ListExportCatalog.DropTanimlari([d]);
-        Assert.Equal(7, t.Headers.Count);           // FAZ 3.A3b: + "Drop Ücreti (net)" kolonu
+        // FAZ-22: 7 → 11 kolon (Çıkış Lokasyonu, Asgari Gün, Drop 2, Karşılama Süresi).
+        Assert.Equal(11, t.Headers.Count);
+        Assert.Equal("Dönüş Lokasyonu", t.Headers[0]);   // anlam netleştirmesi başlıklara da yansıdı
+        Assert.Equal("Çıkış Şubesi", t.Headers[1]);
         Assert.Equal("IST", t.Rows[0][0]);
-        Assert.Equal("Kapıda", t.Rows[0][2]);
-        Assert.Equal(500m, t.Rows[0][5]);
-        Assert.Equal("Evet", t.Rows[0][6]);
+        Assert.Equal("SAW", t.Rows[0][2]);
+        Assert.Equal(5, t.Rows[0][3]);
+        Assert.Equal("Kapıda", t.Rows[0][4]);
+        Assert.Equal(500m, t.Rows[0][7]);
+        Assert.Equal(120m, t.Rows[0][8]);
+        Assert.Equal(45, t.Rows[0][9]);
+        Assert.Equal("Evet", t.Rows[0][10]);
     }
 
     [Fact]

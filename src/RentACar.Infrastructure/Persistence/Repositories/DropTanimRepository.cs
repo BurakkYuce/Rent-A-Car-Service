@@ -17,6 +17,41 @@ public sealed class DropTanimRepository(IDbContextFactory<AppDbContext> factory)
         return await db.DropTanimlari.AsNoTracking().OrderBy(c => c.Lokasyon).ThenBy(c => c.Sube).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<DropTanim>> SearchAsync(
+        RentACar.Application.DropTanimlari.DropTanimFilter filtre, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Durum süzgeci SQL'de (kültürden bağımsız), METİN karşılaştırması BELLEKTE.
+        //
+        // NEDEN BELLEKTE: SQL tarafında lower()/ILIKE kullanınca sonuç DB'nin collation'ına
+        // bağlanıyor ve motorla ayrışıyor. Ampirik: PG (en_US.UTF-8) lower('İstanbul') = 'istanbul',
+        // .NET/ICU ise 'i̇stanbul' (i + U+0307) üretiyor → eşleşme kaybı. Yerelde geçip CI'da
+        // (postgres:16, farklı libc) patlayan tam olarak buydu. Karşılaştırma artık motorun
+        // kullandığı OrdinalIgnoreCase ile AYNI yerde ve AYNI kuralla yapılıyor → liste ile ücret
+        // motoru asla ayrışamaz (bu filtrenin varlık sebebi de buydu).
+        // Maliyet: DropTanimlari küçük bir master tablo (tenant başına onlarca satır).
+        var q = db.DropTanimlari.AsNoTracking();
+        if (filtre.Aktif is bool a) q = q.Where(x => x.Aktif == a);
+        var rows = await q.ToListAsync(ct);
+
+        static bool Es(string? x, string? v)
+            => string.Equals((x ?? "").Trim(), (v ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+        IEnumerable<DropTanim> sonuc = rows;
+        if (!string.IsNullOrWhiteSpace(filtre.DonusLokasyon))
+            sonuc = sonuc.Where(x => Es(x.Lokasyon, filtre.DonusLokasyon));
+        if (!string.IsNullOrWhiteSpace(filtre.CikisLokasyon))
+            sonuc = sonuc.Where(x => x.CikisLokasyon is not null && Es(x.CikisLokasyon, filtre.CikisLokasyon));
+        if (!string.IsNullOrWhiteSpace(filtre.Sube))
+            sonuc = sonuc.Where(x => Es(x.Sube, filtre.Sube));
+
+        return sonuc
+            .OrderBy(c => c.Lokasyon, StringComparer.CurrentCulture)
+            .ThenBy(c => c.Sube, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
     public async Task<DropTanim?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
