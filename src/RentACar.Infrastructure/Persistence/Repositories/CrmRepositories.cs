@@ -16,10 +16,66 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         return await db.Anketler.AsNoTracking().OrderByDescending(r => r.Tarih).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Anket>> ListAsync(AnketFilter filtre, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.Anketler.AsNoTracking();
+
+        if (filtre.CariId is Guid cid) q = q.Where(x => x.CariId == cid);
+        if (filtre.AnketTuru is { } t) q = q.Where(x => x.AnketTuru == t);
+        if (filtre.Durum is { } d) q = q.Where(x => x.Durum == d);
+        if (filtre.TarihMin is { } min) q = q.Where(x => x.Tarih >= min);
+        if (filtre.TarihMax is { } max) q = q.Where(x => x.Tarih <= max);
+        if (!string.IsNullOrWhiteSpace(filtre.CikisOfisi))
+        {
+            var o = filtre.CikisOfisi.Trim();
+            q = q.Where(x => x.CikisOfisi != null && x.CikisOfisi.Trim() == o);
+        }
+        return await q.OrderByDescending(r => r.Tarih).ToListAsync(ct);
+    }
+
     public async Task<Anket?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Anketler.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
+    }
+
+    public async Task<IReadOnlyList<AnketCevap>> ListCevapAsync(Guid anketId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.AnketCevaplari.AsNoTracking()
+            .Where(x => x.AnketId == anketId).OrderBy(x => x.SoruNo).ToListAsync(ct);
+    }
+
+    public async Task CreateWithCevapAsync(Anket anket, IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        db.Anketler.Add(anket);
+        foreach (var c in cevaplar) { c.AnketId = anket.Id; db.AnketCevaplari.Add(c); }
+        // TEK transaction: anket yazılıp cevapları yazılamazsa yarım anket kalırdı.
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    public async Task<bool> UpdateWithCevapAsync(Guid id, Action<Anket> apply,
+        IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var row = await db.Anketler.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (row is null) return false;
+        apply(row);
+
+        // Cevaplar TAMAMEN değiştirilir: kısmi güncelleme yapsaydık formdan kaldırılan soru
+        // eski cevabıyla kalır ve anket ekranda görünmeyen bir satır taşırdı.
+        var eski = await db.AnketCevaplari.Where(x => x.AnketId == id).ToListAsync(ct);
+        db.AnketCevaplari.RemoveRange(eski);
+        foreach (var c in cevaplar) { c.AnketId = id; db.AnketCevaplari.Add(c); }
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return true;
     }
 
     public async Task CreateAsync(Anket row, CancellationToken ct = default)

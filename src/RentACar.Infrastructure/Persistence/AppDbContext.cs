@@ -127,6 +127,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<PersonelVardiya> PersonelVardiyalari => Set<PersonelVardiya>();   // FAZ-45 — vardiya/çalışma grafiği
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
     public DbSet<Anket> Anketler => Set<Anket>();
+    public DbSet<AnketCevap> AnketCevaplari => Set<AnketCevap>();   // FAZ-42
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();
     public DbSet<AssistansTalep> AssistansTalepleri => Set<AssistansTalep>();   // FAZ-44 — yol yardım
     public DbSet<FiloPlanHedefi> FiloPlanHedefleri => Set<FiloPlanHedefi>();   // FAZ-19 — kapasite planı
