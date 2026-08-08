@@ -15,6 +15,12 @@ public interface ISikayetRepository
 {
     Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default);
     Task<Sikayet?> FindAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-43 — filtreli liste; sözleşme/araç/müşteri/personel adları ÇÖZÜLMÜŞ döner.
+    /// <paramref name="filter"/> null → tüm kayıtlar.
+    /// </summary>
+    Task<IReadOnlyList<SikayetSatirDto>> SearchAsync(SikayetFilter? filter = null, CancellationToken ct = default);
     Task CreateAsync(Sikayet row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<Sikayet> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);

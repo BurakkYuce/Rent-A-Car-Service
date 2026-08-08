@@ -47,7 +47,15 @@ public static class CrmEndpoints
         Detay = FormParse.Str(f, "detay"),
         Durum = ParseEnum<SikayetDurum>(FormParse.Str(f, "durum")) ?? SikayetDurum.Acik,
         Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
-        Cozum = FormParse.Str(f, "cozum")
+        Cozum = FormParse.Str(f, "cozum"),
+        // FAZ-43 teslim/dönüş bağı
+        RentalId = FormParse.Id(FormParse.Str(f, "rentalId")),
+        TeslimAlanPersonelId = FormParse.Id(FormParse.Str(f, "teslimAlanPersonelId")),
+        TeslimEdenPersonelId = FormParse.Id(FormParse.Str(f, "teslimEdenPersonelId")),
+        Puan = FormParse.Int(FormParse.Str(f, "puan")),
+        SikayetKanali = FormParse.Str(f, "sikayetKanali"),
+        SikayetYeri = Enum.TryParse<RentACar.Domain.Enums.SikayetYeri>(FormParse.Str(f, "sikayetYeri"), out var sy) ? sy : null,
+        CikisOfisi = FormParse.Str(f, "cikisOfisi")
     };
 
 
