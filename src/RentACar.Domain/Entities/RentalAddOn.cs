@@ -33,6 +33,17 @@ public class RentalAddOn : ITenantOwned, IAuditable
     /// <summary>Brüt = NetTutar + KdvTutar.</summary>
     public decimal Toplam { get; set; }
 
+    /// <summary>
+    /// FAZ-78 — kalemi SATAN personel (Personel.Id). Opsiyonel.
+    ///
+    /// <para>Canlıda "Kiraya Veren / Teslim Eden / Ek Hizmet Satan" üç ayrı rol olabiliyor; burada
+    /// TEK alana sadeleştirildi çünkü repoda personel-rol ayrımı yapan başka bir yapı yok. Üçü ayrı
+    /// gerekirse additive genişleme kolay — bu fazda BİLİNÇLİ olarak yapılmadı.</para>
+    ///
+    /// <para>Sistem ücret kalemlerinde (SYS-*) doğal olarak boştur: onları bir personel satmaz.</para>
+    /// </summary>
+    public Guid? PersonelId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

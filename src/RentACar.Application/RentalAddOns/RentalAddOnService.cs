@@ -30,7 +30,7 @@ public sealed class RentalAddOnService(
     public async Task<Guid> AddAsync(
         Guid rentalId, Guid ekHizmetTanimId, decimal miktar,
         decimal? birimNetOverride = null, decimal? kdvOraniOverride = null,
-        bool sistem = false, CancellationToken ct = default)
+        bool sistem = false, CancellationToken ct = default, Guid? personelId = null)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         // FAZ 5-C4 adversarial bulgusu (önceden var olan açık): ek hizmet, şube-kapsam guard'sız TEK
@@ -74,7 +74,9 @@ public sealed class RentalAddOnService(
             KdvOrani = rate,
             NetTutar = net,
             KdvTutar = kdv,
-            Toplam = gross
+            Toplam = gross,
+            // FAZ-78: satan personel. Sistem kalemlerinde (SYS-*) daima boş — onları kimse satmaz.
+            PersonelId = sistem ? null : personelId
         };
         await _repository.AddAsync(addOn, ct);
         return addOn.Id;

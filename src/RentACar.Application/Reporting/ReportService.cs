@@ -733,6 +733,14 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         TahsilatMutabakatFilter? filter = null, CancellationToken ct = default)
         => _repository.GetTahsilatMutabakatRowsAsync(filter, ct);
 
+    /// <summary>
+    /// FAZ-78 — ek hizmet raporu SATIR-BAZLI detay. Ad-bazlı özet
+    /// (<see cref="GetEkHizmetRaporuAsync"/>) olduğu gibi durur; bu onun yerine geçmez.
+    /// </summary>
+    public Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayAsync(
+        EkHizmetDetayFilter? filter = null, CancellationToken ct = default)
+        => _repository.GetEkHizmetDetayRowsAsync(filter, ct);
+
     /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
     public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
     {

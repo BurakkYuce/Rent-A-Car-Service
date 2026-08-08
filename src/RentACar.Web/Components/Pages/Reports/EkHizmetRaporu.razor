@@ -1,6 +1,8 @@
 @page "/raporlar/ek-hizmet"
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
+@inject PersonelService Personeller
+@inject LocationService Ofisler
 
 <PageTitle>Ek Hizmet Raporu — RentPro</PageTitle>
 
@@ -83,17 +85,115 @@
 </table>
 </div>
 
+@* FAZ-78 — SATIR-BAZLI detay. Yukarıdaki ad-bazlı özet DEĞİŞMEDİ; bu onun yerine geçmiyor. *@
+<h2 class="dash-h2">Satır Detayı</h2>
+<p class="muted small">Her satır bir ek hizmet kalemi: hangi sözleşmede, hangi araçta, hangi
+    müşteriye, kim sattı. <strong>İlk Tahsilat</strong> kalemin değil KİRANIN en erken tahsilatıdır —
+    sistemde kalem-bazlı tahsilat izi yoktur.</p>
+
+<form method="get" class="filter-bar">
+    <input type="hidden" name="from" value="@From" />
+    <input type="hidden" name="to" value="@To" />
+    <label>Ara<input name="ara" value="@Ara" placeholder="hizmet / sözleşme / plaka / müşteri" /></label>
+    <label>Satan Personel
+        <select name="personelId">
+            <option value="">— tümü —</option>
+            @foreach (var p in _personeller)
+            {
+                <option value="@p.Id" selected="@(p.Id.ToString() == PersonelId)">@p.Ad @p.Soyad</option>
+            }
+        </select>
+    </label>
+    <label>Çıkış Ofisi
+        <select name="ofis">
+            <option value="">— tümü —</option>
+            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+        </select>
+    </label>
+    <label>Rez. Kaynağı<input name="kaynak" value="@Kaynak" /></label>
+    <label>Sistem kalemleri
+        <select name="sys">
+            <option value="" selected="@(Sys != "gizle")">Göster</option>
+            <option value="gizle" selected="@(Sys == "gizle")">Gizle</option>
+        </select>
+    </label>
+    <button type="submit">Filtrele</button>
+</form>
+
+<p class="muted small">@_detay.Count kalem · Net @_detay.Sum(x => x.Net).ToString("N2") ·
+    KDV @_detay.Sum(x => x.Kdv).ToString("N2") · Brüt @_detay.Sum(x => x.Brut).ToString("N2")</p>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Eklenme</th><th>Sözleşme No</th><th>Plaka</th><th>Müşteri</th><th>Çıkış Ofisi</th>
+            <th>Rez. Kaynağı</th><th>Hizmet</th><th class="num">Miktar</th><th class="num">Birim Net</th>
+            <th class="num">KDV %</th><th class="num">Net</th><th class="num">KDV</th><th class="num">Brüt</th>
+            <th>Satan Personel</th><th class="num">Kira İlk Tahsilat</th></tr>
+    </thead>
+    <tbody>
+        @if (_detay.Count == 0)
+        {
+            <tr><td colspan="15" class="muted">Ek hizmet kalemi yok.</td></tr>
+        }
+        @foreach (var x in _detay)
+        {
+            <tr>
+                <td>@x.EklenmeTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td class="mono">@x.SozlesmeNo</td>
+                <td>@x.Plaka</td>
+                <td>@x.MusteriAd</td>
+                <td>@(x.CikisOfisi ?? "—")</td>
+                <td>@(x.RezKaynagi ?? "—")</td>
+                <td>@x.Ad @if (x.SistemKalemi) { <span class="muted small">(sistem)</span> }</td>
+                <td class="num">@x.Miktar.ToString("N2")</td>
+                <td class="num">@x.BirimNetFiyat.ToString("N2")</td>
+                <td class="num">@((x.KdvOrani * 100).ToString("0.##"))</td>
+                <td class="num">@x.Net.ToString("N2")</td>
+                <td class="num">@x.Kdv.ToString("N2")</td>
+                <td class="num">@x.Brut.ToString("N2")</td>
+                <td>@(x.SatanPersonel ?? "—")</td>
+                <td class="num">@(x.IlkTahsilat?.ToString("N2") ?? "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "personelId")] public string? PersonelId { get; set; }
+    [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
+    [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    [SupplyParameterFromQuery(Name = "sys")] public string? Sys { get; set; }
 
     private EkHizmetRaporDto _data = new([], 0, 0, 0, 0);
+    private IReadOnlyList<EkHizmetDetayRow> _detay = [];
+    private IReadOnlyList<PersonelSecim> _personeller = [];
+    private string[] _ofisler = [];
 
     protected override async Task OnInitializedAsync()
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
         _data = await Reports.GetEkHizmetRaporuAsync(from, to);
+
+        // Personel listesi PII'sız uç (ListForSelectAsync) — ListAsync ManageUsers ister ve
+        // Muhasebe rolünde patlar (kira mega-formunda öğrenilen ders).
+        _personeller = await Personeller.ListForSelectAsync();
+        _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+
+        _detay = await Reports.GetEkHizmetDetayAsync(new EkHizmetDetayFilter
+        {
+            Bas = from, Bit = to,
+            Ara = Ara,
+            PersonelId = Guid.TryParse(PersonelId, out var pid) ? pid : null,
+            Ofis = Ofis,
+            RezKaynagi = Kaynak,
+            SistemKalemleriniGizle = Sys == "gizle"
+        });
     }
 
     private static DateTimeOffset? ParseDate(string? s)
