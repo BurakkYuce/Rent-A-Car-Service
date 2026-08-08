@@ -53,7 +53,13 @@
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kanal<input name="kanal" placeholder="WEB/ACENTA/ÇAĞRI" /></label>
         <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
-        <ComboBox Name="lokasyon" Label="Lokasyon" Options="_lokasyonOpts" />
+        <label>Lokasyon (birden çok)
+            <CokluSecim Name="lokasyon" Secenekler="_lokasyonOpts" Placeholder="ek lokasyon" />
+        </label>
+        <label>Kayıt Türü
+            <select name="turu"><option value="">—</option><option>Fiyat</option><option>Kampanya</option></select>
+        </label>
+        <label>Max Kira Kapsamı (gün)<input name="kiraSuresi" type="number" min="1" placeholder="boş = sınırsız" title="Süresi bunu AŞAN kiralarda bu satır adaylıktan elenir" /></label>
         <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="EKO" /></label>
         <label>Para Birimi<input name="paraBirimi" placeholder="TRY" maxlength="8" /></label>
         <label>Başlangıç<input name="basTar" type="date" /></label>
@@ -108,7 +114,17 @@
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
                             <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
-                            <ComboBox Name="lokasyon" Label="Lokasyon" Value="@r.Lokasyon" Options="_lokasyonOpts" ListId="dl-lokasyon-edit" />
+                            <label>Lokasyon (birden çok)
+                                <CokluSecim Name="lokasyon" Secenekler="_lokasyonOpts" Deger="@r.Lokasyon" />
+                            </label>
+                            <label>Kayıt Türü
+                                <select name="turu">
+                                    <option value="">—</option>
+                                    <option selected="@(r.Turu == "Fiyat")">Fiyat</option>
+                                    <option selected="@(r.Turu == "Kampanya")">Kampanya</option>
+                                </select>
+                            </label>
+                            <label>Max Kira Kapsamı (gün)<input name="kiraSuresi" type="number" min="1" value="@r.KiraSuresi" placeholder="boş = sınırsız" /></label>
                             <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
                             <label>Para Birimi<input name="paraBirimi" value="@r.ParaBirimi" maxlength="8" /></label>
                             <label>Başlangıç<input name="basTar" type="date" value="@r.BasTar?.ToString("yyyy-MM-dd")" /></label>
