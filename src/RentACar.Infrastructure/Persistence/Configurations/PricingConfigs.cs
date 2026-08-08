@@ -43,6 +43,14 @@ internal sealed class VehicleGroupConfig : IEntityTypeConfiguration<VehicleGroup
         e.Property(x => x.KasaTuru).HasMaxLength(32);
         e.Property(x => x.Marka).HasMaxLength(64);
         e.Property(x => x.Tipi).HasMaxLength(64);
+        // FAZ-20 sözlük derinliği
+        e.Property(x => x.ProvizyonDoviz).HasMaxLength(3);
+        e.Property(x => x.Provizyon2Doviz).HasMaxLength(3);
+        e.Property(x => x.YakitTuru).HasConversion<int?>();
+        e.Property(x => x.Vites).HasConversion<int?>();
+        e.Property(x => x.EntegrasyonKod1).HasMaxLength(64);
+        e.Property(x => x.WebId).HasMaxLength(64);
+        e.Property(x => x.ServisId).HasMaxLength(64);
         e.Property(x => x.Provizyon).HasColumnType("numeric(19,4)");
         e.Property(x => x.Provizyon2).HasColumnType("numeric(19,4)");
         e.Property(x => x.MuafiyetTutari).HasColumnType("numeric(19,4)");

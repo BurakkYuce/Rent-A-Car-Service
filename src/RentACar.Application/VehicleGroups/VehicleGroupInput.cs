@@ -40,5 +40,14 @@ public sealed class VehicleGroupInput
     public int? WebSira { get; set; }
     public int? UpgradeSira { get; set; }
 
+    // ---- FAZ-20 sözlük derinliği ----
+    public string? ProvizyonDoviz { get; set; }
+    public string? Provizyon2Doviz { get; set; }
+    public RentACar.Domain.Enums.FuelType? YakitTuru { get; set; }
+    public RentACar.Domain.Enums.Vites? Vites { get; set; }
+    public string? EntegrasyonKod1 { get; set; }
+    public string? WebId { get; set; }
+    public string? ServisId { get; set; }
+
     public bool Aktif { get; set; } = true;
 }

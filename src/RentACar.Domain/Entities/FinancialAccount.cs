@@ -27,6 +27,16 @@ public class FinancialAccount : ITenantOwned, IAuditable
     public string? Banka { get; set; }
     /// <summary>Banka şubesi — roadmap K1.</summary>
     public string? Sube { get; set; }
+
+    // ---- FAZ-20 sözlük derinliği (canlı hesap_no_tanimlama.aspx) ----
+    /// <summary>Bu hesap hediye çeki hesabı mı (raporlarda ayrıştırmak için).</summary>
+    public bool HediyeCek { get; set; }
+    /// <summary>Serbest özel kod (muhasebe eşlemesi/gruplama).</summary>
+    public string? OzelKod { get; set; }
+    /// <summary>Uyarı e-posta listesi (virgülle ayrılmış). YALNIZ ALAN — bu fazda hiçbir
+    /// tetikleme/gönderim mantığına bağlı DEĞİL; bağlanması ayrı bir iştir.</summary>
+    public string? UyariMailListesi { get; set; }
+
     public bool Aktif { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

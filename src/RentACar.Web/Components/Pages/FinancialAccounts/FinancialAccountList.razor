@@ -25,17 +25,23 @@
         <label>Hesap No<input name="hesapNo" placeholder="(opsiyonel)" /></label>
         <label>Banka<input name="banka" placeholder="(opsiyonel)" /></label>
         <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
+        <label>Özel Kod<input name="ozelKod" maxlength="32" /></label>
+        <label>Uyarı Mail Listesi<input name="uyariMailListesi" maxlength="512" placeholder="a@firma.com, b@firma.com" title="Yalnız kayıt alanı — bu sürümde otomatik gönderim yok" /></label>
+        @* Varsayılan false olduğu için gizli "false" alanı GEREKMEZ: işaretsiz checkbox hiç
+           gönderilmez → parametre null → false. (Gizli alan eklenseydi iki değer tek [FromForm]
+           string parametresine bağlanır ve "true" hiç okunamazdı.) *@
+        <label class="chk"><input type="checkbox" name="hediyeCek" value="true" /> Hediye çeki hesabı</label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>IBAN</th><th>Banka</th><th>Şube</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tür</th><th>Döviz</th><th>IBAN</th><th>Banka</th><th>Şube</th><th>Özel Kod</th><th>Hediye Çeki</th><th>Uyarı Mail</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="9" class="muted">Hesap tanımlı değil.</td></tr>
+            <tr><td colspan="12" class="muted">Hesap tanımlı değil.</td></tr>
         }
         @foreach (var a in _list)
         {
@@ -47,6 +53,9 @@
                 <td class="mono">@a.Iban</td>
                 <td>@a.Banka</td>
                 <td>@a.Sube</td>
+                <td class="mono">@(a.OzelKod ?? "—")</td>
+                <td>@(a.HediyeCek ? "Evet" : "—")</td>
+                <td>@(a.UyariMailListesi ?? "—")</td>
                 <td>@(a.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -61,6 +70,9 @@
                             <label>Hesap No<input name="hesapNo" value="@a.HesapNo" /></label>
                             <label>Banka<input name="banka" value="@a.Banka" /></label>
                             <ComboBox Name="sube" Label="Şube" Value="@a.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+                            <label>Özel Kod<input name="ozelKod" maxlength="32" value="@a.OzelKod" /></label>
+                            <label>Uyarı Mail Listesi<input name="uyariMailListesi" maxlength="512" value="@a.UyariMailListesi" /></label>
+                            <label class="chk"><input type="checkbox" name="hediyeCek" value="true" checked="@a.HediyeCek" /> Hediye çeki hesabı</label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@a.Aktif">Aktif</option>

@@ -78,6 +78,8 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
         Sembol = string.IsNullOrWhiteSpace(input.Sembol) ? null : input.Sembol.Trim(),
+        // Normalize YENİ nesne kurar → eklenmeyen alan sessizce kaybolur.
+        Ulke = string.IsNullOrWhiteSpace(input.Ulke) ? null : input.Ulke.Trim(),
         Aktif = input.Aktif
     };
 
@@ -86,6 +88,7 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         cur.Kod = n.Kod;
         cur.Ad = n.Ad;
         cur.Sembol = n.Sembol;
+        cur.Ulke = n.Ulke;
         cur.Aktif = n.Aktif;
     }
 }

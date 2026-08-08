@@ -19,17 +19,18 @@
         <label>Kod<input name="kod" required maxlength="3" placeholder="USD" /></label>
         <label>Ad<input name="ad" required placeholder="ABD Doları" /></label>
         <label>Sembol<input name="sembol" placeholder="$" /></label>
+        <label>Ülke<input name="ulke" maxlength="64" placeholder="ABD" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Sembol</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Sembol</th><th>Ülke</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="5" class="muted">Döviz tanımlı değil.</td></tr>
+            <tr><td colspan="6" class="muted">Döviz tanımlı değil.</td></tr>
         }
         @foreach (var c in _list)
         {
@@ -37,6 +38,7 @@
                 <td class="mono">@c.Kod</td>
                 <td>@c.Ad</td>
                 <td>@c.Sembol</td>
+                <td>@(c.Ulke ?? "—")</td>
                 <td>@(c.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -46,6 +48,7 @@
                             <label>Kod<input name="kod" value="@c.Kod" maxlength="3" required /></label>
                             <label>Ad<input name="ad" value="@c.Ad" required /></label>
                             <label>Sembol<input name="sembol" value="@c.Sembol" /></label>
+                            <label>Ülke<input name="ulke" maxlength="64" value="@c.Ulke" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@c.Aktif">Aktif</option>
