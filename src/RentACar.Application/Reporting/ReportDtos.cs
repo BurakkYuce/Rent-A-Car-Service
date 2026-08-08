@@ -371,15 +371,52 @@ public sealed record ServiceCostSummaryDto(Guid VehicleId, string Plaka, ServisT
 /// case-insensitive). Hiçbir kaynağı olmayan araç SonrakiBakimKm=null "tanım yok" satırı olarak görünür
 /// (sessiz gizleme yok). Kaynak: "Servis" | "Tanım" | null.</summary>
 public sealed record PeriyodikServisRow(
-    Guid VehicleId, string Plaka, int GuncelKm, int? SonrakiBakimKm, int? KalanKm, string? Kaynak = null);
+    Guid VehicleId, string Plaka, int GuncelKm, int? SonrakiBakimKm, int? KalanKm, string? Kaynak = null,
+    // FAZ-76 — rapor kolonları. Varsayılanlı eklendi: FiloBildirimUretici'nin mevcut kullanımı
+    // (VehicleId/Plaka/KalanKm) DEĞİŞMEDEN çalışır.
+    string? Marka = null, string? Tip = null, int? ModelYili = null,
+    string? Yakit = null, string? Vites = null, string? Sube = null,
+    DateTimeOffset? SonServisTarihi = null, int? SonServisKm = null, bool Aktif = true);
+
+/// <summary>FAZ-76 — periyodik servis raporu filtresi. Hepsi opsiyonel (boş = eski davranış).</summary>
+public sealed class PeriyodikServisFilter
+{
+    public string? Plaka { get; set; }
+    public string? Sube { get; set; }
+    /// <summary>null = hepsi; true/false = yalnız aktif/pasif araç.</summary>
+    public bool? Aktif { get; set; }
+    /// <summary>Yalnız kalan km'si bu eşiğin ALTINDA olanlar (yaklaşan bakım). null = hepsi.</summary>
+    public int? UyariEsigi { get; set; }
+}
 
 /// <summary>Kira KM detay satırı — roadmap H1. KatedilenKm = DonusKm − CikisKm.</summary>
 public sealed record KmDetayRow(
     Guid RentalId, string SozlesmeNo, string Plaka, int CikisKm, int DonusKm,
-    int KatedilenKm, int KmLimit, int FazlaKm, decimal FazlaKmBedeli);
+    int KatedilenKm, int KmLimit, int FazlaKm, decimal FazlaKmBedeli,
+    // FAZ-76 — araç/sözleşme künyesi (varsayılanlı: mevcut çağıranlar etkilenmez).
+    string? Marka = null, string? Tip = null, string? Yakit = null, string? Vites = null,
+    DateTimeOffset? BasTar = null, DateTimeOffset? BitTar = null);
 
 /// <summary>Rezervasyon kaynak özeti — roadmap H2. Kaynak başına adet/gün/ciro.</summary>
-public sealed record RezervasyonKaynakRow(string Kaynak, int Adet, int ToplamGun, decimal ToplamCiro);
+public sealed record RezervasyonKaynakRow(string Kaynak, int Adet, int ToplamGun, decimal ToplamCiro,
+    // FAZ-76 — iptal edilenler AYRI sayılır: toplamdan düşülür ama görünür kalır.
+    int IptalAdet = 0);
+
+/// <summary>FAZ-76 — rezervasyon kaynak raporu filtresi.</summary>
+public sealed class RezervasyonKaynakFilter
+{
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Tarih filtresinin uygulanacağı alan: "Cikis" (varsayılan), "Donus" ya da "Kayit".</summary>
+    public string TarihTipi { get; set; } = "Cikis";
+    public string? Ofis { get; set; }
+    public string? Grup { get; set; }
+    /// <summary>
+    /// <c>false</c> (varsayılan) → İPTAL rezervasyonlar adet/gün/ciroya GİRMEZ. Eski davranış
+    /// iptalleri de sayıyordu — bu bir veri-doğruluğu hatasıydı (bkz. FAZ-76).
+    /// </summary>
+    public bool IptalleriDahilEt { get; set; }
+}
 
 /// <summary>Fatura dönem satırı — roadmap H2. Vade/cari/tutar/durum.</summary>
 public sealed record FaturaDonemRow(
@@ -387,7 +424,9 @@ public sealed record FaturaDonemRow(
     string Cari, decimal GenelToplam, string Currency, decimal Kur, string Durum, bool IadeMi);
 
 /// <summary>Araç durum-takip (gün kırılımı) satırı — roadmap H3. Bos = Toplam − Dolu − Bakim (≥0).</summary>
-public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos);
+public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos,
+    /// <summary>O gün AÇIK olan BAF (araç tahsis) adedi — bilgi kolonu, Bos hesabına GİRMEZ.</summary>
+    int ToplamBaf = 0);
 
 /// <summary>Müşteri CRM segment satırı — roadmap N3. Segment ciro eşiğiyle (VIP/Standart/Pasif).</summary>
 public sealed record MusteriSegmentRow(Guid CariId, string Ad, int KiraSayisi, decimal ToplamCiro, DateTimeOffset? SonIslem, string Segment);

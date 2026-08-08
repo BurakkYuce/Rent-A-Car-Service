@@ -102,7 +102,8 @@ public interface IReportRepository
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>Periyodik servis: her aracın en yüksek SonrakiBakimKm'si + güncel km (roadmap H1).</summary>
-    Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(
+        PeriyodikServisFilter? filtre = null, CancellationToken ct = default);
 
     /// <summary>Dönmüş kiraların (CikisKm+DonusKm dolu) KM detayı (roadmap H1).</summary>
     Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
@@ -110,7 +111,7 @@ public interface IReportRepository
 
     /// <summary>Rezervasyon kaynak özeti (roadmap H2): BasTar [from,to] filtreli, kaynak başına agrega.</summary>
     Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
-        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+        RezervasyonKaynakFilter filtre, CancellationToken ct = default);
 
     /// <summary>Fatura dönem listesi (roadmap H2): Tarih [from,to] filtreli, cari adıyla.</summary>
     Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
@@ -118,7 +119,7 @@ public interface IReportRepository
 
     /// <summary>Araç durum-takip (roadmap H3): [from,to] her gün için dolu/bakım/boş sayısı (gün kırılımı).</summary>
     Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default);
 
     /// <summary>Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).</summary>
     Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default);
@@ -131,7 +132,7 @@ public interface IReportRepository
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
     /// </summary>
     Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default);
 
     /// <summary>
     /// İptal olmayan faturaların satırları (Invoice.Tarih aralığında), base para (× Kur) tutarlarıyla.

@@ -525,11 +525,12 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     /// Günlük faaliyet raporu: verilen günün ([gün 00:00, ertesi gün − tick]) operasyonel
     /// sayaçları + tutarları. Repo'da sayım/toplam; burası gün sınırlarını kurar.
     /// </summary>
-    public Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(DateTimeOffset gun, CancellationToken ct = default)
+    public Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
+        DateTimeOffset gun, string? sube = null, CancellationToken ct = default)
     {
         var from = new DateTimeOffset(gun.Date, TimeSpan.Zero);
         var to = from.AddDays(1).AddTicks(-1);
-        return _repository.GetGunlukFaaliyetAsync(from, to, ct);
+        return _repository.GetGunlukFaaliyetAsync(from, to, sube, ct);
     }
 
     /// <summary>
@@ -988,8 +989,9 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     }
 
     /// <summary>Periyodik servis raporu (roadmap H1): KM-bazlı bakım uyarısı, KalanKm artan sıralı.</summary>
-    public Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisAsync(CancellationToken ct = default)
-        => _repository.GetPeriyodikServisRowsAsync(ct);
+    public Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisAsync(
+        PeriyodikServisFilter? filtre = null, CancellationToken ct = default)
+        => _repository.GetPeriyodikServisRowsAsync(filtre, ct);
 
     /// <summary>Kira KM detay raporu (roadmap H1): dönmüş kiraların çıkış/dönüş/katedilen km'si.</summary>
     public Task<IReadOnlyList<KmDetayRow>> GetKmDetayAsync(
@@ -998,8 +1000,8 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
 
     /// <summary>Rezervasyon kaynak raporu (roadmap H2): kaynak başına adet/gün/ciro.</summary>
     public Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakAsync(
-        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
-        => _repository.GetRezervasyonKaynakRowsAsync(from, to, ct);
+        RezervasyonKaynakFilter? filtre = null, CancellationToken ct = default)
+        => _repository.GetRezervasyonKaynakRowsAsync(filtre ?? new RezervasyonKaynakFilter(), ct);
 
     /// <summary>Fatura dönem raporu (roadmap H2): tarih filtreli fatura listesi (vade/cari/tutar/durum).</summary>
     public Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemAsync(
@@ -1008,11 +1010,12 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
 
     /// <summary>Araç durum-takip raporu (roadmap H3): gün kırılımı dolu/bakım/boş (varsayılan son 30 gün).</summary>
     public Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipAsync(
-        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null,
+        CancellationToken ct = default)
     {
         var bit = to ?? DateTimeOffset.UtcNow;
         var bas = from ?? bit.AddDays(-29);
-        return _repository.GetAracDurumTakipRowsAsync(bas, bit, ct);
+        return _repository.GetAracDurumTakipRowsAsync(bas, bit, sube, ct);
     }
 
     /// <summary>Müşteri CRM segment (roadmap N3): kira sayısı/ciro/segment.</summary>

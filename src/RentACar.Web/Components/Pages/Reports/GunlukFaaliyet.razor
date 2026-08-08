@@ -1,6 +1,7 @@
 @page "/raporlar/gunluk"
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @inject ReportService Reports
+@inject BranchService Subeler
 
 <PageTitle>Günlük Faaliyet — RentPro</PageTitle>
 
@@ -17,8 +18,23 @@
 <div class="filter-panel">
 <form method="get" class="filter-bar">
     <label>Gün<input name="gun" type="date" value="@GunStr" /></label>
+    <label>İşlem Şubesi
+        <select name="sube">
+            <option value="">— tümü —</option>
+            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
+        </select>
+    </label>
     <button type="submit">Göster</button>
+    @if (!string.IsNullOrWhiteSpace(Sube)) { <a class="link" href="/raporlar/gunluk">Temizle</a> }
 </form>
+@if (!string.IsNullOrWhiteSpace(Sube))
+{
+    @* Şube süzgeci YALNIZ operasyon sayaçlarına uygulanır: tahsilat ve fatura şube boyutu taşımaz.
+       Filtrelenmiş gibi göstermek yanlış olurdu; sınır açıkça yazılıyor. *@
+    <p class="muted small"><strong>@Sube</strong> süzgeci rezervasyon / kira / çıkış / dönüş
+        sayaçlarına uygulandı. <strong>Tahsilat ve fatura kartları tüm firmayı gösterir</strong> —
+        bu kayıtlar şube boyutu taşımıyor.</p>
+}
 </div>
 
 <p class="muted small">@_gun.ToString("dd.MM.yyyy") günü</p>
@@ -60,7 +76,9 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "gun")] public string? GunStr { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
+    private string[] _subeOpts = [];
     private DateTimeOffset _gun;
     private GunlukFaaliyetDto _data = new(0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -71,6 +89,7 @@
             : new DateTimeOffset(DateTimeOffset.Now.Date, TimeSpan.Zero);
         _gun = parsed;
         GunStr ??= parsed.ToString("yyyy-MM-dd");
-        _data = await Reports.GetGunlukFaaliyetAsync(parsed);
+        _data = await Reports.GetGunlukFaaliyetAsync(parsed, Sube);
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
     }
 }
