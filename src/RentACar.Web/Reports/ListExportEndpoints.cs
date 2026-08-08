@@ -9,6 +9,7 @@ using RentACar.Application.DropTanimlari;
 using RentACar.Application.Expenses;
 using RentACar.Application.FiloKiralamalar;
 using RentACar.Application.Finance;
+using RentACar.Application.Legal;
 using RentACar.Application.Locations;
 using RentACar.Application.Penalties;
 using RentACar.Application.Personnel;
@@ -36,7 +37,8 @@ public static class ListExportEndpoints
             PenaltyService ps, ExpenseService es, CashService cash,
             VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
             RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop,
-            FiloKiralamaService fks, VadeService vade, ReportExportService ex, PdfExportService pdf) =>
+            FiloKiralamaService fks, VadeService vade, HukukDosyaService hukuk,
+            ReportExportService ex, PdfExportService pdf) =>
         {
             // Cari ekstre parametreli (cariId) → switch dışında; carinin defter satır-detayı + yürüyen bakiye.
             if (liste == "cari-ekstre")
@@ -111,6 +113,18 @@ public static class ListExportEndpoints
                     PlakaResolver(await vs.ListAsync()), MusteriResolver(await cs.ListAsync())),
                 "vade" => ListExportCatalog.Vadeler(await vade.GetAllAsync(ct: default),
                     PlakaResolver(await vs.ListAsync())),
+                // FAZ-41: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
+                "hukuk" => ListExportCatalog.HukukDosyalari(await hukuk.SearchAsync(new HukukDosyaFilter
+                {
+                    CariId = FormParse.Id(req.Query["cariId"].ToString()),
+                    Bas = FormParse.Date(req.Query["bas"].ToString()),
+                    Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
+                    FaturaNo = NullIfEmpty(req.Query["faturaNo"].ToString()),
+                    DosyaNo = NullIfEmpty(req.Query["dosyaNo"].ToString()),
+                    Ara = NullIfEmpty(req.Query["ara"].ToString()),
+                    Tur = Enum.TryParse<HukukTuru>(req.Query["tur"].ToString(), out var ht) ? ht : null,
+                    Durum = Enum.TryParse<HukukDurum>(req.Query["durum"].ToString(), out var hd) ? hd : null
+                })),
                 _ => null
             };
             if (t is null) return Results.NotFound();
