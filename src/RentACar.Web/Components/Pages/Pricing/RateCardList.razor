@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject RateCardService Rates
 @inject VehicleGroupService AracGruplari
+@inject TarifeGrubuService TarifeGruplari
 
 <PageTitle>Tarifeler — RentPro</PageTitle>
 
@@ -28,6 +29,18 @@
         </label>
         <label>Geçerli Baş.<input name="gecerliBas" type="date" /></label>
         <label>Geçerli Bit.<input name="gecerliBit" type="date" /></label>
+        @* FAZ-72: teminat bayrakları + gizle. İşaretsiz checkbox gönderilmez → false (varsayılan). *@
+        <label class="check"><input type="checkbox" name="scdwDahil" value="true" /> SCDW dahil</label>
+        <label class="check"><input type="checkbox" name="miniHasarDahil" value="true" /> Mini hasar dahil</label>
+        <label class="check"><input type="checkbox" name="hirsizlikDahil" value="true" /> Hırsızlık dahil</label>
+        <label class="check"><input type="checkbox" name="scdwZorunlu" value="true" /> SCDW zorunlu</label>
+        <label class="check"><input type="checkbox" name="gosterme" value="true" /> Listelerde gizle</label>
+        <label>Tarife Grubu
+            <select name="tarifeGrubuId">
+                <option value="">—</option>
+                @foreach (var g in _gruplar) { <option value="@g.Id">@g.Ad</option> }
+            </select>
+        </label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -78,6 +91,17 @@
                                     <option value="false" selected="@(!r.Aktif)">Pasif</option>
                                 </select>
                             </label>
+                            <label class="check"><input type="checkbox" name="scdwDahil" value="true" checked="@r.ScdwDahil" /> SCDW dahil</label>
+                            <label class="check"><input type="checkbox" name="miniHasarDahil" value="true" checked="@r.MiniHasarDahil" /> Mini hasar dahil</label>
+                            <label class="check"><input type="checkbox" name="hirsizlikDahil" value="true" checked="@r.HirsizlikDahil" /> Hırsızlık dahil</label>
+                            <label class="check"><input type="checkbox" name="scdwZorunlu" value="true" checked="@r.ScdwZorunlu" /> SCDW zorunlu</label>
+                            <label class="check"><input type="checkbox" name="gosterme" value="true" checked="@r.Gosterme" /> Listelerde gizle</label>
+                            <label>Tarife Grubu
+                                <select name="tarifeGrubuId">
+                                    <option value="">—</option>
+                                    @foreach (var g in _gruplar) { <option value="@g.Id" selected="@(g.Id == r.TarifeGrubuId)">@g.Ad</option> }
+                                </select>
+                            </label>
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
@@ -96,11 +120,13 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<RateCard> _list = [];
+    private IReadOnlyList<TarifeGrubu> _gruplar = [];
     private List<string> _grupOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Rates.ListAsync();
+        _gruplar = await TarifeGruplari.ListActiveAsync();
         _grupOpts = (await AracGruplari.ListActiveAsync()).Select(g => g.Ad).ToList();
     }
 
