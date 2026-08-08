@@ -509,6 +509,7 @@ app.MapCoverageProductEndpoints();
 app.MapRentalRuleEndpoints();
 app.MapBrokerYasakEndpoints();
 app.MapRezSartEndpoints();
+app.MapVardiyaEndpoints();   // FAZ-45
 app.MapTarifeGrubuEndpoints();
 app.MapQuoteEndpoints();
 app.MapEkHizmetEndpoints();

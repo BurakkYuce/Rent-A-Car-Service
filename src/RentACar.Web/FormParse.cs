@@ -25,6 +25,15 @@ public static class FormParse
     public static Guid? Id(string? s)
         => Guid.TryParse((s ?? "").Trim(), out var g) ? g : null;
 
+    /// <summary>&lt;input type="date"&gt; → DateOnly (FAZ-45). Saat dilimi YOK: takvim günü olduğu gibi
+    /// alınır; DateTimeOffset'e çevirip geri düşürmek gün kaymasına açık kapı bırakırdı.</summary>
+    public static DateOnly? Gun(string? s)
+        => DateOnly.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+
+    /// <summary>&lt;input type="time"&gt; → TimeOnly ("HH:mm" ya da "HH:mm:ss").</summary>
+    public static TimeOnly? Saat(string? s)
+        => TimeOnly.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
+
     /// <summary>Opsiyonel form metni: boş/whitespace → null. Denetim DRY: 10 endpoint dosyasında birebir
     /// private kopyası vardı, buraya toplandı (11. kopya sapmayla doğmasın). Davranış AYNI — Trim YOK.</summary>
     public static string? Str(IFormCollection f, string key)

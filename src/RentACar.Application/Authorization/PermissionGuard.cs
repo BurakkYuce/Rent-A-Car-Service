@@ -14,4 +14,17 @@ public static class PermissionGuard
         if (!RolePermissions.Has(user.Role, permission))
             throw new ValidationException($"Bu işlem için yetkiniz yok ({permission}).");
     }
+
+    /// <summary>
+    /// İzinlerden HERHANGİ BİRİ yeter (FAZ-45). Gerekçe: operasyonel bir kaydı YAZABİLEN rol onu
+    /// OKUYAMIYORSA ekran kullanılamaz hâle gelir — vardiya raporunda Operatör tam olarak bu
+    /// durumdaydı (OperationsWrite var, ViewReports yok). Genel rapor okuması hâlâ ViewReports'a
+    /// bağlı; bu overload yalnız "kendi yazdığını görme" vakası için.
+    /// </summary>
+    public static void RequireAny(ICurrentUser user, params Permission[] permissions)
+    {
+        if (!permissions.Any(p => RolePermissions.Has(user.Role, p)))
+            throw new ValidationException(
+                $"Bu işlem için yetkiniz yok ({string.Join(" veya ", permissions)}).");
+    }
 }
