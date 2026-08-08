@@ -78,8 +78,9 @@ public sealed class BrokerYasakService(IBrokerYasakRepository repository, ICurre
         Ad = (input.Ad ?? string.Empty).Trim(),
         Aciklama = TrimOrNull(input.Aciklama),
         Kaynak = TrimOrNull(input.Kaynak),
-        AracGrupKod = string.IsNullOrWhiteSpace(input.AracGrupKod) ? null : input.AracGrupKod.Trim().ToUpperInvariant(),
-        Bolge = TrimOrNull(input.Bolge),
+        // FAZ-70: çoklu kapsam → CSV. Tekrarlar temizlenir, sıra korunur, kodlar büyük harfe alınır.
+        AracGrupKod = Csv(input.AracGrupKod, buyukHarf: true),
+        Bolge = Csv(input.Bolge, buyukHarf: false),
         MinGun = input.MinGun,
         TumSatisKapali = input.TumSatisKapali,
         GecerlilikBas = input.GecerlilikBas,
@@ -88,6 +89,45 @@ public sealed class BrokerYasakService(IBrokerYasakRepository repository, ICurre
     };
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// FAZ-70 — çoklu kapsam değerini normalize eder: virgülle ayrılmış girdiden boşları atar,
+    /// kırpar, tekrarları (harf duyarsız) temizler, tek bir CSV'ye birleştirir.
+    /// Boş/whitespace → null ("bu boyutta kısıt yok" = tümü).
+    /// </summary>
+    public static string? Csv(string? girdi, bool buyukHarf)
+    {
+        if (string.IsNullOrWhiteSpace(girdi)) return null;
+        // Tekrar temizliği de Türkçe-duyarlı olmalı: "İzmir" ve "izmir" AYNI değerdir ve
+        // OrdinalIgnoreCase bunu göremez → liste iki kez aynı şehri taşırdı.
+        var parcalar = new List<string>();
+        foreach (var ham in girdi.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var x = buyukHarf ? ham.ToUpperInvariant() : ham;
+            if (!parcalar.Any(v => TurkishText.EqualsIgnoreTurkishCase(v, x))) parcalar.Add(x);
+        }
+        return parcalar.Count == 0 ? null : string.Join(",", parcalar);
+    }
+
+    /// <summary>
+    /// FAZ-70 — CSV kapsam alanı verilen değeri içeriyor mu (harf duyarsız).
+    /// Boş/null CSV → <c>false</c>: "kısıt tanımlı değil" ile "her şeyi kapsıyor" AYNI ŞEY DEĞİLDİR;
+    /// kapsam boşsa o boyut zaten filtrelenmez, bu metoda hiç sorulmaz.
+    ///
+    /// <para><b>Bu metodun bu sürümde ÇAĞIRANI YOKTUR — bilinçli.</b> `BrokerYasak` bugün saf bir
+    /// tanım tablosu; rezervasyon/kira akışına bağlanması ayrı ve daha büyük bir iştir. Metot,
+    /// yukarıdaki <see cref="Csv"/> ile yazılan biçimin OKUMA sözleşmesini sabitler ve testlidir;
+    /// bağlama fazı geldiğinde biçim yeniden yorumlanmak zorunda kalmaz.</para>
+    /// </summary>
+    public static bool KapsarMi(string? csv, string? deger)
+    {
+        if (string.IsNullOrWhiteSpace(csv) || string.IsNullOrWhiteSpace(deger)) return false;
+        // TÜRKÇE-DUYARLI karşılaştırma şart: kapsam değerleri şehir/grup adları olabiliyor ve
+        // OrdinalIgnoreCase "İzmir" ile "izmir"i EŞİT SAYMAZ (İ = U+0130). Repo genelinde aynı
+        // sorun için TurkishText kullanılıyor (araç grubu eşleştirmesi de öyle).
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(x => TurkishText.EqualsIgnoreTurkishCase(x, deger.Trim()));
+    }
 
     private static void Apply(BrokerYasak row, BrokerYasakInput n)
     {

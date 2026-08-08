@@ -37,4 +37,10 @@ public sealed class RateMatrixInput
     public DateTimeOffset? OnayZaman { get; set; }
 
     public bool Aktif { get; set; } = true;
+
+    // ---- FAZ-70 ----
+    /// <summary>Satır etiketi ("Fiyat"/"Kampanya") — motor davranışını değiştirmez.</summary>
+    public string? Turu { get; set; }
+    /// <summary>Max Kira Kapsamı (gün); aşan kiralarda satır adaylıktan elenir. null = sınırsız.</summary>
+    public int? KiraSuresi { get; set; }
 }

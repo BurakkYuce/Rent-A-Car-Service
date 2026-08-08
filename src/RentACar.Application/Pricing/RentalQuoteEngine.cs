@@ -60,7 +60,7 @@ public sealed class RentalQuoteEngine(
         var gun = BookingMath.ComputeGun(req.BasTar, req.BitTar);
 
         // 1) Tarife matrisi → günlük ücret (gün-kademesi)
-        var matris = SelectMatrix(await _rateMatrices.ListActiveAsync(ct), grupKod, kanal, sube, req.BasTar);
+        var matris = SelectMatrix(await _rateMatrices.ListActiveAsync(ct), grupKod, kanal, sube, req.BasTar, gun, notlar);
         decimal gunlukUcret = 0m;
         if (matris is null)
             notlar.Add("Eşleşen tarife matrisi bulunamadı; günlük ücret 0 (manuel girilebilir).");
@@ -205,9 +205,25 @@ public sealed class RentalQuoteEngine(
     /// kanal/şube-özel matrisler de aday olur (HIGH-2: aksi halde booking sessizce 0 yazardı). Sıralama:
     /// grup-özel &gt; tam-kanal-eşleşme &gt; kanal-agnostik(base) &gt; tam-şube &gt; şube-agnostik &gt; Kod.</summary>
     private static RateMatrix? SelectMatrix(
-        IReadOnlyList<RateMatrix> all, string grupKod, string? kanal, string? sube, DateTimeOffset tarih)
-        => all.Where(m => RowMatches(m, grupKod, kanal, sube,
+        IReadOnlyList<RateMatrix> all, string grupKod, string? kanal, string? sube, DateTimeOffset tarih,
+        int gun, List<string> notlar)
+    {
+        // FAZ-70 — Max Kira Kapsamı: süresi satırın KiraSuresi'ni AŞAN kiralar için o satır ADAY
+        // OLMAKTAN ÇIKAR. Eleme SelectMatrix'te yapılır ki motor sıradaki uygun satıra düşebilsin;
+        // ResolveTierRate'ten sonra elenseydi geriye fiyatsız kalınırdı.
+        //
+        // DİKKAT: bu koşul RowMatches'a KONULMAZ. RowMatches'ı halka açık site yayın kapısı da
+        // kullanıyor ve orada "kaç günlük kira" diye bir bilgi YOK — koşul oraya sızsaydı vitrin,
+        // gün bilgisi olmadığı için tüm gün-sınırlı tarifeleri yanlışlıkla eler ya da geçirirdi.
+        var adaylar = all.Where(m => RowMatches(m, grupKod, kanal, sube,
                 x => (x.BasTar == null || x.BasTar <= tarih) && (x.BitTar == null || x.BitTar >= tarih)))
+            .ToList();
+
+        var elenen = adaylar.Where(m => m.KiraSuresi is { } max && gun > max).ToList();
+        foreach (var m in elenen)
+            notlar.Add($"Tarife '{m.Kod}' max kira kapsamı ({m.KiraSuresi} gün) aşıldı; satır elendi.");
+
+        return adaylar.Except(elenen)
             .OrderByDescending(m => m.AracGrupKod == grupKod ? 1 : 0)
             .ThenByDescending(m => kanal != null && string.Equals(m.Kanal, kanal, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
             .ThenByDescending(m => m.Kanal == null ? 1 : 0)
@@ -215,6 +231,7 @@ public sealed class RentalQuoteEngine(
             .ThenByDescending(m => m.Sube == null ? 1 : 0)
             .ThenBy(m => m.Kod, StringComparer.Ordinal)
             .FirstOrDefault();
+    }
 
     /// <summary>
     /// Tarife satırının SATIR yüklemi — onay/grup-kod/wildcard/kanal/şube. Tarih koşulu PARAMETRE'dir:

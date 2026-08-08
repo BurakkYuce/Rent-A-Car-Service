@@ -1,6 +1,7 @@
 @page "/broker-yasaklari"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @inject BrokerYasakService BrokerYasaklari
+@inject VehicleGroupService AracGruplari
 
 <PageTitle>Broker Yasakları — RentPro</PageTitle>
 
@@ -21,8 +22,12 @@
         <label>Ad<input name="ad" required placeholder="Broker X — min 3 gün" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kaynak (broker/kanal)<input name="kaynak" placeholder="Boş → tümü" /></label>
-        <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="Boş → tümü" /></label>
-        <label>Bölge<input name="bolge" placeholder="Boş → tümü" /></label>
+        <label>Araç Grubu (birden çok seçilebilir)
+            <CokluSecim Name="aracGrupKod" Secenekler="_grupKodlari" Placeholder="ek grup kodu" />
+        </label>
+        <label>Bölge (birden çok)
+            <CokluSecim Name="bolge" Secenekler="_bolgeler" Placeholder="Antalya, İzmir" />
+        </label>
         <label>Min Gün<input name="minGun" type="number" min="0" placeholder="altı yasak" /></label>
         <label>Tüm satış kapalı
             <select name="tumSatisKapali"><option value="false">Hayır</option><option value="true">Evet</option></select>
@@ -61,8 +66,12 @@
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kaynak<input name="kaynak" value="@r.Kaynak" /></label>
-                            <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
-                            <label>Bölge<input name="bolge" value="@r.Bolge" /></label>
+                            <label>Araç Grubu (birden çok)
+                                <CokluSecim Name="aracGrupKod" Secenekler="_grupKodlari" Deger="@r.AracGrupKod" />
+                            </label>
+                            <label>Bölge (birden çok)
+                                <CokluSecim Name="bolge" Secenekler="_bolgeler" Deger="@r.Bolge" />
+                            </label>
                             <label>Min Gün<input name="minGun" type="number" min="0" value="@r.MinGun" /></label>
                             <label>Tüm satış kapalı
                                 <select name="tumSatisKapali">
@@ -96,7 +105,18 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<BrokerYasak> _list = [];
+    private string[] _grupKodlari = [];
+    /// <summary>Bölge için master tablo YOK → mevcut kayıtlardaki değerler öneri olarak sunulur.</summary>
+    private string[] _bolgeler = [];
 
     protected override async Task OnInitializedAsync()
-        => _list = await BrokerYasaklari.ListAsync();
+    {
+        _list = await BrokerYasaklari.ListAsync();
+        _grupKodlari = (await AracGruplari.ListActiveAsync()).Select(g => g.Kod)
+            .Where(k => !string.IsNullOrWhiteSpace(k)).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k).ToArray();
+        _bolgeler = _list.Select(x => x.Bolge).Where(b => !string.IsNullOrWhiteSpace(b))
+            .SelectMany(b => b!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(b => b).ToArray();
+    }
 }
