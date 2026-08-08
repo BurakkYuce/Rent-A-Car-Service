@@ -67,7 +67,39 @@ internal sealed class LocationConfig : IEntityTypeConfiguration<Location>
         e.Property(x => x.CalismaSaatleri).HasMaxLength(64);
         e.Property(x => x.TeslimUcreti).HasColumnType("numeric(19,4)");
         e.Property(x => x.Sube).HasMaxLength(64);
+        // FAZ-22 derinlik
+        e.Property(x => x.IngilizceAd).HasMaxLength(128);
+        e.Property(x => x.BulusmaNoktasi).HasMaxLength(128);
+        e.Property(x => x.Iata).HasMaxLength(8);
+        e.Property(x => x.LokasyonTuru).HasMaxLength(64);
+        e.Property(x => x.BinaNo).HasMaxLength(32);
+        e.Property(x => x.Tarif).HasMaxLength(1024);
+        e.Property(x => x.Ulke).HasMaxLength(64);
+        e.Property(x => x.PostaKodu).HasMaxLength(16);
+        e.Property(x => x.MapsKonumu).HasMaxLength(256);
+        e.Property(x => x.EkAciklama).HasMaxLength(1024);
+        e.Property(x => x.DropKarsilamaTuru).HasMaxLength(64);
+        e.Property(x => x.DropCalismaSekli).HasMaxLength(64);
+        e.Property(x => x.OzelMail).HasMaxLength(128);
+        e.Property(x => x.OzelTelefon).HasMaxLength(32);
+
+        // Haftalık saatler JSONB. ValueComparer ŞART: koleksiyon referansı değişmediğinde EF
+        // içeriği "değişmedi" sayar ve düzenleme SESSİZCE kaydedilmez (spec'in uyardığı tuzak).
+        e.Property(x => x.HaftalikCalismaSaatleri)
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                v => System.Text.Json.JsonSerializer.Deserialize<List<GunSaat>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<GunSaat>(),
+                new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<GunSaat>>(
+                    (a, b) => System.Text.Json.JsonSerializer.Serialize(a, (System.Text.Json.JsonSerializerOptions?)null)
+                           == System.Text.Json.JsonSerializer.Serialize(b, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null).GetHashCode(),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<GunSaat>>(
+                        System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                        (System.Text.Json.JsonSerializerOptions?)null) ?? new List<GunSaat>()));
+
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.Iata });
     }
 }
 
