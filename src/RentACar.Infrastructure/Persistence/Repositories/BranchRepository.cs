@@ -174,6 +174,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Drop tanımı (metin)", db.DropTanimlari.Where(x => x.Sube == kaynak.Ad));
         await Say("Kullanıcı (atanmış şube)", db.Users.Where(u => u.AtanmisSubeId == kaynakId));
         await Say("Şube ücretsiz hizmeti", db.SubeUcretsizHizmetler.Where(x => x.SubeId == kaynakId));
+        await Say("Personel vardiyası", db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId));   // FAZ-45
+        await Say("Personel vardiyası (metin)", db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
 
         // GİDER TAŞINMAZ. Expense DEĞİŞMEZ bir mali belgedir: DB'de değişmezlik trigger'ı var ve
         // racar_app'in UPDATE yetkisi yok. Zaten olmamalı da — kesilmiş bir gider belgesinin şubesini
@@ -213,6 +215,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
             toplam += await db.RateMatrices.Where(x => x.SubeId == kaynakId)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
+            toplam += await db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId)   // FAZ-45
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
             toplam += await db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.RentalRules.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
@@ -230,6 +234,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
             toplam += await db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+            toplam += await db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-45
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
 
         toplam += await db.DropTanimlari.Where(x => x.Sube == kaynak.Ad)

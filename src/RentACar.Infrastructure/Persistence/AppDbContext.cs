@@ -122,6 +122,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<WhatsAppGonderim> WhatsAppGonderimler => Set<WhatsAppGonderim>();
     public DbSet<Personel> Personeller => Set<Personel>();
+    public DbSet<PersonelVardiya> PersonelVardiyalari => Set<PersonelVardiya>();   // FAZ-45 — vardiya/çalışma grafiği
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();
     public DbSet<Anket> Anketler => Set<Anket>();
     public DbSet<Sikayet> Sikayetler => Set<Sikayet>();

@@ -155,6 +155,8 @@ public static class DependencyInjection
             Persistence.Repositories.TenantDomainRepository>(); // PR-2: public-site host self-servis
         services.AddScoped<RentACar.Application.Personnel.IPersonelRepository,
             Persistence.Repositories.PersonelRepository>();
+        services.AddScoped<RentACar.Application.Personnel.IPersonelVardiyaRepository,
+            Persistence.Repositories.PersonelVardiyaRepository>();   // FAZ-45
         services.AddScoped<RentACar.Application.Legal.IHukukDosyaRepository,
             Persistence.Repositories.HukukDosyaRepository>();
         services.AddScoped<RentACar.Application.Crm.IAnketRepository,
