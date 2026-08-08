@@ -2,6 +2,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Application.RateMatrices;
 
@@ -67,6 +68,72 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         return _repository.DeleteAsync(id, ct);
     }
+
+    /// <summary>
+    /// FAZ-31 — bir Rezervasyon Kaynağının (<see cref="RateMatrix.Kanal"/>) tarife satırlarını
+    /// TOPLU siler.
+    ///
+    /// <para><b>YALNIZ <see cref="TarifeOnayDurumu.Bekliyor"/> SİLİNİR.</b> Başka bir durum
+    /// istenirse gürültülü red — sessizce daraltmak, kullanıcının "onaylıları da sildim" sanmasına
+    /// yol açardı. Çit güvenlik kararıdır: fiyat motoru (<c>RentalQuoteEngine.RowMatches</c>,
+    /// <c>RateMatrisCozumleme</c>) YALNIZ <c>Onayli</c> satırları kullanır; dolayısıyla bu işlem
+    /// hiçbir kirada/rezervasyonda O AN kullanılan bir tarifeyi kaybettiremez. Onaylı satırların
+    /// toplu silinmesi ayrı bir karar konusudur ve bu fazda AÇILMAMIŞTIR.</para>
+    ///
+    /// <para><b>Yetki <see cref="Permission.ManageUsers"/></b> — tek-satır silmeden (OperationsWrite)
+    /// bilinçli olarak DAHA DAR: toplu silmenin etki alanı farklı. Web tarafında da aynı çit var
+    /// (import grubu ManageUsers + sayfa Admin) — çift savunma.</para>
+    ///
+    /// <para><b>KANALIN TÜM ŞUBELERİ silinir</b> — şube kırılımı yoktur. Ekranda şube filtresi
+    /// açıkken silme butonu GİZLENİR (adversarial M1): aksi hâlde kullanıcı "gördüğümü siliyorum"
+    /// sanırken ekranda hiç görünmeyen başka şubelerin satırları da giderdi.</para>
+    ///
+    /// <para>Kanal eşleşmesi <see cref="StringComparison.OrdinalIgnoreCase"/> ile BELLEKTE yapılır:
+    /// (a) motorun kanal eşleşmesi de aynı comparer'ı kullanır; (b) SQL <c>lower()</c>/<c>ILIKE</c>
+    /// veritabanı collation'ına bağlıdır (PG "İstanbul"→"istanbul", .NET→"i̇stanbul") ve yerelde
+    /// yeşil/CI'da kırmızı davranış üretirdi. Tek fark: burada <c>Kanal</c> ayrıca TRIM edilir,
+    /// motor etmez — yani silme, motorun eşleyemeyeceği baştaki/sondaki boşluklu bir satırı da
+    /// aday sayar. Kayıp riski YOK: aday kümesi zaten yalnız <c>Bekliyor</c> satırlardır ve motor
+    /// onları hiç kullanmaz (yazma yolları da Kanal'ı trim ediyor; bu yalnız artık temizliğidir).</para>
+    ///
+    /// <para><b>Kanalsız (null) satırlar ASLA silinmez:</b> onlar kanal-agnostik taban tarifedir,
+    /// bir kaynağa ait değildir.</para>
+    /// </summary>
+    /// <returns>Silinen satır sayısı.</returns>
+    public async Task<int> DeleteByKanalAsync(string? kanal, TarifeOnayDurumu sadeceDurum,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+
+        if (sadeceDurum != TarifeOnayDurumu.Bekliyor)
+            throw new ValidationException(
+                "Toplu silme yalnız 'Bekliyor' durumundaki tarife satırları için yapılabilir; onaylı tarifeler bu yolla silinemez.");
+
+        if (string.IsNullOrWhiteSpace(kanal))
+            throw new ValidationException("Silinecek rezervasyon kaynağı (kanal) seçilmelidir.");
+
+        var hedefler = (await _repository.ListAsync(ct))
+            .Where(r => SilmeAdayi(r, kanal))
+            .Select(r => r.Id)
+            .ToList();
+
+        return await _repository.DeleteManyAsync(hedefler, ct);
+    }
+
+    /// <summary>
+    /// Toplu silme adaylığı: kanalı eşleşen VE onaylanmamış satır. Kanalsız satır (kanal-agnostik
+    /// taban tarife) hiçbir kaynağa ait değildir → aday DEĞİL.
+    ///
+    /// <para><b>SAF ve PUBLIC:</b> onay adımındaki "N satır silinecek" sayısı da bu yüklemle
+    /// hesaplanır. Ekran ayrı bir sayım yazsaydı kural değiştiğinde iki sayı sessizce ayrışır,
+    /// kullanıcı yanlış sayıyı onaylardı. Saf olduğu için ekstra bir DB okuması da gerekmez —
+    /// sayfa zaten elindeki listeyi kullanır.</para>
+    /// </summary>
+    public static bool SilmeAdayi(RateMatrix r, string? kanal)
+        => !string.IsNullOrWhiteSpace(kanal)
+           && r.OnayDurumu == TarifeOnayDurumu.Bekliyor
+           && r.Kanal is not null
+           && string.Equals(r.Kanal.Trim(), kanal.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private static void Validate(RateMatrixInput n)
     {
