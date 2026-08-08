@@ -85,8 +85,55 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         CalismaSaatleri = Trim(input.CalismaSaatleri),
         TeslimUcreti = input.TeslimUcreti,
         Sube = Trim(input.Sube),
+        // FAZ-22: Normalize KOPYA KURUCUDUR — yeni alan eklendiğinde BURAYA da yazılmalı, yoksa
+        // kullanıcının girdiği değer derleme hatası vermeden sessizce düşer (BelgeSablon dersi).
+        IngilizceAd = Trim(input.IngilizceAd),
+        BulusmaNoktasi = Trim(input.BulusmaNoktasi),
+        Iata = Trim(input.Iata)?.ToUpperInvariant(),
+        WebdeGizle = input.WebdeGizle,
+        LokasyonTuru = Trim(input.LokasyonTuru),
+        BinaNo = Trim(input.BinaNo),
+        Tarif = Trim(input.Tarif),
+        Ulke = Trim(input.Ulke),
+        PostaKodu = Trim(input.PostaKodu),
+        MapsKonumu = Trim(input.MapsKonumu),
+        EkAciklama = Trim(input.EkAciklama),
+        WebSira = input.WebSira,
+        DropKarsilamaTuru = Trim(input.DropKarsilamaTuru),
+        DropCalismaSekli = Trim(input.DropCalismaSekli),
+        OzelMail = Trim(input.OzelMail),
+        OzelTelefon = Trim(input.OzelTelefon),
+        HaftalikCalismaSaatleri = HaftaNormalize(input.HaftalikCalismaSaatleri),
         Aktif = input.Aktif
     };
+
+    /// <summary>
+    /// Haftalık saatleri DAİMA 7 satıra (Pzt=1…Paz=7) tamamlar ve sıralar. Eksik/çift gün gönderen
+    /// bir form kaydı bozmasın diye şekil BURADA garanti edilir; okuyucu 7 satır olduğunu varsayabilir.
+    /// Gün numarası aralık dışıysa satır atılır (sessiz kabul yerine görünür kayıp yok — 7 satır sabit).
+    /// </summary>
+    public static List<RentACar.Domain.Entities.GunSaat> HaftaNormalize(
+        IEnumerable<RentACar.Domain.Entities.GunSaat>? girdi)
+    {
+        var gelen = (girdi ?? []).Where(g => g.Gun is >= 1 and <= 7)
+            .GroupBy(g => g.Gun).ToDictionary(g => g.Key, g => g.Last());
+        var sonuc = new List<RentACar.Domain.Entities.GunSaat>(7);
+        for (var gun = 1; gun <= 7; gun++)
+        {
+            if (gelen.TryGetValue(gun, out var g))
+                sonuc.Add(new RentACar.Domain.Entities.GunSaat
+                {
+                    Gun = gun,
+                    Acilis = Trim(g.Acilis),
+                    Kapanis = Trim(g.Kapanis),
+                    // Saat girilmemişse gün KAPALI sayılır — "boş açılış" bir çalışma saati değildir.
+                    Kapali = g.Kapali || (string.IsNullOrWhiteSpace(g.Acilis) && string.IsNullOrWhiteSpace(g.Kapanis))
+                });
+            else
+                sonuc.Add(new RentACar.Domain.Entities.GunSaat { Gun = gun, Kapali = true });
+        }
+        return sonuc;
+    }
 
     private static void Apply(Location loc, LocationInput n)
     {
@@ -98,6 +145,25 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         loc.CalismaSaatleri = n.CalismaSaatleri;
         loc.TeslimUcreti = n.TeslimUcreti;
         loc.Sube = n.Sube;
+        loc.IngilizceAd = n.IngilizceAd;
+        loc.BulusmaNoktasi = n.BulusmaNoktasi;
+        loc.Iata = n.Iata;
+        loc.WebdeGizle = n.WebdeGizle;
+        loc.LokasyonTuru = n.LokasyonTuru;
+        loc.BinaNo = n.BinaNo;
+        loc.Tarif = n.Tarif;
+        loc.Ulke = n.Ulke;
+        loc.PostaKodu = n.PostaKodu;
+        loc.MapsKonumu = n.MapsKonumu;
+        loc.EkAciklama = n.EkAciklama;
+        loc.WebSira = n.WebSira;
+        loc.DropKarsilamaTuru = n.DropKarsilamaTuru;
+        loc.DropCalismaSekli = n.DropCalismaSekli;
+        loc.OzelMail = n.OzelMail;
+        loc.OzelTelefon = n.OzelTelefon;
+        // Yeni liste ATANIR (mevcut listeye eklenmez) — ValueComparer içerik karşılaştırdığı için
+        // referans değişimi sorun değil, ama eski satırların kalması sessiz birikme yapardı.
+        loc.HaftalikCalismaSaatleri = n.HaftalikCalismaSaatleri;
         loc.Aktif = n.Aktif;
     }
 
