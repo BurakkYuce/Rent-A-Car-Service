@@ -61,6 +61,18 @@ public sealed class VehicleService(
         VehicleDetayFilter? filter = null, CancellationToken ct = default)
         => _repository.ListDetayAsync(filter, ct);
 
+    /// <summary>
+    /// FAZ-11 — araç listesinde gösterilen sayfanın ek bilgisi (aktif kira sözleşme no, açık
+    /// servis/BAF/satış bayrakları, kasko, kredi). Ayrı çağrıdır çünkü <see cref="SearchAsync"/>
+    /// 20'yi aşkın yerden çağrılıyor ve dönüş tipini değiştirmek gereksiz bir kırılma olurdu.
+    ///
+    /// <para>Şube kapsamı burada ayrıca zorlanmaz: çağıran zaten kapsamlı bir listeden gelen
+    /// araç kimliklerini verir; RLS + tenant filtresi çapraz-tenant sızıntıyı kapatır.</para>
+    /// </summary>
+    public Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListeEkAsync(
+        IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
+        => _repository.ListeEkAsync(vehicleIds, ct);
+
     public async Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var v = await _repository.FindAsync(id, ct);
