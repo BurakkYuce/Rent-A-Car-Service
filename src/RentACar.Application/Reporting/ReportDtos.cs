@@ -41,6 +41,38 @@ public sealed record CariBalanceDto(
     bool Kurumsal = false, bool Pasif = false);
 
 /// <summary>
+/// FAZ-78 — ek hizmet raporu SATIR-BAZLI detay satırı (canlı <c>extralar_raporu.aspx</c>).
+///
+/// <para>Tutarlar kalemin KENDİ değerleridir (kayıt anında hesaplanmış), raporda yeniden
+/// hesaplanmaz. <paramref name="IlkTahsilat"/> kiranın EN ERKEN tahsilat tutarıdır — kalemin
+/// tahsilatı değil (sistemde kalem-bazlı tahsilat izi yok); kolon başlığı da bunu söyler.</para>
+/// </summary>
+public sealed record EkHizmetDetayRow(
+    Guid AddOnId, Guid RentalId, string SozlesmeNo, DateTimeOffset BasTar, DateTimeOffset BitTar,
+    string Plaka, string MusteriAd, string? RezKaynagi, string? CikisOfisi,
+    string Ad, decimal Miktar, decimal BirimNetFiyat, decimal KdvOrani,
+    decimal Net, decimal Kdv, decimal Brut,
+    DateTimeOffset EklenmeTarihi, string? SatanPersonel, decimal? IlkTahsilat, bool SistemKalemi);
+
+/// <summary>FAZ-78 — ek hizmet detay filtresi.</summary>
+public sealed class EkHizmetDetayFilter
+{
+    /// <summary>Kalem eklenme tarihi aralığı (özet raporla AYNI pencere tanımı).</summary>
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Ek hizmet adı / sözleşme no / plaka / müşteri içinde geçen metin.</summary>
+    public string? Ara { get; set; }
+    /// <summary>Rezervasyon kaynağı (kiranın bağlı olduğu rezervasyondan).</summary>
+    public string? RezKaynagi { get; set; }
+    /// <summary>Kiranın çıkış ofisi (tam eşleşme).</summary>
+    public string? Ofis { get; set; }
+    public Guid? PersonelId { get; set; }
+    /// <summary><c>true</c> → sistem ücret kalemleri (SYS-*) gizlenir.</summary>
+    public bool SistemKalemleriniGizle { get; set; }
+    public int EnFazla { get; set; } = 2000;
+}
+
+/// <summary>
 /// FAZ-68 — Tahsilat raporu SÖZLEŞME-SATIRI mutabakat satırı.
 ///
 /// <para>Amaç bir sözleşmenin üç rakamını yan yana koymak: <b>ne kadar borçlandı</b>
