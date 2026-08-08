@@ -1,6 +1,7 @@
 @page "/raporlar/arac-durum-takip"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @inject ReportService Reports
+@inject BranchService Subeler
 
 <PageTitle>Araç Durum Takip — RentPro</PageTitle>
 
@@ -11,21 +12,31 @@
         <a href="/raporlar/export/arac-durum-takip?format=csv&amp;from=@From&amp;to=@To">CSV</a>
     </div>
 </div>
-<p class="muted">Her gün için filo dağılımı: dolu (kirada) / bakım (serviste) / boş. Varsayılan son 30 gün.</p>
+<p class="muted">Her gün için filo dağılımı: dolu (kirada) / bakım (serviste) / boş. Varsayılan son 30 gün.
+    Şube seçilirse kira, servis ve BAF sayımlarının <strong>hepsi</strong> o şubenin araçlarından gelir
+    (tek atıf kuralı). <strong>BAF</strong> kolonu bilgi amaçlıdır — bir araç hem kirada hem tahsisli
+    olabileceği için "Boş" hesabına girmez.</p>
 
-<form method="get" class="grid-form">
+<form method="get" class="filter-bar">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <label>Şube
+        <select name="sube">
+            <option value="">— tümü —</option>
+            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
+        </select>
+    </label>
     <button type="submit">Göster</button>
+    @if (!string.IsNullOrWhiteSpace(Sube)) { <a class="link" href="/raporlar/arac-durum-takip">Temizle</a> }
 </form>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Gün</th><th class="num">Toplam</th><th class="num">Dolu</th><th class="num">Bakım</th><th class="num">Boş</th></tr></thead>
+    <thead><tr><th>Gün</th><th class="num">Toplam</th><th class="num">Dolu</th><th class="num">Bakım</th><th class="num">Boş</th><th class="num">Açık BAF</th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="5" class="muted">Kayıt yok.</td></tr>
+            <tr><td colspan="6" class="muted">@(string.IsNullOrWhiteSpace(Sube) ? "Kayıt yok." : "Bu şubede araç yok.")</td></tr>
         }
         @foreach (var r in _rows)
         {
@@ -35,6 +46,7 @@
                 <td class="num">@r.Dolu</td>
                 <td class="num">@r.Bakim</td>
                 <td class="num">@r.Bos</td>
+                <td class="num muted">@r.ToplamBaf</td>
             </tr>
         }
     </tbody>
@@ -44,14 +56,17 @@
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private IReadOnlyList<AracDurumTakipRow> _rows = [];
+    private string[] _subeOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         var from = ParseDate(From);
         var to = ParseDate(To);
-        _rows = await Reports.GetAracDurumTakipAsync(from, to);
+        _rows = await Reports.GetAracDurumTakipAsync(from, to, Sube);
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
     }
 
     private static DateTimeOffset? ParseDate(string? s)

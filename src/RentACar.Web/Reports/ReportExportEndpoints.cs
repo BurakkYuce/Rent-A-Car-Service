@@ -64,7 +64,8 @@ public static class ReportExportEndpoints
                 "servis-ozet" => Servis(await rs.GetServiceCostSummaryAsync(from, to)),
                 "periyodik-servis" => PeriyodikServis(await rs.GetPeriyodikServisAsync()),
                 "km-detay" => KmDetay(await rs.GetKmDetayAsync(from, to)),
-                "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(from, to)),
+                "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(
+                    new RentACar.Application.Reporting.RezervasyonKaynakFilter { Bas = from, Bit = to })),
                 "fatura-donem" => FaturaDonem(await rs.GetFaturaDonemAsync(from, to)),
                 "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(from, to)),
                 "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),

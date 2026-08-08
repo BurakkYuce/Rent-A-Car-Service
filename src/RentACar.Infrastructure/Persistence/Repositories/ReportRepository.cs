@@ -649,12 +649,14 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(
+        PeriyodikServisFilter? filtre = null, CancellationToken ct = default)
     {
         // FAZ 6.2: birleşim OrtakSorgular'a taşındı — rapor sayfası ve FiloBildirimUretici (bakım-km
         // bildirimi) AYNI tanımı kullanır (O12a deseni; iki kopya sessizce ayrışmasın).
+        // FAZ-76: filtre YALNIZ rapor yolundan geçer; üretici parametresiz çağırmaya devam eder.
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await OrtakSorgular.PeriyodikServisAsync(db, ct);
+        return await OrtakSorgular.PeriyodikServisAsync(db, ct, filtre);
     }
 
     public async Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
@@ -667,34 +669,87 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (to is { } t) q = q.Where(r => r.BasTar <= t);
 
         var rows = await q
-            .Select(r => new { r.Id, r.SozlesmeNo, r.VehicleId, r.CikisKm, r.DonusKm, r.KmLimit, r.FazlaKm, r.FazlaKmBedeli })
+            .Select(r => new { r.Id, r.SozlesmeNo, r.VehicleId, r.CikisKm, r.DonusKm, r.KmLimit,
+                r.FazlaKm, r.FazlaKmBedeli, r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
             .ToListAsync(ct);
 
-        var plaka = (await db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
-            .ToDictionary(v => v.Id, v => v.Plaka);
+        // FAZ-76: araç JOIN'i yalnız Plaka için yapılıyordu; künye kolonları eklendi.
+        var arac = (await db.Vehicles.AsNoTracking()
+                .Select(v => new { v.Id, v.Plaka, v.Marka, v.Tip, v.Yakit, v.Vites }).ToListAsync(ct))
+            .ToDictionary(v => v.Id);
 
         return rows
-            .Select(r => new KmDetayRow(
-                r.Id, r.SozlesmeNo, plaka.TryGetValue(r.VehicleId, out var p) ? p : "(bilinmeyen araç)",
-                r.CikisKm!.Value, r.DonusKm!.Value, r.DonusKm!.Value - r.CikisKm!.Value,
-                r.KmLimit, r.FazlaKm, r.FazlaKmBedeli))
+            .Select(r =>
+            {
+                var v = arac.GetValueOrDefault(r.VehicleId);
+                return new KmDetayRow(
+                    r.Id, r.SozlesmeNo, v?.Plaka ?? "(bilinmeyen araç)",
+                    r.CikisKm!.Value, r.DonusKm!.Value, r.DonusKm!.Value - r.CikisKm!.Value,
+                    r.KmLimit, r.FazlaKm, r.FazlaKmBedeli,
+                    v?.Marka, v?.Tip, v?.Yakit?.ToString(), v?.Vites?.ToString(), r.BasTar, r.Bit);
+            })
             .ToList();
     }
 
     public async Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
-        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+        RezervasyonKaynakFilter filtre, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
         var q = db.Reservations.AsNoTracking();
-        if (from is { } f) q = q.Where(r => r.BasTar >= f);
-        if (to is { } t) q = q.Where(r => r.BasTar <= t);
 
-        var rows = await q.Select(r => new { r.Kaynak, r.Gun, r.Tutar }).ToListAsync(ct);
+        // FAZ-76: tarih hangi alana uygulanacak — çıkış (varsayılan, eski davranış), dönüş ya da
+        // kayıt tarihi. Eskiden yalnız BasTar vardı ve seçenek yoktu.
+        if (filtre.Bas is { } f)
+            q = filtre.TarihTipi switch
+            {
+                "Donus" => q.Where(r => r.BitTar >= f),
+                "Kayit" => q.Where(r => r.CreatedAtUtc >= f),
+                _ => q.Where(r => r.BasTar >= f)
+            };
+        if (filtre.Bit is { } t)
+            q = filtre.TarihTipi switch
+            {
+                "Donus" => q.Where(r => r.BitTar <= t),
+                "Kayit" => q.Where(r => r.CreatedAtUtc <= t),
+                _ => q.Where(r => r.BasTar <= t)
+            };
+
+        if (!string.IsNullOrWhiteSpace(filtre.Ofis))
+        {
+            var o = filtre.Ofis.Trim();
+            q = q.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == o);
+        }
+
+        var rows = await q
+            .Select(r => new { r.Kaynak, r.Gun, r.Tutar, r.Durum, r.VehicleId })
+            .ToListAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(filtre.Grup))
+        {
+            // Araç grubu rezervasyonda tutulmuyor → araçtan çözülür.
+            var g = filtre.Grup.Trim();
+            var grupIdler = (await db.Vehicles.AsNoTracking()
+                    .Where(v => v.Grup != null && v.Grup.Trim() == g)
+                    .Select(v => v.Id).ToListAsync(ct)).ToHashSet();
+            rows = rows.Where(r => grupIdler.Contains(r.VehicleId)).ToList();
+        }
 
         return rows
             .GroupBy(r => string.IsNullOrWhiteSpace(r.Kaynak) ? "(belirtilmemiş)" : r.Kaynak!)
-            .Select(g => new RezervasyonKaynakRow(g.Key, g.Count(), g.Sum(r => r.Gun), g.Sum(r => r.Tutar)))
+            .Select(g =>
+            {
+                // FAZ-76 DÜZELTME: İPTAL rezervasyonlar adet/gün/CİROYA dahil ediliyordu — bu bir
+                // veri-doğruluğu hatasıydı (gerçekleşmemiş iş ciro sayılıyordu). Artık varsayılan
+                // olarak DIŞARIDA; adedi ayrı kolonda görünür kalıyor ve istenirse dahil edilebiliyor.
+                var sayilan = filtre.IptalleriDahilEt
+                    ? g.ToList()
+                    : g.Where(r => r.Durum != ReservationStatus.Iptal).ToList();
+                return new RezervasyonKaynakRow(
+                    g.Key, sayilan.Count, sayilan.Sum(r => r.Gun), sayilan.Sum(r => r.Tutar),
+                    g.Count(r => r.Durum == ReservationStatus.Iptal));
+            })
+            .Where(r => r.Adet > 0 || r.IptalAdet > 0)
             .OrderByDescending(r => r.ToplamCiro)
             .ToList();
     }
@@ -724,19 +779,42 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     }
 
     public async Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        var toplam = await db.Vehicles.AsNoTracking().CountAsync(ct);
+        // FAZ-76: opsiyonel şube süzgeci. Filtre ARACIN şubesine bakar ve kira/servis/BAF
+        // sayımlarının HEPSİ aynı araç kümesinden gelir — karışık atıf satırı tutarsız yapardı
+        // (FAZ-77'de kurulan tek-atıf kuralı).
+        var aracQ = db.Vehicles.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sube))
+        {
+            var sb = sube.Trim();
+            aracQ = aracQ.Where(v => v.Sube != null && v.Sube.Trim() == sb);
+        }
+        var aracIdler = await aracQ.Select(v => v.Id).ToListAsync(ct);
+        var toplam = aracIdler.Count;
+        if (toplam == 0) return [];
+        var kume = aracIdler.ToHashSet();
 
         var kiralar = await db.Rentals.AsNoTracking()
-            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Where(r => r.Durum != RentalStatus.Iptal && kume.Contains(r.VehicleId))
             .Select(r => new { r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
             .ToListAsync(ct);
 
+        // FAZ-76 DÜZELTME: İPTAL servis kayıtları "Bakım" günü olarak SAYILIYORDU. Diğer benzer
+        // sorgularda bu filtre vardı; burada eksikti → iptal edilen bir servis aracı günlerce
+        // bakımdaymış gibi gösteriyor ve "Boş" sayısını düşürüyordu.
         var servisler = await db.ServiceRecords.AsNoTracking()
+            .Where(s => s.Durum != ServisDurum.Iptal && kume.Contains(s.VehicleId))
             .Select(s => new { s.GirisTarihi, Cikis = s.CikisTarihi })
+            .ToListAsync(ct);
+
+        // BAF: açık tahsisler — BİLGİ kolonu, Bos hesabına girmez (bir araç hem kirada hem
+        // tahsisli olabilir; çıkarsaydık çift düşüm yapardık).
+        var baflar = await db.Baflar.AsNoTracking()
+            .Where(b => b.Durum == BafDurum.Acik && kume.Contains(b.VehicleId))
+            .Select(b => b.CreatedAtUtc)
             .ToListAsync(ct);
 
         var sonuc = new List<AracDurumTakipRow>();
@@ -745,7 +823,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             var dolu = kiralar.Count(k => k.BasTar.Date <= d && k.Bit.Date >= d);
             var bakim = servisler.Count(s => s.GirisTarihi.Date <= d && (s.Cikis ?? to).Date >= d);
             var bos = Math.Max(0, toplam - dolu - bakim);
-            sonuc.Add(new AracDurumTakipRow(new DateTimeOffset(d, TimeSpan.Zero), toplam, dolu, bakim, bos));
+            var baf = baflar.Count(b => b.Date <= d);
+            sonuc.Add(new AracDurumTakipRow(new DateTimeOffset(d, TimeSpan.Zero), toplam, dolu, bakim, bos, baf));
         }
         return sonuc;
     }
@@ -791,19 +870,35 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     }
 
     public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        var yeniRez = await db.Reservations.AsNoTracking()
-            .CountAsync(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to, ct);
-        var yeniKira = await db.Rentals.AsNoTracking()
-            .CountAsync(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to, ct);
+        // FAZ-76 — şube süzgeci YALNIZ operasyon sayaçlarına (rezervasyon/kira/çıkış/dönüş)
+        // uygulanır: bunlar CikisOfisi taşır. Tahsilat ve fatura şube boyutu TAŞIMAZ; onları
+        // filtrelenmiş gibi göstermek yanlış olurdu, filtrelemeden bırakıp EKRANDA "şube kırılımı
+        // yok" diye etiketliyoruz (karışık atıf yerine açık sınır).
+        var rezQ = db.Reservations.AsNoTracking().Where(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to);
+        var kiraYeniQ = db.Rentals.AsNoTracking().Where(r => r.CreatedAtUtc >= from && r.CreatedAtUtc <= to);
+        var cikisQ = db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal && r.BasTar >= from && r.BasTar <= to);
+        var donusQ = db.Rentals.AsNoTracking()
+            .Where(r => r.GercekDonusTar != null && r.GercekDonusTar >= from && r.GercekDonusTar <= to);
+
+        if (!string.IsNullOrWhiteSpace(sube))
+        {
+            var sb = sube.Trim();
+            rezQ = rezQ.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == sb);
+            kiraYeniQ = kiraYeniQ.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == sb);
+            cikisQ = cikisQ.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == sb);
+            donusQ = donusQ.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == sb);
+        }
+
+        var yeniRez = await rezQ.CountAsync(ct);
+        var yeniKira = await kiraYeniQ.CountAsync(ct);
         // Çıkış: o gün başlayan (İptal olmayan) kiralar. Dönüş: o gün gerçek dönüşü yapılan kiralar.
-        var cikis = await db.Rentals.AsNoTracking()
-            .CountAsync(r => r.Durum != RentalStatus.Iptal && r.BasTar >= from && r.BasTar <= to, ct);
-        var donus = await db.Rentals.AsNoTracking()
-            .CountAsync(r => r.GercekDonusTar != null && r.GercekDonusTar >= from && r.GercekDonusTar <= to, ct);
+        var cikis = await cikisQ.CountAsync(ct);
+        var donus = await donusQ.CountAsync(ct);
 
         // Tahsilat: TEK doğruluk kaynağı (denetim O12b — WhatsApp özeti aynı tanımı kullanır; TL-baz Σ Amount×Rate,
         // ters kayıt hariç). Pencere [from, to] kapalı → helper'a to+1tick (davranış birebir korunur).
