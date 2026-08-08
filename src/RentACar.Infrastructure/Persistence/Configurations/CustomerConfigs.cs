@@ -161,7 +161,12 @@ internal sealed class SikayetConfig : IEntityTypeConfiguration<Sikayet>
         e.Property(x => x.Detay).HasMaxLength(2048);
         e.Property(x => x.Durum).HasConversion<int>();
         e.Property(x => x.Cozum).HasMaxLength(2048);
+        // FAZ-43 teslim/dönüş bağı
+        e.Property(x => x.SikayetKanali).HasMaxLength(64);
+        e.Property(x => x.SikayetYeri).HasConversion<int?>();
+        e.Property(x => x.CikisOfisi).HasMaxLength(128);
         e.HasIndex(x => new { x.TenantId, x.Tarih });
+        e.HasIndex(x => new { x.TenantId, x.RentalId });
     }
 }
 
