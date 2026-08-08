@@ -33,6 +33,27 @@ public sealed class VehicleGroupService(
     public Task<IReadOnlyList<VehicleGroup>> ListActiveAsync(CancellationToken ct = default)
         => _repository.ListActiveAsync(ct);
 
+    /// <summary>
+    /// FAZ-20 — grup ADI başına araç sayısı (liste ekranındaki "Araç Sayısı" kolonu).
+    ///
+    /// <para>Eşleştirme, <see cref="ListUnmatchedGrupValuesAsync"/> ile AYNI kuralı kullanır
+    /// (<c>TurkishText.EqualsIgnoreTurkishCase</c>): araçtaki grup bir METİN alanıdır, FK değil —
+    /// "Ekonomik" ile "EKONOMİK" aynı gruptur. İki yerde iki farklı eşleştirme kuralı olsaydı
+    /// "eşleşmeyen" listesi ile sayaç birbirini tutmazdı.</para>
+    ///
+    /// <para>Dönen sözlüğün anahtarı grup ADIdır; listede olmayan ad hiç görünmez (sayaç 0 olarak
+    /// okunur).</para>
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid, int>> AracSayilariAsync(CancellationToken ct = default)
+    {
+        var gruplar = await ListAsync(ct);
+        var filo = await vehicles.ListAsync(ct);
+        return gruplar.ToDictionary(
+            g => g.Id,
+            g => filo.Count(v => !string.IsNullOrWhiteSpace(v.Grup)
+                                 && TurkishText.EqualsIgnoreTurkishCase(g.Ad, v.Grup!)));
+    }
+
     /// <summary>PR-4.5 tanılama — engelleyici değil, yalnız görünürlük. Yetki gerektirmez (okuma).</summary>
     public async Task<IReadOnlyList<UnmatchedGrupValue>> ListUnmatchedGrupValuesAsync(CancellationToken ct = default)
     {
@@ -211,10 +232,21 @@ public sealed class VehicleGroupService(
         KrediKartiSart = input.KrediKartiSart,
         WebSira = input.WebSira,
         UpgradeSira = input.UpgradeSira,
+        // FAZ-20 — Normalize YENİ nesne kurar: buraya eklenmeyen alan sessizce kaybolur.
+        ProvizyonDoviz = Doviz(input.ProvizyonDoviz),
+        Provizyon2Doviz = Doviz(input.Provizyon2Doviz),
+        YakitTuru = input.YakitTuru,
+        Vites = input.Vites,
+        EntegrasyonKod1 = TrimOrNull(input.EntegrasyonKod1),
+        WebId = TrimOrNull(input.WebId),
+        ServisId = TrimOrNull(input.ServisId),
         Aktif = input.Aktif
     };
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>Döviz kodu: trim + büyük harf (TRY/EUR/USD ile aynı sözlük).</summary>
+    private static string? Doviz(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToUpperInvariant();
 
     private static void Apply(VehicleGroup group, VehicleGroupInput n)
     {
@@ -249,6 +281,13 @@ public sealed class VehicleGroupService(
         group.KrediKartiSart = n.KrediKartiSart;
         group.WebSira = n.WebSira;
         group.UpgradeSira = n.UpgradeSira;
+        group.ProvizyonDoviz = n.ProvizyonDoviz;
+        group.Provizyon2Doviz = n.Provizyon2Doviz;
+        group.YakitTuru = n.YakitTuru;
+        group.Vites = n.Vites;
+        group.EntegrasyonKod1 = n.EntegrasyonKod1;
+        group.WebId = n.WebId;
+        group.ServisId = n.ServisId;
         group.Aktif = n.Aktif;
     }
 }

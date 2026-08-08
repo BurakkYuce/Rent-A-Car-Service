@@ -78,6 +78,10 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         HesapNo = string.IsNullOrWhiteSpace(input.HesapNo) ? null : input.HesapNo.Trim(),
         Banka = string.IsNullOrWhiteSpace(input.Banka) ? null : input.Banka.Trim(),
         Sube = string.IsNullOrWhiteSpace(input.Sube) ? null : input.Sube.Trim(),
+        // Normalize YENİ nesne kurar → eklenmeyen alan sessizce kaybolur.
+        HediyeCek = input.HediyeCek,
+        OzelKod = string.IsNullOrWhiteSpace(input.OzelKod) ? null : input.OzelKod.Trim().ToUpperInvariant(),
+        UyariMailListesi = string.IsNullOrWhiteSpace(input.UyariMailListesi) ? null : input.UyariMailListesi.Trim(),
         Aktif = input.Aktif
     };
 
@@ -91,6 +95,9 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         account.HesapNo = n.HesapNo;
         account.Banka = n.Banka;
         account.Sube = n.Sube;
+        account.HediyeCek = n.HediyeCek;
+        account.OzelKod = n.OzelKod;
+        account.UyariMailListesi = n.UyariMailListesi;
         account.Aktif = n.Aktif;
     }
 }

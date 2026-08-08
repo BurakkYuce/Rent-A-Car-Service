@@ -14,12 +14,12 @@ public static class CurrencyEndpoints
         var grp = app.MapGroup("/dovizler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (CurrencyService svc,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? sembol) =>
-            await Run(() => svc.CreateAsync(new CurrencyInput { Kod = kod, Ad = ad, Sembol = sembol, Aktif = true })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? sembol, [FromForm] string? ulke) =>
+            await Run(() => svc.CreateAsync(new CurrencyInput { Kod = kod, Ad = ad, Sembol = sembol, Ulke = ulke, Aktif = true })));
 
         grp.MapPost("/update", async (CurrencyService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad, [FromForm] string? sembol, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new CurrencyInput { Kod = kod, Ad = ad, Sembol = sembol, Aktif = aktif })));
+            [FromForm] string kod, [FromForm] string ad, [FromForm] string? sembol, [FromForm] string? ulke, [FromForm] bool aktif) =>
+            await Run(() => svc.UpdateAsync(id, new CurrencyInput { Kod = kod, Ad = ad, Sembol = sembol, Ulke = ulke, Aktif = aktif })));
 
         grp.MapPost("/delete", async (CurrencyService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));

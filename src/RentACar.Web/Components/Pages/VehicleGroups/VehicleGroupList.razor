@@ -94,27 +94,50 @@
         </label>
         <label>Web Sıra<input name="webSira" type="number" min="0" /></label>
         <label>Upgrade Sıra<input name="upgradeSira" type="number" min="0" /></label>
+        <label>Provizyon Dövizi<input name="provizyonDoviz" maxlength="3" placeholder="EUR" /></label>
+        <label>Provizyon 2 Dövizi<input name="provizyon2Doviz" maxlength="3" /></label>
+        <label>Yakıt Türü
+            <select name="yakitTuru"><option value="">—</option>
+                @foreach (var y in Enum.GetValues<FuelType>()) { <option value="@y">@y</option> }
+            </select>
+        </label>
+        <label>Vites
+            <select name="vites"><option value="">—</option>
+                @foreach (var v in Enum.GetValues<Vites>()) { <option value="@v">@v</option> }
+            </select>
+        </label>
+        <label>Entegrasyon Kodu<input name="entegrasyonKod1" maxlength="64" /></label>
+        <label>Web ID<input name="webId" maxlength="64" /></label>
+        <label>Servis ID<input name="servisId" maxlength="64" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>SIPP</th><th>Segment</th><th>Günlük KM</th><th>Provizyon</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Açıklama</th><th>SIPP</th><th>Segment</th><th class="num">Araç Sayısı</th><th class="num">Günlük KM</th><th class="num">Provizyon</th><th>Web ID</th><th>Servis ID</th><th class="num">Sürücü Yaşı</th><th class="num">Ehliyet Yılı</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Araç grubu tanımlı değil.</td></tr>
+            <tr><td colspan="14" class="muted">Araç grubu tanımlı değil.</td></tr>
         }
         @foreach (var g in _list)
         {
             <tr>
                 <td class="mono">@g.Kod</td>
                 <td>@g.Ad</td>
+                <td>@(string.IsNullOrWhiteSpace(g.Aciklama) ? "—" : g.Aciklama)</td>
                 <td class="mono">@g.Sipp</td>
                 <td>@g.Segment</td>
+                @* Araç sayısı: grup ADI eşlemesiyle (Vehicle.Grup metin alanı, FK değil) —
+                   "eşleşmeyen değerler" paneliyle AYNI Türkçe-duyarlı kural. *@
+                <td class="num">@_aracSayisi.GetValueOrDefault(g.Id)</td>
                 <td class="num">@(g.GunlukKmLimiti?.ToString() ?? "—")</td>
-                <td class="num">@(g.Provizyon?.ToString("N2") ?? "—")</td>
+                <td class="num">@(g.Provizyon?.ToString("N2") ?? "—")@(string.IsNullOrWhiteSpace(g.ProvizyonDoviz) ? "" : " " + g.ProvizyonDoviz)</td>
+                <td>@(g.WebId ?? "—")</td>
+                <td>@(g.ServisId ?? "—")</td>
+                <td class="num">@(g.SurucuMinYas?.ToString() ?? "—")</td>
+                <td class="num">@(g.EhliyetMinYil?.ToString() ?? "—")</td>
                 <td>@(g.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -158,6 +181,21 @@
                             </label>
                             <label>Web Sıra<input name="webSira" type="number" min="0" value="@g.WebSira" /></label>
                             <label>Upgrade Sıra<input name="upgradeSira" type="number" min="0" value="@g.UpgradeSira" /></label>
+                            <label>Provizyon Dövizi<input name="provizyonDoviz" maxlength="3" value="@g.ProvizyonDoviz" /></label>
+                            <label>Provizyon 2 Dövizi<input name="provizyon2Doviz" maxlength="3" value="@g.Provizyon2Doviz" /></label>
+                            <label>Yakıt Türü
+                                <select name="yakitTuru"><option value="">—</option>
+                                    @foreach (var y in Enum.GetValues<FuelType>()) { <option value="@y" selected="@(g.YakitTuru == y)">@y</option> }
+                                </select>
+                            </label>
+                            <label>Vites
+                                <select name="vites"><option value="">—</option>
+                                    @foreach (var v in Enum.GetValues<Vites>()) { <option value="@v" selected="@(g.Vites == v)">@v</option> }
+                                </select>
+                            </label>
+                            <label>Entegrasyon Kodu<input name="entegrasyonKod1" maxlength="64" value="@g.EntegrasyonKod1" /></label>
+                            <label>Web ID<input name="webId" maxlength="64" value="@g.WebId" /></label>
+                            <label>Servis ID<input name="servisId" maxlength="64" value="@g.ServisId" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@g.Aktif">Aktif</option>
@@ -185,6 +223,7 @@
     private IReadOnlyList<VehicleGroup> _list = [];
     private List<string> _markaOpts = [], _segmentOpts = [];
     private IReadOnlyList<UnmatchedGrupValue> _unmatched = [];
+    private IReadOnlyDictionary<Guid, int> _aracSayisi = new Dictionary<Guid, int>();
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -198,5 +237,6 @@
         _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
         _segmentOpts = Opts(_list.Select(g => g.Segment));
         _unmatched = await AracGruplari.ListUnmatchedGrupValuesAsync();
+        _aracSayisi = await AracGruplari.AracSayilariAsync();
     }
 }

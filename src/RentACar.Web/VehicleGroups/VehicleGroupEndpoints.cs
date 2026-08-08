@@ -78,6 +78,13 @@ public static class VehicleGroupEndpoints
         KrediKartiSart = Bool(f, "krediKartiSart"),
         WebSira = FormParse.Int(FormParse.Str(f, "webSira")),
         UpgradeSira = FormParse.Int(FormParse.Str(f, "upgradeSira")),
+        ProvizyonDoviz = FormParse.Str(f, "provizyonDoviz"),
+        Provizyon2Doviz = FormParse.Str(f, "provizyon2Doviz"),
+        YakitTuru = Enum.TryParse<RentACar.Domain.Enums.FuelType>(FormParse.Str(f, "yakitTuru"), out var yt) ? yt : null,
+        Vites = Enum.TryParse<RentACar.Domain.Enums.Vites>(FormParse.Str(f, "vites"), out var vt) ? vt : null,
+        EntegrasyonKod1 = FormParse.Str(f, "entegrasyonKod1"),
+        WebId = FormParse.Str(f, "webId"),
+        ServisId = FormParse.Str(f, "servisId"),
         Aktif = aktif
     };
 
