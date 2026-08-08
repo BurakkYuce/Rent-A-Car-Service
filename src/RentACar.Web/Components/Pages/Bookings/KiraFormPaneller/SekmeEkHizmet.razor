@@ -26,8 +26,13 @@
             {
                 <tr>
                     <td><input type="checkbox" name="ekSecim" value="@t.Id" class="u-w-auto" /></td>
-                    <td>@t.Ad <span class="muted small">(@t.Kod)</span></td>
-                    <td><input name="ekMiktar_@t.Id" type="number" value="1" min="0.01" step="0.01" /></td>
+                    @* FAZ-80: açıklama ipucu + maks gün rozeti. İkisi de BİLGİ amaçlı —
+                       miktar alanı serbest kalır (sınırı kurala çevirmek fiyat motoru kararı). *@
+                    <td title="@t.Aciklama">@t.Ad <span class="muted small">(@t.Kod)</span></td>
+                    <td>
+                        <input name="ekMiktar_@t.Id" type="number" value="1" min="0.01" step="0.01" />
+                        @if (t.MaxGun is { } mg) { <span class="muted small">maks @mg gün</span> }
+                    </td>
                     <td class="num kf-ro" style="border-radius:4px;">@t.BirimUcret.ToString("N2")</td>
                     <td class="num kf-ro" style="border-radius:4px;">%@((t.KdvOrani * 100).ToString("0"))</td>
                     <td><select disabled title="TODO: dış tedarik ledger ataması"><option>Bizim</option><option>Dış Tedarik</option></select></td>

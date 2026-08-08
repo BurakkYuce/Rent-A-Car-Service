@@ -73,6 +73,9 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Ek hizmet adı zorunludur.");
         if (n.BirimUcret < 0) throw new ValidationException("Birim ücret negatif olamaz.");
         if (n.KdvOrani is < 0m or > 1m) throw new ValidationException("KDV oranı 0 ile 1 arasında olmalıdır.");
+        // 0/negatif "maks gün" hiçbir şey anlatmaz (sınırsız için null kullanılır) → reddedilir.
+        if (n.MaxGun is <= 0) throw new ValidationException("Max gün pozitif olmalıdır.");
+        if (n.Aciklama is { Length: > 512 }) throw new ValidationException("Açıklama en çok 512 karakter olabilir.");
     }
 
     private static EkHizmetTanimInput Normalize(EkHizmetTanimInput input) => new()
@@ -81,6 +84,8 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         Ad = (input.Ad ?? string.Empty).Trim(),
         BirimUcret = input.BirimUcret,
         KdvOrani = input.KdvOrani,
+        Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim(),
+        MaxGun = input.MaxGun,
         Aktif = input.Aktif
     };
 
@@ -89,6 +94,8 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         t.Kod = n.Kod;
         t.Ad = n.Ad;
         t.BirimUcret = n.BirimUcret;
+        t.Aciklama = n.Aciklama;
+        t.MaxGun = n.MaxGun;
         t.KdvOrani = n.KdvOrani;
         t.Aktif = n.Aktif;
     }
