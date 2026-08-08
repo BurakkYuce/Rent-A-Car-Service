@@ -93,6 +93,7 @@ public static class DependencyInjection
         services.AddScoped<Legal.HukukDosyaService>();
         services.AddScoped<Crm.AnketService>();
         services.AddScoped<Crm.SikayetService>();
+        services.AddScoped<Crm.AssistansTalepService>();   // FAZ-44
         services.AddScoped<Search.SearchService>();
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());

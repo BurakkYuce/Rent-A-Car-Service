@@ -494,6 +494,7 @@ app.MapTenantSettingsEndpoints();
 app.MapPersonelEndpoints();
 app.MapHukukEndpoints();
 app.MapCrmEndpoints();
+app.MapAssistansTalepEndpoints();   // FAZ-44
 app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
