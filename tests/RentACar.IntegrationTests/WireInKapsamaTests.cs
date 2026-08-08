@@ -34,6 +34,10 @@ public sealed class WireInKapsamaTests
         // (form dosyası, form alan adı, neden önemli)
         { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "vehicleId",
           "taksit gideri araca atfedilir (AccountRef=VehicleId); yoksa karnede (Atanmamış)" },
+        { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "cariId",
+          "FAZ-13 kredi-cari ilişkisi; sorulmazsa liste cari filtresi hep boş sonuç verir" },
+        { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "dosyaNo",
+          "FAZ-13 banka dosya referansı; kolon ve arama bu alana dayanır" },
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "hedefFiyat", "satış analizi" },
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKm", "satış anı km" },
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKanali", "satış kanalı kırılımı" },

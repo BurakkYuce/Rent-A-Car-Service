@@ -19,6 +19,19 @@ public class AracKredi : ITenantOwned, IAuditable
     public string BankaAdi { get; set; } = string.Empty;
     public Guid? VehicleId { get; set; }
 
+    /// <summary>
+    /// FAZ-13: kredinin bağlı olduğu cari (canlıdaki Musteri_No/Ad alanı). ADDITIVE — serbest metin
+    /// <see cref="BankaAdi"/> KALDI ve zorunlu; cari yalnız ilişkilendirmedir (kredi veren kurum ya da
+    /// ilgili müşteri). <b>Cari bakiyesine DOKUNMAZ</b> — bu alan deftere hiçbir kayıt yazmaz
+    /// (KARARLAR.md genel politikası: yeni tutar/ilişki alanları bilgi kalır). Krediden doğan gerçek
+    /// para hareketi yalnız "Taksit Öde" akışıyla oluşur ve orada karşı hesap Kasa/Banka'dır.
+    /// </summary>
+    public Guid? CariId { get; set; }
+
+    /// <summary>FAZ-13: canlıdaki "Dosya Numarası" (Makbuz_No) — banka/finans kurumu dosya referansı.
+    /// Bizim boşluksuz <see cref="No"/> alanımızın YERİNE geçmez, onun yanında dış referans taşır.</summary>
+    public string? DosyaNo { get; set; }
+
     public decimal KrediTutari { get; set; }
     public decimal FaizOran { get; set; }   // yıllık basit faiz (kesir)
     public int TaksitSayisi { get; set; }
