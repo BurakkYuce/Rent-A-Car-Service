@@ -35,9 +35,11 @@
             else
             {
                 <label>Araç
+                    @* FAZ-19: müsaitlik listesinden "Kirala" ile gelindiyse (?varac=) araç ön-seçili.
+                       Ön-seçim yalnız GÖRÜNÜMdür — kayıt yine formdan gelen vehicleId ile yapılır. *@
                     <select name="vehicleId" required>
                         <option value="">—</option>
-                        @foreach (var v in Vm.Vehicles) { <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip</option> }
+                        @foreach (var v in Vm.Vehicles) { <option value="@v.Id" selected="@(v.Id == Vm.Varac)">@v.Plaka — @v.Marka @v.Tip</option> }
                     </select>
                 </label>
             }
