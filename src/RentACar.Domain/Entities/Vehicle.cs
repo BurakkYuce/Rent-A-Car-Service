@@ -227,6 +227,63 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     /// <summary>Lastik durumu (serbest metin: Yazlık/Kışlık/Yıpranmış…).</summary>
     public string? LastikDurumu { get; set; }
 
+    // ---- FAZ-10 — araç kayıt kartı alan derinliği (canlı arac_kayit.aspx) ----
+    // HEPSİ BİLGİ ALANIDIR: fiyat, müsaitlik, defter ve karne/karlılık hesaplarına GİRMEZ.
+
+    /// <summary>TSRB (sigorta birliği) marka kodu — entegrasyon/ihbar eşlemesi.</summary>
+    public string? TsrbMarkaKodu { get; set; }
+    /// <summary>TSRB tip kodu.</summary>
+    public string? TsrbTipKodu { get; set; }
+    /// <summary>Alt grup adı (Grup'un altında serbest kırılım; araç grubu FK'si DEĞİL).</summary>
+    public string? AltGrupAdi { get; set; }
+    /// <summary>Dış sistem entegrasyon kodu.</summary>
+    public string? EntegrasyonKodu { get; set; }
+    /// <summary>Teyp/multimedya envanter kodu.</summary>
+    public string? TeypKodu { get; set; }
+
+    /// <summary>GPS takip cihazı markası — HGS/OGS'den AYRI bir cihazdır.</summary>
+    public string? TakipMarka { get; set; }
+    /// <summary>GPS takip cihazı numarası.</summary>
+    public string? TakipNo { get; set; }
+
+    /// <summary>Sahiplik kırılımı: sahip grubu (ör. "Kendi Filo", "Operasyonel Kiralama").</summary>
+    public string? SahipGrup { get; set; }
+    /// <summary>Araç sahibi kayıt/sicil numarası (<see cref="AracSahibi"/> metnini tamamlar).</summary>
+    public string? AracSahibiNo { get; set; }
+    /// <summary>İkinci araç sahibi (ortak mülkiyet).</summary>
+    public string? AracSahibi2 { get; set; }
+    /// <summary>Aracı finanse eden kredi firması (şirketin banka kredisi kaydı için /arac-kredi).</summary>
+    public string? KrediFirma { get; set; }
+
+    /// <summary>Araç dosyasının KAPATILDIĞI tarih (kayıt kapanışı).</summary>
+    public DateTimeOffset? KapatmaTarih { get; set; }
+    /// <summary>Filodan çıkması PLANLANAN tarih — <see cref="FiloCikisTarih"/> GERÇEKLEŞEN çıkıştır.
+    /// İkisi ayrı sorulardır; planı gerçekleşen alana yazmak çıkmış aracı filodan düşürürdü.</summary>
+    public DateTimeOffset? CikmasiPlananTarih { get; set; }
+    /// <summary>Satış anındaki kilometre (bilgi; satış kaydının kendi alanları ayrı).</summary>
+    public int? AracSatisKm { get; set; }
+
+    /// <summary>Serbest açıklama notu.</summary>
+    public string? Aciklama { get; set; }
+    /// <summary>Aracın fiziksel konumu (serbest metin; şube/ofis FK'si DEĞİL).</summary>
+    public string? Konum { get; set; }
+
+    // ---- FAZ-10 döviz/kur bilgi alanları ----
+    // KARAR: bu 4 alan SALT BİLGİDİR. Karne/Karlılık P&L'i CLAUDE.md §4 gereği YALNIZ DEFTERDEN
+    // hesaplanır; buradaki kurları bir hesaba bağlamak, kullanıcı "not" sanıp doldurduğunda
+    // araç karnesini/marjı sessizce değiştirirdi. Bağlanıp bağlanmayacağı AYRI bir para
+    // incelemesidir ve bu fazda AÇILMAMIŞTIR (regresyon testi kilitliyor).
+
+    /// <summary>Alım bedelinin girildiği andaki kur (bilgi). Hesaba girmez.</summary>
+    public decimal? AlimBedeliKur { get; set; }
+    /// <summary>İkinci araç/opsiyon fiyatının kuru (bilgi). Hesaba girmez.</summary>
+    public decimal? Arac2FiyatKur { get; set; }
+    /// <summary>Kartın güncellendiği andaki kur notu (bilgi). Hesaba girmez.</summary>
+    public decimal? SimdiKur { get; set; }
+    /// <summary>Aylık maliyetin döviz karşılığı (bilgi) — <see cref="AylikMaliyet"/> TL alanıdır
+    /// ve raporlarda KULLANILAN odur. Hesaba girmez.</summary>
+    public decimal? AylikMaliyetDoviz { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? UpdatedAtUtc { get; set; }

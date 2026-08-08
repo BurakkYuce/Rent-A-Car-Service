@@ -104,17 +104,17 @@ else
         <label>Motor Gücü (HP)<input name="motorGucu" type="number" min="0" value="@_vehicle.MotorGucu" /></label>
         <label>Silindir Hacmi (cc)<input name="silindirHacmi" type="number" min="0" value="@_vehicle.SilindirHacmi" /></label>
         <label>Ruhsat No<input name="ruhsatNo" value="@_vehicle.RuhsatNo" /></label>
-        <label>Tescil Tarihi<input name="tescilTarihi" type="date" value="@(_vehicle.TescilTarihi?.ToString("yyyy-MM-dd"))" /></label>
-        <label>Alım Bedeli<input name="alimBedeli" type="number" step="0.01" min="0" value="@_vehicle.AlimBedeli" /></label>
-        <label>Alım Tarihi<input name="alimTarihi" type="date" value="@(_vehicle.AlimTarihi?.ToString("yyyy-MM-dd"))" /></label>
-        <label>Alış Vergisiz<input name="alisVergisiz" type="number" step="0.01" min="0" value="@_vehicle.AlisVergisiz" /></label>
-        <label>Alış ÖTV<input name="alisOtv" type="number" step="0.01" min="0" value="@_vehicle.AlisOtv" /></label>
-        <label>Alış KDV<input name="alisKdv" type="number" step="0.01" min="0" value="@_vehicle.AlisKdv" /></label>
-        <label>Aylık Maliyet<input name="aylikMaliyet" type="number" step="0.01" min="0" value="@_vehicle.AylikMaliyet" /></label>
-        <label>Filo Yön. Maliyeti<input name="filoYonetimMaliyeti" type="number" step="0.01" min="0" value="@_vehicle.FiloYonetimMaliyeti" /></label>
-        <label>2.El Değer<input name="ikinciElDeger" type="number" step="0.01" min="0" value="@_vehicle.IkinciElDeger" /></label>
-        <label>Filo Giriş<input name="filoGirisTarih" type="date" value="@(_vehicle.FiloGirisTarih?.ToString("yyyy-MM-dd"))" /></label>
-        <label>Filo Çıkış<input name="filoCikisTarih" type="date" value="@(_vehicle.FiloCikisTarih?.ToString("yyyy-MM-dd"))" /></label>
+        <label>Tescil Tarihi<input name="tescilTarihi" type="date" value="@Gun(_vehicle.TescilTarihi)" /></label>
+        <label>Alım Bedeli<input name="alimBedeli" type="number" step="0.01" min="0" value="@Inv(_vehicle.AlimBedeli)" /></label>
+        <label>Alım Tarihi<input name="alimTarihi" type="date" value="@Gun(_vehicle.AlimTarihi)" /></label>
+        <label>Alış Vergisiz<input name="alisVergisiz" type="number" step="0.01" min="0" value="@Inv(_vehicle.AlisVergisiz)" /></label>
+        <label>Alış ÖTV<input name="alisOtv" type="number" step="0.01" min="0" value="@Inv(_vehicle.AlisOtv)" /></label>
+        <label>Alış KDV<input name="alisKdv" type="number" step="0.01" min="0" value="@Inv(_vehicle.AlisKdv)" /></label>
+        <label>Aylık Maliyet<input name="aylikMaliyet" type="number" step="0.01" min="0" value="@Inv(_vehicle.AylikMaliyet)" /></label>
+        <label>Filo Yön. Maliyeti<input name="filoYonetimMaliyeti" type="number" step="0.01" min="0" value="@Inv(_vehicle.FiloYonetimMaliyeti)" /></label>
+        <label>2.El Değer<input name="ikinciElDeger" type="number" step="0.01" min="0" value="@Inv(_vehicle.IkinciElDeger)" /></label>
+        <label>Filo Giriş<input name="filoGirisTarih" type="date" value="@Gun(_vehicle.FiloGirisTarih)" /></label>
+        <label>Filo Çıkış<input name="filoCikisTarih" type="date" value="@Gun(_vehicle.FiloCikisTarih)" /></label>
         <label>Özel Kod 1<input name="ozelKod1" value="@_vehicle.OzelKod1" /></label>
         <label>Özel Kod 2<input name="ozelKod2" value="@_vehicle.OzelKod2" /></label>
         <label>Özel Kod 3<input name="ozelKod3" value="@_vehicle.OzelKod3" /></label>
@@ -127,7 +127,7 @@ else
         <label>Alım Fatura No<input name="alimFaturaNo" value="@_vehicle.AlimFaturaNo" /></label>
         <label>Alım Yapılan Firma<input name="alimYapilanFirma" value="@_vehicle.AlimYapilanFirma" /></label>
         <label>Kira KM Limiti<input name="kiraKmLimiti" type="number" min="0" value="@_vehicle.KiraKmLimiti" /></label>
-        <label>Son Bakım Tarihi<input name="sonBakimTarih" type="date" value="@_vehicle.SonBakimTarih?.ToString("yyyy-MM-dd")" /></label>
+        <label>Son Bakım Tarihi<input name="sonBakimTarih" type="date" value="@Gun(_vehicle.SonBakimTarih)" /></label>
         <label>Son Bakım KM<input name="sonBakimKm" type="number" min="0" value="@_vehicle.SonBakimKm" /></label>
         <label>Lastik Durumu<input name="lastikDurumu" value="@_vehicle.LastikDurumu" placeholder="Yazlık/Kışlık..." /></label>
         @* PR-11: elinde aynı araçtan N adet olup hepsini ayrı ayrı kaydetmek istemeyen firma için.
@@ -152,19 +152,82 @@ else
                 <label>HGS Firma<input name="hgsFirma" value="@_vehicle.HgsFirma" /></label>
                 <label>Yurt Dışı KM Limiti<input name="disKmLimit" type="number" min="0" value="@_vehicle.DisKmLimit" /></label>
                 <label>TSB Kodu<input name="tsbKodu" value="@_vehicle.TsbKodu" /></label>
-                <label>TSB Kasko Değeri<input name="tsbKaskoDegeri" type="number" step="0.01" min="0" value="@_vehicle.TsbKaskoDegeri" /></label>
+                <label>TSB Kasko Değeri<input name="tsbKaskoDegeri" type="number" step="0.01" min="0" value="@Inv(_vehicle.TsbKaskoDegeri)" /></label>
                 <label class="check"><input type="checkbox" name="alisEuro" value="true" checked="@(_vehicle.AlisEuro == true)" /> Alım EURO bazlı</label>
-                <label>Alış EURO Fiyatı<input name="alisEuroFiyat" type="number" step="0.01" min="0" value="@_vehicle.AlisEuroFiyat" /></label>
-                <label>Hedef Satış EURO<input name="satisEuroFiyat" type="number" step="0.01" min="0" value="@_vehicle.SatisEuroFiyat" /></label>
+                <label>Alış EURO Fiyatı<input name="alisEuroFiyat" type="number" step="0.01" min="0" value="@Inv(_vehicle.AlisEuroFiyat)" /></label>
+                <label>Hedef Satış EURO<input name="satisEuroFiyat" type="number" step="0.01" min="0" value="@Inv(_vehicle.SatisEuroFiyat)" /></label>
                 <label>Pasif Sebebi<input name="pasifSebep" value="@_vehicle.PasifSebep" /></label>
                 <label>Son Durum Notu<input name="sonDurum" value="@_vehicle.SonDurum" /></label>
                 <label>Son Teslim KM<input name="sonTeslimKm" type="number" min="0" value="@_vehicle.SonTeslimKm" /></label>
                 <label>Son Teslim Tarihi<input name="sonTeslimTarihi" type="date" value="@_vehicle.SonTeslimTarihi?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
                 <label>Kiralayan (not)<input name="kiralayan" value="@_vehicle.Kiralayan" /></label>
                 <label>Kira Gün (not)<input name="kiraGun" type="number" min="0" value="@_vehicle.KiraGun" /></label>
-                <label>Kira Fiyatı (not)<input name="kiraFiyat" type="number" step="0.01" min="0" value="@_vehicle.KiraFiyat" /></label>
+                <label>Kira Fiyatı (not)<input name="kiraFiyat" type="number" step="0.01" min="0" value="@Inv(_vehicle.KiraFiyat)" /></label>
                 <label>Kira Bitiş (not)<input name="kiraBitTar" type="date" value="@_vehicle.KiraBitTar?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
                 <label>Beklenen Dönüş (not)<input name="kiraBekTar" type="date" value="@_vehicle.KiraBekTar?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
+            </div>
+        </details>
+
+        @* FAZ-10 — canlı arac_kayit.aspx kartındaki kalan alanlar. HEPSİ BİLGİ: fiyat motoru,
+           müsaitlik, defter ve karne/karlılık hesapları bu alanları OKUMAZ. *@
+        <details class="u-col-full">
+            <summary class="link">Kart Derinliği (entegrasyon / GPS / sahiplik / kapanış)</summary>
+            <div class="grid-form">
+                <label>TSRB Marka Kodu<input name="tsrbMarkaKodu" value="@_vehicle.TsrbMarkaKodu" maxlength="32" /></label>
+                <label>TSRB Tip Kodu<input name="tsrbTipKodu" value="@_vehicle.TsrbTipKodu" maxlength="32" /></label>
+                <label>Alt Grup Adı<input name="altGrupAdi" value="@_vehicle.AltGrupAdi" maxlength="64"
+                    title="Serbest kırılım — araç grubu (fiyatlama) DEĞİL" /></label>
+                <label>Entegrasyon Kodu<input name="entegrasyonKodu" value="@_vehicle.EntegrasyonKodu" maxlength="64" /></label>
+                <label>Teyp Kodu<input name="teypKodu" value="@_vehicle.TeypKodu" maxlength="64" /></label>
+                @* GPS takip HGS/OGS'den AYRI cihazdır — aynı kutuya koymak ikisini karıştırırdı. *@
+                <label>Takip Cihazı Markası<input name="takipMarka" value="@_vehicle.TakipMarka" maxlength="64"
+                    title="GPS takip cihazı — HGS/OGS'den ayrı" /></label>
+                <label>Takip Cihazı No<input name="takipNo" value="@_vehicle.TakipNo" maxlength="64" /></label>
+                <label>Sahip Grubu<input name="sahipGrup" value="@_vehicle.SahipGrup" maxlength="64" /></label>
+                <label>Araç Sahibi No<input name="aracSahibiNo" value="@_vehicle.AracSahibiNo" maxlength="64" /></label>
+                <label>2. Araç Sahibi<input name="aracSahibi2" value="@_vehicle.AracSahibi2" maxlength="128" /></label>
+                <label>Kredi Firması<input name="krediFirma" value="@_vehicle.KrediFirma" maxlength="128" /></label>
+                <label>Kapatma Tarihi<input name="kapatmaTarih" type="date" value="@Gun(_vehicle.KapatmaTarih)" /></label>
+                @* PLANLANAN çıkış — GERÇEKLEŞEN çıkış FiloCikisTarih'tir; planı oraya yazmak
+                   aracı filodan düşürürdü. *@
+                <label>Çıkması Planlanan Tarih<input name="cikmasiPlananTarih" type="date" value="@Gun(_vehicle.CikmasiPlananTarih)"
+                    title="Plan — gerçekleşen çıkış Filo Çıkış Tarihi alanıdır" /></label>
+                <label>Satış KM<input name="aracSatisKm" type="number" min="0" value="@_vehicle.AracSatisKm" /></label>
+                <label>Konum<input name="konum" value="@_vehicle.Konum" maxlength="128"
+                    title="Fiziksel konum notu — şube alanı ayrıdır" /></label>
+                <label class="u-col-full">Açıklama<input name="aciklama" value="@_vehicle.Aciklama" maxlength="1024" /></label>
+            </div>
+            @* Kur alanları SALT BİLGİDİR: karne/karlılık P&L yalnız defterden hesaplanır. Bunu
+               ekranda da söylüyoruz ki kullanıcı "kuru girdim, rapor düzelir" beklemesin. *@
+            <p class="muted small" style="margin:.5rem 0 .25rem;"><strong>Kur alanları salt bilgidir</strong> —
+                araç karnesi, karlılık ve gelir-gider raporları bu değerleri okumaz (P&amp;L yalnız defterden).</p>
+            <div class="grid-form">
+                <label>Alım Bedeli Kuru<input name="alimBedeliKur" type="number" step="0.0001" min="0" value="@Inv(_vehicle.AlimBedeliKur)" /></label>
+                <label>2. Araç Fiyat Kuru<input name="arac2FiyatKur" type="number" step="0.0001" min="0" value="@Inv(_vehicle.Arac2FiyatKur)" /></label>
+                <label>Şimdiki Kur<input name="simdiKur" type="number" step="0.0001" min="0" value="@Inv(_vehicle.SimdiKur)" /></label>
+                <label>Aylık Maliyet (Döviz)<input name="aylikMaliyetDoviz" type="number" step="0.01" min="0" value="@Inv(_vehicle.AylikMaliyetDoviz)" /></label>
+            </div>
+
+            @* Son 3 KM kaydı SALT OKUNUR: periyodik bakım/km-tespit geçmişi zaten VehicleKmLog'da
+               yaşıyor (Dönüş/Servis/Manuel). Buraya yazılabilir alan koymak ikinci bir gerçek
+               kaynağı olurdu; giriş tek yerde (araç detayındaki "Manuel KM Gir") kalıyor. *@
+            <p class="muted small" style="margin:.5rem 0 .25rem;">Son 3 KM kaydı (salt okunur) —
+                tam geçmiş ve manuel giriş için <a href="/araclar/@_vehicle.Id">araç detayı</a>.</p>
+            <div class="table-scroll">
+                <table class="grid tr-grid">
+                    <thead><tr><th>Tarih</th><th class="num">KM</th><th>Kaynak</th></tr></thead>
+                    <tbody>
+                        @if (_sonKm.Count == 0) { <tr><td colspan="3" class="muted">KM kaydı yok.</td></tr> }
+                        @foreach (var k in _sonKm)
+                        {
+                            <tr>
+                                <td>@k.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td class="num">@k.Km.ToString("N0")</td>
+                                <td>@(k.Kaynak switch { KmLogKaynak.Donus => "Kira dönüşü", KmLogKaynak.Servis => "Servis çıkışı", _ => "Manuel" })</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </details>
 
@@ -230,7 +293,22 @@ else
     /// korunur ki alakasız bir düzenleme onu silmesin.</summary>
     private string? _grupTanimsiz;
     private IReadOnlyList<VehiclePhotoMeta> _photos = [];
+    /// <summary>FAZ-10 — kartın altındaki salt-okunur KM özeti (en yeni 3).</summary>
+    private IReadOnlyList<VehicleKmLog> _sonKm = [];
     private List<string> _markaOpts = [], _grupOpts = [], _tipOpts = [], _segmentOpts = [], _renkOpts = [], _subeOpts = [], _yilOpts = [];
+
+    /// <summary>type=number değeri INVARIANT olmalı: tr-TR "1,2500" basıldığında tarayıcı alanı
+    /// geçersiz sayıp BOŞALTIR ve kaydetmede değer sessizce null'lanır (FAZ-22 H1 dersi).</summary>
+    private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// date input prefill'i LOCAL gün olmalı. Bu formdaki tarihler <c>FormParse.Date</c> ile
+    /// yazılıyor; o da "2026-04-30"u SUNUCU YERELİNDE çözüp UTC'ye çeviriyor (+03:00 → 29 Nisan
+    /// 21:00Z). UtcDateTime basmak bu yüzden her kaydetmede günü BİR GERİ kaydırıyordu (canlı
+    /// duman testinde yakalandı: 30 Nisan girildi, 29 Nisan geri geldi). LocalDateTime aynı
+    /// dönüşümü tersine çevirir → gün birebir round-trip eder.
+    /// </summary>
+    private static string? Gun(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i (VehicleList ile aynı desen).
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -240,7 +318,11 @@ else
     protected override async Task OnInitializedAsync()
     {
         _vehicle = await Vehicles.GetAsync(Id);
-        if (_vehicle is not null) _photos = await Fotograflar.ListMetaAsync(Id);
+        if (_vehicle is not null)
+        {
+            _photos = await Fotograflar.ListMetaAsync(Id);
+            _sonKm = await Vehicles.KmLoglariAsync(Id, 3);
+        }
         var markalar = await Markalar.ListActiveAsync();
         var gruplar = await AracGruplari.ListActiveAsync();
         _gruplar = gruplar;
