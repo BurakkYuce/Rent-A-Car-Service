@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
+using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
@@ -238,7 +239,7 @@ public static class FinanceEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/toplu-tahsilat?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/toplu-gider", async (ExpenseService svc, HttpRequest req) =>
+        grp.MapPost("/toplu-gider", async (ExpenseService svc, VehicleService araclar, HttpRequest req) =>
         {
             var f = req.Form;
             var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
@@ -246,30 +247,87 @@ public static class FinanceEndpoints
             var odeme = Enum.TryParse<OdemeYontemi>(f["odemeYontemi"].ToString(), out var o) ? o : OdemeYontemi.Nakit;
             var hesap = odeme == OdemeYontemi.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var kdvOrani = FormParse.Dec(f["kdvOrani"].ToString()) ?? 0m;
-            // Her satır: "netTutar[;açıklama]" (boş satırlar atlanır).
-            var kalemler = new List<ExpenseInput>();
-            foreach (var line in (f["satirlar"].ToString() ?? string.Empty)
-                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var p = line.Split(';', StringSplitOptions.TrimEntries);
-                kalemler.Add(new ExpenseInput
-                {
-                    Tip = tip,
-                    NetTutar = FormParse.Dec(p.Length > 0 ? p[0] : null) ?? 0m,
-                    KdvOrani = kdvOrani,
-                    Doviz = "TRY",
-                    Kur = 1m,
-                    OdemeYontemi = odeme,
-                    KasaBankaHesap = hesap,
-                    Aciklama = p.Length > 1 && !string.IsNullOrWhiteSpace(p[1]) ? p[1] : "Toplu gider"
-                });
-            }
+            var cariId = FormParse.Id(FormParse.Str(f, "cariId"));
+            var vade = FormParse.Date(FormParse.Str(f, "vade"));
+            var finansalHesapId = FormParse.Id(FormParse.Str(f, "finansalHesapId"));
+
+            // FAZ-29: plaka satır bazlı. Plakayı ARAÇ ID'sine çözmek için tek liste okunur;
+            // eşleşme plaka normalizasyonuyla (boşluk/harf duyarsız) yapılır — kullanıcı
+            // "34 abc 34" yazdığında da tutsun.
+            var plakaIndex = (await araclar.ListAsync())
+                .GroupBy(v => VehicleService.PlakaAnahtar(v.Plaka))
+                .ToDictionary(g => g.Key, g => g.First().Id);
+
             try
             {
+                // Her satır: "netTutar[;açıklama][;plaka]" (boş satırlar atlanır).
+                var kalemler = new List<ExpenseInput>();
+                var satirNo = 0;
+                foreach (var line in (f["satirlar"].ToString() ?? string.Empty)
+                             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    satirNo++;
+                    var p = line.Split(';', StringSplitOptions.TrimEntries);
+                    Guid? vehicleId = null;
+                    if (p.Length > 2 && !string.IsNullOrWhiteSpace(p[2]))
+                    {
+                        // TANINMAYAN PLAKA GÜRÜLTÜLÜ REDDEDİLİR: sessizce null bırakmak gideri
+                        // "(Atanmamış)"a yazar ve araç karnesi eksik kalırdı.
+                        if (!plakaIndex.TryGetValue(VehicleService.PlakaAnahtar(p[2]), out var vid))
+                            throw new ValidationException($"Satır {satirNo}: '{p[2]}' plakalı araç bulunamadı.");
+                        vehicleId = vid;
+                    }
+                    kalemler.Add(new ExpenseInput
+                    {
+                        Tip = tip,
+                        NetTutar = FormParse.Dec(p.Length > 0 ? p[0] : null) ?? 0m,
+                        KdvOrani = kdvOrani,
+                        Doviz = "TRY",
+                        Kur = 1m,
+                        OdemeYontemi = odeme,
+                        KasaBankaHesap = hesap,
+                        VehicleId = vehicleId,
+                        CariId = cariId,
+                        Vade = vade,
+                        FinansalHesapId = finansalHesapId,
+                        Aciklama = p.Length > 1 && !string.IsNullOrWhiteSpace(p[1]) ? p[1] : "Toplu gider"
+                    });
+                }
+
                 await svc.BatchCreateAsync(kalemler, anahtar);
                 return Results.Redirect($"/toplu-gider?ok={kalemler.Count}");
             }
             catch (ValidationException ex) { return Results.Redirect($"/toplu-gider?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
+        // FAZ-29 — tek cari, ekstresinden seçilen BORÇ kalemlerini toplu kapatma.
+        grp.MapPost("/tek-cari-kapat", async (CashService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var cariId = FormParse.Id(FormParse.Str(f, "cariId")) ?? Guid.Empty;
+            var geri = $"/tek-cari-toplu?cariId={cariId}";
+            try
+            {
+                // Seçim: her işaretli kalem için "secili" (id) + isteğe bağlı "tutar_{id}" (kısmi
+                // kapatma). Bozuk Guid SESSİZCE ATLANMAZ (adversarial L1) — sessiz eleme,
+                // kullanıcının seçtiğinden farklı bir tutar tahsil edilmesi demekti.
+                var secim = new Dictionary<Guid, decimal?>();
+                foreach (var ham in f["secili"])
+                {
+                    var id = FormParse.Id(ham)
+                        ?? throw new ValidationException("Seçilen kalemlerden biri okunamadı; listeyi yenileyin.");
+                    secim[id] = FormParse.Dec(FormParse.Str(f, $"tutar_{id}"));
+                }
+                var hesap = Enum.TryParse<LedgerAccountType>(f["hesap"].ToString(), out var h)
+                    ? h : LedgerAccountType.Kasa;
+                var tutar = await svc.TekCariTopluKapatAsync(
+                    cariId, secim, hesap,
+                    tarih: FormParse.Date(FormParse.Str(f, "tarih")),
+                    aciklama: FormParse.Str(f, "aciklama"),
+                    islemAnahtari: FormParse.Id(f["islemAnahtari"].ToString()));
+                return Results.Redirect($"{geri}&ok={Uri.EscapeDataString(tutar.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))}");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"{geri}&hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         return app;

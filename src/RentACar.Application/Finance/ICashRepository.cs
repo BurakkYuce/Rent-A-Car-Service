@@ -43,6 +43,28 @@ public interface ICashRepository
     /// eşzamanlı iki işlem tutulanı aşamaz). izKaydi (yalnız İrat) verilirse aynı tx'te yazılır; RentalId
     /// çiti (kira bu carinin olmalı) tx içinde. Çift-submit: TENANT-GÖRÜNÜR kayıt varsa sessiz no-op
     /// (I3 sözleşmesi); görünmüyorsa (çapraz-tenant PK çakışması) NET RED — sessiz para kaybı yok.</summary>
+    /// <summary>
+    /// FAZ-29 — tek cari toplu kapatma: tahsilat + defter + <b>kapatma tahsisleri</b> TEK
+    /// transaction'da, <c>(tenant, cari)</c> danışma kilidi ARKASINDA yazılır.
+    ///
+    /// <para><b>Kilit şart (adversarial H2):</b> kilitsiz sürümde 8 eşzamanlı kapatma çiti geçip
+    /// 8 tahsilat yazmış, bakiye −7000'e düşmüştü. Bakiye ve tahsis kontrolleri bu yüzden çağıranda
+    /// DEĞİL, burada — kilidin arkasında ve aynı tx içinde — tekrar yapılır.</para>
+    /// </summary>
+    Task PostCariKapatmaAsync(
+        Guid cariId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
+        IReadOnlyList<KapatmaTahsis> tahsisler, CancellationToken ct = default);
+
+    /// <summary>Verilen fatura id'leri için (fatura → kira) eşlemesi; kirası olmayan fatura
+    /// sözlükte YOKTUR (kapatma tahsilatının kira bağını çözmek için).</summary>
+    Task<Dictionary<Guid, Guid>> FaturaKiralariAsync(
+        IReadOnlyCollection<Guid> faturaIds, CancellationToken ct = default);
+
+    /// <summary>Verilen borç satırları için ŞU ANA KADAR tahsis edilmiş baz tutarlar
+    /// (satırId → kapatılan). Ekran "kapalı/kısmi" göstermek, servis çit kurmak için kullanır.</summary>
+    Task<Dictionary<Guid, decimal>> GetTahsisToplamlariAsync(
+        IReadOnlyCollection<Guid> ledgerEntryIds, CancellationToken ct = default);
+
     Task PostDepozitoIslemAsync(Guid cariId, bool kontrolEt, DepozitoIrat? izKaydi,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 

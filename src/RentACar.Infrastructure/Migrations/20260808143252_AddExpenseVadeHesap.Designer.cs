@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808143252_AddExpenseVadeHesap")]
+    partial class AddExpenseVadeHesap
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3201,40 +3204,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "JobAdi", "BaslangicUtc");
 
                     b.ToTable("JobCalismaLoglari", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.KapatmaTahsis", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CariId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CashTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("KapatilanBaz")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid>("LedgerEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "CariId");
-
-                    b.HasIndex("TenantId", "CashTransactionId");
-
-                    b.HasIndex("TenantId", "LedgerEntryId");
-
-                    b.ToTable("KapatmaTahsisleri", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.KdvRate", b =>
@@ -7305,23 +7274,6 @@ namespace RentACar.Infrastructure.Migrations
                         .WithMany("Lines")
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.KapatmaTahsis", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.CashTransaction", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "CashTransactionId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("RentACar.Domain.Entities.AccountLedgerEntry", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "LedgerEntryId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

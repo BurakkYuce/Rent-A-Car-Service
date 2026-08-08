@@ -180,6 +180,150 @@ public sealed class CashService(
         return new Guid(b);
     }
 
+    /// <summary>
+    /// FAZ-29 — <b>tek cari, ekstresinden seç, toplu kapat.</b> Seçilen BORÇ satırlarının baz
+    /// toplamı kadar TEK tahsilat postlar.
+    ///
+    /// <para><b>KALEM-BAZLI TAHSİS:</b> hangi tahsilatın hangi borç kalemini ne kadar kapattığı
+    /// <see cref="KapatmaTahsis"/> tablosuna yazılır. Bu kayıt olmadan aynı kalem defalarca
+    /// kapatılabiliyordu — adversarial inceleme ampirik gösterdi (100+900 borçta 100'lük kalem
+    /// kapatılıp bakiye 900'e indikten sonra AYNI kalem yeniden seçilince "bakiyeyi aşmıyor" çiti
+    /// geçiyor, ALINMAMIŞ tahsilat yazılıyordu). <b>Bakiye çiti tek başına YETERSİZDİR.</b></para>
+    ///
+    /// <para><b>Kısmi kapatma:</b> her kalem için ayrı tutar verilebilir; bir kaleme tahsis edilen
+    /// TOPLAM, o satırın baz tutarını aşamaz. Kalan açık kalır ve ekranda "400/1000" görünür.</para>
+    ///
+    /// <para><b>Seçim doğrulaması:</b> her id, O CARİNİN ekstresinde bulunan bir BORÇ satırı
+    /// olmalıdır. Başka cariye/tenant'a ait ya da alacak satırı id'si gürültülü reddedilir —
+    /// sessizce atlamak, kullanıcının seçtiğini sandığından farklı bir tutar tahsil ederdi.</para>
+    ///
+    /// <para><b>Kira bağı:</b> seçilen kalemlerin hepsi AYNI kiranın faturasından geliyorsa
+    /// tahsilat o kiraya bağlanır (kira bakiyesi + tahsilat-mutabakat raporu cari ekstresiyle
+    /// tutarlı kalır). Karışık seçimde bağ kurulmaz — tek tahsilatı iki kiraya atfetmek yanlış
+    /// olurdu.</para>
+    ///
+    /// <para><b>Yarış güvenliği:</b> bakiye ve tahsis kontrolleri repo'da, <c>(tenant, cari)</c>
+    /// danışma kilidinin arkasında ve kayıtla AYNI transaction'da tekrarlanır (adversarial H2).</para>
+    ///
+    /// <para><b>İdempotency:</b> anahtar çağırandan gelir (form render'ı başına tek token) →
+    /// çift-submit kısmi unique index'te çakışır. Değerden türetilen bir anahtar burada YANLIŞ
+    /// olurdu: aynı cari, aynı gün, aynı tutar meşru biçimde iki kez tahsil edilebilir.</para>
+    /// </summary>
+    /// <param name="secim">satırId → kapatılacak baz tutar. Tutar null/0 ise kalemin KALANI kapatılır.</param>
+    /// <returns>Postlanan tahsilatın tutarı (baz para).</returns>
+    public async Task<decimal> TekCariTopluKapatAsync(
+        Guid cariId, IReadOnlyDictionary<Guid, decimal?> secim, LedgerAccountType hesap,
+        DateTimeOffset? tarih = null, string? aciklama = null, Guid? islemAnahtari = null,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
+        if (secim.Count == 0) throw new ValidationException("En az bir kalem seçilmelidir.");
+        EnsureKasaBanka(hesap);
+
+        // Ekstre O CARİ için okunur → başka carinin satırı burada zaten bulunamaz; tenant sınırı
+        // ayrıca RLS + query filter ile korunur.
+        var ekstre = await _repository.GetCariStatementAsync(cariId, null, ct);
+        var index = ekstre.Satirlar.ToDictionary(x => x.Id);
+        var kapatilan = await _repository.GetTahsisToplamlariAsync([.. secim.Keys], ct);
+
+        var tahsisler = new List<KapatmaTahsis>(secim.Count);
+        var toplamHam = 0m;
+        foreach (var (id, istenenTutar) in secim)
+        {
+            if (!index.TryGetValue(id, out var satir))
+                throw new ValidationException("Seçilen kalemlerden biri bu carinin ekstresinde bulunamadı.");
+            if (satir.Direction != LedgerDirection.Debit)
+                throw new ValidationException("Yalnız BORÇ kalemleri kapatılabilir; seçimde alacak kalemi var.");
+
+            var satirBaz = satir.Amount.AmountInBase;
+            var onceki = kapatilan.TryGetValue(id, out var t0) ? t0 : 0m;
+            var kalan = satirBaz - onceki;
+            if (kalan <= 0.005m)
+                throw new ValidationException("Seçilen kalemlerden biri zaten tamamen kapatılmış.");
+
+            // Tutar verilmediyse KALANI kapat. Kuruşa AŞAĞI yuvarlanır (adversarial M3): yukarı
+            // yuvarlamak kalemin/bakiyenin üstüne çıkıp bakiyeyi eksiye düşürüyordu.
+            var tutar = istenenTutar is { } v && v > 0m
+                ? decimal.Round(v, 2, MidpointRounding.ToZero)
+                : decimal.Round(kalan, 2, MidpointRounding.ToZero);
+            if (tutar <= 0m) throw new ValidationException("Kapatma tutarı pozitif olmalıdır.");
+            if (tutar > kalan + 0.005m)
+                throw new ValidationException(
+                    $"Kapatma tutarı kalemin kalanını aşıyor (kalan {kalan:N2}, istenen {tutar:N2}).");
+
+            toplamHam += tutar;
+            tahsisler.Add(new KapatmaTahsis
+            { LedgerEntryId = id, CariId = cariId, KapatilanBaz = tutar });
+        }
+
+        if (toplamHam <= 0m) throw new ValidationException("Seçilen kalemlerin toplamı pozitif olmalıdır.");
+
+        // Bakiye ön-kontrolü YALNIZ iyi hata mesajı içindir; ASIL çit repo'da, kilidin arkasında.
+        var bakiye = await _repository.GetCariBalanceAsync(cariId, ct);
+        if (bakiye <= 0m)
+            throw new ValidationException("Carinin kapatılacak borcu yok (bakiye borçlu değil).");
+        if (toplamHam > bakiye)
+            throw new ValidationException(
+                $"Seçilen tutar ({toplamHam:N2}) carinin güncel borcunu ({bakiye:N2}) aşıyor.");
+
+        var rentalId = await KiraBagiCozAsync(secim.Keys, index, ct);
+
+        // Tahsilat BAZ parada postlanır: seçim karışık dövizli satırlardan gelebilir, tek bir
+        // döviz seçmek toplamı bozardı (AmountInBase toplandı).
+        var tx = new CashTransaction
+        {
+            Tip = CashTransactionType.Tahsilat,
+            CariId = cariId,
+            RentalId = rentalId,
+            Tarih = tarih ?? DateTimeOffset.UtcNow,
+            Amount = new Money(toplamHam, "TRY", 1m),
+            KarsiHesap = hesap,
+            Aciklama = aciklama ?? $"Toplu kapatma ({tahsisler.Count} kalem)",
+            IslemAnahtari = islemAnahtari is { } k && k != Guid.Empty ? k : null
+        };
+        TarihPolitikasi.ParaTarihi(tx.Tarih, "İşlem");
+        await _lock.EnsureOpenAsync(tx.Tarih, ct);      // dönem kilidi
+
+        foreach (var t in tahsisler) t.CashTransactionId = tx.Id;
+        await _repository.PostCariKapatmaAsync(cariId, tx, Natural(tx), tahsisler, ct);
+        RentACar.Application.Observability.RacarMetrics.TahsilatOk();
+        return toplamHam;
+    }
+
+    /// <summary>Verilen borç satırları için şu ana kadar KAPATILMIŞ baz tutarlar (ekran "kapalı /
+    /// kısmi" göstergesi). Servisin çit kurarken kullandığı kaynağın AYNISI — ekran ayrı bir hesap
+    /// yapsaydı gösterge ile çit ayrışabilirdi.</summary>
+    public Task<Dictionary<Guid, decimal>> KapatilanTutarlarAsync(
+        IReadOnlyCollection<Guid> ledgerEntryIds, CancellationToken ct = default)
+        => _repository.GetTahsisToplamlariAsync(ledgerEntryIds, ct);
+
+    /// <summary>Kalemleri TAMAMEN kapatan kısayol (kısmi tutar verilmez) — sözleşme aynıdır.</summary>
+    public Task<decimal> TekCariTopluKapatAsync(
+        Guid cariId, IReadOnlyCollection<Guid> secilenSatirIds, LedgerAccountType hesap,
+        DateTimeOffset? tarih = null, string? aciklama = null, Guid? islemAnahtari = null,
+        CancellationToken ct = default)
+        => TekCariTopluKapatAsync(
+            cariId, secilenSatirIds.Distinct().ToDictionary(x => x, _ => (decimal?)null),
+            hesap, tarih, aciklama, islemAnahtari, ct);
+
+    /// <summary>Kapatılan kalemlerin HEPSİ aynı kiranın faturasından geliyorsa o kira; aksi halde
+    /// null (tek tahsilatı iki kiraya atfetmek yanlış olurdu).</summary>
+    private async Task<Guid?> KiraBagiCozAsync(
+        IEnumerable<Guid> ids, IReadOnlyDictionary<Guid, AccountLedgerEntry> index, CancellationToken ct)
+    {
+        var faturaIds = ids.Select(i => index[i])
+            .Where(e => string.Equals(e.SourceType, "Fatura", StringComparison.Ordinal) && e.SourceId != Guid.Empty)
+            .Select(e => e.SourceId).Distinct().ToList();
+        if (faturaIds.Count == 0) return null;
+
+        var kiralar = await _repository.FaturaKiralariAsync(faturaIds, ct);
+        // Faturasız/kirasız bir kalem varsa da bağ kurma: seçim homojen değil.
+        if (kiralar.Count != faturaIds.Count) return null;
+        var tekil = kiralar.Values.Distinct().ToList();
+        return tekil.Count == 1 ? tekil[0] : null;
+    }
+
     /// <summary>Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).</summary>
     public async Task TransferAsync(
         LedgerAccountType kaynak, LedgerAccountType hedef, decimal tutar,

@@ -1,0 +1,156 @@
+@page "/tek-cari-toplu"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Domain.Enums
+@inject CustomerService Cariler
+@inject CashService Kasa
+
+<PageTitle>Tek Cari Toplu Kapatma — RentPro</PageTitle>
+
+<div class="page-head"><h1>Tek Cari — Toplu Kapatma</h1>
+    <div class="actions"><a href="/toplu-tahsilat">Çok Cari Modu</a></div></div>
+
+@* İKİ MOD AYRI: /toplu-tahsilat "çok cari, satır başına tutar" (bozulmadı); burası "tek cari,
+   ekstresinden kalem seç". İkincisi tutarı KULLANICI YAZMAZ — seçilen borç kalemlerinden çıkar. *@
+<p class="muted small">Bir cari seçip <strong>ekstresindeki borç kalemlerini</strong> işaretleyerek
+    tek tahsilatla kapatır. Tutar yazılmaz — <strong>seçilen kalemlerin toplamıdır</strong>.
+    Çok cariye tek seferde tahsilat için <a href="/toplu-tahsilat">Toplu Tahsilat</a>.</p>
+@* Kapatma kalem bazında KALICI kaydedilir (KapatmaTahsis): kapanan kalem yeniden seçilemez.
+   Bakiye çiti tek başına yetmiyordu — aynı kalem başka borç varken tekrar tekrar geçiyordu. *@
+<p class="muted small">Kapatılan kalem <strong>kalıcı olarak işaretlenir</strong>; tamamı kapanmış
+    kalem listede "kapalı" görünür ve yeniden seçilemez. Bir kalemin <strong>yalnız bir kısmını</strong>
+    da kapatabilirsiniz — tutar yazın, kalanı açık kalır. Avans/fazla tahsilat için
+    <a href="/kasa">Kasa</a> ekranını kullanın.</p>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (!string.IsNullOrEmpty(Ok)) { <p class="ok">@Ok ₺ tahsil edildi (toplu kapatma).</p> }
+
+<form method="get" class="filter-bar">
+    <label>Cari
+        <select name="cariId">
+            <option value="">— seçiniz —</option>
+            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == CariId)">@c.DisplayName</option> }
+        </select>
+    </label>
+    <button type="submit">Carinin İşlem Listesini Getir</button>
+</form>
+
+@if (_cari is not null)
+{
+    <div class="cards">
+        <div class="card"><div class="card-num @(_bakiye > 0 ? "neg" : "pos")">@_bakiye.ToString("N2")</div>
+            <div class="card-label">Güncel Bakiye ₺ @(_bakiye > 0 ? "(borçlu)" : "")</div></div>
+        <div class="card"><div class="card-num">@_borclar.Count</div><div class="card-label">Açık borç kalemi</div></div>
+        <div class="card"><div class="card-num">@_borcToplam.ToString("N2")</div><div class="card-label">Borç kalemleri ₺</div></div>
+    </div>
+
+    @if (_borclar.Count == 0)
+    {
+        <p class="muted">Bu carinin borç kalemi yok.</p>
+    }
+    else
+    {
+        <form method="post" action="/finans/tek-cari-kapat"><AntiforgeryToken />
+            <input type="hidden" name="islemAnahtari" value="@_token" />
+            <input type="hidden" name="cariId" value="@_cari.Id" />
+            <div class="table-scroll">
+                <table class="grid tr-grid">
+                    <thead><tr><th></th><th>Tarih</th><th>Kaynak</th><th>Açıklama</th>
+                        <th class="num">Tutar</th><th>Döviz</th><th class="num">Baz ₺</th>
+                        <th class="num">Kapanan</th><th class="num">Kalan</th>
+                        <th class="num">Kapatılacak</th></tr></thead>
+                    <tbody>
+                        @foreach (var s in _borclar)
+                        {
+                            var kapanan = _kapanan.GetValueOrDefault(s.Id);
+                            var kalan = s.Amount.AmountInBase - kapanan;
+                            var tamKapali = kalan <= 0.005m;
+                            <tr class="@(tamKapali ? "muted" : null)">
+                                <td>
+                                    @if (tamKapali)
+                                    {
+                                        <span class="status-pill sp-success">Kapalı</span>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="secili" value="@s.Id" />
+                                    }
+                                </td>
+                                <td>@s.EntryDateUtc.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                                <td>@(s.SourceType ?? "—")</td>
+                                <td>@(s.Description ?? "—")</td>
+                                <td class="num">@s.Amount.Amount.ToString("N2")</td>
+                                <td>@s.Amount.Currency</td>
+                                <td class="num">@s.Amount.AmountInBase.ToString("N2")</td>
+                                <td class="num">@(kapanan > 0m ? kapanan.ToString("N2") : "—")</td>
+                                <td class="num">@(tamKapali ? "—" : kalan.ToString("N2"))</td>
+                                <td class="num">
+                                    @if (!tamKapali)
+                                    {
+                                        @* Boş = kalanın TAMAMI. Kısmi kapatma için tutar yazılır;
+                                           değer InvariantCulture (tr-TR virgülü alanı boşaltırdı). *@
+                                        <input type="number" name="tutar_@s.Id" step="0.01" min="0.01"
+                                               max="@Inv(decimal.Round(kalan, 2, MidpointRounding.ToZero))"
+                                               placeholder="tamamı" style="width:7rem"
+                                               title="Boş bırakılırsa kalemin kalanı kapatılır" />
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="grid-form">
+                <label>Hesap
+                    <select name="hesap">
+                        <option value="Kasa">Kasa</option>
+                        <option value="Banka">Banka</option>
+                    </select>
+                </label>
+                <label>Tarih<input name="tarih" type="date" title="Boş = bugün. Gelecek tarih reddedilir." /></label>
+                <label>Açıklama<input name="aciklama" placeholder="Toplu kapatma" /></label>
+                <button type="submit">Seçilenleri Kapat</button>
+            </div>
+            @* Tahsilat BAZ parada (₺) postlanır: seçim karışık dövizli olabilir, tek dövize
+               zorlamak toplamı bozardı. *@
+            <p class="muted small">Tahsilat <strong>baz parada (₺)</strong> yazılır — seçim karışık
+                dövizli olabilir, baz toplam alınır.</p>
+        </form>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "cariId")] public Guid? CariId { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+
+    private readonly Guid _token = Guid.NewGuid();   // çift-submit idempotency (form render'ı başına tek)
+    private IReadOnlyList<Customer> _cariler = [];
+    private Customer? _cari;
+    private List<AccountLedgerEntry> _borclar = [];
+    private Dictionary<Guid, decimal> _kapanan = new();
+    private decimal _bakiye;
+    private decimal _borcToplam;
+
+    private static string? Inv(decimal v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cariler = await Cariler.ListAsync();
+        if (CariId is not { } id || id == Guid.Empty) return;
+
+        _cari = await Cariler.GetAsync(id);
+        if (_cari is null) return;
+
+        // Yalnız BORÇ satırları listelenir: kapatılabilir olan onlardır (alacak satırı zaten
+        // ödemedir). Servis de aynı çiti uyguluyor — ekran onu tekrar etmiyor, GÖRÜNÜRLÜĞÜ
+        // hizalıyor (kullanıcı seçemediği bir şeyi görmemeli).
+        var ekstre = await Kasa.GetStatementAsync(id);
+        _borclar = ekstre.Satirlar.Where(x => x.Direction == LedgerDirection.Debit)
+            .OrderBy(x => x.EntryDateUtc).ToList();
+        // Kapanan tutarlar SERVİSİN kullandığı kaynaktan okunur — ekran ayrı bir hesap yapsaydı
+        // "kapalı" göstergesi ile çit ayrışabilirdi.
+        _kapanan = await Kasa.KapatilanTutarlarAsync([.. _borclar.Select(x => x.Id)]);
+        _borcToplam = _borclar.Sum(x => x.Amount.AmountInBase - _kapanan.GetValueOrDefault(x.Id));
+        _bakiye = await Kasa.GetCariBalanceAsync(id);
+    }
+}

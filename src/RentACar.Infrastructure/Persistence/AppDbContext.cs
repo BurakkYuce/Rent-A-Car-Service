@@ -104,6 +104,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<GelenEFatura> GelenEFaturalar => Set<GelenEFatura>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Expense> Expenses => Set<Expense>();
+
+    /// <summary>FAZ-29 — kapatma tahsisleri (hangi tahsilat hangi borç kalemini kapattı).</summary>
+    public DbSet<KapatmaTahsis> KapatmaTahsisleri => Set<KapatmaTahsis>();
     public DbSet<InsurancePolicy> InsurancePolicies => Set<InsurancePolicy>();
     public DbSet<MtvRecord> MtvRecords => Set<MtvRecord>();
     public DbSet<InspectionRecord> InspectionRecords => Set<InspectionRecord>();

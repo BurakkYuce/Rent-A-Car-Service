@@ -194,6 +194,11 @@ internal sealed class ExpenseConfig : IEntityTypeConfiguration<Expense>
         e.Property(x => x.Currency).HasMaxLength(3);
         e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
         e.Property(x => x.Aciklama).HasMaxLength(512);
+        // FAZ-29: hesap bağı composite tenant-FK (çapraz-tenant referans imkânsız); Restrict —
+        // kullanılan bir hesabın silinmesi mali belgeyi öksüz bırakmamalı.
+        e.HasOne<FinancialAccount>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.FinansalHesapId })
+            .HasPrincipalKey(a => new { a.TenantId, a.Id }).OnDelete(DeleteBehavior.Restrict);
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         // Toplu gider idempotency: aynı IslemAnahtari iki kez yazılamaz (çift-submit batch'i geri alır).
@@ -295,5 +300,31 @@ internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirma
         e.HasIndex(x => new { x.TenantId, x.Tarih });
         e.HasIndex(x => new { x.TenantId, x.KaynakCariId });
         e.HasIndex(x => new { x.TenantId, x.HedefCariId });
+    }
+}
+
+// ---- KapatmaTahsis (FAZ-29 — hangi tahsilat hangi borç kalemini kapattı; PARA POSTLAMAZ) ----
+internal sealed class KapatmaTahsisConfig : IEntityTypeConfiguration<KapatmaTahsis>
+{
+    public void Configure(EntityTypeBuilder<KapatmaTahsis> e)
+    {
+        e.ToTable("KapatmaTahsisleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.KapatilanBaz).HasColumnType("numeric(19,4)");
+
+        // Composite tenant-FK'ler: çapraz-tenant tahsis yapısal olarak imkânsız.
+        // Cascade DEĞİL, Restrict: tahsis mali izdir, sessizce silinmemeli.
+        e.HasOne<AccountLedgerEntry>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.LedgerEntryId })
+            .HasPrincipalKey(l => new { l.TenantId, l.Id }).OnDelete(DeleteBehavior.Restrict);
+        e.HasOne<CashTransaction>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.CashTransactionId })
+            .HasPrincipalKey(c => new { c.TenantId, c.Id }).OnDelete(DeleteBehavior.Restrict);
+
+        // Kapatılmış kalemleri tek sorguda toplamak için (ekran + servis çiti aynı indeksi kullanır).
+        e.HasIndex(x => new { x.TenantId, x.LedgerEntryId });
+        e.HasIndex(x => new { x.TenantId, x.CariId });
+        e.HasIndex(x => new { x.TenantId, x.CashTransactionId });
     }
 }

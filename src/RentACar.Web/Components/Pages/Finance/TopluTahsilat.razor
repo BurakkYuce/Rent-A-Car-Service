@@ -4,7 +4,10 @@
 
 <PageTitle>Toplu Tahsilat — RentPro</PageTitle>
 
-<div class="page-head"><h1>Toplu Tahsilat</h1><div class="actions"></div></div>
+<div class="page-head"><h1>Toplu Tahsilat</h1>
+    <div class="actions"><a href="/tek-cari-toplu">Tek Cari Modu</a></div></div>
+@* İki mod yan yana duruyor: bu sayfa ÇOK CARİ (satır başına tutar yazılır), diğeri TEK CARİ
+   (tutar seçilen borç kalemlerinden çıkar). Bu sayfanın davranışı değişmedi. *@
 <p class="muted small">Çok cariye tek seferde tahsilat. <strong>ATOMİK</strong>: bir satır geçersizse hiçbiri
     kaydedilmez. Her satır ayrı dengeli kayıt + ayrı No alır. Aynı form çift-submit edilirse (çift tıklama)
     tek kez işlenir (idempotency). Satır biçimi: <code>cariId;tutar;açıklama(ops)</code> — her satır bir cari.</p>
