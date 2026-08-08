@@ -198,6 +198,17 @@ internal sealed class AnketConfig : IEntityTypeConfiguration<Anket>
         e.Property(x => x.Yorum).HasMaxLength(1024);
         e.Property(x => x.Kaynak).HasMaxLength(64);
         e.HasIndex(x => new { x.TenantId, x.Tarih });
+        // FAZ-42
+        e.Property(x => x.AnketTuru).HasConversion<int?>();
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.CikisOfisi).HasMaxLength(128);
+        e.HasOne<RentalContract>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.RentalId })
+            .HasPrincipalKey(r => new { r.TenantId, r.Id })
+            .OnDelete(DeleteBehavior.Restrict);   // sözleşme silinse bile anket kaybolmaz
+        e.HasIndex(x => new { x.TenantId, x.RentalId });
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+
     }
 }
 
@@ -236,5 +247,25 @@ internal sealed class RezSartConfig : IEntityTypeConfiguration<RezSart>
         // Durum filtresi (karşılandı/karşılanmadı) bu kolondan türetiliyor → indeksli.
         e.HasIndex(x => new { x.TenantId, x.KarsilamaTarihi });
         e.HasIndex(x => new { x.TenantId, x.TalepTarihi });
+    }
+}
+
+/// <summary>Anket cevabı (FAZ-42) — anketin child satırı; soru metni snapshot.</summary>
+internal sealed class AnketCevapConfig : IEntityTypeConfiguration<AnketCevap>
+{
+    public void Configure(EntityTypeBuilder<AnketCevap> e)
+    {
+        e.ToTable("AnketCevaplari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<Anket>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.AnketId })
+            .HasPrincipalKey(a => new { a.TenantId, a.Id })
+            .OnDelete(DeleteBehavior.Cascade);   // anket silinince cevapları da gider (child)
+        e.Property(x => x.Soru).IsRequired().HasMaxLength(512);
+        e.Property(x => x.Cevap).HasMaxLength(1024);
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        // Aynı ankette aynı soru sırası iki kez olamaz.
+        e.HasIndex(x => new { x.TenantId, x.AnketId, x.SoruNo }).IsUnique();
     }
 }
