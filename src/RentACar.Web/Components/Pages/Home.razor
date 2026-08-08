@@ -99,7 +99,7 @@
         </div>
         @if (_finansYetkili)
         {
-            <DcTable Rows="DonusList" Empty="Kayıt yok.">
+            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@DonusStil">
                 <Islem>
                     @if (context is { RentalId: not null, CariId: not null, Bakiye: > 0m })
                     {
@@ -126,7 +126,7 @@
         }
         else
         {
-            <DcTable Rows="DonusList" Empty="Kayıt yok." />
+            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@DonusStil" />
         }
     </div>
     <div class="dc-panel">
@@ -138,7 +138,7 @@
                 <a class="@(Cf == "yarin" ? "on" : "")" href="/?cf=yarin&df=@Df">Yarın <b>@_cikisYarin.Count</b></a>
             </span>
         </div>
-        <DcTable Rows="CikisList" Empty="Kayıt yok." />
+        <DcTable Rows="CikisList" Empty="Kayıt yok." RowStyle="@CikisStil" />
     </div>
 </div>
 
@@ -196,6 +196,12 @@
     private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0);
     private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
     private int _acikRezSayi, _kmGecenBakim, _gorulmeyenRez, _gecmis, _yakin, _acikSikayet;
+
+    // FAZ-81: renk MainLayout'un bastığı CSS değişkeninden gelir — burada AYRI bir ayar okuması
+    // YAPILMAZ (iki okuma iki farklı değer riski taşırdı). Tenant renk seçmediyse değişken tanımsız
+    // kalır ve fallback "transparent" olur → vurgu görünmez, eski görünüm korunur.
+    private const string DonusStil = "border-left:3px solid var(--tr-renk-bugun-donecekler, transparent)";
+    private const string CikisStil = "border-left:3px solid var(--tr-renk-bugun-cikacaklar, transparent)";
     /// <summary>PR-17: siteden gelen cevaplanmamış talep özeti. Modül kapalıysa null → kutu basılmaz.</summary>
     private RentACar.Application.PublicSite.TalepOzet? _siteTalep;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);

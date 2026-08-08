@@ -214,7 +214,9 @@ summary.link { list-style: none; display: inline-flex; align-items: center; }
 .small { font-size: .8rem; }
 .error { color: var(--danger); background: #fdecea; border: 1px solid #f5c6cb; padding: .5rem .75rem; border-radius: .4rem; }
 .badge { display: inline-block; padding: .1rem .45rem; border-radius: .4rem; background: var(--color-data-soft); color: var(--brand); font-size: .75rem; margin-right: .25rem; }
-.badge.danger { background: #fdecea; color: var(--danger); }
+/* FAZ-81: tenant renk kodu varsa onu kullan, YOKSA eski sabit renk (fallback zinciri kırılmaz →
+   renk seçmemiş tenant'ta görünüm birebir aynı kalır). --tr-renk-* MainLayout tarafından basılır. */
+.badge.danger { background: var(--tr-renk-gecikenler-soft, #fdecea); color: var(--tr-renk-gecikenler, var(--danger)); }
 .badge.warn { background: #fff4e5; color: #b35900; }
 .vade-alert { background: #fff8e1; border: 1px solid #ffe082; border-radius: .5rem; padding: .6rem .9rem; margin: 1rem 0; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .row-actions { display: flex; gap: .5rem; align-items: center; }

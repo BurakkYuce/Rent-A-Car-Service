@@ -42,6 +42,16 @@ public sealed class TenantSettingsModel
     public string? WhatsAppNumarasi { get; set; }
     public bool? WhatsAppGunlukOzet { get; set; }
 
+    // FAZ-81 görünüm renk kodları ("#rrggbb" ya da null)
+    public string? RenkGecikenler { get; set; }
+    public string? RenkBugunDonecekler { get; set; }
+    public string? RenkBugunCikacaklar { get; set; }
+    public string? RenkOpsiyonlu { get; set; }
+    public string? RenkLimitBakiye { get; set; }
+    public string? RenkAlacakli { get; set; }
+    public string? RenkRezAtananPlaka { get; set; }
+    public string? RenkKiralanmayan { get; set; }
+
     // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
     public bool PublicSiteEnabled { get; set; }
     public string? PublicSiteHost { get; set; }

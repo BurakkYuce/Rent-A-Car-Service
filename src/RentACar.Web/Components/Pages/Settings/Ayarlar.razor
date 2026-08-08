@@ -65,6 +65,79 @@
     </fieldset>
 
     <fieldset>
+        <legend>Görünüm Renk Kodları</legend>
+        <p class="muted small">Panoda ve listelerde tekrar eden durumların rengi. <strong>Varsayılan</strong>
+            işaretliyken koddaki renk kullanılır ve görünüm bugünküyle birebir aynı kalır; rengi
+            değiştirmek için kutunun işaretini kaldırın. Son dördü şu an yalnız TANIMLIDIR — hangi
+            eşikte uygulanacakları netleşmeden bir ekrana bağlanmadı.</p>
+        <div class="renk-satir">
+            <label>Gecikmiş / vadesi geçmiş<input name="renkGecikenler" type="color" value="@(_m.RenkGecikenler ?? "#dc2626")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkGecikenlerVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkGecikenlerVars" value="true" checked="@(_m.RenkGecikenler is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Bugün dönecek araç<input name="renkBugunDonecekler" type="color" value="@(_m.RenkBugunDonecekler ?? "#0ea5e9")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkBugunDoneceklerVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkBugunDoneceklerVars" value="true" checked="@(_m.RenkBugunDonecekler is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Bugün çıkacak araç<input name="renkBugunCikacaklar" type="color" value="@(_m.RenkBugunCikacaklar ?? "#16a34a")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkBugunCikacaklarVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkBugunCikacaklarVars" value="true" checked="@(_m.RenkBugunCikacaklar is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Opsiyonlu (onaysız) rezervasyon<input name="renkOpsiyonlu" type="color" value="@(_m.RenkOpsiyonlu ?? "#f59e0b")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkOpsiyonluVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkOpsiyonluVars" value="true" checked="@(_m.RenkOpsiyonlu is null)" /> Varsayılan</label>
+        </div>
+        <p class="muted small">Aşağıdakiler kaydedilir ama henüz bir ekranda kullanılmaz:</p>
+        <div class="renk-satir">
+            <label>Risk limitini aşan bakiye<input name="renkLimitBakiye" type="color" value="@(_m.RenkLimitBakiye ?? "#b91c1c")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkLimitBakiyeVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkLimitBakiyeVars" value="true" checked="@(_m.RenkLimitBakiye is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Alacaklı cari<input name="renkAlacakli" type="color" value="@(_m.RenkAlacakli ?? "#7c3aed")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkAlacakliVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkAlacakliVars" value="true" checked="@(_m.RenkAlacakli is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Plakası atanmış rezervasyon<input name="renkRezAtananPlaka" type="color" value="@(_m.RenkRezAtananPlaka ?? "#0d9488")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkRezAtananPlakaVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkRezAtananPlakaVars" value="true" checked="@(_m.RenkRezAtananPlaka is null)" /> Varsayılan</label>
+        </div>
+        <div class="renk-satir">
+            <label>Kiralanmayan / boştaki araç<input name="renkKiralanmayan" type="color" value="@(_m.RenkKiralanmayan ?? "#64748b")" /></label>
+            @* type="color" BOŞ gönderemez (dokunulmasa da bir değer yazar) → "varsayılana dön"
+               seçeneği ancak açık bir kutuyla ifade edilebilir. Gizli alan, kutu işaretsizken
+               de bir değer gitmesini sağlar (son değer kazanır). *@
+            <input type="hidden" name="renkKiralanmayanVars" value="false" />
+            <label class="check"><input type="checkbox" name="renkKiralanmayanVars" value="true" checked="@(_m.RenkKiralanmayan is null)" /> Varsayılan</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
         <legend>SMTP (E-posta Gönderimi)</legend>
         <p class="muted small">SMTP şifresi şifreli saklanır; boş bırakırsanız mevcut korunur.</p>
         <label>SMTP Host<input name="smtpHost" value="@_m.SmtpHost" /></label>
