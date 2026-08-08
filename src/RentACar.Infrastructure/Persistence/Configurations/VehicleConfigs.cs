@@ -66,6 +66,25 @@ internal sealed class VehicleConfig : IEntityTypeConfiguration<Vehicle>
         e.Property(x => x.AylikMaliyet).HasColumnType("numeric(19,4)");
         e.Property(x => x.FiloYonetimMaliyeti).HasColumnType("numeric(19,4)");
         e.Property(x => x.IkinciElDeger).HasColumnType("numeric(19,4)");
+        // FAZ-10 araç kartı derinliği (hepsi bilgi alanı — hesaba girmez)
+        e.Property(x => x.TsrbMarkaKodu).HasMaxLength(32);
+        e.Property(x => x.TsrbTipKodu).HasMaxLength(32);
+        e.Property(x => x.AltGrupAdi).HasMaxLength(64);
+        e.Property(x => x.EntegrasyonKodu).HasMaxLength(64);
+        e.Property(x => x.TeypKodu).HasMaxLength(64);
+        e.Property(x => x.TakipMarka).HasMaxLength(64);
+        e.Property(x => x.TakipNo).HasMaxLength(64);
+        e.Property(x => x.SahipGrup).HasMaxLength(64);
+        e.Property(x => x.AracSahibiNo).HasMaxLength(64);
+        e.Property(x => x.AracSahibi2).HasMaxLength(128);
+        e.Property(x => x.KrediFirma).HasMaxLength(128);
+        e.Property(x => x.Konum).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        // Kur alanları numeric(19,4) — TUTAR değil KUR taşırlar ve hiçbir hesaba girmezler.
+        e.Property(x => x.AlimBedeliKur).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Arac2FiyatKur).HasColumnType("numeric(19,4)");
+        e.Property(x => x.SimdiKur).HasColumnType("numeric(19,4)");
+        e.Property(x => x.AylikMaliyetDoviz).HasColumnType("numeric(19,4)");
         // Plaka tenant içinde benzersiz (doğal iş anahtarı).
         e.HasIndex(x => new { x.TenantId, x.Plaka }).IsUnique();
         // FAZ-75 belge takibi

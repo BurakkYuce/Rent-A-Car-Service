@@ -272,6 +272,27 @@ public sealed class VehicleService(
         v.SonBakimTarih = input.SonBakimTarih;
         v.SonBakimKm = input.SonBakimKm;
         v.LastikDurumu = Trim(input.LastikDurumu);
+        // FAZ-10 araç kartı derinliği — tek map (create ve update aynı ApplyExtended'i çağırır).
+        v.TsrbMarkaKodu = Trim(input.TsrbMarkaKodu);
+        v.TsrbTipKodu = Trim(input.TsrbTipKodu);
+        v.AltGrupAdi = Trim(input.AltGrupAdi);
+        v.EntegrasyonKodu = Trim(input.EntegrasyonKodu);
+        v.TeypKodu = Trim(input.TeypKodu);
+        v.TakipMarka = Trim(input.TakipMarka);
+        v.TakipNo = Trim(input.TakipNo);
+        v.SahipGrup = Trim(input.SahipGrup);
+        v.AracSahibiNo = Trim(input.AracSahibiNo);
+        v.AracSahibi2 = Trim(input.AracSahibi2);
+        v.KrediFirma = Trim(input.KrediFirma);
+        v.KapatmaTarih = input.KapatmaTarih;
+        v.CikmasiPlananTarih = input.CikmasiPlananTarih;
+        v.AracSatisKm = input.AracSatisKm;
+        v.Aciklama = Trim(input.Aciklama);
+        v.Konum = Trim(input.Konum);
+        v.AlimBedeliKur = input.AlimBedeliKur;
+        v.Arac2FiyatKur = input.Arac2FiyatKur;
+        v.SimdiKur = input.SimdiKur;
+        v.AylikMaliyetDoviz = input.AylikMaliyetDoviz;
     }
 
     private static string? Trim(string? s)

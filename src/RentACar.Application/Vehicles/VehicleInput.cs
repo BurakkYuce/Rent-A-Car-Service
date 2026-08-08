@@ -100,4 +100,27 @@ public sealed class VehicleInput
     public DateTimeOffset? SonBakimTarih { get; set; }
     public int? SonBakimKm { get; set; }
     public string? LastikDurumu { get; set; }
+
+    // ---- FAZ-10 araç kartı derinliği (bilgi; fiyat/defter/müsaitlik/karne hesabına GİRMEZ) ----
+    public string? TsrbMarkaKodu { get; set; }
+    public string? TsrbTipKodu { get; set; }
+    public string? AltGrupAdi { get; set; }
+    public string? EntegrasyonKodu { get; set; }
+    public string? TeypKodu { get; set; }
+    public string? TakipMarka { get; set; }
+    public string? TakipNo { get; set; }
+    public string? SahipGrup { get; set; }
+    public string? AracSahibiNo { get; set; }
+    public string? AracSahibi2 { get; set; }
+    public string? KrediFirma { get; set; }
+    public DateTimeOffset? KapatmaTarih { get; set; }
+    public DateTimeOffset? CikmasiPlananTarih { get; set; }
+    public int? AracSatisKm { get; set; }
+    public string? Aciklama { get; set; }
+    public string? Konum { get; set; }
+    // Kur alanları SALT BİLGİ — hiçbir P&L/karne sorgusu okumaz (bkz. Vehicle.cs kararı).
+    public decimal? AlimBedeliKur { get; set; }
+    public decimal? Arac2FiyatKur { get; set; }
+    public decimal? SimdiKur { get; set; }
+    public decimal? AylikMaliyetDoviz { get; set; }
 }
