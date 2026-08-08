@@ -102,7 +102,7 @@
                             <label>Telefon<input name="telefon" value="@l.Telefon" /></label>
                             <label>E-posta<input name="eposta" type="email" value="@l.Eposta" /></label>
                             <label>Çalışma Saatleri<input name="calismaSaatleri" value="@l.CalismaSaatleri" /></label>
-                            <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" value="@l.TeslimUcreti" /></label>
+                            <label>Teslim Ücreti<input name="teslimUcreti" type="number" step="0.01" min="0" value="@Inv(l.TeslimUcreti)" /></label>
                             <ComboBox Name="sube" Label="Şube" Value="@l.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
 
                             <label>İngilizce Ad<input name="ingilizceAd" value="@l.IngilizceAd" maxlength="128" /></label>
@@ -163,6 +163,14 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+
+
+    /// <summary>
+    /// type=number değeri INVARIANT kültürle basılır. tr-TR'de decimal.ToString() "500,0000" üretir;
+    /// HTML spec'ine göre geçersiz sayı olduğu için tarayıcı alanı BOŞALTIR ve kullanıcı başka bir
+    /// alanı düzeltip kaydettiğinde ücret null'a düşerdi (sessiz para kaybı — adversarial H1).
+    /// </summary>
+    private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private IReadOnlyList<Location> _list = [];
     private List<string> _subeOpts = [];

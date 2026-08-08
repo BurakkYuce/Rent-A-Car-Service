@@ -140,7 +140,9 @@ public sealed class KiraHesapService(
         {
             var grup = await feeLines.GrupCozAsync(feeVid, ct);
             var dogum = istek.MusteriId is Guid mid ? (await musteriler.FindAsync(mid, ct))?.DogumTarihi : null;
-            var drop = await feeLines.DropUcretCozAsync(istek.CikisOfisi, istek.DonusOfisi, istek.DropUcreti, ct);
+            // FAZ-22: gün, MinGun koşulu için geçiyor. Önizleme ve kayıt AYNI gün sayısını
+            // (pr.Gun / c.Gun) kullanır — aksi hâlde önizleme==kayıt sözleşmesi bozulurdu.
+            var drop = await feeLines.DropUcretCozAsync(istek.CikisOfisi, istek.DonusOfisi, istek.DropUcreti, pr.Gun, ct);
             foreach (var s in FeeLineService.HesaplaSaf(
                 grup, pr.Gun, istek.BasTar, dogum, istek.IkinciSurucuId is not null, doviz, feeNotlar, drop))
             {

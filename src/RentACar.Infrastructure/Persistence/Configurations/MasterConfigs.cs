@@ -500,7 +500,18 @@ internal sealed class DropTanimConfig : IEntityTypeConfiguration<DropTanim>
         e.Property(x => x.CalismaSekli).HasMaxLength(100);
         e.Property(x => x.OzelIletisim).HasMaxLength(200);
         e.Property(x => x.Ucret).HasColumnType("numeric(19,4)"); // FAZ 3.A3b
-        e.HasIndex(x => new { x.TenantId, x.Lokasyon, x.Sube }).IsUnique();
+        // FAZ-22 derinlik. Benzersizlik (TenantId, Lokasyon, Sube) DEĞİŞMEDİ — CikisLokasyon
+        // anahtara girmiyor; aynı lokasyon+şube için ikinci bir satır hâlâ yasak.
+        e.Property(x => x.CikisLokasyon).HasMaxLength(150);
+        e.Property(x => x.Drop2).HasColumnType("numeric(19,4)");
+        // Benzersizlik CikisLokasyon'u DA kapsar (adversarial M5): aynı şubeden iki farklı çıkış
+        // ofisine ayrı fiyat vermek meşru bir yapılandırma — eski anahtar bunu imkânsız kılıyor ve
+        // kullanıcıyı sahte şube adı uydurmaya itiyordu. İndeks migration'da ELLE kuruluyor çünkü
+        // NULLS NOT DISTINCT gerekiyor: PG varsayılanında NULL'lar farklı sayılır ve
+        // (Lokasyon, Sube, NULL) ikinci kez yazılabilirdi — eski garanti kaybolurdu.
+        e.HasIndex(x => new { x.TenantId, x.Lokasyon, x.Sube, x.CikisLokasyon })
+            .IsUnique()
+            .HasDatabaseName("IX_DropTanimlari_Tenant_Lokasyon_Sube_CikisLokasyon");
     }
 }
 
