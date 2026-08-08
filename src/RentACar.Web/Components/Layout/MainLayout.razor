@@ -169,7 +169,7 @@
 
                     @* ---- Finans ---- *@
                     <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/tek-cari-toplu","/toplu-gider","/giderler","/satislar","/faturalar","/gelen-efatura","/donem-kapanis","/cezalar","/kurlar")">
+                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/tek-cari-toplu","/otomatik-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/gelen-efatura","/donem-kapanis","/cezalar","/kurlar")">
                             <summary><span class="ic"></span> Finans <span class="chev"></span></summary>
                             <div class="sub">
                                 <a href="/kasa">Kasa / Banka</a>
@@ -183,6 +183,7 @@
                                 <a href="/depozito">Depozito</a>
                                 <a href="/toplu-tahsilat">Toplu Tahsilat</a>
                                 <a href="/tek-cari-toplu">Tek Cari Toplu Kapatma</a>
+                                <a href="/otomatik-tahsilat">Otomatik Tahsilat</a>
                                 <a href="/toplu-gider">Toplu Gider</a>
                                 <a href="/cezalar">Cezalar</a>
                                 <a href="/donem-kapanis">Dönem Kapanışı</a>

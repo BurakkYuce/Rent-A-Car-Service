@@ -110,7 +110,8 @@ public static class DependencyInjection
         services.AddScoped<BelgeSablon.BelgeSablonService>(); // marka-özel PDF metin şablonu master
         services.AddScoped<BelgeSablon.BelgeSablonCozumleyici>(); // yazdırma anı şablon çözümü (admin-gate atlar)
         services.AddScoped<FaturaDonemleri.FaturaDonemPlanService>(); // FAZ 4.2-B1 dönem planı
-        services.AddScoped<FaturaDonemleri.DonemTahsilatService>(); // FAZ 4.2-B3 kes+tahsilat orkestratörü
+        services.AddScoped<FaturaDonemleri.DonemTahsilatService>();
+        services.AddScoped<FaturaDonemleri.OtomatikTahsilatService>(); // FAZ-30 elle tetikleme
         services.AddScoped<DisHizmetler.DisHizmetService>(); // FAZ 4.3 B2B dış hizmet alımı
         services.AddScoped<QuotationService>();
         services.AddScoped<CalendarService>();

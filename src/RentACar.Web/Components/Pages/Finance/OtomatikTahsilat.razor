@@ -1,0 +1,130 @@
+@page "/otomatik-tahsilat"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Application.FaturaDonemleri
+@using RentACar.Domain.Enums
+@inject OtomatikTahsilatService Tetik
+@inject TenantSettingsService Ayarlar
+
+<PageTitle>Otomatik Tahsilat — RentPro</PageTitle>
+
+<div class="page-head"><h1>Otomatik Tahsilat — Elle Çalıştır</h1></div>
+
+@* İKİ AKIŞI AYIRAN NOT: Ayarlar'daki anahtar "her gece kendiliğinden çalışsın mı" sorusunun
+   cevabıdır; bu ekran "şu an, şu seçili sözleşmeler için elle çalıştır" der. Kullanıcı kararı:
+   elle tetik o anahtardan BAĞIMSIZ çalışır. *@
+<p class="muted small">Vadesi gelmiş <strong>dönem faturaları</strong>nı seçip elle keser ve
+    isterseniz aynı anda tahsilatını yazar. Gecikmiş/atlanmış kalemleri toparlamak içindir.</p>
+<p class="muted small">Bu ekran Ayarlar'daki gece işinden <strong>bağımsızdır</strong>: seçtiğiniz
+    dönemler, otomatik iş kapalı olsa da çalışır.
+    @if (!_jobAcik)
+    {
+        <strong> Şu an gece işi KAPALI</strong>
+        <text> — yalnız buradan elle çalıştırabilirsiniz.</text>
+    }
+</p>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (!string.IsNullOrEmpty(Ok)) { <p class="ok">@Ok</p> }
+@if (!string.IsNullOrEmpty(Atlanan))
+{
+    <div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
+        <strong>Atlananlar:</strong>
+        <ul style="margin:.25rem 0 0 1rem;">
+            @foreach (var a in Atlanan.Split('|')) { <li class="small">@a</li> }
+        </ul>
+    </div>
+}
+
+<form method="get" class="filter-bar">
+    <label>Sözleşme No<input name="soz" value="@Soz" placeholder="KS-000123" /></label>
+    <label>Vade Baş.<input name="min" type="date" value="@Min" /></label>
+    <label>Vade Bit.<input name="max" type="date" value="@Max" /></label>
+    <label class="kf-inline"><input type="checkbox" name="bakiyeli" value="true" checked="@(Bakiyeli == "true")" /> Yalnız bakiyeli</label>
+    <button type="submit">Listele</button>
+    @if (FiltreVar) { <a class="link" href="/otomatik-tahsilat">Temizle</a> }
+</form>
+
+@* Tutarlar DÖVİZ KIRILIMLI yazılır: native tutarları tek sayıda toplamak (EUR + TRY) anlamsız
+   bir rakam üretiyordu (adversarial L1). Cari bakiye BAZ paradır, ayrı gösterilir. *@
+<p class="muted small">@_adaylar.Count aday dönem@(FiltreVar ? " (filtreli)" : "") ·
+    @foreach (var (doviz, toplam) in OtomatikTahsilatService.DovizToplamlari(_adaylar))
+    {
+        <text>@toplam.ToString("N2") @doviz · </text>
+    }
+    borçlu cari @_adaylar.Count(a => a.CariBakiye > 0)</p>
+
+@if (_adaylar.Count == 0)
+{
+    <p class="muted">Vadesi gelmiş, kesilmeyi bekleyen dönem yok.</p>
+}
+else
+{
+    <form method="post" action="/finans/otomatik-tahsilat/calistir"><AntiforgeryToken />
+        <div class="table-scroll">
+            <table class="grid tr-grid">
+                <thead><tr><th></th><th>Sözleşme</th><th class="num">Dönem</th><th>Başlangıç</th>
+                    <th>Bitiş</th><th>Müşteri</th><th>Şube</th><th class="num">Kira Tutarı (kendi dövizinde)</th>
+                    <th>Döviz</th><th class="num">Cari Bakiye ₺</th></tr></thead>
+                <tbody>
+                    @foreach (var a in _adaylar)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="secili" value="@($"{a.RentalId}:{a.DonemSira}")" /></td>
+                            <td class="mono">@a.SozlesmeNo</td>
+                            <td class="num">@a.DonemSira</td>
+                            <td>@a.DonemBas.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                            <td>@a.DonemBit.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                            <td>@a.CariAd</td>
+                            <td>@(a.Sube ?? "—")</td>
+                            <td class="num">@a.KiraTutar.ToString("N2")</td>
+                            <td>@a.Doviz</td>
+                            <td class="num @(a.CariBakiye > 0 ? "neg" : null)">@a.CariBakiye.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="grid-form">
+            @* Tahsilat İSTEĞE BAĞLI: bazen yalnız fatura kesilir, tahsilat sonra yapılır. *@
+            <label class="check"><input type="checkbox" name="tahsilat" value="true" checked /> Faturayı kes ve tahsilatı da yaz</label>
+            <label>Hesap
+                <select name="hesap"><option value="Kasa">Kasa</option><option value="Banka">Banka</option></select>
+            </label>
+            <button type="submit" data-confirm="Seçili dönemler için fatura kesilecek (ve işaretliyse tahsilat yazılacak). Devam edilsin mi?">
+                Seçilenler için Çalıştır
+            </button>
+        </div>
+        <p class="muted small">Her dönem <strong>tek tek</strong> çalıştırılır — birinin hatası
+            diğerlerini durdurmaz. Aynı dönem ikinci kez çalıştırılamaz (fatura kesilmişse mevcut
+            fatura döner, tahsilat deterministik anahtarla tekrar yazılmaz).</p>
+    </form>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "atlanan")] public string? Atlanan { get; set; }
+    [SupplyParameterFromQuery(Name = "soz")] public string? Soz { get; set; }
+    [SupplyParameterFromQuery(Name = "min")] public string? Min { get; set; }
+    [SupplyParameterFromQuery(Name = "max")] public string? Max { get; set; }
+    [SupplyParameterFromQuery(Name = "bakiyeli")] public string? Bakiyeli { get; set; }
+
+    private IReadOnlyList<OtomatikTahsilatAdayi> _adaylar = [];
+    private bool _jobAcik;
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Soz) || !string.IsNullOrWhiteSpace(Min)
+        || !string.IsNullOrWhiteSpace(Max) || !string.IsNullOrWhiteSpace(Bakiyeli);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _jobAcik = (await Ayarlar.GetAsync())?.DonemselOtomatikTahsilat ?? false;
+        _adaylar = await Tetik.AdaylarAsync(new OtomatikTahsilatFiltre
+        {
+            SozlesmeNo = Soz,
+            VadeMin = DateTimeOffset.TryParse(Min, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : null,
+            // Bitiş günü DAHİL.
+            VadeMax = DateTimeOffset.TryParse(Max, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero).AddDays(1).AddTicks(-1) : null,
+            SadeceBakiyeli = Bakiyeli == "true"
+        });
+    }
+}
