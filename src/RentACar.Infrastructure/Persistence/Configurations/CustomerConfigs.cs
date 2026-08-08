@@ -183,7 +183,19 @@ internal sealed class HukukDosyaConfig : IEntityTypeConfiguration<HukukDosya>
         e.Property(x => x.Tur).HasConversion<int>();
         e.Property(x => x.Durum).HasConversion<int>();
         e.Property(x => x.Aciklama).HasMaxLength(1024);
+        // FAZ-41 derinlik (additive, nullable)
+        e.Property(x => x.FaturaNoTemp).HasMaxLength(64);
+        e.Property(x => x.AvukatTel).HasMaxLength(32);
+        e.Property(x => x.AvukatMail).HasMaxLength(256);
+        e.Property(x => x.Avukat2Ad).HasMaxLength(128);
+        e.Property(x => x.Avukat2Tel).HasMaxLength(32);
+        e.Property(x => x.Avukat2Mail).HasMaxLength(256);
+        e.Property(x => x.Tahsilat).HasColumnType("numeric(19,4)");
+        // Kalan TÜRETİLMİŞ (Tutar-Tahsilat) — kolon açmıyoruz ki iki kaynak çelişemesin.
+        e.Ignore(x => x.Kalan);
         e.HasIndex(x => new { x.TenantId, x.DosyaNo }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.FaturaNoTemp }); // liste "Fatura No" araması
+        e.HasIndex(x => new { x.TenantId, x.CariId });       // liste "Ad Soyad" (cari) süzgeci
     }
 }
 

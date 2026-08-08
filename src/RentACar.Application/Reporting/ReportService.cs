@@ -1098,9 +1098,14 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         return new EkHizmetAracPivotDto(kolonlar, satirlar, kolonToplam, satirlar.Sum(s => s.Toplam));
     }
 
-    /// <summary>Müşteri CRM segment (roadmap N3): kira sayısı/ciro/segment.</summary>
-    public Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentAsync(CancellationToken ct = default)
-        => _repository.GetMusteriSegmentRowsAsync(ct);
+    /// <summary>Müşteri CRM segment (roadmap N3): kira sayısı/ciro/segment. FAZ-41: opsiyonel süzgeç.</summary>
+    public Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentAsync(
+        MusteriSegmentFilter? filter = null, CancellationToken ct = default)
+        => _repository.GetMusteriSegmentRowsAsync(filter, ct);
+
+    /// <summary>FAZ-41 — segment süzgeci seçenekleri (filtresiz kiralardan; süzgeç kendini kilitlemesin).</summary>
+    public Task<MusteriSegmentSecenekleri> GetMusteriSegmentSecenekleriAsync(CancellationToken ct = default)
+        => _repository.GetMusteriSegmentSecenekleriAsync(ct);
 
     /// <summary>Personel çalışma grafiği (roadmap N3): personel başına BAF tahsis sayısı.</summary>
     public Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaAsync(CancellationToken ct = default)

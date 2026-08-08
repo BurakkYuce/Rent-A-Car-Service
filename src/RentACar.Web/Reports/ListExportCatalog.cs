@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Legal;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Entities;
 
@@ -238,7 +239,44 @@ public static class ListExportCatalog
             plaka(x.VehicleId), x.Tur, D(x.Bitis), x.KalanGun, x.Bucket.ToString()
         }).ToList());
 
+    /// <summary>
+    /// FAZ-41 — hukuk dosyası listesi (canlı hukuk_islem_listesi.aspx). Müşteri adı satır DTO'sunda
+    /// zaten çözülü geldiği için ayrıca resolver almaz.
+    ///
+    /// <para><b>Tutar/Tahsilat/Kalan BİLGİ kolonudur — muhasebe defterinden gelmez</b> ve hiçbir
+    /// mali rapora karışmaz (bkz. HukukDosya.Tahsilat). Kalan entity'nin tek formülünden okunur,
+    /// burada yeniden hesaplanmaz.</para>
+    /// </summary>
+    public static ExportTable HukukDosyalari(IReadOnlyList<HukukDosyaSatirDto> h) => new(
+        "Hukuk Dosyalari",
+        ["Dosya No", "Müşteri", "Müşteri Tel", "Fatura No", "Tür", "Avukat", "Avukat Tel", "Avukat E-posta",
+         "2. Avukat", "2. Avukat Tel", "2. Avukat E-posta",
+         "Tutar (bilgi)", "Tahsilat (bilgi)", "Kalan (bilgi)", "Durum", "Tarih", "Aktif", "Açıklama"],
+        h.Select(x => new object?[]
+        {
+            x.Dosya.DosyaNo, x.MusteriAd, x.MusteriTel, x.Dosya.FaturaNoTemp, x.Dosya.Tur.ToString(),
+            x.Dosya.Avukat, x.Dosya.AvukatTel, x.Dosya.AvukatMail,
+            x.Dosya.Avukat2Ad, x.Dosya.Avukat2Tel, x.Dosya.Avukat2Mail,
+            x.Dosya.Tutar, x.Dosya.Tahsilat, x.Dosya.Kalan, x.Dosya.Durum.ToString(),
+            DG(x.Dosya.Tarih), E(x.Dosya.Aktif), x.Dosya.Aciklama
+        }).ToList());
+
     // Hücre biçimleyiciler (sütun zenginleştirme için): bool → Evet/Hayır, nullable tarih → yyyy-MM-dd.
     private static string E(bool b) => b ? "Evet" : "Hayır";
+
+    /// <summary>Tarihi SAKLANDIĞI offset'le (UTC) yazar — eski export'ların kullandığı biçimleyici.</summary>
     private static string? D(DateTimeOffset? d) => d?.ToString("yyyy-MM-dd");
+
+    /// <summary>
+    /// Tarihi YEREL TAKVİM GÜNÜ olarak yazar (ekranla aynı gün).
+    ///
+    /// <para><b>Neden ayrı:</b> tarih alanları forma yerel gün olarak girilir ve <c>FormParse.Date</c>
+    /// bunu UTC'ye çevirir (01.03 00:00 +03 → 28.02 21:00 UTC). Ham <see cref="D"/> ile yazınca
+    /// export "28.02", ekran "01.03" gösteriyordu — canlı duman testinde yakalandı. Ekranlar
+    /// <c>.LocalDateTime</c> kullandığı için export de öyle yazmalı ("gördüğün = indirdiğin").</para>
+    ///
+    /// <para>Eski export'lar bilinçli olarak <see cref="D"/>'de bırakıldı: hepsini çevirmek bu fazın
+    /// kapsamı dışında ~20 export'u ve testlerini etkileyen ayrı bir süpürme işidir.</para>
+    /// </summary>
+    private static string? DG(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
 }

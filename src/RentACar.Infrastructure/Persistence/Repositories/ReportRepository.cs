@@ -1025,25 +1025,103 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(
+        MusteriSegmentFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        var grup = await db.Rentals.AsNoTracking()
-            .Where(r => r.Durum != RentalStatus.Iptal)
+        // FAZ-41 — süzgeç AGREGADAN ÖNCE kiralara uygulanır (pencere içi "ne yaptı" görünümü).
+        var kiraQ = db.Rentals.AsNoTracking().Where(r => r.Durum != RentalStatus.Iptal);
+        if (filter is not null)
+        {
+            if (filter.Bas is { } bas) kiraQ = kiraQ.Where(r => r.BasTar >= bas);
+            if (filter.Bit is { } bit) kiraQ = kiraQ.Where(r => r.BasTar <= bit);
+            if (!string.IsNullOrWhiteSpace(filter.RezKaynak))
+            {
+                var k = filter.RezKaynak.Trim();
+                kiraQ = kiraQ.Where(r => r.Kaynak != null && EF.Functions.ILike(r.Kaynak, k));
+            }
+            if (!string.IsNullOrWhiteSpace(filter.CikisOfis))
+            {
+                // METİN eşleşmesi (FK değil) — gerekçe MusteriSegmentFilter.CikisOfis XML notunda.
+                var o = filter.CikisOfis.Trim();
+                kiraQ = kiraQ.Where(r => r.CikisOfisi != null && r.CikisOfisi.Trim() == o);
+            }
+        }
+
+        var grup = await kiraQ
             .GroupBy(r => r.MusteriId)
-            .Select(g => new { MusteriId = g.Key, KiraSayisi = g.Count(), ToplamCiro = g.Sum(r => r.GenelToplam * r.KurSnapshot), SonIslem = g.Max(r => r.BasTar) }) // TL-baz (O5); VIP eşiği artık anlamlı
+            .Select(g => new
+            {
+                MusteriId = g.Key,
+                KiraSayisi = g.Count(),
+                ToplamCiro = g.Sum(r => r.GenelToplam * r.KurSnapshot), // TL-baz (O5); VIP eşiği artık anlamlı
+                SonIslem = g.Max(r => r.BasTar),
+                IlkKira = g.Min(r => r.BasTar),
+                // SQL SUM NULL'ları atlar: iki km'si de dolu olmayan kira paya girmez; payda ayrı sayılır.
+                KmToplam = g.Sum(r => r.DonusKm - r.CikisKm),
+                KmAdet = g.Count(r => r.CikisKm != null && r.DonusKm != null)
+            })
             .ToListAsync(ct);
 
-        var cust = (await db.Customers.AsNoTracking().ToListAsync(ct)).ToDictionary(c => c.Id, c => c.DisplayName);
+        // Ek hizmet (RentalAddOn) brütü — AYNI süzgeçten geçmiş kiralara bağlı kalemler, TL-baz
+        // (kiranın KurSnapshot'ı ile; kalem kiranın dövizinde saklanır).
+        var hizmet = await (from a in db.RentalAddOns.AsNoTracking()
+                            join r in kiraQ on a.RentalId equals r.Id
+                            group a.Toplam * r.KurSnapshot by r.MusteriId into g
+                            select new { MusteriId = g.Key, Toplam = g.Sum() })
+            .ToListAsync(ct);
+        var hizmetMap = hizmet.ToDictionary(x => x.MusteriId, x => x.Toplam);
 
-        return grup
-            .Select(g => new MusteriSegmentRow(
-                g.MusteriId, cust.TryGetValue(g.MusteriId, out var n) ? n : "(bilinmeyen cari)",
-                g.KiraSayisi, g.ToplamCiro, g.SonIslem,
-                g.ToplamCiro >= 10000m ? "VIP" : g.ToplamCiro > 0m ? "Standart" : "Pasif"))
-            .OrderByDescending(r => r.ToplamCiro)
-            .ToList();
+        var cust = await db.Customers.AsNoTracking()
+            .Select(c => new { c.Id, c.Tip, c.Ad, c.Soyad, c.Unvan, c.Email, c.CepTel, c.DogumTarihi })
+            .ToListAsync(ct);
+        var custMap = cust.ToDictionary(c => c.Id);
+
+        var rows = grup
+            .Select(g =>
+            {
+                custMap.TryGetValue(g.MusteriId, out var c);
+                // Customer.DisplayName ile BİREBİR aynı kural (entity projeksiyonu yerine alan
+                // projeksiyonu kullandığımız için burada tekrar yazılı; davranış değişmedi).
+                var ad = c is null
+                    ? "(bilinmeyen cari)"
+                    : (c.Tip == CariType.Bireysel ? $"{c.Ad} {c.Soyad}".Trim() : (c.Unvan ?? string.Empty));
+
+                return new MusteriSegmentRow(
+                    g.MusteriId, ad, g.KiraSayisi, g.ToplamCiro, g.SonIslem,
+                    g.ToplamCiro >= 10000m ? "VIP" : g.ToplamCiro > 0m ? "Standart" : "Pasif",
+                    Mail: c?.Email, Tel: c?.CepTel,
+                    OrtalamaKiraBedeli: g.KiraSayisi > 0 ? decimal.Round(g.ToplamCiro / g.KiraSayisi, 2, MidpointRounding.AwayFromZero) : 0m,
+                    OrtalamaKm: g.KmAdet > 0 ? decimal.Round((decimal)(g.KmToplam ?? 0) / g.KmAdet, 2, MidpointRounding.AwayFromZero) : null,
+                    DogumTarihi: c?.DogumTarihi,
+                    IlkKiraZamani: g.IlkKira,
+                    HizmetBedeli: hizmetMap.TryGetValue(g.MusteriId, out var h) ? h : 0m);
+            });
+
+        if (filter?.MinKiraSayisi is { } min) rows = rows.Where(r => r.KiraSayisi >= min);
+
+        return rows.OrderByDescending(r => r.ToplamCiro).ToList();
+    }
+
+    public async Task<MusteriSegmentSecenekleri> GetMusteriSegmentSecenekleriAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Segment satırlarıyla AYNI kira kümesi (İptal hariç) ama SÜZGEÇSİZ — seçenek listesi
+        // kendi seçimine göre daralırsa kullanıcı seçtiği filtreden geri dönemez.
+        var q = db.Rentals.AsNoTracking().Where(r => r.Durum != RentalStatus.Iptal);
+
+        var kaynaklar = await q.Where(r => r.Kaynak != null && r.Kaynak != "")
+            .Select(r => r.Kaynak!).Distinct().ToListAsync(ct);
+        var ofisler = await q.Where(r => r.CikisOfisi != null && r.CikisOfisi != "")
+            .Select(r => r.CikisOfisi!).Distinct().ToListAsync(ct);
+
+        return new MusteriSegmentSecenekleri(
+            kaynaklar.Select(x => x.Trim()).Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList(),
+            ofisler.Select(x => x.Trim()).Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList());
     }
 
     public async Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default)

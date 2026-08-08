@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Application.Legal;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -334,5 +335,46 @@ public sealed class ListExportCatalogTests
         Assert.Equal("12345678901", t.Rows[0][3]);   // decrypt uygulandı
         Assert.Equal("45000", t.Rows[0][7]);
         Assert.Equal("Aktif", t.Rows[0][9]);
+    }
+
+    /// <summary>
+    /// FAZ-41 — hukuk dosyası export projeksiyonu. Bağımsız oracle: Tutar 1000 / Tahsilat 300 elle
+    /// kurulur, Kalan hücresinde 700 SABİTİ beklenir. Başlıklarda "(bilgi)" etiketi ZORUNLU —
+    /// indirilen dosyada da bu rakamların muhasebe olmadığı okunmalı.
+    /// </summary>
+    [Fact]
+    public void HukukDosyalari_projeksiyon_ve_bilgi_etiketi()
+    {
+        var h = new HukukDosya
+        {
+            DosyaNo = "2026/41", FaturaNoTemp = "FTR-77", Tur = HukukTuru.Icra, Avukat = "Av. Demir",
+            AvukatTel = "0212 111 22 33", AvukatMail = "demir@ornek.com", Avukat2Ad = "Av. Yılmaz",
+            Avukat2Tel = "0532 444 55 66", Avukat2Mail = "yilmaz@ornek.com",
+            Tutar = 1000m, Tahsilat = 300m, Durum = HukukDurum.Acik, Aktif = true,
+            // Öğle UTC: yerel gün her makine saat diliminde 2026-03-01 kalır (test TZ'den bağımsız).
+            Tarih = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
+        };
+        var t = ListExportCatalog.HukukDosyalari([new HukukDosyaSatirDto(h, "Ali Veli", "0555 000 11 22")]);
+
+        Assert.Equal(18, t.Headers.Count);
+        Assert.Equal("Dosya No", t.Headers[0]);
+        Assert.Equal("Müşteri", t.Headers[1]);
+        Assert.Equal("Tutar (bilgi)", t.Headers[11]);
+        Assert.Equal("Tahsilat (bilgi)", t.Headers[12]);
+        Assert.Equal("Kalan (bilgi)", t.Headers[13]);
+
+        Assert.Equal("2026/41", t.Rows[0][0]);
+        Assert.Equal("Ali Veli", t.Rows[0][1]);      // cariden çözülen ad
+        Assert.Equal("0555 000 11 22", t.Rows[0][2]);
+        Assert.Equal("FTR-77", t.Rows[0][3]);
+        Assert.Equal("Icra", t.Rows[0][4]);          // enum → metin
+        Assert.Equal("0212 111 22 33", t.Rows[0][6]);
+        Assert.Equal("Av. Yılmaz", t.Rows[0][8]);
+        Assert.Equal(1000m, t.Rows[0][11]);
+        Assert.Equal(300m, t.Rows[0][12]);
+        Assert.Equal(700m, t.Rows[0][13]);           // 1000 − 300 (elle kurulmuş sabit)
+        // Tarih YEREL takvim günü — ekranla aynı gün (DG); ham UTC yazımı bir gün geri kaydırıyordu.
+        Assert.Equal("2026-03-01", t.Rows[0][15]);
+        Assert.Equal("Evet", t.Rows[0][16]);         // Aktif
     }
 }
