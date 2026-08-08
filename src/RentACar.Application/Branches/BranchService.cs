@@ -10,10 +10,12 @@ namespace RentACar.Application.Branches;
 /// yapılandırmadır → <see cref="Permission.ManageUsers"/> (Admin) ile korunur. Tenant
 /// izolasyonu ve audit alt katmanda otomatik.
 /// </summary>
-public sealed class BranchService(IBranchRepository repository, ICurrentUser currentUser)
+public sealed class BranchService(
+    IBranchRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly IBranchRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
 
     public Task<IReadOnlyList<Branch>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -84,8 +86,104 @@ public sealed class BranchService(IBranchRepository repository, ICurrentUser cur
         CalismaSaatleri = Trim(input.CalismaSaatleri),
         KomisyonOran = input.KomisyonOran,
         EvrakNoOnek = Trim(input.EvrakNoOnek),
+        // FAZ-23 — Normalize YENİ nesne kurar: eklenmeyen alan sessizce kaybolur.
+        WebIsim = Trim(input.WebIsim),
+        FirmaUnvani = Trim(input.FirmaUnvani),
+        WebRezOncesiSaat = input.WebRezOncesiSaat,
+        Enlem = input.Enlem,
+        Boylam = input.Boylam,
+        HizmetKomisyonOran = input.HizmetKomisyonOran,
+        RezervasyonRengi = Trim(input.RezervasyonRengi),
+        AlisSubesiDegilMi = input.AlisSubesiDegilMi,
+        WebSira = input.WebSira,
+        WebOtoparkId = Trim(input.WebOtoparkId),
+        BayiCariKod = Trim(input.BayiCariKod),
+        BayiOfisId = Trim(input.BayiOfisId),
+        KomisyonHesabi = Trim(input.KomisyonHesabi),
+        OnlineRezId = Trim(input.OnlineRezId),
+        SozlesmeNoFormati = Trim(input.SozlesmeNoFormati),
+        NakitHesapId = input.NakitHesapId,
+        BankaHesapId = input.BankaHesapId,
+        EntegrasyonKodu = Trim(input.EntegrasyonKodu),
+        ResimDosyasi = Trim(input.ResimDosyasi),
+        HaftalikCalismaSaatleri = Trim(input.HaftalikCalismaSaatleri),
         Aktif = input.Aktif
     };
+
+    // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
+
+    public Task<IReadOnlyList<SubeUcretsizHizmet>> ListHizmetlerAsync(Guid subeId, CancellationToken ct = default)
+        => _repository.ListHizmetlerAsync(subeId, ct);
+
+    public async Task<Guid> AddHizmetAsync(SubeUcretsizHizmetInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (input.SubeId == Guid.Empty) throw new ValidationException("Şube seçilmelidir.");
+        if (string.IsNullOrWhiteSpace(input.HizmetAdi)) throw new ValidationException("Hizmet adı zorunludur.");
+        if (await _repository.FindAsync(input.SubeId, ct) is null)
+            throw new ValidationException("Şube bulunamadı.");
+
+        var row = new SubeUcretsizHizmet
+        {
+            SubeId = input.SubeId,
+            HizmetAdi = input.HizmetAdi.Trim(),
+            Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim()
+        };
+        await _repository.AddHizmetAsync(row, ct);
+        return row.Id;
+    }
+
+    public Task<bool> RemoveHizmetAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        return _repository.RemoveHizmetAsync(id, ct);
+    }
+
+    // ---- FAZ-23: şube birleştirme ----
+
+    /// <summary>
+    /// Birleştirme ÖNİZLEMESİ — hangi tabloda kaç kayıt taşınacak. YAZMA YAPMAZ.
+    /// Toplu UPDATE geri alınamadığı için kullanıcı onaydan önce etkiyi görmeli.
+    /// </summary>
+    public async Task<SubeBirlestirOnizleme?> BirlestirOnizleAsync(
+        Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        var kaynak = await _repository.FindAsync(kaynakId, ct);
+        var hedef = await _repository.FindAsync(hedefId, ct);
+        if (kaynak is null || hedef is null) return null;
+        return new SubeBirlestirOnizleme(kaynak.Ad, hedef.Ad, await _repository.BirlestirSayimAsync(kaynakId, ct));
+    }
+
+    /// <summary>
+    /// Kaynak şubenin TÜM referanslarını hedefe taşır, kaynağı PASİFE çeker (silmez).
+    ///
+    /// <para>Yetki <see cref="Permission.ManageUsers"/> (Admin): tek çağrıda çok sayıda kaydı
+    /// değiştiren, geri alınamayan bir işlem — operasyon yetkisi yetmez.</para>
+    /// </summary>
+    public async Task<int> BirlestirAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        if (kaynakId == Guid.Empty || hedefId == Guid.Empty)
+            throw new ValidationException("Kaynak ve hedef şube seçilmelidir.");
+        // Kendine birleştirme: tüm referansları kendine yazıp şubeyi PASİFE çekerdi — sessiz felaket.
+        if (kaynakId == hedefId)
+            throw new ValidationException("Kaynak ve hedef şube farklı olmalıdır.");
+
+        var kaynak = await _repository.FindAsync(kaynakId, ct)
+            ?? throw new ValidationException("Kaynak şube bulunamadı.");
+        var hedef = await _repository.FindAsync(hedefId, ct)
+            ?? throw new ValidationException("Hedef şube bulunamadı.");
+        if (!hedef.Aktif)
+            throw new ValidationException("Hedef şube pasif — önce aktifleştirin (pasif şubeye taşımak kayıtları görünmez yapar).");
+
+        var tasinan = await _repository.BirlestirAsync(kaynakId, hedefId, ct);
+
+        // Birleştirme HAM SQL ile yazıyor (toplu UPDATE) → araç listesi cache'i BAYAT kalır ve
+        // kullanıcı 60 saniye boyunca araçları hâlâ eski şubede görür. Cache açıkça temizlenir.
+        if (tasinan > 0) _cache.Invalidate(Vehicles.VehicleService.CacheKey);
+        return tasinan;
+    }
 
     private static void Apply(Branch b, BranchInput n)
     {
@@ -100,6 +198,26 @@ public sealed class BranchService(IBranchRepository repository, ICurrentUser cur
         b.CalismaSaatleri = n.CalismaSaatleri;
         b.KomisyonOran = n.KomisyonOran;
         b.EvrakNoOnek = n.EvrakNoOnek;
+        b.WebIsim = n.WebIsim;
+        b.FirmaUnvani = n.FirmaUnvani;
+        b.WebRezOncesiSaat = n.WebRezOncesiSaat;
+        b.Enlem = n.Enlem;
+        b.Boylam = n.Boylam;
+        b.HizmetKomisyonOran = n.HizmetKomisyonOran;
+        b.RezervasyonRengi = n.RezervasyonRengi;
+        b.AlisSubesiDegilMi = n.AlisSubesiDegilMi;
+        b.WebSira = n.WebSira;
+        b.WebOtoparkId = n.WebOtoparkId;
+        b.BayiCariKod = n.BayiCariKod;
+        b.BayiOfisId = n.BayiOfisId;
+        b.KomisyonHesabi = n.KomisyonHesabi;
+        b.OnlineRezId = n.OnlineRezId;
+        b.SozlesmeNoFormati = n.SozlesmeNoFormati;
+        b.NakitHesapId = n.NakitHesapId;
+        b.BankaHesapId = n.BankaHesapId;
+        b.EntegrasyonKodu = n.EntegrasyonKodu;
+        b.ResimDosyasi = n.ResimDosyasi;
+        b.HaftalikCalismaSaatleri = n.HaftalikCalismaSaatleri;
         b.Aktif = n.Aktif;
     }
 
