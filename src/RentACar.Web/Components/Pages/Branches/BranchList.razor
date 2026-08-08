@@ -8,6 +8,10 @@
 <p class="muted small">Yönetilen şube sözlüğü. Şube adları araç/gider/kullanıcı formlarında
     açılır liste kaynağı olarak kullanılır. (Mevcut serbest-metin şube alanları korunur.)</p>
 
+@if (!string.IsNullOrEmpty(Bilgi))
+{
+    <p class="ok">@Bilgi</p>
+}
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
@@ -27,6 +31,28 @@
         <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="09:00-18:00" /></label>
         <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" placeholder="0.10" /></label>
         <label>Evrak No Öneki<input name="evrakNoOnek" placeholder="MRK-" /></label>
+        <label>Web Adı<input name="webIsim" maxlength="128" /></label>
+        <label>Firma Ünvanı<input name="firmaUnvani" maxlength="256" /></label>
+        @* İKİ KOMİSYON AYRI KAVRAM — etiketler bilerek açık yazıldı. *@
+        <label>Hizmetten Alınan Komisyon<input name="hizmetKomisyonOran" type="number" step="0.0001" min="0" max="1" title="Genel (satış) komisyonundan AYRI: ek hizmet/servis üzerinden alınan pay" /></label>
+        <label>Web Rez. Öncesi Saat<input name="webRezOncesiSaat" type="number" min="0" /></label>
+        <label>Enlem<input name="enlem" type="number" step="0.000001" /></label>
+        <label>Boylam<input name="boylam" type="number" step="0.000001" /></label>
+        <label>Rezervasyon Rengi<input name="rezervasyonRengi" maxlength="7" placeholder="#0ea5e9" /></label>
+        <label class="check"><input type="checkbox" name="alisSubesiDegilMi" value="true" /> Alış (çıkış) şubesi DEĞİL</label>
+        <label>Web Sıra<input name="webSira" type="number" min="0" /></label>
+        <label>Web Otopark ID<input name="webOtoparkId" maxlength="64" /></label>
+        <label>Bayi Cari Kod<input name="bayiCariKod" maxlength="64" /></label>
+        <label>Bayi Ofis ID<input name="bayiOfisId" maxlength="64" /></label>
+        <label>Komisyon Hesabı
+            <select name="komisyonHesabi"><option value="">—</option><option>Satıştan</option><option>Maliyetten</option></select>
+        </label>
+        <label>Online Rez. ID<input name="onlineRezId" maxlength="64" /></label>
+        <label>Sözleşme No Formatı<input name="sozlesmeNoFormati" maxlength="64" /></label>
+        <label>Entegrasyon Kodu<input name="entegrasyonKodu" maxlength="64" /></label>
+        <label>Resim Dosyası (yol)<input name="resimDosyasi" maxlength="512" title="Yalnız yol metni; dosya yükleme bu sürümde yok" /></label>
+        <label class="u-col-full">Haftalık Çalışma Saatleri<input name="haftalikCalismaSaatleri" maxlength="1024" placeholder="Pzt-Cum 08:00-19:00, Cmt 09:00-14:00" /></label>
+
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -65,6 +91,31 @@
                             <label>Çalışma Saatleri<input name="calismaSaatleri" value="@s.CalismaSaatleri" /></label>
                             <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" value="@s.KomisyonOran" /></label>
                             <label>Evrak No Öneki<input name="evrakNoOnek" value="@s.EvrakNoOnek" /></label>
+                            <label>Web Adı<input name="webIsim" maxlength="128" value="@s.WebIsim" /></label>
+                            <label>Firma Ünvanı<input name="firmaUnvani" maxlength="256" value="@s.FirmaUnvani" /></label>
+                            <label>Hizmetten Alınan Komisyon<input name="hizmetKomisyonOran" type="number" step="0.0001" min="0" max="1" value="@s.HizmetKomisyonOran" title="Genel (satış) komisyonundan AYRI" /></label>
+                            <label>Web Rez. Öncesi Saat<input name="webRezOncesiSaat" type="number" min="0" value="@s.WebRezOncesiSaat" /></label>
+                            <label>Enlem<input name="enlem" type="number" step="0.000001" value="@s.Enlem" /></label>
+                            <label>Boylam<input name="boylam" type="number" step="0.000001" value="@s.Boylam" /></label>
+                            <label>Rezervasyon Rengi<input name="rezervasyonRengi" maxlength="7" value="@s.RezervasyonRengi" /></label>
+                            <label class="check"><input type="checkbox" name="alisSubesiDegilMi" value="true" checked="@s.AlisSubesiDegilMi" /> Alış (çıkış) şubesi DEĞİL</label>
+                            <label>Web Sıra<input name="webSira" type="number" min="0" value="@s.WebSira" /></label>
+                            <label>Web Otopark ID<input name="webOtoparkId" maxlength="64" value="@s.WebOtoparkId" /></label>
+                            <label>Bayi Cari Kod<input name="bayiCariKod" maxlength="64" value="@s.BayiCariKod" /></label>
+                            <label>Bayi Ofis ID<input name="bayiOfisId" maxlength="64" value="@s.BayiOfisId" /></label>
+                            <label>Komisyon Hesabı
+                                <select name="komisyonHesabi">
+                                    <option value="">—</option>
+                                    <option selected="@(s.KomisyonHesabi == "Satıştan")">Satıştan</option>
+                                    <option selected="@(s.KomisyonHesabi == "Maliyetten")">Maliyetten</option>
+                                </select>
+                            </label>
+                            <label>Online Rez. ID<input name="onlineRezId" maxlength="64" value="@s.OnlineRezId" /></label>
+                            <label>Sözleşme No Formatı<input name="sozlesmeNoFormati" maxlength="64" value="@s.SozlesmeNoFormati" /></label>
+                            <label>Entegrasyon Kodu<input name="entegrasyonKodu" maxlength="64" value="@s.EntegrasyonKodu" /></label>
+                            <label>Resim Dosyası (yol)<input name="resimDosyasi" maxlength="512" value="@s.ResimDosyasi" /></label>
+                            <label class="u-col-full">Haftalık Çalışma Saatleri<input name="haftalikCalismaSaatleri" maxlength="1024" value="@s.HaftalikCalismaSaatleri" /></label>
+
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@s.Aktif">Aktif</option>
@@ -85,7 +136,99 @@
 </table>
 </div>
 
+<h2 class="dash-h2">Şube Özel Ücretsiz Hizmetler</h2>
+<p class="muted small">Şubede ek ücret alınmayan kalemler (bilgi/vitrin). <strong>Ücretli</strong>
+    ek hizmet için Ek Hizmet Tanımları ekranını kullanın — burası fiyata girmez.</p>
+
+<form method="post" action="/subeler/hizmet-ekle" class="filter-bar"><AntiforgeryToken />
+    <label>Şube
+        <select name="subeId" required>
+            <option value="">— seç —</option>
+            @foreach (var b in _list) { <option value="@b.Id">@b.Ad</option> }
+        </select>
+    </label>
+    <label>Hizmet<input name="hizmetAdi" maxlength="128" required placeholder="Havalimanı teslim" /></label>
+    <label>Açıklama<input name="aciklama" maxlength="512" /></label>
+    <button type="submit">Ekle</button>
+</form>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead><tr><th>Şube</th><th>Hizmet</th><th>Açıklama</th><th></th></tr></thead>
+    <tbody>
+        @if (_hizmetler.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">Tanımlı ücretsiz hizmet yok.</td></tr>
+        }
+        @foreach (var h in _hizmetler)
+        {
+            <tr>
+                <td>@SubeAd(h.SubeId)</td>
+                <td>@h.HizmetAdi</td>
+                <td>@(h.Aciklama ?? "—")</td>
+                <td>
+                    <form method="post" action="/subeler/hizmet-sil" data-confirm="Hizmet silinsin mi?"><AntiforgeryToken />
+                        <input type="hidden" name="id" value="@h.Id" />
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+<h2 class="dash-h2">Şube Birleştirme</h2>
+<p class="muted small"><strong>Geri alınamaz.</strong> Kaynak şubenin araç, kira, rezervasyon,
+    teklif, personel, lokasyon, tarife ve kullanıcı atamaları hedef şubeye taşınır; kaynak şube
+    <strong>silinmez</strong>, pasife alınır. <strong>Giderler taşınmaz</strong> — kesilmiş gider
+    belgesi değişmez bir mali kayıttır ve şubesi geriye dönük değiştirilemez.
+    Önce <em>Önizle</em> ile kaç kaydın etkileneceğini görün.</p>
+
+<form method="get" class="filter-bar">
+    <label>Kaynak (pasife alınacak)
+        <select name="kaynak">
+            <option value="">— seç —</option>
+            @foreach (var b in _list) { <option value="@b.Id" selected="@(b.Id.ToString() == Kaynak)">@b.Ad</option> }
+        </select>
+    </label>
+    <label>Hedef
+        <select name="hedef">
+            <option value="">— seç —</option>
+            @foreach (var b in _list.Where(x => x.Aktif)) { <option value="@b.Id" selected="@(b.Id.ToString() == Hedef)">@b.Ad</option> }
+        </select>
+    </label>
+    <button type="submit">Önizle</button>
+</form>
+
+@if (_onizleme is { } o)
+{
+    <div class="filter-panel">
+        <p><strong>@o.KaynakAd</strong> → <strong>@o.HedefAd</strong> · toplam <strong>@o.Toplam</strong> kayıt</p>
+        <ul class="muted small">
+            @foreach (var (tablo, adet) in o.Etkilenen) { <li>@tablo: @adet</li> }
+            @if (o.Etkilenen.Count == 0) { <li>Taşınacak kayıt yok.</li> }
+        </ul>
+        <form method="post" action="/subeler/birlestir" class="filter-bar"
+              data-confirm="Bu işlem geri alınamaz. Devam edilsin mi?"><AntiforgeryToken />
+            <input type="hidden" name="kaynakId" value="@Kaynak" />
+            <input type="hidden" name="hedefId" value="@Hedef" />
+            <label class="check"><input type="checkbox" name="onay" value="true" required /> Etkiyi gördüm, birleştir</label>
+            <button type="submit" class="danger">Birleştir</button>
+        </form>
+    </div>
+}
+
 @code {
+    [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    [SupplyParameterFromQuery(Name = "hedef")] public string? Hedef { get; set; }
+    [SupplyParameterFromQuery(Name = "bilgi")] public string? Bilgi { get; set; }
+
+    private IReadOnlyList<SubeUcretsizHizmet> _hizmetler = [];
+    private SubeBirlestirOnizleme? _onizleme;
+
+    private string SubeAd(Guid id) => _list.FirstOrDefault(b => b.Id == id)?.Ad ?? "—";
+
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<Branch> _list = [];
@@ -94,6 +237,15 @@
     protected override async Task OnInitializedAsync()
     {
         _list = await Branches.ListAsync();
+
+        // Tüm şubelerin ücretsiz hizmetleri tek listede (şube sayısı azdır).
+        var hepsi = new List<SubeUcretsizHizmet>();
+        foreach (var b in _list) hepsi.AddRange(await Branches.ListHizmetlerAsync(b.Id));
+        _hizmetler = hepsi;
+
+        // Birleştirme ÖNİZLEMESİ yalnız iki şube seçiliyken hesaplanır; yazma YAPMAZ.
+        if (Guid.TryParse(Kaynak, out var k) && Guid.TryParse(Hedef, out var h) && k != h)
+            _onizleme = await Branches.BirlestirOnizleAsync(k, h);
 
         // Seç-veya-yaz önerileri: mevcut şube kayıtlarından distinct İl/İlçe.
         _ilOpts = _list.Select(s => s.Il).Where(x => !string.IsNullOrWhiteSpace(x))

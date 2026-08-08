@@ -23,6 +23,22 @@ internal sealed class BranchConfig : IEntityTypeConfiguration<Branch>
         e.Property(x => x.Eposta).HasMaxLength(128);
         e.Property(x => x.Il).HasMaxLength(64);
         e.Property(x => x.Ilce).HasMaxLength(64);
+        // FAZ-23 şube derinliği
+        e.Property(x => x.WebIsim).HasMaxLength(128);
+        e.Property(x => x.FirmaUnvani).HasMaxLength(256);
+        e.Property(x => x.RezervasyonRengi).HasMaxLength(7);
+        e.Property(x => x.WebOtoparkId).HasMaxLength(64);
+        e.Property(x => x.BayiCariKod).HasMaxLength(64);
+        e.Property(x => x.BayiOfisId).HasMaxLength(64);
+        e.Property(x => x.KomisyonHesabi).HasMaxLength(32);
+        e.Property(x => x.OnlineRezId).HasMaxLength(64);
+        e.Property(x => x.SozlesmeNoFormati).HasMaxLength(64);
+        e.Property(x => x.EntegrasyonKodu).HasMaxLength(64);
+        e.Property(x => x.ResimDosyasi).HasMaxLength(512);
+        e.Property(x => x.HaftalikCalismaSaatleri).HasMaxLength(1024);
+        e.Property(x => x.Enlem).HasColumnType("numeric(9,6)");
+        e.Property(x => x.Boylam).HasColumnType("numeric(9,6)");
+        e.Property(x => x.HizmetKomisyonOran).HasColumnType("numeric(9,4)");
         e.Property(x => x.Yetkili).HasMaxLength(128);
         e.Property(x => x.CalismaSaatleri).HasMaxLength(64);
         e.Property(x => x.KomisyonOran).HasColumnType("numeric(5,4)");
@@ -445,5 +461,26 @@ internal sealed class DropTanimConfig : IEntityTypeConfiguration<DropTanim>
         e.Property(x => x.OzelIletisim).HasMaxLength(200);
         e.Property(x => x.Ucret).HasColumnType("numeric(19,4)"); // FAZ 3.A3b
         e.HasIndex(x => new { x.TenantId, x.Lokasyon, x.Sube }).IsUnique();
+    }
+}
+
+
+// ---- SubeUcretsizHizmet (FAZ-23 — şubeye özel ücretsiz hizmet; tenant-owned, para taşımaz) ----
+internal sealed class SubeUcretsizHizmetConfig : IEntityTypeConfiguration<SubeUcretsizHizmet>
+{
+    public void Configure(EntityTypeBuilder<SubeUcretsizHizmet> e)
+    {
+        e.ToTable("SubeUcretsizHizmetler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.HizmetAdi).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        // Composite tenant-FK: çapraz-tenant referans imkansız. Şube silinirse satırlar da gider
+        // (child kayıt; başsız kalması anlamsız).
+        e.HasOne<Branch>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.SubeId })
+            .HasPrincipalKey(b => new { b.TenantId, b.Id })
+            .OnDelete(DeleteBehavior.Cascade);
+        e.HasIndex(x => new { x.TenantId, x.SubeId });
     }
 }

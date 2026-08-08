@@ -16,32 +16,84 @@ public static class BranchEndpoints
             .RequireAuthorization(p => p.RequireRole(nameof(UserRole.Admin)))
             .AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (BranchService svc,
-            [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
-            [FromForm] string? il, [FromForm] string? ilce, [FromForm] string? yetkili,
-            [FromForm] string? calismaSaatleri, [FromForm] string? komisyonOran, [FromForm] string? evrakNoOnek) =>
-            await Run(() => svc.CreateAsync(new BranchInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, Il = il, Ilce = ilce,
-              Yetkili = yetkili, CalismaSaatleri = calismaSaatleri, KomisyonOran = FormParse.Dec(komisyonOran),
-              EvrakNoOnek = evrakNoOnek, Aktif = true })));
+        // FAZ-23: alan sayısı 30'a çıktı → pozisyonel imza yerine form koleksiyonu (diğer
+        // uçlardaki desen). Opsiyonel sayısal/tarih alanları FormParse ile çevrilir.
+        grp.MapPost("/create", async (BranchService svc, HttpRequest req) =>
+            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true))));
 
-        grp.MapPost("/update", async (BranchService svc, [FromForm] Guid id,
-            [FromForm] string kod, [FromForm] string ad,
-            [FromForm] string? adres, [FromForm] string? telefon, [FromForm] string? eposta,
-            [FromForm] string? il, [FromForm] string? ilce, [FromForm] string? yetkili,
-            [FromForm] string? calismaSaatleri, [FromForm] string? komisyonOran, [FromForm] string? evrakNoOnek,
-            [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new BranchInput
-            { Kod = kod, Ad = ad, Adres = adres, Telefon = telefon, Eposta = eposta, Il = il, Ilce = ilce,
-              Yetkili = yetkili, CalismaSaatleri = calismaSaatleri, KomisyonOran = FormParse.Dec(komisyonOran),
-              EvrakNoOnek = evrakNoOnek, Aktif = aktif })));
+        grp.MapPost("/update", async (BranchService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null))));
 
         grp.MapPost("/delete", async (BranchService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
 
+        // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
+        grp.MapPost("/hizmet-ekle", async (BranchService svc, HttpRequest req) =>
+            await Run(() => svc.AddHizmetAsync(new RentACar.Application.Branches.SubeUcretsizHizmetInput
+            {
+                SubeId = FormParse.Id(FormParse.Str(req.Form, "subeId")) ?? Guid.Empty,
+                HizmetAdi = req.Form["hizmetAdi"].ToString(),
+                Aciklama = FormParse.Str(req.Form, "aciklama")
+            })));
+
+        grp.MapPost("/hizmet-sil", async (BranchService svc, [FromForm] Guid id) =>
+            await Run(() => svc.RemoveHizmetAsync(id)));
+
+        // ---- FAZ-23: şube birleştirme ----
+        // Onay kutusu ZORUNLU: geri alınamayan toplu bir işlem, kazara tıklamayla çalışmamalı.
+        grp.MapPost("/birlestir", async (BranchService svc, HttpRequest req) =>
+        {
+            var kaynak = FormParse.Id(FormParse.Str(req.Form, "kaynakId")) ?? Guid.Empty;
+            var hedef = FormParse.Id(FormParse.Str(req.Form, "hedefId")) ?? Guid.Empty;
+            if (FormParse.Str(req.Form, "onay") is not ("true" or "on" or "True"))
+                return Results.Redirect("/subeler?hata=" + Uri.EscapeDataString("Birleştirme için onay kutusunu işaretleyin."));
+            try
+            {
+                var n = await svc.BirlestirAsync(kaynak, hedef);
+                return Results.Redirect($"/subeler?bilgi={Uri.EscapeDataString($"{n} kayıt taşındı; kaynak şube pasife alındı.")}");
+            }
+            catch (ValidationException ex) { return Results.Redirect($"/subeler?hata={Uri.EscapeDataString(ex.Message)}"); }
+        });
+
         return app;
     }
+
+    private static RentACar.Application.Branches.BranchInput Build(IFormCollection f, bool? varsayilanAktif) => new()
+    {
+        Kod = f["kod"].ToString(),
+        Ad = f["ad"].ToString(),
+        Adres = FormParse.Str(f, "adres"),
+        Telefon = FormParse.Str(f, "telefon"),
+        Eposta = FormParse.Str(f, "eposta"),
+        Il = FormParse.Str(f, "il"),
+        Ilce = FormParse.Str(f, "ilce"),
+        Yetkili = FormParse.Str(f, "yetkili"),
+        CalismaSaatleri = FormParse.Str(f, "calismaSaatleri"),
+        KomisyonOran = FormParse.Dec(FormParse.Str(f, "komisyonOran")),
+        EvrakNoOnek = FormParse.Str(f, "evrakNoOnek"),
+        // FAZ-23 derinlik alanları
+        WebIsim = FormParse.Str(f, "webIsim"),
+        FirmaUnvani = FormParse.Str(f, "firmaUnvani"),
+        WebRezOncesiSaat = FormParse.Int(FormParse.Str(f, "webRezOncesiSaat")),
+        Enlem = FormParse.Dec(FormParse.Str(f, "enlem")),
+        Boylam = FormParse.Dec(FormParse.Str(f, "boylam")),
+        HizmetKomisyonOran = FormParse.Dec(FormParse.Str(f, "hizmetKomisyonOran")),
+        RezervasyonRengi = FormParse.Str(f, "rezervasyonRengi"),
+        AlisSubesiDegilMi = FormParse.Str(f, "alisSubesiDegilMi") is "true" or "on" or "True",
+        WebSira = FormParse.Int(FormParse.Str(f, "webSira")),
+        WebOtoparkId = FormParse.Str(f, "webOtoparkId"),
+        BayiCariKod = FormParse.Str(f, "bayiCariKod"),
+        BayiOfisId = FormParse.Str(f, "bayiOfisId"),
+        KomisyonHesabi = FormParse.Str(f, "komisyonHesabi"),
+        OnlineRezId = FormParse.Str(f, "onlineRezId"),
+        SozlesmeNoFormati = FormParse.Str(f, "sozlesmeNoFormati"),
+        NakitHesapId = FormParse.Id(FormParse.Str(f, "nakitHesapId")),
+        BankaHesapId = FormParse.Id(FormParse.Str(f, "bankaHesapId")),
+        EntegrasyonKodu = FormParse.Str(f, "entegrasyonKodu"),
+        ResimDosyasi = FormParse.Str(f, "resimDosyasi"),
+        HaftalikCalismaSaatleri = FormParse.Str(f, "haftalikCalismaSaatleri"),
+        Aktif = varsayilanAktif ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
+    };
 
     private static async Task<IResult> Run(Func<Task> action)
     {

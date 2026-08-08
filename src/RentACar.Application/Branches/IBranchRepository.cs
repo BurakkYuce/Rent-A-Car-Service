@@ -23,4 +23,19 @@ public interface IBranchRepository
     Task<bool> UpdateAsync(Guid id, Action<Branch> apply, CancellationToken ct = default);
 
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    // ---- FAZ-23: şubeye özel ücretsiz hizmet (child) ----
+    Task<IReadOnlyList<Domain.Entities.SubeUcretsizHizmet>> ListHizmetlerAsync(Guid subeId, CancellationToken ct = default);
+    Task AddHizmetAsync(Domain.Entities.SubeUcretsizHizmet row, CancellationToken ct = default);
+    Task<bool> RemoveHizmetAsync(Guid id, CancellationToken ct = default);
+
+    // ---- FAZ-23: şube birleştirme ----
+    /// <summary>Birleştirme ÖNİZLEMESİ: tablo başına etkilenecek kayıt sayısı (yazma YAPMAZ).</summary>
+    Task<IReadOnlyList<(string Tablo, int Adet)>> BirlestirSayimAsync(Guid kaynakId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Kaynak şubenin TÜM referanslarını hedefe taşır ve kaynağı PASİFE çeker (silmez).
+    /// Hepsi TEK transaction. Dönen değer taşınan kayıt sayısıdır.
+    /// </summary>
+    Task<int> BirlestirAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default);
 }
