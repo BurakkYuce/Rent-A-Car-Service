@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.TarifeGruplari.TarifeGrubuService>();
         services.AddScoped<TenantSettings.TenantSettingsService>();
         services.AddScoped<Personnel.PersonelService>();
+        services.AddScoped<Personnel.PersonelVardiyaService>();   // FAZ-45 — vardiya/çalışma grafiği
         services.AddScoped<Legal.HukukDosyaService>();
         services.AddScoped<Crm.AnketService>();
         services.AddScoped<Crm.SikayetService>();
