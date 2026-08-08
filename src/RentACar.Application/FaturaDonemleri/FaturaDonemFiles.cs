@@ -15,9 +15,40 @@ public interface IFaturaDonemRepository
     /// sıralarını yeni listeden çıkarmıştır).</summary>
     Task ReplacePlannedAsync(Guid rentalId, IReadOnlyList<FaturaDonemi> yeniPlanlar, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-30 — ELLE TETİKLEME adayları: vadesi gelmiş (DonemBit <= now) PLANLANDI dönemler ×
+    /// KİRADA <b>ve DonemselFaturalama AÇIK</b> sözleşmeler. Şube kapsamı çağıranda uygulanır.
+    ///
+    /// <para><b>OPT-IN ÇİTİ ŞART (adversarial H1):</b> ilk sürümde bu bayrak sorulmuyordu ve
+    /// periyodik faturalamayı hiç açmamış her uzun kira ekranda aday çıkıyordu — tek tıkla,
+    /// kesilmemesi gereken sözleşmelerde değişmez fatura + tahsilat yazılabiliyordu. Job'un kapısı
+    /// (<c>DonemFaturaUretici</c>) da budur; iki yol AYNI kuralı konuşmalı.</para>
+    /// </summary>
+    Task<IReadOnlyList<OtomatikTahsilatAdayi>> AdaylarAsync(
+        OtomatikTahsilatFiltre filtre, CancellationToken ct = default);
+
     /// <summary>B2: kesilecek tahakkuku kalmayan dönemi ATLANDI işaretler (yalnız Planlandi→Atlandi;
     /// kalıcı iz — sonraki kesim denemesi gürültülü red).</summary>
     Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default);
+}
+
+/// <summary>FAZ-30 — elle tetikleme ekranının aday satırı (salt okuma; tutarlar bilgi).</summary>
+public sealed record OtomatikTahsilatAdayi(
+    Guid RentalId, string SozlesmeNo, int DonemSira, DateTimeOffset DonemBas, DateTimeOffset DonemBit,
+    Guid CariId, string CariAd, string? Sube, Guid? SubeId, string Doviz, decimal KiraTutar,
+    decimal CariBakiye);
+
+/// <summary>FAZ-30 aday filtresi. Boş alan = kısıt yok.</summary>
+public sealed class OtomatikTahsilatFiltre
+{
+    public string? SozlesmeNo { get; set; }
+    public DateTimeOffset? VadeMin { get; set; }
+    public DateTimeOffset? VadeMax { get; set; }
+    /// <summary>true → yalnız cari bakiyesi BORÇLU (>0) olanlar.</summary>
+    public bool SadeceBakiyeli { get; set; }
+    /// <summary>Şube kapsamı (operatör kısıtı + kullanıcının seçtiği şube) — çağıran doldurur.</summary>
+    public IReadOnlyCollection<Guid>? SubeIdler { get; set; }
+    public string? SubeAdi { get; set; }
 }
 
 /// <summary>
@@ -36,9 +67,19 @@ public sealed class DonemTahsilatService(
     public async Task<Guid> KesVeTahsilEtAsync(
         Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
         CancellationToken ct = default)
+        => (await KesVeTahsilEtDetayAsync(rentalId, donemSira, tahsilatKaydi, hesap, ct)).InvoiceId;
+
+    /// <summary>
+    /// <see cref="KesVeTahsilEtAsync"/> ile AYNI akış; ek olarak tahsilatın GERÇEKTEN yazılıp
+    /// yazılmadığını bildirir. FAZ-30 adversarial M1: idempotent yutulan durumda çağıran
+    /// "N tahsilat yazıldı" diyordu — sayaç yalan söylüyordu.
+    /// </summary>
+    public async Task<(Guid InvoiceId, bool TahsilatYazildi)> KesVeTahsilEtDetayAsync(
+        Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
+        CancellationToken ct = default)
     {
         var invId = await invoices.CreateDonemFaturasiAsync(rentalId, donemSira, ct: ct);
-        if (!tahsilatKaydi) return invId;
+        if (!tahsilatKaydi) return (invId, false);
 
         var inv = await invoiceRepo.FindAsync(invId, ct)
             ?? throw new ValidationException("Dönem faturası okunamadı.");
@@ -60,8 +101,9 @@ public sealed class DonemTahsilatService(
         {
             // Deterministik anahtar mükerreri = bu dönemin tahsilatı DAHA ÖNCE alınmış (çift-submit /
             // yeniden deneme) → idempotent no-op; fatura tarafı da idempotent olduğundan akış sessiz biter.
+            return (invId, false);   // ÇAĞIRAN "yazıldı" saymasın (FAZ-30 M1)
         }
-        return invId;
+        return (invId, true);
     }
 }
 
