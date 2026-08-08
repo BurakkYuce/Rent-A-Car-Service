@@ -40,6 +40,47 @@ public sealed record CariBalanceDto(
     string? Doviz = null, string? OzelKod = null, string? Sinif = null,
     bool Kurumsal = false, bool Pasif = false);
 
+/// <summary>FAZ-27 — karşılaştırmalı analiz pivotunda tek satır (bir kırılım değeri × aylar).</summary>
+/// <param name="Kirilim">Kırılım değeri (araç grubu / rez kaynağı / çıkış noktası). Boş değer "(belirtilmemiş)".</param>
+/// <param name="Aylar">Ay anahtarı ("yyyy-MM") → hücre değeri. Veri olmayan ay HİÇ bulunmaz (0 varsayılır).</param>
+public sealed record KarsilastirmaliSatirDto(string Kirilim, IReadOnlyDictionary<string, decimal> Aylar)
+{
+    public decimal Toplam => Aylar.Values.Sum();
+    public decimal Ay(string anahtar) => Aylar.TryGetValue(anahtar, out var v) ? v : 0m;
+}
+
+/// <summary>
+/// FAZ-27 — karşılaştırmalı durum analizi (hacim pivotu).
+///
+/// <para><b>Tutar üretmez</b> — yalnız ADET ya da GÜN sayar. Bu yüzden "rapor yalnız defterden"
+/// kuralı burada geçerli değil: sayılan şey kaynak varlığın kendisi (kira/rezervasyon satırı),
+/// para değil. Çift-sayım riski parasal değildir.</para>
+/// </summary>
+public sealed record KarsilastirmaliAnalizDto(
+    IReadOnlyList<string> AyAnahtarlari, IReadOnlyList<KarsilastirmaliSatirDto> Satirlar,
+    string Tablo, string VeriTuru, string Kirilim)
+{
+    /// <summary>Ay bazında sütun toplamı.</summary>
+    public decimal AyToplami(string ay) => Satirlar.Sum(s => s.Ay(ay));
+    public decimal GenelToplam => Satirlar.Sum(s => s.Toplam);
+}
+
+/// <summary>FAZ-27 filtresi. Seçenekler SABİT: canlının serbest pivot ızgarası yerine üç boyut.</summary>
+public sealed class KarsilastirmaliAnalizFilter
+{
+    /// <summary>"Kira" (varsayılan) ya da "Rezervasyon".</summary>
+    public string Tablo { get; set; } = "Kira";
+    /// <summary>"Adet" (varsayılan) ya da "Gun".</summary>
+    public string VeriTuru { get; set; } = "Adet";
+    /// <summary>"AracGrubu" (varsayılan), "RezKaynagi" ya da "CikisNoktasi".</summary>
+    public string Kirilim { get; set; } = "AracGrubu";
+    /// <summary>Başlangıç tarihine göre pencere. Boşsa son 12 ay.</summary>
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Çıkış ofisi (tam eşleşme) — "İşlem Şube" karşılığı.</summary>
+    public string? Ofis { get; set; }
+}
+
 /// <summary>
 /// FAZ-78 — ek hizmet raporu SATIR-BAZLI detay satırı (canlı <c>extralar_raporu.aspx</c>).
 ///

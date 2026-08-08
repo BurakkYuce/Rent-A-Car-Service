@@ -47,6 +47,17 @@ public static class ReportExportEndpoints
                     BakiyeTuru = NullIfEmpty(req.Query["bakiye"].ToString()),
                     MinTutar = FormParse.Dec(req.Query["min"].ToString())
                 })),
+                // FAZ-27: hacim pivotu — ekrandaki seçim export'a AYNEN taşınır.
+                "karsilastirmali-analiz" => KarsilastirmaliAnaliz(await rs.GetKarsilastirmaliAnalizAsync(
+                    new RentACar.Application.Reporting.KarsilastirmaliAnalizFilter
+                    {
+                        Tablo = NullIfEmpty(req.Query["tablo"].ToString()) ?? "Kira",
+                        VeriTuru = NullIfEmpty(req.Query["veri"].ToString()) ?? "Adet",
+                        Kirilim = NullIfEmpty(req.Query["kirilim"].ToString()) ?? "AracGrubu",
+                        Ofis = NullIfEmpty(req.Query["ofis"].ToString()),
+                        Bas = from,
+                        Bit = to
+                    })),
                 "yaslandirma" => Aging(await rs.GetAgingAsync(asOf)),
                 "doluluk" => Doluluk(await rs.GetDolulukAsync(from ?? gun.AddMonths(-1), to ?? gun)),
                 "filo" => Filo(await rs.GetFleetUtilizationAsync()),
@@ -129,6 +140,33 @@ public static class ReportExportEndpoints
             new[] { "Cari", "Telefon", "Mail Adresi", "Banka", "Döviz", "Borç", "Alacak", "Bakiye" },
             rows.Select(c => new object?[]
             { c.Ad, c.Telefon, c.Email, c.Banka, c.Doviz, c.ToplamBorc, c.ToplamAlacak, c.Bakiye }).ToList());
+
+    /// <summary>FAZ-27 — pivot: ilk kolon kırılım, sonra aylar, en sonda toplam. Ay kolonları
+    /// VERİDEN değil pencereden gelir; boş ay da kolon olarak yazılır (ekranla aynı küme).</summary>
+    private static Table KarsilastirmaliAnaliz(RentACar.Application.Reporting.KarsilastirmaliAnalizDto d)
+    {
+        var basliklar = new List<string> { d.Kirilim };
+        basliklar.AddRange(d.AyAnahtarlari);
+        basliklar.Add("Toplam");
+
+        var satirlar = d.Satirlar.Select(s =>
+        {
+            var h = new List<object?> { s.Kirilim };
+            h.AddRange(d.AyAnahtarlari.Select(a => (object?)s.Ay(a)));
+            h.Add(s.Toplam);
+            return h.ToArray();
+        }).ToList();
+
+        if (d.Satirlar.Count > 0)
+        {
+            var toplam = new List<object?> { "Toplam" };
+            toplam.AddRange(d.AyAnahtarlari.Select(a => (object?)d.AyToplami(a)));
+            toplam.Add(d.GenelToplam);
+            satirlar.Add(toplam.ToArray());
+        }
+
+        return new Table($"Karşılaştırmalı Analiz ({d.Tablo} / {d.VeriTuru})", basliklar.ToArray(), satirlar);
+    }
 
     private static Table Aging(IReadOnlyList<AgingRowDto> rows)
         => new("Yaşlandırma", new[] { "Cari", "0-30", "31-60", "61-90", "90+", "Toplam" },
