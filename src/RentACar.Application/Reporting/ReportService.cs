@@ -725,6 +725,14 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
         => _repository.GetTahsilatFaturaAsync(from, to, ct);
 
+    /// <summary>
+    /// FAZ-68 — tahsilat raporu SATIR modu (sözleşme başına mutabakat). Dönem-toplamı modu
+    /// <see cref="GetTahsilatFaturaAsync"/> ile yan yana durur; biri diğerinin yerine geçmez.
+    /// </summary>
+    public Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatAsync(
+        TahsilatMutabakatFilter? filter = null, CancellationToken ct = default)
+        => _repository.GetTahsilatMutabakatRowsAsync(filter, ct);
+
     /// <summary>Filo durum dağılımı + aktif kira sayısı.</summary>
     public async Task<FleetUtilizationDto> GetFleetUtilizationAsync(CancellationToken ct = default)
     {

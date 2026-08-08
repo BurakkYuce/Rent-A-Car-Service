@@ -139,6 +139,119 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             x.GenelToplam, x.Currency, x.Kur, x.IadeMi)).ToList();
     }
 
+    public async Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatRowsAsync(
+        TahsilatMutabakatFilter? filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q =
+            from r in db.Rentals.AsNoTracking()
+            join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
+            from c in cg.DefaultIfEmpty()
+            join v in db.Vehicles.AsNoTracking() on r.VehicleId equals v.Id into vg
+            from v in vg.DefaultIfEmpty()
+            select new { r, c, v };
+
+        if (filter is not null)
+        {
+            if (filter.MusteriId is { } m) q = q.Where(x => x.r.MusteriId == m);
+            if (filter.Durum is { } d) q = q.Where(x => x.r.Durum == d);
+            if (filter.Bas is { } b) q = q.Where(x => x.r.BasTar >= b);
+            if (filter.Bit is { } t) q = q.Where(x => x.r.BasTar <= t);
+            if (string.Equals(filter.BakiyeDurumu, "acik", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.r.Bakiye != 0m);
+            else if (string.Equals(filter.BakiyeDurumu, "kapali", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.r.Bakiye == 0m);
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var a = filter.Ara.Trim();
+                // Plaka DB'de normalize ("34AA01"); kullanıcı boşluklu yazabilir → iki biçim de denenir.
+                var plakaAra = a.ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => EF.Functions.ILike(x.r.SozlesmeNo, $"%{a}%")
+                              || (x.v != null && EF.Functions.ILike(x.v.Plaka, $"%{plakaAra}%"))
+                              || (x.c != null && x.c.Unvan != null && EF.Functions.ILike(x.c.Unvan, $"%{a}%"))
+                              || (x.c != null && x.c.Ad != null && EF.Functions.ILike(x.c.Ad, $"%{a}%"))
+                              || (x.c != null && x.c.Soyad != null && EF.Functions.ILike(x.c.Soyad, $"%{a}%")));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
+        var kiralar = await q.OrderByDescending(x => x.r.BasTar).Take(limit)
+            .Select(x => new
+            {
+                x.r.Id, x.r.SozlesmeNo, x.r.MusteriId, x.r.BasTar, x.r.Durum, x.r.Doviz,
+                x.r.Tutar, x.r.DamgaVergisi, x.r.GenelToplam, x.r.Tahsilat,
+                Plaka = x.v == null ? null : x.v.Plaka,
+                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                    ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan)
+            })
+            .ToListAsync(ct);
+        if (kiralar.Count == 0) return [];
+
+        var ids = kiralar.Select(k => k.Id).ToList();
+
+        // FATURALANAN (iade-netli, iptal hariç) — OrtakSorgular.FarkStateAsync ile AYNI kural,
+        // burada küme-bazlı: kira başına tek tek sorgu N+1 olurdu.
+        var faturalar = await db.Invoices.AsNoTracking()
+            .Where(i => i.Durum != InvoiceStatus.Iptal && !i.IadeMi
+                        && ((i.RentalId != null && ids.Contains(i.RentalId.Value))
+                            || (i.KaynakKiraId != null && ids.Contains(i.KaynakKiraId.Value))))
+            .Select(i => new { i.Id, i.GenelToplam, i.RentalId, i.KaynakKiraId })
+            .ToListAsync(ct);
+        var faturaKira = faturalar.ToDictionary(f => f.Id, f => f.RentalId ?? f.KaynakKiraId!.Value);
+        var faturaIds = faturalar.Select(f => f.Id).ToList();
+        var iadeler = faturaIds.Count == 0 ? [] : await db.Invoices.AsNoTracking()
+            .Where(i => i.IadeMi && i.Durum != InvoiceStatus.Iptal
+                        && i.KaynakFaturaId != null && faturaIds.Contains(i.KaynakFaturaId.Value))
+            .Select(i => new { i.GenelToplam, Kaynak = i.KaynakFaturaId!.Value })
+            .ToListAsync(ct);
+
+        var faturalanan = kiralar.ToDictionary(k => k.Id, _ => 0m);
+        foreach (var f in faturalar) faturalanan[faturaKira[f.Id]] += f.GenelToplam;
+        foreach (var i in iadeler)
+            if (faturaKira.TryGetValue(i.Kaynak, out var kid)) faturalanan[kid] -= i.GenelToplam;
+
+        // DEFTER TAHSİLATI: kasa hareketlerinden yeniden toplanır. İşaret/döviz kuralı
+        // CashRepository.RentalDelta'dan gelir — ikinci bir kopya yazılmaz.
+        var hareketler = await db.CashTransactions.AsNoTracking()
+            .Where(t => t.RentalId != null && ids.Contains(t.RentalId.Value))
+            .ToListAsync(ct);
+        var kiraDoviz = kiralar.ToDictionary(k => k.Id, k => k.Doviz);
+        var defterTahsilat = kiralar.ToDictionary(k => k.Id, _ => 0m);
+        foreach (var t in hareketler)
+        {
+            var kid = t.RentalId!.Value;
+            try { defterTahsilat[kid] += CashRepository.RentalDelta(t, kiraDoviz[kid]); }
+            catch (RentACar.Application.Common.ValidationException)
+            {
+                // Kira dövizinden FARKLI bir hareket: RentalDelta bunu reddeder. Raporun görevi
+                // hatayı GÖSTERMEK, çökmek değil → katkısı 0 kalır ve satır "tutarsız" görünür.
+            }
+        }
+
+        // Müşteri bakiyesi (defterden) — sözleşme bakiyesiyle karıştırılmasın diye ayrı kolon.
+        var musteriIds = kiralar.Select(k => k.MusteriId).Distinct().ToList();
+        var cariHareket = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef != null
+                        && musteriIds.Contains(e.AccountRef.Value))
+            .Select(e => new { e.AccountRef, e.Direction, Tutar = e.Amount.Amount * e.Amount.Rate })
+            .ToListAsync(ct);
+        var musteriBakiye = cariHareket
+            .GroupBy(e => e.AccountRef!.Value)
+            .ToDictionary(g => g.Key,
+                g => g.Sum(e => e.Direction == LedgerDirection.Debit ? e.Tutar : -e.Tutar));
+
+        var sonuc = kiralar.Select(k => new TahsilatMutabakatRowDto(
+            k.Id, k.SozlesmeNo, k.Plaka, k.MusteriId,
+            string.IsNullOrWhiteSpace(k.MusteriAd) ? "(bilinmeyen cari)" : k.MusteriAd!.Trim(),
+            k.BasTar, k.Durum, k.Doviz ?? "TRY",
+            k.Tutar, k.DamgaVergisi ?? 0m, k.GenelToplam,
+            k.Tahsilat, defterTahsilat[k.Id], faturalanan[k.Id],
+            musteriBakiye.GetValueOrDefault(k.MusteriId))).ToList();
+
+        return filter?.YalnizTutarsiz == true ? sonuc.Where(x => x.Tutarsiz).ToList() : sonuc;
+    }
+
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

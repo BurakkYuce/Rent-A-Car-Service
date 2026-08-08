@@ -41,6 +41,52 @@ public sealed record CariBalanceDto(
     bool Kurumsal = false, bool Pasif = false);
 
 /// <summary>
+/// FAZ-68 — Tahsilat raporu SÖZLEŞME-SATIRI mutabakat satırı.
+///
+/// <para>Amaç bir sözleşmenin üç rakamını yan yana koymak: <b>ne kadar borçlandı</b>
+/// (<paramref name="GenelToplam"/>), <b>ne kadarı faturalandı</b> (<paramref name="Faturalanan"/>),
+/// <b>ne kadarı tahsil edildi</b> (<paramref name="Tahsilat"/>). Aradaki farklar operasyonun nerede
+/// eksik kaldığını gösterir.</para>
+///
+/// <para><paramref name="DefterTahsilat"/> aynı tahsilatın KASA HAREKETLERİNDEN yeniden toplanmış
+/// hâlidir; <paramref name="Tahsilat"/> ise sözleşme satırında tutulan bakiyedir. İkisi normalde
+/// EŞİTTİR — <paramref name="TahsilatAyrimi"/> sıfırdan farklıysa o sözleşmede bir tutarsızlık var
+/// demektir. Mutabakat raporunun asıl işi budur.</para>
+/// </summary>
+public sealed record TahsilatMutabakatRowDto(
+    Guid RentalId, string SozlesmeNo, string? Plaka, Guid MusteriId, string MusteriAd,
+    DateTimeOffset BasTar, RentalStatus Durum, string Doviz,
+    decimal Matrah, decimal DamgaVergisi, decimal GenelToplam,
+    decimal Tahsilat, decimal DefterTahsilat, decimal Faturalanan,
+    decimal MusteriBakiye)
+{
+    /// <summary>Sözleşmenin kalan borcu (GenelToplam − Tahsilat).</summary>
+    public decimal Bakiye => GenelToplam - Tahsilat;
+    /// <summary>Henüz faturalanmamış tutar (GenelToplam − Faturalanan). Negatif = fazla faturalanmış.</summary>
+    public decimal FaturaFarki => GenelToplam - Faturalanan;
+    /// <summary>Sözleşme satırı ile kasa hareketleri arasındaki fark. SIFIR OLMALI.</summary>
+    public decimal TahsilatAyrimi => Tahsilat - DefterTahsilat;
+    public bool Tutarsiz => TahsilatAyrimi != 0m;
+}
+
+/// <summary>FAZ-68 — mutabakat satır modu filtresi.</summary>
+public sealed class TahsilatMutabakatFilter
+{
+    /// <summary>Sözleşme no / plaka / müşteri adı içinde geçen metin.</summary>
+    public string? Ara { get; set; }
+    public Guid? MusteriId { get; set; }
+    /// <summary>Kira başlangıç tarihi aralığı.</summary>
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    public RentalStatus? Durum { get; set; }
+    /// <summary>"acik" = bakiyesi kalanlar, "kapali" = bakiyesi sıfır, boş = hepsi.</summary>
+    public string? BakiyeDurumu { get; set; }
+    /// <summary><c>true</c> → yalnız sözleşme/kasa tutarsızlığı olan satırlar.</summary>
+    public bool YalnizTutarsiz { get; set; }
+    public int EnFazla { get; set; } = 2000;
+}
+
+/// <summary>
 /// FAZ-61 — Extre özeti satırı: FATURA seviyesinde müşteri + plaka + vade görünümü.
 ///
 /// <para><b>"Açık tutar" DEĞİL, BRÜT tutardır.</b> Sistemde fatura-bazlı tahsilat mahsubu YOKTUR:
