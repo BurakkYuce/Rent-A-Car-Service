@@ -120,6 +120,11 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             OdemeYontemi = input.OdemeYontemi,
             KasaBankaHesap = karsiHesap == LedgerAccountType.Cari ? LedgerAccountType.Kasa : karsiHesap,
             Aciklama = input.Aciklama,
+            // FAZ-29 belge bilgisi: vade ve seçilen kasa/banka hesabı. İkisi de DEFTERE GİRMEZ —
+            // yazılan kayıt kümesi (BuildEntries) bunlardan habersizdir; hesap kırılımı hâlâ
+            // KasaBankaHesap (Kasa/Banka) düzeyinde.
+            Vade = input.Vade,
+            FinansalHesapId = input.FinansalHesapId,
             IslemAnahtari = islemAnahtari
         };
 

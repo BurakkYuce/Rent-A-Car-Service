@@ -127,6 +127,14 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
                 await tx.RollbackAsync(ct);
                 throw new ValidationException("Bu toplu gider zaten kaydedilmiş.");
             }
+            // FAZ-29 adversarial M1: geçersiz/silinmiş hesap ya da araç referansı FK ihlali üretiyor
+            // ve uç yalnız ValidationException yakaladığı için 500 dönüyordu — 500 satırlık parti
+            // anlaşılmaz bir hata sayfasıyla kayboluyordu. Temiz redde çevir.
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+            {
+                await tx.RollbackAsync(ct);
+                throw new ValidationException("Seçilen hesap ya da araç bulunamadı (silinmiş olabilir); listeyi yenileyip tekrar deneyin.");
+            }
         }, ct);
     }
 }

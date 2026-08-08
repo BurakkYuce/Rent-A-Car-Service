@@ -201,7 +201,17 @@ public sealed class VehicleService(
             throw new ValidationException("Vitrin adedi 1 ile 999 arasında olmalıdır (boş = 1).");
     }
 
-    private static string Normalize(string? plaka)
+    private static string Normalize(string? plaka) => PlakaAnahtar(plaka);
+
+    /// <summary>
+    /// Plaka eşleştirme/benzersizlik anahtarı: trim + büyük harf + boşluksuz.
+    ///
+    /// <para><b>PUBLIC ve TEK KURAL (FAZ-29 adversarial M4):</b> toplu gider ekranı plakayı araca
+    /// çözerken bu metodu kullanır. Web tarafında ayrı bir kopya vardı; kopya olduğu sürece iki
+    /// kural zamanla ayrışır ve kullanıcı listede gördüğü plakayı yazdığında "araç bulunamadı"
+    /// alırdı.</para>
+    /// </summary>
+    public static string PlakaAnahtar(string? plaka)
         => (plaka ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
 
     /// <summary>Parite zenginleştirme alanlarını uygular (Create + Update ortak). Hepsi opsiyonel.</summary>

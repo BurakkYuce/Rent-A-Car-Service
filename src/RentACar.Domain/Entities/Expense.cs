@@ -45,6 +45,23 @@ public class Expense : ITenantOwned, IAuditable, IBranchScoped
 
     public string? Aciklama { get; set; }
 
+    // ---- FAZ-29 toplu gider derinliği (canlı toplu_gider.aspx) ----
+
+    /// <summary>
+    /// Ödeme vadesi (bilgi). <b>Deftere GİRMEZ:</b> gider kaydı zaten <see cref="Tarih"/> ile
+    /// postlanır; vadeyi bir tahakkuk/ödeme planına bağlamak ayrı bir modeldir. Açık-hesap
+    /// giderlerinde "ne zaman ödenecek" notunu tutar.
+    /// </summary>
+    public DateTimeOffset? Vade { get; set; }
+
+    /// <summary>
+    /// Hangi kasa/banka hesabından ödendiği (<see cref="FinancialAccount"/>). <b>BELGE BİLGİSİDİR:</b>
+    /// defter karşı hesabı hâlâ <see cref="KasaBankaHesap"/> (Kasa/Banka) üzerinden yazılır —
+    /// hesap-bazlı defter kırılımı ayrı bir model değişikliğidir ve bu fazda AÇILMAMIŞTIR.
+    /// Seçilen hesap, giderin hangi IBAN'dan çıktığını belgelemeye yarar.
+    /// </summary>
+    public Guid? FinansalHesapId { get; set; }
+
     /// <summary>Toplu işlem idempotency anahtarı (parite #10). Dolu olduğunda tenant içinde benzersiz
     /// (kısmi unique index) → aynı toplu giderin çift-submit'i çakışır, atomik batch geri alınır.</summary>
     public Guid? IslemAnahtari { get; set; }

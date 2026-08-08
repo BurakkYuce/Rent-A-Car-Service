@@ -80,7 +80,17 @@ public sealed class FinancialAccountRepository(IDbContextFactory<AppDbContext> f
         if (account is null) return false;
 
         db.FinancialAccounts.Remove(account);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        // FAZ-29 adversarial M2: gider kayıtlarına FK eklendikten sonra KULLANILAN bir hesabı
+        // silmek FK ihlali üretiyor; uç yalnız ValidationException yakaladığı için kullanıcı
+        // sebebini göremeden hata sayfası alıyordu (FAZ-29 ÖNCESİNDE çalışan bir akış).
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            throw new ValidationException("Bu hesap kayıtlarda kullanılıyor; silmek yerine pasife alın.");
+        }
         return true;
     }
 }

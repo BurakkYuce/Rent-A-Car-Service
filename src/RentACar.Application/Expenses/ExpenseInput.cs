@@ -19,4 +19,11 @@ public sealed class ExpenseInput
     public OdemeYontemi OdemeYontemi { get; set; } = OdemeYontemi.Nakit;
     public LedgerAccountType KasaBankaHesap { get; set; } = LedgerAccountType.Kasa;
     public string? Aciklama { get; set; }
+
+    // ---- FAZ-29 toplu gider derinliği ----
+    /// <summary>Ödeme vadesi (bilgi) — deftere GİRMEZ, belge notudur.</summary>
+    public DateTimeOffset? Vade { get; set; }
+    /// <summary>Hangi kasa/banka hesabından ödendiği (FinancialAccount). BELGE BİLGİSİ —
+    /// defter karşı hesabı hâlâ KasaBankaHesap (Kasa/Banka) üzerinden yazılır.</summary>
+    public Guid? FinansalHesapId { get; set; }
 }
