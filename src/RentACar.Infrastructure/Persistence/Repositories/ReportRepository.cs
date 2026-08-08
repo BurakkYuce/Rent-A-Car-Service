@@ -778,21 +778,52 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
+    /// <summary>
+    /// FAZ-12 — araç durum-takip araç süzgeci (gün ve araç görünümü ORTAK kullanır; iki görünüm
+    /// aynı araç kümesini anlatsın diye tek yerde). Tümü aracın KENDİ alanlarına bakar.
+    /// </summary>
+    private static IQueryable<Vehicle> AracDurumTakipSuz(IQueryable<Vehicle> q, AracDurumTakipFilter? f)
+    {
+        if (f is null) return q;
+        if (!string.IsNullOrWhiteSpace(f.Sube))
+        {
+            var sb = f.Sube.Trim();
+            q = q.Where(v => v.Sube != null && v.Sube.Trim() == sb);
+        }
+        if (!string.IsNullOrWhiteSpace(f.AracSahibi))
+        {
+            var s = f.AracSahibi.Trim();
+            q = q.Where(v => v.AracSahibi != null && v.AracSahibi.Trim() == s);
+        }
+        if (!string.IsNullOrWhiteSpace(f.Grup))
+        {
+            var g = f.Grup.Trim();
+            q = q.Where(v => v.Grup != null && v.Grup.Trim() == g);
+        }
+        if (!string.IsNullOrWhiteSpace(f.Sipp))
+        {
+            var s = f.Sipp.Trim();
+            q = q.Where(v => v.Sipp != null && v.Sipp.Trim() == s);
+        }
+        if (!string.IsNullOrWhiteSpace(f.Plaka))
+        {
+            // Plaka DB'de boşluksuz/büyük harf normalize saklanır — kullanıcının yazdığı da öyle aranır.
+            var p = f.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+            q = q.Where(v => EF.Functions.ILike(v.Plaka, $"%{p}%"));
+        }
+        return q;
+    }
+
     public async Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default)
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        // FAZ-76: opsiyonel şube süzgeci. Filtre ARACIN şubesine bakar ve kira/servis/BAF
-        // sayımlarının HEPSİ aynı araç kümesinden gelir — karışık atıf satırı tutarsız yapardı
-        // (FAZ-77'de kurulan tek-atıf kuralı).
-        var aracQ = db.Vehicles.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(sube))
-        {
-            var sb = sube.Trim();
-            aracQ = aracQ.Where(v => v.Sube != null && v.Sube.Trim() == sb);
-        }
-        var aracIdler = await aracQ.Select(v => v.Id).ToListAsync(ct);
+        // FAZ-76: opsiyonel şube süzgeci (FAZ-12'de araç sahibi/grup/SIPP/plakayla genişledi).
+        // Filtre ARACIN alanlarına bakar ve kira/servis/BAF sayımlarının HEPSİ aynı araç kümesinden
+        // gelir — karışık atıf satırı tutarsız yapardı (FAZ-77'de kurulan tek-atıf kuralı).
+        var aracIdler = await AracDurumTakipSuz(db.Vehicles.AsNoTracking(), filtre)
+            .Select(v => v.Id).ToListAsync(ct);
         var toplam = aracIdler.Count;
         if (toplam == 0) return [];
         var kume = aracIdler.ToHashSet();
@@ -827,6 +858,171 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             sonuc.Add(new AracDurumTakipRow(new DateTimeOffset(d, TimeSpan.Zero), toplam, dolu, bakim, bos, baf));
         }
         return sonuc;
+    }
+
+    public async Task<IReadOnlyList<AracDurumTakipAracRow>> GetAracDurumTakipAracBazliRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var araclar = await AracDurumTakipSuz(db.Vehicles.AsNoTracking(), filtre)
+            .Select(v => new { v.Id, v.Plaka, v.Sipp, v.Grup, v.Sube, v.AracSahibi })
+            .ToListAsync(ct);
+        if (araclar.Count == 0) return [];
+        var kume = araclar.Select(a => a.Id).ToHashSet();
+
+        var bas = from.Date;
+        var bit = to.Date;
+        if (bit < bas) return [];
+        var toplamGun = (int)(bit - bas).TotalDays + 1;
+
+        // Kira: İptal hariç; bitiş GERÇEK dönüş varsa odur (gün kırılımıyla BİREBİR aynı kural).
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal && kume.Contains(r.VehicleId))
+            .Select(r => new { r.VehicleId, r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
+            .ToListAsync(ct);
+
+        // Servis: İptal hariç (FAZ-76 düzeltmesi); çıkışsız servis hâlâ devam ediyor → aralık sonuna dek.
+        var servisler = await db.ServiceRecords.AsNoTracking()
+            .Where(s => s.Durum != ServisDurum.Iptal && kume.Contains(s.VehicleId))
+            .Select(s => new { s.VehicleId, s.GirisTarihi, Cikis = s.CikisTarihi })
+            .ToListAsync(ct);
+
+        // BAF: gerçek ZİMMET ARALIĞI (çıkış → dönüş); dönmemişse aralık sonuna dek. İptal hariç.
+        // NOT: gün kırılımındaki "Açık BAF" kolonu BAŞKA bir ölçüdür (o gün açık olan BAF KAYIT
+        // sayısı); burada aracın kaç GÜN zimmette olduğu sayılıyor. İkisi bilerek ayrı.
+        var baflar = await db.Baflar.AsNoTracking()
+            .Where(b => b.Durum != BafDurum.Iptal && kume.Contains(b.VehicleId))
+            .Select(b => new { b.VehicleId, b.CikisTarihi, Donus = b.DonusTarihi })
+            .ToListAsync(ct);
+
+        var kiraMap = kiralar.GroupBy(x => x.VehicleId)
+            .ToDictionary(g => g.Key, g => g.Select(x => (Bas: x.BasTar.Date, Bit: x.Bit.Date)).ToList());
+        var servisMap = servisler.GroupBy(x => x.VehicleId)
+            .ToDictionary(g => g.Key, g => g.Select(x => (Bas: x.GirisTarihi.Date, Bit: (x.Cikis ?? to).Date)).ToList());
+        var bafMap = baflar.GroupBy(x => x.VehicleId)
+            .ToDictionary(g => g.Key, g => g.Select(x => (Bas: x.CikisTarihi.Date, Bit: (x.Donus ?? to).Date)).ToList());
+
+        static bool Kapsar(List<(DateTime Bas, DateTime Bit)>? araliklar, DateTime g)
+            => araliklar is not null && araliklar.Exists(a => a.Bas <= g && a.Bit >= g);
+
+        var sonuc = new List<AracDurumTakipAracRow>(araclar.Count);
+        foreach (var a in araclar)
+        {
+            kiraMap.TryGetValue(a.Id, out var kir);
+            servisMap.TryGetValue(a.Id, out var srv);
+            bafMap.TryGetValue(a.Id, out var baf);
+
+            int dolu = 0, bakim = 0, bafGun = 0;
+            for (var d = bas; d <= bit; d = d.AddDays(1))
+            {
+                // ÖNCELİK: Dolu > Bakım > Baf > Boş. Çakışan durumlarda gün TEK kovaya düşer;
+                // böylece dört kovanın toplamı aralık gün sayısına EŞİT kalır (değişmez).
+                if (Kapsar(kir, d)) dolu++;
+                else if (Kapsar(srv, d)) bakim++;
+                else if (Kapsar(baf, d)) bafGun++;
+            }
+            sonuc.Add(new AracDurumTakipAracRow(
+                a.Id, a.Plaka, a.Sipp, a.Grup, a.Sube, a.AracSahibi,
+                toplamGun, dolu, bakim, bafGun, toplamGun - dolu - bakim - bafGun));
+        }
+
+        // En çok boşta kalan üstte — canlının bu ekrandaki asıl sorusu ("hangi araç yatıyor").
+        return sonuc
+            .OrderByDescending(r => r.BosGun).ThenBy(r => r.Plaka, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumRowsAsync(
+        DateTimeOffset gun, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var g = gun.Date;
+
+        var q =
+            from r in db.Rentals.AsNoTracking().Where(x => x.Durum != RentalStatus.Iptal)
+            join v in db.Vehicles.AsNoTracking() on r.VehicleId equals v.Id
+            join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
+            from c in cg.DefaultIfEmpty()
+            select new { r, v, c };
+
+        if (filtre is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(filtre.Plaka))
+            {
+                var p = filtre.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => EF.Functions.ILike(x.v.Plaka, $"%{p}%"));
+            }
+            if (!string.IsNullOrWhiteSpace(filtre.Grup))
+            {
+                var gr = filtre.Grup.Trim();
+                q = q.Where(x => x.v.Grup != null && x.v.Grup.Trim() == gr);
+            }
+            if (!string.IsNullOrWhiteSpace(filtre.Sipp))
+            {
+                var sp = filtre.Sipp.Trim();
+                q = q.Where(x => x.v.Sipp != null && x.v.Sipp.Trim() == sp);
+            }
+            if (!string.IsNullOrWhiteSpace(filtre.AracSahibi))
+            {
+                var s = filtre.AracSahibi.Trim();
+                q = q.Where(x => x.v.AracSahibi != null && x.v.AracSahibi.Trim() == s);
+            }
+            if (!string.IsNullOrWhiteSpace(filtre.Ofis))
+            {
+                var o = filtre.Ofis.Trim();
+                q = q.Where(x => x.r.CikisOfisi != null && x.r.CikisOfisi.Trim() == o);
+            }
+        }
+
+        var ham = await q.Select(x => new
+        {
+            x.r.Id, x.r.SozlesmeNo, x.r.VehicleId, x.r.BasTar, x.r.BitTar, x.r.GercekDonusTar,
+            x.r.Gun, x.r.Tutar, x.r.FazlaKmBedeli, x.r.YakitBedeli, x.r.UzatmaBedeli, x.r.KurSnapshot,
+            x.r.CikisOfisi,
+            x.v.Plaka, x.v.Sipp, x.v.Grup, x.v.AracSahibi,
+            Musteri = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan)
+        }).ToListAsync(ct);
+
+        // Aktiflik: gün kırılımının "Dolu" kovasıyla BİREBİR aynı (kapsayıcı, dönüş günü dahil).
+        var aktif = ham.Where(x => x.BasTar.Date <= g && (x.GercekDonusTar ?? x.BitTar).Date >= g).ToList();
+        if (aktif.Count == 0) return [];
+
+        // Ek hizmet brütü kira başına — RentalAddOn tutarları BAZ PARADA saklanır (kur yok).
+        var kiraIds = aktif.Select(x => x.Id).ToList();
+        var ekHizmet = (await db.RentalAddOns.AsNoTracking()
+                .Where(a => kiraIds.Contains(a.RentalId))
+                .GroupBy(a => a.RentalId)
+                .Select(gr => new { RentalId = gr.Key, Brut = gr.Sum(a => a.Toplam) })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.RentalId, x => x.Brut);
+
+        return aktif
+            .Select(x =>
+            {
+                // Faturalanan gün sayısı bölendir. Gun alanı 0/eksikse takvim farkına düşülür
+                // (en az 1 — sıfıra bölme yok).
+                var bolen = x.Gun > 0 ? x.Gun
+                    : Math.Max(1, (int)((x.GercekDonusTar ?? x.BitTar).Date - x.BasTar.Date).TotalDays);
+
+                // Baz kira brütü kira DÖVİZİNDE tutulur → TL'ye KurSnapshot ile çevrilir.
+                // Ek hizmet zaten TL; ikisi ayrı bölünür (bkz. AracGunlukDurumRow XML notu).
+                var kiraTl = (x.Tutar + x.FazlaKmBedeli + x.YakitBedeli + x.UzatmaBedeli) * x.KurSnapshot;
+                var hizmetTl = ekHizmet.TryGetValue(x.Id, out var h) ? h : 0m;
+
+                var gunlukKira = decimal.Round(kiraTl / bolen, 2, MidpointRounding.AwayFromZero);
+                var gunlukHizmet = decimal.Round(hizmetTl / bolen, 2, MidpointRounding.AwayFromZero);
+
+                return new AracGunlukDurumRow(
+                    x.VehicleId, x.Plaka, x.Sipp, x.Grup, x.AracSahibi,
+                    x.Id, x.SozlesmeNo, string.IsNullOrWhiteSpace(x.Musteri) ? "(bilinmeyen cari)" : x.Musteri!.Trim(),
+                    x.CikisOfisi, x.BasTar, x.GercekDonusTar ?? x.BitTar, bolen,
+                    gunlukKira, gunlukHizmet, gunlukKira + gunlukHizmet);
+            })
+            .OrderByDescending(r => r.GunlukToplam).ThenBy(r => r.Plaka, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default)
@@ -956,6 +1152,35 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // RentalAddOn tutarları baz para (TRY) olarak saklanır (Kur yok) → doğrudan kullanılır.
         return await q
             .Select(a => new EkHizmetSalesRowDto(a.Ad, a.Miktar, a.NetTutar, a.KdvTutar, a.Toplam, a.RentalId))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<EkHizmetAracSalesRow>> GetEkHizmetAracSalesRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // Pencere tanımı GetEkHizmetSalesRowsAsync ile BİREBİR aynı olmalı (İptal kira hariç,
+        // tarih = kalem eklenme zamanı) — ayrışırsa pivot toplamı ad-bazlı özetten kayar.
+        var q =
+            from a in db.RentalAddOns.AsNoTracking()
+            join r in db.Rentals.AsNoTracking().Where(x => x.Durum != RentalStatus.Iptal)
+                on a.RentalId equals r.Id
+            // Araç silinmişse satır KAYBOLMAMALI (tutar özette sayılıyor) → LEFT JOIN + "(bilinmeyen araç)".
+            join v in db.Vehicles.AsNoTracking() on r.VehicleId equals v.Id into vg
+            from v in vg.DefaultIfEmpty()
+            select new { a, r, v };
+
+        if (from is { } f) q = q.Where(x => x.a.CreatedAtUtc >= f);
+        if (to is { } t) q = q.Where(x => x.a.CreatedAtUtc <= t);
+
+        return await q
+            .Select(x => new EkHizmetAracSalesRow(
+                x.v == null ? null : (Guid?)x.v.Id,
+                x.v == null ? "(bilinmeyen araç)" : x.v.Plaka,
+                x.v == null ? null : x.v.Grup,
+                x.v == null ? null : x.v.Sipp,
+                x.a.Ad, x.a.NetTutar, x.a.KdvTutar, x.a.Toplam, x.a.RentalId))
             .ToListAsync(ct);
     }
 
