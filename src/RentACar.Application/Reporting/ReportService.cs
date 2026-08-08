@@ -655,6 +655,14 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     }
 
     /// <summary>
+    /// FAZ-61 — extre özeti: fatura seviyesinde müşteri + plaka + vade görünümü.
+    /// Tutar BRÜT (fatura-bazlı mahsup sistemde yok); iadeler negatif işaretli.
+    /// </summary>
+    public Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiAsync(
+        ExtreOzetiFilter? filter = null, DateTimeOffset? asOf = null, CancellationToken ct = default)
+        => _repository.GetExtreOzetiRowsAsync(filter, asOf ?? DateTimeOffset.UtcNow, ct);
+
+    /// <summary>
     /// Cari borç yaşlandırma (v1: BRÜT borç, tahsilat mahsubu yok). Borç satırları yaşa (asOf−Tarih,
     /// gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına. Yalnız borç bakiyesi olan cariler.
     /// </summary>
