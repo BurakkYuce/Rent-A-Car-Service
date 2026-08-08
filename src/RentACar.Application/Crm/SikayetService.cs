@@ -17,6 +17,11 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
     public Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
     public Task<Sikayet?> GetAsync(Guid id, CancellationToken ct = default) => _repository.FindAsync(id, ct);
 
+    /// <summary>FAZ-43 — filtreli liste (sözleşme/araç/müşteri/personel adları çözülmüş).</summary>
+    public Task<IReadOnlyList<SikayetSatirDto>> SearchAsync(
+        SikayetFilter? filter = null, CancellationToken ct = default)
+        => _repository.SearchAsync(filter, ct);
+
     public async Task<Guid> CreateAsync(SikayetInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
@@ -58,5 +63,13 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
         row.Durum = n.Durum;
         row.Tarih = n.Tarih ?? DateTimeOffset.UtcNow;
         row.Cozum = string.IsNullOrWhiteSpace(n.Cozum) ? null : n.Cozum.Trim();
+        // FAZ-43 teslim/dönüş bağı
+        row.RentalId = n.RentalId;
+        row.TeslimAlanPersonelId = n.TeslimAlanPersonelId;
+        row.TeslimEdenPersonelId = n.TeslimEdenPersonelId;
+        row.Puan = n.Puan;
+        row.SikayetKanali = string.IsNullOrWhiteSpace(n.SikayetKanali) ? null : n.SikayetKanali.Trim();
+        row.SikayetYeri = n.SikayetYeri;
+        row.CikisOfisi = string.IsNullOrWhiteSpace(n.CikisOfisi) ? null : n.CikisOfisi.Trim();
     }
 }
