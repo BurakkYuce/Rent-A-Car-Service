@@ -20,8 +20,14 @@ public interface IServiceRecordRepository
         VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs,
         Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-16 — yalnız BİLGİ alanlarını günceller (defter etkisi YOK). Durum/araç kuplajı olmayan
+    /// <see cref="TransitionAsync"/>: aynı kilit/retry yolunu kullanır, ayrı bir yazma yolu doğmaz.
+    /// </summary>
+    Task<bool> UpdateBilgiAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default);
+
     /// <summary>İşçilik/parça kalemi ekler ve ToplamIscilik'i yeniden hesaplar (kapanmamış serviste).</summary>
-    Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default);
+    Task<bool> AddLineAsync(Guid id, ServiceLine kalem, CancellationToken ct = default);
 
     /// <summary>Servis yansıtma/rücu (roadmap J4): tek transaction'da Yansitildi=true + YansitilanTutar/CariId +
     /// DENGELİ defter. SourceId=serviceId deterministik → çift-yansıtma idempotency index ile reddedilir.</summary>

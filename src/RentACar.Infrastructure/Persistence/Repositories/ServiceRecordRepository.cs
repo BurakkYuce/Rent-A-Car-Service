@@ -79,7 +79,11 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         }, ct);
     }
 
-    public async Task<bool> AddLineAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)
+    public Task<bool> UpdateBilgiAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default)
+        // Durum geçişi yok, araç kuplajı yok, km log yok — yalnız alan güncellemesi (FAZ-16 bilgi blokları).
+        => TransitionAsync(id, apply, setVehicleTo: null, onlyWhenVehicleIs: null, ct: ct);
+
+    public async Task<bool> AddLineAsync(Guid id, ServiceLine kalem, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + kayıp-güncelleme koruması
         {
@@ -97,11 +101,12 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             if (rec.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
                 throw new ValidationException("Kapanmış servise kalem eklenemez.");
 
-            db.Set<ServiceLine>().Add(new ServiceLine { ServiceRecordId = rec.Id, Aciklama = aciklama, Tutar = tutar });
+            kalem.ServiceRecordId = rec.Id;
+            db.Set<ServiceLine>().Add(kalem);
             // Toplamı DB'den (kilit altında) yeniden hesapla + bu çağrının yeni kalemi. Eşzamanlı
             // çağrı bu commit'i beklediğinden onun kalemi mevcutToplam'a dahil olur.
             var mevcutToplam = await db.Set<ServiceLine>().Where(l => l.ServiceRecordId == id).SumAsync(l => l.Tutar, ct);
-            rec.ToplamIscilik = mevcutToplam + tutar;
+            rec.ToplamIscilik = mevcutToplam + kalem.Tutar;
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
             await db.SaveChangesAsync(ct);
