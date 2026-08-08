@@ -428,6 +428,110 @@ public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int D
     /// <summary>O gün AÇIK olan BAF (araç tahsis) adedi — bilgi kolonu, Bos hesabına GİRMEZ.</summary>
     int ToplamBaf = 0);
 
+/// <summary>
+/// FAZ-12 Bölüm A — araç durum-takip ARAÇ bazlı satır (canlı <c>arac_durum_takip.aspx</c> grain'i).
+///
+/// <para>Gün görünümü (<see cref="AracDurumTakipRow"/>) "her gün filoda kaç araç neydi" der; bu
+/// satır transpozudur: "seçilen aralıkta BU araç kaç gün doluydu / bakımdaydı / bafta / boştaydı".
+/// İkisi aynı ham veriden (araç × gün durumu) türer, biri diğerinin yerine geçmez.</para>
+///
+/// <para><b>KOVALAR ÇAKIŞMAZ (öncelik: Dolu &gt; Bakım &gt; Baf &gt; Boş).</b> Bir araç aynı gün hem
+/// kirada hem serviste görünebilir (veri girişi çakışması); kovalar önceliksiz sayılsaydı toplam
+/// aralık gün sayısını aşar, "Boş" negatife düşerdi. Öncelik sayesinde <c>DoluGun + BakimGun +
+/// BafGun + BosGun == ToplamGun</c> her satırda GARANTİDİR (kalıcı test kilidi). Kira gelir üreten
+/// durum olduğu için önceliği en yüksektir.</para>
+///
+/// <para>Bu satır SAYIM üretir, para DEĞİL — "P&amp;L yalnız defterden" kuralının kapsamı dışındadır.
+/// Canlıdaki "Potansiyel" (boş gün × günlük ücret) kolonu bilinçli olarak YOK: fiyat kaynağı ayrı
+/// bir karar (bkz. KARARLAR.md FAZ-79).</para>
+/// </summary>
+public sealed record AracDurumTakipAracRow(
+    Guid VehicleId, string Plaka, string? Sipp, string? Grup, string? Sube, string? AracSahibi,
+    int ToplamGun, int DoluGun, int BakimGun, int BafGun, int BosGun);
+
+/// <summary>
+/// FAZ-12 — araç durum-takip filtresi. HER İKİ görünüm (gün / araç) de aynı filtreyi kullanır ki
+/// görünüm değiştirince kullanıcının seçimi kaybolmasın ve iki görünüm aynı araç kümesini anlatsın.
+/// Tüm alanlar aracın KENDİ alanlarına bakar (tek-atıf kuralı: kira/servis/BAF sayımları da aynı
+/// araç kümesinden gelir).
+/// </summary>
+public sealed class AracDurumTakipFilter
+{
+    /// <summary>Aracın şubesi (tam eşleşme, canlıdaki "Ofis" süzgecinin karşılığı).</summary>
+    public string? Sube { get; set; }
+    public string? AracSahibi { get; set; }
+    public string? Grup { get; set; }
+    public string? Sipp { get; set; }
+    /// <summary>Plaka — içerir (normalize edilmiş plakaya karşı boşluksuz aranır).</summary>
+    public string? Plaka { get; set; }
+}
+
+/// <summary>
+/// FAZ-12 Bölüm B — araç GÜNLÜK durum satırı (canlı <c>arac_gunluk_durum.aspx</c>): seçilen GÜNDE
+/// aktif olan kiranın o güne düşen gelir kesiti.
+///
+/// <para><b>Bu bir PROJEKSİYONDUR, defter kaydı DEĞİLDİR.</b> Sözleşme tutarı faturalanan gün
+/// sayısına düz bölünür; hiçbir yere postlanmaz, hiçbir P&amp;L raporuna girmez. Gelir/gider
+/// gerçeği <c>AccountLedgerEntry</c>'dedir (Kârlılık / Filo Analiz / Araç Karnesi).</para>
+///
+/// <para><b>Kira ve hizmet AYRI bölünür — NEDEN:</b> <c>RentalContract.GenelToplam</c> kira
+/// dövizinde tutulurken <c>RentalAddOn</c> tutarları baz parada (TRY) saklanır. GenelToplam'dan ek
+/// hizmet brütünü çıkarmak dövizli sözleşmede para birimi karıştırırdı. Bu yüzden
+/// <paramref name="GunlukKira"/> = baz kira brütü (Tutar + fazla km + yakıt + uzatma) × KurSnapshot
+/// ÷ gün, <paramref name="GunlukHizmet"/> = Σ ek hizmet brütü ÷ gün. TRY sözleşmede
+/// <c>GunlukToplam × Gun == GenelToplam</c> birebir tutar.</para>
+/// </summary>
+public sealed record AracGunlukDurumRow(
+    Guid VehicleId, string Plaka, string? Sipp, string? Grup, string? AracSahibi,
+    Guid RentalId, string SozlesmeNo, string Musteri, string? CikisOfisi,
+    DateTimeOffset BasTar, DateTimeOffset BitTar, int Gun,
+    decimal GunlukKira, decimal GunlukHizmet, decimal GunlukToplam);
+
+/// <summary>FAZ-12 Bölüm B — araç günlük durum filtresi (araç ve kira alanları).</summary>
+public sealed class AracGunlukDurumFilter
+{
+    public string? Plaka { get; set; }
+    public string? Grup { get; set; }
+    public string? Sipp { get; set; }
+    public string? AracSahibi { get; set; }
+    /// <summary>Kiranın çıkış ofisi (tam eşleşme).</summary>
+    public string? Ofis { get; set; }
+}
+
+/// <summary>
+/// FAZ-12 Bölüm C — ek hizmet satış satırı, ARAÇ kimliğiyle. Ad-bazlı özetin
+/// (<see cref="EkHizmetSalesRowDto"/>) araç boyutu eklenmiş hâli; pencere tanımı BİREBİR aynıdır
+/// (İptal kira hariç, tarih = kalem eklenme zamanı) — ikisi ayrışırsa pivot toplamı özetten kayar.
+/// </summary>
+public sealed record EkHizmetAracSalesRow(
+    Guid? VehicleId, string Plaka, string? Grup, string? Sipp,
+    string Ad, decimal Net, decimal Kdv, decimal Brut, Guid RentalId);
+
+/// <summary>
+/// FAZ-12 Bölüm C — araç-bazlı ek hizmet pivot satırı. <paramref name="Hucreler"/> sırası
+/// <see cref="EkHizmetAracPivotDto.Kolonlar"/> ile İNDEKS OLARAK hizalıdır (satırda hiç satılmayan
+/// hizmet 0 gelir — seyrek sözlük yerine tam vektör, tablo çizimi kaymasın diye).
+/// </summary>
+public sealed record EkHizmetAracPivotSatir(
+    Guid? VehicleId, string Plaka, string? Grup, string? Sipp,
+    IReadOnlyList<decimal> Hucreler, decimal Toplam, int KalemAdet);
+
+/// <summary>
+/// FAZ-12 Bölüm C (KARARLAR.md "Seçenek B") — ek hizmet raporunun ARAÇ bazlı pivot modu:
+/// satır = araç, sütun = ek hizmet adı, hücre = BRÜT tutar. Canlı
+/// <c>arac_gelir_gider_tablosu.aspx</c>'in ~25 ek-hizmet kolonunun karşılığı.
+///
+/// <para>Karlılık / Filo Analiz / Ek Hizmet üçlüsü BİRLEŞTİRİLMEDİ (kullanıcı kararı); bu yalnız
+/// mevcut Ek Hizmet raporuna eklenen ikinci bir bakış açısıdır. <b>Değişmez:</b>
+/// <paramref name="GenelToplam"/> == ad-bazlı özetin <c>ToplamBrut</c>'u (aynı pencerede) —
+/// pivot yalnız aynı parayı başka eksende dizer, yeni para ÜRETMEZ.</para>
+/// </summary>
+public sealed record EkHizmetAracPivotDto(
+    IReadOnlyList<string> Kolonlar,
+    IReadOnlyList<EkHizmetAracPivotSatir> Satirlar,
+    IReadOnlyList<decimal> KolonToplam,
+    decimal GenelToplam);
+
 /// <summary>Müşteri CRM segment satırı — roadmap N3. Segment ciro eşiğiyle (VIP/Standart/Pasif).</summary>
 public sealed record MusteriSegmentRow(Guid CariId, string Ad, int KiraSayisi, decimal ToplamCiro, DateTimeOffset? SonIslem, string Segment);
 
