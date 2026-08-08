@@ -40,7 +40,12 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     /// TRY kira → TL-baz (AmountInBase, mevcut davranış). FX kira → tahsilat AYNI dövizde zorunlu (ham Amount);
     /// farklı döviz karışık-birim Bakiye üretirdi (1000 EUR kira + TL-baz delta → −34.000 "alacak") → red.
     /// </summary>
-    private static decimal RentalDelta(CashTransaction tx, string? kiraDoviz)
+    /// <summary>
+    /// Bir kasa hareketinin kira Tahsilat alanına etkisi. FAZ-68: mutabakat raporu da BU metodu
+    /// çağırır — işaret/döviz kuralının ikinci bir kopyası çıkmasın (kopya çıksaydı rapor ile
+    /// sözleşme satırı sessizce ayrışabilirdi).
+    /// </summary>
+    internal static decimal RentalDelta(CashTransaction tx, string? kiraDoviz)
     {
         var yon = (tx.Tip == CashTransactionType.Tahsilat ? 1m : -1m) * (tx.TersKayitMi ? -1m : 1m);
         var kira = RentACar.Application.Kur.KurService.NormalizeKod(kiraDoviz);
