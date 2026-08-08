@@ -330,6 +330,12 @@ internal sealed class ReservationSourceConfig : IEntityTypeConfiguration<Reserva
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
         e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Tedarikci).HasMaxLength(128);
+        // FAZ-24: oranlar YÜZDE — numeric(5,2) → −999,99…999,99. Kuruş değil oran taşıdığı için
+        // para kolonlarının numeric(19,4) deseninden bilinçli ayrılıyor.
+        e.Property(x => x.KiraOrani).HasColumnType("numeric(5,2)");
+        e.Property(x => x.HizmetOrani).HasColumnType("numeric(5,2)");
+        e.Property(x => x.DropOrani).HasColumnType("numeric(5,2)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }

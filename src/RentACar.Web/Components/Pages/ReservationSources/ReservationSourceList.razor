@@ -7,6 +7,11 @@
 <div class="page-head"><h1>Rezervasyon Kaynağı Tanımları</h1><div class="actions"></div></div>
 <p class="muted small">Rezervasyon/müşteri kaynaklarının sözlüğü (ör. "Web", "Telefon", "Bayi",
     "Tavsiye"). Rezervasyon ve cari formlarındaki Kaynak açılır listesini besler.</p>
+@* Kapsam çiti KULLANICIYA da yazılı: alan "not" sanılıp doldurulduğunda faturanın değişmediğini
+   burada söylemek, sonradan "neden komisyon çıkmadı" sorusunu baştan cevaplar. *@
+<p class="muted small"><strong>Tedarikçi oranları (Kira / Hizmet / Drop) yüzdedir</strong>
+    (12,5 = %12,5) ve şu an <strong>yalnız bilgi olarak saklanır</strong> — hiçbir fiyat, komisyon
+    veya karlılık hesabı bu alanları okumaz. Hesaba nasıl gireceği ayrı bir çalışmadır.</p>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
@@ -18,23 +23,32 @@
     <form method="post" action="/rezervasyon-kaynaklari/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="WEB" /></label>
         <label>Ad<input name="ad" required placeholder="Web Sitesi" /></label>
+        <label>Tedarikçi<input name="tedarikci" placeholder="Rentalcars" maxlength="128" /></label>
+        <label>Kira Oranı %<input name="kiraOrani" type="number" step="0.01" min="0" max="100" /></label>
+        <label>Hizmet Oranı %<input name="hizmetOrani" type="number" step="0.01" min="0" max="100" /></label>
+        <label>Drop Oranı %<input name="dropOrani" type="number" step="0.01" min="0" max="100" /></label>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Tedarikçi</th><th class="num">Kira %</th>
+        <th class="num">Hizmet %</th><th class="num">Drop %</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="4" class="muted">Rezervasyon kaynağı tanımlı değil.</td></tr>
+            <tr><td colspan="8" class="muted">Rezervasyon kaynağı tanımlı değil.</td></tr>
         }
         @foreach (var s in _list)
         {
             <tr>
                 <td class="mono">@s.Kod</td>
                 <td>@s.Ad</td>
+                <td>@(s.Tedarikci ?? "—")</td>
+                <td class="num">@Yuzde(s.KiraOrani)</td>
+                <td class="num">@Yuzde(s.HizmetOrani)</td>
+                <td class="num">@Yuzde(s.DropOrani)</td>
                 <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -43,6 +57,12 @@
                             <input type="hidden" name="id" value="@s.Id" />
                             <label>Kod<input name="kod" value="@s.Kod" required /></label>
                             <label>Ad<input name="ad" value="@s.Ad" required /></label>
+                            <label>Tedarikçi<input name="tedarikci" value="@s.Tedarikci" maxlength="128" /></label>
+                            @* Değerler InvariantCulture: tr-TR "12,50" basıldığında type=number alanı
+                               boşaltıp kaydetmede oranı SİLERDİ (FAZ-22 H1 dersi). *@
+                            <label>Kira Oranı %<input name="kiraOrani" type="number" step="0.01" min="0" max="100" value="@Inv(s.KiraOrani)" /></label>
+                            <label>Hizmet Oranı %<input name="hizmetOrani" type="number" step="0.01" min="0" max="100" value="@Inv(s.HizmetOrani)" /></label>
+                            <label>Drop Oranı %<input name="dropOrani" type="number" step="0.01" min="0" max="100" value="@Inv(s.DropOrani)" /></label>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@s.Aktif">Aktif</option>
@@ -52,6 +72,14 @@
                             <button type="submit">Kaydet</button>
                         </form>
                     </details>
+                    @* Aşağıya Yansıt: bu kaynağın 3 oranını diğer AKTİF kaynaklara kopyalar.
+                       Pasifler bilinçli dışarıda (tarihsel tanım diriltilmemeli), kayıtlı
+                       belgeler DEĞİŞMEZ. *@
+                    <form method="post" action="/rezervasyon-kaynaklari/yansit"
+                          data-confirm="Bu kaynağın oranları diğer AKTİF kaynaklara kopyalansın mı? (Kayıtlı rezervasyon/fatura değişmez)"><AntiforgeryToken />
+                        <input type="hidden" name="id" value="@s.Id" />
+                        <button type="submit" class="link" title="Oranları diğer aktif kaynaklara kopyalar — başka hiçbir tabloya yazmaz">Aşağıya Yansıt</button>
+                    </form>
                     <form method="post" action="/rezervasyon-kaynaklari/delete" data-confirm="Kaynak silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@s.Id" />
                         <button type="submit" class="link danger">Sil</button>
@@ -67,6 +95,11 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<ReservationSource> _list = [];
+
+    private static string Yuzde(decimal? o) => o is { } v ? v.ToString("N2") : "—";
+
+    /// <summary>type=number değeri INVARIANT olmalı (tr-TR virgüllü değer alanı boşaltır).</summary>
+    private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     protected override async Task OnInitializedAsync()
         => _list = await RezKaynaklari.ListAsync();
