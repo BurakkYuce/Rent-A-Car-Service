@@ -105,12 +105,35 @@ public sealed class FeeLineService(
             .FirstOrDefault(g => string.Equals(g.Kod, kod, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Drop ücreti çözümü (FAZ 3.A3b). MANUEL override (BookingInput/RentalContract.DropUcreti,
-    /// NET) operatör talimatıdır — koşuldan bağımsız uygulanır. Otomatik eşleşme: çıkış ≠ dönüş ofisi VE
-    /// aktif DropTanim.Lokasyon == DonusOfisi (Trim+case-insensitive) VE Ucret > 0. Aynı lokasyona birden
-    /// çok satırda ÇIKIŞ-ŞUBESİ eşleşen tercih edilir; kalanlar Sube sırasıyla deterministik.</summary>
+    /// <summary>
+    /// Drop ücreti çözümü (FAZ 3.A3b + FAZ-22 özgüllük). MANUEL override
+    /// (BookingInput/RentalContract.DropUcreti, NET) operatör talimatıdır — koşuldan bağımsız
+    /// uygulanır. Otomatik eşleşme: çıkış ≠ dönüş ofisi VE <c>DropTanim.Lokasyon == DonusOfisi</c>.
+    ///
+    /// <para><b>ÖZGÜLLÜK MERDİVENİ (en özgül SON SÖZDÜR — 0/pasifse rota ÜCRETSİZDİR, daha genel
+    /// satırın ücretine sessizce düşülmez; A3b-B1 kuralının bir basamak yukarısı):</b>
+    /// <list type="number">
+    ///   <item><b>Çıkış LOKASYONU</b> eşleşen ve FİYAT KARARI TAŞIYAN satır (<c>Ucret</c> null değil).
+    ///     <c>Ucret=null</c> satır "fiyat hakkında görüş bildirmiyor" demektir (DropTanim aslen bir
+    ///     karşılama/iletişim matrisidir) — bir iletişim notu satırı gerçek ücreti SUSTURAMAZ.</item>
+    ///   <item><b>Çıkış ŞUBESİ</b> eşleşen satır (mevcut A3b-B1 davranışı, semantiği DEĞİŞMEDİ:
+    ///     Ucret null/0/pasif → ücretsiz).</item>
+    ///   <item>Kalanlar — Sube sırasıyla deterministik fallback.</item>
+    /// </list></para>
+    ///
+    /// <para><b>DARALTMA ASLA ARTIRMAZ (adversarial H2).</b> <c>CikisLokasyon</c>/<c>MinGun</c>
+    /// koşulları basamağın İÇİNDE değerlendirilir, aday havuzundan ELEYEREK değil. Elenerek
+    /// yapılsaydı: şubeye özel 300'lük satıra MinGun eklenince satır havuzdan düşer, fallback
+    /// devreye girer ve müşteri BAŞKA şubenin 1000'lik ücretini öderdi — yani bir daraltma
+    /// kuralı ücreti 700 TL ARTIRIRDI. Doğru davranış: çıkış şubesinin satırı varsa o şube
+    /// "yapılandırılmış" sayılır; koşulu tutmuyorsa rota ÜCRETSİZDİR.</para>
+    ///
+    /// <para><paramref name="gun"/> ZORUNLU: MinGun koşulu buna bakar. Opsiyonel bırakılsaydı bir
+    /// çağıran farkında olmadan koşulu atlar ve tutar sapardı.</para>
+    /// </summary>
     public async Task<decimal?> DropUcretCozAsync(
-        string? cikisOfisi, string? donusOfisi, decimal? manuelOverride, CancellationToken ct = default)
+        string? cikisOfisi, string? donusOfisi, decimal? manuelOverride, int gun,
+        CancellationToken ct = default)
     {
         if (manuelOverride is > 0m) return manuelOverride;
         // Adversarial A3b-B5: AÇIK 0 = MUAFİYET (operatör talimatı) — tanım ücreti bastırılır.
@@ -121,18 +144,54 @@ public sealed class FeeLineService(
         var donus = donusOfisi.Trim();
         if (string.Equals(cikis, donus, StringComparison.OrdinalIgnoreCase)) return null;
 
+        // NOT: karşılaştırıcı OrdinalIgnoreCase — Türkçe İ/ı için tam doğru değil ama ofis adları
+        // açılır listeden geldiği için pratikte aynı metin. MEVCUT davranış budur; TurkishText'e
+        // geçmek yeni eşleşmeler doğurup ücret uygulanmayan rotalarda ücret başlatabilir →
+        // ayrı ve incelemeli bir değişiklik olmalı (AÇIK İŞ).
+        static bool Es(string? a, string? b)
+            => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
         var adaylar = (await dropTanimlar.ListAsync(ct))
-            .Where(t => string.Equals(t.Lokasyon.Trim(), donus, StringComparison.OrdinalIgnoreCase))
+            .Where(t => Es(t.Lokasyon, donus))
             .ToList();
-        // Adversarial A3b-B1: çıkış-şubesine ÖZEL satır varsa o satır SON SÖZDÜR — 0/pasifse bu rota
-        // ÜCRETSİZDİR; başka şubenin ücretine sessizce düşülmez. Fallback yalnız özel satır hiç yokken.
-        var ozel = adaylar
-            .Where(t => string.Equals(t.Sube.Trim(), cikis, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(t => t.Sube, StringComparer.Ordinal).FirstOrDefault();
-        if (ozel is not null) return ozel.Aktif && ozel.Ucret is > 0m ? ozel.Ucret : null;
-        return adaylar.Where(t => t.Aktif && t.Ucret is > 0m)
+        if (adaylar.Count == 0) return null;
+
+        // Daraltma koşulları — basamağın İÇİNDE kullanılır, havuzu elemek için DEĞİL.
+        bool Kosul(Domain.Entities.DropTanim t)
+            => (t.CikisLokasyon is null || Es(t.CikisLokasyon, cikis))
+            && (t.MinGun is not int min || gun >= min);
+
+        // 1) ÇIKIŞ LOKASYONU basamağı — yalnız fiyat kararı taşıyan (Ucret != null) satırlar.
+        //    Şubesi DE eşleşen satır önce (iki alan da aynı kira alanına bakar → daha özgül).
+        var lokAdaylar = adaylar
+            .Where(t => t.CikisLokasyon is not null && t.Ucret is not null && Kosul(t))
+            .OrderByDescending(t => Es(t.Sube, cikis))
+            .ThenBy(t => t.Sube, StringComparer.Ordinal)
+            .ToList();
+        if (lokAdaylar.Count > 0) return Gecerli(lokAdaylar[0]);
+
+        // 2) ÇIKIŞ ŞUBESİ basamağı — şube "yapılandırılmış"sa SON SÖZ ONUNDUR. Koşulu tutan satır
+        //    yoksa rota ÜCRETSİZDİR (başka şubenin ücretine düşülmez).
+        var subeSatirlari = adaylar.Where(t => Es(t.Sube, cikis)).ToList();
+        if (subeSatirlari.Count > 0)
+        {
+            // FİYAT KARARI TAŞIYAN satır önce (adversarial H3): benzersizlik artık CikisLokasyon'u
+            // da kapsadığı için aynı (dönüş, şube) çiftinde birden çok satır olabilir; bir iletişim
+            // notu satırı (Ucret=null) gerçek ücreti susturmamalı. Tek satırlı eski veride bu
+            // sıralama etkisizdir → eski semantik (null/0 → ücretsiz) aynen korunur.
+            var uygun = subeSatirlari.Where(Kosul)
+                .OrderByDescending(t => t.Ucret is not null)
+                .ThenBy(t => t.Sube, StringComparer.Ordinal).FirstOrDefault();
+            return uygun is null ? null : Gecerli(uygun);
+        }
+
+        // 3) Fallback — çıkış şubesine ait hiç satır yokken.
+        return adaylar.Where(t => Kosul(t) && t.Aktif && t.Ucret is > 0m)
             .OrderBy(t => t.Sube, StringComparer.Ordinal)
             .FirstOrDefault()?.Ucret;
+
+        static decimal? Gecerli(Domain.Entities.DropTanim t)
+            => t.Aktif && t.Ucret is > 0m ? t.Ucret : null;
     }
 
     /// <summary>Kayıt yolu: sözleşmeye sistem ücret satırlarını ekler (kira create + rez→kira dönüşümü
@@ -144,7 +203,7 @@ public sealed class FeeLineService(
 
         var grup = await GrupCozAsync(c.VehicleId, ct);
         var dogum = grup is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, ct);
+        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
 
         var notlar = new List<string>(); // kayıt yolunda notlar sessiz (önizleme aynı notları gösterir)
         var satirlar = HesaplaSaf(grup, c.Gun, c.BasTar, dogum, c.IkinciSurucuId is not null, c.Doviz, notlar, drop);
@@ -173,7 +232,7 @@ public sealed class FeeLineService(
 
         var grup = await GrupCozAsync(c.VehicleId, ct);
         var dogum = grup is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, ct);
+        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
         var notlar = new List<string>();
         var beklenen = HesaplaSaf(grup, c.Gun, c.BasTar, dogum, c.IkinciSurucuId is not null, c.Doviz, notlar, drop);
 

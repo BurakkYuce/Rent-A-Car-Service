@@ -8,30 +8,118 @@
 <PageTitle>Drop Matris — RentPro</PageTitle>
 
 <div class="page-head"><h1>Lokasyon-Şube Drop Matrisi</h1><div class="actions"><a href="/listeler/export/drop-tanimlari">Excel</a> · <a href="/listeler/export/drop-tanimlari?format=csv">CSV</a> · <a href="/listeler/export/drop-tanimlari?format=pdf">PDF</a></div></div>
-<p class="muted small">Aracı bir lokasyonda alıp başka şubeye bırakma (drop) konfigürasyonu.</p>
+
+@* ANLAM: "Lokasyon" kolonu aracın BIRAKILDIĞI (dönüş) ofistir; "Şube" aracın ALINDIĞI şubedir.
+   Motorda böyle eşleşiyor (FeeLineService.DropUcretCozAsync) — etiketler buna göre yazıldı. *@
+<p class="muted small">Aracı bir şubeden alıp <strong>başka bir ofise bırakma</strong> (drop)
+    konfigürasyonu. <strong>Dönüş Lokasyonu</strong> = aracın bırakıldığı ofis;
+    <strong>Çıkış Şubesi</strong> = alındığı şube. <strong>Çıkış Lokasyonu</strong> doldurulursa
+    kural yalnız o çıkış ofisinde geçerlidir (şube kuralından daha özgüldür ve onu yener).
+    <strong>Asgari Gün</strong> altındaki kiralarda satır uygulanmaz.</p>
+<p class="muted small">Ücret <strong>KDV hariç ve tek seferliktir</strong> (gün ile ölçeklenmez).
+    <strong>Drop 2</strong> ve <strong>Karşılama Süresi</strong> bilgi alanıdır — hesaba GİRMEZ.</p>
+
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
+<form method="get" class="filter-bar">
+    <label>Dönüş Lokasyonu
+        <select name="fDonus">
+            <option value="">— tümü —</option>
+            @foreach (var o in _lokasyonOpts) { <option value="@o" selected="@(o == FDonus)">@o</option> }
+        </select>
+    </label>
+    <label>Çıkış Lokasyonu
+        <select name="fCikis">
+            <option value="">— tümü —</option>
+            @foreach (var o in _lokasyonOpts) { <option value="@o" selected="@(o == FCikis)">@o</option> }
+        </select>
+    </label>
+    <label>Çıkış Şubesi
+        <select name="fSube">
+            <option value="">— tümü —</option>
+            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == FSube)">@o</option> }
+        </select>
+    </label>
+    <label>Durum
+        <select name="fAktif">
+            <option value="">— tümü —</option>
+            <option value="true" selected="@(FAktif == "true")">Aktif</option>
+            <option value="false" selected="@(FAktif == "false")">Pasif</option>
+        </select>
+    </label>
+    <button type="submit">Filtrele</button>
+    @if (FiltreVar) { <a class="link" href="/drop-tanimlari">Temizle</a> }
+</form>
+
 <form method="post" action="/drop-tanimlari/create" class="grid-form"><AntiforgeryToken />
-    <ComboBox Name="lokasyon" Label="Lokasyon" Options="_lokasyonOpts" required />
-    <ComboBox Name="sube" Label="Şube" Options="_subeOpts" required />
+    @Gizli
+    <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Options="_lokasyonOpts" required />
+    <ComboBox Name="sube" Label="Çıkış Şubesi" Options="_subeOpts" required />
+    <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Options="_lokasyonOpts" Placeholder="(tüm ofisler)" ListId="dl-cikislok-new" />
     <label>Karşılama Şekli<input name="karsilamaSekli" /></label>
     <label>Çalışma Şekli<input name="calismaSekli" /></label>
     <label>Özel İletişim<input name="ozelIletisim" /></label>
-        <label>Drop Ücreti (KDV hariç, tek seferlik)<input name="ucret" type="number" step="0.01" min="0" /></label>
+    <label>Drop Ücreti (KDV hariç, tek seferlik)<input name="ucret" type="number" step="0.01" min="0" /></label>
+    <label>Asgari Gün<input name="minGun" type="number" min="1" placeholder="(koşulsuz)" /></label>
+    <label>Karşılama Süresi (dk, bilgi)<input name="manSuresi" type="number" min="0" /></label>
+    <label>Drop 2 (bilgi — hesaba girmez)<input name="drop2" type="number" step="0.01" min="0" /></label>
     <button type="submit">Ekle</button>
 </form>
 
+<p class="muted small">@_list.Count kayıt@(FiltreVar ? " (filtreli)" : "")</p>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Lokasyon</th><th>Şube</th><th>Karşılama</th><th>Çalışma</th><th>İletişim</th><th class="num">Drop Ücreti (net)</th><th></th></tr></thead>
+    <thead><tr><th>Dönüş Lokasyonu</th><th>Çıkış Şubesi</th><th>Çıkış Lokasyonu</th>
+        <th class="num">Asgari Gün</th><th>Karşılama</th><th>Çalışma</th><th>İletişim</th>
+        <th class="num">Drop Ücreti (net)</th><th class="num">Drop 2 (bilgi)</th>
+        <th class="num">Karş. Süre</th><th>Durum</th><th></th></tr></thead>
     <tbody>
-        @if (_list.Count == 0) { <tr><td colspan="7" class="muted">Kayıt yok.</td></tr> }
+        @if (_list.Count == 0)
+        {
+            <tr><td colspan="12" class="muted">@(FiltreVar ? "Filtreye uyan kayıt yok." : "Kayıt yok.")</td></tr>
+        }
         @foreach (var d in _list)
         {
             <tr>
-                <td>@d.Lokasyon</td><td>@d.Sube</td><td>@d.KarsilamaSekli</td><td>@d.CalismaSekli</td><td>@d.OzelIletisim</td>
+                <td>@d.Lokasyon</td><td>@d.Sube</td>
+                <td>@(d.CikisLokasyon ?? "— tümü —")</td>
+                <td class="num">@(d.MinGun?.ToString() ?? "—")</td>
+                <td>@d.KarsilamaSekli</td><td>@d.CalismaSekli</td><td>@d.OzelIletisim</td>
                 <td class="num">@(d.Ucret?.ToString("N2") ?? "—")</td>
-                <td><form method="post" action="/drop-tanimlari/delete" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@d.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+                <td class="num muted">@(d.Drop2?.ToString("N2") ?? "—")</td>
+                <td class="num muted">@(d.ManSuresi?.ToString() ?? "—")</td>
+                <td>@(d.Aktif ? "Aktif" : "Pasif")</td>
+                <td>
+                    <details>
+                        <summary class="link">Düzenle</summary>
+                        <form method="post" action="/drop-tanimlari/update" class="grid-form"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@d.Id" />
+                            @Gizli
+                            <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Value="@d.Lokasyon" Options="_lokasyonOpts" ListId="dl-lok-edit" required />
+                            <ComboBox Name="sube" Label="Çıkış Şubesi" Value="@d.Sube" Options="_subeOpts" ListId="dl-sube-edit" required />
+                            <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Value="@d.CikisLokasyon" Options="_lokasyonOpts" ListId="dl-cikislok-edit" />
+                            <label>Karşılama Şekli<input name="karsilamaSekli" value="@d.KarsilamaSekli" /></label>
+                            <label>Çalışma Şekli<input name="calismaSekli" value="@d.CalismaSekli" /></label>
+                            <label>Özel İletişim<input name="ozelIletisim" value="@d.OzelIletisim" /></label>
+                            <label>Drop Ücreti<input name="ucret" type="number" step="0.01" min="0" value="@Inv(d.Ucret)" /></label>
+                            <label>Asgari Gün<input name="minGun" type="number" min="1" value="@d.MinGun" /></label>
+                            <label>Karşılama Süresi (dk)<input name="manSuresi" type="number" min="0" value="@d.ManSuresi" /></label>
+                            <label>Drop 2 (bilgi)<input name="drop2" type="number" step="0.01" min="0" value="@Inv(d.Drop2)" /></label>
+                            <label>Durum
+                                <select name="aktif">
+                                    <option value="true" selected="@d.Aktif">Aktif</option>
+                                    <option value="false" selected="@(!d.Aktif)">Pasif</option>
+                                </select>
+                            </label>
+                            <button type="submit">Kaydet</button>
+                        </form>
+                    </details>
+                    <form method="post" action="/drop-tanimlari/delete" class="inline" data-confirm="Drop tanımı silinsin mi?"><AntiforgeryToken />
+                        <input type="hidden" name="id" value="@d.Id" />@Gizli
+                        <button type="submit" class="link danger">Sil</button>
+                    </form>
+                </td>
             </tr>
         }
     </tbody>
@@ -40,8 +128,32 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "fDonus")] public string? FDonus { get; set; }
+    [SupplyParameterFromQuery(Name = "fCikis")] public string? FCikis { get; set; }
+    [SupplyParameterFromQuery(Name = "fSube")] public string? FSube { get; set; }
+    [SupplyParameterFromQuery(Name = "fAktif")] public string? FAktif { get; set; }
+
+
+    /// <summary>
+    /// type=number değeri INVARIANT kültürle basılır. tr-TR'de decimal.ToString() "500,0000" üretir;
+    /// HTML spec'ine göre geçersiz sayı olduğu için tarayıcı alanı BOŞALTIR ve kullanıcı başka bir
+    /// alanı düzeltip kaydettiğinde ücret null'a düşerdi (sessiz para kaybı — adversarial H1).
+    /// </summary>
+    private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     private IReadOnlyList<DropTanim> _list = [];
     private List<string> _lokasyonOpts = [], _subeOpts = [];
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(FDonus) || !string.IsNullOrWhiteSpace(FCikis)
+        || !string.IsNullOrWhiteSpace(FSube) || !string.IsNullOrWhiteSpace(FAktif);
+
+    /// <summary>Aktif filtreyi POST'larda taşır — kaydettikten sonra kullanıcı aynı süzgeçte kalır.</summary>
+    private RenderFragment Gizli => @<text>
+        <input type="hidden" name="fDonus" value="@FDonus" />
+        <input type="hidden" name="fCikis" value="@FCikis" />
+        <input type="hidden" name="fSube" value="@FSube" />
+        <input type="hidden" name="fAktif" value="@FAktif" />
+    </text>;
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -50,10 +162,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Droplar.ListAsync();
+        _list = await Droplar.SearchAsync(new DropTanimFilter
+        {
+            DonusLokasyon = FDonus, CikisLokasyon = FCikis, Sube = FSube,
+            Aktif = bool.TryParse(FAktif, out var a) ? a : null
+        });
+
+        // Açılır liste seçenekleri FİLTRESİZ listeden türetilir; filtrelenmişten türetilseydi bir
+        // seçim sonrası diğer seçenekler kaybolur ve filtre kendi kendini kilitlerdi.
+        var hepsi = await Droplar.ListAsync();
         var lokasyonlar = await Lokasyonlar.ListActiveAsync();
         var subeler = await Subeler.ListActiveAsync();
-        _lokasyonOpts = Opts(lokasyonlar.Select(l => l.Ad), _list.Select(d => d.Lokasyon));
-        _subeOpts = Opts(subeler.Select(s => s.Ad), _list.Select(d => d.Sube));
+        _lokasyonOpts = Opts(lokasyonlar.Select(l => l.Ad), hepsi.Select(d => d.Lokasyon), hepsi.Select(d => d.CikisLokasyon));
+        _subeOpts = Opts(subeler.Select(s => s.Ad), hepsi.Select(d => d.Sube));
     }
 }

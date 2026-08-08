@@ -189,12 +189,16 @@ public static class ListExportCatalog
             x.Kod, x.Ad, x.Adres, x.Telefon, x.Eposta, x.CalismaSaatleri, x.TeslimUcreti, x.Sube, x.Aktif ? "Evet" : "Hayır"
         }).ToList());
 
+    /// <summary>Drop matrisi. Başlıklar FAZ-22 anlam netleştirmesine göre: "Lokasyon" DÖNÜŞ ofisi,
+    /// "Şube" ÇIKIŞ şubesidir. Drop 2 / Karşılama Süresi bilgi alanıdır (hesaba girmez).</summary>
     public static ExportTable DropTanimlari(IReadOnlyList<DropTanim> d) => new(
         "Drop Tanımları",
-        ["Lokasyon", "Şube", "Karşılama Şekli", "Çalışma Şekli", "Özel İletişim", "Drop Ücreti (net)", "Aktif"],
+        ["Dönüş Lokasyonu", "Çıkış Şubesi", "Çıkış Lokasyonu", "Asgari Gün", "Karşılama Şekli",
+         "Çalışma Şekli", "Özel İletişim", "Drop Ücreti (net)", "Drop 2 (bilgi)", "Karşılama Süresi (dk)", "Aktif"],
         d.Select(x => new object?[]
         {
-            x.Lokasyon, x.Sube, x.KarsilamaSekli, x.CalismaSekli, x.OzelIletisim, x.Ucret, x.Aktif ? "Evet" : "Hayır"
+            x.Lokasyon, x.Sube, x.CikisLokasyon, x.MinGun, x.KarsilamaSekli, x.CalismaSekli,
+            x.OzelIletisim, x.Ucret, x.Drop2, x.ManSuresi, x.Aktif ? "Evet" : "Hayır"
         }).ToList());
 
     /// <summary>Personel — HASSAS PII (TC + maaş). <paramref name="decrypt"/> cipher'ları çözer (ISecretProtector);

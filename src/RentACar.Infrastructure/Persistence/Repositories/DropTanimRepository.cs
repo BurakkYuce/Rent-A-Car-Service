@@ -17,6 +17,34 @@ public sealed class DropTanimRepository(IDbContextFactory<AppDbContext> factory)
         return await db.DropTanimlari.AsNoTracking().OrderBy(c => c.Lokasyon).ThenBy(c => c.Sube).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<DropTanim>> SearchAsync(
+        RentACar.Application.DropTanimlari.DropTanimFilter filtre, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.DropTanimlari.AsNoTracking();
+
+        // Adversarial L10: filtre HARF DUYARSIZ — motor da öyle eşleştiriyor. Duyarlı olsaydı
+        // liste "kayıt yok" derken motor o satırla ücret uygulardı (kural operatörden gizlenir).
+        if (!string.IsNullOrWhiteSpace(filtre.DonusLokasyon))
+        {
+            var v = filtre.DonusLokasyon.Trim().ToLower();
+            q = q.Where(x => x.Lokasyon.Trim().ToLower() == v);
+        }
+        if (!string.IsNullOrWhiteSpace(filtre.CikisLokasyon))
+        {
+            var v = filtre.CikisLokasyon.Trim().ToLower();
+            q = q.Where(x => x.CikisLokasyon != null && x.CikisLokasyon.Trim().ToLower() == v);
+        }
+        if (!string.IsNullOrWhiteSpace(filtre.Sube))
+        {
+            var v = filtre.Sube.Trim().ToLower();
+            q = q.Where(x => x.Sube.Trim().ToLower() == v);
+        }
+        if (filtre.Aktif is bool a) q = q.Where(x => x.Aktif == a);
+
+        return await q.OrderBy(c => c.Lokasyon).ThenBy(c => c.Sube).ToListAsync(ct);
+    }
+
     public async Task<DropTanim?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
