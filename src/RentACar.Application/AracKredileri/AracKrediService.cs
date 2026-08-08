@@ -21,6 +21,16 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
     public Task<IReadOnlyList<AracKredi>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
+    /// <summary>FAZ-13 — filtreli liste (Cari/Plaka/Dosya/Durum/Tarih aralığı). Salt-okur; ekranın
+    /// açık olduğu dört rol de görebilsin diye izin OR'lanır (Operatör'de yalnız OperationsWrite var,
+    /// Muhasebe'de yalnız FinanceWrite/ViewReports).</summary>
+    public Task<IReadOnlyList<AracKredi>> SearchAsync(AracKrediFilter? filtre = null, CancellationToken ct = default)
+    {
+        PermissionGuard.RequireAny(_currentUser,
+            Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports);
+        return _repository.SearchAsync(filtre ?? new AracKrediFilter(), ct);
+    }
+
     public Task<AracKredi?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
@@ -37,6 +47,9 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         {
             BankaAdi = input.BankaAdi.Trim(),
             VehicleId = input.VehicleId,
+            // FAZ-13: cari yalnız İLİŞKİ — cari bakiyesine/defterine hiçbir kayıt gitmez.
+            CariId = input.CariId,
+            DosyaNo = string.IsNullOrWhiteSpace(input.DosyaNo) ? null : input.DosyaNo.Trim(),
             KrediTutari = input.KrediTutari,
             FaizOran = input.FaizOran,
             TaksitSayisi = input.TaksitSayisi,
@@ -112,10 +125,41 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         return _repository.SetDurumAsync(id, KrediDurum.Iptal, ct);
     }
 
-    /// <summary>Taksit planı + kalan bakiye (salt-hesap). Basit faiz: toplamFaiz = tutar × faiz × taksit/12;
-    /// aylık taksit = toplam geri ödeme / taksit sayısı; kalan = toplam − ödenen.</summary>
-    public static AracKrediOzet Hesapla(AracKredi k)
+    /// <summary>
+    /// FAZ-13 — "Taksitleri İptal Et" (toplu). Seçili kredilerin <b>KALAN (ödenmemiş) taksitlerini</b>
+    /// iptal eder: kredi <see cref="KrediDurum.Iptal"/>'e geçer ve bir daha taksit ödenemez
+    /// (çit repository'de, satır kilidinin ARKASINDA — M1 deseni).
+    ///
+    /// <para><b>ÖDENMİŞ taksitlere DOKUNMAZ.</b> Canlı sistemde bu düğme taksit satırlarını siler;
+    /// bizde ödenmiş taksit gerçek gider + dengeli defter kaydı üretmiştir (ExpenseType.Finansman) ve
+    /// mali kayıt DEĞİŞMEZDİR (rc_prevent_mutation). Geçmişi geri almak ancak ters kayıtla olur ve o
+    /// AYRI bir iştir — bu düğme sessizce para silmez.</para>
+    ///
+    /// <para>Zaten Aktif olmayan (Kapandi/Iptal) krediler sessizce ATLANIR: toplu seçimde bir satırın
+    /// durumu yüzünden tüm işlem patlamamalı. Dönüş = gerçekten iptal edilen kredi adedi.</para>
+    /// </summary>
+    public async Task<int> TaksitleriIptalEtAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
     {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // deftere yazmaz → FinanceWrite gerekmez
+        if (ids is null || ids.Count == 0) throw new ValidationException("İptal edilecek kredi seçilmedi.");
+
+        // Aktif-mi kontrolü + yazım TEK transaction'da, satır kilidi altında (repository) — servis
+        // tarafında "önce oku sonra yaz" yapsaydık eşzamanlı son taksit ödemesiyle yarışıp
+        // KAPANMIŞ bir krediyi İptal'e düşürebilirdi.
+        return await _repository.TopluIptalAsync(ids, ct);
+    }
+
+    /// <summary>Taksit planı + kalan bakiye (salt-hesap). Basit faiz: toplamFaiz = tutar × faiz × taksit/12;
+    /// aylık taksit = toplam geri ödeme / taksit sayısı; kalan = toplam − ödenen.
+    /// <paramref name="bugun"/> yalnız "bu ayki taksit" kutusu içindir (test edilebilirlik: varsayılan
+    /// <c>UtcNow</c> deterministik testi imkânsız kılardı).</summary>
+    public static AracKrediOzet Hesapla(AracKredi k, DateTimeOffset? bugun = null)
+    {
+        // Elle/dış yoldan girilmiş bozuk satır (TaksitSayisi ≤ 0) liste sayfasını DivideByZero ile
+        // düşürmesin: hesap yapılamaz, boş özet döner (CreateAsync zaten 1..360 çitini uygular).
+        if (k.TaksitSayisi < 1)
+            return new AracKrediOzet(0m, k.KrediTutari, 0m, 0m, k.KrediTutari, [], null, 0m, 0m);
+
         var toplamFaiz = R(k.KrediTutari * k.FaizOran * k.TaksitSayisi / 12m);
         var toplamGeriOdeme = k.KrediTutari + toplamFaiz;
         var aylikTaksit = R(toplamGeriOdeme / k.TaksitSayisi);
@@ -134,7 +178,48 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
             : R(odenenAdet * aylikTaksit);
         var kalanBakiye = Math.Max(0m, toplamGeriOdeme - odenenTutar);
 
-        return new AracKrediOzet(toplamFaiz, toplamGeriOdeme, aylikTaksit, odenenTutar, kalanBakiye, taksitler);
+        var referans = bugun ?? DateTimeOffset.UtcNow;
+        var buAy = taksitler.Where(t => AyniAy(t.Vade, referans)).Sum(t => t.Tutar);
+
+        return new AracKrediOzet(toplamFaiz, toplamGeriOdeme, aylikTaksit, odenenTutar, kalanBakiye,
+            taksitler, taksitler[^1].Vade, sonTaksit, buAy);
+    }
+
+    /// <summary>
+    /// FAZ-13 — liste üstü 5 özet kart. Ekrandaki (filtrelenmiş) küme üzerinden toplar; İPTAL krediler
+    /// hariç tutulur. Salt gösterge — deftere yazmaz, hiçbir rapor toplamına karışmaz.
+    /// </summary>
+    public static AracKrediPano Pano(IEnumerable<AracKredi> krediler, DateTimeOffset bugun)
+    {
+        var ozetler = krediler
+            .Where(k => k.Durum != KrediDurum.Iptal)  // iptal kredinin borcu/faizi yoktur
+            .Select(k => Hesapla(k, bugun))
+            .ToList();
+        if (ozetler.Count == 0) return new AracKrediPano(0m, null, 0m, 0m, 0m);
+
+        // "Son vade" = kümedeki en geç biten kredi; "son taksit tutarı" O kredinin son taksitidir
+        // (tutarları toplamak anlamsız olurdu — farklı kredilerin son taksitleri aynı ödeme değil).
+        var enGec = ozetler.Where(o => o.SonVadeGunu is not null)
+            .OrderByDescending(o => o.SonVadeGunu!.Value).FirstOrDefault();
+
+        return new AracKrediPano(
+            ozetler.Sum(o => o.ToplamFaiz),
+            enGec?.SonVadeGunu,
+            enGec?.SonTaksitTutari ?? 0m,
+            ozetler.Sum(o => o.BuAyToplamTaksit),
+            ozetler.Sum(o => o.KalanBakiye));
+    }
+
+    /// <summary>
+    /// Aynı takvim ayı mı? <b>YEREL</b> zamana göre karşılaştırılır — ekran vadeleri
+    /// <c>.LocalDateTime</c> ile bastığı için UTC'ye göre kovalamak "tabloda 01.08 yazıyor ama temmuz
+    /// kutusunda sayılıyor" tutarsızlığı üretirdi: form tarihi <c>FormParse.Date</c> ile yerel
+    /// gece-yarısından UTC'ye çevrilir (01.08 → 31.07T21:00Z).
+    /// </summary>
+    private static bool AyniAy(DateTimeOffset a, DateTimeOffset b)
+    {
+        var (x, y) = (a.LocalDateTime, b.LocalDateTime);
+        return x.Year == y.Year && x.Month == y.Month;
     }
 
     private static decimal R(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

@@ -89,7 +89,19 @@ public static class ListExportEndpoints
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
                 "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
                 "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),
-                "arac-kredileri" => ListExportCatalog.AracKredileri(await akr.ListAsync()),
+                // FAZ-13: ekrandaki filtre export'a AYNEN taşınır (giderler deseni) — kullanıcı
+                // gördüğü listeyi indirir, sessizce tüm tabloyu değil.
+                "arac-kredileri" => ListExportCatalog.AracKredileri(
+                    await akr.SearchAsync(new AracKrediFilter
+                    {
+                        CariId = FormParse.Id(req.Query["cariF"].ToString()),
+                        Plaka = NullIfEmpty(req.Query["plakaF"].ToString()),
+                        DosyaNo = NullIfEmpty(req.Query["dosyaF"].ToString()),
+                        Durum = Enum.TryParse<KrediDurum>(req.Query["durumF"].ToString(), out var kd) ? kd : null,
+                        Bas = FormParse.Date(req.Query["bas"].ToString()),
+                        Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
+                    }),
+                    MusteriResolver(await cs.ListAsync()), PlakaResolver(await vs.ListAsync())),
                 "baflar" => ListExportCatalog.Baflar(await baf.ListAsync()),
                 "kiralar" => ListExportCatalog.Kiralar(await rs.SearchAsync(new RentalFilter())),
                 "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.ListAsync()),

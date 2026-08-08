@@ -32,6 +32,11 @@ public sealed class CustomerService(
     public Task<IReadOnlyList<Customer>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
+    /// <summary>Dropdown listesi (Id + görünen ad). PII ÇÖZMEZ — cari seçtirmek için
+    /// <see cref="ListAsync"/> yerine BUNU kullanın (bkz. ICustomerRepository.ListSecimAsync).</summary>
+    public Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default)
+        => _repository.ListSecimAsync(ct);
+
     /// <summary>Liste ekranı: arama + sayfalama.</summary>
     public Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
     {

@@ -180,13 +180,26 @@ public sealed class ListExportCatalogTests
     [Fact]
     public void AracKredileri_projeksiyon()
     {
-        var k = new AracKredi { No = "KR-1", BankaAdi = "Ziraat", KrediTutari = 1000000m, FaizOran = 2.5m,
+        var cari = Guid.NewGuid();
+        var arac = Guid.NewGuid();
+        var k = new AracKredi { No = "KR-1", DosyaNo = "DS-77", BankaAdi = "Ziraat", CariId = cari, VehicleId = arac,
+            KrediTutari = 1000000m, FaizOran = 2.5m,
             TaksitSayisi = 36, OdenenTaksit = 12, BaslangicTarihi = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), Currency = "TRY" };
-        var t = ListExportCatalog.AracKredileri([k]);
-        Assert.Equal(10, t.Headers.Count);
-        Assert.Equal("Ziraat", t.Rows[0][1]);
-        Assert.Equal(36, t.Rows[0][4]);
-        Assert.Equal(12, t.Rows[0][5]);
+        // FAZ-13: Dosya No / Cari / Araç kolonları eklendi → 10 değil 13 kolon.
+        var t = ListExportCatalog.AracKredileri([k],
+            id => id == cari ? "ACME A.Ş." : null, id => id == arac ? "34ABC01" : null);
+        Assert.Equal(13, t.Headers.Count);
+        Assert.Equal("DS-77", t.Rows[0][1]);
+        Assert.Equal("Ziraat", t.Rows[0][2]);
+        Assert.Equal("ACME A.Ş.", t.Rows[0][3]);
+        Assert.Equal("34ABC01", t.Rows[0][4]);
+        Assert.Equal(36, t.Rows[0][7]);
+        Assert.Equal(12, t.Rows[0][8]);
+
+        // Cari/araç bağlanmamış kredi: çözücü ÇAĞRILMAZ, kolon boş kalır (yanlış ad sızmasın).
+        var bos = ListExportCatalog.AracKredileri([new AracKredi { No = "KR-2", BankaAdi = "Vakıf", TaksitSayisi = 6 }]);
+        Assert.Null(bos.Rows[0][3]);
+        Assert.Null(bos.Rows[0][4]);
     }
 
     [Fact]
