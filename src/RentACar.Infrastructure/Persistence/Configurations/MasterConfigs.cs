@@ -443,7 +443,15 @@ internal sealed class ServisTanimConfig : IEntityTypeConfiguration<ServisTanim>
         e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
         e.Property(x => x.AracTipi).IsRequired().HasMaxLength(100);
         e.Property(x => x.Aciklama).HasMaxLength(512);
+        // FAZ-14 C: filo kombinasyonu (additive, opsiyonel).
+        e.Property(x => x.Marka).HasMaxLength(100);
+        e.Property(x => x.Tip).HasMaxLength(100);
+        e.Property(x => x.Yakit).HasMaxLength(32);
+        e.Property(x => x.Vites).HasMaxLength(32);
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
+        // Kombinasyon UNIQUE DEĞİL: aynı kombinasyona farklı kod/açıklamayla birden çok tanım
+        // girmek meşru (ör. km aralığı revizyonu). Öneri motoru "eşleşen var mı"ya bakar.
+        e.HasIndex(x => new { x.TenantId, x.Marka, x.Tip, x.Yakit, x.Vites });
     }
 }
 
