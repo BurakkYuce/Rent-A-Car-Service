@@ -109,6 +109,133 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         }, ct);
     }
 
+    public async Task<Dictionary<Guid, Guid>> FaturaKiralariAsync(
+        IReadOnlyCollection<Guid> faturaIds, CancellationToken ct = default)
+    {
+        if (faturaIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Invoices.AsNoTracking()
+            .Where(i => faturaIds.Contains(i.Id) && i.RentalId != null)
+            .Select(i => new { i.Id, RentalId = i.RentalId!.Value })
+            .ToDictionaryAsync(x => x.Id, x => x.RentalId, ct);
+    }
+
+    public async Task<Dictionary<Guid, decimal>> GetTahsisToplamlariAsync(
+        IReadOnlyCollection<Guid> ledgerEntryIds, CancellationToken ct = default)
+    {
+        if (ledgerEntryIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.KapatmaTahsisleri.AsNoTracking()
+            .Where(t => ledgerEntryIds.Contains(t.LedgerEntryId))
+            .GroupBy(t => t.LedgerEntryId)
+            .Select(g => new { g.Key, Toplam = g.Sum(x => x.KapatilanBaz) })
+            .ToDictionaryAsync(x => x.Key, x => x.Toplam, ct);
+    }
+
+    public async Task PostCariKapatmaAsync(
+        Guid cariId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
+        IReadOnlyList<KapatmaTahsis> tahsisler, CancellationToken ct = default)
+    {
+        // Dengelilik guard (PostAsync deseni).
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        if (debit != credit)
+            throw new ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
+        if (tahsisler.Count == 0)
+            throw new ValidationException("Kapatma en az bir tahsis içermelidir.");
+
+        await PgRetry.RunAsync(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var dbTx = await db.Database.BeginTransactionAsync(ct);
+
+            // TOCTOU çiti (adversarial H2): (tenant, cari) danışma kilidi — bu carinin kapatma
+            // işlemleri tx sonuna dek SIRALANIR. Kontroller kilidin ARKASINDA yapılır; kilitsiz
+            // sürümde 8 eşzamanlı kapatma çiti geçip bakiyeyi −7000'e düşürmüştü.
+            await KapatmaKilitAsync(db, cariId, ct);
+
+            // 1) TAHSİS ÇİTİ (asıl çit): bir borç satırına tahsis edilen toplam, o satırın baz
+            //    tutarını AŞAMAZ. Aynı kalemi ikinci kez kapatmayı engelleyen budur — bakiye çiti
+            //    tek başına yetmiyordu (adversarial H1).
+            var hedefIds = tahsisler.Select(t => t.LedgerEntryId).Distinct().ToList();
+            var satirlar = await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => hedefIds.Contains(e.Id))
+                .Select(e => new { e.Id, e.AccountType, e.AccountRef, e.Direction,
+                                   A = e.Amount.Amount, R = e.Amount.Rate })
+                .ToListAsync(ct);
+            var mevcut = await db.KapatmaTahsisleri.AsNoTracking()
+                .Where(t => hedefIds.Contains(t.LedgerEntryId))
+                .GroupBy(t => t.LedgerEntryId)
+                .Select(g => new { g.Key, Toplam = g.Sum(x => x.KapatilanBaz) })
+                .ToDictionaryAsync(x => x.Key, x => x.Toplam, ct);
+
+            foreach (var grup in tahsisler.GroupBy(t => t.LedgerEntryId))
+            {
+                var satir = satirlar.FirstOrDefault(s => s.Id == grup.Key)
+                    ?? throw new ValidationException("Kapatılacak kalem bulunamadı.");
+                if (satir.AccountType != LedgerAccountType.Cari || satir.AccountRef != cariId)
+                    throw new ValidationException("Kapatılacak kalem bu cariye ait değil.");
+                if (satir.Direction != LedgerDirection.Debit)
+                    throw new ValidationException("Yalnız BORÇ kalemleri kapatılabilir.");
+
+                var satirBaz = satir.A * satir.R;
+                var oncekiler = mevcut.TryGetValue(grup.Key, out var t0) ? t0 : 0m;
+                var yeni = grup.Sum(x => x.KapatilanBaz);
+                // Kuruş toleransı: satır bazı 4-6 haneli kurla türetilir, tahsis kuruşa yuvarlanır.
+                if (oncekiler + yeni > satirBaz + 0.005m)
+                    throw new ValidationException(
+                        $"Kalem zaten kapatılmış ya da tutar kalemi aşıyor (kalem {satirBaz:N2}, önceki {oncekiler:N2}, istenen {yeni:N2}).");
+            }
+
+            // 2) BAKİYE ÇİTİ (ikincil): yuvarlanmamış karşılaştırma (adversarial M3 — iki tarafı
+            //    ayrı ayrı yukarı yuvarlamak bakiyeyi 0,0044 aşırıyordu).
+            var cariSatirlar = await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId)
+                .Select(e => new { e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
+                .ToListAsync(ct);
+            var bakiye = cariSatirlar.Sum(r => r.Direction == LedgerDirection.Debit ? r.A * r.R : -(r.A * r.R));
+            var tahsilTutar = tx.Amount.AmountInBase;
+            if (bakiye <= 0m)
+                throw new ValidationException("Carinin kapatılacak borcu yok (bakiye borçlu değil).");
+            if (tahsilTutar > bakiye)
+                throw new ValidationException(
+                    $"Tahsil edilecek tutar ({tahsilTutar:N2}) carinin güncel borcunu ({bakiye:N2}) aşıyor.");
+
+            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
+            tx.No = $"TH-{n:D6}";
+            db.CashTransactions.Add(tx);
+            db.AccountLedgerEntries.AddRange(entries);
+            db.KapatmaTahsisleri.AddRange(tahsisler);
+            await ApplyRentalDeltaAsync(db, tx, ct);   // kira bağlıysa Tahsilat/Bakiye atomik güncellenir
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await dbTx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                await dbTx.RollbackAsync(ct);
+                RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected();
+                throw new ValidationException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+            }
+        }, ct);
+    }
+
+    /// <summary>Kapatma serileştirme kilidi — depozito desenıyle aynı (pg_advisory_xact_lock).</summary>
+    private static async Task KapatmaKilitAsync(AppDbContext db, Guid cariId, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "k";
+        p.Value = $"kapatma:{db.TenantId}:{cariId}";
+        cmd.Parameters.Add(p);
+        await cmd.ExecuteScalarAsync(ct);
+    }
+
     public async Task PostDepozitoIslemAsync(
         Guid cariId, bool kontrolEt, DepozitoIrat? izKaydi,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
