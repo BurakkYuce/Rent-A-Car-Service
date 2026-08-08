@@ -123,7 +123,18 @@
                 <td>@(r.Kaynak ?? "—")</td>
                 <td>@r.Gun</td>
                 <td>@r.Tutar.ToString("N2")</td>
-                <td>@r.Durum</td>
+                @* FAZ-81: "Opsiyonlu" (henüz onaylanmamış tutma) tenant rengiyle ayrışır.
+                   Renk seçilmemişse değişken tanımsız → nötr rozete düşer, eski görünüm korunur. *@
+                <td>
+                    @if (r.Durum == ReservationStatus.Rezerv)
+                    {
+                        <span class="status-pill" style="color:var(--tr-renk-opsiyonlu, var(--text-muted));background:var(--tr-renk-opsiyonlu-soft, var(--surface-2));border-color:var(--tr-renk-opsiyonlu, var(--border))">@r.Durum</span>
+                    }
+                    else
+                    {
+                        @r.Durum
+                    }
+                </td>
                 <td class="row-actions">
                     @if (r.Durum == ReservationStatus.Rezerv)
                     {

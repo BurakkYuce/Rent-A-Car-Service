@@ -4,6 +4,18 @@
 @inject RentACar.Domain.Common.ITenantContext Tenant
 @inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
 @inject RentACar.Application.PublicSite.PublicBookingRequestService Talepler
+@* FAZ-81: renk kodları hassas olmayan bir ayar → admin-gate'li TenantSettingsService yerine
+   repo DOĞRUDAN okunur (KdvVarsayilan/VarsayilanGrupCozucu ile aynı desen). Layout HER rolde
+   render olduğu için ManageUsers guard'ına çarpmamalı. *@
+@inject RentACar.Application.TenantSettings.ITenantSettingsRepository AyarRepo
+
+@* Tenant renk kodları CSS özel değişkeni olarak basılır; CSS tarafı var(--x, eski-sabit) ile
+   okuduğu için renk seçilmemişse görünüm DEĞİŞMEZ. Değerler servis katmanında #rrggbb olarak
+   doğrulanıyor (serbest metin CSS'e sızamaz). *@
+@if (_renkler.Length > 0)
+{
+    <style>:root { @((MarkupString)_renkler) }</style>
+}
 
 <AuthorizeView>
     <Authorized>
@@ -283,6 +295,9 @@
 </div>
 
 @code {
+    /// <summary>":root" içine basılacak --tr-renk-* bildirimleri (boşsa hiç style basılmaz).</summary>
+    private string _renkler = string.Empty;
+
     private int _okunmamis;
     private string _path = "";
     private bool _webSitesiModulu; // PR-12
@@ -303,6 +318,44 @@
             try { _yeniTalep = (await Talepler.OzetAsync()).Yeni; }
             catch { _yeniTalep = 0; }
         }
+
+        // FAZ-81: tenant renk kodları. Hata hiçbir koşulda layout'u düşürmemeli → boş bırakılır,
+        // CSS fallback zinciri eski sabit renkleri kullanır.
+        try { _renkler = Tenant.TenantId is null ? "" : RenkBildirimleri(await AyarRepo.GetAsync()); }
+        catch { _renkler = ""; }
+    }
+
+    /// <summary>
+    /// Ayarlardaki renk kodlarını CSS özel değişkeni bildirimlerine çevirir. Seçilmemiş (null) renk
+    /// için HİÇ bildirim basılmaz — böylece CSS'teki var(--x, eski-sabit) fallback'i devreye girer
+    /// ve renk seçmemiş tenant'ta görünüm birebir korunur.
+    ///
+    /// <para>"-soft" varyantı arka plan için: seçilen renk %12 opaklıkla yüzeye harmanlanır
+    /// (status-pill'lerdeki color-mix deseniyle aynı).</para>
+    ///
+    /// <para>Değerler servis katmanında <c>#rrggbb</c> olarak DOĞRULANIYOR; burada ikinci bir
+    /// savunma olarak biçim yeniden sınanır — bu metin doğrudan &lt;style&gt; içine yazılıyor.</para>
+    /// </summary>
+    private static string RenkBildirimleri(RentACar.Domain.Entities.TenantSettings? a)
+    {
+        if (a is null) return "";
+        var sb = new System.Text.StringBuilder();
+        void Ekle(string ad, string? renk)
+        {
+            if (renk is null || !System.Text.RegularExpressions.Regex.IsMatch(renk, "^#[0-9a-fA-F]{6}$")) return;
+            sb.Append("--tr-renk-").Append(ad).Append(':').Append(renk).Append(';');
+            sb.Append("--tr-renk-").Append(ad).Append("-soft:color-mix(in srgb,")
+              .Append(renk).Append(" 12%, var(--surface));");
+        }
+        Ekle("gecikenler", a.RenkGecikenler);
+        Ekle("bugun-donecekler", a.RenkBugunDonecekler);
+        Ekle("bugun-cikacaklar", a.RenkBugunCikacaklar);
+        Ekle("opsiyonlu", a.RenkOpsiyonlu);
+        Ekle("limit-bakiye", a.RenkLimitBakiye);
+        Ekle("alacakli", a.RenkAlacakli);
+        Ekle("rez-atanan-plaka", a.RenkRezAtananPlaka);
+        Ekle("kiralanmayan", a.RenkKiralanmayan);
+        return sb.ToString();
     }
 
     // Mevcut sayfa bu modülün altındaysa grubu AÇIK render et (JS'siz oryantasyon).

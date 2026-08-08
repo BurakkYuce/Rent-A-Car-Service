@@ -73,6 +73,26 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// olabilir; yanlış segmentte yayınlanmaktansa araç grupsuz/pending kalır). Bkz. VarsayilanGrupCozucu.</summary>
     public Guid? VarsayilanGrupId { get; set; }
 
+    // ---- FAZ-81: görünüm renk kodları (canlı ayarlar.aspx "Renk Kodları" bölümü) ----
+    // Hepsi "#rrggbb" biçiminde hex ya da null. NULL = koddaki varsayılan renk kullanılır;
+    // CSS tarafında fallback zinciri var → boş bırakan tenant'ta görünüm BİREBİR eskisi gibi kalır.
+    /// <summary>Vadesi geçmiş / gecikmiş uyarılar (vade panosu, pano rozeti).</summary>
+    public string? RenkGecikenler { get; set; }
+    /// <summary>Bugün dönmesi gereken kiralar (pano Dönüşler paneli).</summary>
+    public string? RenkBugunDonecekler { get; set; }
+    /// <summary>Bugün çıkacak rezervasyonlar (pano Çıkışlar paneli).</summary>
+    public string? RenkBugunCikacaklar { get; set; }
+    /// <summary>Henüz onaylanmamış (opsiyonlu) rezervasyon.</summary>
+    public string? RenkOpsiyonlu { get; set; }
+    /// <summary>Risk limitini aşan cari bakiyesi.</summary>
+    public string? RenkLimitBakiye { get; set; }
+    /// <summary>Alacaklı cari.</summary>
+    public string? RenkAlacakli { get; set; }
+    /// <summary>Plakası atanmış rezervasyon.</summary>
+    public string? RenkRezAtananPlaka { get; set; }
+    /// <summary>Uzun süredir kiralanmayan / boştaki araç.</summary>
+    public string? RenkKiralanmayan { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }
