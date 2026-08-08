@@ -14,20 +14,52 @@
     <p class="error">@Hata</p>
 }
 
+<form method="get" class="filter-bar">
+    <label>Ara<input name="ara" value="@Ara" placeholder="sicil / ad / soyad / cep / mail" /></label>
+    <label>Şube
+        <select name="subeF">
+            <option value="">— tümü —</option>
+            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == SubeF)">@o</option> }
+        </select>
+    </label>
+    <label>Görev
+        <select name="gorev">
+            <option value="">— tümü —</option>
+            @foreach (var o in _gorevOpts) { <option value="@o" selected="@(o == Gorev)">@o</option> }
+        </select>
+    </label>
+    <label>Durum
+        <select name="durum">
+            <option value="">— tümü —</option>
+            <option value="true" selected="@(Durum == "true")">Aktif</option>
+            <option value="false" selected="@(Durum == "false")">Pasif</option>
+        </select>
+    </label>
+    <button type="submit">Filtrele</button>
+    @if (FiltreVar) { <a class="link" href="/personel">Temizle</a> }
+</form>
+
+<p class="muted small">@_list.Count personel@(FiltreVar ? " (filtreli)" : "")</p>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Şube</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Görev</th><th>Şube</th><th>Cep Tel</th><th>Mail</th><th>Sür. Belge</th><th>Rac Tablet</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Kayıt yok.</td></tr>
+            <tr><td colspan="11" class="muted">@(FiltreVar ? "Filtreye uyan personel yok." : "Kayıt yok.")</td></tr>
         }
         @foreach (var p in _list)
         {
             <tr>
-                <td>@p.Kod</td>
+                <td class="mono">@p.Kod</td>
                 <td>@p.Ad @p.Soyad</td>
+                <td>@(p.GorevTanimi ?? "—")</td>
                 <td>@p.Sube</td>
+                <td>@(p.CepTel ?? "—")</td>
+                <td>@(p.MailAdresi ?? "—")</td>
+                <td>@(p.SurucuBelgeNo ?? "—")</td>
+                <td>@(p.RacTabletNo ?? "—")</td>
                 <td>@(p.IseGiris?.ToString("yyyy-MM-dd"))</td>
                 <td>@(p.Aktif ? "Aktif" : "Pasif")</td>
                 <td><a href="/personel?duzenle=@p.Id">Düzenle</a></td>
@@ -52,6 +84,31 @@
     <label>İşe Giriş<input name="iseGiris" type="date" value="@(_edit?.IseGiris?.ToString("yyyy-MM-dd"))" /></label>
     <label>İşten Çıkış<input name="iseCikis" type="date" value="@(_edit?.IseCikis?.ToString("yyyy-MM-dd"))" /></label>
     <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Value="@_edit?.Sube" />
+    @* GÖREV TANIMI serbest metindir ve YETKİ VERMEZ — sistem rolü kullanıcı hesabından gelir.
+       İkisini karıştırmak sessiz bir yetki yükseltme beklentisi yaratırdı. *@
+    <ComboBox Name="gorevTanimi" Label="Görev Tanımı" Options="GorevOnerileri" Value="@H?.GorevTanimi" ListId="dl-gorev" />
+    <label>Cep Tel<input name="cepTel" value="@H?.CepTel" maxlength="32" /></label>
+    <label>Mail<input name="mailAdresi" type="email" value="@H?.MailAdresi" maxlength="128" /></label>
+    <label>Ev Telefonu<input name="evTelefonu" value="@H?.EvTelefonu" maxlength="32" /></label>
+    <label>İş Telefonu<input name="isTelefonu" value="@H?.IsTelefonu" maxlength="32" /></label>
+    <label>Rac Tablet No<input name="racTabletNo" value="@H?.RacTabletNo" maxlength="32" /></label>
+    <label>Kan Grubu<input name="kanGrubu" value="@H?.KanGrubu" maxlength="8" /></label>
+    <label>Sür. Belge Sınıfı<input name="sSinifi" value="@H?.SSinifi" maxlength="16" placeholder="B" /></label>
+    <label>Belge Veriliş Tarihi<input name="sVerilisTarihi" type="date" value="@(H?.SVerilisTarihi?.ToString("yyyy-MM-dd"))" /></label>
+    <label>Belge Veriliş Yeri<input name="sVerilisYeri" value="@H?.SVerilisYeri" maxlength="128" /></label>
+    <label>Doğum Tarihi<input name="dogumTarihi" type="date" value="@(H?.DogumTarihi?.ToString("yyyy-MM-dd"))" /></label>
+    <label>Doğum Yeri<input name="dogumYeri" value="@H?.DogumYeri" maxlength="128" /></label>
+    <label>Baba Adı<input name="babaAdi" value="@H?.BabaAdi" maxlength="128" /></label>
+    <label>Ana Adı<input name="anaAdi" value="@H?.AnaAdi" maxlength="128" /></label>
+    <label>İl<input name="il" value="@H?.Il" maxlength="64" /></label>
+    <label>İlçe<input name="ilce" value="@H?.Ilce" maxlength="64" /></label>
+    <label>Mahalle<input name="mahalle" value="@H?.Mahalle" maxlength="128" /></label>
+    <label>Cilt No<input name="ciltNo" value="@H?.CiltNo" maxlength="32" /></label>
+    <label>Aile Sıra No<input name="aileSiraNo" value="@H?.AileSiraNo" maxlength="32" /></label>
+    <label>Sıra No<input name="siraNo" value="@H?.SiraNo" maxlength="32" /></label>
+    <label>Referans<input name="referans" value="@H?.Referans" maxlength="256" /></label>
+    <label class="u-col-full">Adres<input name="adres" value="@H?.Adres" maxlength="512" /></label>
+    <label class="u-col-full">Açıklama<input name="aciklama" value="@H?.Aciklama" maxlength="1024" /></label>
     <label>Aktif<input name="aktif" type="checkbox" value="true" checked="@(_edit?.Aktif ?? true)" /></label>
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
     @if (_edit is not null)
@@ -71,15 +128,41 @@
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "duzenle")] public Guid? Duzenle { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "subeF")] public string? SubeF { get; set; }
+    [SupplyParameterFromQuery(Name = "gorev")] public string? Gorev { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
 
     private IReadOnlyList<RentACar.Domain.Entities.Personel> _list = [];
     private PersonelDetail? _edit;
     private List<string> _subeOpts = [];
+    private List<string> _gorevOpts = [];
+
+    /// <summary>Düzenlenen kaydın ham entity'si — 23 derinlik alanı buradan okunur.</summary>
+    private RentACar.Domain.Entities.Personel? H => _edit?.Ham;
+
+    private static readonly List<string> GorevOnerileri =
+        ["İç Ekip", "Yönetici", "Operasyon", "Şoför", "Muhasebe", "Satış"];
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(SubeF)
+        || !string.IsNullOrWhiteSpace(Gorev) || !string.IsNullOrWhiteSpace(Durum);
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Personel.ListAsync();
+        _list = await Personel.SearchAsync(new PersonelFilter
+        {
+            Ara = Ara, Sube = SubeF, GorevTanimi = Gorev,
+            Aktif = bool.TryParse(Durum, out var d) ? d : null
+        });
         if (Duzenle is { } id) _edit = await Personel.GetDetailAsync(id);
         _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+
+        // Görev seçenekleri FİLTRESİZ listeden (öneri listesi ∪ mevcut değerler) — filtrelenmişten
+        // türetilseydi bir seçim sonrası diğer görevler kaybolur, filtre kendini kilitlerdi.
+        _gorevOpts = GorevOnerileri
+            .Concat((await Personel.ListAsync()).Select(p => p.GorevTanimi ?? ""))
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(x => x, StringComparer.CurrentCulture).ToList();
     }
 }

@@ -28,6 +28,35 @@ public sealed class PersonelService(
     }
 
     /// <summary>
+    /// FAZ-40 filtreli liste. Süzme BELLEKTE ve Türkçe harf-duyarlı karşılaştırıcıyla yapılır:
+    /// SQL lower()/ILIKE sonucu DB collation'ına bağlanıyor ve İ/ı'da yerelde geçip CI'da patlıyor
+    /// (FAZ-22'de ölçüldü). Personel küçük bir master tablo, bellekte süzmek uygun.
+    /// </summary>
+    public async Task<IReadOnlyList<Personel>> SearchAsync(PersonelFilter? filtre = null, CancellationToken ct = default)
+    {
+        var hepsi = await ListAsync(ct);
+        var f = filtre ?? new PersonelFilter();
+
+        IEnumerable<Personel> q = hepsi;
+        if (f.Aktif is bool a) q = q.Where(p => p.Aktif == a);
+        if (!string.IsNullOrWhiteSpace(f.Sube))
+            q = q.Where(p => TurkishText.EqualsIgnoreTurkishCase(p.Sube, f.Sube));
+        if (!string.IsNullOrWhiteSpace(f.GorevTanimi))
+            q = q.Where(p => TurkishText.EqualsIgnoreTurkishCase(p.GorevTanimi, f.GorevTanimi));
+        if (!string.IsNullOrWhiteSpace(f.Ara))
+        {
+            var t = f.Ara.Trim();
+            q = q.Where(p => Icerir(p.Kod, t) || Icerir(p.Ad, t) || Icerir(p.Soyad, t)
+                          || Icerir($"{p.Ad} {p.Soyad}", t) || Icerir(p.CepTel, t) || Icerir(p.MailAdresi, t));
+        }
+        return q.OrderBy(p => p.Ad, StringComparer.CurrentCulture)
+                .ThenBy(p => p.Soyad, StringComparer.CurrentCulture).ToList();
+    }
+
+    private static bool Icerir(string? kaynak, string terim)
+        => kaynak is not null && kaynak.Contains(terim, StringComparison.CurrentCultureIgnoreCase);
+
+    /// <summary>
     /// Seçim listesi (dropdown) — kira dönüşü "Teslim Alan" gibi OPERASYON ekranları için. PII TAŞIMAZ
     /// (yalnız Id/Ad/Soyad/Şube projeksiyonu; TcKimlikEnc/MaasEnc dışarı çıkmaz) → ManageUsers yerine
     /// OperationsWrite yeter. (Önceki gizli bug: dönüş formu ListAsync çağırıyordu → Operatör rolünde
@@ -51,7 +80,8 @@ public sealed class PersonelService(
         if (r is null) return null;
         return new PersonelDetail(
             r.Id, r.Kod, r.Ad, r.Soyad, _secrets.Unprotect(r.TcKimlikEnc),
-            r.IseGiris, r.IseCikis, r.SurucuBelgeNo, ParseMaas(_secrets.Unprotect(r.MaasEnc)), r.Sube, r.Aktif);
+            r.IseGiris, r.IseCikis, r.SurucuBelgeNo, ParseMaas(_secrets.Unprotect(r.MaasEnc)), r.Sube, r.Aktif,
+            Ham: r);
     }
 
     public async Task<Guid> CreateAsync(PersonelInput input, CancellationToken ct = default)
@@ -106,6 +136,9 @@ public sealed class PersonelService(
         if (n.Maas is < 0m) throw new ValidationException("Maaş negatif olamaz.");
         if (n.IseCikis is { } c && n.IseGiris is { } g && c < g)
             throw new ValidationException("İşten çıkış, işe giriş tarihinden önce olamaz.");
+        // Doğum tarihi gelecekte olamaz (TarihPolitikasi ile aynı yön).
+        if (n.DogumTarihi is { } d && d > DateTimeOffset.UtcNow)
+            throw new ValidationException("Doğum tarihi gelecekte olamaz.");
     }
 
     private static PersonelInput Normalize(PersonelInput input) => new()
@@ -119,6 +152,31 @@ public sealed class PersonelService(
         SurucuBelgeNo = TrimOrNull(input.SurucuBelgeNo),
         Maas = input.Maas,
         Sube = TrimOrNull(input.Sube),
+        // FAZ-40: Normalize KOPYA KURUCUDUR — yeni alan buraya DA yazılmalı, yoksa kullanıcının
+        // girdiği değer derleme hatası vermeden sessizce düşer (BelgeSablon dersi).
+        GorevTanimi = TrimOrNull(input.GorevTanimi),
+        Adres = TrimOrNull(input.Adres),
+        EvTelefonu = TrimOrNull(input.EvTelefonu),
+        IsTelefonu = TrimOrNull(input.IsTelefonu),
+        CepTel = TrimOrNull(input.CepTel),
+        MailAdresi = TrimOrNull(input.MailAdresi),
+        Referans = TrimOrNull(input.Referans),
+        Aciklama = TrimOrNull(input.Aciklama),
+        SSinifi = TrimOrNull(input.SSinifi),
+        SVerilisYeri = TrimOrNull(input.SVerilisYeri),
+        DogumYeri = TrimOrNull(input.DogumYeri),
+        BabaAdi = TrimOrNull(input.BabaAdi),
+        AnaAdi = TrimOrNull(input.AnaAdi),
+        Il = TrimOrNull(input.Il),
+        Ilce = TrimOrNull(input.Ilce),
+        Mahalle = TrimOrNull(input.Mahalle),
+        CiltNo = TrimOrNull(input.CiltNo),
+        AileSiraNo = TrimOrNull(input.AileSiraNo),
+        SiraNo = TrimOrNull(input.SiraNo),
+        KanGrubu = TrimOrNull(input.KanGrubu),
+        RacTabletNo = TrimOrNull(input.RacTabletNo),
+        SVerilisTarihi = input.SVerilisTarihi,
+        DogumTarihi = input.DogumTarihi,
         Aktif = input.Aktif
     };
 
@@ -131,6 +189,29 @@ public sealed class PersonelService(
         row.IseCikis = n.IseCikis;
         row.SurucuBelgeNo = n.SurucuBelgeNo;
         row.Sube = n.Sube;
+        row.GorevTanimi = n.GorevTanimi;
+        row.Adres = n.Adres;
+        row.EvTelefonu = n.EvTelefonu;
+        row.IsTelefonu = n.IsTelefonu;
+        row.CepTel = n.CepTel;
+        row.MailAdresi = n.MailAdresi;
+        row.Referans = n.Referans;
+        row.Aciklama = n.Aciklama;
+        row.SSinifi = n.SSinifi;
+        row.SVerilisYeri = n.SVerilisYeri;
+        row.DogumYeri = n.DogumYeri;
+        row.BabaAdi = n.BabaAdi;
+        row.AnaAdi = n.AnaAdi;
+        row.Il = n.Il;
+        row.Ilce = n.Ilce;
+        row.Mahalle = n.Mahalle;
+        row.CiltNo = n.CiltNo;
+        row.AileSiraNo = n.AileSiraNo;
+        row.SiraNo = n.SiraNo;
+        row.KanGrubu = n.KanGrubu;
+        row.RacTabletNo = n.RacTabletNo;
+        row.SVerilisTarihi = n.SVerilisTarihi;
+        row.DogumTarihi = n.DogumTarihi;
         row.Aktif = n.Aktif;
     }
 
