@@ -15,9 +15,17 @@
     üzerinden kira-gün toplamı. KiraGün = kiraların efektif aralığının dönemle kesişen takvim günleri
     (kapsayıcı); İptal kiralar hariç, gerçek dönüş varsa onunla.</p>
 
-<form method="get" class="grid-form">
+<form method="get" class="filter-bar">
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <label>Karşılaştır
+        <select name="boyut">
+            <option value="Yok" selected="@(_boyut == DolulukBoyut.Yok)">— kırılım yok —</option>
+            <option value="Sube" selected="@(_boyut == DolulukBoyut.Sube)">Şube</option>
+            <option value="AracGrubu" selected="@(_boyut == DolulukBoyut.AracGrubu)">Araç Grubu</option>
+            <option value="RezervasyonKaynagi" selected="@(_boyut == DolulukBoyut.RezervasyonKaynagi)">Rezervasyon Kaynağı</option>
+        </select>
+    </label>
     <button type="submit">Göster</button>
 </form>
 
@@ -46,20 +54,74 @@
 
 <p class="muted small">Dönem: @_from.ToString("yyyy-MM-dd") — @_to.ToString("yyyy-MM-dd")</p>
 
+<h2 class="dash-h2">Gün Kırılımı@(_boyut == DolulukBoyut.Yok ? "" : $" — {BoyutAd}")</h2>
+@* Payda semantiği boyuta göre DEĞİŞİR; etiketsiz bırakmak yanıltıcı olurdu. Metin servisten
+   geliyor ki sayfa ile hesap ayrışmasın. *@
+<p class="muted small">@_gunluk.PaydaAciklama</p>
+<p class="muted small">Kira-Gün toplamı <strong>@_gunluk.ToplamKiraGun</strong> ·
+    Rez-Gün toplamı <strong>@_gunluk.ToplamRezGun</strong> ·
+    @_gunluk.DonemGun gün × @Seriler seri = @_gunluk.Satirlar.Count satır.
+    <em>Rez-Gün</em>: kiraya çevrilmemiş rezervasyonlar (çevrilmiş olan kira tarafında sayılır,
+    çift sayılmaz).</p>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Gün</th>
+            @if (_boyut != DolulukBoyut.Yok) { <th>@BoyutAd</th> }
+            <th class="num">Araç (payda)</th><th class="num">Kira</th><th class="num">Kira %</th>
+            <th class="num">Rez</th><th class="num">Rez %</th></tr>
+    </thead>
+    <tbody>
+        @if (_gunluk.Satirlar.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">Veri yok.</td></tr>
+        }
+        @foreach (var r in _gunluk.Satirlar)
+        {
+            <tr>
+                <td>@r.Gun.ToString("dd.MM.yyyy")</td>
+                @if (_boyut != DolulukBoyut.Yok) { <td>@r.Seri</td> }
+                <td class="num">@r.AracSayisi</td>
+                <td class="num">@r.KiraGun</td>
+                <td class="num">@(r.KiraYuzde is { } k ? $"%{k:N2}" : "—")</td>
+                <td class="num">@r.RezGun</td>
+                <td class="num">@(r.RezYuzde is { } z ? $"%{z:N2}" : "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "boyut")] public string? Boyut { get; set; }
 
     private DolulukDto _data = new(0, 0, 0, 0, 0m);
+    private DolulukGunlukDto _gunluk = new([], DolulukBoyut.Yok, "", 0, 0, 0);
+    private DolulukBoyut _boyut;
     private DateTimeOffset _from;
     private DateTimeOffset _to;
+
+    private int Seriler => _gunluk.DonemGun > 0 ? _gunluk.Satirlar.Count / _gunluk.DonemGun : 0;
+
+    private string BoyutAd => _boyut switch
+    {
+        DolulukBoyut.Sube => "Şube",
+        DolulukBoyut.AracGrubu => "Araç Grubu",
+        DolulukBoyut.RezervasyonKaynagi => "Rezervasyon Kaynağı",
+        _ => ""
+    };
 
     protected override async Task OnInitializedAsync()
     {
         var bugun = DateTimeOffset.Now.Date;
         _from = ParseDate(From) ?? new DateTimeOffset(new DateTime(bugun.Year, bugun.Month, 1), TimeSpan.Zero);
         _to = ParseDate(To) ?? new DateTimeOffset(bugun, TimeSpan.Zero);
+        _boyut = Enum.TryParse<DolulukBoyut>(Boyut, out var b) ? b : DolulukBoyut.Yok;
         _data = await Reports.GetDolulukAsync(_from, _to);
+        _gunluk = await Reports.GetDolulukGunlukAsync(_from, _to, _boyut);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

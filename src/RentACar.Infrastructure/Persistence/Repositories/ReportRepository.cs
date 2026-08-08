@@ -461,6 +461,93 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return raw.Select(r => new DolulukKiraRowDto(r.BasTar, r.Bit)).ToList();
     }
 
+    // ---- FAZ-77 — filo & doluluk kırılımı ----
+
+    /// <summary>Atıf etiketi: boş/null şube-grup değerleri TEK kovada toplanır ki sayımlar kaybolmasın.</summary>
+    private const string Atanmamis = "(Atanmamış)";
+
+    private static string Etiket(string? s) => string.IsNullOrWhiteSpace(s) ? Atanmamis : s.Trim();
+
+    public async Task<FiloSubeHamPaket> GetFiloSubeHamAsync(
+        DateTimeOffset pencereBas, DateTimeOffset pencereBit, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var araclar = await db.Vehicles.AsNoTracking()
+            .Select(v => new { v.Id, v.Sube, v.Durum, v.FiloDurum })
+            .ToListAsync(ct);
+        var subeAdi = araclar.ToDictionary(v => v.Id, v => Etiket(v.Sube));
+
+        // Kira/rezervasyon/BAF ARACIN şubesine yazılır — sözleşmenin çıkış şubesine DEĞİL
+        // (tek atıf kuralı; karışık atıf satırı kendi içinde tutarsız yapardı).
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new { r.VehicleId, r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
+            .Where(r => r.Bit >= pencereBas && r.BasTar <= pencereBit)
+            .ToListAsync(ct);
+
+        var rezervasyonlar = await db.Reservations.AsNoTracking()
+            .Where(r => r.Durum != ReservationStatus.Iptal
+                        && r.BasTar >= pencereBas && r.BasTar <= pencereBit)
+            .Select(r => new { r.VehicleId, r.BasTar })
+            .ToListAsync(ct);
+
+        var baflar = await db.Baflar.AsNoTracking()
+            .Where(b => b.Durum == BafDurum.Acik)
+            .Select(b => b.VehicleId)
+            .ToListAsync(ct);
+
+        // Silinmiş araca bağlı satır sözlükte yoktur → "(Atanmamış)" kovasına düşer, sessizce kaybolmaz.
+        string Ara(Guid id) => subeAdi.TryGetValue(id, out var s) ? s : Atanmamis;
+
+        return new FiloSubeHamPaket(
+            araclar.Select(v => new FiloAracHamRow(v.Id, Etiket(v.Sube), v.Durum, v.FiloDurum)).ToList(),
+            kiralar.Select(r => new FiloKiraHamRow(Ara(r.VehicleId), r.BasTar, r.Bit)).ToList(),
+            rezervasyonlar.Select(r => (Ara(r.VehicleId), r.BasTar)).ToList(),
+            baflar.Select(Ara).ToList());
+    }
+
+    public async Task<DolulukAtifPaket> GetDolulukAtifAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var araclar = await db.Vehicles.AsNoTracking()
+            .Select(v => new { v.Id, v.Sube, v.Grup })
+            .ToListAsync(ct);
+        var atif = araclar.ToDictionary(v => v.Id, v => (Sube: Etiket(v.Sube), Grup: Etiket(v.Grup)));
+
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new { r.VehicleId, r.BasTar, Bit = r.GercekDonusTar ?? r.BitTar })
+            .Where(r => r.Bit >= from && r.BasTar <= to)
+            .ToListAsync(ct);
+
+        // Rezervasyon: kiraya çevrilmiş olan HARİÇ — aksi hâlde aynı gün hem rezervasyon hem kira
+        // olarak sayılır ve "Rez Doluluk" kira ile çift-sayılırdı.
+        var rezler = await db.Reservations.AsNoTracking()
+            .Where(r => r.Durum != ReservationStatus.Iptal && r.Durum != ReservationStatus.KirayaCevrildi)
+            .Select(r => new { r.VehicleId, r.BasTar, r.BitTar, r.Kaynak })
+            .Where(r => r.BitTar >= from && r.BasTar <= to)
+            .ToListAsync(ct);
+
+        (string Sube, string Grup) Ara(Guid id)
+            => atif.TryGetValue(id, out var a) ? a : (Atanmamis, Atanmamis);
+
+        return new DolulukAtifPaket(
+            araclar.Select(v => new DolulukAracAtifRow(v.Id, Etiket(v.Sube), Etiket(v.Grup))).ToList(),
+            kiralar.Select(r =>
+            {
+                var a = Ara(r.VehicleId);
+                return new DolulukKiraAtifRow(r.BasTar, r.Bit, r.VehicleId, a.Sube, a.Grup);
+            }).ToList(),
+            rezler.Select(r =>
+            {
+                var a = Ara(r.VehicleId);
+                return new DolulukRezAtifRow(r.BasTar, r.BitTar, r.VehicleId, a.Sube, a.Grup, Etiket(r.Kaynak));
+            }).ToList());
+    }
+
     public async Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {

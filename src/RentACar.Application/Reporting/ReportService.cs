@@ -718,6 +718,183 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         var hi = aBit < bBit ? aBit : bBit;
         return hi >= lo ? (hi - lo).Days + 1 : 0;
     }
+
+    // ------------------------------------------------------------------
+    // FAZ-77 — filo & doluluk grafik derinliği
+    // ------------------------------------------------------------------
+
+    /// <summary>İleri-bakış penceresi varsayılanı (Dönecekler/Çıkacaklar/Giden Rez).</summary>
+    public const int FiloPencereVarsayilan = 7;
+
+    /// <summary>Gün-kırılımlı doluluk için tavan (satır sayısı = gün × seri).</summary>
+    public const int DolulukMaxGun = 366;
+
+    /// <summary>
+    /// FAZ-77 — şube kırılımlı filo durumu. <see cref="GetFleetUtilizationAsync"/> DEĞİŞMEDEN
+    /// durur (Home.razor gibi tüketiciler bozulmasın); bu onun yerine geçmez, yanında durur.
+    /// Atıf ve payda kuralları için bkz. <see cref="FiloSubeRow"/>.
+    /// </summary>
+    public async Task<FiloSubeDto> GetFleetUtilizationBySubeAsync(
+        int pencereGun = FiloPencereVarsayilan, CancellationToken ct = default)
+    {
+        pencereGun = Math.Clamp(pencereGun, 1, 90);
+        var bugun = DateTimeOffset.UtcNow.UtcDateTime.Date;
+        var pencereBit = bugun.AddDays(pencereGun);
+
+        var ham = await _repository.GetFiloSubeHamAsync(
+            new DateTimeOffset(bugun, TimeSpan.Zero),
+            new DateTimeOffset(pencereBit.AddDays(1).AddTicks(-1), TimeSpan.Zero), ct);
+
+        var bafSayim = ham.AcikBafSubeleri.GroupBy(s => s).ToDictionary(g => g.Key, g => g.Count());
+
+        // Seriler: araç TAŞIMAYAN ama kira/rez/BAF taşıyan şube de satır almalı (0-filo satırı
+        // gizlenirse o şubenin işi rapordan sessizce düşerdi).
+        var subeler = ham.Araclar.Select(a => a.Sube)
+            .Concat(ham.Kiralar.Select(k => k.Sube))
+            .Concat(ham.Rezervasyonlar.Select(r => r.Sube))
+            .Concat(ham.AcikBafSubeleri)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(s => s, StringComparer.CurrentCulture)
+            .ToList();
+
+        var satirlar = new List<FiloSubeRow>(subeler.Count);
+        foreach (var sube in subeler)
+        {
+            var a = ham.Araclar.Where(x => x.Sube == sube).ToList();
+            var k = ham.Kiralar.Where(x => x.Sube == sube).ToList();
+
+            int Durum(VehicleStatus s) => a.Count(x => x.Durum == s);
+            int filo = a.Count, satildi = Durum(VehicleStatus.Satildi), pasif = Durum(VehicleStatus.Pasif);
+            int kirada = Durum(VehicleStatus.Kirada);
+
+            // Payda = KULLANILABİLİR filo; ≤0 ise oran anlamsız → null (0 değil).
+            int kullanilabilir = filo - satildi - pasif;
+            decimal? doluluk = kullanilabilir > 0
+                ? Math.Round((decimal)kirada * 100m / kullanilabilir, 2, MidpointRounding.AwayFromZero)
+                : null;
+
+            bool Gun(DateTimeOffset d, DateTime hedef) => d.UtcDateTime.Date == hedef;
+            bool Ileri(DateTimeOffset d) => d.UtcDateTime.Date > bugun && d.UtcDateTime.Date <= pencereBit;
+
+            satirlar.Add(new FiloSubeRow(
+                sube, filo, Durum(VehicleStatus.Musait), kirada, Durum(VehicleStatus.Serviste),
+                pasif, satildi,
+                a.Count(x => x.FiloDurum == FiloStatus.IkinciElSatis),
+                bafSayim.GetValueOrDefault(sube),
+                doluluk,
+                Cikislar: k.Count(x => Gun(x.Bas, bugun)),
+                Donusler: k.Count(x => Gun(x.Bit, bugun)),
+                Cikacaklar: k.Count(x => Ileri(x.Bas)),
+                Donecekler: k.Count(x => Ileri(x.Bit)),
+                GidenRez: ham.Rezervasyonlar.Count(x => x.Sube == sube && x.Bas.UtcDateTime.Date <= pencereBit)));
+        }
+
+        return new FiloSubeDto(satirlar, pencereGun);
+    }
+
+    /// <summary>
+    /// FAZ-77 — gün-kırılımlı doluluk (+ Karşılaştır boyutu). <see cref="GetDolulukAsync"/>
+    /// DEĞİŞMEDEN durur; ikisi AYNI <c>OverlapDays</c> helper'ını kullanır, bu yüzden gün
+    /// toplamları birbirine eşittir (çapraz-doğrulama testi kalıcı kilit).
+    /// Payda semantiği için bkz. <see cref="DolulukGunlukDto"/>.
+    /// </summary>
+    public async Task<DolulukGunlukDto> GetDolulukGunlukAsync(
+        DateTimeOffset from, DateTimeOffset to, DolulukBoyut boyut = DolulukBoyut.Yok,
+        CancellationToken ct = default)
+    {
+        var fromD = from.UtcDateTime.Date;
+        var toD = to.UtcDateTime.Date;
+        if (toD < fromD) (fromD, toD) = (toD, fromD);
+        if ((toD - fromD).Days + 1 > DolulukMaxGun) toD = fromD.AddDays(DolulukMaxGun - 1);
+        int donemGun = (toD - fromD).Days + 1;
+
+        var ham = await _repository.GetDolulukAtifAsync(
+            new DateTimeOffset(fromD, TimeSpan.Zero),
+            new DateTimeOffset(toD.AddDays(1).AddTicks(-1), TimeSpan.Zero), ct);
+
+        // Seri anahtarı + payda: Şube/Grup GERÇEK filo bölüntüsü (payda = kendi araçları);
+        // Rezervasyon Kaynağı bölüntü DEĞİL (araç bir kaynağa ait olmaz) → payda TÜM FİLO.
+        static string KiraSeri(DolulukKiraAtifRow r, DolulukBoyut b) => b switch
+        {
+            DolulukBoyut.Sube => r.Sube,
+            DolulukBoyut.AracGrubu => r.Grup,
+            // Kaynak modunda kiranın kaynağı yoktur → AYRI etiketli tek kovaya düşer. Düz "Tüm filo"
+            // deseydik, "Tüm filo" adlı bir rezervasyon kaynağı tanımlanırsa iki metrik aynı satırda
+            // birleşirdi.
+            DolulukBoyut.RezervasyonKaynagi => TumFiloKira,
+            _ => TumFilo
+        };
+        static string RezSeri(DolulukRezAtifRow r, DolulukBoyut b) => b switch
+        {
+            DolulukBoyut.Sube => r.Sube,
+            DolulukBoyut.AracGrubu => r.Grup,
+            DolulukBoyut.RezervasyonKaynagi => r.Kaynak,
+            _ => TumFilo
+        };
+
+        var toplamArac = ham.Araclar.Count;
+        Dictionary<string, int> paydaSayim = boyut switch
+        {
+            DolulukBoyut.Sube => ham.Araclar.GroupBy(a => a.Sube).ToDictionary(g => g.Key, g => g.Count()),
+            DolulukBoyut.AracGrubu => ham.Araclar.GroupBy(a => a.Grup).ToDictionary(g => g.Key, g => g.Count()),
+            _ => new Dictionary<string, int> { [TumFilo] = toplamArac }
+        };
+
+        // Kaynak boyutunda kira satırlarının kaynağı yok → hepsi tek "tüm filo" serisine düşer;
+        // bu bilinçli: kaynak kırılımı REZERVASYON metriğidir, kira değil.
+        var seriler = boyut switch
+        {
+            DolulukBoyut.RezervasyonKaynagi =>
+                ham.Rezervasyonlar.Select(r => r.Kaynak).Append(TumFiloKira).Distinct(StringComparer.Ordinal),
+            DolulukBoyut.Yok => [TumFilo],
+            _ => paydaSayim.Keys
+                .Concat(ham.Kiralar.Select(r => KiraSeri(r, boyut)))
+                .Concat(ham.Rezervasyonlar.Select(r => RezSeri(r, boyut)))
+                .Distinct(StringComparer.Ordinal)
+        };
+        var seriListe = seriler.OrderBy(s => s, StringComparer.CurrentCulture).ToList();
+
+        var satirlar = new List<DolulukGunRow>(donemGun * Math.Max(1, seriListe.Count));
+        for (var g = fromD; g <= toD; g = g.AddDays(1))
+        {
+            foreach (var seri in seriListe)
+            {
+                int kiraGun = ham.Kiralar.Count(r => KiraSeri(r, boyut) == seri
+                    && OverlapDays(r.Bas.UtcDateTime.Date, r.Bit.UtcDateTime.Date, g, g) > 0);
+                int rezGun = ham.Rezervasyonlar.Count(r => RezSeri(r, boyut) == seri
+                    && OverlapDays(r.Bas.UtcDateTime.Date, r.Bit.UtcDateTime.Date, g, g) > 0);
+
+                int payda = boyut == DolulukBoyut.RezervasyonKaynagi
+                    ? toplamArac
+                    : paydaSayim.GetValueOrDefault(seri);
+
+                decimal? Y(int adet) => payda > 0
+                    ? Math.Round((decimal)adet * 100m / payda, 2, MidpointRounding.AwayFromZero)
+                    : null;
+
+                satirlar.Add(new DolulukGunRow(
+                    DateOnly.FromDateTime(g), seri, payda, kiraGun, rezGun, Y(kiraGun), Y(rezGun)));
+            }
+        }
+
+        var aciklama = boyut switch
+        {
+            DolulukBoyut.Sube => "Payda: o şubenin KENDİ araçları — yüzdeler şubenin kendi doluluğudur, toplamları genel doluluğa eşit değildir.",
+            DolulukBoyut.AracGrubu => "Payda: o grubun KENDİ araçları — yüzdeler grubun kendi doluluğudur, toplamları genel doluluğa eşit değildir.",
+            DolulukBoyut.RezervasyonKaynagi => "Payda: TÜM FİLO — kaynak bir filo bölüntüsü değildir; yüzde 'kaynak filo kapasitesinin ne kadarını doldurdu' demektir ve toplanabilir. Kira satırları kaynak taşımaz.",
+            _ => "Payda: tüm filo."
+        };
+
+        return new DolulukGunlukDto(
+            satirlar, boyut, aciklama, donemGun,
+            satirlar.Sum(x => x.KiraGun), satirlar.Sum(x => x.RezGun));
+    }
+
+    /// <summary>Kırılımsız seri adı (tek seri modu).</summary>
+    public const string TumFilo = "Tüm filo";
+
+    /// <summary>Kaynak boyutunda kiraların düştüğü kova — kaynak adlarıyla çakışmaması için ayrı.</summary>
+    public const string TumFiloKira = "Tüm filo (kira)";
     /// Dönem tahsilat-fatura mutabakatı: kesilen fatura (İptal hariç) vs alınan tahsilat (ters hariç)
     /// + fark. Repo sayım/toplamı yapar; Fark = FaturaToplam − TahsilatToplam (repo'da hesaplı). Pass-through.
     /// </summary>

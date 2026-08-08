@@ -44,8 +44,78 @@
 </table>
 </div>
 
+<h2 class="dash-h2">Şube Kırılımı</h2>
+@* TEK ATIF KURALI: bütün kolonlar ARACIN şubesine göre — kira kolonları sözleşmenin çıkış
+   şubesinden sayılmaz. Karıştırsaydık satır kendi içinde tutarsız olurdu. *@
+<p class="muted small">Tüm kolonlar <strong>aracın bağlı olduğu şubeye</strong> göre sayılır
+    (sözleşmenin çıkış şubesine göre değil) — böylece satırın "Filo" değeri ile kira kolonları aynı
+    kümeden gelir. Doluluk paydası <strong>kullanılabilir filo</strong> (Filo − Satıldı − Pasif);
+    payda sıfırsa oran yazılmaz. İleri-bakış penceresi <strong>@_sube.PencereGun gün</strong>.</p>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Şube</th><th class="num">Filo</th><th class="num">Boş</th><th class="num">Kirada</th>
+            <th class="num">Bakımda</th><th class="num">Pasif</th><th class="num">Satıldı</th>
+            <th class="num">Satılık</th><th class="num">BAF</th><th class="num">Doluluk</th>
+            <th class="num">Çıkışlar</th><th class="num">Dönüşler</th>
+            <th class="num">Çıkacaklar</th><th class="num">Dönecekler</th><th class="num">Giden Rez</th></tr>
+    </thead>
+    <tbody>
+        @if (_sube.Satirlar.Count == 0)
+        {
+            <tr><td colspan="15" class="muted">Araç yok.</td></tr>
+        }
+        @foreach (var r in _sube.Satirlar)
+        {
+            <tr>
+                <td>@r.Sube</td>
+                <td class="num">@r.Filo</td>
+                <td class="num">@r.Bos</td>
+                <td class="num">@r.Kirada</td>
+                <td class="num">@r.Bakimda</td>
+                <td class="num">@r.Pasif</td>
+                <td class="num">@r.Satildi</td>
+                <td class="num">@r.Satilik</td>
+                <td class="num">@r.Baf</td>
+                <td class="num">@(r.DolulukYuzde is { } y ? $"%{y:N2}" : "—")</td>
+                <td class="num">@r.Cikislar</td>
+                <td class="num">@r.Donusler</td>
+                <td class="num">@r.Cikacaklar</td>
+                <td class="num">@r.Donecekler</td>
+                <td class="num">@r.GidenRez</td>
+            </tr>
+        }
+        @if (_sube.Satirlar.Count > 0)
+        {
+            @* Toplam satırı üstteki KPI kartıyla mutabakat sağlar — sayı tutmazsa gözle yakalanır. *@
+            <tr class="total-row">
+                <td><strong>Toplam</strong></td>
+                <td class="num"><strong>@_sube.ToplamFilo</strong></td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Bos)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Kirada)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Bakimda)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Pasif)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Satildi)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Satilik)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Baf)</td>
+                @* Toplam satırında ORAN YOK: şube oranlarının ortalaması genel doluluk değildir
+                   (havuz KPI dersi — pay ve payda ayrı toplanır). Genel oran üstteki karttadır. *@
+                <td class="num">—</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Cikislar)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Donusler)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Cikacaklar)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.Donecekler)</td>
+                <td class="num">@_sube.Satirlar.Sum(x => x.GidenRez)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
 @code {
     private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0);
+    private FiloSubeDto _sube = new([], ReportService.FiloPencereVarsayilan);
 
     // Aktif filo = satılmış ve pasif hariç (kiralanabilir havuz).
     private string DolulukYuzde
@@ -58,5 +128,8 @@
     }
 
     protected override async Task OnInitializedAsync()
-        => _f = await Reports.GetFleetUtilizationAsync();
+    {
+        _f = await Reports.GetFleetUtilizationAsync();
+        _sube = await Reports.GetFleetUtilizationBySubeAsync();
+    }
 }
