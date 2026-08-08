@@ -209,6 +209,17 @@ internal sealed class AracKrediConfig : IEntityTypeConfiguration<AracKredi>
         e.Property(x => x.Aciklama).HasMaxLength(512);
         e.Property(x => x.Durum).HasConversion<int>();
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+
+        // FAZ-13 — Cari bağı. Composite tenant-FK: çapraz-tenant referans YAPISAL olarak imkânsız
+        // (tek kolonlu FK, RLS'in altından başka tenant'ın Id'sine bağlanmayı teknik olarak
+        // engellemezdi). Restrict: bağlı kredi varken cari silinemez.
+        e.HasOne<Customer>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.CariId })
+            .HasPrincipalKey(c => new { c.TenantId, c.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        e.Property(x => x.DosyaNo).HasMaxLength(64);
+        e.HasIndex(x => new { x.TenantId, x.CariId });
+        e.HasIndex(x => new { x.TenantId, x.DosyaNo });
     }
 }
 

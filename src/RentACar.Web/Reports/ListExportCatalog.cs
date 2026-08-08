@@ -145,12 +145,18 @@ public static class ListExportCatalog
             x.Marka, x.Tip, x.Grup, x.Adet, x.BirimFiyat, x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable AracKredileri(IReadOnlyList<AracKredi> k) => new(
+    /// <summary>FAZ-13: Dosya No / Cari / Araç kolonları eklendi — ekrandaki tabloyla aynı bilgi
+    /// dışarı çıksın (cari ve plaka Id olarak tutulur, export'a ADLARI yazılır).</summary>
+    public static ExportTable AracKredileri(IReadOnlyList<AracKredi> k,
+        Func<Guid, string?>? cari = null, Func<Guid, string?>? plaka = null) => new(
         "Araç Kredileri",
-        ["No", "Banka", "Kredi Tutarı", "Faiz %", "Taksit", "Ödenen Taksit", "Başlangıç", "Döviz", "Durum", "Açıklama"],
+        ["No", "Dosya No", "Banka", "Cari", "Araç", "Kredi Tutarı", "Faiz %", "Taksit", "Ödenen Taksit", "Başlangıç", "Döviz", "Durum", "Açıklama"],
         k.Select(x => new object?[]
         {
-            x.No, x.BankaAdi, x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
+            x.No, x.DosyaNo, x.BankaAdi,
+            x.CariId is Guid c ? cari?.Invoke(c) : null,
+            x.VehicleId is Guid v ? plaka?.Invoke(v) : null,
+            x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
             x.BaslangicTarihi.ToString("yyyy-MM-dd"), x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 

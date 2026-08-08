@@ -40,6 +40,22 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return items;
     }
 
+    /// <summary>Seçim listesi — PII kolonlarına HİÇ dokunmaz (Decrypt çağrılmaz, cipher okunmaz).
+    /// Görünen ad kuralı tek kaynaktan gelsin diye projeksiyon geçici Customer'a sarılıp
+    /// <c>DisplayName</c> okunur (kural kopyalanmaz).</summary>
+    public async Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var rows = await db.Customers.AsNoTracking()
+            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad })
+            .ToListAsync(ct);
+        return rows
+            .Select(r => new CariSecim(r.Id,
+                new Customer { Tip = r.Tip, Unvan = r.Unvan, Ad = r.Ad, Soyad = r.Soyad }.DisplayName))
+            .ToList();
+    }
+
     /// <summary>Ortak filtre (arama + Tip + İYS/uyarı/kara-liste) — SearchAsync ve SearchRowsAsync paylaşır.
     /// TC araması yalnız TAM eşleşme (blind-index, filter.TcHash) — şifreli kolonda ILike anlamsız.</summary>
     private static IQueryable<Customer> ApplyFilter(IQueryable<Customer> q, CustomerFilter filter)
