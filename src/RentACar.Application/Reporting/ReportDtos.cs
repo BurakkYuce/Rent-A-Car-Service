@@ -258,6 +258,100 @@ public sealed record DolulukKiraRowDto(DateTimeOffset Bas, DateTimeOffset Bit);
 /// </summary>
 public sealed record DolulukDto(
     int AracSayisi, int DonemGun, int AracGun, int KiraGun, decimal DolulukYuzde);
+
+// ---------------------------------------------------------------------------
+// FAZ-77 — filo & doluluk grafik derinliği (D4; envanter/gün SAYIMI, para toplamı YOK)
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Şube kırılımlı filo durumu (canlı <c>arac_genel_durumu_grafik.aspx</c>).
+///
+/// <para><b>TEK ATIF KURALI: bütün kolonlar ARACIN şubesine göre.</b> Kira/rezervasyon kolonları
+/// da sözleşmenin ÇIKIŞ şubesinden değil, aracın bağlı olduğu şubeden sayılır. Karıştırsaydık
+/// satır kendi içinde tutarsız olurdu (Filo=10 iken Çıkışlar=15 gibi — başka şubenin aracı bu
+/// satırın payına yazılırdı). "Gişe bazlı" (CikisSubeId) görünüm BİLİNÇLİ olarak kapsam dışı.</para>
+///
+/// <para><b>Doluluk paydası KULLANILABİLİR filo</b> = Filo − Satıldı − Pasif. Satılmış/pasif araç
+/// kiralanamaz; paydada tutmak doluluğu sistematik olarak düşük gösterirdi. Payda ≤ 0 ise yüzde
+/// <c>null</c> (yalnız pozitif paydayla oran — karne dersi), 0 değil.</para>
+/// </summary>
+public sealed record FiloSubeRow(
+    string Sube, int Filo, int Bos, int Kirada, int Bakimda, int Pasif, int Satildi,
+    int Satilik, int Baf, decimal? DolulukYuzde,
+    int Cikislar, int Donusler, int Cikacaklar, int Donecekler, int GidenRez);
+
+/// <summary>Şube kırılımlı filo raporu + kullanılan ileri-bakış penceresi (gün).</summary>
+public sealed record FiloSubeDto(IReadOnlyList<FiloSubeRow> Satirlar, int PencereGun)
+{
+    /// <summary>Şube satırlarının toplamı — tenant-geneli KPI kartlarıyla mutabık olmalı.</summary>
+    public int ToplamFilo => Satirlar.Sum(x => x.Filo);
+}
+
+/// <summary>Doluluk "Karşılaştır" boyutu.</summary>
+public enum DolulukBoyut
+{
+    /// <summary>Kırılım yok — tek seri (tüm filo).</summary>
+    Yok = 0,
+    Sube = 1,
+    AracGrubu = 2,
+    /// <summary>Rezervasyon kaynağı — filo BÖLÜNTÜSÜ DEĞİL (bkz. <see cref="DolulukGunlukDto"/>).</summary>
+    RezervasyonKaynagi = 3
+}
+
+/// <summary>
+/// Gün × boyut doluluk satırı. <paramref name="AracSayisi"/> o satırın PAYDASINI belirleyen araç
+/// adedi; <paramref name="KiraGun"/>/<paramref name="RezGun"/> o gün aktif kira/rezervasyon adedi
+/// (gün başına, kapsayıcı aralık).
+/// </summary>
+public sealed record DolulukGunRow(
+    DateOnly Gun, string Seri, int AracSayisi, int KiraGun, int RezGun,
+    decimal? KiraYuzde, decimal? RezYuzde);
+
+/// <summary>
+/// Gün-kırılımlı doluluk.
+///
+/// <para><b>PAYDA UYARISI.</b> Şube/Araç Grubu boyutlarında payda o grubun KENDİ araçlarıdır
+/// (gerçek filo bölüntüsü) → yüzdeler grubun kendi doluluğudur ve toplamları genel doluluğa EŞİT
+/// DEĞİLDİR. Rezervasyon Kaynağı bir filo bölüntüsü değildir (araç bir kaynağa ait olmaz) → payda
+/// TÜM FİLO alınır ve yüzde "kaynak, filo kapasitesinin ne kadarını doldurdu" demektir; bu
+/// yüzdeler toplanabilir. İki semantiği tek kolonda etiketsiz sunmak yanıltıcı olurdu.</para>
+///
+/// <para>Kira kolonu ARACIN şubesine/grubuna göre atanır — payda da öyle (karışık payda yasak).
+/// Rezervasyon kaynağı satırlarında kaynak rezervasyonun kendi alanıdır.</para>
+/// </summary>
+public sealed record DolulukGunlukDto(
+    IReadOnlyList<DolulukGunRow> Satirlar, DolulukBoyut Boyut, string PaydaAciklama,
+    int DonemGun, int ToplamKiraGun, int ToplamRezGun);
+
+/// <summary>Doluluk ham kira satırı — araç kimliği + şube/grup atfı taşır (FAZ-77 kırılımı için).</summary>
+public sealed record DolulukKiraAtifRow(
+    DateTimeOffset Bas, DateTimeOffset Bit, Guid VehicleId, string Sube, string Grup);
+
+/// <summary>Doluluk ham rezervasyon satırı — kaynak + aracın şube/grubu.</summary>
+public sealed record DolulukRezAtifRow(
+    DateTimeOffset Bas, DateTimeOffset Bit, Guid VehicleId, string Sube, string Grup, string Kaynak);
+
+/// <summary>Araç envanteri atıf satırı (payda) — her araç bir şubeye ve bir gruba aittir.</summary>
+public sealed record DolulukAracAtifRow(Guid VehicleId, string Sube, string Grup);
+
+/// <summary>Gün-kırılımlı doluluk için ham paket (tek DB turu).</summary>
+public sealed record DolulukAtifPaket(
+    IReadOnlyList<DolulukAracAtifRow> Araclar,
+    IReadOnlyList<DolulukKiraAtifRow> Kiralar,
+    IReadOnlyList<DolulukRezAtifRow> Rezervasyonlar);
+
+/// <summary>Şube kırılımlı filo raporu için ham araç satırı.</summary>
+public sealed record FiloAracHamRow(Guid Id, string Sube, VehicleStatus Durum, FiloStatus? FiloDurum);
+
+/// <summary>Şube kırılımlı filo raporu için ham kira satırı (araç şubesi atfıyla).</summary>
+public sealed record FiloKiraHamRow(string Sube, DateTimeOffset Bas, DateTimeOffset Bit);
+
+/// <summary>Şube kırılımlı filo raporu ham paketi.</summary>
+public sealed record FiloSubeHamPaket(
+    IReadOnlyList<FiloAracHamRow> Araclar,
+    IReadOnlyList<FiloKiraHamRow> Kiralar,
+    IReadOnlyList<(string Sube, DateTimeOffset Bas)> Rezervasyonlar,
+    IReadOnlyList<string> AcikBafSubeleri);
 /// Dönem tahsilat-fatura mutabakatı: kesilen fatura toplamı (İptal hariç, GenelToplam×Kur) vs
 /// alınan tahsilat toplamı (ters kayıt hariç, Amount×Rate) + fark. Fark = FaturaToplam − TahsilatToplam
 /// (pozitif = tahsil edilmemiş bakiye). Salt sayım/toplam, base para.

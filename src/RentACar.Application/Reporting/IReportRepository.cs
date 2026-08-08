@@ -64,6 +64,21 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<DolulukKiraRowDto>> GetRentalIntervalsAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-77 — şube kırılımlı filo raporu hamı. Kira/rezervasyon/BAF satırları ARACIN şubesine
+    /// göre etiketlenir (tek atıf kuralı, bkz. <see cref="FiloSubeRow"/>).
+    /// </summary>
+    Task<FiloSubeHamPaket> GetFiloSubeHamAsync(
+        DateTimeOffset pencereBas, DateTimeOffset pencereBit, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-77 — gün-kırılımlı doluluk hamı: araç envanteri (payda) + dönemle çakışan kira ve
+    /// rezervasyon aralıkları, şube/grup/kaynak atıflarıyla. <see cref="GetRentalIntervalsAsync"/>
+    /// olduğu gibi durur (geriye uyum).
+    /// </summary>
+    Task<DolulukAtifPaket> GetDolulukAtifAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
     /// Dönem ([from,to]) tahsilat-fatura mutabakatı: fatura (İptal hariç, GenelToplam×Kur) ve
     /// tahsilat (ters kayıt hariç, Amount×Rate) adet+toplamları. Fark service'te hesaplanır.
     /// </summary>
