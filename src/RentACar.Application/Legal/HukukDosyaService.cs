@@ -8,7 +8,11 @@ namespace RentACar.Application.Legal;
 /// <summary>
 /// Hukuk dosyası master iş mantığı (roadmap C2): doğrulama + DosyaNo benzersizliği + CRUD. Yazma
 /// operasyonel → <see cref="Permission.OperationsWrite"/>. Tenant izolasyonu/audit alt katmanda.
-/// Tutar bilgilendirme amaçlı — deftere postlamaz.
+///
+/// <para><b>PARA ÇİTİ:</b> <c>Tutar</c> ve <c>Tahsilat</c> BİLGİ ALANIDIR — bu servis hiçbir
+/// defter kaydı (<c>AccountLedgerEntry</c>) yazmaz, cari bakiyeyi değiştirmez. Gerçek tahsilat
+/// Kasa/Banka ekranından cari üzerine girilir. (KARARLAR.md genel politikası; kırılgan regresyon
+/// testi <c>HukukTests.Tahsilat_deftere_yazmaz</c> bunu kalıcı olarak kilitler.)</para>
 /// </summary>
 public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrentUser currentUser)
 {
@@ -17,6 +21,11 @@ public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrent
 
     public Task<IReadOnlyList<HukukDosya>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
+
+    /// <summary>FAZ-41 — filtreli liste (müşteri adı çözülmüş). Salt-okur; ekran zaten rol kapılı.</summary>
+    public Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(
+        HukukDosyaFilter? filter = null, CancellationToken ct = default)
+        => _repository.SearchAsync(filter, ct);
 
     public Task<HukukDosya?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -61,6 +70,15 @@ public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrent
         if (string.IsNullOrWhiteSpace(n.DosyaNo)) throw new ValidationException("Dosya no zorunludur.");
         if (n.DosyaNo!.Length > 64) throw new ValidationException("Dosya no en çok 64 karakter olabilir.");
         if (n.Tutar < 0m) throw new ValidationException("Tutar negatif olamaz.");
+        // Tahsilat ÜST sınırı bilinçli YOK: faiz/masrafla dosya tutarının üstünde tahsilat meşrudur
+        // (Kalan o zaman negatife döner). Negatif tahsilat ise işaret hatasıdır → red.
+        if (n.Tahsilat is < 0m) throw new ValidationException("Tahsilat negatif olamaz.");
+        if (n.FaturaNoTemp is { Length: > 64 }) throw new ValidationException("Fatura no en çok 64 karakter olabilir.");
+        if (n.Avukat2Ad is { Length: > 128 }) throw new ValidationException("2. avukat adı en çok 128 karakter olabilir.");
+        if (n.AvukatTel is { Length: > 32 } || n.Avukat2Tel is { Length: > 32 })
+            throw new ValidationException("Telefon en çok 32 karakter olabilir.");
+        if (n.AvukatMail is { Length: > 256 } || n.Avukat2Mail is { Length: > 256 })
+            throw new ValidationException("E-posta en çok 256 karakter olabilir.");
     }
 
     private static HukukDosyaInput Normalize(HukukDosyaInput input) => new()
@@ -73,7 +91,14 @@ public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrent
         Durum = input.Durum,
         Tarih = input.Tarih,
         Aciklama = TrimOrNull(input.Aciklama),
-        Aktif = input.Aktif
+        Aktif = input.Aktif,
+        FaturaNoTemp = TrimOrNull(input.FaturaNoTemp),
+        AvukatTel = TrimOrNull(input.AvukatTel),
+        AvukatMail = TrimOrNull(input.AvukatMail),
+        Avukat2Ad = TrimOrNull(input.Avukat2Ad),
+        Avukat2Tel = TrimOrNull(input.Avukat2Tel),
+        Avukat2Mail = TrimOrNull(input.Avukat2Mail),
+        Tahsilat = input.Tahsilat
     };
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -89,5 +114,13 @@ public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrent
         row.Tarih = n.Tarih ?? DateTimeOffset.UtcNow;
         row.Aciklama = n.Aciklama;
         row.Aktif = n.Aktif;
+        row.FaturaNoTemp = n.FaturaNoTemp;
+        row.AvukatTel = n.AvukatTel;
+        row.AvukatMail = n.AvukatMail;
+        row.Avukat2Ad = n.Avukat2Ad;
+        row.Avukat2Tel = n.Avukat2Tel;
+        row.Avukat2Mail = n.Avukat2Mail;
+        // BİLGİ ALANI — buradan sonra hiçbir defter/bakiye yolu tetiklenmez (bilinçli).
+        row.Tahsilat = n.Tahsilat;
     }
 }

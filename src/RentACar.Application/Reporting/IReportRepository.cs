@@ -138,8 +138,16 @@ public interface IReportRepository
     Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumRowsAsync(
         DateTimeOffset gun, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default);
 
-    /// <summary>Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).</summary>
-    Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).
+    /// FAZ-41: opsiyonel süzgeç (tarih aralığı / min kira adedi / rez. kaynağı / çıkış ofisi) +
+    /// iletişim ve projeksiyon alanları. <c>null</c> filtre → tüm kiralar (eski davranış).
+    /// </summary>
+    Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(
+        MusteriSegmentFilter? filter = null, CancellationToken ct = default);
+
+    /// <summary>FAZ-41 — segment süzgeci açılır liste seçenekleri (FİLTRESİZ kiralardan).</summary>
+    Task<MusteriSegmentSecenekleri> GetMusteriSegmentSecenekleriAsync(CancellationToken ct = default);
 
     /// <summary>Personel çalışma (roadmap N3): personel başına BAF (araç tahsis) sayısı.</summary>
     Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default);

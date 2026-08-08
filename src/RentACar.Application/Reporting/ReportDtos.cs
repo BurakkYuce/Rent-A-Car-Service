@@ -532,8 +532,58 @@ public sealed record EkHizmetAracPivotDto(
     IReadOnlyList<decimal> KolonToplam,
     decimal GenelToplam);
 
-/// <summary>Müşteri CRM segment satırı — roadmap N3. Segment ciro eşiğiyle (VIP/Standart/Pasif).</summary>
-public sealed record MusteriSegmentRow(Guid CariId, string Ad, int KiraSayisi, decimal ToplamCiro, DateTimeOffset? SonIslem, string Segment);
+/// <summary>
+/// Müşteri CRM segment satırı — roadmap N3. Segment ciro eşiğiyle (VIP/Standart/Pasif).
+///
+/// <para>FAZ-41 genişlemesi: iletişim/projeksiyon alanları. Para alanları TL-BAZDIR
+/// (<c>KurSnapshot</c> ile çarpılmış) — <see cref="ToplamCiro"/> ile aynı birimde olsunlar diye;
+/// karışık-döviz toplamı sessiz bir para hatasıdır.</para>
+/// </summary>
+/// <param name="OrtalamaKiraBedeli">ToplamCiro / KiraSayisi (kira yoksa 0 — satır zaten kiradan doğar).</param>
+/// <param name="OrtalamaKm">(DönüşKm − ÇıkışKm) ortalaması; iki km'si de dolu kira YOKSA <c>null</c>
+/// (0 yazmak "hiç yol yapılmadı" iddiası olurdu — dev veride kiraların çoğunda km boş).</param>
+/// <param name="IlkKiraZamani">En erken kira başlangıcı (MIN BasTar); <see cref="SonIslem"/> en geç olanı.</param>
+/// <param name="HizmetBedeli">Kira ek hizmet kalemleri (<c>RentalAddOn</c>) brüt toplamı, TL-baz.
+/// Kira bedelinin KENDİSİ değildir; ToplamCiro'ya zaten dahildir (GenelToplam brütü) — burada
+/// yalnız "ne kadarı ek hizmetten geldi" kırılımı için ayrıca gösterilir.</param>
+public sealed record MusteriSegmentRow(
+    Guid CariId, string Ad, int KiraSayisi, decimal ToplamCiro, DateTimeOffset? SonIslem, string Segment,
+    string? Mail = null, string? Tel = null, decimal OrtalamaKiraBedeli = 0m, decimal? OrtalamaKm = null,
+    DateTimeOffset? DogumTarihi = null, DateTimeOffset? IlkKiraZamani = null, decimal HizmetBedeli = 0m);
+
+/// <summary>
+/// FAZ-41 — müşteri segment raporu süzgeci (canlı <c>musteri_crm.aspx</c> filtre barı).
+///
+/// <para><see cref="Bas"/>/<see cref="Bit"/> kiranın BASLANGIÇ tarihine (<c>BasTar</c>) uygulanır —
+/// <c>SonIslem</c> ve <c>IlkKiraZamani</c> da aynı alandan türediği için pencere tanımı tektir.
+/// Pencere daraldığında KiraSayisi/ToplamCiro da daralır (bilinçli: "bu dönemde ne yaptı").</para>
+/// </summary>
+public sealed class MusteriSegmentFilter
+{
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Bu sayıdan AZ kirası olan müşteri listede görünmez (agregadan SONRA uygulanır).</summary>
+    public int? MinKiraSayisi { get; set; }
+    /// <summary>Kiranın rezervasyon kaynağı (<c>RentalContract.Kaynak</c>, tam eşleşme/harf duyarsız).</summary>
+    public string? RezKaynak { get; set; }
+    /// <summary>
+    /// Kiranın çıkış ofisi/şubesi (<c>RentalContract.CikisOfisi</c>, tam eşleşme).
+    ///
+    /// <para><b>Neden Guid FK değil:</b> dev veride 22 kiranın yalnız 4'ünde <c>CikisSubeId</c>
+    /// doluyken 17'sinde ofis METNİ dolu (FK yalnız Location→Sube eşleşmesi olanlarda doluyor).
+    /// FK-only bir süzgeç kullanıcıya "bozuk" görünürdü. Metin süzgeci FK'lı satırları da kapsar
+    /// (FK türetildiği metin zaten satırda duruyor).</para>
+    /// </summary>
+    public string? CikisOfis { get; set; }
+}
+
+/// <summary>
+/// FAZ-41 — segment süzgecinin açılır liste seçenekleri. <b>FİLTRESİZ</b> kira kümesinden türetilir:
+/// filtrelenmiş listeden türetilseydi bir seçimden sonra diğer seçenekler kaybolur, süzgeç kendini
+/// kilitlerdi. Master tablodan değil KİRALARDAN okunur — böylece her seçenek en az bir satır getirir
+/// ve serbest-metin girilmiş (mastera hiç eklenmemiş) ofis/kaynak değerleri de erişilebilir kalır.
+/// </summary>
+public sealed record MusteriSegmentSecenekleri(IReadOnlyList<string> Kaynaklar, IReadOnlyList<string> Ofisler);
 
 /// <summary>Personel çalışma satırı — roadmap N3. BAF (araç tahsis) sayısı.</summary>
 public sealed record PersonelCalismaRow(Guid PersonelId, string Ad, int TahsisSayisi);

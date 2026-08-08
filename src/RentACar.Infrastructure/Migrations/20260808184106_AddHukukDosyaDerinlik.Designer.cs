@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808184106_AddHukukDosyaDerinlik")]
+    partial class AddHukukDosyaDerinlik
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -267,9 +270,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("BaslangicTarihi")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("CariId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -277,10 +277,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
-
-                    b.Property<string>("DosyaNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
@@ -315,10 +311,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "CariId");
-
-                    b.HasIndex("TenantId", "DosyaNo");
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
@@ -7424,15 +7416,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.AracKredi", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "CariId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.AssistansTalep", b =>
