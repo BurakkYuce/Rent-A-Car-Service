@@ -34,6 +34,13 @@ public interface IReportRepository
     Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiRowsAsync(
         ExtreOzetiFilter? filter, DateTimeOffset asOf, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-68 — tahsilat raporu satır modu: sözleşme başına borç/faturalanan/tahsilat mutabakatı.
+    /// Dönem-toplamı modu (<see cref="GetTahsilatFaturaAsync"/>) DEĞİŞMEZ, bu ayrı bir görünümdür.
+    /// </summary>
+    Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatRowsAsync(
+        TahsilatMutabakatFilter? filter, CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 
