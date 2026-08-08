@@ -88,6 +88,7 @@ using RentACar.Web.HesapKodlari;
 using RentACar.Web.ServisTanimlari;
 using RentACar.Web.DropTanimlari;
 using RentACar.Web.FiloPlan;
+using RentACar.Web.MusteriTaksitleri;
 using RentACar.Web.DolulukFiyat;
 using RentACar.Web.BelgeSablon;
 using RentACar.Web.Vehicles;
@@ -497,6 +498,7 @@ app.MapHukukEndpoints();
 app.MapCrmEndpoints();
 app.MapAssistansTalepEndpoints();   // FAZ-44
 app.MapFiloPlanEndpoints();         // FAZ-19
+app.MapMusteriTaksitEndpoints();    // FAZ-66
 app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
