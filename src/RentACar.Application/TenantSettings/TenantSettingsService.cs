@@ -43,6 +43,15 @@ public sealed class TenantSettingsService(
             VarsayilanDoviz = s.VarsayilanDoviz,
             VarsayilanKdvOrani = s.VarsayilanKdvOrani,
             VarsayilanGrupId = s.VarsayilanGrupId, // PR-10
+            // FAZ-81 renk kodları
+            RenkGecikenler = s.RenkGecikenler,
+            RenkBugunDonecekler = s.RenkBugunDonecekler,
+            RenkBugunCikacaklar = s.RenkBugunCikacaklar,
+            RenkOpsiyonlu = s.RenkOpsiyonlu,
+            RenkLimitBakiye = s.RenkLimitBakiye,
+            RenkAlacakli = s.RenkAlacakli,
+            RenkRezAtananPlaka = s.RenkRezAtananPlaka,
+            RenkKiralanmayan = s.RenkKiralanmayan,
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
             DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
@@ -97,6 +106,20 @@ public sealed class TenantSettingsService(
     private Guid TenantId => tenant.TenantId
         ?? throw new ValidationException("Tenant bağlamı yok — işlem yapılamaz.");
 
+    /// <summary>
+    /// FAZ-81 — renk kodu doğrulama. Boş/whitespace → null (varsayılana düş). Dolu ise KESİN
+    /// <c>#rrggbb</c>: bu değer doğrudan bir CSS özel değişkenine yazılıyor, doğrulanmadan
+    /// geçirilirse hem stil bozulur hem de CSS'e serbest metin enjekte edilmiş olur.
+    /// </summary>
+    private static string? Renk(string? deger, string alan)
+    {
+        if (string.IsNullOrWhiteSpace(deger)) return null;
+        var v = deger.Trim();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$"))
+            throw new ValidationException($"{alan} geçerli bir renk kodu olmalı (#rrggbb).");
+        return v.ToLowerInvariant();
+    }
+
     public async Task SaveAsync(TenantSettingsModel m, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
@@ -127,6 +150,16 @@ public sealed class TenantSettingsService(
             // PR-10: FK'si ON DELETE SET NULL; ayrıca çözücü grubu AKTİF olarak arar → pasifleşen
             // ya da başka tenant'a ait bir Id sessizce Ekonomi zincirine düşer, araç yanlış gruba girmez.
             s.VarsayilanGrupId = m.VarsayilanGrupId;
+            // FAZ-81 renk kodları — boş serbest (null = koddaki varsayılan renk), dolu ise
+            // KESİN "#rrggbb" olmalı: doğrulanmamış bir metin doğrudan CSS'e basılıyor.
+            s.RenkGecikenler = Renk(m.RenkGecikenler, "RenkGecikenler");
+            s.RenkBugunDonecekler = Renk(m.RenkBugunDonecekler, "RenkBugunDonecekler");
+            s.RenkBugunCikacaklar = Renk(m.RenkBugunCikacaklar, "RenkBugunCikacaklar");
+            s.RenkOpsiyonlu = Renk(m.RenkOpsiyonlu, "RenkOpsiyonlu");
+            s.RenkLimitBakiye = Renk(m.RenkLimitBakiye, "RenkLimitBakiye");
+            s.RenkAlacakli = Renk(m.RenkAlacakli, "RenkAlacakli");
+            s.RenkRezAtananPlaka = Renk(m.RenkRezAtananPlaka, "RenkRezAtananPlaka");
+            s.RenkKiralanmayan = Renk(m.RenkKiralanmayan, "RenkKiralanmayan");
             s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
             s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;
