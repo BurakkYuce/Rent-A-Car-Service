@@ -70,6 +70,8 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
 
     private static void Validate(RateMatrixInput n)
     {
+        // 0/negatif "max gün" hiçbir kirayı kapsamaz → satır ölü doğar; sınırsız için null kullanılır.
+        if (n.KiraSuresi is <= 0) throw new ValidationException("Max kira kapsamı pozitif olmalıdır.");
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Tarife kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Tarife kodu en çok 32 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Tarife adı zorunludur.");
@@ -97,6 +99,9 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         Kanal = TrimOrNull(input.Kanal),
         Sube = TrimOrNull(input.Sube),
         Lokasyon = TrimOrNull(input.Lokasyon),
+        // FAZ-70 — Normalize YENİ nesne kurar: buraya eklenmeyen alan sessizce kaybolur.
+        Turu = TrimOrNull(input.Turu),
+        KiraSuresi = input.KiraSuresi,
         AracGrupKod = string.IsNullOrWhiteSpace(input.AracGrupKod) ? null : input.AracGrupKod.Trim().ToUpperInvariant(),
         ParaBirimi = string.IsNullOrWhiteSpace(input.ParaBirimi) ? null : input.ParaBirimi.Trim().ToUpperInvariant(),
         BasTar = input.BasTar,
@@ -121,6 +126,8 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         row.Kanal = n.Kanal;
         row.Sube = n.Sube;
         row.Lokasyon = n.Lokasyon;
+        row.Turu = n.Turu;
+        row.KiraSuresi = n.KiraSuresi;
         row.AracGrupKod = n.AracGrupKod;
         row.ParaBirimi = n.ParaBirimi;
         row.BasTar = n.BasTar;

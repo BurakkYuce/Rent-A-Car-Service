@@ -71,6 +71,7 @@ internal sealed class RateMatrixConfig : IEntityTypeConfiguration<RateMatrix>
     {
         e.ToTable("TarifeMatris");
         e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId }).HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict); // roadmap F1 (composite tenant-FK; çapraz-tenant referans imkansız)
+        e.Property(x => x.Turu).HasMaxLength(32);   // FAZ-70
         e.HasIndex(x => x.SubeId);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
