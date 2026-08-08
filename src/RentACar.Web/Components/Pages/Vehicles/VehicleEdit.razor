@@ -136,6 +136,38 @@ else
            tek kayıt kiraya çıktığında grup aramada N'den 0'a inmez, TAMAMEN kaybolur. *@
         <label>Vitrin Adedi<input name="vitrinAdet" type="number" min="1" max="999" value="@_vehicle.VitrinAdet"
             placeholder="1" title="Halka açık sitede kaç araç olarak gösterilsin (boş = 1). Yalnız gösterim." /></label>
+        @* FAZ-28 — detaylı liste alanları. Ayrı bir katlanır bölüm: hepsi BİLGİ alanı, hiçbiri
+           fiyat motoruna / deftere / müsaitliğe girmez. "Kiralama anlık görüntüsü" başlığındakiler
+           ELLE girilen notlardır; aracın GERÇEK aktif kirası her zaman kira kayıtlarından okunur
+           (Detaylı Liste ekranındaki "Aktif Kira" kolonları). *@
+        <details class="u-col-full">
+            <summary class="link">Detay Alanları (ruhsat / ticari / kiralama notu)</summary>
+            <div class="grid-form">
+                <label>Belge No<input name="belgeNo" value="@_vehicle.BelgeNo" /></label>
+                <label>Ruhsat Sahibi<input name="ruhsatSahibi" value="@_vehicle.RuhsatSahibi" /></label>
+                <label>Sözleşme No<input name="sozNo" value="@_vehicle.SozNo" /></label>
+                <label>Aracı Alan<input name="araciAlan" value="@_vehicle.AraciAlan" /></label>
+                <label>Ödeme Şekli<input name="odemeSekli" value="@_vehicle.OdemeSekli" /></label>
+                <label>Assistans Firma<input name="assistanFirma" value="@_vehicle.AssistanFirma" /></label>
+                <label>HGS Firma<input name="hgsFirma" value="@_vehicle.HgsFirma" /></label>
+                <label>Yurt Dışı KM Limiti<input name="disKmLimit" type="number" min="0" value="@_vehicle.DisKmLimit" /></label>
+                <label>TSB Kodu<input name="tsbKodu" value="@_vehicle.TsbKodu" /></label>
+                <label>TSB Kasko Değeri<input name="tsbKaskoDegeri" type="number" step="0.01" min="0" value="@_vehicle.TsbKaskoDegeri" /></label>
+                <label class="check"><input type="checkbox" name="alisEuro" value="true" checked="@(_vehicle.AlisEuro == true)" /> Alım EURO bazlı</label>
+                <label>Alış EURO Fiyatı<input name="alisEuroFiyat" type="number" step="0.01" min="0" value="@_vehicle.AlisEuroFiyat" /></label>
+                <label>Hedef Satış EURO<input name="satisEuroFiyat" type="number" step="0.01" min="0" value="@_vehicle.SatisEuroFiyat" /></label>
+                <label>Pasif Sebebi<input name="pasifSebep" value="@_vehicle.PasifSebep" /></label>
+                <label>Son Durum Notu<input name="sonDurum" value="@_vehicle.SonDurum" /></label>
+                <label>Son Teslim KM<input name="sonTeslimKm" type="number" min="0" value="@_vehicle.SonTeslimKm" /></label>
+                <label>Son Teslim Tarihi<input name="sonTeslimTarihi" type="date" value="@_vehicle.SonTeslimTarihi?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
+                <label>Kiralayan (not)<input name="kiralayan" value="@_vehicle.Kiralayan" /></label>
+                <label>Kira Gün (not)<input name="kiraGun" type="number" min="0" value="@_vehicle.KiraGun" /></label>
+                <label>Kira Fiyatı (not)<input name="kiraFiyat" type="number" step="0.01" min="0" value="@_vehicle.KiraFiyat" /></label>
+                <label>Kira Bitiş (not)<input name="kiraBitTar" type="date" value="@_vehicle.KiraBitTar?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
+                <label>Beklenen Dönüş (not)<input name="kiraBekTar" type="date" value="@_vehicle.KiraBekTar?.LocalDateTime.ToString("yyyy-MM-dd")" /></label>
+            </div>
+        </details>
+
         <fieldset class="flags">
             <legend>Operasyon Bayrakları</legend>
             <label><input type="checkbox" name="webRezKapat" value="true" checked="@_vehicle.WebRezKapat" /> Web rez. kapalı</label>

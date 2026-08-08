@@ -53,6 +53,10 @@ public sealed class VehicleSaleService(
             Kur = cozulenKur,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,
+            // FAZ-28 ihale/noter bilgileri
+            IhaleTarihi = input.IhaleTarihi,
+            IhaleFirmasi = string.IsNullOrWhiteSpace(input.IhaleFirmasi) ? null : input.IhaleFirmasi.Trim(),
+            NoterSatisTarihi = input.NoterSatisTarihi,
             SatisKm = input.SatisKm,
             SatisKanali = string.IsNullOrWhiteSpace(input.SatisKanali) ? null : input.SatisKanali.Trim(),
             Devir = string.IsNullOrWhiteSpace(input.Devir) ? null : input.Devir.Trim(),
