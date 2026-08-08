@@ -40,6 +40,13 @@ public class BelgeSablon : ITenantOwned, IAuditable
     /// <summary>Belge alt bilgisi / footer (token'lı; ör. "{FirmaMarka} — {BelgeNo}").</summary>
     public string? AltBilgi { get; set; }
 
+    /// <summary>
+    /// Sözleşme PDF'inde FİZİKSEL İMZA alanları basılsın mı. Varsayılan <c>true</c> — mevcut
+    /// davranış birebir korunur. <c>false</c>: elektronik onaylı sözleşme senaryosu; imza satırları
+    /// atlanır. Kredi kartı bilgi bloğu bundan ETKİLENMEZ (o ayrı bir alan, PCI gereği fizikî alınır).
+    /// </summary>
+    public bool ImzaAlaniGoster { get; set; } = true;
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

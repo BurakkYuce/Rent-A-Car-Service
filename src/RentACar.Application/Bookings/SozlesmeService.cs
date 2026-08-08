@@ -46,7 +46,10 @@ public sealed record SozlesmeView(
     string? EkKosullar = null, // FAZ 4.4: kira-özel ek koşullar (varsa sözleşme çıktısına basılır)
     // Marka-özel belge şablonu bölümleri (BelgeSablon; null → renderer koddaki varsayılanı basar).
     string? SablonBaslik = null, string? SablonHukukiSol = null, string? SablonHukukiSag = null,
-    string? SablonAltBilgi = null);
+    string? SablonAltBilgi = null,
+    // FAZ-80 — şablon fiziksel imza alanını kapatmışsa false; şablon yoksa true
+    // (mevcut PDF davranışı birebir korunur).
+    bool SablonImzaAlaniGoster = true);
 
 /// <summary>Sözleşme view-model kurucusu (salt-okur; defter/durum değiştirmez).</summary>
 public sealed class SozlesmeService(
@@ -103,6 +106,7 @@ public sealed class SozlesmeService(
             c.Depozito, c.DropUcreti,
             ekler.Select(a => new SozlesmeEkHizmet(a.Ad, a.Toplam)).ToList(),
             ekKosullar,
-            sablon.Baslik, sablon.HukukiMetinSol, sablon.HukukiMetinSag, sablon.AltBilgi);
+            sablon.Baslik, sablon.HukukiMetinSol, sablon.HukukiMetinSag, sablon.AltBilgi,
+            sablon.ImzaAlaniGoster);
     }
 }

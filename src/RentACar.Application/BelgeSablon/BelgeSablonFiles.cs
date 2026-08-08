@@ -34,6 +34,8 @@ public sealed class BelgeSablonInput
     public string? HukukiMetinSag { get; set; }
     public string? EkKosullarVarsayilan { get; set; }
     public string? AltBilgi { get; set; }
+    /// <summary>FAZ-80 — sözleşme PDF'inde fiziksel imza alanı basılsın mı (varsayılan true).</summary>
+    public bool ImzaAlaniGoster { get; set; } = true;
 }
 
 /// <summary>
@@ -103,7 +105,10 @@ public sealed class BelgeSablonService(IBelgeSablonRepository repository, ICurre
         HukukiMetinSol = Bos(i.HukukiMetinSol),
         HukukiMetinSag = Bos(i.HukukiMetinSag),
         EkKosullarVarsayilan = Bos(i.EkKosullarVarsayilan),
-        AltBilgi = Bos(i.AltBilgi)
+        AltBilgi = Bos(i.AltBilgi),
+        // DİKKAT: Normalize YENİ bir nesne kurar — buraya eklenmeyen her alan sessizce property
+        // initializer değerine (burada true) düşer ve kullanıcının seçimi kaybolur.
+        ImzaAlaniGoster = i.ImzaAlaniGoster
     };
 
     // Boş/whitespace bölüm → null (null = "bu bölümde varsayılanı bas" semantiği).
@@ -117,5 +122,6 @@ public sealed class BelgeSablonService(IBelgeSablonRepository repository, ICurre
         r.HukukiMetinSag = n.HukukiMetinSag;
         r.EkKosullarVarsayilan = n.EkKosullarVarsayilan;
         r.AltBilgi = n.AltBilgi;
+        r.ImzaAlaniGoster = n.ImzaAlaniGoster;
     }
 }

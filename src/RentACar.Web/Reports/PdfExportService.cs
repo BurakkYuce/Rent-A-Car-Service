@@ -199,15 +199,21 @@ public sealed class PdfExportService
                             c.Item().PaddingBottom(3).Text("Kart Sahibinin").FontSize(7.5f).Bold();
                             c.Item().PaddingBottom(5).Text($"Adı Soyadı : {Dots(16)}").FontSize(7.5f);
                             c.Item().PaddingBottom(5).Text($"Telefonu : {Dots(16)}").FontSize(7.5f);
-                            c.Item().Text($"İmza : {Dots(18)}").FontSize(7.5f);
+                            // FAZ-80: imza satırı şablon anahtarına bağlı. Kart bilgisi (üstteki
+                            // alanlar) ETKİLENMEZ — o PCI gereği fizikî alınan ayrı bir bilgi.
+                            if (s.SablonImzaAlaniGoster)
+                                c.Item().Text($"İmza : {Dots(18)}").FontSize(7.5f);
                         });
-                        r.RelativeItem(1f).BorderLeft(0.75f).BorderColor(Line).Padding(5).Column(c =>
-                        {
-                            c.Item().Text("AD SOYAD - NAME SURNAME").FontSize(7.5f).Bold();
-                            c.Item().PaddingTop(2).Text(s.MusteriAd).FontSize(8);
-                            c.Item().Height(22);
-                            c.Item().Text("İMZA - SİGNATURE").FontSize(7.5f).Bold();
-                        });
+                        // Müşteri ıslak imza bloğu: elektronik onaylı sözleşmede tamamen atlanır
+                        // (boş bir imza kutusu basmak belgeyi "imzasız" gösterirdi).
+                        if (s.SablonImzaAlaniGoster)
+                            r.RelativeItem(1f).BorderLeft(0.75f).BorderColor(Line).Padding(5).Column(c =>
+                            {
+                                c.Item().Text("AD SOYAD - NAME SURNAME").FontSize(7.5f).Bold();
+                                c.Item().PaddingTop(2).Text(s.MusteriAd).FontSize(8);
+                                c.Item().Height(22);
+                                c.Item().Text("İMZA - SİGNATURE").FontSize(7.5f).Bold();
+                            });
                     });
                 });
 

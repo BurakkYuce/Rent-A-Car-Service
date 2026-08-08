@@ -7,5 +7,10 @@ public sealed class EkHizmetTanimInput
     public string Ad { get; set; } = string.Empty;
     public decimal BirimUcret { get; set; }
     public decimal KdvOrani { get; set; } = 0.20m;
+    /// <summary>Açıklama metni (bilgi amaçlı; fiyata etkisi yok).</summary>
+    public string? Aciklama { get; set; }
+    /// <summary>Makul üst gün sınırı; null = sınırsız. Bilgi amaçlı, blokaj değil.</summary>
+    public int? MaxGun { get; set; }
+
     public bool Aktif { get; set; } = true;
 }

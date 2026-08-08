@@ -36,7 +36,12 @@ public static class BelgeSablonEndpoints
         HukukiMetinSol = FormParse.Str(f, "hukukiMetinSol"),
         HukukiMetinSag = FormParse.Str(f, "hukukiMetinSag"),
         EkKosullarVarsayilan = FormParse.Str(f, "ekKosullarVarsayilan"),
-        AltBilgi = FormParse.Str(f, "altBilgi")
+        AltBilgi = FormParse.Str(f, "altBilgi"),
+        // Checkbox: işaretsizken tarayıcı alanı HİÇ göndermez. Formda gizli bir "false" alanı
+        // (aynı ad) var → gönderilen son değer kazanır; alan hiç yoksa varsayılan true kalır
+        // (mevcut davranışı korur).
+        ImzaAlaniGoster = f["imzaAlaniGoster"].Count == 0
+            || f["imzaAlaniGoster"].Last() is "true" or "on" or "True"
     };
 
     private static async Task<IResult> Run(Func<Task> action)
