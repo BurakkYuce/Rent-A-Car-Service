@@ -8,18 +8,52 @@
 <p class="muted small">Salt-okur agrega: müşteri kira/ciro segmenti + personel BAF (araç tahsis) çalışma sayısı.</p>
 
 <h2>Müşteri Segment</h2>
+@* Tarih süzgeci KİRA BAŞLANGICINA (BasTar) uygulanır; daraltınca Kira Sayısı/Ciro da o pencereye iner. *@
+<form method="get" class="filter-bar">
+    <label>Tarih Listesi Baş.<input name="bas" type="date" value="@Bas" /></label>
+    <label>Tarih Listesi Bit.<input name="bit" type="date" value="@Bit" /></label>
+    <label>Kiralama Adedi (en az)<input name="minKira" type="number" min="1" step="1" value="@MinKira" /></label>
+    <label>Rez. Kaynağı
+        <select name="kaynak">
+            <option value="">— tümü —</option>
+            @foreach (var k in _kaynaklar) { <option value="@k" selected="@(k == Kaynak)">@k</option> }
+        </select>
+    </label>
+    <label>Çıkış Şube/Ofis
+        <select name="ofis">
+            <option value="">— tümü —</option>
+            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+        </select>
+    </label>
+    <button type="submit">Filtrele</button>
+    @if (FiltreVar) { <a class="link" href="/crm">Temizle</a> }
+</form>
+
+<p class="muted small">@_segment.Count müşteri · toplam ciro @_segment.Sum(s => s.ToplamCiro).ToString("N2") TL
+    · ek hizmet @_segment.Sum(s => s.HizmetBedeli).ToString("N2") TL</p>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Müşteri</th><th class="num">Kira Sayısı</th><th class="num">Toplam Ciro</th><th>Son İşlem</th><th>Segment</th></tr></thead>
+    <thead><tr><th>Müşteri</th><th>E-posta</th><th>Telefon</th><th class="num">Kira Sayısı</th>
+        <th class="num">Toplam Ciro</th><th class="num">Ort. Kira Bedeli</th><th class="num">Ort. KM</th>
+        <th class="num">Hizmet Bedeli</th><th>Doğ. Tar.</th><th>İlk Kira</th><th>Son İşlem</th><th>Segment</th></tr></thead>
     <tbody>
-        @if (_segment.Count == 0) { <tr><td colspan="5" class="muted">Veri yok.</td></tr> }
+        @if (_segment.Count == 0) { <tr><td colspan="12" class="muted">@(FiltreVar ? "Filtreye uyan müşteri yok." : "Veri yok.")</td></tr> }
         @foreach (var s in _segment)
         {
             <tr>
                 <td>@s.Ad</td>
+                <td>@(s.Mail ?? "—")</td>
+                <td>@(s.Tel ?? "—")</td>
                 <td class="num">@s.KiraSayisi</td>
                 <td class="num">@s.ToplamCiro.ToString("N2")</td>
-                <td>@(s.SonIslem?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td class="num">@s.OrtalamaKiraBedeli.ToString("N2")</td>
+                @* Km'si girilmemiş kiralarda "—": 0 yazmak "hiç yol yapılmadı" iddiası olurdu. *@
+                <td class="num">@(s.OrtalamaKm?.ToString("N0") ?? "—")</td>
+                <td class="num">@s.HizmetBedeli.ToString("N2")</td>
+                <td>@(s.DogumTarihi?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@(s.IlkKiraZamani?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@(s.SonIslem?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td>@s.Segment</td>
             </tr>
         }
@@ -46,12 +80,37 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "minKira")] public string? MinKira { get; set; }
+    [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
+
     private IReadOnlyList<MusteriSegmentRow> _segment = [];
     private IReadOnlyList<PersonelCalismaRow> _personel = [];
+    private IReadOnlyList<string> _kaynaklar = [];
+    private IReadOnlyList<string> _ofisler = [];
+
+    private bool FiltreVar => !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit)
+        || !string.IsNullOrWhiteSpace(MinKira) || !string.IsNullOrWhiteSpace(Kaynak) || !string.IsNullOrWhiteSpace(Ofis);
 
     protected override async Task OnInitializedAsync()
     {
-        _segment = await Reports.GetMusteriSegmentAsync();
+        // Seçenekler FİLTRESİZ kümeden — filtrelenmişten türetilseydi bir seçimden sonra
+        // diğer kaynak/ofisler listeden düşer, kullanıcı geri dönemezdi.
+        var sec = await Reports.GetMusteriSegmentSecenekleriAsync();
+        _kaynaklar = sec.Kaynaklar;
+        _ofisler = sec.Ofisler;
+
+        _segment = await Reports.GetMusteriSegmentAsync(new MusteriSegmentFilter
+        {
+            Bas = FormParse.Date(Bas),
+            // Gün sonuna genişlet: aksi halde bitiş günü seçildiğinde o günün kiraları düşerdi.
+            Bit = FormParse.Date(Bit)?.AddDays(1).AddTicks(-1),
+            MinKiraSayisi = FormParse.Int(MinKira),
+            RezKaynak = Kaynak,
+            CikisOfis = Ofis
+        });
         _personel = await Reports.GetPersonelCalismaAsync();
     }
 }

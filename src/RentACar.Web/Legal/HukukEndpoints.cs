@@ -37,7 +37,15 @@ public static class HukukEndpoints
         Durum = ParseEnum<HukukDurum>(FormParse.Str(f, "durum")) ?? HukukDurum.Acik,
         Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
         Aciklama = FormParse.Str(f, "aciklama"),
-        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
+        Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True",
+        // FAZ-41 derinlik — opsiyonel decimal boş "" gelince [FromForm] 400 verirdi; FormParse.Dec ile çevrilir.
+        FaturaNoTemp = FormParse.Str(f, "faturaNoTemp"),
+        AvukatTel = FormParse.Str(f, "avukatTel"),
+        AvukatMail = FormParse.Str(f, "avukatMail"),
+        Avukat2Ad = FormParse.Str(f, "avukat2Ad"),
+        Avukat2Tel = FormParse.Str(f, "avukat2Tel"),
+        Avukat2Mail = FormParse.Str(f, "avukat2Mail"),
+        Tahsilat = FormParse.Dec(FormParse.Str(f, "tahsilat"))
     };
 
 
