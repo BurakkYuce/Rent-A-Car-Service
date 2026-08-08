@@ -104,22 +104,34 @@ public sealed class RentalQuoteEngine(
         decimal kmAsim = 0m, provizyon = 0m, muafiyet = 0m;
         var gencSurucu = false;
         if (grup is null)
-            notlar.Add($"'{grupKod}' araç grubu bulunamadı; grup kuralları (KM aşım/provizyon) uygulanmadı.");
+            notlar.Add($"'{grupKod}' araç grubu bulunamadı; grup kuralları (provizyon/muafiyet) uygulanmadı.");
         else
         {
             provizyon = grup.Provizyon ?? 0m;
             muafiyet = grup.MuafiyetTutari ?? 0m;
-            if (req.TahminiKm is { } km && grup.GunlukKmLimiti is { } limit && limit > 0 && grup.AsimKmUcreti is { } asimUcret)
-            {
-                var dahilKm = (long)limit * gun;
-                var asim = km - dahilKm;
-                if (asim > 0) kmAsim = R(asim * asimUcret);
-            }
             if (req.SurucuYas is { } yas && grup.GencSurucuYas is { } esik && yas < esik)
             {
                 gencSurucu = true;
                 notlar.Add($"Genç sürücü (yaş {yas} < {esik}); genç sürücü teminatı önerilir.");
             }
+        }
+
+        // FAZ-71: KM limiti/aşım ücreti ÖNCE tarifenin GÜN-KADEMESİNDEN okunur; tarife bu alanları
+        // taşımıyorsa (tenant henüz doldurmadıysa) araç grubunun global değerine DÜŞÜLÜR — bugünkü
+        // davranış hiç bozulmaz (geriye uyum).
+        // Blok BİLİNÇLİ olarak grup dalının DIŞINDA: tarifede km tanımlıyken araç grubu bulunamazsa
+        // limit yine de uygulanmalı; grubun içinde kalsaydı tarifedeki değer sessizce yok sayılırdı.
+        var (tierKmLimit, tierKmUcret) = matris is null
+            ? ((int?)null, (decimal?)null)
+            : ResolveTierKm(matris, gun, notlar);
+        var etkinKmLimit = tierKmLimit ?? grup?.GunlukKmLimiti;
+        var etkinKmUcret = tierKmUcret ?? grup?.AsimKmUcreti;
+        if (req.TahminiKm is { } km && etkinKmLimit is { } limit && limit > 0 && etkinKmUcret is { } asimUcret)
+        {
+            // Limit GÜNLÜKTÜR (kullanıcı kararı): 200 km/gün × 5 gün = 1000 km dahil.
+            var dahilKm = (long)limit * gun;
+            var asim = km - dahilKm;
+            if (asim > 0) kmAsim = R(asim * asimUcret);
         }
 
         // 3) Sigorta/ek hizmet kalemleri (kuraldan bağımsız; faturalama gün tavanı = ürün.MaxGun)
@@ -293,6 +305,63 @@ public sealed class RentalQuoteEngine(
                 sonuc.Add(kod);
         }
         return sonuc;
+    }
+
+    /// <summary>
+    /// FAZ-71 — gün-kademesine karşılık gelen KM limiti (GÜNLÜK) + aşım ücreti.
+    ///
+    /// <para>Kademe seçimi <see cref="ResolveTierRate"/> ile AYNI mantığı izler: 30+ gün → aylık,
+    /// 8-29 gün → haftalık, 1-7 gün → Kademe N (clamp) ve o kademe boşsa EN YAKIN dolu kademe
+    /// (önce aşağı, sonra yukarı). İki resolver'ın ayrı kural konuşması, fiyatı bir kademeden
+    /// km limitini başka kademeden almak demek olurdu.</para>
+    ///
+    /// <para><b>Uzun dönem AYRI alan (kullanıcı kararı):</b> haftalık/aylık kademeler Km6'ya
+    /// DÜŞMEZ, kendi alanlarını kullanır; tanımsızsa sırayla haftalık → Km6 → (çağıranda) araç
+    /// grubunun global değeri devreye girer. Böylece uzun kirada limit "son kademeden miras"
+    /// kalmaz.</para>
+    ///
+    /// <para><b>Limit ve ücret AYRI çözülür:</b> tenant yalnız limiti doldurup ücreti boş
+    /// bırakabilir (ya da tersi); birini diğerinin varlığına bağlamak, yarım doldurulmuş tarifede
+    /// sessizce yanlış kademeye düşürürdü.</para>
+    /// </summary>
+    private static (int? Limit, decimal? Ucret) ResolveTierKm(RateMatrix m, int gun, List<string> notlar)
+    {
+        int? limit;
+        decimal? ucret;
+
+        if (gun >= 30)
+        {
+            limit = m.KmAylik ?? m.KmHaftalik;
+            ucret = m.KmAylikUcret ?? m.KmHaftalikUcret;
+        }
+        else if (gun >= 8)
+        {
+            limit = m.KmHaftalik;
+            ucret = m.KmHaftalikUcret;
+        }
+        else
+        {
+            limit = null;
+            ucret = null;
+        }
+
+        if (limit is null || ucret is null)
+        {
+            // 1-7 gün yolu VE uzun-dönem alanı boş kalan durum: en yakın dolu 1..6 kademesi.
+            var limitler = new[] { m.Km1, m.Km2, m.Km3, m.Km4, m.Km5, m.Km6 };
+            var ucretler = new[] { m.Km1Ucret, m.Km2Ucret, m.Km3Ucret, m.Km4Ucret, m.Km5Ucret, m.Km6Ucret };
+            var tier = Math.Clamp(gun, 1, 6);
+
+            for (var t = tier; t >= 1 && limit is null; t--) limit = limitler[t - 1];
+            for (var t = tier + 1; t <= 6 && limit is null; t++) limit = limitler[t - 1];
+            for (var t = tier; t >= 1 && ucret is null; t--) ucret = ucretler[t - 1];
+            for (var t = tier + 1; t <= 6 && ucret is null; t++) ucret = ucretler[t - 1];
+
+            if (gun >= 8 && limit is not null)
+                notlar.Add($"Tarife '{m.Kod}' uzun-dönem km limiti tanımsız; kademe km limiti uygulandı.");
+        }
+
+        return (limit, ucret);
     }
 
     /// <summary>Gün-kademesi fiyatı. UZUN DÖNEM (FAZ 3.A1): 30+ gün → GunAylik (tanımsızsa GunHaftalik'e

@@ -147,10 +147,25 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         Pos(n.Gun4, "Gün 4 fiyatı"); Pos(n.Gun5, "Gün 5 fiyatı"); Pos(n.Gun6, "Gün 6 fiyatı");
         Pos(n.Gun7, "Gün 7 fiyatı");
         Pos(n.GunHaftalik, "Haftalık kademe (8-29 gün) fiyatı"); Pos(n.GunAylik, "Aylık kademe (30+ gün) fiyatı");
+        // FAZ-71: km limiti 0/negatif olamaz — 0 limit "her km aşım" demek olur ve sessizce
+        // devasa aşım ücreti üretirdi; sınırsız için alan BOŞ bırakılır.
+        KmPos(n.Km1, "Kademe 1"); KmPos(n.Km2, "Kademe 2"); KmPos(n.Km3, "Kademe 3");
+        KmPos(n.Km4, "Kademe 4"); KmPos(n.Km5, "Kademe 5"); KmPos(n.Km6, "Kademe 6");
+        KmPos(n.KmHaftalik, "Haftalık kademe"); KmPos(n.KmAylik, "Aylık kademe");
+        Pos(n.Km1Ucret, "Kademe 1 km aşım ücreti"); Pos(n.Km2Ucret, "Kademe 2 km aşım ücreti");
+        Pos(n.Km3Ucret, "Kademe 3 km aşım ücreti"); Pos(n.Km4Ucret, "Kademe 4 km aşım ücreti");
+        Pos(n.Km5Ucret, "Kademe 5 km aşım ücreti"); Pos(n.Km6Ucret, "Kademe 6 km aşım ücreti");
+        Pos(n.KmHaftalikUcret, "Haftalık kademe km aşım ücreti");
+        Pos(n.KmAylikUcret, "Aylık kademe km aşım ücreti");
         if (n.MaxEsneklik is < 0m or > 100m)
             throw new ValidationException("Esneklik (indirim) oranı 0 ile 100 arasında olmalıdır (%).");
         if (n.BasTar is { } b && n.BitTar is { } t && t < b)
             throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.");
+    }
+
+    private static void KmPos(int? v, string label)
+    {
+        if (v is <= 0) throw new ValidationException($"{label} km limiti pozitif olmalıdır (sınırsız için boş bırakın).");
     }
 
     private static void Pos(decimal? v, string label)
@@ -176,6 +191,12 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         Gun1 = input.Gun1, Gun2 = input.Gun2, Gun3 = input.Gun3, Gun4 = input.Gun4,
         Gun5 = input.Gun5, Gun6 = input.Gun6, Gun7 = input.Gun7,
         GunHaftalik = input.GunHaftalik, GunAylik = input.GunAylik,
+        Km1 = input.Km1, Km2 = input.Km2, Km3 = input.Km3,
+        Km4 = input.Km4, Km5 = input.Km5, Km6 = input.Km6,
+        Km1Ucret = input.Km1Ucret, Km2Ucret = input.Km2Ucret, Km3Ucret = input.Km3Ucret,
+        Km4Ucret = input.Km4Ucret, Km5Ucret = input.Km5Ucret, Km6Ucret = input.Km6Ucret,
+        KmHaftalik = input.KmHaftalik, KmHaftalikUcret = input.KmHaftalikUcret,
+        KmAylik = input.KmAylik, KmAylikUcret = input.KmAylikUcret,
         MaxEsneklik = input.MaxEsneklik,
         OnayDurumu = input.OnayDurumu,
         Onaylayan = TrimOrNull(input.Onaylayan),
@@ -202,6 +223,12 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         row.Gun1 = n.Gun1; row.Gun2 = n.Gun2; row.Gun3 = n.Gun3; row.Gun4 = n.Gun4;
         row.Gun5 = n.Gun5; row.Gun6 = n.Gun6; row.Gun7 = n.Gun7;
         row.GunHaftalik = n.GunHaftalik; row.GunAylik = n.GunAylik;
+        row.Km1 = n.Km1; row.Km2 = n.Km2; row.Km3 = n.Km3;
+        row.Km4 = n.Km4; row.Km5 = n.Km5; row.Km6 = n.Km6;
+        row.Km1Ucret = n.Km1Ucret; row.Km2Ucret = n.Km2Ucret; row.Km3Ucret = n.Km3Ucret;
+        row.Km4Ucret = n.Km4Ucret; row.Km5Ucret = n.Km5Ucret; row.Km6Ucret = n.Km6Ucret;
+        row.KmHaftalik = n.KmHaftalik; row.KmHaftalikUcret = n.KmHaftalikUcret;
+        row.KmAylik = n.KmAylik; row.KmAylikUcret = n.KmAylikUcret;
         row.MaxEsneklik = n.MaxEsneklik;
         row.OnayDurumu = n.OnayDurumu;
         row.Onaylayan = n.Onaylayan;
