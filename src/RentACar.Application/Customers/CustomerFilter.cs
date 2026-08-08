@@ -16,6 +16,10 @@ public sealed class CustomerFilter
     public bool? Uyari { get; set; }
     /// <summary>true → kara listede; null → tümü.</summary>
     public bool? KaraListe { get; set; }
+    /// <summary>true → pasif; false → yalnız aktif; null → tümü. (Customer.Pasif alanı.)</summary>
+    public bool? Pasif { get; set; }
+    /// <summary>true → araç verilmez işaretli.</summary>
+    public bool? AracVerilmez { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

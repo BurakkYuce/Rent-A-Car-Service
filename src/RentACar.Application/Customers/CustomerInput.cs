@@ -82,4 +82,53 @@ public sealed class CustomerInput
     public string? Dil { get; set; }
     public string? Doviz { get; set; }
     public string? TevkifatDurum { get; set; }
+
+    // ---- FAZ-40 derinlik ----
+    public string? Ulke { get; set; }
+    public string? Tel2 { get; set; }
+    public string? OzelKod { get; set; }
+    public string? EntegrasyonKodu { get; set; }
+    public string? Aciklama { get; set; }
+    public string? RiskIzin { get; set; }
+    public string? DogumYeri { get; set; }
+    public string? PasaportYeri { get; set; }
+    public string? KurumsalNo { get; set; }
+    public string? UyariSerbest { get; set; }
+    public string? TevkifatKodu { get; set; }
+    public string? FaturaKiralayanIsim { get; set; }
+    public string? IsAdresi { get; set; }
+    public string? IsTelefonu { get; set; }
+    public string? KayitliIl { get; set; }
+    public string? KayitliIlce { get; set; }
+    public string? MahalleKoy { get; set; }
+    public string? SeriNo { get; set; }
+    public string? CiltNo { get; set; }
+    public string? AileSira { get; set; }
+    public string? SiraNo { get; set; }
+    public bool TcDogrulama { get; set; }
+    public bool FaturaAdresFarkli { get; set; }
+    public bool FaturaTekSatir { get; set; }
+    public bool DogumGunuTakip { get; set; }
+    public bool AnonimAd { get; set; }
+    public bool AnonimTc { get; set; }
+    public bool AnonimTelefon { get; set; }
+    public bool AnonimMail { get; set; }
+    public bool AnonimAdres { get; set; }
+    public bool AnonimBelge { get; set; }
+    public bool BakiyeGor { get; set; }
+    public bool AracVerilmez { get; set; }
+    public bool YasEhliyetSerbest { get; set; }
+    public bool MerkezKurumsal { get; set; }
+    public bool Broker { get; set; }
+    public bool FindexZorunlu { get; set; }
+    public decimal? BayiKomisyon { get; set; }
+    public DateTimeOffset? PasaportTarihi { get; set; }
+    public decimal? WebIndirim { get; set; }
+    public DateTimeOffset? KaraZamani { get; set; }
+    public Guid? IslemSubeId { get; set; }
+    public Guid? FirmaId { get; set; }
+
+    /// <summary>Portal şifresi DÜZ METİN — servis hash'ler, kolona ASLA düz yazılmaz.
+    /// Boş bırakılırsa mevcut özet KORUNUR ("değiştirme").</summary>
+    public string? Sifre { get; set; }
 }

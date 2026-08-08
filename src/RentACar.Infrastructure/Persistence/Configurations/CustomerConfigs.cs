@@ -77,6 +77,34 @@ internal sealed class CustomerConfig : IEntityTypeConfiguration<Customer>
         e.HasIndex(x => new { x.TenantId, x.VergiNo })
             .IsUnique()
             .HasFilter("\"VergiNo\" IS NOT NULL");
+        // ---- FAZ-40 derinlik ----
+        e.Property(x => x.Ulke).HasMaxLength(64);
+        e.Property(x => x.Tel2).HasMaxLength(32);
+        e.Property(x => x.OzelKod).HasMaxLength(64);
+        e.Property(x => x.EntegrasyonKodu).HasMaxLength(64);
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        e.Property(x => x.RiskIzin).HasMaxLength(64);
+        e.Property(x => x.BayiKomisyon).HasColumnType("numeric(19,4)");
+        e.Property(x => x.DogumYeri).HasMaxLength(128);
+        e.Property(x => x.PasaportYeri).HasMaxLength(128);
+        e.Property(x => x.KurumsalNo).HasMaxLength(64);
+        e.Property(x => x.SifreHash).HasMaxLength(256);
+        e.Property(x => x.UyariSerbest).HasMaxLength(512);
+        e.Property(x => x.WebIndirim).HasColumnType("numeric(19,4)");
+        e.Property(x => x.TevkifatKodu).HasMaxLength(32);
+        e.Property(x => x.FaturaKiralayanIsim).HasMaxLength(256);
+        e.Property(x => x.IsAdresi).HasMaxLength(512);
+        e.Property(x => x.IsTelefonu).HasMaxLength(32);
+        e.Property(x => x.KayitliIl).HasMaxLength(64);
+        e.Property(x => x.KayitliIlce).HasMaxLength(64);
+        e.Property(x => x.MahalleKoy).HasMaxLength(128);
+        e.Property(x => x.SeriNo).HasMaxLength(32);
+        e.Property(x => x.CiltNo).HasMaxLength(32);
+        e.Property(x => x.AileSira).HasMaxLength(32);
+        e.Property(x => x.SiraNo).HasMaxLength(32);
+        e.HasIndex(x => new { x.TenantId, x.EntegrasyonKodu });
+        e.HasIndex(x => new { x.TenantId, x.FirmaId });
+
     }
 }
 
