@@ -59,6 +59,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);
         if (filter.Uyari is { } uy) q = q.Where(c => c.Uyari == uy);
         if (filter.KaraListe is { } kl) q = q.Where(c => c.KaraListe == kl);
+        // FAZ-40: Pasif filtresi YOKTU — pasif cariler listeden ayıklanamıyordu.
+        if (filter.Pasif is { } pf) q = q.Where(c => c.Pasif == pf);
+        if (filter.AracVerilmez is { } av) q = q.Where(c => c.AracVerilmez == av);
         return q;
     }
 
@@ -108,7 +111,20 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 KaraListe = c.KaraListe, Pasif = c.Pasif, Uyari = c.Uyari, IysIzinli = c.IysIzinli,
                 KiraAdet = a?.Adet ?? 0,
                 Ciro = a?.Ciro ?? 0m,
-                SonKira = a is null ? null : a.SonKira
+                SonKira = a is null ? null : a.SonKira,
+                // FAZ-40 (D3): alanlar entity'de zaten vardı, projeksiyona girmiyordu.
+                MusteriTemsilcisi = c.MusteriTemsilcisi,
+                DogumTarihi = c.DogumTarihi,
+                VadeGun = c.VadeGun,
+                UyariNedeni = c.UyariNedeni,
+                Gsm2 = c.Gsm2,
+                Adres = c.Adres,
+                Ilce = c.Ilce,
+                EntegrasyonKodu = c.EntegrasyonKodu,
+                OzelKod = c.OzelKod,
+                Ulke = c.Ulke,
+                Sinif = c.Sinif,
+                AracVerilmez = c.AracVerilmez
             };
         }).ToList();
 

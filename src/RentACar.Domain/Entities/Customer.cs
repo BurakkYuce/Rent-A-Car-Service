@@ -136,6 +136,70 @@ public class Customer : ITenantOwned, IAuditable
     /// <summary>Faturada kullanılacak farklı ünvan.</summary>
     public string? FaturaUnvan { get; set; }
 
+    // ---- FAZ-40 derinlik (additive, hepsi nullable/false — mevcut kayıtlar etkilenmez) ----
+
+    public bool TcDogrulama { get; set; }
+    public string? Ulke { get; set; }
+    public string? Tel2 { get; set; }
+    public string? OzelKod { get; set; }
+    public string? EntegrasyonKodu { get; set; }
+    public string? Aciklama { get; set; }
+    public bool FaturaAdresFarkli { get; set; }
+    public string? RiskIzin { get; set; }
+    public decimal? BayiKomisyon { get; set; }
+    /// <summary>Fatura tek satırda kesilsin (kalem dökümü olmadan).</summary>
+    public bool FaturaTekSatir { get; set; }
+    public bool DogumGunuTakip { get; set; }
+
+    // KVKK anonimleştirme bayrakları — kayıt SİLİNMEZ, alan bazında maskeleme talebi işaretlenir.
+    public bool AnonimAd { get; set; }
+    public bool AnonimTc { get; set; }
+    public bool AnonimTelefon { get; set; }
+    public bool AnonimMail { get; set; }
+    public bool AnonimAdres { get; set; }
+    public bool AnonimBelge { get; set; }
+
+    public string? DogumYeri { get; set; }
+    public DateTimeOffset? PasaportTarihi { get; set; }
+    public string? PasaportYeri { get; set; }
+    public string? KurumsalNo { get; set; }
+
+    /// <summary>
+    /// Portal şifresinin TEK YÖNLÜ ÖZETİ. Düz metin ASLA saklanmaz — servis
+    /// <c>IPasswordHasher</c> ile hash'ler (TarifeGrubu ile aynı desen). Boş şifre = "değiştirme".
+    /// </summary>
+    public string? SifreHash { get; set; }
+
+    /// <summary>Serbest uyarı metni (mevcut <c>Uyari</c> bayrağından ayrı; o bayrak, bu açıklama).</summary>
+    public string? UyariSerbest { get; set; }
+    public decimal? WebIndirim { get; set; }
+    /// <summary>Kara listeye alınma zamanı (bayrak <c>KaraListe</c>'de).</summary>
+    public DateTimeOffset? KaraZamani { get; set; }
+    /// <summary>İşlem şubesi referansı — FK KISITI YOK (additive; şube silinse kayıt kalır).</summary>
+    public Guid? IslemSubeId { get; set; }
+    public bool BakiyeGor { get; set; }
+    public string? TevkifatKodu { get; set; }
+    /// <summary>Bu cariye ARAÇ VERİLMEZ (operasyonel uyarı — kira açılışında gösterilir).</summary>
+    public bool AracVerilmez { get; set; }
+    /// <summary>Yaş/ehliyet kuralından muaf.</summary>
+    public bool YasEhliyetSerbest { get; set; }
+    /// <summary>Faturada kiralayan ismi farklı yazılsın.</summary>
+    public string? FaturaKiralayanIsim { get; set; }
+    public bool MerkezKurumsal { get; set; }
+    public bool Broker { get; set; }
+    public bool FindexZorunlu { get; set; }
+    public string? IsAdresi { get; set; }
+    public string? IsTelefonu { get; set; }
+    /// <summary>Bağlı olduğu firma carisi (kurumsal hiyerarşi) — FK kısıtı YOK.</summary>
+    public Guid? FirmaId { get; set; }
+    public string? KayitliIl { get; set; }
+    public string? KayitliIlce { get; set; }
+    public string? MahalleKoy { get; set; }
+    public string? SeriNo { get; set; }
+    public string? CiltNo { get; set; }
+    public string? AileSira { get; set; }
+    public string? SiraNo { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
