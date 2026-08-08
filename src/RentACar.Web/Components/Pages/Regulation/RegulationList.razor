@@ -57,21 +57,44 @@
     <label>Dönem<input name="donem" placeholder="2026-1" required /></label>
     <label>Tutar<input name="tutar" type="number" step="0.01" value="0" /></label>
     <label>Vade<input name="vade" type="date" required /></label>
+    <label class="u-col-full">Açıklama<input name="aciklama" maxlength="512" /></label>
     <button type="submit">Ekle</button>
 </form>
 <div class="table-scroll">
-<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Dönem</th><th>Tutar</th><th>Vade</th><th>Ödendi</th><th></th></tr></thead><tbody>
+<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Dönem</th><th class="num">Tutar</th><th class="num">Kalan</th><th>Vade</th><th>Ödendi</th><th>Açıklama</th><th>Ödeme</th></tr></thead><tbody>
 @foreach (var m in _mtv)
 {
-    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td>@m.Tutar.ToString("N2")</td><td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td>
+    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td class="num">@m.Tutar.ToString("N2")</td>
+        <td class="num">@m.Kalan.ToString("N2")</td>
+        <td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td>
+        <td>@(m.Aciklama ?? "—")</td>
         <td>
             @if (!m.Odendi)
             {
-                <form method="post" action="/regulasyon-odeme/mtv" style="display:inline"><AntiforgeryToken />
+                @* Kısmi ödeme: Tutar BOŞ bırakılırsa kalanın tamamı ödenir. islemAnahtari her
+                   render'da yeni GUID — çift-submit kısmi unique index'e takılır. *@
+                <form method="post" action="/regulasyon-odeme/mtv" class="inline-form"><AntiforgeryToken />
                     <input type="hidden" name="id" value="@m.Id" />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
                     <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                    <input name="tutar" type="number" step="0.01" min="0.01" max="@m.Kalan.ToString(System.Globalization.CultureInfo.InvariantCulture)" placeholder="tümü" title="Kısmi tutar (boş = kalanın tamamı)" />
+                    <input name="odemeTarihi" type="date" title="Ödeme tarihi (boş = bugün)" />
+                    <input name="evrakNo" placeholder="Evrak No" maxlength="64" />
+                    <input name="islemYapan" placeholder="İşlem Yapan" maxlength="128" />
+                    <input name="kasaKodu" placeholder="Kasa Kodu" maxlength="64" />
+                    <input name="hesapNo" placeholder="Hesap/IBAN" maxlength="64" />
+                    <input name="odemeAciklama" placeholder="Açıklama" maxlength="512" />
                     <button type="submit">Öde</button>
                 </form>
+            }
+            @if (_mtvOdeme.TryGetValue(m.Id, out var gecmis))
+            {
+                <div class="muted small">
+                    @foreach (var o in gecmis)
+                    {
+                        <div>#@o.Sira · @o.Tarih.LocalDateTime.ToString("dd.MM.yyyy") · @o.Tutar.ToString("N2") · kalan @o.KalanSonrasi.ToString("N2")@(string.IsNullOrWhiteSpace(o.EvrakNo) ? "" : " · " + o.EvrakNo)</div>
+                    }
+                </div>
             }
         </td>
     </tr>
@@ -85,23 +108,48 @@
     <label>Muayene Tarihi<input name="muayeneTarihi" type="date" required /></label>
     <label>Bitiş<input name="bitis" type="date" required /></label>
     <label>Ücret<input name="ucret" type="number" step="0.01" value="0" /></label>
+    <label>İşlem KM<input name="islemKm" type="number" min="0" step="1" /></label>
+    <label class="u-col-full">Açıklama<input name="aciklama" maxlength="512" /></label>
     <button type="submit">Ekle</button>
 </form>
 <div class="table-scroll">
-<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Muayene</th><th>Bitiş</th><th>Ücret</th><th>Ödendi</th><th></th></tr></thead><tbody>
+<table class="grid tr-grid"><thead><tr><th>Araç</th><th>Muayene</th><th>Bitiş</th><th class="num">Ücret</th><th class="num">Ceza</th><th class="num">Kalan</th><th class="num">İşlem KM</th><th>Ödendi</th><th>Açıklama</th><th>Ödeme</th></tr></thead><tbody>
 @foreach (var m in _insp)
 {
-    <tr><td>@Plaka(m.VehicleId)</td><td>@m.MuayeneTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Ucret.ToString("N2")</td>
+    <tr><td>@Plaka(m.VehicleId)</td><td>@m.MuayeneTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
+        <td class="num">@m.Ucret.ToString("N2")</td>
+        <td class="num">@m.Ceza.ToString("N2")</td>
+        <td class="num">@m.Kalan.ToString("N2")</td>
+        <td class="num">@(m.IslemKm?.ToString("N0") ?? "—")</td>
         <td>@(m.Odendi ? "Evet" : "Hayır")</td>
+        <td>@(m.Aciklama ?? "—")</td>
         <td>
             @if (!m.Odendi)
             {
-                <form method="post" action="/regulasyon-odeme/muayene" style="display:inline"><AntiforgeryToken />
+                @* Ceza BORCU ARTIRIR: girilen ceza kalana eklenir, ödenen tutar düşülür. *@
+                <form method="post" action="/regulasyon-odeme/muayene" class="inline-form"><AntiforgeryToken />
                     <input type="hidden" name="id" value="@m.Id" />
+                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
                     <select name="hesap"><option>Kasa</option><option>Banka</option></select>
-                    <input name="ceza" type="number" step="0.01" min="0" value="0" style="width:6em" title="Ceza" />
+                    <input name="ceza" type="number" step="0.01" min="0" value="0" title="Ceza (borcu artırır)" />
+                    <input name="tutar" type="number" step="0.01" min="0.01" placeholder="tümü" title="Kısmi tutar (boş = kalan + ceza)" />
+                    <input name="odemeTarihi" type="date" title="Ödeme tarihi (boş = bugün)" />
+                    <input name="evrakNo" placeholder="Evrak No" maxlength="64" />
+                    <input name="islemYapan" placeholder="İşlem Yapan" maxlength="128" />
+                    <input name="kasaKodu" placeholder="Kasa Kodu" maxlength="64" />
+                    <input name="hesapNo" placeholder="Hesap/IBAN" maxlength="64" />
+                    <input name="odemeAciklama" placeholder="Açıklama" maxlength="512" />
                     <button type="submit">Öde</button>
                 </form>
+            }
+            @if (_muayeneOdeme.TryGetValue(m.Id, out var gecmis))
+            {
+                <div class="muted small">
+                    @foreach (var o in gecmis)
+                    {
+                        <div>#@o.Sira · @o.Tarih.LocalDateTime.ToString("dd.MM.yyyy") · @o.Tutar.ToString("N2")@(o.Ceza > 0 ? $" (+ceza {o.Ceza:N2})" : "") · kalan @o.KalanSonrasi.ToString("N2")</div>
+                    }
+                </div>
             }
         </td>
     </tr>
@@ -118,6 +166,8 @@
     private IReadOnlyList<InsurancePolicy> _ins = [];
     private IReadOnlyList<MtvRecord> _mtv = [];
     private IReadOnlyList<InspectionRecord> _insp = [];
+    private Dictionary<Guid, IReadOnlyList<MtvOdeme>> _mtvOdeme = new();
+    private Dictionary<Guid, IReadOnlyList<MuayeneOdeme>> _muayeneOdeme = new();
     private IReadOnlyList<Vehicle> _vehicles = [];
     private Dictionary<Guid, string> _vehMap = new();
     private List<string> _firmaOpts = [];
@@ -127,6 +177,14 @@
         _ins = await Reg.ListInsuranceAsync();
         _mtv = await Reg.ListMtvAsync();
         _insp = await Reg.ListInspectionAsync();
+
+        // Ödeme geçmişi TEK sorguda ve KAYIT KAPANSA DA gösterilir. Önceki hâli "kısmen ödenmiş"
+        // filtresi kullanıyordu; kayıt kapanınca (Kalan=0) geçmiş ekrandan KAYBOLUYORDU — oysa
+        // evrak numaraları ve kasa/banka dağılımı yalnız burada görünüyor ve ödemeler değişmez.
+        _mtvOdeme = (await Reg.ListMtvOdemeHepsiAsync())
+            .GroupBy(x => x.MtvId).ToDictionary(g => g.Key, g => (IReadOnlyList<MtvOdeme>)g.OrderBy(x => x.Sira).ToList());
+        _muayeneOdeme = (await Reg.ListMuayeneOdemeHepsiAsync())
+            .GroupBy(x => x.InspectionId).ToDictionary(g => g.Key, g => (IReadOnlyList<MuayeneOdeme>)g.OrderBy(x => x.Sira).ToList());
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
 

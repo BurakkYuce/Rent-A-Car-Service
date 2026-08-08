@@ -630,6 +630,15 @@ span.flatpickr-weekday { font-weight: 600; }
 .kf-robox  { display: block; padding: .35rem .5rem; border-radius: 4px; }      /* .kf-ro ayna kutusu (araç bilgi aynası) */
 .kf-inline { display: flex; gap: .4rem; align-items: center; }                /* satır-içi label+checkbox (ör. "Kdv Muafiyeti Var") */
 
+/* Tablo hücresi içindeki aksiyon formları. `.inline` repoda kullanılıyordu ama TANIMI YOKTU →
+   formlar blok olarak alt alta düşüyordu; FAZ-14 ile tanımlandı (mevcut sayfalar da düzeldi).
+   `.inline-form` çok alanlı satır-içi form (ör. MTV kısmi ödeme) için sarmalı sürümdür. */
+.inline { display: inline; }
+.inline-form { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.inline-form input, .inline-form select { max-width: 9rem; padding: .2rem .35rem; font-size: .8rem;
+    border: 1px solid var(--line); border-radius: .3rem; background: var(--surface); color: inherit; }
+.inline-form input[type=number] { max-width: 7rem; }
+
 /* ============================================================================
    FİNANS ANALİZ GRAFİKLERİ — sunucu-çizimi SVG (CSP 'self': JS'siz) + yatay kırılım.
    Renkler dataviz token'larından (--dv-1..6) → dark mode otomatik uyar.
