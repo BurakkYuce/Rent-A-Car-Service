@@ -123,8 +123,14 @@ public static class OrtakSorgular
     /// (1) servis kaydındaki elle hedef (MAX SonrakiBakimKm); (2) Vehicle.SonBakimKm + ServisTanim.BakimKm
     /// (AracTipi↔Tip case-insensitive; çok tanımda EN KÜÇÜK aralık = en erken uyarı). Kaynağı olmayan
     /// araç "tanım yok" satırı (hedef null) — sessiz gizleme yok.</summary>
+    /// <param name="filtre">
+    /// FAZ-76 — OPSİYONEL rapor filtresi. null (varsayılan) = ESKİ DAVRANIŞ birebir; bu yüzden
+    /// <c>FiloBildirimUretici</c>'nin parametresiz çağrısı DEĞİŞMEDEN çalışır. Filtre yalnız
+    /// DARALTIR; bildirim üreticisi hiçbir zaman filtre geçmez → bildirim kapsamı aynı kalır.
+    /// </param>
     public static async Task<IReadOnlyList<PeriyodikServisRow>> PeriyodikServisAsync(
-        AppDbContext db, CancellationToken ct = default)
+        AppDbContext db, CancellationToken ct = default,
+        RentACar.Application.Reporting.PeriyodikServisFilter? filtre = null)
     {
         var bakim = (await db.ServiceRecords.AsNoTracking()
             .Where(r => r.SonrakiBakimKm != null)
@@ -138,7 +144,18 @@ public static class OrtakSorgular
             .ToDictionary(g => g.Key, g => g.Min(t => t.BakimKm), StringComparer.OrdinalIgnoreCase);
 
         var araclar = await db.Vehicles.AsNoTracking()
-            .Select(v => new { v.Id, v.Plaka, v.Km, v.Tip, v.SonBakimKm }).ToListAsync(ct);
+            .Select(v => new { v.Id, v.Plaka, v.Km, v.Tip, v.SonBakimKm,
+                v.Marka, v.ModelYili, v.Yakit, v.Vites, v.Sube, Aktif = v.Durum != VehicleStatus.Pasif })
+            .ToListAsync(ct);
+
+        // FAZ-76 rapor kolonu: aracın SON servis kaydı (iptal hariç) — "ne zaman/kaç km'de
+        // bakıma girdi" bilgisi. Bildirim üreticisi bu kolonu kullanmaz.
+        var sonServis = (await db.ServiceRecords.AsNoTracking()
+                .Where(r => r.Durum != ServisDurum.Iptal)
+                .Select(r => new { r.VehicleId, r.GirisTarihi, r.GirisKm })
+                .ToListAsync(ct))
+            .GroupBy(r => r.VehicleId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.GirisTarihi).First());
 
         return araclar.Select(v =>
             {
@@ -153,9 +170,31 @@ public static class OrtakSorgular
                     (null, int ot) => (ot, "Tanım"),
                     _ => ((int?)null, (string?)null)
                 };
-                return new PeriyodikServisRow(v.Id, v.Plaka, v.Km, hedef, hedef - v.Km, kaynak);
+                var ss = sonServis.GetValueOrDefault(v.Id);
+                return new PeriyodikServisRow(v.Id, v.Plaka, v.Km, hedef, hedef - v.Km, kaynak,
+                    v.Marka, v.Tip, v.ModelYili, v.Yakit?.ToString(), v.Vites?.ToString(), v.Sube,
+                    ss?.GirisTarihi, ss?.GirisKm, v.Aktif);
             })
+            .Where(r => Uygun(r, filtre))
             .OrderBy(r => r.KalanKm ?? int.MaxValue)
             .ToList();
+    }
+
+    /// <summary>FAZ-76 filtre uygunluğu. Filtre null ise HER satır geçer (eski davranış).</summary>
+    private static bool Uygun(PeriyodikServisRow r, RentACar.Application.Reporting.PeriyodikServisFilter? f)
+    {
+        if (f is null) return true;
+        if (f.Aktif is bool a && r.Aktif != a) return false;
+        if (!string.IsNullOrWhiteSpace(f.Sube)
+            && !RentACar.Application.Common.TurkishText.EqualsIgnoreTurkishCase(r.Sube, f.Sube)) return false;
+        if (!string.IsNullOrWhiteSpace(f.Plaka))
+        {
+            // Plaka DB'de normalize saklanıyor → arama terimi de normalize (FAZ-63 dersi).
+            var p = new string(f.Plaka.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+            if (p.Length > 0 && !r.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)) return false;
+        }
+        // Uyarı eşiği: hedefi OLMAYAN araç ("tanım yok") elenmez — eksik tanım da bir uyarıdır.
+        if (f.UyariEsigi is int esik && r.KalanKm is int kalan && kalan > esik) return false;
+        return true;
     }
 }

@@ -19,7 +19,7 @@ public sealed class DashboardService(ReportService report)
     public async Task<DashboardDto> GetAsync(DateTimeOffset gun, CancellationToken ct = default)
     {
         var filo = await _report.GetFleetUtilizationAsync(ct);
-        var gunluk = await _report.GetGunlukFaaliyetAsync(gun, ct);
+        var gunluk = await _report.GetGunlukFaaliyetAsync(gun, ct: ct);
         var kb = await _report.GetKasaBankaSummaryAsync(ct: ct);   // tüm zaman bakiye
         var tf = await _report.GetTahsilatFaturaAsync(ct: ct);     // tüm zaman fatura-tahsilat farkı
 

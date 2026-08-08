@@ -21,17 +21,23 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Sözleşme</th><th>Plaka</th><th class="num">Çıkış</th><th class="num">Dönüş</th><th class="num">Katedilen</th><th class="num">Limit</th><th class="num">Fazla KM</th><th class="num">Fazla Bedel</th></tr></thead>
+    <thead><tr><th>Sözleşme</th><th>Plaka</th><th>Marka</th><th>Tipi</th><th>Yakıt</th><th>Vites</th><th>Başlangıç</th><th>Bitiş</th><th class="num">Çıkış</th><th class="num">Dönüş</th><th class="num">Katedilen</th><th class="num">Limit</th><th class="num">Fazla KM</th><th class="num">Fazla Bedel</th></tr></thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Bu aralıkta dönmüş kira yok.</td></tr>
+            <tr><td colspan="14" class="muted">Bu aralıkta dönmüş kira yok.</td></tr>
         }
         @foreach (var r in _rows)
         {
             <tr>
                 <td>@r.SozlesmeNo</td>
-                <td>@r.Plaka</td>
+                <td class="mono">@r.Plaka</td>
+                <td>@(r.Marka ?? "—")</td>
+                <td>@(r.Tip ?? "—")</td>
+                <td>@(r.Yakit ?? "—")</td>
+                <td>@(r.Vites ?? "—")</td>
+                <td>@(r.BasTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td>@(r.BitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td class="num">@r.CikisKm</td>
                 <td class="num">@r.DonusKm</td>
                 <td class="num">@r.KatedilenKm</td>
