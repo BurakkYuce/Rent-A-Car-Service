@@ -10,7 +10,9 @@ namespace RentACar.Application.Pricing;
 /// Yazma <see cref="Permission.OperationsWrite"/> (fiyatlandırma operasyonel yapılandırma);
 /// lookup yetkisizdir (rezervasyon/teklif akışı çağırır). Tenant izolasyonu/audit alt katmanda.
 /// </summary>
-public sealed class RateCardService(IRateCardRepository repository, ICurrentUser currentUser)
+public sealed class RateCardService(
+    IRateCardRepository repository, ICurrentUser currentUser,
+    RentACar.Application.TarifeGruplari.ITarifeGrubuRepository tarifeGruplari)
 {
     private readonly IRateCardRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -44,6 +46,7 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
@@ -58,6 +61,7 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
@@ -88,6 +92,17 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
             throw new ValidationException("Geçerlilik bitişi başlangıçtan önce olamaz.");
     }
 
+    /// <summary>
+    /// FAZ-72 — verilen tarife grubu bu tenant'ta GERÇEKTEN var mı. Doğrulanmazsa satır var olmayan
+    /// (ya da başka tenant'a ait) bir gruba bağlanmış görünürdü; FK zaten engellerdi ama hata
+    /// kullanıcıya 500 olarak dönerdi. Repo tenant-kapsamlı → başka tenant'ın grubu "bulunamadı".
+    /// </summary>
+    private async Task TarifeGrubuVarMi(Guid? id, CancellationToken ct)
+    {
+        if (id is { } g && g != Guid.Empty && await tarifeGruplari.FindAsync(g, ct) is null)
+            throw new ValidationException("Seçilen tarife grubu bulunamadı.");
+    }
+
     private static RateCardInput Normalize(RateCardInput input) => new()
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
@@ -99,6 +114,13 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
         Doviz = string.IsNullOrWhiteSpace(input.Doviz) ? "TRY" : input.Doviz.Trim().ToUpperInvariant(),
         GecerliBas = input.GecerliBas,
         GecerliBit = input.GecerliBit,
+        // FAZ-72 — Normalize YENİ nesne kurar: buraya eklenmeyen alan sessizce kaybolur.
+        ScdwDahil = input.ScdwDahil,
+        MiniHasarDahil = input.MiniHasarDahil,
+        HirsizlikDahil = input.HirsizlikDahil,
+        ScdwZorunlu = input.ScdwZorunlu,
+        Gosterme = input.Gosterme,
+        TarifeGrubuId = input.TarifeGrubuId,
         Aktif = input.Aktif
     };
 
@@ -113,6 +135,12 @@ public sealed class RateCardService(IRateCardRepository repository, ICurrentUser
         rc.Doviz = n.Doviz;
         rc.GecerliBas = n.GecerliBas;
         rc.GecerliBit = n.GecerliBit;
+        rc.ScdwDahil = n.ScdwDahil;
+        rc.MiniHasarDahil = n.MiniHasarDahil;
+        rc.HirsizlikDahil = n.HirsizlikDahil;
+        rc.ScdwZorunlu = n.ScdwZorunlu;
+        rc.Gosterme = n.Gosterme;
+        rc.TarifeGrubuId = n.TarifeGrubuId;
         rc.Aktif = n.Aktif;
     }
 }

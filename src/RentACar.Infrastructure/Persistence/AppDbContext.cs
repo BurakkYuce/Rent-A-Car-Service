@@ -128,6 +128,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RezSart> RezSartlar => Set<RezSart>();   // FAZ-25 — müşteri özel talebi (operasyonel not)
     public DbSet<JobCalismaLog> JobCalismaLoglari => Set<JobCalismaLog>();   // FAZ-26 — otomatik servis koşu günlüğü
     public DbSet<CariVirmanBilgi> CariVirmanBilgileri => Set<CariVirmanBilgi>();   // FAZ-59 — virman künyesi (para taşımaz)
+    public DbSet<TarifeGrubu> TarifeGruplari => Set<TarifeGrubu>();   // FAZ-72 — tarife/fiyat grubu master
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
     public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();
     public DbSet<YetkiGrup> YetkiGruplari => Set<YetkiGrup>(); // PR-D — ekran-izni şablonu
