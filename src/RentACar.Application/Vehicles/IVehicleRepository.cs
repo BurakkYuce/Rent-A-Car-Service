@@ -15,6 +15,13 @@ public interface IVehicleRepository
     /// <summary>Arama/filtre + sayfalama (liste ekranı). Sube filtresi <paramref name="filter"/>'da.</summary>
     Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-28 — detaylı liste: araç + son kredi bankası + en yakın muayene/kasko/trafik bitişi +
+    /// satış ihale bilgisi + AKTİF kira (canlı çözülür, depolanmaz).
+    /// </summary>
+    Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+        VehicleDetayFilter? filter = null, CancellationToken ct = default);
+
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> PlakaExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default);
