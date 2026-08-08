@@ -20,6 +20,7 @@ public static class VehicleSaleEndpoints
             [FromForm] decimal kdvOrani, [FromForm] string? noterNo, [FromForm] string? doviz,
             [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hedefFiyat, [FromForm] string? satisKm,
+            [FromForm] string? ihaleTarihi, [FromForm] string? ihaleFirmasi, [FromForm] string? noterSatisTarihi,
             [FromForm] string? satisKanali, [FromForm] string? devir) =>
         {
             var input = new VehicleSaleInput
@@ -29,6 +30,9 @@ public static class VehicleSaleEndpoints
                 Kur = FormParse.Dec(kur), Aciklama = aciklama, // boş → otomatik kur (1.1)
                 // wire-in: entity + input + servis hazırdı, yalnız uç bu dördünü okumuyordu
                 HedefFiyat = FormParse.Dec(hedefFiyat), SatisKm = FormParse.Int(satisKm),
+                // FAZ-28 ihale/noter
+                IhaleTarihi = FormParse.Date(ihaleTarihi), IhaleFirmasi = ihaleFirmasi,
+                NoterSatisTarihi = FormParse.Date(noterSatisTarihi),
                 SatisKanali = satisKanali, Devir = devir
             };
             try

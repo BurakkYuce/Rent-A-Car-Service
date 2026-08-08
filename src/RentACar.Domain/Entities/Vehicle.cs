@@ -107,6 +107,60 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     public string? OzelKod4 { get; set; }
     public string? OzelKod5 { get; set; }
 
+    // ---- FAZ-28 detaylı araç listesi (canlı detayli_arac_listesi.aspx) ----
+    // Hepsi BİLGİ alanı: hiçbiri fiyat motoruna, deftere ya da müsaitlik hesabına girmez.
+    /// <summary>Ruhsat/tescil belge numarası.</summary>
+    public string? BelgeNo { get; set; }
+    /// <summary>Ruhsat sahibi (araç bir başkasının üzerineyse — serbest metin).</summary>
+    public string? RuhsatSahibi { get; set; }
+    /// <summary>Alım/finansman sözleşme numarası.</summary>
+    public string? SozNo { get; set; }
+    /// <summary>Aracı satın alan kişi/birim.</summary>
+    public string? AraciAlan { get; set; }
+
+    /// <summary>Son teslim (dönüş) kilometresi — BİLGİ amaçlı anlık görüntü. Kira dönüşünün
+    /// KENDİ km kaydı ayrıdır (VehicleKmLog / RentalContract); burası hızlı bakış içindir.</summary>
+    public int? SonTeslimKm { get; set; }
+    public DateTimeOffset? SonTeslimTarihi { get; set; }
+
+    // Kiralama anlık görüntüsü (canlının listede gösterdiği alanlar). AKTİF kira/rezervasyon
+    // bilgisinin KAYNAĞI DEĞİLDİR — o her zaman RentalContract/Reservation'dan CANLI çözülür.
+    /// <summary>Son/güncel kiralayan adı (serbest metin anlık görüntü).</summary>
+    public string? Kiralayan { get; set; }
+    public int? KiraGun { get; set; }
+    public decimal? KiraFiyat { get; set; }
+    public DateTimeOffset? KiraBitTar { get; set; }
+    /// <summary>Beklenen dönüş tarihi (uzatma öncesi planlanan).</summary>
+    public DateTimeOffset? KiraBekTar { get; set; }
+    /// <summary>Gevşek müşteri bağı (FK YOK — anlık görüntü; müşteri silinse de alan bozulmaz).</summary>
+    public Guid? KiraMusteriId { get; set; }
+
+    /// <summary>Yol yardım/assistans firması.</summary>
+    public string? AssistanFirma { get; set; }
+    /// <summary>Yurt dışı kullanım km limiti.</summary>
+    public int? DisKmLimit { get; set; }
+
+    /// <summary>TSB (Türkiye Sigorta Birliği) araç kodu.</summary>
+    public string? TsbKodu { get; set; }
+    /// <summary>TSB kasko değeri.</summary>
+    public decimal? TsbKaskoDegeri { get; set; }
+
+    public string? OdemeSekli { get; set; }
+    /// <summary>Araç pasife alındıysa gerekçesi.</summary>
+    public string? PasifSebep { get; set; }
+    /// <summary>Serbest "son durum" notu (operasyonel takip).</summary>
+    public string? SonDurum { get; set; }
+
+    /// <summary>Alım EURO bazlı mı yapıldı.</summary>
+    public bool? AlisEuro { get; set; }
+    /// <summary>Alım EURO fiyatı (bilgi — TL karşılığı AlimBedeli'ndedir).</summary>
+    public decimal? AlisEuroFiyat { get; set; }
+    /// <summary>Hedef satış EURO fiyatı (bilgi).</summary>
+    public decimal? SatisEuroFiyat { get; set; }
+
+    /// <summary>HGS/OGS operatör firması.</summary>
+    public string? HgsFirma { get; set; }
+
     // roadmap G1: araç kartı ek alanlar (additive — HGS/OGS, kasa/detay tipi, alış fatura/firma, km limiti)
     public string? HgsNo { get; set; }
     public string? OgsNo { get; set; }

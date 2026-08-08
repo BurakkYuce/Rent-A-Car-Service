@@ -53,6 +53,101 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
     }
 
+    public async Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+        VehicleDetayFilter? filter = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Vehicles.AsNoTracking();
+        if (filter is not null)
+        {
+            if (filter.Durum is { } d) q = q.Where(v => v.Durum == d);
+            if (!string.IsNullOrWhiteSpace(filter.Sube))
+            {
+                var sb = filter.Sube.Trim();
+                q = q.Where(v => v.Sube != null && v.Sube.Trim() == sb);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var a = filter.Ara.Trim();
+                // Plaka normalize saklanıyor → arama terimi de normalize (FAZ-63 dersi).
+                var p = a.ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(v => EF.Functions.ILike(v.Plaka, $"%{p}%")
+                              || (v.Marka != null && EF.Functions.ILike(v.Marka, $"%{a}%"))
+                              || (v.Tip != null && EF.Functions.ILike(v.Tip, $"%{a}%"))
+                              || (v.BelgeNo != null && EF.Functions.ILike(v.BelgeNo, $"%{a}%"))
+                              || (v.RuhsatSahibi != null && EF.Functions.ILike(v.RuhsatSahibi, $"%{a}%")));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 1000, 1, 10000);
+        var araclar = await q.OrderBy(v => v.Plaka).Take(limit).ToListAsync(ct);
+        if (araclar.Count == 0) return [];
+        var ids = araclar.Select(v => v.Id).ToList();
+
+        // Son kredi bankası (araç başına EN YENİ kredi).
+        var krediler = (await db.AracKredileri.AsNoTracking()
+                .Where(k => k.VehicleId != null && ids.Contains(k.VehicleId.Value))
+                .Select(k => new { Arac = k.VehicleId!.Value, k.BankaAdi, k.CreatedAtUtc })
+                .ToListAsync(ct))
+            .GroupBy(k => k.Arac)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(k => k.CreatedAtUtc).First().BankaAdi);
+
+        // Muayene: araç başına EN GEÇ biten kayıt (yürürlükteki muayene).
+        var muayene = (await db.InspectionRecords.AsNoTracking()
+                .Where(m => ids.Contains(m.VehicleId))
+                .Select(m => new { m.VehicleId, m.Bitis }).ToListAsync(ct))
+            .GroupBy(m => m.VehicleId)
+            .ToDictionary(g => g.Key, g => g.Max(m => m.Bitis));
+
+        // Sigorta: TİPE GÖRE ayrı — Kasko ve Trafik farklı poliçelerdir, tek "sigorta bitişi"
+        // kolonu ikisini karıştırırdı.
+        var policeler = await db.InsurancePolicies.AsNoTracking()
+            .Where(p => ids.Contains(p.VehicleId))
+            .Select(p => new { p.VehicleId, p.Tip, p.Bitis }).ToListAsync(ct);
+        var kasko = policeler.Where(p => p.Tip == InsuranceType.Kasko)
+            .GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.Max(p => p.Bitis));
+        var trafik = policeler.Where(p => p.Tip == InsuranceType.Trafik)
+            .GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.Max(p => p.Bitis));
+
+        // Satış (araç başına en yeni).
+        var satislar = (await db.VehicleSales.AsNoTracking()
+                .Where(x => ids.Contains(x.VehicleId))
+                .Select(x => new { x.VehicleId, x.HedefFiyat, x.IhaleTarihi, x.IhaleFirmasi, x.NoterSatisTarihi, x.Tarih })
+                .ToListAsync(ct))
+            .GroupBy(x => x.VehicleId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Tarih).First());
+
+        // AKTİF kira CANLI çözülür — araçta böyle bir kolon YOK (bkz. VehicleDetayRow özeti).
+        var aktifKiralar = (await (
+                from r in db.Rentals.AsNoTracking().Where(r => r.Durum == RentalStatus.Kirada && ids.Contains(r.VehicleId))
+                join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
+                from c in cg.DefaultIfEmpty()
+                select new
+                {
+                    r.VehicleId, r.BitTar, r.SozlesmeNo, r.BasTar,
+                    Musteri = c == null ? null : (c.Tip == CariType.Bireysel
+                        ? ((c.Ad ?? "") + " " + (c.Soyad ?? "")) : c.Unvan)
+                }).ToListAsync(ct))
+            .GroupBy(x => x.VehicleId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.BasTar).First());
+
+        return araclar.Select(v =>
+        {
+            satislar.TryGetValue(v.Id, out var sat);
+            aktifKiralar.TryGetValue(v.Id, out var kira);
+            return new VehicleDetayRow(
+                v,
+                krediler.GetValueOrDefault(v.Id),
+                muayene.TryGetValue(v.Id, out var mb) ? mb : null,
+                kasko.TryGetValue(v.Id, out var kb) ? kb : null,
+                trafik.TryGetValue(v.Id, out var tb) ? tb : null,
+                sat?.HedefFiyat, sat?.IhaleTarihi, sat?.IhaleFirmasi, sat?.NoterSatisTarihi,
+                string.IsNullOrWhiteSpace(kira?.Musteri) ? null : kira!.Musteri!.Trim(),
+                kira?.BitTar, kira?.SozlesmeNo);
+        }).ToList();
+    }
+
     public async Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

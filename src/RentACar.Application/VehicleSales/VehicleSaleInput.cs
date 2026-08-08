@@ -19,4 +19,9 @@ public sealed class VehicleSaleInput
     public int? SatisKm { get; set; }
     public string? SatisKanali { get; set; }
     public string? Devir { get; set; }
+
+    // ---- FAZ-28: ihale/noter bilgileri (bilgi; satış tutarına etkisi yok) ----
+    public DateTimeOffset? IhaleTarihi { get; set; }
+    public string? IhaleFirmasi { get; set; }
+    public DateTimeOffset? NoterSatisTarihi { get; set; }
 }
