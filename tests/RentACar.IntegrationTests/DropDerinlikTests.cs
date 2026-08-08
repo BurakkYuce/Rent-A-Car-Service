@@ -114,6 +114,25 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         Assert.Single(await svc.SearchAsync(new DropTanimFilter { Aktif = false }));
         // Birleşik: Ankara + İstanbul → 1
         Assert.Single(await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "Ankara", Sube = "İstanbul" }));
+
+        // KÜLTÜR/COLLATION KİLİDİ: karşılaştırma motorla AYNI (OrdinalIgnoreCase) ve BELLEKTE.
+        // SQL lower() kullanılsaydı sonuç DB collation'ına bağlanırdı — PG (en_US.UTF-8)
+        // lower('İstanbul')='istanbul' üretirken .NET 'i̇stanbul' (i + U+0307) üretiyor; bu test
+        // yerelde geçip CI'da patlamıştı.
+        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { Sube = "  İSTANBUL  " })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "ankara" })).Count);
+        Assert.Single(await svc.SearchAsync(new DropTanimFilter { CikisLokasyon = " ist Havalimanı " }));
+
+        // PARİTE (ve ortak SINIR): OrdinalIgnoreCase Türkçe İ/ı'yı katlamaz — "HAVALIMANI"
+        // (ASCII I) kayıttaki "Havalimanı" (U+0131) ile eşleşmez. FİLTRE de MOTOR da aynı şekilde
+        // eşleşmez; önemli olan ikisinin AYNI davranması (liste, ücret uygulanan bir kuralı
+        // gizlemesin). Comparer'ı Türkçeye çevirmek ayrı ve incelemeli bir iş (kodda AÇIK İŞ).
+        Assert.Empty(await svc.SearchAsync(new DropTanimFilter { CikisLokasyon = "IST HAVALIMANI" }));
+        var fee = s.ServiceProvider.GetRequiredService<FeeLineService>();
+        // Doğru yazımda özgül satır seçilir (500). İ/ı sapmasında o satır MOTORDA DA seçilmez —
+        // ücret İzmir satırının fallback'inden (400) gelir. İkisi de aynı sınırı yaşıyor.
+        Assert.Equal(500m, await fee.DropUcretCozAsync("ist Havalimanı", "Ankara", null, 3));
+        Assert.Equal(400m, await fee.DropUcretCozAsync("IST HAVALIMANI", "Ankara", null, 3));
     }
 
     // ---------------- Fiyat motoru: özgüllük merdiveni ----------------
