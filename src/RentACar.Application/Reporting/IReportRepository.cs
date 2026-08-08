@@ -41,6 +41,13 @@ public interface IReportRepository
     Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatRowsAsync(
         TahsilatMutabakatFilter? filter, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-78 — ek hizmet SATIR-BAZLI detay (kira/araç/müşteri/personel çözümlenmiş).
+    /// Mevcut ÖZET sorgusu <see cref="GetEkHizmetSalesRowsAsync"/> DEĞİŞMEZ; bu ayrı bir yoldur.
+    /// </summary>
+    Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayRowsAsync(
+        EkHizmetDetayFilter? filter, CancellationToken ct = default);
+
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
 

@@ -252,6 +252,104 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return filter?.YalnizTutarsiz == true ? sonuc.Where(x => x.Tutarsiz).ToList() : sonuc;
     }
 
+    public async Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayRowsAsync(
+        EkHizmetDetayFilter? filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        // İPTAL kiralar hariç — özet rapor da öyle davranıyor (iki görünüm ayrışmasın).
+        var q =
+            from a in db.RentalAddOns.AsNoTracking()
+            join r in db.Rentals.AsNoTracking().Where(x => x.Durum != RentalStatus.Iptal)
+                on a.RentalId equals r.Id
+            join v in db.Vehicles.AsNoTracking() on r.VehicleId equals v.Id into vg
+            from v in vg.DefaultIfEmpty()
+            join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
+            from c in cg.DefaultIfEmpty()
+            join rez in db.Reservations.AsNoTracking() on r.ReservationId equals (Guid?)rez.Id into rg
+            from rez in rg.DefaultIfEmpty()
+            join t in db.EkHizmetTanimlari.AsNoTracking() on a.EkHizmetTanimId equals t.Id into tg
+            from t in tg.DefaultIfEmpty()
+            join p in db.Personeller.AsNoTracking() on a.PersonelId equals (Guid?)p.Id into pg
+            from p in pg.DefaultIfEmpty()
+            select new { a, r, v, c, rez, t, p };
+
+        if (filter is not null)
+        {
+            if (filter.Bas is { } b) q = q.Where(x => x.a.CreatedAtUtc >= b);
+            if (filter.Bit is { } t2) q = q.Where(x => x.a.CreatedAtUtc <= t2);
+            if (filter.PersonelId is { } pid) q = q.Where(x => x.a.PersonelId == pid);
+            if (filter.SistemKalemleriniGizle)
+                q = q.Where(x => x.t == null || !x.t.Kod.StartsWith("SYS-"));
+            if (!string.IsNullOrWhiteSpace(filter.RezKaynagi))
+            {
+                var k = filter.RezKaynagi.Trim();
+                q = q.Where(x => x.rez != null && x.rez.Kaynak != null && x.rez.Kaynak.Trim() == k);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Ofis))
+            {
+                var o = filter.Ofis.Trim();
+                q = q.Where(x => x.r.CikisOfisi != null && x.r.CikisOfisi.Trim() == o);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Ara))
+            {
+                var a2 = filter.Ara.Trim();
+                var plakaAra = a2.ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(x => EF.Functions.ILike(x.a.Ad, $"%{a2}%")
+                              || EF.Functions.ILike(x.r.SozlesmeNo, $"%{a2}%")
+                              || (x.v != null && EF.Functions.ILike(x.v.Plaka, $"%{plakaAra}%"))
+                              || (x.c != null && x.c.Unvan != null && EF.Functions.ILike(x.c.Unvan, $"%{a2}%"))
+                              || (x.c != null && x.c.Ad != null && EF.Functions.ILike(x.c.Ad, $"%{a2}%"))
+                              || (x.c != null && x.c.Soyad != null && EF.Functions.ILike(x.c.Soyad, $"%{a2}%")));
+            }
+        }
+
+        var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
+        var rows = await q.OrderByDescending(x => x.a.CreatedAtUtc).Take(limit)
+            .Select(x => new
+            {
+                AddOnId = x.a.Id, x.a.RentalId, x.r.SozlesmeNo, x.r.BasTar, x.r.BitTar,
+                Plaka = x.v == null ? null : x.v.Plaka,
+                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                    ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
+                RezKaynagi = x.rez == null ? null : x.rez.Kaynak,
+                x.r.CikisOfisi,
+                x.a.Ad, x.a.Miktar, x.a.BirimNetFiyat, x.a.KdvOrani,
+                x.a.NetTutar, x.a.KdvTutar, x.a.Toplam, x.a.CreatedAtUtc,
+                Personel = x.p == null ? null : (x.p.Ad + " " + x.p.Soyad),
+                SistemKalemi = x.t != null && x.t.Kod.StartsWith("SYS-")
+            })
+            .ToListAsync(ct);
+        if (rows.Count == 0) return [];
+
+        // İLK TAHSİLAT: kiranın EN ERKEN tahsilatı. Kalem-bazlı tahsilat izi sistemde YOK —
+        // bu yüzden kalemin değil KİRANIN ilk tahsilatıdır ve kolon başlığı da öyle der.
+        var kiraIds = rows.Select(x => x.RentalId).Distinct().ToList();
+        // Ters kayıt AYRI bir satırdır ve orijinali işaretlemez (TersAlinanId ile ona bakar).
+        // Bu yüzden yalnız `!TersKayitMi` demek YETMEZ: iptal edilmiş bir tahsilat "ilk tahsilat"
+        // olarak görünürdü. Hem ters-kayıt satırları hem TERS ALINMIŞ orijinaller elenir.
+        var tersAlinanlar = db.CashTransactions.AsNoTracking()
+            .Where(t => t.TersAlinanId != null).Select(t => t.TersAlinanId!.Value);
+        var ilkTahsilat = (await db.CashTransactions.AsNoTracking()
+                .Where(t => t.RentalId != null && kiraIds.Contains(t.RentalId.Value)
+                            && t.Tip == CashTransactionType.Tahsilat && !t.TersKayitMi
+                            && !tersAlinanlar.Contains(t.Id))
+                .Select(t => new { Kira = t.RentalId!.Value, t.Tarih, Tutar = t.Amount.Amount })
+                .ToListAsync(ct))
+            .GroupBy(t => t.Kira)
+            .ToDictionary(g => g.Key, g => g.OrderBy(t => t.Tarih).First().Tutar);
+
+        return rows.Select(x => new EkHizmetDetayRow(
+            x.AddOnId, x.RentalId, x.SozlesmeNo, x.BasTar, x.BitTar,
+            x.Plaka ?? "(bilinmeyen araç)",
+            string.IsNullOrWhiteSpace(x.MusteriAd) ? "(bilinmeyen cari)" : x.MusteriAd!.Trim(),
+            x.RezKaynagi, x.CikisOfisi,
+            x.Ad, x.Miktar, x.BirimNetFiyat, x.KdvOrani, x.NetTutar, x.KdvTutar, x.Toplam,
+            x.CreatedAtUtc, x.Personel,
+            ilkTahsilat.TryGetValue(x.RentalId, out var it) ? it : null,
+            x.SistemKalemi)).ToList();
+    }
+
     public async Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
