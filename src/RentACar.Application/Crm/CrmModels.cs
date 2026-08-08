@@ -10,7 +10,39 @@ public sealed class AnketInput
     public string? Yorum { get; set; }
     public DateTimeOffset? Tarih { get; set; }
     public string? Kaynak { get; set; }
+
+    // ---- FAZ-42 ----
+    public Guid? RentalId { get; set; }
+    public RentACar.Domain.Enums.AnketTuru? AnketTuru { get; set; }
+    public RentACar.Domain.Enums.AnketDurum Durum { get; set; } = RentACar.Domain.Enums.AnketDurum.Yapildi;
+    /// <summary>Boş bırakılırsa sözleşmeden doldurulur (snapshot).</summary>
+    public string? CikisOfisi { get; set; }
+    /// <summary>Soru-cevap satırları. Boş liste = cevapsız anket (ör. "Yapılmadı").</summary>
+    public List<AnketCevapInput> Cevaplar { get; set; } = [];
 }
+
+/// <summary>Anket soru-cevap satırı (FAZ-42). Soru metni cevapla birlikte SAKLANIR (snapshot).</summary>
+public sealed class AnketCevapInput
+{
+    public int SoruNo { get; set; }
+    public string? Soru { get; set; }
+    public string? Cevap { get; set; }
+    public string? Aciklama { get; set; }
+}
+
+/// <summary>Anket liste filtresi (FAZ-42). Boş alan = kısıt yok.</summary>
+public sealed class AnketFilter
+{
+    public Guid? CariId { get; set; }
+    public RentACar.Domain.Enums.AnketTuru? AnketTuru { get; set; }
+    public RentACar.Domain.Enums.AnketDurum? Durum { get; set; }
+    public DateTimeOffset? TarihMin { get; set; }
+    public DateTimeOffset? TarihMax { get; set; }
+    public string? CikisOfisi { get; set; }
+}
+
+/// <summary>Anket + cevapları (detay okuması).</summary>
+public sealed record AnketDetay(Anket Anket, IReadOnlyList<AnketCevap> Cevaplar);
 
 public sealed class SikayetInput
 {

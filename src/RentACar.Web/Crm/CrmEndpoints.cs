@@ -37,8 +37,37 @@ public static class CrmEndpoints
         Puan = FormParse.Int(FormParse.Str(f, "puan")) ?? 0,
         Yorum = FormParse.Str(f, "yorum"),
         Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
-        Kaynak = FormParse.Str(f, "kaynak")
+        Kaynak = FormParse.Str(f, "kaynak"),
+        // FAZ-42 — sözleşme bağı + tür/durum + 8 soruluk cevap seti
+        RentalId = FormParse.Id(FormParse.Str(f, "rentalId")),
+        AnketTuru = Enum.TryParse<RentACar.Domain.Enums.AnketTuru>(FormParse.Str(f, "anketTuru"), out var at) ? at : null,
+        Durum = Enum.TryParse<RentACar.Domain.Enums.AnketDurum>(FormParse.Str(f, "durum"), out var ad)
+            ? ad : RentACar.Domain.Enums.AnketDurum.Yapildi,
+        CikisOfisi = FormParse.Str(f, "cikisOfisi"),
+        Cevaplar = AnketCevaplari(f)
     };
+
+    /// <summary>
+    /// FAZ-42 — form 8 satırı soru{n}/cevap{n}/aciklama{n} adlarıyla gönderir. SORUSU BOŞ satır
+    /// servis tarafında atılır (boş form satırı kayıt üretmesin).
+    /// </summary>
+    private static List<AnketCevapInput> AnketCevaplari(IFormCollection f)
+    {
+        var liste = new List<AnketCevapInput>();
+        for (var i = 1; i <= 20; i++)   // tavan: form 8 basar, elle gönderim de sınırlı kalsın
+        {
+            var soru = FormParse.Str(f, $"soru{i}");
+            if (soru is null) continue;
+            liste.Add(new AnketCevapInput
+            {
+                SoruNo = i,
+                Soru = soru,
+                Cevap = FormParse.Str(f, $"cevap{i}"),
+                Aciklama = FormParse.Str(f, $"aciklama{i}")
+            });
+        }
+        return liste;
+    }
 
     private static SikayetInput BuildSikayet(IFormCollection f) => new()
     {
