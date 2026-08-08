@@ -26,6 +26,33 @@ public sealed record VehicleDetayRow(
     DateTimeOffset? AktifKiraBitis,
     string? AktifKiraSozlesmeNo);
 
+/// <summary>
+/// FAZ-11 — araç LİSTESİ satırının diğer tablolardan gelen ek bilgisi. Sayfalanmış listede
+/// yalnız GÖRÜNEN araçlar için toplu çekilir (N+1 yok, tüm filo taranmaz).
+///
+/// <para>Neden ayrı bir tip: <c>SearchAsync</c> <c>PagedResult&lt;Vehicle&gt;</c> döndürüyor ve
+/// 20'den fazla çağrı yeri var; imzayı değiştirmek yerine yanına çözülen bir sözlük konuyor.
+/// Buradaki hiçbir alan araç kaydına YAZILMAZ — her istekte canlı okunur.</para>
+/// </summary>
+/// <param name="AktifKiraSozlesmeNo">Aracın AÇIK kira sözleşmesinin numarası (yoksa null).</param>
+/// <param name="AcikServis">Açık (Acik/Serviste) servis kaydı var mı.</param>
+/// <param name="AcikBaf">Açık BAF personel tahsisi var mı.</param>
+/// <param name="SatisVar">Kaydedilmiş bir araç satışı var mı (satış süreci başlamış/bitmiş).</param>
+/// <param name="KaskoBitis">Yürürlükteki KASKO poliçesinin bitişi (araç başına en geç biten).</param>
+/// <param name="KaskoPrim">Aynı kasko poliçesinin primi. <b>NOT:</b> poliçede "kasko BEDELİ"
+/// (sigorta değeri) kolonu YOKTUR; sigorta değeri araç kartındaki <c>TsbKaskoDegeri</c> alanıdır.</param>
+/// <param name="KrediKurulusu">Aracı finanse eden kredi kuruluşu (en yeni kredi kaydının bankası).</param>
+/// <param name="KrediSonTarih">Kredinin son taksit tarihi = başlangıç + taksit sayısı (ay).</param>
+public sealed record VehicleListeEk(
+    string? AktifKiraSozlesmeNo,
+    bool AcikServis,
+    bool AcikBaf,
+    bool SatisVar,
+    DateTimeOffset? KaskoBitis,
+    decimal? KaskoPrim,
+    string? KrediKurulusu,
+    DateTimeOffset? KrediSonTarih);
+
 /// <summary>FAZ-28 detaylı liste filtresi.</summary>
 public sealed class VehicleDetayFilter
 {
