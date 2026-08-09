@@ -1,69 +1,120 @@
 @page "/arac-siparis"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@using System.Globalization
+@using RentACar.Application.AracKredileri
 @using RentACar.Application.AracSiparisleri
+@using RentACar.Application.Customers
 @using RentACar.Domain.Enums
 @inject AracSiparisService Siparisler
+@inject AracKrediService Krediler
+@inject CustomerService Cariler
 @inject BrandService Markalar
 @inject VehicleTypeService AracTipleri
 @inject VehicleGroupService AracGruplari
 
 <PageTitle>Araç Sipariş / Tedarik — RentPro</PageTitle>
 
-<div class="page-head"><h1>Araç Sipariş / Tedarik</h1><div class="actions"><a href="/listeler/export/arac-siparisleri">Excel</a> · <a href="/listeler/export/arac-siparisleri?format=csv">CSV</a> · <a href="/listeler/export/arac-siparisleri?format=pdf">PDF</a></div></div>
+<div class="page-head"><h1>Araç Sipariş / Tedarik</h1>
+    <div class="actions">
+        <a href="@ExportYolu("excel")">Excel</a> ·
+        <a href="@ExportYolu("csv")">CSV</a> ·
+        <a href="@ExportYolu("pdf")">PDF</a>
+    </div>
+</div>
 <p class="muted small">Tedarikçiden araç siparişi takibi (FiloStatus: Sipariş). Defter postlamaz; teslim/satınalma
     faturalama ayrı.</p>
+@* KARARLAR.md genel politikası — kullanıcıya YAZILI uyarı. *@
+<p class="muted small"><strong>Piyasa / Ops / Filo fiyatları bilgi amaçlıdır — hiçbir toplama, rapora
+    ya da muhasebe defterine girmez.</strong> Siparişin resmi tutarı <strong>Birim Fiyat × Adet</strong>
+    olarak hesaplanır. Bağlanan <strong>cari ve kredi de yalnız ilişkilendirmedir</strong>: cari bakiyesini
+    ve kredi taksitlerini değiştirmez.</p>
 
-@if (!string.IsNullOrEmpty(Hata))
-{
-    <p class="error">@Hata</p>
-}
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (Ok == "1" && string.IsNullOrEmpty(Hata)) { <p class="muted small">İşlem tamamlandı.</p> }
 
-<details>
-    <summary>Yeni Sipariş</summary>
-    <form method="post" action="/arac-siparis/create" class="grid-form"><AntiforgeryToken />
-        <ComboBox Name="tedarikci" Label="Tedarikçi" Options="_tedarikciOpts" required />
-        <label>Sipariş Tarihi<input name="siparisTarihi" type="date" /></label>
-        <label>Beklenen Teslim<input name="beklenenTeslim" type="date" /></label>
-        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
-        <ComboBox Name="tip" Label="Tip" Options="_tipOpts" />
-        <ComboBox Name="grup" Label="Grup" Options="_grupOpts" />
-        <label>Adet<input name="adet" type="number" min="1" value="1" required /></label>
-        <label>Birim Fiyat<input name="birimFiyat" type="number" step="0.01" min="0" /></label>
-        <label>Açıklama<input name="aciklama" /></label>
-        <button type="submit">Kaydet</button>
-    </form>
-</details>
+@* FAZ-17 arama paneli (canlı arac_siparis_detay_listesi / arac_siparis_listesi paritesi).
+   GET formu: JS yok, URL paylaşılabilir; filtreleme SQL'de. *@
+<form method="get" class="filter-bar">
+    <label>Cari
+        <select name="cariF">
+            <option value="">— tümü —</option>
+            @foreach (var c in _cariler)
+            {
+                <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.Ad</option>
+            }
+        </select>
+    </label>
+    <label>Ad Soyad / Tedarikçi<input name="araF" value="@AraF" placeholder="içinde geçen" /></label>
+    <label>Plaka / Araç<input name="aracF" value="@AracF" placeholder="TSB no / marka / tip" /></label>
+    <label>Dosya No<input name="dosyaF" value="@DosyaF" /></label>
+    <label>Durum
+        <select name="durumF">
+            <option value="">— tümü —</option>
+            @foreach (var d in Enum.GetValues<SiparisDurum>())
+            {
+                <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Sipariş ≥<input name="bas" type="date" value="@Bas" /></label>
+    <label>Sipariş ≤<input name="bit" type="date" value="@Bit" /></label>
+    <button type="submit">Filtrele</button>
+    @if (_filtreVar) { <a class="link" href="/arac-siparis">Temizle</a> }
+</form>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>No</th><th>Tedarikçi</th><th>Araç</th><th class="num">Adet</th><th class="num">Birim</th><th class="num">Toplam</th><th>Sipariş</th><th>Beklenen</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>No</th><th>Dosya No</th><th>Tedarikçi</th><th>Cari</th><th>Araç</th>
+        <th>Renk</th><th>Kaynak / Satış Tipi</th><th class="num">Adet</th>
+        <th class="num" title="Resmi birim tutar">Birim (resmi)</th><th class="num">Toplam</th>
+        <th class="num" title="Bilgi — toplama girmez">Piyasa</th>
+        <th class="num" title="Bilgi — toplama girmez">Ops</th>
+        <th class="num" title="Bilgi — toplama girmez">Filo</th>
+        <th>Sipariş</th><th>İmza</th><th>Beklenen</th><th>TSB No</th><th>Kredi</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="10" class="muted">Sipariş yok.</td></tr>
+            <tr><td colspan="20" class="muted">@(_filtreVar ? "Filtreye uyan sipariş yok." : "Sipariş yok.")</td></tr>
         }
         @foreach (var s in _list)
         {
             <tr>
                 <td>@s.No</td>
+                <td>@(s.DosyaNo ?? "—")</td>
                 <td>@s.Tedarikci</td>
-                <td>@($"{s.Marka} {s.Tip} {s.Grup}".Trim())</td>
+                @* Cari adı siparişe SNAPSHOT'lanmaz, cari bağından çözülür — cari yeniden
+                   adlandırılırsa liste doğru kalır. *@
+                <td>@Cari(s.TedarikciCariId)</td>
+                <td>@($"{s.Marka} {s.Tip} {s.Grup} {s.Versiyon}".Replace("  ", " ").Trim())</td>
+                <td>@(s.Renk ?? "—")@(string.IsNullOrWhiteSpace(s.IcRenk) ? "" : $" / {s.IcRenk}")</td>
+                <td>@(s.KaynakTip ?? "—") / @(s.SatisTipi ?? "—")</td>
                 <td class="num">@s.Adet</td>
                 <td class="num">@s.BirimFiyat.ToString("N2")</td>
+                @* RESMİ toplam — yalnız Adet × BirimFiyat. Fiyat katmanları BURAYA girmez. *@
                 <td class="num">@((s.Adet * s.BirimFiyat).ToString("N2")) @s.Currency</td>
-                <td>@s.SiparisTarihi.ToString("yyyy-MM-dd")</td>
-                <td>@(s.BeklenenTeslim?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td class="num">@(s.PiyasaFiyat?.ToString("N2") ?? "—")</td>
+                <td class="num">@(s.OpsFiyat?.ToString("N2") ?? "—")</td>
+                <td class="num">@(s.FiloFiyat?.ToString("N2") ?? "—")</td>
+                <td>@s.SiparisTarihi.LocalDateTime.ToString("yyyy-MM-dd")</td>
+                <td>@(s.ImzaTarih?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@(s.BeklenenTeslim?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td>@(s.TsbKayitNo ?? "—")</td>
+                <td>@Kredi(s.KrediId)</td>
                 <td>@s.Durum</td>
                 <td>
                     @if (s.Durum == SiparisDurum.Bekliyor)
                     {
-                        <form method="post" action="/arac-siparis/onayla" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit">Onayla</button></form>
-                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                        <form method="post" action="/arac-siparis/onayla" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit">Onayla</button></form>
+                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
                     }
                     else if (s.Durum == SiparisDurum.Onaylandi)
                     {
-                        <form method="post" action="/arac-siparis/teslim-al" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit">Teslim Al</button></form>
-                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                        <form method="post" action="/arac-siparis/teslim-al" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit">Teslim Al</button></form>
+                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                    }
+                    @if (s.Durum != SiparisDurum.Iptal)
+                    {
+                        <a href="@DuzenleYolu(s.Id)" class="link">Düzenle</a>
                     }
                 </td>
             </tr>
@@ -72,11 +123,107 @@
 </table>
 </div>
 
+<h2 class="dash-h2">@(_edit is null ? "Yeni Sipariş" : $"Düzenle: {_edit.No}")</h2>
+<form method="post" action="@(_edit is null ? "/arac-siparis/create" : "/arac-siparis/update")" class="grid-form"><AntiforgeryToken />
+    @Gizli
+    @if (_edit is not null)
+    {
+        <input type="hidden" name="id" value="@_edit.Id" />
+    }
+    <ComboBox Name="tedarikci" Label="Tedarikçi (metin)" Value="@_edit?.Tedarikci" Options="_tedarikciOpts" required />
+    @* Cari OPSİYONEL ve BİLGİ: tedarikçinin cari kartıyla ilişkisi. Cari bakiyesine/deftere
+       HİÇBİR kayıt yazmaz (KARARLAR.md genel politikası). *@
+    <label>Tedarikçi Cari (opsiyonel — cari bakiyesini değiştirmez)
+        <select name="tedarikciCariId">
+            <option value="">— bağlı cari yok —</option>
+            @foreach (var c in _cariler)
+            {
+                <option value="@c.Id" selected="@(c.Id == _edit?.TedarikciCariId)">@c.Ad</option>
+            }
+        </select>
+    </label>
+    <label>Dosya No<input name="dosyaNo" value="@_edit?.DosyaNo" maxlength="64" /></label>
+    @* Tarihler LOCAL güne basılır: FormParse.Date sunucu-yerel ayrıştırıp UTC'ye çevirir; UTC günü
+       basmak her kayıtta tarihi 1 gün geri kaydırırdı. *@
+    <label>Sipariş Tarihi<input name="siparisTarihi" type="date" value="@Gun(_edit?.SiparisTarihi)" /></label>
+    <label>İmza Tarihi<input name="imzaTarih" type="date" value="@Gun(_edit?.ImzaTarih)" /></label>
+    <label>Beklenen Teslim<input name="beklenenTeslim" type="date" value="@Gun(_edit?.BeklenenTeslim)" /></label>
+    <label>Satış Temsilcisi<input name="satisTemsilci" value="@_edit?.SatisTemsilci" maxlength="128" /></label>
+    <label>Özel Temsilci<input name="ozelTemsilci" value="@_edit?.OzelTemsilci" maxlength="128" /></label>
+    <ComboBox Name="marka" Label="Marka" Value="@_edit?.Marka" Options="_markaOpts" maxlength="100" />
+    <ComboBox Name="tip" Label="Tip" Value="@_edit?.Tip" Options="_tipOpts" maxlength="100" />
+    <ComboBox Name="grup" Label="Grup" Value="@_edit?.Grup" Options="_grupOpts" maxlength="100" />
+    <label>Versiyon<input name="versiyon" value="@_edit?.Versiyon" maxlength="100" /></label>
+    <label>Renk<input name="renk" value="@_edit?.Renk" maxlength="64" /></label>
+    <label>İç Renk<input name="icRenk" value="@_edit?.IcRenk" maxlength="64" /></label>
+    <label>Kaynak Tipi
+        <input name="kaynakTip" value="@_edit?.KaynakTip" maxlength="32" list="dl-sp-kaynaktip" autocomplete="off" />
+        <datalist id="dl-sp-kaynaktip"><option value="ÖzMal"></option><option value="Kiralık"></option><option value="Filo"></option></datalist>
+    </label>
+    <label>Satış Tipi
+        <input name="satisTipi" value="@_edit?.SatisTipi" maxlength="32" list="dl-sp-satistipi" autocomplete="off" />
+        <datalist id="dl-sp-satistipi"><option value="Sıfır"></option><option value="2. El"></option></datalist>
+    </label>
+    <label class="u-col-full">Opsiyon (ek donanım)<input name="opsiyon" value="@_edit?.Opsiyon" maxlength="512" /></label>
+    <label>TSB Kayıt No<input name="tsbKayitNo" value="@_edit?.TsbKayitNo" maxlength="64" title="TSB / geçici plaka kayıt referansı" /></label>
+    @* Kredi bağı BİLGİ: krediye taksit/gider yazmaz, kredi bakiyesini değiştirmez. *@
+    <label>Kredi (opsiyonel — kredi bakiyesini değiştirmez)
+        <select name="krediId">
+            <option value="">— bağlı kredi yok —</option>
+            @foreach (var k in _krediler)
+            {
+                <option value="@k.Id" selected="@(k.Id == _edit?.KrediId)">@k.No — @k.BankaAdi</option>
+            }
+        </select>
+    </label>
+    <label>Adet<input name="adet" type="number" min="1" max="10000" value="@(_edit?.Adet ?? 1)" required /></label>
+    @* decimal → InvariantCulture: tr-TR biçimi ("1.250,50") input[type=number]'ı boşaltır ve bir
+       sonraki kayıtta alan NULL'lanırdı. *@
+    <label>Birim Fiyat (RESMİ)<input name="birimFiyat" type="number" step="0.01" min="0" value="@Inv(_edit?.BirimFiyat)" title="Sipariş toplamı = Adet × bu tutar" /></label>
+    <label>Piyasa Fiyat (bilgi)<input name="piyasaFiyat" type="number" step="0.01" min="0" value="@Inv(_edit?.PiyasaFiyat)" title="Bilgi — toplama/deftere girmez" /></label>
+    <label>Ops Fiyat (bilgi)<input name="opsFiyat" type="number" step="0.01" min="0" value="@Inv(_edit?.OpsFiyat)" title="Bilgi — toplama/deftere girmez" /></label>
+    <label>Filo Fiyat (bilgi)<input name="filoFiyat" type="number" step="0.01" min="0" value="@Inv(_edit?.FiloFiyat)" title="Bilgi — toplama/deftere girmez" /></label>
+    @* Döviz/Kur formda GÖRÜNÜR olmalı: uç bu iki alanı okuyor, formda olmasaydı düzenleme her
+       kayıtta dövizli siparişi TRY/1'e düşürürdü (wire-in bütünlüğü). *@
+    <label>Döviz
+        <select name="doviz">
+            @foreach (var d in new[] { "TRY", "USD", "EUR" })
+            {
+                <option value="@d" selected="@((_edit?.Currency ?? "TRY") == d)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Kur<input name="kur" type="number" step="0.000001" min="0.000001" value="@Inv(_edit?.Kur ?? 1m)" /></label>
+    <label class="u-col-full">Açıklama<input name="aciklama" value="@_edit?.Aciklama" maxlength="512" /></label>
+    <button type="submit">@(_edit is null ? "Kaydet" : "Güncelle")</button>
+    @if (_edit is not null)
+    {
+        <a href="@TemizYol" class="btn-secondary">İptal</a>
+    }
+</form>
+
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "duzenle")] public Guid? Duzenle { get; set; }
+    [SupplyParameterFromQuery(Name = "cariF")] public string? CariF { get; set; }
+    [SupplyParameterFromQuery(Name = "araF")] public string? AraF { get; set; }
+    [SupplyParameterFromQuery(Name = "aracF")] public string? AracF { get; set; }
+    [SupplyParameterFromQuery(Name = "dosyaF")] public string? DosyaF { get; set; }
+    [SupplyParameterFromQuery(Name = "durumF")] public string? DurumF { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<AracSiparis> _list = [];
+    private AracSiparis? _edit;
+    /// <summary>PII'sız seçim listesi — ListAsync her carinin TC/ehliyet cipher'ını çözerdi
+    /// (dropdown için gereksiz ve gürültülü).</summary>
+    private IReadOnlyList<CariSecim> _cariler = [];
+    private IReadOnlyList<AracKredi> _krediler = [];
+    private Dictionary<Guid, string> _cariMap = [];
+    private Dictionary<Guid, string> _krediMap = [];
     private List<string> _markaOpts = [], _tipOpts = [], _grupOpts = [], _tedarikciOpts = [];
+    private bool _filtreVar;
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i. Tedarikçi için master
     // tanım YOK → yalnız mevcut siparişlerden distinct (veri girildikçe kendini besler).
@@ -86,7 +233,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Siparisler.ListAsync();
+        var filtre = new AracSiparisFilter
+        {
+            CariId = FormParse.Id(CariF),
+            Ara = string.IsNullOrWhiteSpace(AraF) ? null : AraF,
+            Arac = string.IsNullOrWhiteSpace(AracF) ? null : AracF,
+            DosyaNo = string.IsNullOrWhiteSpace(DosyaF) ? null : DosyaF,
+            Durum = Enum.TryParse<SiparisDurum>(DurumF, out var d) ? d : null,
+            Bas = FormParse.Date(Bas),
+            // Bitiş günü DAHİL: gün sonuna taşınır, yoksa o günün siparişleri listeden düşerdi.
+            Bit = FormParse.Date(Bit)?.AddDays(1).AddTicks(-1)
+        };
+        _filtreVar = !filtre.Bos;
+        _list = await Siparisler.SearchAsync(filtre);
+
+        _cariler = await Cariler.ListSecimAsync();
+        _cariMap = _cariler.ToDictionary(x => x.Id, x => x.Ad);
+        _krediler = await Krediler.ListAsync();
+        _krediMap = _krediler.ToDictionary(x => x.Id, x => $"{x.No} — {x.BankaAdi}");
+
         var markalar = await Markalar.ListActiveAsync();
         var tipler = await AracTipleri.ListActiveAsync();
         var gruplar = await AracGruplari.ListActiveAsync();
@@ -94,5 +259,46 @@
         _tipOpts = Opts(tipler.Select(t => t.Ad), _list.Select(s => s.Tip));
         _grupOpts = Opts(gruplar.Select(g => g.Ad), _list.Select(s => s.Grup));
         _tedarikciOpts = Opts(_list.Select(s => s.Tedarikci));
+
+        if (Duzenle is { } id) _edit = await Siparisler.GetAsync(id);
     }
+
+    private string Cari(Guid? id) => id is { } g && _cariMap.TryGetValue(g, out var n) ? n : "—";
+    private string Kredi(Guid? id) => id is { } g && _krediMap.TryGetValue(g, out var n) ? n : "—";
+
+    private static string? Inv(decimal? d) => d?.ToString(CultureInfo.InvariantCulture);
+    private static string? Gun(DateTimeOffset? t) => t?.LocalDateTime.ToString("yyyy-MM-dd");
+
+    /// <summary>Ekrandaki filtre export'a/işlem uçlarına AYNEN taşınır (gördüğün = indirdiğin).</summary>
+    private List<string> FiltreQs()
+    {
+        var q = new List<string>();
+        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
+        Ekle("cariF", CariF); Ekle("araF", AraF); Ekle("aracF", AracF); Ekle("dosyaF", DosyaF);
+        Ekle("durumF", DurumF); Ekle("bas", Bas); Ekle("bit", Bit);
+        return q;
+    }
+
+    private string ExportYolu(string format)
+        => "/listeler/export/arac-siparisleri?" + string.Join("&", FiltreQs().Prepend($"format={format}"));
+
+    private string TemizYol
+    {
+        get { var q = FiltreQs(); return "/arac-siparis" + (q.Count > 0 ? "?" + string.Join("&", q) : ""); }
+    }
+
+    private string DuzenleYolu(Guid id)
+        => "/arac-siparis?" + string.Join("&", FiltreQs().Append($"duzenle={id}"));
+
+    /// <summary>POST uçlarına filtreyi taşıyan gizli alanlar — işlemden sonra kullanıcı aynı
+    /// süzgeçte kalır (uç yalnız bu bilinen anahtarları geri yazar, açık yönlendirme yok).</summary>
+    private RenderFragment Gizli => @<text>
+        <input type="hidden" name="cariF" value="@CariF" />
+        <input type="hidden" name="araF" value="@AraF" />
+        <input type="hidden" name="aracF" value="@AracF" />
+        <input type="hidden" name="dosyaF" value="@DosyaF" />
+        <input type="hidden" name="durumF" value="@DurumF" />
+        <input type="hidden" name="bas" value="@Bas" />
+        <input type="hidden" name="bit" value="@Bit" />
+    </text>;
 }
