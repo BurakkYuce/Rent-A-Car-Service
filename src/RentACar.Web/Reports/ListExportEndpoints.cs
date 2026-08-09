@@ -90,7 +90,20 @@ public static class ListExportEndpoints
                     })),
                 "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
                 "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
-                "arac-siparisleri" => ListExportCatalog.AracSiparisleri(await asp.ListAsync()),
+                // FAZ-17: ekrandaki filtre export'a AYNEN taşınır (giderler/AracKredi deseni) —
+                // kullanıcı gördüğü listeyi indirir, sessizce tüm tabloyu değil.
+                "arac-siparisleri" => ListExportCatalog.AracSiparisleri(
+                    await asp.SearchAsync(new AracSiparisFilter
+                    {
+                        CariId = FormParse.Id(req.Query["cariF"].ToString()),
+                        Ara = NullIfEmpty(req.Query["araF"].ToString()),
+                        Arac = NullIfEmpty(req.Query["aracF"].ToString()),
+                        DosyaNo = NullIfEmpty(req.Query["dosyaF"].ToString()),
+                        Durum = Enum.TryParse<SiparisDurum>(req.Query["durumF"].ToString(), out var sd) ? sd : null,
+                        Bas = FormParse.Date(req.Query["bas"].ToString()),
+                        Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
+                    }),
+                    MusteriResolver(await cs.ListAsync()), KrediResolver(await akr.ListAsync())),
                 // FAZ-13: ekrandaki filtre export'a AYNEN taşınır (giderler deseni) — kullanıcı
                 // gördüğü listeyi indirir, sessizce tüm tabloyu değil.
                 "arac-kredileri" => ListExportCatalog.AracKredileri(
@@ -170,6 +183,13 @@ public static class ListExportEndpoints
     private static Func<Guid, string?> MusteriResolver(IReadOnlyList<Customer> customers)
     {
         var d = customers.ToDictionary(x => x.Id, x => (string?)x.DisplayName);
+        return id => d.TryGetValue(id, out var n) ? n : null;
+    }
+
+    /// <summary>FAZ-17: sipariş export'unda Kredi_No kolonu — kredi Id'si yerine "KR-000001 — Banka".</summary>
+    private static Func<Guid, string?> KrediResolver(IReadOnlyList<AracKredi> krediler)
+    {
+        var d = krediler.ToDictionary(x => x.Id, x => (string?)$"{x.No} — {x.BankaAdi}");
         return id => d.TryGetValue(id, out var n) ? n : null;
     }
 }
