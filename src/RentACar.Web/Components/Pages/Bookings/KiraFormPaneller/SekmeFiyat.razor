@@ -14,10 +14,13 @@
                     }
                     else
                     {
+                    @* FAZ-82: ön-seçim tenant ayarından (ayar boşsa "—" = bugünkü davranış). Yalnız
+                       YENİ kira dalında; düzenlemede alan zaten salt-okunur (yukarıdaki Edit dalı). *@
                     <label>Hesaplama Tipi
                         <select name="fiyatTuru">
-                            <option value="">—</option>
-                            @foreach (var o in KiraFormVm.FiyatTurleri) { <option>@o</option> }
+                            <option value="" selected="@(Vm.TenantVarsayilanFiyatTuru is null)">—</option>
+                            @foreach (var o in KiraFormVm.FiyatTurleri)
+                            { <option value="@o" selected="@(o == Vm.TenantVarsayilanFiyatTuru)">@o</option> }
                         </select>
                     </label>
                     <label>Günlük Ücret / Toplam

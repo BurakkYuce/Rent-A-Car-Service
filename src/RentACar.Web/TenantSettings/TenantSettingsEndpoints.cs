@@ -17,6 +17,14 @@ public static class TenantSettingsEndpoints
         return string.IsNullOrWhiteSpace(v) ? null : v;
     }
 
+    /// <summary>FAZ-82 — üç durumlu (yapılandırılmadı / Evet / Hayır) select → <c>bool?</c>.</summary>
+    private static bool? UcDurumlu(IFormCollection f, string alan) => f[alan].ToString() switch
+    {
+        "true" => true,
+        "false" => false,
+        _ => null
+    };
+
     public static IEndpointRouteBuilder MapTenantSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/ayarlar").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
@@ -55,6 +63,17 @@ public static class TenantSettingsEndpoints
                 VarsayilanDoviz = f["varsayilanDoviz"].ToString(),
                 VarsayilanKdvOrani = FormParse.Dec(f["varsayilanKdvOrani"].ToString()),
                 VarsayilanGrupId = FormParse.Id(f["varsayilanGrupId"].ToString()), // PR-10
+                // FAZ-82 fiyat/muhasebe varsayılanları. Hepsi opsiyonel sayısal/metin → boş string
+                // gelince FormParse null'a çevirir (CLAUDE.md §5 tuzağı: [FromForm] int?/decimal? 400 verir).
+                VarsayilanFiyatTuru = FormParse.Str(f, "varsayilanFiyatTuru"),
+                VarsayilanYakitSeviyesi = FormParse.Int(f["varsayilanYakitSeviyesi"].ToString()),
+                // Üç durumlu (yapılandırılmadı / Evet / Hayır) → bool?. Checkbox KULLANILMADI: işaretsiz
+                // kutu "false" ile "hiç dokunulmadı"yı ayırt edemez; beklemede bir alanda bu ayrım önemli
+                // (ileride motora bağlanırsa "kullanıcı bilinçli kapattı" bilgisi kaybolmasın).
+                DropMesafeYokIseSifir = UcDurumlu(f, "dropMesafeYokIseSifir"),
+                SaatFarkiToleransDk = FormParse.Int(f["saatFarkiToleransDk"].ToString()),
+                IadeIslemSaatSiniri = FormParse.Int(f["iadeIslemSaatSiniri"].ToString()),
+                KurElleGirisKilitli = f["kurElleGirisKilitli"].ToString() is "true" or "on",
                 MinKiraGun = FormParse.Int(f["minKiraGun"].ToString()),
                 MaxKiraGun = FormParse.Int(f["maxKiraGun"].ToString()),
                 RezOnayZorunlu = f["rezOnayZorunlu"].ToString() is "true" or "on",
@@ -68,8 +87,18 @@ public static class TenantSettingsEndpoints
                 WhatsAppNumarasi = f["whatsAppNumarasi"].ToString(),
                 WhatsAppGunlukOzet = f["whatsAppGunlukOzet"].ToString() is "true" or "on"
             };
-            await svc.SaveAsync(m);
-            return Results.Redirect("/ayarlar?ok=1");
+            // FAZ-82: doğrulama hataları (KDV aralığı, fiyat türü, yakıt 0-12, negatif tolerans) artık
+            // PRG ile forma döner. Önce yakalanmıyordu → tek yazım hatası genel hata sayfası veriyordu
+            // ve kullanıcı hangi alanın reddedildiğini göremiyordu (/domain-ekle deseni).
+            try
+            {
+                await svc.SaveAsync(m);
+                return Results.Redirect("/ayarlar?ok=1");
+            }
+            catch (RentACar.Application.Common.ValidationException ex)
+            {
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(ex.Message));
+            }
         });
 
         // PR-C: PDF logo yükle (multipart). Yalnız PNG/JPG (magic-bytes doğrulaması) + ≤1 MB (serviste de kontrol).

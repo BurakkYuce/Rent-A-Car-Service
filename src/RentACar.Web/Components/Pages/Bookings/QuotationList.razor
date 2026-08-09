@@ -4,6 +4,7 @@
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
+@inject RentACar.Application.TenantSettings.FormVarsayilanCozucu Varsayilanlar
 
 <PageTitle>Teklifler — RentPro</PageTitle>
 
@@ -37,11 +38,13 @@
         </label>
         <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defBas" required /></label>
         <label>Bitiş<input name="bitTar" type="datetime-local" value="@_defBit" required /></label>
+        @* FAZ-82: tenant "Varsayılan Fiyat Türü" ayarı yalnız ön-seçimi belirler. Ayar boşsa listenin
+           ilki ("Otomatik") seçili kalır — bugünkü davranışın birebir aynısı. *@
         <label>Fiyat Türü
             <select name="fiyatTuru">
-                @foreach (var o in new[] { "Otomatik", "KDV Dahil Günlük", "Günlük", "KDV Dahil Toplam", "Toplam" })
+                @foreach (var o in RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi)
                 {
-                    <option value="@o">@o</option>
+                    <option value="@o" selected="@(o == _varsayilanFiyatTuru)">@o</option>
                 }
             </select>
         </label>
@@ -118,6 +121,7 @@
     private Dictionary<Guid, string> _vehMap = new();
     private readonly string _defBas = DateTime.Now.ToString("yyyy-MM-ddT09:00");
     private readonly string _defBit = DateTime.Now.AddDays(3).ToString("yyyy-MM-ddT09:00");
+    private string? _varsayilanFiyatTuru;   // FAZ-82: yalnız YENİ teklif formunun ön-seçimi
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,6 +131,7 @@
         _locations = await Locations.ListActiveAsync();
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+        _varsayilanFiyatTuru = await Varsayilanlar.FiyatTuruAsync(); // FAZ-82 (ayar yoksa null → ilk seçenek)
     }
 
     private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");

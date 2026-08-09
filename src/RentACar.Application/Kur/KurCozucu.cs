@@ -1,4 +1,5 @@
 using RentACar.Application.Common;
+using RentACar.Application.TenantSettings;
 
 namespace RentACar.Application.Kur;
 
@@ -8,16 +9,30 @@ namespace RentACar.Application.Kur;
 /// Sözleşme: açık kur verilirse (>0 guard) ONA saygı duyulur (tarihsel düzeltme senaryosu);
 /// verilmezse TRY→1, döviz → <see cref="KurService.GetRateAsync"/> (tenant sabit kur → TCMB;
 /// bulunamazsa ValidationException — SESSİZ 1 YOK).
+///
+/// <para>FAZ-82: tenant <c>KurElleGirisKilitli</c> ayarını AÇARSA açık kur artık kabul edilmez —
+/// kur daima tenant sabit kuru/TCMB'den çözülür. Ayar varsayılanı <c>false</c>, yani BUGÜNKÜ
+/// davranış aynen korunur. Bkz. <c>TenantSettings.KurElleGirisKilitli</c> (kapsam + bedeli).</para>
 /// </summary>
-public sealed class KurCozucu(KurService kur)
+public sealed class KurCozucu(KurService kur, ITenantSettingsRepository ayarlar)
 {
     private readonly KurService _kur = kur;
+    private readonly ITenantSettingsRepository _ayarlar = ayarlar;
 
     public async Task<decimal> CozAsync(
         string? doviz, decimal? kur, DateTimeOffset? tarih, CancellationToken ct = default)
     {
         if (kur is { } k)
         {
+            // Guard GİRİŞ noktasında (CLAUDE.md "yorumdaki hafifletme bayatlar" dersi): elle kur
+            // yolunun TEK kapısı burasıdır — 10+ çağrı sitesi (tahsilat/ödeme/virman/gider/depozito/
+            // ceza/MTV/muayene/sigorta/araç satış/dış hizmet) hepsi bu satırdan geçer.
+            // Ayar okuması BİLEREK yalnız bu dalda: kur boş gelen (çok daha sık) yol ekstra bir DB
+            // sorgusu yapmaz, yani kilit kapalıyken performans profili de bugünküyle aynı kalır.
+            if ((await _ayarlar.GetAsync(ct))?.KurElleGirisKilitli == true)
+                throw new ValidationException(
+                    "Bu firmada kur elle girilemez (Ayarlar → kur elle giriş kilidi). "
+                    + "Kur alanını boş bırakın; günün tanımlı/TCMB kuru kullanılacaktır.");
             if (k <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
             return k;
         }

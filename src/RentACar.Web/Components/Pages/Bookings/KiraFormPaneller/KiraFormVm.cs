@@ -58,6 +58,17 @@ public sealed class KiraFormVm
     /// <summary>Select option seçili mi (edit prefill).</summary>
     public bool Sel(Func<RentalContract, string?> f, string option) => Edit && f(Rental!) == option;
 
+    // ---- FAZ-82: tenant form varsayılanları (yalnız ÖN-DOLDURMA; kaydedilen değer daima formdan gelir) ----
+    /// <summary>Teslim (çıkış) formundaki "Çıkış Yakıt" ön-değeri. Ayar yoksa
+    /// <see cref="RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan"/> (8) —
+    /// yani sayfaya gömülü olan eski sabit.</summary>
+    public int TenantVarsayilanYakit { get; set; }
+        = RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan;
+
+    /// <summary>Yeni kira formundaki "Hesaplama Tipi" dropdown'ının ön-seçili değeri; null = "—"
+    /// (bugünkü davranış). Düzenleme modunda KULLANILMAZ — orada alan zaten salt-okunur.</summary>
+    public string? TenantVarsayilanFiyatTuru { get; set; }
+
     /// <summary>Müsaitlik yenilemesi/yönlendirme sonrası korunan müşteri seçimi (?musteriId= query).</summary>
     public Guid? QMusteriId { get; set; }
     public string QMusteriGoruntu =>
@@ -78,7 +89,9 @@ public sealed class KiraFormVm
     // Sabit seçenek listeleri (RentalList ile aynı — referans sistem parite)
     public static readonly string[] KiralamaTurleri = ["Kısa Kiralama", "Uzun Kiralama", "İkame", "Aylık"];
     public static readonly string[] FaturalamaTipleri = ["Müşteri Ödemeli", "Full Credit", "Extralar Müşteriye Ait", "Drop Dahil", "Diğer"];
-    public static readonly string[] FiyatTurleri = ["Otomatik", "KDV Dahil Günlük", "Günlük", "KDV Dahil Toplam", "Toplam"];
+    // FAZ-82: liste artık Application'daki TEK kaynaktan gelir. Kopya kalsaydı, tenant varsayılanı o
+    // listeye karşı doğrulandığı için en küçük yazım sapması ön-seçimi sessizce hiç eşleşmez yapardı.
+    public static readonly string[] FiyatTurleri = RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi;
     public static readonly string[] Dovizler = ["TL", "EURO", "USD"];
 
     // Tarih sınırları (UI aynası; asıl koruma sunucuda — TarihPolitikasi: kira geçmişe açık, gelecek ≤ +1 yıl)

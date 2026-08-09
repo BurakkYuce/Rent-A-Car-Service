@@ -73,6 +73,79 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// olabilir; yanlış segmentte yayınlanmaktansa araç grupsuz/pending kalır). Bkz. VarsayilanGrupCozucu.</summary>
     public Guid? VarsayilanGrupId { get; set; }
 
+    // ---- FAZ-82: fiyat/muhasebe varsayılanları + iş kuralı anahtarı (canlı ayarlar.aspx) ----
+    // GENEL POLİTİKA (docs/roadmap/KARARLAR.md): buradaki hiçbir alan DEFTERE YAZMAZ; en fazla bir
+    // FORMUN ön-seçili değerini belirler ya da bir girişi REDDEDER. Hepsi nullable/false-varsayılan →
+    // ayar boşken davranış bugünküyle BAYT-ÖZDEŞ kalır (regresyon testleri: AyarFiyatKuralTests).
+
+    /// <summary>
+    /// Yeni rezervasyon/teklif/kira formlarında "Fiyat Türü" seçiminin ÖN-SEÇİLİ değeri
+    /// (null = bugünkü davranış: rezervasyon/kirada boş "—", teklifte listenin ilki).
+    ///
+    /// <para>UYGULANIYOR mu: yalnızca FORM ÖN-DOLDURMA olarak. Sunucu tarafında hiçbir servis bu
+    /// değeri okuyup kaydın <c>FiyatTuru</c>'sunu türetmez — kullanıcı seçimi tek kaynaktır.
+    /// GEREKÇE: <c>FiyatTuru</c> masum bir etiket DEĞİLDİR; "Otomatik" manuel ücreti yok saydırır
+    /// (<c>PricingService</c>), "Günlük"/"Toplam" ise faturayı NET moda çevirir
+    /// (<c>InvoiceService</c> — KDV tutarın üstüne eklenir). Bu yüzden değer yalnız operatörün
+    /// GÖRDÜĞÜ dropdown'da ön-seçili gelir; arkasında sessizce uygulanmaz. Ayrıca <c>null</c> ile
+    /// "Otomatik" AYNI ŞEY DEĞİLDİR (null'da manuel ücret kazanır) — bu yüzden varsayılan null'dır.</para>
+    /// </summary>
+    public string? VarsayilanFiyatTuru { get; set; }
+
+    /// <summary>
+    /// Kira teslim (çıkış) formundaki "Çıkış Yakıt" alanının varsayılanı, 0-12 skalası
+    /// (null = bugünkü sabit <c>8</c>).
+    ///
+    /// <para>UYGULANIYOR mu: evet, ama yalnız FORM ÖN-DOLDURMA olarak — teslim eden operatör değeri
+    /// görür ve değiştirebilir. Kaydedilen <c>RentalContract.CikisYakit</c> hâlâ formdan gelir.</para>
+    /// </summary>
+    public int? VarsayilanYakitSeviyesi { get; set; }
+
+    /// <summary>
+    /// BEKLEMEDE (saklanır, hiçbir hesap okumaz): "drop mesafesi tanımlı değilse drop ücreti 0 kabul
+    /// edilsin mi". Bugün <c>FeeLineService.DropUcretCozAsync</c> eşleşen <c>DropTanim</c> yoksa
+    /// sözleşmedeki elle girilen <c>DropUcreti</c>'ni kullanır. Bu anahtarı motora bağlamak PARA
+    /// davranışını değiştirir (elle girilmiş ücreti sıfırlar) → ayrı bir para fazı + adversarial
+    /// inceleme ister. Şimdilik yalnız tenant'ın niyetini saklar.
+    /// </summary>
+    public bool? DropMesafeYokIseSifir { get; set; }
+
+    /// <summary>
+    /// BEKLEMEDE (saklanır, hiçbir hesap okumaz): geç dönüşte uzatma günü sayılmadan önce tanınacak
+    /// tolerans (DAKİKA).
+    ///
+    /// <para>DİKKAT — KARIŞTIRMAYIN: <c>BookingMath.KismiGunEsigiSaat = 3.0</c> ile ALAKASI YOKTUR.
+    /// O sabit GÜN SAYIMI içindir (kira başında kaç gün faturalanacağı) ve 2026-08-06 canlı
+    /// kalibrasyonuyla ölçülmüştür (<c>CanliGunKalibrasyonTests</c> kilidi). Bu alan ise
+    /// <c>ReturnMath</c>'in geç-dönüş uzatması içindir; orası bugün SAF <c>ceil</c>'dir, toleransı
+    /// yoktur. Bu faz <c>KismiGunEsigiSaat</c>'e DOKUNMAZ.</para>
+    /// </summary>
+    public int? SaatFarkiToleransDk { get; set; }
+
+    /// <summary>
+    /// BEKLEMEDE (saklanır, hiçbir hesap okumaz): iade/dönüş işleminin yapılabileceği saat sınırı.
+    /// Birimi ve tam semantiği canlı sistemden BİREBİR doğrulanmadı — bu yüzden yalnız negatif-olmama
+    /// doğrulaması var, bir tavan/anlam kodlanmadı ve hiçbir servise bağlanmadı.
+    /// </summary>
+    public int? IadeIslemSaatSiniri { get; set; }
+
+    /// <summary>
+    /// UYGULANIYOR: true iken deftere giden hiçbir işlemde ELLE kur girilemez — kur daima
+    /// tenant sabit kuru / TCMB'den çözülür (<c>KurCozucu</c>). Varsayılan <c>false</c> = BUGÜNKÜ
+    /// davranış (açık kur aynen kabul edilir).
+    ///
+    /// <para>KAPSAM (dürüst sınır): kilit <c>KurCozucu.CozAsync</c> giriş noktasındadır, yani ÇİFT
+    /// TARAFLI DEFTERE ulaşan tüm kur yolları (tahsilat/ödeme/virman/gider/depozito/ceza/MTV/
+    /// muayene/sigorta/araç satış/dış hizmet/araç kredisi taksiti) kapsanır. Kayıtların üzerindeki
+    /// BİLGİ amaçlı kur alanları (ör. <c>ServiceRecord.OdemeKur</c>, <c>AracKredi.Kur</c>,
+    /// <c>Vehicle.AlimBedeliKur</c>, müşteri taksit kuru) deftere girmedikleri için kilit dışıdır.</para>
+    ///
+    /// <para>BEDELİ (bilinçli): kilit açıkken, ledger-only bir kaydın ORİJİNAL kurla ters çevrilmesi
+    /// (ör. cari virman düzeltmesi) artık mümkün değildir — düzeltme günün kuruyla yazılır ve baz
+    /// parada kalıntı bırakabilir. Ekranda bu uyarı yazılıdır.</para>
+    /// </summary>
+    public bool KurElleGirisKilitli { get; set; }
+
     // ---- FAZ-81: görünüm renk kodları (canlı ayarlar.aspx "Renk Kodları" bölümü) ----
     // Hepsi "#rrggbb" biçiminde hex ya da null. NULL = koddaki varsayılan renk kullanılır;
     // CSS tarafında fallback zinciri var → boş bırakan tenant'ta görünüm BİREBİR eskisi gibi kalır.

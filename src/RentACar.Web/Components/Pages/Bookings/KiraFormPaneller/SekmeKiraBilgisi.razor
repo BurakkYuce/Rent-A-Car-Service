@@ -123,7 +123,9 @@
             @* Teslim mini-formu — ikincil form (form="kira-teslim", ana formun dışında tanımlı) *@
             <div class="grid-form">
                 <label>Çıkış Km<input form="kira-teslim" name="cikisKm" type="number" min="0" value="0" required /></label>
-                <label>Çıkış Yakıt (0-12)<input form="kira-teslim" name="cikisYakit" type="number" min="0" max="12" value="8" required /></label>
+                @* FAZ-82: ön-değer artık tenant ayarından (Ayarlar → Varsayılan Çıkış Yakıt Seviyesi);
+                   ayar yoksa eski sabit 8. Teslim eden operatör değeri görür ve değiştirebilir. *@
+                <label>Çıkış Yakıt (0-12)<input form="kira-teslim" name="cikisYakit" type="number" min="0" max="12" value="@Vm.TenantVarsayilanYakit" required /></label>
                 <label class="u-self-end"><button type="submit" form="kira-teslim" disabled="@(!Vm.OperasyonYetkisi)">Teslim Et</button></label>
             </div>
             <p class="muted small">Araç odometresi aynı işlemde güncellenir; araç durumu Kirada olur.</p>
