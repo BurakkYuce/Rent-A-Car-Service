@@ -44,7 +44,11 @@
         <legend>Görünüm + Operasyon Kuralları</legend>
         <label>Logo URL<input name="logoUrl" value="@_m.LogoUrl" /></label>
         <label>Varsayılan Döviz<input name="varsayilanDoviz" maxlength="3" value="@_m.VarsayilanDoviz" placeholder="TRY" /></label>
-        <label>Varsayılan KDV Oranı<input name="varsayilanKdvOrani" type="number" step="0.0001" min="0" max="1" value="@_m.VarsayilanKdvOrani" /></label>
+        @* FAZ-82 DÜZELTME: ondalık prefill InvariantCulture ile basılmalı. Sayfa tr-TR kültüründe
+           render ediliyordu → 0.20 değeri value="0,2000" olarak basılıyor, tarayıcı type="number"
+           alanını GEÇERSİZ sayıp BOŞ gösteriyor ve formun bir sonraki kaydı tenant'ın varsayılan KDV
+           oranını sessizce NULL'lıyordu (kullanıcı o alana hiç dokunmasa bile). *@
+        <label>Varsayılan KDV Oranı<input name="varsayilanKdvOrani" type="number" step="0.0001" min="0" max="1" value="@Ondalik(_m.VarsayilanKdvOrani)" /></label>
         @* PR-10: grubu belirtilmeden açılan araçlar (REST API / Excel import) buraya düşer. Boş
            bırakılırsa "Ekonomi" adlı aktif grup aranır; o da yoksa araç grupsuz kalır — bilinçli
            olarak "ilk aktif grup"a düşürülmez (o grup "Lüks" olabilirdi). *@
@@ -62,6 +66,55 @@
         <label class="check"><input type="checkbox" name="rezOnayZorunlu" value="true" checked="@(_m.RezOnayZorunlu == true)" /> Rezervasyon onayı zorunlu</label>
         <label class="check"><input type="checkbox" name="donemselFaturalamaJob" value="true" checked="@_m.DonemselFaturalamaJob" /> Dönemsel faturalama job'ı (uzun/aylık kirada vadesi gelen dönemleri otomatik keser)</label>
         <label class="check"><input type="checkbox" name="donemselOtomatikTahsilat" value="true" checked="@_m.DonemselOtomatikTahsilat" /> Job kesiminde otomatik Kasa tahsilatı (yalnız gerçek oto-ödeme akışında açın — kasa gerçekliği)</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Fiyatlandırma / Muhasebe Varsayılanları</legend>
+        <p class="muted small">Bu bölümdeki hiçbir alan <strong>muhasebe defterine yazmaz</strong>;
+            en fazla bir formun ön-seçili değerini belirler ya da bir girişi reddeder.
+            Alanları boş bırakırsanız sistem bugünkü davranışını birebir korur.</p>
+
+        @* Fiyat türü SADECE formun ön-seçili değerini değiştirir; operatör dropdown'da görür ve
+           değiştirebilir. Sunucu tarafında hiçbir kayda sessizce uygulanmaz — çünkü bu etiket
+           masum değil: "Otomatik" manuel ücreti yok saydırır, "Günlük"/"Toplam" faturayı NET moda
+           çevirir (KDV tutarın üstüne eklenir). *@
+        <label>Varsayılan Fiyat Türü
+            <select name="varsayilanFiyatTuru">
+                <option value="">(Seçilmemiş — bugünkü davranış)</option>
+                @foreach (var o in RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi)
+                {
+                    <option value="@o" selected="@(o == _m.VarsayilanFiyatTuru)">@o</option>
+                }
+            </select>
+        </label>
+        <label>Varsayılan Çıkış Yakıt Seviyesi (0-12)
+            <input name="varsayilanYakitSeviyesi" type="number" min="0" max="12" value="@_m.VarsayilanYakitSeviyesi"
+                   placeholder="@RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan" />
+        </label>
+        <label class="check"><input type="checkbox" name="kurElleGirisKilitli" value="true" checked="@_m.KurElleGirisKilitli" /> Kur elle girilemesin (daima tanımlı/TCMB kuru)</label>
+        <p class="muted small">Kur kilidi açıkken tahsilat, ödeme, virman, gider, depozito, ceza, MTV,
+            muayene, sigorta, araç satışı ve dış hizmet kayıtlarında <strong>elle kur girişi reddedilir</strong>.
+            Kayıtların üzerindeki bilgi amaçlı kur alanları (servis ödeme kuru, araç alım kuru gibi)
+            deftere girmedikleri için kilit dışındadır. <strong>Bedeli:</strong> kilit açıkken eski
+            tarihli bir kaydı <em>orijinal kuruyla</em> ters çevirmek mümkün olmaz; düzeltme günün
+            kuruyla yazılır ve baz parada küçük bir kalıntı bırakabilir.</p>
+
+        <p class="muted small"><strong>Beklemede</strong> — aşağıdakiler kaydedilir ama hiçbir hesaba
+            bağlı DEĞİLDİR. Bir hesaplamaya bağlanmaları tutarları değiştireceği için ayrı bir para
+            fazına ve zorunlu adversarial incelemeye bırakıldı.</p>
+        <label>Drop mesafesi tanımlı değilse ücret sıfır sayılsın mı (beklemede)
+            <select name="dropMesafeYokIseSifir">
+                <option value="" selected="@(_m.DropMesafeYokIseSifir is null)">(Yapılandırılmadı)</option>
+                <option value="true" selected="@(_m.DropMesafeYokIseSifir == true)">Evet</option>
+                <option value="false" selected="@(_m.DropMesafeYokIseSifir == false)">Hayır</option>
+            </select>
+        </label>
+        <label>Geç dönüş saat farkı toleransı — dakika (beklemede)
+            <input name="saatFarkiToleransDk" type="number" min="0" value="@_m.SaatFarkiToleransDk" />
+        </label>
+        <label>İade işlem saat sınırı (beklemede)
+            <input name="iadeIslemSaatSiniri" type="number" min="0" value="@_m.IadeIslemSaatSiniri" />
+        </label>
     </fieldset>
 
     <fieldset>
@@ -274,6 +327,12 @@
     private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];
 
     private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
+
+    /// <summary>FAZ-82: type="number" prefill'i DAİMA InvariantCulture. Sayfa tr-TR kültüründe render
+    /// ediliyor; "0,2000" tarayıcıda geçersiz sayı → alan boş görünür → dokunulmayan alan bir sonraki
+    /// kayıtta NULL'lanır. Tek kaydın tüm tenant ayarını sıfırlayabildiği bu formda kritik.</summary>
+    private static string Ondalik(decimal? d)
+        => d?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
 
     protected override async Task OnInitializedAsync()
     {

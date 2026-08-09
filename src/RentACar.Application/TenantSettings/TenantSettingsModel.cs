@@ -42,6 +42,14 @@ public sealed class TenantSettingsModel
     public string? WhatsAppNumarasi { get; set; }
     public bool? WhatsAppGunlukOzet { get; set; }
 
+    // FAZ-82 fiyat/muhasebe varsayılanları + iş kuralı anahtarı (hepsi opsiyonel; null = bugünkü davranış)
+    public string? VarsayilanFiyatTuru { get; set; }
+    public int? VarsayilanYakitSeviyesi { get; set; }
+    public bool? DropMesafeYokIseSifir { get; set; }   // BEKLEMEDE — motora bağlı değil
+    public int? SaatFarkiToleransDk { get; set; }      // BEKLEMEDE — motora bağlı değil
+    public int? IadeIslemSaatSiniri { get; set; }      // BEKLEMEDE — motora bağlı değil
+    public bool KurElleGirisKilitli { get; set; }      // UYGULANIYOR (KurCozucu)
+
     // FAZ-81 görünüm renk kodları ("#rrggbb" ya da null)
     public string? RenkGecikenler { get; set; }
     public string? RenkBugunDonecekler { get; set; }
