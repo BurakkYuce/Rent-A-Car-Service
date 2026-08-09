@@ -189,6 +189,40 @@ internal sealed class AracSiparisConfig : IEntityTypeConfiguration<AracSiparis>
         e.Property(x => x.Aciklama).HasMaxLength(512);
         e.Property(x => x.Durum).HasConversion<int>();
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
+
+        // ---- FAZ-17 derinlik ----
+        e.Property(x => x.DosyaNo).HasMaxLength(64);
+        e.Property(x => x.SatisTemsilci).HasMaxLength(128);
+        e.Property(x => x.OzelTemsilci).HasMaxLength(128);
+        e.Property(x => x.Versiyon).HasMaxLength(100);
+        e.Property(x => x.Opsiyon).HasMaxLength(512);
+        e.Property(x => x.Renk).HasMaxLength(64);
+        e.Property(x => x.IcRenk).HasMaxLength(64);
+        e.Property(x => x.KaynakTip).HasMaxLength(32);
+        e.Property(x => x.SatisTipi).HasMaxLength(32);
+        e.Property(x => x.TsbKayitNo).HasMaxLength(64);
+        // Üç fiyat katmanı SALT BİLGİ; nullable — "girilmemiş" ile "0" ayrı anlam taşır.
+        e.Property(x => x.PiyasaFiyat).HasColumnType("numeric(19,4)");
+        e.Property(x => x.OpsFiyat).HasColumnType("numeric(19,4)");
+        e.Property(x => x.FiloFiyat).HasColumnType("numeric(19,4)");
+
+        // Cari bağı — composite tenant-FK (AracKredi/FAZ-13 deseni): çapraz-tenant referans YAPISAL
+        // olarak imkânsız (tek kolonlu FK, RLS'in altından başka tenant'ın Id'sine bağlanmayı teknik
+        // olarak engellemezdi). Restrict: bağlı sipariş varken cari silinemez.
+        e.HasOne<Customer>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.TedarikciCariId })
+            .HasPrincipalKey(c => new { c.TenantId, c.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Kredi bağı — aynı composite tenant-FK deseni. Restrict: siparişe bağlı kredi silinemez.
+        e.HasOne<AracKredi>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KrediId })
+            .HasPrincipalKey(k => new { k.TenantId, k.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        e.HasIndex(x => new { x.TenantId, x.TedarikciCariId });
+        e.HasIndex(x => new { x.TenantId, x.DosyaNo });
+        e.HasIndex(x => new { x.TenantId, x.SiparisTarihi });   // FAZ-17 tarih aralığı filtresi
     }
 }
 
@@ -220,6 +254,10 @@ internal sealed class AracKrediConfig : IEntityTypeConfiguration<AracKredi>
         e.Property(x => x.DosyaNo).HasMaxLength(64);
         e.HasIndex(x => new { x.TenantId, x.CariId });
         e.HasIndex(x => new { x.TenantId, x.DosyaNo });
+
+        // FAZ-17 — AracSiparis.KrediId composite tenant-FK'sinin hedefi (TenantId, Id): tenant
+        // sınırını FK'nin KENDİSİ taşır, başka tenant'ın kredisine sipariş bağlanamaz.
+        e.HasAlternateKey(x => new { x.TenantId, x.Id });
     }
 }
 

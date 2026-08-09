@@ -169,13 +169,29 @@ public sealed class ListExportCatalogTests
     [Fact]
     public void AracSiparisleri_projeksiyon()
     {
-        var s = new AracSiparis { No = "SP-1", Tedarikci = "Fiat Bayi", SiparisTarihi = new(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
-            Marka = "Fiat", Tip = "Egea", Grup = "B", Adet = 5, BirimFiyat = 800000m, Currency = "TRY" };
-        var t = ListExportCatalog.AracSiparisleri([s]);
-        Assert.Equal(12, t.Headers.Count);
+        var cari = Guid.NewGuid();
+        var kredi = Guid.NewGuid();
+        var s = new AracSiparis { No = "SP-1", DosyaNo = "DS-9", Tedarikci = "Fiat Bayi", TedarikciCariId = cari,
+            SiparisTarihi = new(2026, 5, 1, 0, 0, 0, TimeSpan.Zero), ImzaTarih = new(2026, 5, 3, 0, 0, 0, TimeSpan.Zero),
+            Marka = "Fiat", Tip = "Egea", Grup = "B", Versiyon = "Elite", Renk = "Beyaz", IcRenk = "Siyah",
+            KaynakTip = "ÖzMal", SatisTipi = "Sıfır", TsbKayitNo = "TSB-1", KrediId = kredi,
+            Adet = 5, BirimFiyat = 800000m, PiyasaFiyat = 850000m, OpsFiyat = 830000m, FiloFiyat = 790000m,
+            Currency = "TRY" };
+        // FAZ-17: Dosya No / Cari / İmza / temsilci / spesifikasyon / 3 fiyat katmanı / TSB / Kredi
+        // kolonları eklendi → 12 değil 28 kolon.
+        var t = ListExportCatalog.AracSiparisleri([s],
+            id => id == cari ? "Fiat Bayi A.Ş." : null,
+            id => id == kredi ? "KR-000007 — Ziraat" : null);
+        Assert.Equal(28, t.Headers.Count);
         Assert.Equal("SP-1", t.Rows[0][0]);
-        Assert.Equal("Fiat Bayi", t.Rows[0][1]);
-        Assert.Equal(5, t.Rows[0][7]);
+        Assert.Equal("DS-9", t.Rows[0][1]);
+        Assert.Equal("Fiat Bayi", t.Rows[0][2]);
+        Assert.Equal("Fiat Bayi A.Ş.", t.Rows[0][3]);
+        Assert.Equal("2026-05-03", t.Rows[0][5]);
+        Assert.Equal(5, t.Rows[0][18]);
+        Assert.Equal(800000m, t.Rows[0][19]);      // RESMİ birim tutar
+        Assert.Equal(850000m, t.Rows[0][20]);      // Piyasa (bilgi)
+        Assert.Equal("KR-000007 — Ziraat", t.Rows[0][25]);
     }
 
     [Fact]

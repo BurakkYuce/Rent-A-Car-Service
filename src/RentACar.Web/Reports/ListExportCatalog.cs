@@ -137,13 +137,33 @@ public static class ListExportCatalog
             x.GenelToplam, x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable AracSiparisleri(IReadOnlyList<AracSiparis> s) => new(
+    /// <summary>
+    /// FAZ-17: Dosya No / Cari / İmza Tarihi / temsilci / spesifikasyon / TSB-Kredi ve üç fiyat
+    /// katmanı kolonları eklendi — ekrandaki tabloyla aynı bilgi dışarı çıksın (cari ve kredi Id
+    /// olarak tutulur, export'a ADLARI yazılır).
+    /// <para>Kolon başlıkları katmanların BİLGİ olduğunu söyler: resmi tutar "Birim Fiyat"tır,
+    /// Piyasa/Ops/Filo hiçbir toplama girmez.</para>
+    /// </summary>
+    public static ExportTable AracSiparisleri(IReadOnlyList<AracSiparis> s,
+        Func<Guid, string?>? cari = null, Func<Guid, string?>? kredi = null) => new(
         "Araç Siparişleri",
-        ["No", "Tedarikçi", "Sipariş Tarihi", "Beklenen Teslim", "Marka", "Tip", "Grup", "Adet", "Birim Fiyat", "Döviz", "Durum", "Açıklama"],
+        ["No", "Dosya No", "Tedarikçi", "Cari", "Sipariş Tarihi", "İmza Tarihi", "Beklenen Teslim",
+         "Satış Temsilcisi", "Özel Temsilci", "Marka", "Tip", "Grup", "Versiyon", "Opsiyon",
+         "Renk", "İç Renk", "Kaynak Tipi", "Satış Tipi", "Adet", "Birim Fiyat (resmi)",
+         "Piyasa Fiyat (bilgi)", "Ops Fiyat (bilgi)", "Filo Fiyat (bilgi)", "Döviz",
+         "TSB Kayıt No", "Kredi", "Durum", "Açıklama"],
         s.Select(x => new object?[]
         {
-            x.No, x.Tedarikci, x.SiparisTarihi.ToString("yyyy-MM-dd"), x.BeklenenTeslim?.ToString("yyyy-MM-dd"),
-            x.Marka, x.Tip, x.Grup, x.Adet, x.BirimFiyat, x.Currency, x.Durum.ToString(), x.Aciklama
+            x.No, x.DosyaNo, x.Tedarikci,
+            x.TedarikciCariId is Guid c ? cari?.Invoke(c) : null,
+            x.SiparisTarihi.ToString("yyyy-MM-dd"), x.ImzaTarih?.ToString("yyyy-MM-dd"),
+            x.BeklenenTeslim?.ToString("yyyy-MM-dd"),
+            x.SatisTemsilci, x.OzelTemsilci,
+            x.Marka, x.Tip, x.Grup, x.Versiyon, x.Opsiyon, x.Renk, x.IcRenk, x.KaynakTip, x.SatisTipi,
+            x.Adet, x.BirimFiyat, x.PiyasaFiyat, x.OpsFiyat, x.FiloFiyat, x.Currency,
+            x.TsbKayitNo,
+            x.KrediId is Guid k ? kredi?.Invoke(k) : null,
+            x.Durum.ToString(), x.Aciklama
         }).ToList());
 
     /// <summary>FAZ-13: Dosya No / Cari / Araç kolonları eklendi — ekrandaki tabloyla aynı bilgi
