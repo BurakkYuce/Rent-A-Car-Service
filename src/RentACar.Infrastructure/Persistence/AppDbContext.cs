@@ -141,6 +141,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<JobCalismaLog> JobCalismaLoglari => Set<JobCalismaLog>();   // FAZ-26 — otomatik servis koşu günlüğü
     public DbSet<CariVirmanBilgi> CariVirmanBilgileri => Set<CariVirmanBilgi>();   // FAZ-59 — virman künyesi (para taşımaz)
     public DbSet<TarifeGrubu> TarifeGruplari => Set<TarifeGrubu>();   // FAZ-72 — tarife/fiyat grubu master
+    public DbSet<MaliyetTeklifi> MaliyetTeklifleri => Set<MaliyetTeklifi>();   // FAZ-74 — kayıtlı maliyet teklifi (deftere yazmaz)
     public DbSet<SubeUcretsizHizmet> SubeUcretsizHizmetler => Set<SubeUcretsizHizmet>();   // FAZ-23
     public DbSet<DonemKilidi> DonemKilitleri => Set<DonemKilidi>();
     public DbSet<ScreenPermission> EkranYetkileri => Set<ScreenPermission>();

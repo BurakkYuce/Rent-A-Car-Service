@@ -517,6 +517,7 @@ app.MapRezSartEndpoints();
 app.MapVardiyaEndpoints();   // FAZ-45
 app.MapTarifeGrubuEndpoints();
 app.MapQuoteEndpoints();
+app.MapMaliyetTeklifiEndpoints();   // FAZ-74 — kayıtlı maliyet teklifi (deftere yazmaz)
 app.MapEkHizmetEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
