@@ -336,6 +336,24 @@ internal sealed class ReservationSourceConfig : IEntityTypeConfiguration<Reserva
         e.Property(x => x.KiraOrani).HasColumnType("numeric(5,2)");
         e.Property(x => x.HizmetOrani).HasColumnType("numeric(5,2)");
         e.Property(x => x.DropOrani).HasColumnType("numeric(5,2)");
+        // FAZ-49 kural matrisi. Grup NULLABLE: mevcut satırlar "belirtilmemiş" kalmalı — 0'a bir
+        // enum üyesi düşseydi geçmiş kayıtlar sessizce o grubu iddia ederdi.
+        e.Property(x => x.KaynakGrubu).HasConversion<int>();
+        e.Property(x => x.SigortaKaynakNo).HasMaxLength(64);
+        e.Property(x => x.DropKaynakNo).HasMaxLength(64);
+        e.Property(x => x.ProvizyonSecenek).HasMaxLength(64);
+        e.Property(x => x.MuafiyatSecenek).HasMaxLength(64);
+        e.Property(x => x.MailAdres).HasMaxLength(256);
+        // Ek hizmet varsayılan TUTARLARI → para deseni numeric(19,4).
+        e.Property(x => x.BebekKoltugu).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Navigasyon).HasColumnType("numeric(19,4)");
+        e.Property(x => x.EkSurucu).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Wifi).HasColumnType("numeric(19,4)");
+        // ORANLAR → yüzde deseni numeric(5,2) (FAZ-24 ile aynı).
+        e.Property(x => x.KomisyonOrani).HasColumnType("numeric(5,2)");
+        e.Property(x => x.OnOdemeOrani).HasColumnType("numeric(5,2)");
+        e.Property(x => x.IndirimOrani).HasColumnType("numeric(5,2)");
+        e.Property(x => x.PuanOrani).HasColumnType("numeric(5,2)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
