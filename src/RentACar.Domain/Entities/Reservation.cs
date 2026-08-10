@@ -67,6 +67,18 @@ public class Reservation : ITenantOwned, IAuditable, IOfficeScoped
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; } // roadmap H2: rezervasyon kaynağı (ReservationSource kodu/adı)
 
+    // ---- FAZ-48 — talep/organizasyon bilgisi (BİLGİ ALANI; deftere/hesaba GİRMEZ) ----
+    // Aynı adlı alanlar RentalContract'ta zaten vardı; rezervasyon aşamasında toplanıp
+    // "Kiraya Çevir"de sözleşmeye AYNEN taşınır (tek veri kaynağı; kullanıcı iki kez girmez).
+    /// <summary>Talebin türü (ör. "Kurumsal", "Bireysel", "Sigorta İkame"). Bilgi.</summary>
+    public string? TalepTuru { get; set; }
+    /// <summary>Talebin geldiği birim/kanal (ör. "Çağrı Merkezi", "Şube"). Bilgi.</summary>
+    public string? GeldigiBirim { get; set; }
+    /// <summary>Müşteri/kurum onay kodu (ör. sigorta dosya onayı). Bilgi.</summary>
+    public string? OnayKodu { get; set; }
+    /// <summary>Proje/organizasyon adı (kurumsal filo işlerinde). Bilgi.</summary>
+    public string? ProjeAdi { get; set; }
+
     /// <summary>Promosyon/kampanya kodu (FAZ 3.A5) — girildiyse fiyat kodlu kuralla çözülür (REPLACE;
     /// kapsam tutmazsa gürültülü red). Reprice'ta yeniden doğrulanır (süresi dolan kod alanı temizletir).</summary>
     public string? KampanyaKodu { get; set; }

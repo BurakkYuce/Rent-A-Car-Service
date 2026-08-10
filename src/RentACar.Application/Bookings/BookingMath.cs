@@ -24,6 +24,18 @@ public static class BookingMath
             throw new ValidationException("Drop ücreti negatif olamaz."); // A3b-B4: crafted POST guard'ı
     }
 
+    /// <summary>Opsiyonel metin alanı: boş → null, aksi Trim + uzunluk çiti (aşımda gürültülü red).
+    /// Rezervasyon ve kira aynı alanları (Talep Türü / Proje Adı …) taşıdığından kural TEK yerde
+    /// (FAZ-48; RentalService.Lim buna delege eder — iki kopya sapmasın).</summary>
+    public static string? Kirp(string? s, int max, string alan)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        if (t.Length > max)
+            throw new ValidationException($"{alan} en fazla {max} karakter olabilir.");
+        return t;
+    }
+
     public static (int Gun, decimal Tutar) Compute(BookingInput input)
     {
         var gun = ComputeGun(input.BasTar, input.BitTar);

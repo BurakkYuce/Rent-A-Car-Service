@@ -11,6 +11,9 @@ public interface IBookingRepository
     // Rezervasyon
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
     Task<IReadOnlyList<Reservation>> ListReservationsAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
+    /// <summary>Rezervasyon listesi: filtre + müşteri/araç birleşimi (FAZ-48; SearchRentalRowsAsync deseni).
+    /// Ayrı bir IReservationRepository AÇILMAZ — rezervasyon kalıcılığı bu arayüzde.</summary>
+    Task<IReadOnlyList<ReservationRow>> SearchReservationsAsync(ReservationFilter filter, CancellationToken ct = default);
     Task<Reservation?> FindReservationAsync(Guid id, CancellationToken ct = default);
     /// <summary>ReservationNo'yu boşluksuz tahsis edip ekler (transaction).</summary>
     Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default);

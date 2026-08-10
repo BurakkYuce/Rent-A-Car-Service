@@ -32,6 +32,7 @@ public static class BookingEndpoints
                     KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
                 ApplyOdemeDerinlik(input, req.Form);
+                ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.CreateAsync(input);
                 return Results.Redirect("/rezervasyonlar");
             }
@@ -57,6 +58,7 @@ public static class BookingEndpoints
                     KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
                 ApplyOdemeDerinlik(input, req.Form);
+                ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.UpdateAsync(id, input);
                 return Results.Redirect("/rezervasyonlar?ok=1");
             }
@@ -501,6 +503,27 @@ public static class BookingEndpoints
         return t.Length <= 32 && t.All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '-')
             ? $"#sekme={t}"
             : string.Empty;
+    }
+
+    /// <summary>
+    /// FAZ-48 — rezervasyon formunun "Brokerden Gelen Bilgisi" (Ota*) + talep/organizasyon alanları.
+    /// SALT VERİ GİRİŞİ: hiçbiri fiyat/defter hesabına girmez (KARARLAR genel politikası). Sayısal
+    /// alanlar <c>string?</c> yoluyla okunur — boş string [FromForm] decimal'de 400 verirdi (§5 tuzağı).
+    /// </summary>
+    private static void ApplyRezervasyonDerinlik(BookingInput input, IFormCollection f)
+    {
+        input.OtaKiraBedeli = FormParse.Dec(f["otaKiraBedeli"].ToString());
+        input.OtaDropBedeli = FormParse.Dec(f["otaDropBedeli"].ToString());
+        input.OtaBebekKoltugu = FormParse.Dec(f["otaBebekKoltugu"].ToString());
+        input.OtaNavigasyon = FormParse.Dec(f["otaNavigasyon"].ToString());
+        input.OtaLcf = FormParse.Dec(f["otaLcf"].ToString());
+        input.OtaCdw = FormParse.Dec(f["otaCdw"].ToString());
+        input.OtaScdw = FormParse.Dec(f["otaScdw"].ToString());
+        input.OtaEkSurucu = FormParse.Dec(f["otaEkSurucu"].ToString());
+        input.TalepTuru = Nz(f["talepTuru"].ToString());
+        input.GeldigiBirim = Nz(f["geldigiBirim"].ToString());
+        input.OnayKodu = Nz(f["onayKodu"].ToString());
+        input.ProjeAdi = Nz(f["projeAdi"].ToString());
     }
 
     private static void ApplyOdemeDerinlik(BookingInput input, IFormCollection f)
