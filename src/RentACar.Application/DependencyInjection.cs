@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.Accessories.AccessoryService>();
         services.AddScoped<CancelReasonService>();
         services.AddScoped<ReservationSourceService>();
+        services.AddScoped<RezKaynakKuralService>(); // FAZ-49: kaynak kural matrisi tüketimi
         services.AddScoped<RentACar.Application.VehicleSegments.VehicleSegmentService>();
         services.AddScoped<RentACar.Application.VehicleTypes.VehicleTypeService>();
         services.AddScoped<RentACar.Application.VehicleOwners.VehicleOwnerService>();
