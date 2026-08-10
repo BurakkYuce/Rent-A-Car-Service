@@ -1,41 +1,122 @@
 @page "/maliyet-hesapla"
 @attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
 @using RentACar.Application.Pricing
+@using RentACar.Application.Personnel
+@using RentACar.Domain.Enums
+@using RentACar.Web.Pricing
+@inject CustomerService Cariler
+@inject PersonelService Personeller
 
 <PageTitle>Filo Maliyet Hesaplayıcı — RentPro</PageTitle>
 
-<div class="page-head"><h1>Filo / Uzun Dönem Maliyet Hesaplayıcı</h1><div class="actions"></div></div>
+<div class="page-head"><h1>Filo / Uzun Dönem Maliyet Hesaplayıcı</h1>
+    <div class="actions"><a href="/maliyet-teklifleri" class="btn-secondary">Kayıtlı Teklifler</a></div></div>
 <p class="muted small">Araç satın alıp uzun-dönem kiralamanın maliyet/başabaş/kâr/teklif modeli (kira teklifi
-    <a href="/fiyat-hesapla">/fiyat-hesapla</a>'dan farklı). Salt-hesap — deftere/bakiyeye yazmaz.
+    <a href="/fiyat-hesapla">/fiyat-hesapla</a>'dan farklı). <strong>Salt-hesap — deftere/bakiyeye yazmaz.</strong>
+    Kaydedilen teklif de bir planlama belgesidir; gelir/gider ve cari bakiye raporlarına HİÇBİR satır eklemez.
     <em>Makul varsayım; canlı kuruş paritesi değil.</em></p>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
+@if (!string.IsNullOrEmpty(Bilgi))
+{
+    <p class="muted"><strong>@Bilgi</strong></p>
+}
 
 <form method="get" class="grid-form">
     <label>Alış Bedeli (net)<input name="alisBedeli" type="number" step="0.01" min="0" value="@AlisBedeli" required /></label>
     <label>Kalıntı Değer %<input name="residual" type="number" step="0.01" min="0" max="1" value="@(Residual ?? "0.30")" /></label>
     <label>Süre (Ay)<input name="sureAy" type="number" min="1" max="120" value="@(SureAy ?? "36")" /></label>
+    <label>Araç Sayısı<input name="adet" type="number" min="1" max="1000" value="@(Adet ?? "1")" /></label>
+    <label>Kredi Hesap Şekli
+        <select name="kredi">
+            @foreach (var k in Enum.GetValues<KrediHesaplamaSekli>())
+            {
+                <option value="@k" selected="@(k.ToString() == (Kredi ?? nameof(KrediHesaplamaSekli.EsitTaksitli)))">@KrediAd(k)</option>
+            }
+        </select>
+    </label>
     <label>Yıllık Faiz<input name="faiz" type="number" step="0.01" min="0" value="@(Faiz ?? "0")" /></label>
     <label>KKDF<input name="kkdf" type="number" step="0.01" min="0" value="@(Kkdf ?? "0.15")" /></label>
     <label>BSMV<input name="bsmv" type="number" step="0.01" min="0" value="@(Bsmv ?? "0.15")" /></label>
     <label>Damga Oranı<input name="damga" type="number" step="0.0001" min="0" value="@(Damga ?? "0")" /></label>
-    <label>Aylık Gider<input name="aylikGider" type="number" step="0.01" min="0" value="@(AylikGider ?? "0")" /></label>
     <label>Kâr Marjı<input name="kar" type="number" step="0.01" min="0" value="@(Kar ?? "0.20")" /></label>
     <label>KDV Oranı<input name="kdv" type="number" step="0.01" min="0" max="1" value="@(Kdv ?? "0.20")" /></label>
+    <label>Enflasyon (yıllık oran)<input name="enflasyon" type="number" step="0.01" min="0" max="3" value="@(Enflasyon ?? "0")" /></label>
+
+    <h3 class="u-col-full">İşletme Gideri Kalemleri</h3>
+    @* Kalem tutarları TL'dir; oran değil. Enflasyon oranı yukarıda ayrı alandadır — TL kalemlerin
+       yanına toplanamaz. Model TEK PARA BİRİMLİDİR: farklı dövizli tutarlar karıştırılmamalı. *@
+    <p class="muted small u-col-full">Tüm tutarlar <strong>tek para birimindedir</strong> (baz).
+        Yıllık kalemler döneme yayılır, aylık kalemler her ay tekrarlar, tek seferlik kalem döneme
+        bir kez girer.</p>
+    <label>Kasko (yıllık)<input name="kasko" type="number" step="0.01" min="0" value="@(Kasko ?? "0")" /></label>
+    <label>Trafik Sigortası (yıllık)<input name="trafik" type="number" step="0.01" min="0" value="@(Trafik ?? "0")" /></label>
+    <label>MTV (yıllık)<input name="mtv" type="number" step="0.01" min="0" value="@(Mtv ?? "0")" /></label>
+    <label>Bakım (yıllık)<input name="bakim" type="number" step="0.01" min="0" value="@(Bakim ?? "0")" /></label>
+    <label>Lastik — yaz (yıllık)<input name="lastik" type="number" step="0.01" min="0" value="@(Lastik ?? "0")" /></label>
+    <label>Lastik — kış (yıllık)<input name="lastikKis" type="number" step="0.01" min="0" value="@(LastikKis ?? "0")" /></label>
+    <label>Araç Takip (yıllık)<input name="takip" type="number" step="0.01" min="0" value="@(Takip ?? "0")" /></label>
+    <label>Tescil / Plaka (yıllık)<input name="tescil" type="number" step="0.01" min="0" value="@(Tescil ?? "0")" /></label>
+    <label>Muayene / Emisyon (yıllık)<input name="muayene" type="number" step="0.01" min="0" value="@(Muayene ?? "0")" /></label>
+    <label>Yedek Araç (yıllık)<input name="yedek" type="number" step="0.01" min="0" value="@(Yedek ?? "0")" /></label>
+    <label>Yönetim Gideri (aylık)<input name="yonetim" type="number" step="0.01" min="0" value="@(Yonetim ?? "0")" /></label>
+    <label>Diğer (aylık)<input name="aylikGider" type="number" step="0.01" min="0" value="@(AylikGider ?? "0")" /></label>
+    <label>Banka Dosya / Diğer Masraf (tek seferlik)<input name="dosya" type="number" step="0.01" min="0" value="@(Dosya ?? "0")" /></label>
+
     <button type="submit">Hesapla</button>
 </form>
 
 @if (_sonuc is { } s)
 {
     <div class="cards">
-        <div class="card"><div class="card-num">@s.ToplamMaliyet.ToString("N2")</div><div class="card-label">Toplam Maliyet</div></div>
+        <div class="card"><div class="card-num">@s.ToplamMaliyet.ToString("N2")</div><div class="card-label">Toplam Maliyet (araç başı)</div></div>
         <div class="card"><div class="card-num">@s.BasaBasAylik.ToString("N2")</div><div class="card-label">Başabaş (aylık)</div></div>
         <div class="card"><div class="card-num">@s.TeklifAylikNet.ToString("N2")</div><div class="card-label">Teklif (aylık net)</div></div>
         <div class="card"><div class="card-num">@s.TeklifKdvli.ToString("N2")</div><div class="card-label">Teklif (KDV dahil toplam)</div></div>
     </div>
+    @if (s.AracSayisi > 1)
+    {
+        @* Filo toplamları araç-başı rakamın ADET katıdır; girdiler baştan çarpılmaz ki
+           yuvarlama araç-başı rakamdan kopmasın. *@
+        <div class="cards">
+            <div class="card"><div class="card-num">@s.AracSayisi</div><div class="card-label">Araç Sayısı</div></div>
+            <div class="card"><div class="card-num">@s.FiloToplamMaliyet.ToString("N2")</div><div class="card-label">Filo Toplam Maliyet</div></div>
+            <div class="card"><div class="card-num">@s.FiloTeklifAylikNet.ToString("N2")</div><div class="card-label">Filo Teklif (aylık net)</div></div>
+            <div class="card"><div class="card-num">@s.FiloTeklifKdvli.ToString("N2")</div><div class="card-label">Filo Teklif (KDV dahil)</div></div>
+        </div>
+    }
+
+    <h2 class="dash-h2">Gider Kalemleri Dökümü</h2>
+    <p class="muted small">Her kalemin dönem tutarı <strong>kendi satırında</strong> yuvarlanır; toplam bu
+        satırların toplamıdır (döküm ile toplam kuruşu kuruşuna tutar). Tek seferlik kalemler süreyle
+        çarpılmaz. Enflasyon oranı yalnız tekrarlayan kalemlere, yıl basamaklı uygulanır.</p>
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead><tr><th>Kalem</th><th>Periyot</th><th class="num">Birim</th><th class="num">Dönem Tutarı</th></tr></thead>
+        <tbody>
+            @if (s.Kalemler.Count == 0)
+            {
+                <tr><td colspan="4" class="muted">Gider kalemi girilmedi.</td></tr>
+            }
+            @foreach (var k in s.Kalemler)
+            {
+                <tr>
+                    <td>@k.Ad</td>
+                    <td>@PeriyotAd(k.Periyot)</td>
+                    <td class="num">@k.Birim.ToString("N2")</td>
+                    <td class="num">@k.DonemTutar.ToString("N2")</td>
+                </tr>
+            }
+            <tr><td colspan="3"><strong>Toplam İşletme Gideri</strong></td>
+                <td class="num"><strong>@s.ToplamGider.ToString("N2")</strong></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h2 class="dash-h2">Maliyet Dökümü (araç başına)</h2>
     <div class="table-scroll">
     <table class="grid tr-grid">
         <tbody>
@@ -51,6 +132,32 @@
         </tbody>
     </table>
     </div>
+
+    @* KAYDET AYRI FORM + AYRI ALT-YOL: @page ile aynı yola MapPost eklenirse
+       AmbiguousMatchException (500) doğar — POST daima /maliyet-teklifi/kaydet'e gider.
+       Girdiler gizli alanlarla AYNEN taşınır; sunucu hesabı yeniden yapar (istemciden gelen
+       sonuç kabul edilmez). *@
+    <h2 class="dash-h2">Teklifi Kaydet</h2>
+    <form method="post" action="/maliyet-teklifi/kaydet" class="grid-form"><AntiforgeryToken />
+        @GizliGirdi
+        <label>Başlık<input name="baslik" required maxlength="256" placeholder="Ör. X Filo — 36 ay 10 araç" /></label>
+        <label>Plaka / Araç Künyesi<input name="plaka" maxlength="32" /></label>
+        <label>Tarih<input name="tarih" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" /></label>
+        <label>Cari (ops.)
+            <select name="cariId">
+                <option value="">—</option>
+                @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+            </select>
+        </label>
+        <label>Hazırlayan (ops.)
+            <select name="hazirlayanId">
+                <option value="">—</option>
+                @foreach (var p in _personeller) { <option value="@p.Id">@p.Ad @p.Soyad</option> }
+            </select>
+        </label>
+        <label class="u-col-full">Açıklama<input name="aciklama" maxlength="1024" /></label>
+        <button type="submit">Teklifi Kaydet</button>
+    </form>
 }
 
 @code {
@@ -64,33 +171,86 @@
     [SupplyParameterFromQuery(Name = "aylikGider")] public string? AylikGider { get; set; }
     [SupplyParameterFromQuery(Name = "kar")] public string? Kar { get; set; }
     [SupplyParameterFromQuery(Name = "kdv")] public string? Kdv { get; set; }
+    // FAZ-74 kalem/derinlik alanları
+    [SupplyParameterFromQuery(Name = "kasko")] public string? Kasko { get; set; }
+    [SupplyParameterFromQuery(Name = "trafik")] public string? Trafik { get; set; }
+    [SupplyParameterFromQuery(Name = "mtv")] public string? Mtv { get; set; }
+    [SupplyParameterFromQuery(Name = "bakim")] public string? Bakim { get; set; }
+    [SupplyParameterFromQuery(Name = "lastik")] public string? Lastik { get; set; }
+    [SupplyParameterFromQuery(Name = "lastikKis")] public string? LastikKis { get; set; }
+    [SupplyParameterFromQuery(Name = "takip")] public string? Takip { get; set; }
+    [SupplyParameterFromQuery(Name = "tescil")] public string? Tescil { get; set; }
+    [SupplyParameterFromQuery(Name = "muayene")] public string? Muayene { get; set; }
+    [SupplyParameterFromQuery(Name = "yedek")] public string? Yedek { get; set; }
+    [SupplyParameterFromQuery(Name = "yonetim")] public string? Yonetim { get; set; }
+    [SupplyParameterFromQuery(Name = "dosya")] public string? Dosya { get; set; }
+    [SupplyParameterFromQuery(Name = "enflasyon")] public string? Enflasyon { get; set; }
+    [SupplyParameterFromQuery(Name = "kredi")] public string? Kredi { get; set; }
+    [SupplyParameterFromQuery(Name = "adet")] public string? Adet { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? HataQ { get; set; }
+    [SupplyParameterFromQuery(Name = "kayit")] public string? Kayit { get; set; }
 
     private MaliyetHesapSonuc? _sonuc;
     private string? Hata;
+    private string? Bilgi;
+    private IReadOnlyList<Customer> _cariler = [];
+    private IReadOnlyList<PersonelSecim> _personeller = [];
 
-    protected override void OnInitialized()
+    private static string KrediAd(KrediHesaplamaSekli k) => k switch
     {
+        KrediHesaplamaSekli.EsitTaksitli => "Eşit Taksitli",
+        KrediHesaplamaSekli.Rotatif => "Rotatif (yakında)",
+        _ => k.ToString()
+    };
+
+    private static string PeriyotAd(MaliyetKalemPeriyot p) => p switch
+    {
+        MaliyetKalemPeriyot.Yillik => "Yıllık",
+        MaliyetKalemPeriyot.Aylik => "Aylık",
+        _ => "Tek seferlik"
+    };
+
+    /// <summary>
+    /// Querystring'den gelen HAM girdi. Hem hesap (önizleme) hem kayıt formunun gizli alanları
+    /// BU haritadan beslenir → iki yol asla ayrışamaz ("önizleme == kayıt").
+    /// </summary>
+    private Dictionary<string, string?> Girdi => new()
+    {
+        ["alisBedeli"] = AlisBedeli, ["residual"] = Residual, ["sureAy"] = SureAy,
+        ["faiz"] = Faiz, ["kkdf"] = Kkdf, ["bsmv"] = Bsmv, ["damga"] = Damga,
+        ["aylikGider"] = AylikGider, ["kar"] = Kar, ["kdv"] = Kdv,
+        ["kasko"] = Kasko, ["trafik"] = Trafik, ["mtv"] = Mtv, ["bakim"] = Bakim,
+        ["lastik"] = Lastik, ["lastikKis"] = LastikKis, ["takip"] = Takip, ["tescil"] = Tescil,
+        ["muayene"] = Muayene, ["yedek"] = Yedek, ["yonetim"] = Yonetim, ["dosya"] = Dosya,
+        ["enflasyon"] = Enflasyon, ["kredi"] = Kredi, ["adet"] = Adet
+    };
+
+    /// <summary>Hesap girdisini kayıt formuna AYNEN taşıyan gizli alanlar.</summary>
+    private RenderFragment GizliGirdi => @<text>
+        @foreach (var alan in MaliyetHesapGirdi.AlanAdlari)
+        {
+            <input type="hidden" name="@alan" value="@Girdi.GetValueOrDefault(alan)" />
+        }
+    </text>;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hata = HataQ;
+        if (!string.IsNullOrWhiteSpace(Kayit)) Bilgi = $"Teklif kaydedildi: {Kayit}";
+
         if (string.IsNullOrWhiteSpace(AlisBedeli)) return; // ilk açılış: hesap yok
+        var q = Girdi;
         try
         {
-            _sonuc = MaliyetHesapService.Hesapla(new MaliyetHesapInput
-            {
-                AlisBedeli = D(AlisBedeli) ?? 0m,
-                ResidualYuzde = D(Residual) ?? 0.30m,
-                SureAy = I(SureAy) ?? 36,
-                FaizOran = D(Faiz) ?? 0m,
-                KkdfOran = D(Kkdf) ?? 0.15m,
-                BsmvOran = D(Bsmv) ?? 0.15m,
-                DamgaOran = D(Damga) ?? 0m,
-                AylikGider = D(AylikGider) ?? 0m,
-                KarMarji = D(Kar) ?? 0.20m,
-                KdvOran = D(Kdv) ?? 0.20m
-            });
+            _sonuc = MaliyetHesapService.Hesapla(MaliyetHesapGirdi.Kur(ad => q.GetValueOrDefault(ad)));
         }
         catch (RentACar.Application.Common.ValidationException ex) { Hata = ex.Message; }
-    }
 
-    private static decimal? D(string? s) => decimal.TryParse(s, System.Globalization.NumberStyles.Any,
-        System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
-    private static int? I(string? s) => int.TryParse(s, out var v) ? v : null;
+        // Kaydet formunun dropdown'ları — yalnız hesap başarılıysa gerekli.
+        if (_sonuc is not null)
+        {
+            _cariler = await Cariler.ListAsync();
+            _personeller = await Personeller.ListForSelectAsync();
+        }
+    }
 }

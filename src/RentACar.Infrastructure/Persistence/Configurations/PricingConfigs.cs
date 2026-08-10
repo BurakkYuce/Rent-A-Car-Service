@@ -213,3 +213,45 @@ internal sealed class TarifeGrubuConfig : IEntityTypeConfiguration<TarifeGrubu>
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
+
+// ---- MaliyetTeklifi (FAZ-74 — kaydedilmiş filo maliyet teklifi) ----
+// PLANLAMA BELGESİ, mali belge DEĞİL: deftere postalamaz → değişmezlik trigger'ı YOK, tam CRUD.
+internal sealed class MaliyetTeklifiConfig : IEntityTypeConfiguration<MaliyetTeklifi>
+{
+    public void Configure(EntityTypeBuilder<MaliyetTeklifi> e)
+    {
+        e.ToTable("MaliyetTeklifleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+
+        // Composite tenant-FK: çapraz-tenant referans yapısal olarak imkânsız.
+        e.HasOne<Customer>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.CariId })
+            .HasPrincipalKey(c => new { c.TenantId, c.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        e.HasOne<Personel>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.HazirlayanId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        e.Property(x => x.KayitNo).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Baslik).IsRequired().HasMaxLength(256);
+        e.Property(x => x.Plaka).HasMaxLength(32);
+        e.Property(x => x.Aciklama).HasMaxLength(1024);
+        e.Property(x => x.KrediHesaplamaSekli).HasConversion<int>();
+
+        // Tutar/oran kolonlarının HEPSİ numeric(19,4) — tek tek yazmak yerine model üzerinden
+        // dolaşılır (yeni kalem eklendiğinde kolon tipini yazmayı UNUTMA riski kalmaz).
+        foreach (var p in e.Metadata.GetProperties()
+                     .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
+            p.SetColumnType("numeric(19,4)");
+
+        e.Ignore(x => x.FiloToplamMaliyet);      // TÜRETİLMİŞ — kolon değil
+        e.Ignore(x => x.FiloTeklifAylikNet);
+        e.Ignore(x => x.FiloTeklifKdvli);
+
+        e.HasIndex(x => new { x.TenantId, x.KayitNo }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+        e.HasIndex(x => new { x.TenantId, x.CariId });
+    }
+}

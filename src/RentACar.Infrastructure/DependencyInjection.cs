@@ -169,6 +169,8 @@ public static class DependencyInjection
             Persistence.Repositories.FiloPlanRepository>();   // FAZ-19
         services.AddScoped<RentACar.Application.MusteriTaksitleri.IMusteriTaksitRepository,
             Persistence.Repositories.MusteriTaksitRepository>();   // FAZ-66
+        services.AddScoped<RentACar.Application.Pricing.IMaliyetTeklifiRepository,
+            Persistence.Repositories.MaliyetTeklifiRepository>();   // FAZ-74
         services.AddScoped<RentACar.Application.Search.ISearchRepository,
             Persistence.Repositories.SearchRepository>();
         services.AddScoped<RentACar.Application.Periods.IDonemKilidiRepository,
