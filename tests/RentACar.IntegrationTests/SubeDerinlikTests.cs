@@ -283,6 +283,7 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         "Baf" => ["Baflar"],
         "DropTanim" => ["DropTanimlari"],
         "CariVirmanBilgi" => ["CariVirmanBilgileri"],
+        "KasaVirmanBilgi" => ["KasaVirmanBilgileri"],
         "PersonelVardiya" => ["PersonelVardiyalari"],
         _ => [entity, entity + "s"]
     };

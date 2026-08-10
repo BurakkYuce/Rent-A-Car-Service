@@ -173,6 +173,9 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Hesap (metin)", db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Tarife matrisi (metin)", db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Cari virman künyesi (metin)", db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        // FAZ-50 — kasa/banka virman künyesi. Künye PARA TAŞIMAZ (mali belge değil) → gider gibi
+        // "taşınmaz" değil, cari virman künyesiyle AYNI davranır: şube adı hedefe taşınır.
+        await Say("Kasa virman künyesi (metin)", db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Site talebi (metin)", db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Drop tanımı (metin)", db.DropTanimlari.Where(x => x.Sube == kaynak.Ad));
         await Say("Kullanıcı (atanmış şube)", db.Users.Where(u => u.AtanmisSubeId == kaynakId));
@@ -239,6 +242,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
             toplam += await db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+            toplam += await db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-50
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);

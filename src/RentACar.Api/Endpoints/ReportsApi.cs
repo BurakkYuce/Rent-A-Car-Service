@@ -16,9 +16,15 @@ public static class ReportsApi
         grp.MapGet("/kasa-banka", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetKasaBankaSummaryAsync(from, to, ct)));
 
+        // FAZ-50: hesapId opsiyonel — boş: türün tümü, Guid.Empty: "hesap belirtilmemiş" (legacy) kova.
         grp.MapGet("/account-ledger", async (ReportService svc, CancellationToken ct,
-            LedgerAccountType type = LedgerAccountType.Kasa, DateTimeOffset? from = null, DateTimeOffset? to = null) =>
-            Results.Ok(await svc.GetAccountLedgerAsync(type, from, to, ct)));
+            LedgerAccountType type = LedgerAccountType.Kasa, DateTimeOffset? from = null, DateTimeOffset? to = null,
+            Guid? hesapId = null) =>
+            Results.Ok(await svc.GetAccountLedgerAsync(type, from, to, hesapId, ct)));
+
+        // FAZ-50: hesap-bazlı kasa/banka özeti (her FinancialAccount ayrı satır + legacy kova).
+        grp.MapGet("/kasa-banka/hesaplar", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
+            Results.Ok(await svc.GetHesapBazliOzetAsync(from, to, ct)));
 
         grp.MapGet("/gelir-gider", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetGelirGiderAsync(from, to, ct)));

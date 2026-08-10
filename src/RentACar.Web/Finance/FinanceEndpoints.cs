@@ -91,7 +91,8 @@ public static class FinanceEndpoints
         grp.MapPost("/tahsilat", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
-            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari) =>
+            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
+            [FromForm] string? hesapId) =>
         {
             try
             {
@@ -99,7 +100,8 @@ public static class FinanceEndpoints
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
-                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
+                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
+                    HesapId = FormParse.Id(hesapId)   // FAZ-50: hangi spesifik kasa/banka
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
@@ -114,7 +116,8 @@ public static class FinanceEndpoints
         grp.MapPost("/odeme", async (CashService svc,
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
-            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari) =>
+            [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
+            [FromForm] string? hesapId) =>
         {
             try
             {
@@ -122,7 +125,8 @@ public static class FinanceEndpoints
                 {
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
-                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari) // M5
+                    Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
+                    HesapId = FormParse.Id(hesapId)   // FAZ-50: hangi spesifik kasa/banka
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
@@ -135,12 +139,20 @@ public static class FinanceEndpoints
 
         grp.MapPost("/virman", async (CashService svc,
             [FromForm] string? kaynak, [FromForm] string? hedef, [FromForm] decimal tutar,
-            [FromForm] string? aciklama, [FromForm] string? islemAnahtari) =>
+            [FromForm] string? aciklama, [FromForm] string? islemAnahtari,
+            // FAZ-50: spesifik hesaplar + künye (makbuz no / işlem şubesi).
+            [FromForm] string? kaynakHesapId, [FromForm] string? hedefHesapId,
+            [FromForm] string? doviz, [FromForm] string? kur,
+            [FromForm] string? makbuzNo, [FromForm] string? sube) =>
         {
             try
             {
-                await svc.TransferAsync(ParseHesap(kaynak), ParseHesap(hedef), tutar, aciklama: aciklama,
-                    islemAnahtari: FormParse.Id(islemAnahtari)); // M5-takip: çift-submit idempotency
+                await svc.TransferAsync(ParseHesap(kaynak), ParseHesap(hedef), tutar,
+                    doviz: string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, kur: FormParse.Dec(kur),
+                    aciklama: aciklama,
+                    islemAnahtari: FormParse.Id(islemAnahtari), // M5-takip: çift-submit idempotency
+                    kaynakHesapId: FormParse.Id(kaynakHesapId), hedefHesapId: FormParse.Id(hedefHesapId),
+                    makbuzNo: makbuzNo, sube: sube);
                 return Results.Redirect("/kasa");
             }
             catch (ValidationException ex)

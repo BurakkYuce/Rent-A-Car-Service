@@ -19,7 +19,8 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class CashService(
     ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    ICustomerRepository customers, RentACar.Application.Kur.KurCozucu kurCozucu)
+    ICustomerRepository customers, RentACar.Application.Kur.KurCozucu kurCozucu,
+    RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
 {
     private readonly ICashRepository _repository = repository;
     private readonly ILedgerPoster _ledger = ledger;
@@ -27,6 +28,7 @@ public sealed class CashService(
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly ICustomerRepository _customers = customers;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
+    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -79,6 +81,7 @@ public sealed class CashService(
 
         // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
+        var cozulenHesap = await _hesapCozucu.CozAsync(input.HesapId, input.Hesap, ct); // FAZ-50
         var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
         var tx = new CashTransaction
         {
@@ -88,6 +91,7 @@ public sealed class CashService(
             Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
             Amount = money,
             KarsiHesap = input.Hesap,
+            HesapId = cozulenHesap,
             Aciklama = input.Aciklama,
             IslemAnahtari = input.IslemAnahtari is { } k && k != Guid.Empty ? k : null // adversarial M5: çift-submit dedup
         };
@@ -125,6 +129,7 @@ public sealed class CashService(
 
         // TÜM satırlar önce doğrulanır (fail-fast) → repo'ya yalnız geçerli set gider; atomiklik repo'da.
         var kurCache = new Dictionary<(string, DateTime?), decimal>();
+        var hesapCache = new Dictionary<(Guid, LedgerAccountType), Guid?>(); // FAZ-50: satır-bazlı hesap doğrulaması
         var postings = new List<CashPosting>(satirlar.Count);
         for (var i = 0; i < satirlar.Count; i++)
         {
@@ -151,6 +156,15 @@ public sealed class CashService(
                     kurCache[kurKey] = cozulenKur = await _kurCozucu.CozAsync(input.Doviz, null, input.Tarih, ct);
             }
 
+            // FAZ-50: satır-bazlı hesap seçimi (aynı hesap tekrar ediyorsa tek doğrulama).
+            Guid? cozulenHesap = null;
+            if (input.HesapId is { } hid && hid != Guid.Empty)
+            {
+                if (!hesapCache.TryGetValue((hid, input.Hesap), out cozulenHesap))
+                    hesapCache[(hid, input.Hesap)] = cozulenHesap =
+                        await _hesapCozucu.CozAsync(hid, input.Hesap, ct);
+            }
+
             var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
             var tx = new CashTransaction
             {
@@ -160,6 +174,7 @@ public sealed class CashService(
                 Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
                 Amount = money,
                 KarsiHesap = input.Hesap,
+                HesapId = cozulenHesap,
                 Aciklama = input.Aciklama,
                 IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null
             };
@@ -336,17 +351,47 @@ public sealed class CashService(
         return tekil.Count == 1 ? tekil[0] : null;
     }
 
-    /// <summary>Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).</summary>
+    /// <summary>
+    /// Kasa↔Banka virman (transfer): Borç Hedef / Alacak Kaynak. Belgesiz (dengeli defter).
+    ///
+    /// <para><b>FAZ-50 — aynı türde iki hesap arası virman ARTIK MÜMKÜN.</b> Önceden kontrol enum
+    /// düzeyindeydi: iki farklı banka hesabı da sistemin gözünde "Banka" olduğundan Ziraat→İş Bankası
+    /// aktarımı reddediliyordu. Artık kaynak/hedef SPESİFİK hesap (<paramref name="kaynakHesapId"/>/
+    /// <paramref name="hedefHesapId"/>) ile ayrışır.</para>
+    ///
+    /// <para><b>Aynı türde virmanda iki hesap da ZORUNLU</b> (bilinçli sıkılaştırma): yalnız biri
+    /// verilseydi para, "hesap belirtilmemiş" legacy kovası ile gerçek bir hesap arasında akar ve
+    /// geçmiş kayıtların toplandığı o kovanın bakiyesi sebepsiz oynardı.</para>
+    ///
+    /// <para><b>Künye</b> (makbuz no / işlem şubesi) defter DIŞINDA
+    /// <see cref="KasaVirmanBilgi"/>'ye aynı transaction'da yazılır — <c>CariVirmanBilgi</c> deseni.</para>
+    /// </summary>
     public async Task TransferAsync(
         LedgerAccountType kaynak, LedgerAccountType hedef, decimal tutar,
         string? doviz = "TRY", decimal? kur = null, string? aciklama = null,
-        Guid? islemAnahtari = null, CancellationToken ct = default)
+        Guid? islemAnahtari = null,
+        // FAZ-50 — spesifik hesap + künye. Hepsi opsiyonel: verilmezse eski davranış birebir korunur.
+        Guid? kaynakHesapId = null, Guid? hedefHesapId = null,
+        string? makbuzNo = null, string? sube = null,
+        CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         EnsureKasaBanka(kaynak);
         EnsureKasaBanka(hedef);
-        if (kaynak == hedef) throw new ValidationException("Kaynak ve hedef hesap farklı olmalıdır.");
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
+
+        // Hesap doğrulaması guard'lardan ÖNCE: uydurma/başka tenant'ın hesabı buradan geri döner.
+        var kaynakRef = await _hesapCozucu.CozAsync(kaynakHesapId, kaynak, ct);
+        var hedefRef = await _hesapCozucu.CozAsync(hedefHesapId, hedef, ct);
+
+        if (kaynak == hedef)
+        {
+            if (kaynakRef is null || hedefRef is null)
+                throw new ValidationException(
+                    "Aynı türdeki iki hesap arasında virman için kaynak ve hedef hesabı ayrı ayrı seçin.");
+            if (kaynakRef == hedefRef)
+                throw new ValidationException("Kaynak ve hedef hesap farklı olmalıdır.");
+        }
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
         var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, null, ct); // 1.1b: bugünkü kur
@@ -354,13 +399,23 @@ public sealed class CashService(
         // İdempotency (pre-launch takip): token verilirse SourceId o olur → kısmi unique index çift-submit'i yutar.
         var sourceId = islemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = aciklama ?? $"Virman {kaynak}→{hedef}";
-        await _ledger.PostAsync(
+        var simdi = DateTimeOffset.UtcNow;
+        var kunye = new KasaVirmanBilgi
+        {
+            Id = sourceId, KaynakTur = kaynak, HedefTur = hedef,
+            KaynakHesapId = kaynakRef, HedefHesapId = hedefRef,
+            Tarih = simdi, MakbuzNo = Kirp(makbuzNo), Sube = Kirp(sube),
+            IslemYapan = _currentUser.UserName, Aciklama = Kirp(aciklama)
+        };
+        await _ledger.PostWithAsync(
         [
-            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = hedef, AccountRef = null,
+            new AccountLedgerEntry { EntryDateUtc = simdi, AccountType = hedef, AccountRef = hedefRef,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "Virman", SourceId = sourceId, Description = desc },
-            new AccountLedgerEntry { EntryDateUtc = DateTimeOffset.UtcNow, AccountType = kaynak, AccountRef = null,
+            new AccountLedgerEntry { EntryDateUtc = simdi, AccountType = kaynak, AccountRef = kaynakRef,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "Virman", SourceId = sourceId, Description = desc }
-        ], ct);
+        ], kunye, ct);
+
+        static string? Kirp(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
     }
 
     /// <summary>
@@ -450,6 +505,8 @@ public sealed class CashService(
             Tarih = DateTimeOffset.UtcNow,
             Amount = original.Amount,
             KarsiHesap = original.KarsiHesap,
+            // FAZ-50: ters kayıt ORİJİNAL hesaba yazılır — para hangi kasadan girdiyse oradan çıkar.
+            HesapId = original.HesapId,
             Aciklama = $"Ters kayıt: {original.No}",
             TersKayitMi = true,
             TersAlinanId = original.Id
@@ -477,7 +534,8 @@ public sealed class CashService(
 
         return
         [
-            new AccountLedgerEntry { EntryDateUtc = tx.Tarih, AccountType = tx.KarsiHesap, AccountRef = null,
+            // FAZ-50: para bacağı artık HANGİ kasa/banka hesabından geçtiğini taşır (null → legacy kova).
+            new AccountLedgerEntry { EntryDateUtc = tx.Tarih, AccountType = tx.KarsiHesap, AccountRef = tx.HesapId,
                 Direction = hesapDir, Amount = tx.Amount, SourceType = src, SourceId = sourceId, Description = tx.Aciklama },
             new AccountLedgerEntry { EntryDateUtc = tx.Tarih, AccountType = LedgerAccountType.Cari, AccountRef = tx.CariId,
                 Direction = cariDir, Amount = tx.Amount, SourceType = src, SourceId = sourceId, Description = tx.Aciklama }

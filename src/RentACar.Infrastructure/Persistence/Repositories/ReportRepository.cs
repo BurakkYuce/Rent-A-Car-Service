@@ -28,13 +28,14 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(e => new
             {
                 e.EntryDateUtc, e.AccountType, e.Direction, e.SourceType, e.Description,
-                Amount = e.Amount.Amount, Rate = e.Amount.Rate
+                Amount = e.Amount.Amount, Rate = e.Amount.Rate, Doviz = e.Amount.Currency, e.AccountRef
             })
             .ToListAsync(ct);
 
         return raw
             .Select(r => new LedgerRowDto(
-                r.EntryDateUtc, r.AccountType, r.Direction, r.SourceType, r.Description, r.Amount * r.Rate))
+                r.EntryDateUtc, r.AccountType, r.Direction, r.SourceType, r.Description, r.Amount * r.Rate,
+                r.AccountRef, r.Amount, r.Doviz))   // FAZ-50: hesap + native tutar
             .ToList();
     }
 

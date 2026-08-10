@@ -551,22 +551,58 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         return ay > 1200m ? null : (int)ay;
     }
 
-    /// <summary>Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.</summary>
+    /// <summary>
+    /// Bir hesabın (Kasa/Banka) defteri: tarihe göre sıralı, yürüyen bakiyeli.
+    ///
+    /// <para>FAZ-50 <paramref name="hesapId"/>: <b>null</b> → o türün TÜM hesapları (eski davranış);
+    /// <b><see cref="Guid.Empty"/></b> → yalnız "hesap belirtilmemiş" (legacy) satırlar; başka değer
+    /// → yalnız o spesifik hesap. Filtre yürüyen bakiyeden ÖNCE uygulanır — aksi halde bakiye
+    /// sütunu ekranda görünmeyen satırları da sayardı.</para>
+    /// </summary>
     public async Task<IReadOnlyList<LedgerLineDto>> GetAccountLedgerAsync(
-        LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+        LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null,
+        Guid? hesapId = null, CancellationToken ct = default)
     {
         var rows = await _repository.GetLedgerRowsAsync([type], from, to, ct);
+        IEnumerable<LedgerRowDto> secim = rows;
+        if (hesapId is { } h)
+            secim = h == Guid.Empty ? rows.Where(r => r.HesapId is null) : rows.Where(r => r.HesapId == h);
 
-        var result = new List<LedgerLineDto>(rows.Count);
+        var result = new List<LedgerLineDto>();
         decimal running = 0m;
-        foreach (var r in rows.OrderBy(r => r.Tarih))
+        foreach (var r in secim.OrderBy(r => r.Tarih))
         {
             var borc = r.Direction == LedgerDirection.Debit ? r.Base : 0m;
             var alacak = r.Direction == LedgerDirection.Credit ? r.Base : 0m;
             running += borc - alacak;
-            result.Add(new LedgerLineDto(r.Tarih, r.SourceType, r.Aciklama, borc, alacak, running));
+            result.Add(new LedgerLineDto(
+                r.Tarih, r.SourceType, r.Aciklama, borc, alacak, running, r.HesapId, r.Native, r.Doviz));
         }
         return result;
+    }
+
+    /// <summary>
+    /// FAZ-50 — <b>hesap-bazlı</b> kasa/banka özeti: her <c>FinancialAccount</c> için ayrı satır,
+    /// artı hesap bilgisi taşımayan geçmiş kayıtlar için AYRI bir "hesap belirtilmemiş" satırı
+    /// (<c>HesapId = null</c>). İki kova BİLİNÇLİ olarak karıştırılmaz.
+    /// Ad çözümü çağırana aittir (rapor katmanı hesap sözlüğünü tanımaz).
+    /// </summary>
+    public async Task<IReadOnlyList<HesapOzetDto>> GetHesapBazliOzetAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetLedgerRowsAsync(
+            [LedgerAccountType.Kasa, LedgerAccountType.Banka], from, to, ct);
+
+        return [.. rows
+            .GroupBy(r => (r.AccountType, r.HesapId))
+            .Select(g =>
+            {
+                var giris = g.Where(x => x.Direction == LedgerDirection.Debit).Sum(x => x.Base);
+                var cikis = g.Where(x => x.Direction == LedgerDirection.Credit).Sum(x => x.Base);
+                return new HesapOzetDto(g.Key.AccountType, g.Key.HesapId, giris, cikis, giris - cikis);
+            })
+            // Sıralama: önce tür (Kasa, Banka), sonra tanımlı hesaplar, en sonda legacy kova.
+            .OrderBy(x => x.Tur).ThenBy(x => x.HesapId is null).ThenBy(x => x.HesapId)];
     }
 
     /// <summary>Kasa & banka giriş/çıkış/bakiye özeti.</summary>
