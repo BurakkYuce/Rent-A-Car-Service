@@ -61,10 +61,15 @@ public sealed class PersonelService(
     /// (yalnız Id/Ad/Soyad/Şube projeksiyonu; TcKimlikEnc/MaasEnc dışarı çıkmaz) → ManageUsers yerine
     /// OperationsWrite yeter. (Önceki gizli bug: dönüş formu ListAsync çağırıyordu → Operatör rolünde
     /// ManageUsers guard'ı sayfayı patlatıyordu; seed Admin olduğundan görünmüyordu.)
+    ///
+    /// <para>FAZ-74: izin GENİŞLETİLDİ (daraltılmadı) — FinanceWrite de yeterli. Maliyet teklifi
+    /// ekranı Muhasebe rolüne açık; Muhasebe'de OperationsWrite YOK ve aynı bug'ın simetriği
+    /// (Muhasebe kullanıcısında sayfanın patlaması) doğardı. Projeksiyon PII taşımadığı için
+    /// finans rolüne açmak yeni bir sızıntı yüzeyi yaratmaz.</para>
     /// </summary>
     public async Task<IReadOnlyList<PersonelSecim>> ListForSelectAsync(CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.RequireAny(_currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
         var rows = await _repository.ListAsync(ct);
         return rows.Where(p => p.Aktif)
             .Select(p => new PersonelSecim(p.Id, p.Ad, p.Soyad, p.Sube))
