@@ -96,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<Crm.AssistansTalepService>();   // FAZ-44
         services.AddScoped<FiloPlan.FiloPlanService>();    // FAZ-19
         services.AddScoped<MusteriTaksitleri.MusteriTaksitService>();   // FAZ-66
+        services.AddScoped<Pricing.MaliyetTeklifiService>();   // FAZ-74 — kayıtlı maliyet teklifi
         services.AddScoped<Search.SearchService>();
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
