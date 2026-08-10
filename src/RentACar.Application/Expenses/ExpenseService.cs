@@ -68,8 +68,10 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             decimal cozulenKur;
             if (input.Kur is { } acikKur)
             {
-                if (acikKur <= 0m) throw new ValidationException($"Kalem {i + 1}: kur pozitif olmalıdır.");
-                cozulenKur = acikKur;
+                // FAZ-82: açık kur da KurCozucu'dan GEÇER — tekil gider kilitliyken toplu giderin
+                // serbest kalması "kur elle girilemez" ayarını anlamsız kılardı. Kalem öneki korunur.
+                try { cozulenKur = await _kurCozucu.CozAsync(input.Doviz, acikKur, input.Tarih, ct); }
+                catch (ValidationException ex) { throw new ValidationException($"Kalem {i + 1}: {ex.Message}"); }
             }
             else
             {

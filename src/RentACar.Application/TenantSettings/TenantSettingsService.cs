@@ -43,6 +43,13 @@ public sealed class TenantSettingsService(
             VarsayilanDoviz = s.VarsayilanDoviz,
             VarsayilanKdvOrani = s.VarsayilanKdvOrani,
             VarsayilanGrupId = s.VarsayilanGrupId, // PR-10
+            // FAZ-82 fiyat/muhasebe varsayılanları + iş kuralı anahtarı
+            VarsayilanFiyatTuru = s.VarsayilanFiyatTuru,
+            VarsayilanYakitSeviyesi = s.VarsayilanYakitSeviyesi,
+            DropMesafeYokIseSifir = s.DropMesafeYokIseSifir,
+            SaatFarkiToleransDk = s.SaatFarkiToleransDk,
+            IadeIslemSaatSiniri = s.IadeIslemSaatSiniri,
+            KurElleGirisKilitli = s.KurElleGirisKilitli,
             // FAZ-81 renk kodları
             RenkGecikenler = s.RenkGecikenler,
             RenkBugunDonecekler = s.RenkBugunDonecekler,
@@ -120,6 +127,21 @@ public sealed class TenantSettingsService(
         return v.ToLowerInvariant();
     }
 
+    /// <summary>
+    /// FAZ-82 — fiyat türü doğrulama. Boş/whitespace → null ("seçilmemiş"; bugünkü davranış).
+    /// Dolu ise <see cref="Pricing.FiyatTuruSecenek.Hepsi"/> içinde OLMAK ZORUNDA ve KANONİK yazımıyla
+    /// saklanır: motor bu metni karşılaştırıyor, tanımadığı bir değer sessizce başka bir fiyat/KDV
+    /// davranışına düşerdi.
+    /// </summary>
+    private static string? FiyatTuruDogrula(string? deger)
+    {
+        if (string.IsNullOrWhiteSpace(deger)) return null;
+        return Pricing.FiyatTuruSecenek.Normalize(deger)
+            ?? throw new ValidationException(
+                "Varsayılan fiyat türü geçersiz. Geçerli değerler: "
+                + string.Join(", ", Pricing.FiyatTuruSecenek.Hepsi) + ".");
+    }
+
     public async Task SaveAsync(TenantSettingsModel m, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
@@ -150,6 +172,27 @@ public sealed class TenantSettingsService(
             // PR-10: FK'si ON DELETE SET NULL; ayrıca çözücü grubu AKTİF olarak arar → pasifleşen
             // ya da başka tenant'a ait bir Id sessizce Ekonomi zincirine düşer, araç yanlış gruba girmez.
             s.VarsayilanGrupId = m.VarsayilanGrupId;
+            // ---- FAZ-82 fiyat/muhasebe varsayılanları ----
+            // Fiyat türü: serbest metin DEĞİL — motor bu değeri string karşılaştırmasıyla okuyor
+            // (Otomatik → manuel ücret yok sayılır; Günlük/Toplam → fatura NET modu). Yazım hatalı bir
+            // varsayılan formda ön-seçili görünüp motorda BAŞKA davranış üretirdi.
+            s.VarsayilanFiyatTuru = FiyatTuruDogrula(m.VarsayilanFiyatTuru);
+            // Yakıt skalası kirada 0-12 (RentalContract.CikisYakit ile aynı skala). Aralık dışı bir
+            // varsayılan teslim formunu HTML doğrulamasıyla çakıştırır (min/max 0-12) → form gönderilemez.
+            if (m.VarsayilanYakitSeviyesi is < 0 or > 12)
+                throw new ValidationException("Varsayılan yakıt seviyesi 0 ile 12 arasında olmalıdır.");
+            s.VarsayilanYakitSeviyesi = m.VarsayilanYakitSeviyesi;
+            // BEKLEMEDE alanlar: hiçbir hesaba bağlı değil. Yine de negatif değer saklanmaz — ileride
+            // motora bağlanırsa "eksi tolerans" gibi anlamsız bir veri hazır beklemesin.
+            s.DropMesafeYokIseSifir = m.DropMesafeYokIseSifir;
+            if (m.SaatFarkiToleransDk is < 0)
+                throw new ValidationException("Saat farkı toleransı negatif olamaz (dakika).");
+            s.SaatFarkiToleransDk = m.SaatFarkiToleransDk;
+            if (m.IadeIslemSaatSiniri is < 0)
+                throw new ValidationException("İade işlem saat sınırı negatif olamaz.");
+            s.IadeIslemSaatSiniri = m.IadeIslemSaatSiniri;
+            // İş kuralı anahtarı — UYGULANIYOR (KurCozucu giriş noktası). false = bugünkü davranış.
+            s.KurElleGirisKilitli = m.KurElleGirisKilitli;
             // FAZ-81 renk kodları — boş serbest (null = koddaki varsayılan renk), dolu ise
             // KESİN "#rrggbb" olmalı: doğrulanmamış bir metin doğrudan CSS'e basılıyor.
             s.RenkGecikenler = Renk(m.RenkGecikenler, "RenkGecikenler");

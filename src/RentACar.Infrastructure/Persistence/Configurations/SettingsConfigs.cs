@@ -43,6 +43,9 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.LogoUrl).HasMaxLength(512);
         e.Property(x => x.VarsayilanDoviz).HasMaxLength(3);
         e.Property(x => x.VarsayilanKdvOrani).HasColumnType("numeric(5,4)");
+        // FAZ-82: fiyat türü SERBEST metin değil, sabit listeden gelen bir etiket (servis doğruluyor) —
+        // kolon uzunluğu en uzun seçeneğe ("KDV Dahil Günlük") rahat yeten 32 karakterle sınırlı.
+        e.Property(x => x.VarsayilanFiyatTuru).HasMaxLength(32);
         e.Property(x => x.SmtpHost).HasMaxLength(256);
         e.Property(x => x.SmtpKullanici).HasMaxLength(256);
         e.Property(x => x.SmtpSifreEnc).HasMaxLength(1024);

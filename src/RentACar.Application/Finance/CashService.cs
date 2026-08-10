@@ -138,8 +138,11 @@ public sealed class CashService(
             decimal cozulenKur;
             if (input.Kur is { } acik)
             {
-                if (acik <= 0m) throw new ValidationException($"Satır {i + 1}: kur pozitif olmalıdır.");
-                cozulenKur = acik;
+                // FAZ-82: açık kur da KurCozucu'dan GEÇER. Önce burada yerel bir pozitiflik kontrolü
+                // yapılıp değer aynen alınıyordu; bu, "kur elle girilemez" tenant kilidinin TOPLU
+                // tahsilat/ödeme ekranından dolanılmasına açık kapı bırakıyordu (tekil yol kilitli,
+                // toplu yol serbest). Satır öneki korunuyor (500 satırda hangi satır olduğu şart).
+                cozulenKur = await SatirKuruAsync(input.Doviz, acik, input.Tarih, i, ct);
             }
             else
             {
@@ -165,6 +168,15 @@ public sealed class CashService(
         }
 
         await _repository.PostBatchAsync(postings, ct);
+    }
+
+    /// <summary>FAZ-82: toplu satırda AÇIK kur çözümü — kural tek kaynaktan (KurCozucu: pozitiflik +
+    /// tenant elle-giriş kilidi), hata mesajı satır önekiyle zenginleştirilerek yeniden fırlatılır.</summary>
+    private async Task<decimal> SatirKuruAsync(
+        string? doviz, decimal acik, DateTimeOffset? tarih, int index, CancellationToken ct)
+    {
+        try { return await _kurCozucu.CozAsync(doviz, acik, tarih, ct); }
+        catch (ValidationException ex) { throw new ValidationException($"Satır {index + 1}: {ex.Message}"); }
     }
 
     /// <summary>Toplu işlem anahtarından satır-bazlı deterministik idempotency anahtarı (batch ⊕ index).

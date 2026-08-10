@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809233532_AddTenantSettingsFiyatVeIsKurallari")]
+    partial class AddTenantSettingsFiyatVeIsKurallari
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -352,33 +355,12 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
-                    b.Property<string>("DosyaNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
-
-                    b.Property<decimal?>("FiloFiyat")
-                        .HasColumnType("numeric(19,4)");
 
                     b.Property<string>("Grup")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("IcRenk")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("ImzaTarih")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("KaynakTip")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid?>("KrediId")
-                        .HasColumnType("uuid");
 
                     b.Property<decimal>("Kur")
                         .HasColumnType("numeric(19,6)");
@@ -392,32 +374,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<decimal?>("OpsFiyat")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Opsiyon")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("OzelTemsilci")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<decimal?>("PiyasaFiyat")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Renk")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("SatisTemsilci")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("SatisTipi")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<DateTimeOffset>("SiparisTarihi")
                         .HasColumnType("timestamp with time zone");
 
@@ -426,9 +382,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid?>("TedarikciCariId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -436,29 +389,13 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("TsbKayitNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Versiyon")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "DosyaNo");
-
-                    b.HasIndex("TenantId", "KrediId");
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
-
-                    b.HasIndex("TenantId", "SiparisTarihi");
-
-                    b.HasIndex("TenantId", "TedarikciCariId");
 
                     b.ToTable("AracSiparisleri", (string)null);
                 });
@@ -7606,21 +7543,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasOne("RentACar.Domain.Entities.Customer", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "CariId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.AracSiparis", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.AracKredi", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "KrediId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("RentACar.Domain.Entities.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "TedarikciCariId")
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
