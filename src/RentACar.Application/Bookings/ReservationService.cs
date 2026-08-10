@@ -1,6 +1,7 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
+using RentACar.Application.ReservationSources;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -12,12 +13,14 @@ namespace RentACar.Application.Bookings;
 /// Tenant izolasyonu/audit alt katmanda otomatik. Liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
 public sealed class ReservationService(
-    IBookingRepository repository, ICurrentUser currentUser, PricingService pricing, FeeLineService feeLines)
+    IBookingRepository repository, ICurrentUser currentUser, PricingService pricing, FeeLineService feeLines,
+    RezKaynakKuralService kaynakKural)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
     private readonly FeeLineService _feeLines = feeLines;
+    private readonly RezKaynakKuralService _kaynakKural = kaynakKural; // FAZ-49
 
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
@@ -34,6 +37,12 @@ public sealed class ReservationService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
+        // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA (fiyatlamadan/kabulden ÖNCE): kaynağın gün sınırı
+        // ve drop yasağı burada reddedilir, km sınırsızlığı burada sabitlenir.
+        var kaynak = await _kaynakKural.CozAsync(input.Kaynak, ct);
+        RezKaynakKural.MaxGunGuard(kaynak, BookingMath.ComputeGun(input.BasTar, input.BitTar));
+        RezKaynakKural.DropGuard(kaynak, input.CikisOfisi, input.DonusOfisi);
+        var kmLimit = RezKaynakKural.KmLimitUygula(kaynak, input.KmLimit);
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
@@ -53,7 +62,7 @@ public sealed class ReservationService(
             GunlukUcret = input.GunlukUcret,
             Tutar = pr.Tutar,
             HediyeGun = pr.HediyeGun, FaturalananGun = pr.FaturalananGun, IskontoTutar = pr.IskontoTutar, HaftaSonuFark = pr.HaftaSonuFark,
-            KmLimit = input.KmLimit,
+            KmLimit = kmLimit,                 // FAZ-49: KmSinirsiz kaynakta 0'a sabitlenir
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
             Provizyon = input.Provizyon,
@@ -94,6 +103,38 @@ public sealed class ReservationService(
         // (adversarial H5). Yeni bir geçmiş/aşırı-ileri tarihe taşıma hâlâ reddedilir.
         if (input.BasTar != existing.BasTar)
             TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
+
+        // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA. Kaynak bu istekte DEĞİŞEBİLDİĞİ için İKİ kaynak
+        // da çözülür: yasak kural (tarih kilidi/uzatma yasağı) hangisinden gelirse gelsin geçerlidir
+        // — aksi halde "kaynağı serbest olana çevir + tarihi değiştir" tek istekte kuralı delerdi.
+        // Sınır/biçim kuralları (MaxGun/drop/km) SONUÇ durumu tanımladığından YENİ kaynağa bakar.
+        //
+        // <b>YALNIZ GERÇEKTEN DEĞİŞEN alan denetlenir</b> (tarih politikasıyla AYNI ders): kural
+        // kaynağa SONRADAN konabilir. Kural konmadan önce açılmış bir rezervasyonun (ör. 10 günlük
+        // ya da drop'lu) not/araç düzenlemesini de reddetseydik, kayıt hiç düzenlenemez hale gelir
+        // ve tüm yaşlanmış-kayıt akışı kilitlenirdi. Yeni bir ihlal YARATMAK hâlâ reddedilir.
+        var mevcutKaynak = await _kaynakKural.CozAsync(existing.Kaynak, ct);
+        var yeniKaynak = await _kaynakKural.CozAsync(input.Kaynak, ct);
+        var tarihDegisti = input.BasTar != existing.BasTar || input.BitTar != existing.BitTar;
+        var kaynakDegisti = !string.Equals(input.Kaynak?.Trim() ?? "", existing.Kaynak ?? "",
+            StringComparison.OrdinalIgnoreCase);
+        var ofisDegisti =
+            !string.Equals(input.CikisOfisi ?? "", existing.CikisOfisi ?? "", StringComparison.Ordinal)
+            || !string.Equals(input.DonusOfisi ?? "", existing.DonusOfisi ?? "", StringComparison.Ordinal);
+
+        if (tarihDegisti)
+            RezKaynakKural.TarihDegisiklikGuard(mevcutKaynak, yeniKaynak);
+        if (input.BitTar > existing.BitTar) // bitişi ileri almak = uzatma
+        {
+            RezKaynakKural.UzatmaGuard(mevcutKaynak);
+            RezKaynakKural.UzatmaGuard(yeniKaynak);
+        }
+        if (tarihDegisti || kaynakDegisti)
+            RezKaynakKural.MaxGunGuard(yeniKaynak, BookingMath.ComputeGun(input.BasTar, input.BitTar));
+        if (ofisDegisti || kaynakDegisti)
+            RezKaynakKural.DropGuard(yeniKaynak, input.CikisOfisi, input.DonusOfisi);
+        // Km sabitlemesi bir RED değil, sonucu yazma biçimidir → koşulsuz (kilitleme riski yok).
+        var kmLimit = RezKaynakKural.KmLimitUygula(yeniKaynak, input.KmLimit);
 
         // FAZ 3.A7 adversarial B4: FİYAT-ETKİLEYEN girdiler değişmedikçe REPRICE ATLANIR — no-op/not
         // düzenlemesi kabul edilmiş fiyatı (surge dahil) SESSİZCE düşüremez/yükseltemez. Girdiler
@@ -143,7 +184,7 @@ public sealed class ReservationService(
                 // aksi halde tarih düzenlemesi faturanın ayrıştırma oranını sessizce sıfırlardı.
                 r.KdvOranSnapshot = ucretVeyaModDegisti ? pr.KdvOranSnapshot : r.KdvOranSnapshot;
             }
-            r.KmLimit = input.KmLimit;
+            r.KmLimit = kmLimit;               // FAZ-49: KmSinirsiz kaynakta 0'a sabitlenir
             r.FazlaKmUcret = input.FazlaKmUcret;
             r.YakitBirimUcret = input.YakitBirimUcret;
             r.Provizyon = input.Provizyon;

@@ -1,6 +1,7 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
+using RentACar.Application.ReservationSources;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -25,11 +26,15 @@ public sealed class RentalService(
     RentACar.Application.Finance.KdvVarsayilan kdvVarsayilan,
     RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan,
     RentACar.Application.Finance.ICashRepository cashRepository,
-    RentACar.Application.Locations.ILocationRepository locationRepository)
+    RentACar.Application.Locations.ILocationRepository locationRepository,
+    RezKaynakKuralService kaynakKural)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
+    // FAZ-49: rezervasyon kaynağı kural matrisi (uzatma yasağı / provizyon yok / km sınırsız /
+    // drop yasağı / max gün). Saf gövde RezKaynakKural'da; burada yalnız GİRİŞ NOKTASI çağrıları.
+    private readonly RezKaynakKuralService _kaynakKural = kaynakKural;
     private readonly RentACar.Application.RentalAddOns.IRentalAddOnRepository _addOnRepository = addOnRepository;
     private readonly ITenantCache _cache = cache;
 
@@ -90,6 +95,13 @@ public sealed class RentalService(
             }
         }
 
+        // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA (fiyatlamadan önce): kaynağın gün sınırı + drop
+        // yasağı reddeder, km sınırsızlığı KmLimit'i 0'a sabitler.
+        var kaynakKurali = await _kaynakKural.CozAsync(input.Kaynak, ct);
+        RezKaynakKural.MaxGunGuard(kaynakKurali, BookingMath.ComputeGun(input.BasTar, input.BitTar));
+        RezKaynakKural.DropGuard(kaynakKurali, input.CikisOfisi, input.DonusOfisi);
+        var kaynakKmLimit = RezKaynakKural.KmLimitUygula(kaynakKurali, input.KmLimit);
+
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
         var varsayilanKdv = await kdvVarsayilan.OranAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
@@ -117,7 +129,7 @@ public sealed class RentalService(
             DonusOfisi = Lim(input.DonusOfisi, 64, "Dönüş ofisi"),
             Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
-            KmLimit = input.KmLimit,
+            KmLimit = kaynakKmLimit,          // FAZ-49: KmSinirsiz kaynakta 0'a (sınırsız) sabitlenir
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
             Tutar = pr.Tutar,
@@ -218,6 +230,24 @@ public sealed class RentalService(
         if (input.FazlaKmUcret < 0m || input.YakitBirimUcret < 0m)
             throw new ValidationException("Aşım ücretleri negatif olamaz.");
 
+        // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA. Kaynak bu formda değişebildiğinden sonucu
+        // tanımlayan kurallar YENİ kaynağa göre uygulanır. Drop yasağı YALNIZ ofis ya da kaynak
+        // GERÇEKTEN değiştiyse denetlenir: kural kaynağa sonradan konabilir ve mevcut drop'lu
+        // sözleşmenin not düzenlemesini de reddetseydik kayıt hiç güncellenemezdi (tarih-politikası
+        // dersi — guard yeni ihlali keser, yaşlanmış kaydı kilitlemez).
+        var kaynakMetni = Lim(input.Kaynak, 64, "Kaynak");
+        var kaynakKurali = await _kaynakKural.CozAsync(kaynakMetni, ct);
+        var kaynakDegisti = !string.Equals(kaynakMetni ?? "", mevcut.Kaynak ?? "", StringComparison.OrdinalIgnoreCase);
+        var ofisDegisti =
+            !string.Equals(cikisOfisi ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal)
+            || !string.Equals(donusOfisi ?? "", mevcut.DonusOfisi ?? "", StringComparison.Ordinal);
+        if (ofisDegisti || kaynakDegisti)
+            RezKaynakKural.DropGuard(kaynakKurali, cikisOfisi, donusOfisi);
+        // Km sabitlemesi yalnız AÇIK (Kirada) sözleşmenin yazma yolunda uygulanır. Tamamlanmış
+        // kirada aşım parametreleri zaten DONMUŞ; sabitlemeyi oradaki "değişti mi" karşılaştırmasına
+        // sokmak, kural sonradan konduğunda kaydı tümüyle düzenlenemez yapardı.
+        var kmLimit = RezKaynakKural.KmLimitUygula(kaynakKurali, input.KmLimit);
+
         if (mevcut.Durum == RentalStatus.Tamamlandi)
         {
             if (input.KmLimit != mevcut.KmLimit || input.FazlaKmUcret != mevcut.FazlaKmUcret
@@ -262,13 +292,13 @@ public sealed class RentalService(
                 c.CikisOfisi = cikisOfisi;
                 c.DonusOfisi = donusOfisi;
                 c.IkinciSurucuId = input.IkinciSurucuId;
-                c.KmLimit = input.KmLimit;
+                c.KmLimit = kmLimit;          // FAZ-49: KmSinirsiz kaynakta 0'a (sınırsız) sabitlenir
                 c.FazlaKmUcret = input.FazlaKmUcret;
                 c.YakitBirimUcret = input.YakitBirimUcret;
             }
             // Bilgi alanları — her iki durumda da (Kirada/Tamamlandi) serbest.
             c.Aciklama = Lim(input.Aciklama, 1024, "Açıklama");
-            c.Kaynak = Lim(input.Kaynak, 64, "Kaynak");
+            c.Kaynak = kaynakMetni;           // FAZ-49: kural çözümü ile AYNI metin (ıraksama olmaz)
             c.KiralamaTuru = Lim(input.KiralamaTuru, 64, "Kiralama türü");
             c.DonemselFaturalama = input.DonemselFaturalama; // FAZ 4.2-B4
             c.FaturalamaTipi = Lim(input.FaturalamaTipi, 64, "Faturalama tipi");
@@ -327,6 +357,12 @@ public sealed class RentalService(
     public async Task<bool> ProvizyonAlAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA: kaynağı "provizyon yok" diyen sözleşmede bloke
+        // alınamaz. Kaynak çözümü async olduğundan repo lambda'sının İÇİNE konamaz; ön-okuma ile
+        // burada yapılır (durum/şube doğrulaması lambda içinde aynen sürüyor).
+        var mevcut = await _repository.FindRentalAsync(id, ct);
+        if (mevcut is null) return false;
+        RezKaynakKural.ProvizyonGuard(await _kaynakKural.CozAsync(mevcut.Kaynak, ct));
         return await _repository.UpdateRentalAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
@@ -548,6 +584,13 @@ public sealed class RentalService(
             throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
         if (yeniBitTar <= c.BitTar)
             throw new ValidationException("Yeni bitiş tarihi mevcut bitişten sonra olmalıdır.");
+
+        // FAZ-49 KURAL MATRİSİ — uzatmanın GERÇEK giriş noktası burasıdır (UpdateOpenAsync'te tarih
+        // alanı YOKTUR; RentalUpdateInput whitelist'i tip düzeyinde para/tarih taşımaz). Kaynak
+        // "uzatılamaz" diyorsa red; MaxGun varsa uzatma sonrası TOPLAM gün sınırı aşamaz.
+        var kaynakKurali = await _kaynakKural.CozAsync(c.Kaynak, ct);
+        RezKaynakKural.UzatmaGuard(kaynakKurali);
+        RezKaynakKural.MaxGunGuard(kaynakKurali, BookingMath.ComputeGun(c.BasTar, yeniBitTar));
 
         // Uzatılan aralıkta (kendisi hariç) başka aktif kira çakışması olmamalı.
         if (await _repository.HasOverlappingActiveRentalAsync(c.VehicleId, c.BasTar, yeniBitTar, id, ct))

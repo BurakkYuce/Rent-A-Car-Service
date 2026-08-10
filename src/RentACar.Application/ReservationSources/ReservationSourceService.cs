@@ -16,6 +16,12 @@ namespace RentACar.Application.ReservationSources;
 /// OKUMAZ — "hangi hesaba, ne zaman, geçmiş kayıtlara etkisiyle" girecekleri ayrı bir para
 /// incelemesinin konusudur. Bu çit bilinçlidir: bir oranı sessizce hesaba bağlamak, kullanıcı
 /// alanı "not" sanıp doldurduğunda faturayı değiştirirdi.</para>
+///
+/// <para><b>FAZ-49 kural matrisi:</b> alanlar iki sınıfa ayrılır — KURAL bayrakları (Uzatamaz,
+/// RezTarihleriDegisemez, ProvizyonYok, KmSinirsiz, AyniYonDrop, MaxGun) rezervasyon/kira
+/// akışında <see cref="RezKaynakKural"/> ile GERÇEKTEN uygulanır; geri kalan tutar/oran/işaret
+/// alanları BİLGİdir ve hiçbir hesaba girmez (KARARLAR.md FAZ-49). Ayrım entity'de alan alan
+/// yazılıdır; oranların fiyata dokunmadığı kırılgan regresyon testiyle kilitlidir.</para>
 /// </summary>
 public sealed class ReservationSourceService(IReservationSourceRepository repository, ICurrentUser currentUser, ITenantCache cache)
     : MasterTanimService<ReservationSource>(repository, currentUser, cache, "reservation-sources", "rezervasyon kaynağı")
@@ -63,10 +69,57 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
     /// kanca kullanılır (yalnız birine yazmak alanı sessizce düşürürdü).</summary>
     private static void Ek(ReservationSource e, ReservationSourceInput input)
     {
-        e.Tedarikci = string.IsNullOrWhiteSpace(input.Tedarikci) ? null : input.Tedarikci.Trim();
+        e.Tedarikci = Metin(input.Tedarikci, 128, "Tedarikçi");
         e.KiraOrani = Oran(input.KiraOrani, "Kira oranı");
         e.HizmetOrani = Oran(input.HizmetOrani, "Hizmet oranı");
         e.DropOrani = Oran(input.DropOrani, "Drop oranı");
+
+        // ---- FAZ-49 kural matrisi ----------------------------------------------------------
+        e.KaynakGrubu = input.KaynakGrubu;
+
+        // KURAL bayrakları — rezervasyon/kira akışında GERÇEKTEN uygulanır (RezKaynakKural).
+        e.Uzatamaz = input.Uzatamaz;
+        e.RezTarihleriDegisemez = input.RezTarihleriDegisemez;
+        e.ProvizyonYok = input.ProvizyonYok;
+        e.KmSinirsiz = input.KmSinirsiz;
+        e.AyniYonDrop = input.AyniYonDrop;
+        e.MaxGun = MaxGun(input.MaxGun);
+
+        // BİLGİ alanları — hiçbir fiyat/komisyon/defter hesabına girmez (KARARLAR.md FAZ-49).
+        e.MaliyetYansitma = input.MaliyetYansitma;
+        e.MatrisErken = input.MatrisErken;
+        e.MatrisGecikme = input.MatrisGecikme;
+        e.MatrisIptal = input.MatrisIptal;
+        e.MatrisNoShow = input.MatrisNoShow;
+        e.MatrisUzatma = input.MatrisUzatma;
+
+        e.SigortaKaynakNo = Metin(input.SigortaKaynakNo, 64, "Sigorta kaynak no");
+        e.DropKaynakNo = Metin(input.DropKaynakNo, 64, "Drop kaynak no");
+        e.ProvizyonSecenek = Metin(input.ProvizyonSecenek, 64, "Provizyon seçeneği");
+        e.MuafiyatSecenek = Metin(input.MuafiyatSecenek, 64, "Muafiyet seçeneği");
+
+        e.ScdwDahil = input.ScdwDahil;
+        e.CdwDahil = input.CdwDahil;
+        e.LcfDahil = input.LcfDahil;
+        e.PaiDahil = input.PaiDahil;
+
+        e.BebekKoltugu = Tutar(input.BebekKoltugu, "Bebek koltuğu tutarı");
+        e.Navigasyon = Tutar(input.Navigasyon, "Navigasyon tutarı");
+        e.EkSurucu = Tutar(input.EkSurucu, "Ek sürücü tutarı");
+        e.Wifi = Tutar(input.Wifi, "Wifi tutarı");
+
+        e.KomisyonOrani = Oran(input.KomisyonOrani, "Komisyon oranı");
+        e.OnOdemeOrani = Oran(input.OnOdemeOrani, "Ön ödeme oranı");
+        e.IndirimOrani = Oran(input.IndirimOrani, "İndirim oranı");
+        e.PuanOrani = Oran(input.PuanOrani, "Puan oranı");
+
+        e.MailAdres = Metin(input.MailAdres, 256, "Mail adresi");
+        e.OtomatikMailGitme = input.OtomatikMailGitme;
+        e.RiskAnalizYapma = input.RiskAnalizYapma;
+        e.SubeGor = input.SubeGor;
+        e.AcenteFiyatDegistir = input.AcenteFiyatDegistir;
+        e.Gizle = input.Gizle;
+        e.SadeceMusteriOdeme = input.SadeceMusteriOdeme;
     }
 
     private static decimal? Oran(decimal? deger, string alan)
@@ -75,5 +128,34 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
         if (o < 0m) throw new ValidationException($"{alan} negatif olamaz.");
         if (o > OranMax) throw new ValidationException($"{alan} en çok %{OranMax:0} olabilir.");
         return decimal.Round(o, 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>Ek hizmet varsayılan TUTARI (bilgi): negatif reddedilir, 4 haneye yuvarlanır
+    /// (kolon numeric(19,4) — DB kısıtı yerine anlaşılır mesaj).</summary>
+    private static decimal? Tutar(decimal? deger, string alan)
+    {
+        if (deger is not { } t) return null;
+        if (t < 0m) throw new ValidationException($"{alan} negatif olamaz.");
+        if (t > 9_999_999m) throw new ValidationException($"{alan} gerçekçi değil.");
+        return decimal.Round(t, 4, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>KURAL alanı: 0 "sınır yok" DEĞİL, "hiç kiralanamaz" olurdu → 0 ve negatif reddedilir;
+    /// sınır yoksa alan BOŞ bırakılır (null). Üst sınır 3650 gün (anti-typo).</summary>
+    private static int? MaxGun(int? deger)
+    {
+        if (deger is not { } g) return null;
+        if (g <= 0) throw new ValidationException("En fazla gün 0 veya negatif olamaz; sınır yoksa alanı boş bırakın.");
+        if (g > 3650) throw new ValidationException("En fazla gün 3650'yi aşamaz.");
+        return g;
+    }
+
+    /// <summary>Serbest metin: trim + boş→null + aşımda temiz red (DB varchar taşması 500 yerine).</summary>
+    private static string? Metin(string? s, int max, string alan)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        if (t.Length > max) throw new ValidationException($"{alan} en çok {max} karakter olabilir.");
+        return t;
     }
 }
