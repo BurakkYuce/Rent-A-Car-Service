@@ -3,14 +3,15 @@
 @using RentACar.Domain.Entities
 @using RentACar.Domain.Enums
 @inject ReportService Reports
+@inject FinancialAccountService Hesaplar
 
 <PageTitle>Kasa / Banka Defteri — RentPro</PageTitle>
 
 <div class="page-head">
     <h1>Kasa / Banka Defteri</h1>
     <div class="actions">
-        <a href="/raporlar/export/kasa-banka?format=excel&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">Excel</a> ·
-        <a href="/raporlar/export/kasa-banka?format=csv&amp;hesap=@Hesap&amp;from=@From&amp;to=@To">CSV</a>
+        <a href="/raporlar/export/kasa-banka?format=excel&amp;hesap=@Hesap&amp;hesapId=@HesapId&amp;from=@From&amp;to=@To">Excel</a> ·
+        <a href="/raporlar/export/kasa-banka?format=csv&amp;hesap=@Hesap&amp;hesapId=@HesapId&amp;from=@From&amp;to=@To">CSV</a>
     </div>
 </div>
 
@@ -19,6 +20,18 @@
         <select name="hesap">
             <option value="Kasa" selected="@(_hesap == LedgerAccountType.Kasa)">Kasa</option>
             <option value="Banka" selected="@(_hesap == LedgerAccountType.Banka)">Banka</option>
+        </select>
+    </label>
+    @* FAZ-50 — spesifik hesap filtresi. "Hesap belirtilmemiş" AYRI bir seçenektir: bu fazdan
+       önceki kayıtların hangi kasadan geçtiği bilinmiyor ve rastgele bir hesaba yedirilmiyor. *@
+    <label>Kasa/Banka Hesabı
+        <select name="hesapId">
+            <option value="">— tümü —</option>
+            <option value="@Guid.Empty" selected="@(HesapId == Guid.Empty.ToString())">— hesap belirtilmemiş (eski kayıtlar) —</option>
+            @foreach (var h in _hesaplar)
+            {
+                <option value="@h.Id" selected="@(HesapId == h.Id.ToString())">@h.Ad (@h.Kod)</option>
+            }
         </select>
     </label>
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
@@ -45,22 +58,58 @@
     </div>
 </div>
 
+<h2>Hesap Bazlı Bakiye</h2>
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead><tr><th>Tür</th><th>Hesap</th><th class="num">Giriş ₺</th><th class="num">Çıkış ₺</th><th class="num">Bakiye ₺</th></tr></thead>
+    <tbody>
+        @if (_hesapOzet.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">Hareket yok.</td></tr>
+        }
+        @foreach (var o in _hesapOzet)
+        {
+            <tr>
+                <td>@o.Tur</td>
+                <td>
+                    @if (o.HesapId is { } hid)
+                    {
+                        @(_adlar.TryGetValue(hid, out var ad) ? ad : "(silinmiş hesap)")
+                    }
+                    else
+                    {
+                        <span class="muted" title="Bu satırlar hesap seçimi eklenmeden önce yazıldı; hangi kasa/banka olduğu bilinmiyor.">hesap belirtilmemiş</span>
+                    }
+                </td>
+                <td class="num">@o.Giris.ToString("N2")</td>
+                <td class="num">@o.Cikis.ToString("N2")</td>
+                <td class="num @(o.Bakiye < 0 ? "neg" : "pos")">@o.Bakiye.ToString("N2")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+<h2>Hareketler</h2>
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Tarih</th><th>Kaynak</th><th>Açıklama</th><th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
+        <tr><th>Tarih</th><th>Kaynak</th><th>Hesap</th><th>Açıklama</th><th class="num">Tutar (kendi dövizinde)</th><th>Döviz</th><th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
     </thead>
     <tbody>
         @if (_lines.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Hareket yok.</td></tr>
+            <tr><td colspan="9" class="muted">Hareket yok.</td></tr>
         }
         @foreach (var l in _lines)
         {
             <tr>
                 <td>@l.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@l.SourceType</td>
+                <td>@(l.HesapId is { } lh ? (_adlar.TryGetValue(lh, out var lad) ? lad : "(silinmiş hesap)") : "—")</td>
                 <td>@l.Aciklama</td>
+                <td class="num">@l.Native.ToString("N2")</td>
+                <td>@l.Doviz</td>
                 <td>@(l.Borc > 0 ? l.Borc.ToString("N2") : "")</td>
                 <td>@(l.Alacak > 0 ? l.Alacak.ToString("N2") : "")</td>
                 <td class="@(l.YuruyenBakiye < 0 ? "neg" : "pos")">@l.YuruyenBakiye.ToString("N2")</td>
@@ -72,12 +121,16 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hesap")] public string? Hesap { get; set; }
+    [SupplyParameterFromQuery(Name = "hesapId")] public string? HesapId { get; set; }
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
     private LedgerAccountType _hesap = LedgerAccountType.Kasa;
     private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
     private IReadOnlyList<LedgerLineDto> _lines = [];
+    private IReadOnlyList<HesapOzetDto> _hesapOzet = [];
+    private IReadOnlyList<FinancialAccount> _hesaplar = [];
+    private Dictionary<Guid, string> _adlar = new();
 
     private decimal Giris => _hesap == LedgerAccountType.Kasa ? _summary.KasaGiris : _summary.BankaGiris;
     private decimal Cikis => _hesap == LedgerAccountType.Kasa ? _summary.KasaCikis : _summary.BankaCikis;
@@ -89,8 +142,14 @@
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
 
+        // Guid.Empty = "yalnız hesap belirtilmemiş"; boş = tümü (bkz. GetAccountLedgerAsync).
+        Guid? hesapFiltre = Guid.TryParse(HesapId, out var hf) ? hf : null;
+
         _summary = await Reports.GetKasaBankaSummaryAsync(from, to);
-        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to);
+        _hesapOzet = await Reports.GetHesapBazliOzetAsync(from, to);
+        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to, hesapFiltre);
+        _hesaplar = await Hesaplar.ListAsync();
+        _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

@@ -9,12 +9,29 @@ namespace RentACar.Application.Reporting;
 /// </summary>
 public sealed record LedgerRowDto(
     DateTimeOffset Tarih, LedgerAccountType AccountType, LedgerDirection Direction,
-    string SourceType, string? Aciklama, decimal Base);
+    string SourceType, string? Aciklama, decimal Base,
+    // FAZ-50 — Kasa/Banka satırlarında HANGİ hesap (FinancialAccount). null = "hesap belirtilmemiş"
+    // (bu fazdan önceki tüm kayıtlar). Cari/Gider gibi türlerde bu alan zaten o türün referansıdır.
+    Guid? HesapId = null,
+    // Native tutar + döviz kodu: raporda "1.000 EUR (32.000 ₺)" gösterebilmek için. Base tek başına
+    // hangi dövizden geldiğini söylemiyordu.
+    decimal Native = 0m, string Doviz = "TRY");
 
 /// <summary>Defter satırı (yürüyen bakiyeli) — kasa/banka defteri görünümü.</summary>
 public sealed record LedgerLineDto(
     DateTimeOffset Tarih, string SourceType, string? Aciklama,
-    decimal Borc, decimal Alacak, decimal YuruyenBakiye);
+    decimal Borc, decimal Alacak, decimal YuruyenBakiye,
+    // FAZ-50 — satırın hesabı ve kendi dövizindeki tutarı (grid kolonları).
+    Guid? HesapId = null, decimal Native = 0m, string Doviz = "TRY");
+
+/// <summary>
+/// FAZ-50 — hesap-bazlı kasa/banka özeti. <paramref name="HesapId"/> null olan satır, hesap bilgisi
+/// taşımayan (bu fazdan önceki) kayıtların toplandığı <b>"hesap belirtilmemiş"</b> kovasıdır ve
+/// gerçek hesaplarla ASLA karıştırılmaz — karıştırmak, bilinmeyen bir kasanın bakiyesini rastgele
+/// bir hesaba yüklemek olurdu.
+/// </summary>
+public sealed record HesapOzetDto(
+    LedgerAccountType Tur, Guid? HesapId, decimal Giris, decimal Cikis, decimal Bakiye);
 
 /// <summary>Kasa & banka giriş/çıkış/bakiye özeti (yerel para, base).</summary>
 public sealed record CashboxSummaryDto(

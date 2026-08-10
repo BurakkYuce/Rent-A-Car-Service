@@ -43,12 +43,18 @@ internal sealed class AccountLedgerEntryConfig : IEntityTypeConfiguration<Accoun
             .IsUnique()
             .HasFilter("\"SourceType\" = 'CariVirman'")
             .HasDatabaseName("IX_AccountLedgerEntries_CariVirman_Idem");
-        // Kasa↔Banka virman idempotency (pre-launch takip): işlem anahtarı (SourceId) verilince çift-submit yutulur.
-        // İki kayıt AccountRef=null (hesap-arası) → CariVirman'ın AccountRef ayrımı yok; hedef/kaynak AccountType
-        // FARKLI (kaynak==hedef reddedilir) → AccountType ile ayrışır (ikisi de ilk post'ta geçer; tekrar gönderim
-        // çakışır). Yalnız 'Virman' (kısmi); kolon kümesi Hgs/CariVirman'dan FARKLI (…SourceId,AccountType) → EF
-        // ayrı kısmi index üretir.
-        e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.AccountType })
+        // Kasa↔Banka virman idempotency: işlem anahtarı (SourceId) verilince çift-submit yutulur.
+        //
+        // FAZ-50 GENİŞLEMESİ — anahtara AccountRef EKLENDİ. Önceden iki bacak yalnız AccountType ile
+        // ayrışıyordu (kaynak==hedef reddedildiği için tür farkı garantiydi). Artık Banka-A → Banka-B
+        // virmanı MEŞRU: iki bacak da AccountType=Banka olur ve eski anahtar ikinci bacağı benzersizlik
+        // ihlaliyle reddederdi. Ayrım artık AccountRef'ten gelir.
+        //
+        // İndeks migration'da ELLE kuruluyor çünkü NULLS NOT DISTINCT gerekiyor: AccountRef nullable ve
+        // hesap seçilmeyen (legacy) virmanda iki bacak da NULL. PG varsayılanında NULL'lar farklı
+        // sayıldığından aynı anahtarla ikinci gönderim ÇAKIŞMAZ ve mevcut çift-submit koruması
+        // SESSİZCE kaybolurdu. (PG 15+ gerekir; yerel 15.x, CI postgres:16.)
+        e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.AccountType, x.AccountRef })
             .IsUnique()
             .HasFilter("\"SourceType\" = 'Virman'")
             .HasDatabaseName("IX_AccountLedgerEntries_Virman_Idem");
@@ -105,6 +111,10 @@ internal sealed class CashTransactionConfig : IEntityTypeConfiguration<CashTrans
         });
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.CariId });
+        // FAZ-50 — hangi spesifik kasa/banka hesabindan gectigi. FK YOK (bilincli): hesap tanimi
+        // silinse bile mali belge okunabilir kalmali; silinen hesap raporda "hesap belirtilmemis"
+        // kovasina duser (null-toleransli okuma karari).
+        e.HasIndex(x => new { x.TenantId, x.HesapId });
         // Idempotency: bir işlemin EN FAZLA bir ters kaydı olabilir (yarış güvencesi).
         e.HasIndex(x => new { x.TenantId, x.TersAlinanId })
             .IsUnique()
@@ -305,6 +315,26 @@ internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirma
         e.HasIndex(x => new { x.TenantId, x.Tarih });
         e.HasIndex(x => new { x.TenantId, x.KaynakCariId });
         e.HasIndex(x => new { x.TenantId, x.HedefCariId });
+    }
+}
+
+// ---- KasaVirmanBilgi (FAZ-50 — kasa/banka virman künyesi; PARA TAŞIMAZ, mali belge DEĞİL) ----
+internal sealed class KasaVirmanBilgiConfig : IEntityTypeConfiguration<KasaVirmanBilgi>
+{
+    public void Configure(EntityTypeBuilder<KasaVirmanBilgi> e)
+    {
+        e.ToTable("KasaVirmanBilgileri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();   // defterdeki SourceId ile AYNI
+        e.Property(x => x.KaynakTur).HasConversion<int>();
+        e.Property(x => x.HedefTur).HasConversion<int>();
+        e.Property(x => x.MakbuzNo).HasMaxLength(32);
+        e.Property(x => x.Sube).HasMaxLength(128);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.HasIndex(x => new { x.TenantId, x.Tarih });
+        e.HasIndex(x => new { x.TenantId, x.KaynakHesapId });
+        e.HasIndex(x => new { x.TenantId, x.HedefHesapId });
     }
 }
 

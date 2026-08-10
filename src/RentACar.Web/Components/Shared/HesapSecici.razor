@@ -1,0 +1,50 @@
+@* FAZ-50 — "hangi SPESİFİK kasa/banka hesabı" seçici. Kasa/Banka enum select'inin YANINA konur.
+
+   NEDEN TEK BİLEŞEN: bu seçim 15'e yakın para formunda tekrar ediyor; her formda ayrı bir <select>
+   yazmak, hesap listesi kuralı değiştiğinde (pasif hesap gizleme, ad biçimi) formlardan birinin
+   geride kalmasına yol açardı — bu repoda daha önce tam bu sınıf bir "wire-in" hatası yaşandı.
+
+   NEDEN TÜRE GÖRE FİLTRELENMİYOR: tür, kardeş bir <select> ile aynı anda seçiliyor ve statik SSR'da
+   sunucu render sırasında o seçimi bilmiyor. Liste bu yüzden "Kasa · Merkez Kasa" gibi TÜR ÖNEKLİ
+   gösterilir; tür çelişkisi sunucuda HesapCozucu tarafından anlaşılır bir mesajla reddedilir
+   (yanlış hesaba para yazılması imkânsız).
+*@
+@inject FinancialAccountService Hesaplar
+
+@if (_liste.Count > 0)
+{
+    <label class="@CssClass">@Etiket
+        <select name="@Ad" title="Para hangi kasa/banka hesabından geçti (boş bırakılabilir)">
+            <option value="">— hesap belirtilmemiş —</option>
+            @foreach (var h in _liste)
+            {
+                <option value="@h.Id" selected="@(Secili == h.Id)">@Goster(h)</option>
+            }
+        </select>
+    </label>
+}
+
+@code {
+    /// <summary>Form alan adı (varsayılan <c>hesapId</c>; virmanda kaynak/hedef için değişir).</summary>
+    [Parameter] public string Ad { get; set; } = "hesapId";
+    [Parameter] public string Etiket { get; set; } = "Hesap (kasa/banka)";
+    [Parameter] public Guid? Secili { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    private IReadOnlyList<FinancialAccount> _liste = [];
+
+    protected override async Task OnInitializedAsync()
+        // Yalnız AKTİF hesaplar: pasif hesap seçilse servis zaten reddederdi, listede durması
+        // kullanıcıyı boşuna hataya sürüklerdi.
+        => _liste = await Hesaplar.ListActiveAsync();
+
+    /// <summary>"Kasa · Merkez Kasa (MRK)" — tür öneki kullanıcının doğru hesabı seçmesi için.</summary>
+    private static string Goster(FinancialAccount h)
+    {
+        var tur = string.IsNullOrWhiteSpace(h.Tur) ? null : h.Tur.Trim();
+        var ad = string.IsNullOrWhiteSpace(h.Ad) ? h.Kod : h.Ad;
+        var doviz = string.IsNullOrWhiteSpace(h.Doviz) ? null : h.Doviz;
+        var kuyruk = doviz is null ? $" ({h.Kod})" : $" ({h.Kod} · {doviz})";
+        return tur is null ? ad + kuyruk : $"{tur} · {ad}{kuyruk}";
+    }
+}
