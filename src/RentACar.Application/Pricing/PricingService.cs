@@ -183,12 +183,9 @@ public sealed class PricingService(
     /// tarife seçtiremez (çit; sessiz yanlış-tarife yerine base matris).</summary>
     private async Task<string?> KanalCozAsync(string? kaynak, CancellationToken ct)
     {
+        // FAZ-48: kural KanalCozucu'ya taşındı (müsaitlik ekranı da aynı çiti kullanıyor); davranış AYNI.
         if (string.IsNullOrWhiteSpace(kaynak)) return null;
-        var k = kaynak.Trim();
-        var aktifler = await _kaynaklar.ListActiveAsync(ct);
-        return aktifler.Any(s =>
-            string.Equals(s.Kod, k, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(s.Ad, k, StringComparison.OrdinalIgnoreCase)) ? k : null;
+        return KanalCozucu.Coz(kaynak, await _kaynaklar.ListActiveAsync(ct));
     }
 
     /// <summary>FiyatTuru moduna göre brüt Tutar; GunlukUcret'i brüte normalize eder (yan etki). Modlar:

@@ -48,8 +48,16 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.Property(x => x.KampanyaKodu).HasMaxLength(64); // FAZ 3.A5
         e.Property(x => x.FiyatTuru).HasMaxLength(64); // FAZ 3.A6-B2
         e.Property(x => x.KdvOranSnapshot).HasColumnType("numeric(9,4)");
+        // FAZ-48 — talep/organizasyon bilgi alanları (uzunluklar RentalContract'takiyle BİREBİR;
+        // "Kiraya Çevir" kopyalaması kesilmesin).
+        e.Property(x => x.TalepTuru).HasMaxLength(64);
+        e.Property(x => x.GeldigiBirim).HasMaxLength(64);
+        e.Property(x => x.OnayKodu).HasMaxLength(64);
+        e.Property(x => x.ProjeAdi).HasMaxLength(128);
         e.HasIndex(x => new { x.TenantId, x.ReservationNo }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
+        // FAZ-48 — liste filtresi (durum + başlangıç tarihi aralığı) için kapsayıcı indeks.
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.BasTar });
     }
 }
 

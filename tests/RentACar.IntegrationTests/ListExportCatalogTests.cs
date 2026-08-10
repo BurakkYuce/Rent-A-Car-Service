@@ -248,14 +248,23 @@ public sealed class ListExportCatalogTests
     [Fact]
     public void Rezervasyonlar_projeksiyon()
     {
-        var r = new Reservation { ReservationNo = "RE-1", BasTar = new(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-            BitTar = new(2026, 2, 3, 0, 0, 0, TimeSpan.Zero), CikisOfisi = "Merkez", DonusOfisi = "Ankara",
-            Gun = 2, GunlukUcret = 150m, Tutar = 300m };
-        var t = ListExportCatalog.Rezervasyonlar([r]);
-        Assert.Equal(9, t.Headers.Count);
+        // FAZ-48: kolonlar genişledi (müşteri/plaka/kaynak + talep bilgisi). Saat 12:00 seçildi ki
+        // YEREL GÜN dönüşümü hiçbir makine saat diliminde gün atlatmasın (±11 saate kadar güvenli).
+        var r = new Reservation { ReservationNo = "RE-1", BasTar = new(2026, 2, 1, 12, 0, 0, TimeSpan.Zero),
+            BitTar = new(2026, 2, 3, 12, 0, 0, TimeSpan.Zero), CikisOfisi = "Merkez", DonusOfisi = "Ankara",
+            Kaynak = "Web", TalepTuru = "Kurumsal", GeldigiBirim = "Çağrı Merkezi", ProjeAdi = "ACME",
+            OnayKodu = "ON-7", Gun = 2, GunlukUcret = 150m, Tutar = 300m };
+        var t = ListExportCatalog.Rezervasyonlar([new ReservationRow(r, "Ali Veli", "5551112233", "34ABC01")]);
+        Assert.Equal(17, t.Headers.Count);
         Assert.Equal("RE-1", t.Rows[0][0]);
-        Assert.Equal("Merkez", t.Rows[0][4]);
-        Assert.Equal(300m, t.Rows[0][8]);
+        Assert.Equal("Ali Veli", t.Rows[0][2]);
+        Assert.Equal("34ABC01", t.Rows[0][4]);
+        Assert.Equal("2026-02-01", t.Rows[0][5]);
+        Assert.Equal("Merkez", t.Rows[0][7]);
+        Assert.Equal("Web", t.Rows[0][9]);
+        Assert.Equal("Kurumsal", t.Rows[0][10]);
+        Assert.Equal("ON-7", t.Rows[0][13]);
+        Assert.Equal(300m, t.Rows[0][16]);
     }
 
     [Fact]

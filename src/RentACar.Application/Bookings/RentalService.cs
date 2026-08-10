@@ -470,14 +470,8 @@ public sealed class RentalService(
         return damga;
     }
 
-    private static string? Lim(string? s, int max, string alan)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return null;
-        var t = s.Trim();
-        if (t.Length > max)
-            throw new ValidationException($"{alan} en fazla {max} karakter olabilir.");
-        return t;
-    }
+    // FAZ-48: kural BookingMath.Kirp'e taşındı (rezervasyon aynı alanları taşıyor); davranış AYNI.
+    private static string? Lim(string? s, int max, string alan) => BookingMath.Kirp(s, max, alan);
 
     private static int? ValidFindex(int? puan)
         => puan is < 0 ? throw new ValidationException("Findeks puanı negatif olamaz.") : puan;

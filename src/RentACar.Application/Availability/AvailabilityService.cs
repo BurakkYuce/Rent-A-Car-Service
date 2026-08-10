@@ -40,6 +40,40 @@ public sealed class AvailabilityService(IAvailabilityRepository repository, ICur
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
         => (await _repository.GetSonKullanimAsync(vehicleIds, ct)).ToDictionary(x => x.VehicleId);
 
+    /// <summary>
+    /// FAZ-48 — arama penceresi kurma: gün + saat girdilerinden [from, to). SAF fonksiyon; ekran
+    /// formül taşımaz. Kurallar:
+    /// <list type="bullet">
+    /// <item>Başlangıç günü zorunlu; yoksa null (arama yapılmaz).</item>
+    /// <item><paramref name="gun"/> verilirse (>0) bitiş = başlangıç + gün — bitiş tarihi alanı
+    /// gerekmez ("3 günlük" araması). Gün 1 → tek günlük anlık durum sorgusu.</item>
+    /// <item>Gün verilmediyse bitiş günü kullanılır.</item>
+    /// <item>Saatler verilmezse 00:00 — ESKİ DAVRANIŞLA BİREBİR (regresyon çiti). Bitiş saati
+    /// verilmezse başlangıç saati kullanılır (gün-sayısı modunda doğal karşılık).</item>
+    /// <item>Offset DAİMA Zero: ekranın (ve fiyat motorunun) mevcut takvim-günü konvansiyonu.</item>
+    /// </list>
+    /// Sıralama doğrulaması (bitiş > başlangıç) BİLEREK burada değil — <see cref="FindAvailableAsync"/>
+    /// zaten tek noktadan reddediyor, ikinci bir mesaj kaynağı üretilmez.
+    /// </summary>
+    public static (DateTimeOffset From, DateTimeOffset To)? Pencere(
+        DateOnly? basGun, DateOnly? bitGun, int? gun, TimeOnly? basSaat, TimeOnly? bitSaat)
+    {
+        if (basGun is not DateOnly bg) return null;
+        var bs = basSaat ?? TimeOnly.MinValue;
+        var from = new DateTimeOffset(bg.ToDateTime(bs), TimeSpan.Zero);
+
+        var ts = bitSaat ?? bs;
+        DateTimeOffset to;
+        if (gun is > 0)
+            to = new DateTimeOffset(bg.AddDays(gun.Value).ToDateTime(ts), TimeSpan.Zero);
+        else if (bitGun is DateOnly tg)
+            to = new DateTimeOffset(tg.ToDateTime(ts), TimeSpan.Zero);
+        else
+            return null;
+
+        return (from, to);
+    }
+
     /// <summary>Boştaki gün sayısı (son dönüşten bugüne, kapsayıcı DEĞİL — aynı gün 0).</summary>
     public static int BostaGun(DateTimeOffset sonDonus, DateTimeOffset now)
     {
