@@ -122,12 +122,19 @@ public sealed class ListExportCatalogTests
     public void Cezalar_projeksiyon()
     {
         var p = new Penalty { No = "CZ-1", CezaTuru = "Hız", TebligTarihi = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            VadeTarihi = new(2026, 1, 16, 0, 0, 0, TimeSpan.Zero), Tutar = 500m, Sebep = "Radar" };
+            VadeTarihi = new(2026, 1, 16, 0, 0, 0, TimeSpan.Zero), Tutar = 500m, Sebep = "Radar",
+            MakbuzNo = "MK-9", OdenenTutar = 200m, Kalan = 300m, Saat = "14:30", Yer = "E-5", IslemSube = "Merkez" };
         var t = ListExportCatalog.Cezalar([p]);
-        Assert.Equal(7, t.Headers.Count);
+        // FAZ-60: 7 eski + 7 yeni kolon (elle sayıldı).
+        Assert.Equal(14, t.Headers.Count);
         Assert.Equal("CZ-1", t.Rows[0][0]);
         Assert.Equal(500m, t.Rows[0][4]);
         Assert.Equal("Radar", t.Rows[0][6]);
+        Assert.Equal("MK-9", t.Rows[0][7]);
+        Assert.Equal(200m, t.Rows[0][8]);
+        Assert.Equal(300m, t.Rows[0][9]);
+        Assert.Equal("14:30", t.Rows[0][11]);
+        Assert.Equal("Merkez", t.Rows[0][13]);
     }
 
     [Fact]

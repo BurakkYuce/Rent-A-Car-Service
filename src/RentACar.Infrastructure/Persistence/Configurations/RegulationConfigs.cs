@@ -108,9 +108,76 @@ internal sealed class PenaltyConfig : IEntityTypeConfiguration<Penalty>
         e.Property(x => x.Sebep).HasMaxLength(512);
         e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.Durum).HasConversion<int>();
+        // FAZ-60 kısmi ödeme toplamları (satırlardan türetilir, önbellek).
+        e.Property(x => x.OdenenTutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kalan).HasColumnType("numeric(19,4)");
+        // FAZ-60 bilgi alanları (canlı parite; deftere girmez).
+        e.Property(x => x.Saat).HasMaxLength(8);
+        e.Property(x => x.Yer).HasMaxLength(256);
+        e.Property(x => x.CepTel).HasMaxLength(32);
+        e.Property(x => x.MakbuzNo).HasMaxLength(64);
+        e.Property(x => x.IslemSube).HasMaxLength(128);
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.CariId });
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
+        e.HasIndex(x => new { x.TenantId, x.MakbuzNo });   // FAZ-60 filtre
+        // Alt tabloların composite FK'si için alternatif anahtar (tenant sızıntısına karşı:
+        // çocuk satır BAŞKA tenant'ın cezasına bağlanamaz).
+        e.HasAlternateKey(x => new { x.TenantId, x.Id });
+    }
+}
+
+// ---- FAZ-60 ceza kalemi + kalem ödemesi ----
+
+internal sealed class PenaltySatirConfig : IEntityTypeConfiguration<PenaltySatir>
+{
+    public void Configure(EntityTypeBuilder<PenaltySatir> e)
+    {
+        e.ToTable("PenaltySatirlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<Penalty>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.PenaltyId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .OnDelete(DeleteBehavior.Cascade);
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Odenen).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kalan).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Sebep).HasMaxLength(512);
+        e.HasIndex(x => new { x.TenantId, x.PenaltyId, x.Sira }).IsUnique();
+        // Ödeme satırının composite FK'si için.
+        e.HasAlternateKey(x => new { x.TenantId, x.Id });
+    }
+}
+
+internal sealed class PenaltyOdemeConfig : IEntityTypeConfiguration<PenaltyOdeme>
+{
+    public void Configure(EntityTypeBuilder<PenaltyOdeme> e)
+    {
+        e.ToTable("PenaltyOdemeleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.HasOne<PenaltySatir>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.SatirId })
+            .HasPrincipalKey(s => new { s.TenantId, s.Id })
+            .OnDelete(DeleteBehavior.Restrict);   // ödemesi olan satır silinemez
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KalanSonrasi).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Hesap).HasConversion<int>();
+        e.Property(x => x.Anahtar).IsRequired().HasMaxLength(160);
+        e.Property(x => x.KasaKodu).HasMaxLength(64);
+        e.Property(x => x.HesapNo).HasMaxLength(64);
+        e.Property(x => x.MakbuzNo).HasMaxLength(64);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        // DETERMİNİSTİK idempotency: "ceza:{cezaId}:satir:{satirId}:odeme:{sira}" — MONOTON
+        // bileşen sira. Aynı sıra ikinci kez yazılamaz (yarış kaçarsa DB tutar).
+        e.HasIndex(x => new { x.TenantId, x.Anahtar }).IsUnique();
+        // Form çift-submit koruması (kısmi index — Expense deseni).
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari })
+            .IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL");
+        e.HasIndex(x => new { x.TenantId, x.PenaltyId });
     }
 }
 
