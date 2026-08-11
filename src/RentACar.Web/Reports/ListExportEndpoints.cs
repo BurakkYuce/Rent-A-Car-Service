@@ -119,7 +119,16 @@ public static class ListExportEndpoints
                     MusteriResolver(await cs.ListAsync()), PlakaResolver(await vs.ListAsync())),
                 "baflar" => ListExportCatalog.Baflar(await baf.ListAsync()),
                 "kiralar" => ListExportCatalog.Kiralar(await rs.SearchAsync(new RentalFilter())),
-                "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.ListAsync()),
+                // FAZ-48: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
+                // Şube kapsamı servis içinde ayrıca uygulanır — filtre onu genişletemez.
+                "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.SearchAsync(new ReservationFilter
+                {
+                    Query = NullIfEmpty(req.Query["ara"].ToString()),
+                    Durum = Enum.TryParse<ReservationStatus>(req.Query["durum"].ToString(), out var rzd) ? rzd : null,
+                    TarihMin = FormParse.Date(req.Query["bas"].ToString()),
+                    TarihMax = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
+                    Kaynak = NullIfEmpty(req.Query["kaynak"].ToString())
+                })),
                 "lokasyonlar" => ListExportCatalog.Lokasyonlar(await loc.ListAsync()),
                 "drop-tanimlari" => ListExportCatalog.DropTanimlari(await drop.ListAsync()),
                 "filo-kiralama" => ListExportCatalog.FiloKiralamalar(await fks.ListAsync(),

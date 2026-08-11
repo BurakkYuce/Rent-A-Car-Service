@@ -9,14 +9,15 @@
 
 <PageTitle>Rezervasyonlar — RentPro</PageTitle>
 
-<div class="page-head"><h1>Rezervasyonlar</h1><div class="actions"><a href="/listeler/export/rezervasyonlar">Excel</a> · <a href="/listeler/export/rezervasyonlar?format=csv">CSV</a> · <a href="/listeler/export/rezervasyonlar?format=pdf">PDF</a></div></div>
+@* FAZ-48: export ekrandaki süzgeci AYNEN taşır (gördüğün = indirdiğin) — süzgeç query'si linke eklenir. *@
+<div class="page-head"><h1>Rezervasyonlar</h1><div class="actions"><a href="@ExportLink("excel")">Excel</a> · <a href="@ExportLink("csv")">CSV</a> · <a href="@ExportLink("pdf")">PDF</a></div></div>
 
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_list.Count == 0)">
+<details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Rezervasyon</summary>
     <form method="post" action="/rezervasyonlar/create" class="grid-form"><AntiforgeryToken />
         <label>Müşteri
@@ -24,7 +25,7 @@
                 <option value="">— seç —</option>
                 @foreach (var c in _customers)
                 {
-                    <option value="@c.Id">@c.DisplayName</option>
+                    <option value="@c.Id">@c.Ad</option>
                 }
             </select>
         </label>
@@ -81,12 +82,40 @@
             </select>
         </label>
         <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" autocomplete="off" placeholder="Yalnız Otomatik'te" /></label>
+        @* FAZ-48 — talep/organizasyon bilgisi. Kiraya Çevir'de sözleşmeye AYNEN taşınır. *@
+        <label>Talep Türü<input name="talepTuru" maxlength="64" list="rez-talep-turu" autocomplete="off" /></label>
+        <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" autocomplete="off" /></label>
+        <label>Onay Kodu<input name="onayKodu" maxlength="64" autocomplete="off" /></label>
+        <label>Proje Adı<input name="projeAdi" maxlength="128" autocomplete="off" /></label>
+        <BrokerBilgisiPanel />
         <button type="submit">Kaydet</button>
     </form>
 </details>
 
-@* FAZ-85 — kanal filtresi. GET formu: JS yok, URL paylaşılabilir (?kaynak=Web). *@
+@* Talep türü serbest metindir; datalist yalnız yazım kolaylığı (ComboBox konvansiyonu). *@
+<datalist id="rez-talep-turu">
+    <option value="Bireysel" />
+    <option value="Kurumsal" />
+    <option value="Sigorta İkame" />
+    <option value="Filo" />
+</datalist>
+
+@* FAZ-85 kanal filtresi → FAZ-48'de tam arama/filtre barına genişledi. GET formu: JS yok, URL
+   paylaşılabilir (?ara=&durum=&bas=&bit=&kaynak=). Süzme SUNUCUDA (SearchAsync) — şube kapsamı
+   servis içinde zorlanır, filtre onu GENİŞLETEMEZ. *@
 <form method="get" class="filter-bar">
+    <label>Ara<input name="ara" value="@Ara" placeholder="Rez No / Müşteri / Plaka" /></label>
+    <label>Durum
+        <select name="durum">
+            <option value="">— tümü —</option>
+            @foreach (var d in Enum.GetValues<ReservationStatus>())
+            {
+                <option value="@d" selected="@(d.ToString() == Durum)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Başlangıç (min)<input name="bas" type="date" value="@Bas" /></label>
+    <label>Başlangıç (max)<input name="bit" type="date" value="@Bit" /></label>
     <label>Kaynak
         <select name="kaynak">
             <option value="">— tümü —</option>
@@ -97,7 +126,7 @@
         </select>
     </label>
     <button type="submit">Filtrele</button>
-    @if (!string.IsNullOrWhiteSpace(Kaynak))
+    @if (SuzgecVar)
     {
         <a class="link" href="/rezervasyonlar">Temizle</a>
     }
@@ -106,26 +135,34 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>No</th><th>Müşteri</th><th>Cep Tel</th><th>Araç</th><th>Başlangıç</th><th>Teslim</th><th>Alış Şube</th><th>Kaynak</th><th>Gün</th><th>Tutar</th><th>Durum</th><th></th></tr>
+        <tr><th>No</th><th>Müşteri</th><th>Cep Tel</th><th>Araç</th><th>Başlangıç</th><th>Teslim</th><th>Alış Şube</th><th>Kaynak</th>
+            <th>Talep Türü</th><th>Geldiği Birim</th><th>Proje</th><th>Onay Kodu</th>
+            <th>Gün</th><th>Tutar</th><th>Durum</th><th></th></tr>
     </thead>
     <tbody>
-        @if (!Gorunen.Any())
+        @if (_rows.Count == 0)
         {
-            <tr><td colspan="12" class="muted">Rezervasyon yok.</td></tr>
+            <tr><td colspan="16" class="muted">Rezervasyon yok.</td></tr>
         }
-        @foreach (var r in Gorunen)
+        @foreach (var row in _rows)
         {
+            var r = row.Rez;
             <tr>
                 <td>@r.ReservationNo</td>
-                <td>@Cust(r.MusteriId)</td>
-                <td>@Phone(r.MusteriId)</td>
-                <td>@Veh(r.VehicleId)</td>
+                <td>@row.MusteriAd</td>
+                <td>@(row.CepTel ?? "—")</td>
+                <td>@row.Plaka</td>
                 @* Birleşik "Tarih" hücresi ayrıştırıldı: başlangıç ve teslim ayrı kolonlarda —
                    bilgi kaybı yok, teslim tarihine göre bakmak kolaylaştı. *@
                 <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@(r.CikisOfisi ?? "—")</td>
                 <td>@(r.Kaynak ?? "—")</td>
+                @* FAZ-48 — talep/organizasyon bilgisi (bilgi alanları; hesaba girmez). *@
+                <td>@(r.TalepTuru ?? "—")</td>
+                <td>@(r.GeldigiBirim ?? "—")</td>
+                <td>@(r.ProjeAdi ?? "—")</td>
+                <td>@(r.OnayKodu ?? "—")</td>
                 <td>@r.Gun</td>
                 <td>@r.Tutar.ToString("N2")</td>
                 @* FAZ-81: "Opsiyonlu" (henüz onaylanmamış tutma) tenant rengiyle ayrışır.
@@ -155,7 +192,7 @@
                                 <input type="hidden" name="id" value="@r.Id" />
                                 <label>Müşteri
                                     <select name="musteriId" required>
-                                        @foreach (var c in _customers) { <option value="@c.Id" selected="@(c.Id == r.MusteriId)">@c.DisplayName</option> }
+                                        @foreach (var c in _customers) { <option value="@c.Id" selected="@(c.Id == r.MusteriId)">@c.Ad</option> }
                                     </select>
                                 </label>
                                 <label>Araç
@@ -182,6 +219,15 @@
                                     </select>
                                 </label>
                                 <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" autocomplete="off" value="@r.KampanyaKodu" /></label>
+                                @* FAZ-48 — talep/organizasyon bilgisi (create formuyla AYNI alan adları;
+                                   düzenlemede prefill edilmezse kayıt her güncellemede silinirdi). *@
+                                <label>Talep Türü<input name="talepTuru" maxlength="64" list="rez-talep-turu" autocomplete="off" value="@r.TalepTuru" /></label>
+                                <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" autocomplete="off" value="@r.GeldigiBirim" /></label>
+                                <label>Onay Kodu<input name="onayKodu" maxlength="64" autocomplete="off" value="@r.OnayKodu" /></label>
+                                <label>Proje Adı<input name="projeAdi" maxlength="128" autocomplete="off" value="@r.ProjeAdi" /></label>
+                                <BrokerBilgisiPanel KiraBedeli="r.OtaKiraBedeli" DropBedeli="r.OtaDropBedeli"
+                                    BebekKoltugu="r.OtaBebekKoltugu" Navigasyon="r.OtaNavigasyon" Lcf="r.OtaLcf"
+                                    Cdw="r.OtaCdw" Scdw="r.OtaScdw" EkSurucu="r.OtaEkSurucu" />
                                 <button type="submit">Kaydet</button>
                             </form>
                         </details>
@@ -195,44 +241,63 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
-    /// <summary>FAZ-85 — kanal filtresi (?kaynak=Web). Boş = tümü.</summary>
+    /// <summary>FAZ-85 — kanal filtresi (?kaynak=Web). Boş = tümü. FAZ-48'de barın parçası oldu; ad
+    /// KORUNDU (paylaşılmış URL'ler bozulmasın).</summary>
     [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    /// <summary>FAZ-48 — serbest arama: Rez No / müşteri adı / plaka (içeren, case-insensitive).</summary>
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    /// <summary>Başlangıç tarihi alt/üst sınırı (takvim günü; üst sınır GÜN DAHİL).</summary>
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
-    private IReadOnlyList<Reservation> _list = [];
-    private IReadOnlyList<Customer> _customers = [];
+    private IReadOnlyList<ReservationRow> _rows = [];
+    private IReadOnlyList<CariSecim> _customers = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Location> _locations = [];
     private IReadOnlyList<ReservationSource> _kaynaklar = [];
-    private Dictionary<Guid, string> _custMap = new();
-    private Dictionary<Guid, string> _vehMap = new();
-    private Dictionary<Guid, string> _custPhoneMap = new();   // FAZ-85: cep tel kolonu
+    // FAZ-85'in ad/plaka/telefon sözlükleri KALDIRILDI: FAZ-48 ile satırın kendisi bu alanları
+    // taşıyor (SearchAsync projeksiyonu), sözlükler ölü koda dönüştü.
     private string? _varsayilanFiyatTuru;                     // FAZ-82: yalnız YENİ rezervasyon formunun ön-seçimi
     private readonly string _defBas = DateTime.Now.ToString("yyyy-MM-ddT09:00");
     private readonly string _defBit = DateTime.Now.AddDays(3).ToString("yyyy-MM-ddT09:00");
 
+    private bool SuzgecVar => !string.IsNullOrWhiteSpace(Kaynak) || !string.IsNullOrWhiteSpace(Ara)
+        || !string.IsNullOrWhiteSpace(Durum) || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit);
+
     protected override async Task OnInitializedAsync()
     {
-        _list = await Reservations.ListAsync();
-        _customers = await Customers.ListAsync();
+        // FAZ-48: süzme SUNUCUDA. Şube kapsamı SearchAsync içinde zorlanır (ekran genişletemez).
+        _rows = await Reservations.SearchAsync(Filtre());
+        // Müşteri dropdown'ı PII'siz seçim listesinden (ListAsync PII çözer — liste ekranında gereksiz
+        // şifre çözme + açılışta uyarı fırtınası üretir). Ad/telefon kolonları artık satırdan geliyor.
+        _customers = await Customers.ListSecimAsync();
         _vehicles = await Vehicles.ListAsync();
         _locations = await Locations.ListActiveAsync();
         _kaynaklar = await Kaynaklar.ListActiveAsync();
-        _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
-        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _custPhoneMap = _customers.ToDictionary(c => c.Id, c => c.CepTel ?? "—");
         _varsayilanFiyatTuru = await Varsayilanlar.FiyatTuruAsync(); // FAZ-82 (ayar yoksa null = "—")
     }
 
-    private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");
-    private string Veh(Guid id) => _vehMap.GetValueOrDefault(id, "—");
-    private string Phone(Guid id) => _custPhoneMap.GetValueOrDefault(id, "—");
+    private ReservationFilter Filtre() => new()
+    {
+        Query = string.IsNullOrWhiteSpace(Ara) ? null : Ara,
+        Durum = Enum.TryParse<ReservationStatus>(Durum, out var d) ? d : null,
+        TarihMin = FormParse.Date(Bas),
+        // "Bitiş günü DAHİL" konvansiyonu: seçilen günün 23:59:59.9999999'una taşınır.
+        TarihMax = FormParse.Date(Bit)?.AddDays(1).AddTicks(-1),
+        Kaynak = string.IsNullOrWhiteSpace(Kaynak) ? null : Kaynak
+    };
 
-    /// <summary>
-    /// FAZ-85 — Kaynak filtresi. Sunucu tarafı, bellek-içi: `Reservations.ListAsync()` zaten tüm
-    /// tenant kapsamını getiriyor, yeni servis metodu/sorgu GEREKMEZ. Boş filtre = TÜM kayıtlar
-    /// (regresyon çiti: filtre eklenmiş olması mevcut davranışı daraltmamalı).
-    /// </summary>
-    private IEnumerable<Reservation> Gorunen => string.IsNullOrWhiteSpace(Kaynak)
-        ? _list
-        : _list.Where(r => string.Equals(r.Kaynak, Kaynak, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Export linki ekrandaki süzgeci AYNEN taşır (gördüğün = indirdiğin).</summary>
+    private string ExportLink(string format)
+    {
+        var q = new List<string>();
+        if (format != "excel") q.Add($"format={format}");
+        if (!string.IsNullOrWhiteSpace(Ara)) q.Add($"ara={Uri.EscapeDataString(Ara)}");
+        if (!string.IsNullOrWhiteSpace(Durum)) q.Add($"durum={Uri.EscapeDataString(Durum)}");
+        if (!string.IsNullOrWhiteSpace(Bas)) q.Add($"bas={Uri.EscapeDataString(Bas)}");
+        if (!string.IsNullOrWhiteSpace(Bit)) q.Add($"bit={Uri.EscapeDataString(Bit)}");
+        if (!string.IsNullOrWhiteSpace(Kaynak)) q.Add($"kaynak={Uri.EscapeDataString(Kaynak)}");
+        return "/listeler/export/rezervasyonlar" + (q.Count == 0 ? "" : "?" + string.Join("&", q));
+    }
 }

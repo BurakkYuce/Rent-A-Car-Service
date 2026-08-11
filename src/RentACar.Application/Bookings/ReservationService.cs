@@ -25,6 +25,14 @@ public sealed class ReservationService(
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
 
+    /// <summary>FAZ-48 — rezervasyon listesi: filtre + müşteri/araç adları. Rol bazlı şube kapsamı
+    /// BURADA zorlanır (çağıranın filtredeki Kapsam'ı yok sayılır — genişletme yolu yok).</summary>
+    public Task<IReadOnlyList<ReservationRow>> SearchAsync(ReservationFilter filter, CancellationToken ct = default)
+    {
+        filter.Kapsam = BranchScope.EffectiveFilter(_currentUser); // C4: FK-farkındalı
+        return _repository.SearchReservationsAsync(filter, ct);
+    }
+
     public async Task<Reservation?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var r = await _repository.FindReservationAsync(id, ct);
@@ -80,7 +88,12 @@ public sealed class ReservationService(
             OtaKiraBedeli = input.OtaKiraBedeli, OtaDropBedeli = input.OtaDropBedeli,
             OtaBebekKoltugu = input.OtaBebekKoltugu, OtaNavigasyon = input.OtaNavigasyon,
             OtaLcf = input.OtaLcf, OtaCdw = input.OtaCdw, OtaScdw = input.OtaScdw,
-            OtaEkSurucu = input.OtaEkSurucu
+            OtaEkSurucu = input.OtaEkSurucu,
+            // FAZ-48 — talep/organizasyon bilgisi (deftere/fiyata GİRMEZ; dönüşümde kiraya taşınır).
+            TalepTuru = BookingMath.Kirp(input.TalepTuru, 64, "Talep türü"),
+            GeldigiBirim = BookingMath.Kirp(input.GeldigiBirim, 64, "Geldiği birim"),
+            OnayKodu = BookingMath.Kirp(input.OnayKodu, 64, "Onay kodu"),
+            ProjeAdi = BookingMath.Kirp(input.ProjeAdi, 128, "Proje adı")
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
@@ -163,6 +176,12 @@ public sealed class ReservationService(
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
 
+        // FAZ-48 — uzunluk çitleri YAZMADAN ÖNCE (delege içinde patlamak yarım iş bırakma riski taşır).
+        var talepTuru = BookingMath.Kirp(input.TalepTuru, 64, "Talep türü");
+        var geldigiBirim = BookingMath.Kirp(input.GeldigiBirim, 64, "Geldiği birim");
+        var onayKodu = BookingMath.Kirp(input.OnayKodu, 64, "Onay kodu");
+        var projeAdi = BookingMath.Kirp(input.ProjeAdi, 128, "Proje adı");
+
         return await _repository.UpdateReservationAsync(id, r =>
         {
             BranchScope.RequireInScope(_currentUser, r.CikisSubeId, r.CikisOfisi); // adversarial M3
@@ -202,6 +221,11 @@ public sealed class ReservationService(
             r.OtaEkSurucu = input.OtaEkSurucu;
             r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
             r.FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(); // A6-B2
+            // FAZ-48 — talep/organizasyon bilgisi (fiyat-etkisiz; reprice'tan bağımsız güncellenir).
+            r.TalepTuru = talepTuru;
+            r.GeldigiBirim = geldigiBirim;
+            r.OnayKodu = onayKodu;
+            r.ProjeAdi = projeAdi;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -265,7 +289,13 @@ public sealed class ReservationService(
             // A6-B2: net-mod niyeti + gross-up oranı kiraya taşınır — fatura SNAPSHOT'tan ayrışır,
             // tenant oranı rez-create ile fatura arasında değişse bile matrah niyetten sapmaz.
             FiyatTuru = res.FiyatTuru,
-            KdvOranSnapshot = res.KdvOranSnapshot
+            KdvOranSnapshot = res.KdvOranSnapshot,
+            // FAZ-48 — talep/organizasyon bilgisi rezervasyondan sözleşmeye AYNEN taşınır (aynı adlı
+            // alanlar RentalContract'ta zaten vardı); operatör kira mega-formunda tekrar girmez.
+            TalepTuru = res.TalepTuru,
+            GeldigiBirim = res.GeldigiBirim,
+            OnayKodu = res.OnayKodu,
+            ProjeAdi = res.ProjeAdi
         }, ct);
         await _feeLines.ApplyContractFeesAsync(kiraId, ct);
         return kiraId;
