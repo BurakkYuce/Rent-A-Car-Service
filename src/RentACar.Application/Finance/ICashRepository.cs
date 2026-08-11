@@ -78,7 +78,8 @@ public interface ICashRepository
     /// FAZ-59 — cari↔cari virman geçmişi: künye tablosu + DEFTERDEN okunan tutar (tek kaynak).
     /// </summary>
     /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar).</summary>
-    Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(int enFazla = 100, CancellationToken ct = default);
+    Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
+        KasaVirmanFilter? filter = null, CancellationToken ct = default);
 
     Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
         CariVirmanFilter? filter = null, CancellationToken ct = default);
