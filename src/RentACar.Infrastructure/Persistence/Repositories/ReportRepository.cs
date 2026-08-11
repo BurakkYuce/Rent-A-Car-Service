@@ -1520,6 +1520,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             "MtvOdeme" => "MTV",
             "DisHizmet" => "Dış Hizmet",
             "MuayeneOdeme" => "Muayene",
+            "CezaOdeme" => "Trafik Cezası",   // FAZ-60 kalem bazlı ceza ödemesi (Borç Gider / Alacak Kasa-Banka)
             "SigortaOdeme" => sigortaTip.TryGetValue(sourceId, out var t) && t == InsuranceType.Kasko
                 ? "Kasko" : "Sigorta (Trafik)",
             "Gider" => giderTip.TryGetValue(sourceId, out var g) ? g switch

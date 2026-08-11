@@ -179,6 +179,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Şube ücretsiz hizmeti", db.SubeUcretsizHizmetler.Where(x => x.SubeId == kaynakId));
         await Say("Personel vardiyası", db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId));   // FAZ-45
         await Say("Personel vardiyası (metin)", db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        // FAZ-60: ceza "İşlem Şube" metni. Ceza mali belge DEĞİL (başlık güncellenebilir), taşınır.
+        await Say("Ceza (işlem şube metni)", db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == kaynak.Ad));
 
         // GİDER TAŞINMAZ. Expense DEĞİŞMEZ bir mali belgedir: DB'de değişmezlik trigger'ı var ve
         // racar_app'in UPDATE yetkisi yok. Zaten olmamalı da — kesilmiş bir gider belgesinin şubesini
@@ -245,6 +247,10 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
 
         toplam += await db.DropTanimlari.Where(x => x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+
+        // FAZ-60 — ceza "İşlem Şube" metni (Penalties).
+        toplam += await db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == kaynak.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.IslemSube, hedef.Ad), ct);
 
         // Users PLATFORM tablosu (RLS yok, query filter yok) → tenant koşulu AÇIKÇA yazılır;
         // yoksa başka firmaların kullanıcıları da güncellenirdi.
