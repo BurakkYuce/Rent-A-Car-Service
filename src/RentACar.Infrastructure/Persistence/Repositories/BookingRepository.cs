@@ -164,10 +164,75 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                           || ((kkid == null || r.CikisSubeId == null) && kkad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kkad)); // C5
         }
         if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
-        if (filter.BaslangicMin is { } min) q = q.Where(r => r.BasTar >= min);
-        if (filter.BaslangicMax is { } max) q = q.Where(r => r.BasTar <= max);
+
+        // FAZ-46 — tarih aralığı HANGİ alana uygulanacak (canlı "Tarih Listesi" seçicisi).
+        // null → Baslangic: bu fazdan önceki davranış birebir korunur.
+        var min = filter.BaslangicMin; var max = filter.BaslangicMax;
+        if (min is not null || max is not null)
+        {
+            switch (filter.TarihTuru ?? TarihListesiTuru.Baslangic)
+            {
+                case TarihListesiTuru.Bitis:
+                    if (min is { } bmin) q = q.Where(r => r.BitTar >= bmin);
+                    if (max is { } bmax) q = q.Where(r => r.BitTar <= bmax);
+                    break;
+                case TarihListesiTuru.Islem:
+                    if (min is { } imin) q = q.Where(r => r.CreatedAtUtc >= imin);
+                    if (max is { } imax) q = q.Where(r => r.CreatedAtUtc <= imax);
+                    break;
+                case TarihListesiTuru.Vade:
+                    // Vadesi GİRİLMEMİŞ sözleşme vade aralığına DÜŞMEZ (null sessizce eşleşmez).
+                    if (min is { } vmin) q = q.Where(r => r.VadeTar != null && r.VadeTar >= vmin);
+                    if (max is { } vmax) q = q.Where(r => r.VadeTar != null && r.VadeTar <= vmax);
+                    break;
+                default:
+                    if (min is { } smin) q = q.Where(r => r.BasTar >= smin);
+                    if (max is { } smax) q = q.Where(r => r.BasTar <= smax);
+                    break;
+            }
+        }
+
+        // FAZ-46 — ofis filtresi çıkış/dönüş ayrımıyla. Seçim yoksa eski davranış (herhangi biri).
         if (!string.IsNullOrWhiteSpace(filter.Ofis))
-            q = q.Where(r => r.CikisOfisi == filter.Ofis || r.DonusOfisi == filter.Ofis);
+        {
+            var ofis = filter.Ofis;
+            q = filter.OfisDurum switch
+            {
+                OfisDurumu.Cikis => q.Where(r => r.CikisOfisi == ofis),
+                OfisDurumu.Donus => q.Where(r => r.DonusOfisi == ofis),
+                _ => q.Where(r => r.CikisOfisi == ofis || r.DonusOfisi == ofis)
+            };
+        }
+
+        // FAZ-46 — sözleşmenin KENDİ Kaynak alanı. Karşılaştırma bellek-içi yapılamaz (sayfa
+        // tümünü çekmesin diye) ama kültür tuzağına düşmemek için SQL'e lower() itilmez:
+        // eşitlik Ordinal'e denk gelen doğrudan karşılaştırmadır (Trim uygulaması yazma yolunda).
+        if (!string.IsNullOrWhiteSpace(filter.RezKaynak))
+        {
+            var kaynak = filter.RezKaynak.Trim();
+            q = q.Where(r => r.Kaynak == kaynak);
+        }
+        if (filter.PersonelId is { } pid) q = q.Where(r => r.TeslimAlanPersonelId == pid);
+
+        // FAZ-46 — araç boyutundan süzme (sahip / grup). Araç kümesi ÖNCE çözülür: aksi hâlde
+        // her satır için araç sorgusu gerekirdi. Eşleşen araç yoksa sonuç boştur (erken çıkış).
+        if (!string.IsNullOrWhiteSpace(filter.SahipGrup) || !string.IsNullOrWhiteSpace(filter.AracGrubu))
+        {
+            var vq = db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Grup, v.AracSahibi });
+            if (!string.IsNullOrWhiteSpace(filter.SahipGrup))
+            {
+                var sahip = filter.SahipGrup.Trim();
+                vq = vq.Where(v => v.AracSahibi == sahip);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.AracGrubu))
+            {
+                var grup = filter.AracGrubu.Trim();
+                vq = vq.Where(v => v.Grup == grup);
+            }
+            var eslesen = await vq.Select(v => v.Id).ToListAsync(ct);
+            if (eslesen.Count == 0) return [];
+            q = q.Where(r => eslesen.Contains(r.VehicleId));
+        }
 
         var rentals = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
 
@@ -198,7 +263,22 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             Tutar = r.Tutar,
             Bakiye = r.Bakiye,
             Durum = r.Durum,
-            Faturali = invoicedSet.Contains(r.Id)
+            Faturali = invoicedSet.Contains(r.Id),
+            // FAZ-46 — entity'de zaten var olan kolonlar projeksiyona taşındı (hesap YOK).
+            Kaynak = r.Kaynak,
+            Provizyon = r.Provizyon,
+            Depozito = r.Depozito,
+            KomisyonOran = r.KomisyonOran,
+            KomisyonTutar = r.KomisyonTutar,
+            VadeTar = r.VadeTar,
+            OnayKodu = r.OnayKodu,
+            ProjeAdi = r.ProjeAdi,
+            AssistFirma = r.AssistFirma,
+            OzelSoforBilgisi = r.OzelSoforBilgisi,
+            HediyeGun = r.HediyeGun,
+            FaturalananGun = r.FaturalananGun,
+            CikisOfisi = r.CikisOfisi,
+            DonusOfisi = r.DonusOfisi
         }).AsEnumerable();
 
         if (filter.Faturali is { } fat) rows = rows.Where(r => r.Faturali == fat);

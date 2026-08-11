@@ -3,6 +3,9 @@
 @inject RentalService Rentals
 @inject LocationService Locations
 @inject RentACar.Application.Finance.CashService Cash
+@inject ReservationSourceService Kaynaklar
+@inject PersonelService Personeller
+@inject VehicleService Vehicles
 
 <PageTitle>Kira Sözleşmeleri — RentPro</PageTitle>
 
@@ -30,14 +33,38 @@
         <option value="true" selected="@(Fatura == "true")">Faturalı</option>
         <option value="false" selected="@(Fatura == "false")">Faturasız</option>
     </select>
-    <input name="basMin" type="date" value="@BasMin" title="Başlangıç ≥" />
-    <input name="basMax" type="date" value="@BasMax" title="Başlangıç ≤" />
+    @* FAZ-46 — tarih aralığı hangi alana uygulanacak. Varsayılan Başlangıç = eski davranış. *@
+    <select name="tarihTuru" title="Tarih aralığı hangi alana uygulansın">
+        <option value="">Tarih: Başlangıç</option>
+        <option value="Bitis" selected="@(TarihTuru == "Bitis")">Tarih: Bitiş</option>
+        <option value="Islem" selected="@(TarihTuru == "Islem")">Tarih: İşlem</option>
+        <option value="Vade" selected="@(TarihTuru == "Vade")">Tarih: Vade</option>
+    </select>
+    <input name="basMin" type="date" value="@BasMin" title="Seçili tarih ≥" />
+    <input name="basMax" type="date" value="@BasMax" title="Seçili tarih ≤" />
     <select name="ofis">
         <option value="">Ofis (tümü)</option>
         @foreach (var o in _locations) { <option value="@o.Ad" selected="@(Ofis == o.Ad)">@o.Ad</option> }
     </select>
+    <select name="ofisDurum" title="Ofis filtresi çıkış mı dönüş mü">
+        <option value="">Ofis: çıkış veya dönüş</option>
+        <option value="Cikis" selected="@(OfisDurum == "Cikis")">Ofis: yalnız çıkış</option>
+        <option value="Donus" selected="@(OfisDurum == "Donus")">Ofis: yalnız dönüş</option>
+    </select>
+    <input name="sahip" value="@Sahip" placeholder="Araç sahibi" list="dl-sahip" />
+    <datalist id="dl-sahip">@foreach (var x in _sahipler) { <option value="@x" /> }</datalist>
+    <input name="grup" value="@Grup" placeholder="Araç grubu" list="dl-grup" />
+    <datalist id="dl-grup">@foreach (var x in _gruplar) { <option value="@x" /> }</datalist>
+    <select name="kaynak">
+        <option value="">Rez. kaynağı (tümü)</option>
+        @foreach (var k in _kaynaklar) { <option value="@k.Ad" selected="@(Kaynak == k.Ad)">@k.Ad</option> }
+    </select>
+    <select name="personel">
+        <option value="">Teslim alan personel (tümü)</option>
+        @foreach (var pr in _personeller) { <option value="@pr.Id" selected="@(Personel == pr.Id.ToString())">@pr.Ad @pr.Soyad</option> }
+    </select>
     <button type="submit">Filtrele</button>
-    @if (!string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Durum) || !string.IsNullOrEmpty(Fatura) || !string.IsNullOrEmpty(Ofis) || !string.IsNullOrEmpty(BasMin) || !string.IsNullOrEmpty(BasMax))
+    @if (SuzgecVar)
     {
         <a href="/kiralar" class="link">Temizle</a>
     }
@@ -49,12 +76,18 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Gün</th><th>Tutar</th><th>Bakiye</th><th>Durum</th><th>Fatura</th><th></th></tr>
+        @* FAZ-46 — canlı kira_listesi.aspx kolonları. Provizyon/Depozito/Komisyon BİLGİDİR:
+           bakiyeye ve deftere girmez, bu yüzden sayfa altındaki özet satırında da TOPLANMAZ. *@
+        <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Vade</th><th>Gün</th>
+            <th>Hediye/Fat. Gün</th><th>Tutar</th><th>Bakiye</th><th>Kaynak</th><th>Çıkış Ofisi</th>
+            <th>Dönüş Ofisi</th><th class="num">Provizyon</th><th class="num">Depozito</th>
+            <th class="num">Kom. %</th><th class="num">Kom. Tutar</th><th>Onay Kodu</th><th>Proje</th>
+            <th>Assist</th><th>Özel Şoför</th><th>Durum</th><th>Fatura</th><th></th></tr>
     </thead>
     <tbody>
         @if (_rows.Count == 0)
         {
-            <tr><td colspan="10" class="muted">Kayıt yok.</td></tr>
+            <tr><td colspan="23" class="muted">Kayıt yok.</td></tr>
         }
         @foreach (var r in _rows)
         {
@@ -63,9 +96,22 @@
                 <td>@r.MusteriAd</td>
                 <td>@r.Plaka</td>
                 <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
+                <td>@(r.VadeTar is { } v ? v.LocalDateTime.ToString("dd.MM.yyyy") : "—")</td>
                 <td>@r.Gun</td>
+                <td>@(r.HediyeGun is { } hg ? hg.ToString() : "—") / @(r.FaturalananGun is { } fg ? fg.ToString() : "—")</td>
                 <td class="num">@r.Tutar.ToString("N2")</td>
                 <td class="num">@r.Bakiye.ToString("N2")</td>
+                <td>@(r.Kaynak ?? "—")</td>
+                <td>@(r.CikisOfisi ?? "—")</td>
+                <td>@(r.DonusOfisi ?? "—")</td>
+                <td class="num">@(r.Provizyon?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.Depozito?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.KomisyonOran?.ToString("N2") ?? "—")</td>
+                <td class="num">@(r.KomisyonTutar?.ToString("N2") ?? "—")</td>
+                <td>@(r.OnayKodu ?? "—")</td>
+                <td>@(r.ProjeAdi ?? "—")</td>
+                <td>@(r.AssistFirma ?? "—")</td>
+                <td>@(r.OzelSoforBilgisi ?? "—")</td>
                 <td>@r.Durum</td>
                 <td>@(r.Faturali ? "Faturalı" : "—")</td>
                 <td class="row-actions">
@@ -108,9 +154,27 @@
     [SupplyParameterFromQuery(Name = "basMin")] public string? BasMin { get; set; }
     [SupplyParameterFromQuery(Name = "basMax")] public string? BasMax { get; set; }
     [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
+    // ---- FAZ-46 süzgeçleri ----
+    [SupplyParameterFromQuery(Name = "tarihTuru")] public string? TarihTuru { get; set; }
+    [SupplyParameterFromQuery(Name = "ofisDurum")] public string? OfisDurum { get; set; }
+    [SupplyParameterFromQuery(Name = "sahip")] public string? Sahip { get; set; }
+    [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
+    [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    [SupplyParameterFromQuery(Name = "personel")] public string? Personel { get; set; }
+
+    private bool SuzgecVar =>
+        !string.IsNullOrEmpty(Q) || !string.IsNullOrEmpty(Durum) || !string.IsNullOrEmpty(Fatura)
+        || !string.IsNullOrEmpty(Ofis) || !string.IsNullOrEmpty(BasMin) || !string.IsNullOrEmpty(BasMax)
+        || !string.IsNullOrEmpty(TarihTuru) || !string.IsNullOrEmpty(OfisDurum)
+        || !string.IsNullOrEmpty(Sahip) || !string.IsNullOrEmpty(Grup)
+        || !string.IsNullOrEmpty(Kaynak) || !string.IsNullOrEmpty(Personel);
 
     private IReadOnlyList<RentalRow> _rows = [];
     private IReadOnlyList<Location> _locations = [];
+    private IReadOnlyList<ReservationSource> _kaynaklar = [];
+    private IReadOnlyList<PersonelSecim> _personeller = [];
+    private IReadOnlyList<string> _sahipler = [];
+    private IReadOnlyList<string> _gruplar = [];
     private Dictionary<Guid, int> _islemSayilari = []; // deterministik tahsilat anahtarı bileşeni (TryGetValue→0)
 
     private int IslemSayisi(Guid rentalId) => _islemSayilari.TryGetValue(rentalId, out var s) ? s : 0;
@@ -118,6 +182,15 @@
     protected override async Task OnInitializedAsync()
     {
         _locations = await Locations.ListActiveAsync();
+        _kaynaklar = await Kaynaklar.ListActiveAsync();
+        // PII'siz personel seçimi (ListAsync ManageUsers ister ve operatörde patlar — bilinen tuzak).
+        _personeller = await Personeller.ListForSelectAsync();
+        // Sahip/grup listeleri araç kartlarından TÜRETİLİR: ayrı bir master tanımı yok.
+        var araclar = await Vehicles.ListAsync();
+        _sahipler = [.. araclar.Select(v => v.AracSahibi).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
+        _gruplar = [.. araclar.Select(v => v.Grup).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
 
         var filter = new RentalFilter
         {
@@ -126,7 +199,14 @@
             Faturali = Fatura switch { "true" => true, "false" => false, _ => null },
             BaslangicMin = DateTimeOffset.TryParse(BasMin, out var mn) ? mn : null,
             BaslangicMax = DateTimeOffset.TryParse(BasMax, out var mx) ? mx.AddDays(1).AddSeconds(-1) : null,
-            Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis
+            Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis,
+            // FAZ-46 — hepsi opsiyonel; boş bırakılırsa sorgu eskisiyle BİREBİR aynı kalır.
+            TarihTuru = Enum.TryParse<TarihListesiTuru>(TarihTuru, out var tt) ? tt : null,
+            OfisDurum = Enum.TryParse<OfisDurumu>(OfisDurum, out var od) ? od : null,
+            SahipGrup = string.IsNullOrWhiteSpace(Sahip) ? null : Sahip,
+            AracGrubu = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
+            RezKaynak = string.IsNullOrWhiteSpace(Kaynak) ? null : Kaynak,
+            PersonelId = FormParse.Id(Personel)
         };
         _rows = await Rentals.SearchAsync(filter);
 

@@ -1,4 +1,5 @@
 using RentACar.Domain.Common;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Domain.Entities;
 
@@ -54,6 +55,33 @@ public class RentalRule : ITenantOwned, IAuditable, IBranchScoped
     // Geçerlilik
     public DateTimeOffset? GecerlilikBas { get; set; }
     public DateTimeOffset? GecerlilikBit { get; set; }
+
+    // ---- FAZ-46 (canlı kiralama_kurallari / kiralama_sartlari) ----
+    // DİKKAT: TalepBas/TalepBit, GecerlilikBas/Bit'ten FARKLI bir kavramdır ve onun yerine GEÇMEZ.
+    //   Gecerlilik* = kuralın YÜRÜRLÜKTE olduğu aralık (kiralama tarihine bakar).
+    //   Talep*       = talebin/rezervasyonun YAPILDIĞI aralık (erken rezervasyon kampanyası).
+    // İkisi birlikte "1 Mart'a kadar rezerve edilen, Haziran kiralamaları" gibi kural kurar.
+    /// <summary>Talebin yapıldığı tarih aralığının alt sınırı (erken rezervasyon kampanyası).</summary>
+    public DateTimeOffset? TalepBas { get; set; }
+    public DateTimeOffset? TalepBit { get; set; }
+
+    /// <summary>Promosyon birden çok kez mi uygulanır. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
+    public PromosyonTuru? PromosyonTuru { get; set; }
+    /// <summary>Kuponun kapsamı. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
+    public KuponGecerlilik? KuponGecerlilik { get; set; }
+    /// <summary>Tutarın oran mı serbest mi olduğu. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
+    public HesaplamaTipi? HesaplamaTipi { get; set; }
+    /// <summary>Hızlı işlem kısayolunda görünsün mü (BİLGİ/ekran tercihi).</summary>
+    public bool HizliIslem { get; set; }
+
+    /// <summary>
+    /// FAZ-46 — haftanın hangi günlerinde bu kural geçerli (canlı <c>kiralama_sartlari.aspx</c>).
+    /// Virgülle ayrılmış 0-6 (0=Pazar … 6=Cumartesi, <see cref="DayOfWeek"/> ile AYNI numaralama).
+    /// null ya da boş = kısıt yok (tüm günler) — bu fazdan önceki davranış.
+    /// <b>BİLGİ:</b> fiyat motoru bu alanı henüz okumaz; kuralın tüketildiği yer ayrı bir faz
+    /// (bkz. spec "Notlar" — banka-matrisi/hesaplama kararına bağlı).
+    /// </summary>
+    public string? HaftaGunKisiti { get; set; }
 
     /// <summary>Kira/rezervasyon şart metni (sözleşme/rez şartları — rezsartlar).</summary>
     public string? SartMetni { get; set; }

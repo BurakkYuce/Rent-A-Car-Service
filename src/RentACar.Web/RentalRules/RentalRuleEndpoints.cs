@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.RentalRules;
+using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.RentalRules;
@@ -46,6 +47,15 @@ public static class RentalRuleEndpoints
         GecerlilikBas = FormParse.Date(FormParse.Str(f, "gecerlilikBas")),
         GecerlilikBit = FormParse.Date(FormParse.Str(f, "gecerlilikBit")),
         SartMetni = FormParse.Str(f, "sartMetni"),
+        // ---- FAZ-46 ----
+        TalepBas = FormParse.Date(FormParse.Str(f, "talepBas")),
+        TalepBit = FormParse.Date(FormParse.Str(f, "talepBit")),
+        PromosyonTuru = Enum.TryParse<PromosyonTuru>(FormParse.Str(f, "promosyonTuru"), out var pt) ? pt : null,
+        KuponGecerlilik = Enum.TryParse<KuponGecerlilik>(FormParse.Str(f, "kuponGecerlilik"), out var kg) ? kg : null,
+        HesaplamaTipi = Enum.TryParse<HesaplamaTipi>(FormParse.Str(f, "hesaplamaTipi"), out var ht) ? ht : null,
+        HizliIslem = FormParse.Str(f, "hizliIslem") is "true" or "True" or "on",
+        // 7 ayrı checkbox aynı adla gelir → virgülle birleştirilir; servis normalize/doğrular.
+        HaftaGunKisiti = f["haftaGun"].Count == 0 ? null : string.Join(',', f["haftaGun"].ToArray()),
         Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
