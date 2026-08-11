@@ -3,6 +3,7 @@ using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.RentalRules;
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -20,10 +21,18 @@ public sealed class RentalRuleRepository(IDbContextFactory<AppDbContext> factory
         return await db.RentalRules.AsNoTracking().OrderBy(r => r.Kod).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// Fiyat motorunu besleyen küme. FAZ-73: koşul <c>Aktif == true</c> yerine
+    /// <c>KampanyaDurum == Aktif</c> okur — bu, kuralın motorda seçilip seçilmeyeceğine karar veren
+    /// TEK noktadır (wire-in taraması: <c>.Aktif</c>'i okuyan başka üretim yolu yok).
+    /// Migration backfill'i <c>Aktif=true → Aktif</c>, <c>Aktif=false → Pasif</c> eşlediğinden
+    /// mevcut kayıtlar için sonuç kümesi göç öncesiyle BİREBİR aynıdır.
+    /// </summary>
     public async Task<IReadOnlyList<RentalRule>> ListActiveAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.RentalRules.AsNoTracking().Where(r => r.Aktif).OrderBy(r => r.Ad).ToListAsync(ct);
+        return await db.RentalRules.AsNoTracking()
+            .Where(r => r.KampanyaDurum == KampanyaDurum.Aktif).OrderBy(r => r.Ad).ToListAsync(ct);
     }
 
     public async Task<RentalRule?> FindAsync(Guid id, CancellationToken ct = default)

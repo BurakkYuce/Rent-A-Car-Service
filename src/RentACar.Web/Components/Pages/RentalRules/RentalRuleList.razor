@@ -15,6 +15,44 @@
     <p class="error">@Hata</p>
 }
 
+@* FAZ-73 — kampanya arama (canlı kampanya_ara.aspx). Filtre yalnız GÖRÜNÜMÜ daraltır; fiyat
+   motoru bu yolu hiç kullanmaz (motor ListActiveAsync ile YALNIZ "Aktif" durumundakileri okur).
+   Süzgeç kuralı sunucuda saf fonksiyonda (RentalRuleService.Filtrele) — ekran kural taşımaz. *@
+<form method="get" class="grid-form">
+    <label>Kod / Ad<input name="q" value="@Q" placeholder="Metin ara" /></label>
+    <label>Durum
+        <select name="durum">
+            <option value="">(tümü)</option>
+            @foreach (var d in Enum.GetValues<KampanyaDurum>())
+            {
+                <option value="@d" selected="@(Durum == d.ToString())">@DurumAd(d)</option>
+            }
+        </select>
+    </label>
+    <label>Tarih Tipi
+        <select name="tarihTipi">
+            <option value="">(tümü)</option>
+            @foreach (var t in Enum.GetValues<KuralTarihTipi>())
+            {
+                <option value="@t" selected="@(TarihTipi == t.ToString())">@t</option>
+            }
+        </select>
+    </label>
+    <label>Kampanya mı
+        <select name="kampanyaMi">
+            <option value="">(tümü)</option>
+            <option value="true" selected="@(KampanyaMi == "true")">Evet</option>
+            <option value="false" selected="@(KampanyaMi == "false")">Hayır</option>
+        </select>
+    </label>
+    <label>Kanal<input name="kanal" value="@Kanal" placeholder="WEB/ACENTA" /></label>
+    <label>Geçerli — Baş<input name="gbas" type="date" value="@GBas" /></label>
+    <label>Geçerli — Bit<input name="gbit" type="date" value="@GBit" /></label>
+    <button type="submit">Ara</button>
+</form>
+<p class="muted small">@_list.Count kural listeleniyor@(_filtreli ? " (süzgeç uygulandı)" : "").
+    Tarih aralığı ÇAKIŞMA arar: verilen aralıkla kesişen kurallar listelenir.</p>
+
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Kural</summary>
     <form method="post" action="/kira-kurallari/create" class="grid-form"><AntiforgeryToken />
@@ -37,6 +75,19 @@
         <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Seç veya yaz (boş = herkes)" maxlength="64" /></label>
         <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" /></label>
         <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" /></label>
+        <label>Tarih Tipi
+            <select name="tarihTipi">
+                @foreach (var t in Enum.GetValues<KuralTarihTipi>()) { <option value="@t">@t</option> }
+            </select>
+        </label>
+        <label>Durum
+            <select name="kampanyaDurum">
+                @foreach (var d in Enum.GetValues<KampanyaDurum>())
+                {
+                    <option value="@d" selected="@(d == KampanyaDurum.Aktif)">@DurumAd(d)</option>
+                }
+            </select>
+        </label>
         <label>Şart Metni<input name="sartMetni" placeholder="Rez/sözleşme şartları" /></label>
         @* FAZ-46 — TALEP aralığı, GEÇERLİLİK aralığından farklıdır: geçerlilik kiralama tarihine,
            talep rezervasyonun YAPILDIĞI tarihe bakar (erken rezervasyon kampanyası). *@
@@ -66,10 +117,12 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Şube</th><th>Araç Grubu</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th>
+        <th>Tarih Tipi</th><th>Geçerlilik</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Kiralama kuralı tanımlı değil.</td></tr>
+            <tr><td colspan="10" class="muted">@(_filtreli ? "Süzgece uyan kural yok." : "Kiralama kuralı tanımlı değil.")</td></tr>
         }
         @foreach (var r in _list)
         {
@@ -83,7 +136,10 @@
                 <td class="num">@(r.MinGun?.ToString() ?? "—") / @(r.MaxGun?.ToString() ?? "—")</td>
                 <td class="num">@(r.Iskonto?.ToString("N2") ?? "—")</td>
                 <td>@(r.KampanyaMi ? "Evet" : "Hayır")</td>
-                <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
+                <td>@r.TarihTipi</td>
+                <td>@(r.GecerlilikBas?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—") → @(r.GecerlilikBit?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                @* Fiyat motoru YALNIZ "Aktif" durumunu seçer — diğer dördü bilgi/iş akışı durumudur. *@
+                <td>@DurumAd(r.KampanyaDurum)</td>
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
@@ -143,10 +199,20 @@
                                     <label class="check"><input type="checkbox" name="haftaGun" value="@g.No" checked="@GunSecili(r.HaftaGunKisiti, g.No)" /> @g.Ad</label>
                                 }
                             </fieldset>
+                            <label>Tarih Tipi
+                                <select name="tarihTipi">
+                                    @foreach (var t in Enum.GetValues<KuralTarihTipi>())
+                                    {
+                                        <option value="@t" selected="@(t == r.TarihTipi)">@t</option>
+                                    }
+                                </select>
+                            </label>
                             <label>Durum
-                                <select name="aktif">
-                                    <option value="true" selected="@r.Aktif">Aktif</option>
-                                    <option value="false" selected="@(!r.Aktif)">Pasif</option>
+                                <select name="kampanyaDurum">
+                                    @foreach (var d in Enum.GetValues<KampanyaDurum>())
+                                    {
+                                        <option value="@d" selected="@(d == r.KampanyaDurum)">@DurumAd(d)</option>
+                                    }
                                 </select>
                             </label>
                             <button type="submit">Kaydet</button>
@@ -173,8 +239,30 @@
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
+    // FAZ-73 arama parametreleri — hepsi string?: boş "" gelen enum/tarih alanları tipli bind'de
+    // 400 üretirdi (repo tuzağı). Çözüm sunucuda FormParse/Enum.TryParse ile.
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "tarihTipi")] public string? TarihTipi { get; set; }
+    [SupplyParameterFromQuery(Name = "kampanyaMi")] public string? KampanyaMi { get; set; }
+    [SupplyParameterFromQuery(Name = "kanal")] public string? Kanal { get; set; }
+    [SupplyParameterFromQuery(Name = "gbas")] public string? GBas { get; set; }
+    [SupplyParameterFromQuery(Name = "gbit")] public string? GBit { get; set; }
+
     private IReadOnlyList<RentalRule> _list = [];
     private List<string> _subeOpts = [];
+    private bool _filtreli;
+
+    /// <summary>Durum etiketi (enum adları Türkçe aksan taşımaz; ekranda düzgün yazılır).</summary>
+    private static string DurumAd(KampanyaDurum d) => d switch
+    {
+        KampanyaDurum.Taslak => "Taslak",
+        KampanyaDurum.Planlandi => "Planlandı",
+        KampanyaDurum.Aktif => "Aktif",
+        KampanyaDurum.Pasif => "Pasif",
+        KampanyaDurum.Iptal => "İptal",
+        _ => d.ToString()
+    };
 
     /// <summary>Haftanın günleri — numaralandırma <see cref="DayOfWeek"/> ile AYNI (0=Pazar).</summary>
     private static readonly (int No, string Ad)[] Gunler =
@@ -197,7 +285,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await KiralamaKurallari.ListAsync();
+        // Boş form alanı "" olarak gelir — null'a indirgenmezse "boş metin ara" gibi davranır ve
+        // "süzgeç uygulandı" rozeti hep yanardı.
+        static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        var filtre = new RentalRuleFilter
+        {
+            Terim = Bos(Q),
+            Durum = Enum.TryParse<KampanyaDurum>(Bos(Durum), out var d) ? d : null,
+            TarihTipi = Enum.TryParse<KuralTarihTipi>(Bos(TarihTipi), out var t) ? t : null,
+            KampanyaMi = Bos(KampanyaMi) is "true" ? true : Bos(KampanyaMi) is "false" ? false : null,
+            Kanal = Bos(Kanal),
+            GecerliBas = FormParse.Date(Bos(GBas)),
+            GecerliBit = FormParse.Date(Bos(GBit))
+        };
+        _filtreli = filtre.Terim is not null || filtre.Durum is not null || filtre.TarihTipi is not null
+            || filtre.KampanyaMi is not null || filtre.Kanal is not null
+            || filtre.GecerliBas is not null || filtre.GecerliBit is not null;
+
+        _list = await KiralamaKurallari.SearchAsync(filtre);
         _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }
