@@ -199,13 +199,22 @@ public static class ListExportCatalog
             x.Gun, x.Tutar, x.Bakiye, x.Durum.ToString(), x.Faturali ? "Evet" : "Hayır"
         }).ToList());
 
-    public static ExportTable Rezervasyonlar(IReadOnlyList<Reservation> r) => new(
+    /// <summary>
+    /// Rezervasyon listesi. FAZ-48: müşteri/plaka/kaynak + talep bilgisi kolonları eklendi (ekrandaki
+    /// tabloyla aynı bilgi). TARİHLER YEREL GÜN — ham UTC basmak, gece yarısına yakın kayıtlarda
+    /// listede görünen günün BİR GÜN GERİSİNİ yazıyordu (repoda bilinen tuzak; yenisi üretilmez).
+    /// </summary>
+    public static ExportTable Rezervasyonlar(IReadOnlyList<ReservationRow> r) => new(
         "Rezervasyonlar",
-        ["Rez No", "Durum", "Başlangıç", "Bitiş", "Çıkış Ofisi", "Dönüş Ofisi", "Gün", "Günlük Ücret", "Tutar"],
+        ["Rez No", "Durum", "Müşteri", "Cep Tel", "Plaka", "Başlangıç", "Bitiş", "Çıkış Ofisi", "Dönüş Ofisi",
+         "Kaynak", "Talep Türü", "Geldiği Birim", "Proje Adı", "Onay Kodu", "Gün", "Günlük Ücret", "Tutar"],
         r.Select(x => new object?[]
         {
-            x.ReservationNo, x.Durum.ToString(), x.BasTar.ToString("yyyy-MM-dd"), x.BitTar.ToString("yyyy-MM-dd"),
-            x.CikisOfisi, x.DonusOfisi, x.Gun, x.GunlukUcret, x.Tutar
+            x.Rez.ReservationNo, x.Rez.Durum.ToString(), x.MusteriAd, x.CepTel, x.Plaka,
+            x.Rez.BasTar.LocalDateTime.ToString("yyyy-MM-dd"), x.Rez.BitTar.LocalDateTime.ToString("yyyy-MM-dd"),
+            x.Rez.CikisOfisi, x.Rez.DonusOfisi, x.Rez.Kaynak,
+            x.Rez.TalepTuru, x.Rez.GeldigiBirim, x.Rez.ProjeAdi, x.Rez.OnayKodu,
+            x.Rez.Gun, x.Rez.GunlukUcret, x.Rez.Tutar
         }).ToList());
 
     public static ExportTable Lokasyonlar(IReadOnlyList<Location> l) => new(

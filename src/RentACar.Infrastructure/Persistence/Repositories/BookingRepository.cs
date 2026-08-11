@@ -31,6 +31,73 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// FAZ-48 — rezervasyon arama. Şube kapsamı SearchRentalRowsAsync ile BİREBİR aynı C4/C5
+    /// şablonuyla uygulanır (kendi kopyası yazılmaz). Serbest metin araması müşteri adı/plaka
+    /// içerdiğinden çözümlemeden SONRA (bellek-içi) uygulanır — kira tarafındaki desen.
+    /// </summary>
+    public async Task<IReadOnlyList<ReservationRow>> SearchReservationsAsync(
+        ReservationFilter filter, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var q = db.Reservations.AsNoTracking();
+        // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
+        if (!filter.Kapsam.Unrestricted)
+        {
+            var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
+            q = q.Where(r => (kid != null && r.CikisSubeId == kid)
+                          || ((kid == null || r.CikisSubeId == null) && kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad)); // C5
+        }
+        if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
+        if (filter.TarihMin is { } min) q = q.Where(r => r.BasTar >= min);
+        if (filter.TarihMax is { } max) q = q.Where(r => r.BasTar <= max);
+
+        var rezler = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        if (rezler.Count == 0) return [];
+
+        var custIds = rezler.Select(r => r.MusteriId).Distinct().ToList();
+        var vehIds = rezler.Select(r => r.VehicleId).Distinct().ToList();
+
+        // PII çözülmez: DisplayName girdileri (Unvan/Ad/Soyad) ve CepTel düz-metin kolonlar.
+        var cariler = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.CepTel }).ToListAsync(ct))
+            .ToDictionary(c => c.Id, c => (
+                Ad: new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
+                c.CepTel));
+        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v.Plaka);
+
+        var rows = rezler.Select(r =>
+        {
+            var cari = cariler.TryGetValue(r.MusteriId, out var c) ? c : (Ad: "—", CepTel: (string?)null);
+            return new ReservationRow(r, cari.Ad, cari.CepTel, plakalar.GetValueOrDefault(r.VehicleId, "—"));
+        }).AsEnumerable();
+
+        // Kaynak eşleşmesi BELLEK-İÇİ ve ORDINAL: SQL'e `lower()` olarak itmek karşılaştırmayı iki ayrı
+        // kültüre (C# ToLower + PG collation) böler — Türkçe I/İ çiftinde ikisi ayrışır ve "Web Sitesi"
+        // gibi bir kaynak sessizce eşleşmez. Ekranın FAZ-85'teki davranışı da tam olarak buydu.
+        if (!string.IsNullOrWhiteSpace(filter.Kaynak))
+        {
+            var kaynak = filter.Kaynak.Trim();
+            rows = rows.Where(r => string.Equals(r.Rez.Kaynak?.Trim(), kaynak, StringComparison.OrdinalIgnoreCase));
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var t = filter.Query.Trim();
+            // Plaka DB'de boşluksuz saklanıyor: kullanıcı "34 AA 11" yazınca da bulunsun diye terim
+            // ayrıca harf/rakama indirgenip DENENİR (yalnız GENİŞLETİR — ham eşleşme aynen korunur).
+            var plakaTerim = new string(t.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+            rows = rows.Where(r =>
+                r.Rez.ReservationNo.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || (plakaTerim.Length > 0 && r.Plaka.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase)));
+        }
+        return rows.ToList();
+    }
+
     public async Task<Reservation?> FindReservationAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
