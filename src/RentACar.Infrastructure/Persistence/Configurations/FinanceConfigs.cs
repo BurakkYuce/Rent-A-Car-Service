@@ -242,7 +242,18 @@ internal sealed class GelenEFaturaConfig : IEntityTypeConfiguration<GelenEFatura
         e.Property(x => x.NetTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.GenelToplam).HasColumnType("numeric(19,4)");
+        // FAZ-55 (a): KDV oran kırılımı — hepsi nullable (null = "girilmemiş", 0 = "gerçekten sıfır").
+        e.Property(x => x.Kdv20Matrah).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv20).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv10Matrah).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv10).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv1Matrah).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv1).HasColumnType("numeric(19,4)");
+        e.Property(x => x.Kdv0Matrah).HasColumnType("numeric(19,4)");
+        e.Property(x => x.GiderTipi).HasConversion<int>();
         e.HasIndex(x => new { x.TenantId, x.Ettn }).IsUnique();
+        // Plaka filtresi + araç drill-down (Expense'teki (TenantId, VehicleId) deseniyle aynı).
+        e.HasIndex(x => new { x.TenantId, x.VehicleId });
     }
 }
 

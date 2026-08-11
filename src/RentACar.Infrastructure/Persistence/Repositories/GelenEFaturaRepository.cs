@@ -14,10 +14,48 @@ public sealed class GelenEFaturaRepository(IDbContextFactory<AppDbContext> facto
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<GelenEFatura>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<GelenEFatura>> ListAsync(
+        GelenEFaturaFilter? filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.GelenEFaturalar.AsNoTracking().OrderByDescending(r => r.Tarih).ToListAsync(ct);
+        var q = db.GelenEFaturalar.AsNoTracking();
+
+        if (filter is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(filter.Firma))
+            {
+                var t = filter.Firma.Trim();
+                q = q.Where(r => EF.Functions.ILike(r.GonderenUnvan, $"%{t}%")
+                              || EF.Functions.ILike(r.GonderenVkn, $"%{t}%"));
+            }
+            // ETTN ARALIĞI: metin karşılaştırma (fatura no serileri sıralıdır). Uçlar DAHİL.
+            if (!string.IsNullOrWhiteSpace(filter.EttnBas))
+            {
+                var b = filter.EttnBas.Trim();
+                q = q.Where(r => string.Compare(r.Ettn, b) >= 0);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.EttnBit))
+            {
+                var s = filter.EttnBit.Trim();
+                q = q.Where(r => string.Compare(r.Ettn, s) <= 0);
+            }
+            if (filter.Durum is { } d) q = q.Where(r => r.Durum == d);
+            if (filter.Bas is { } bas) q = q.Where(r => r.Tarih >= bas);
+            if (filter.Bit is { } bit) q = q.Where(r => r.Tarih <= bit);
+            if (filter.Giderlestirildi is { } g)
+                q = g ? q.Where(r => r.GiderlestirilmeUtc != null) : q.Where(r => r.GiderlestirilmeUtc == null);
+            if (!string.IsNullOrWhiteSpace(filter.Plaka))
+            {
+                // Plaka GelenEFatura'da YOK → bağlı araçtan alt-sorgu (ExpenseRepository ile aynı desen).
+                // Plakalar DB'de normalize saklanır ("34AA01"); kullanıcı "34 AA 01" yazar → terim de normalize.
+                var p = filter.Plaka.Trim().ToUpperInvariant().Replace(" ", string.Empty);
+                q = q.Where(r => r.VehicleId != null && db.Vehicles
+                    .Where(v => EF.Functions.ILike(v.Plaka, $"%{p}%"))
+                    .Select(v => (Guid?)v.Id).Contains(r.VehicleId));
+            }
+        }
+
+        return await q.OrderByDescending(r => r.Tarih).ToListAsync(ct);
     }
 
     public async Task<GelenEFatura?> FindAsync(Guid id, CancellationToken ct = default)

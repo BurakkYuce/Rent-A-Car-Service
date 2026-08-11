@@ -1,0 +1,661 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Common;
+using RentACar.Application.Expenses;
+using RentACar.Application.Finance;
+using RentACar.Application.GelenEFaturalar;
+using RentACar.Application.Reporting;
+using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Persistence;
+using RentACar.IntegrationTests.Infrastructure;
+
+namespace RentACar.IntegrationTests;
+
+/// <summary>
+/// FAZ-55 — Gelen e-Fatura KDV oran kırılımı + araç/kategori/cari bağlama + GİDERLEŞTİRME (para).
+///
+/// <para><b>BAĞIMSIZ ORACLE:</b> her beklenen değer testin İÇİNDE elle kurulmuş senaryodan gelir
+/// (ör. "%20'lik 1000 → KDV 200; %10'luk 500 → KDV 50; toplam net 1500, KDV 250, genel 1750").
+/// Hiçbir beklenti servis/rapor kodundan türetilmez.</para>
+///
+/// <para>Kapsam: kırılım doğrulaması (tutarlı/tutarsız), çok-oranlı belge kuruş-birebir, defter
+/// dengesi + yön (indirilecek KDV Borç), idempotency (ikinci giderleştirme imkânsız), eşzamanlı
+/// giderleştirme (TOCTOU), çift-sayım YOK regresyonu, çok-döviz, yetki, tenant izolasyonu,
+/// giderleştirme sonrası kırılım kilidi.</para>
+/// </summary>
+[Collection("postgres")]
+public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
+{
+    // Belge tarihi: CI-vs-lokal tick farkı yüzünden tam SANİYEYE hizalı ve geçmişte.
+    private static DateTimeOffset Gun()
+    {
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(-30), DateTimeKind.Utc), TimeSpan.Zero);
+        return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
+    }
+
+    private static GelenEFaturaInput Fatura(string ettn, decimal net, decimal kdv, string doviz = "TRY") => new()
+    {
+        Ettn = ettn,
+        GonderenVkn = "1234567890",
+        GonderenUnvan = "Tedarikçi A.Ş.",
+        Tarih = Gun(),
+        NetTutar = net,
+        KdvTutar = kdv,
+        GenelToplam = net + kdv,
+        Currency = doviz
+    };
+
+    private static async Task<List<AccountLedgerEntry>> Defter(IServiceScope scope)
+    {
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
+    }
+
+    // ---------------------------------------------------------------- (a) kırılım doğrulaması
+
+    [Fact]
+    public async Task Tutarli_kirilim_kaydedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        // Senaryo (elle): %20 matrah 1000 → KDV 200. Belge: net 1000, KDV 200, genel 1200.
+        var id = await svc.CreateManualAsync(Fatura("KIR-1", 1000m, 200m));
+        Assert.True(await svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m
+        }));
+
+        var r = await svc.GetAsync(id);
+        Assert.Equal(1000m, r!.Kdv20Matrah);
+        Assert.Equal(200m, r.Kdv20);
+        Assert.Null(r.Kdv10Matrah);
+    }
+
+    [Fact]
+    public async Task Eksik_kirilim_toplami_tutmayinca_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        // Belge net 1000 ama kırılımda yalnız 500 matrah girilmiş → Σ matrah ≠ NetTutar.
+        var id = await svc.CreateManualAsync(Fatura("KIR-2", 1000m, 200m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 500m, Kdv20 = 100m
+        }));
+
+        // Reddedilen kırılım DB'ye SIZMAMALI (kısmen yazılmış alan kalmasın).
+        var r = await svc.GetAsync(id);
+        Assert.Null(r!.Kdv20Matrah);
+        Assert.Null(r.Kdv20);
+    }
+
+    [Fact]
+    public async Task Oranla_tutarsiz_kdv_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        // Belge net 1000 / KDV 199: matrah toplamı tutuyor ama %20 için KDV 200 olmalıydı → red.
+        var id = await svc.CreateManualAsync(Fatura("KIR-3", 1000m, 199m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 1000m, Kdv20 = 199m
+        }));
+    }
+
+    [Fact]
+    public async Task Belge_toplami_tutarsizsa_fatura_hic_olusmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        // net 1000 + KDV 200 = 1200 ≠ genel toplam 1300 → belge kabul edilmez.
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+        {
+            Ettn = "KIR-4", GonderenVkn = "1", GonderenUnvan = "X",
+            NetTutar = 1000m, KdvTutar = 200m, GenelToplam = 1300m
+        }));
+        Assert.Empty(await svc.ListAsync());
+    }
+
+    // ---------------------------------------------------------------- (b) çok oranlı giderleştirme
+
+    [Fact]
+    public async Task Cok_oranli_fatura_oran_basina_gider_satiri_uretir_ve_kurus_birebir_tutar()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenant);
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var tedarikci = Guid.NewGuid();
+
+        // ELLE KURULAN SENARYO (oracle):
+        //   %20 → matrah 1000,00, KDV  200,00
+        //   %10 → matrah  500,00, KDV   50,00
+        //   %1  → matrah  300,00, KDV    3,00
+        //   %0  → matrah  200,00, KDV    0,00
+        //   Σ net = 2000,00 · Σ KDV = 253,00 · genel = 2253,00
+        var id = await svc.CreateManualAsync(Fatura("COK-1", 2000m, 253m));
+        await svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id,
+            Kdv20Matrah = 1000m, Kdv20 = 200m,
+            Kdv10Matrah = 500m, Kdv10 = 50m,
+            Kdv1Matrah = 300m, Kdv1 = 3m,
+            Kdv0Matrah = 200m,
+            CariId = tedarikci
+        });
+        Assert.True(await svc.OnaylaAsync(id));
+
+        var satirSayisi = await svc.GiderlestirAsync(new GelenEFaturaGiderInput
+        {
+            Id = id, OdemeYontemi = OdemeYontemi.AcikHesap, CariId = tedarikci
+        });
+        Assert.Equal(4, satirSayisi); // 4 oran kademesi = 4 gider satırı
+
+        var giderler = await expenses.ListAsync();
+        Assert.Equal(4, giderler.Count);
+        Assert.Equal(2000m, giderler.Sum(g => g.NetTutar));      // Σ matrah == belge neti
+        Assert.Equal(253m, giderler.Sum(g => g.KdvTutar));       // Σ KDV == belge KDV'si
+        Assert.Equal(2253m, giderler.Sum(g => g.GenelToplam));   // Σ brüt == belge genel toplamı
+
+        // Defter: her satır için Borç Gider + Borç KDV (KDV>0 ise) + Alacak Cari.
+        var defter = await Defter(scope);
+        var borc = defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var alacak = defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(2253m, borc);
+        Assert.Equal(2253m, alacak);
+        Assert.Equal(borc, alacak); // DENGELİ
+
+        // İNDİRİLECEK KDV = BORÇ tarafında ve 253,00 (yön hatası çiti).
+        var kdvBorc = defter.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Debit)
+            .Sum(e => e.Amount.AmountInBase);
+        var kdvAlacak = defter.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Credit)
+            .Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(253m, kdvBorc);
+        Assert.Equal(0m, kdvAlacak);
+        Assert.Equal(3, defter.Count(e => e.AccountType == LedgerAccountType.Kdv)); // %0 satırı KDV yazmaz
+
+        // Gider hesabı 2000 borçlanır; tedarikçiye 2253 borçlanılır (bakiye negatif).
+        Assert.Equal(2000m, defter.Where(e => e.AccountType == LedgerAccountType.Gider
+            && e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        Assert.Equal(-2253m, await cash.GetCariBalanceAsync(tedarikci));
+
+        // Belge damgalandı.
+        var r = await svc.GetAsync(id);
+        Assert.NotNull(r!.GiderlestirilmeUtc);
+        Assert.Equal(GelenEFaturaDurum.Islendi, r.Durum);
+        Assert.Equal(id, r.GiderIslemAnahtari);
+    }
+
+    [Fact]
+    public async Task Kirilim_yoksa_belge_toplamindan_tek_oran_cozulur()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        // net 500 / KDV 50 → tek oran %10 (elle: 500 × 0,10 = 50).
+        var id = await svc.CreateManualAsync(Fatura("TEK-1", 500m, 50m));
+        await svc.OnaylaAsync(id);
+        Assert.Equal(1, await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        var g = Assert.Single(await expenses.ListAsync());
+        Assert.Equal(0.10m, g.KdvOrani);
+        Assert.Equal(500m, g.NetTutar);
+        Assert.Equal(50m, g.KdvTutar);
+    }
+
+    [Fact]
+    public async Task Kirilimsiz_cozulemeyen_belge_gurultulu_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        // net 1000 / KDV 123 hiçbir standart orana (20/10/1/0) uymuyor → TAHMİN ETME, reddet.
+        var id = await svc.CreateManualAsync(Fatura("COZ-1", 1000m, 123m));
+        await svc.OnaylaAsync(id);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+        Assert.Empty(await expenses.ListAsync()); // defter/gider yok
+    }
+
+    // ---------------------------------------------------------------- idempotency + TOCTOU
+
+    [Fact]
+    public async Task Ikinci_giderlestirme_IMKANSIZ()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var id = await svc.CreateManualAsync(Fatura("IDEM-1", 1000m, 200m));
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        Assert.Single(await expenses.ListAsync());
+        var defter = await Defter(scope);
+        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+    }
+
+    [Fact]
+    public async Task Damga_silinse_bile_DB_ikinci_defteri_reddeder()
+    {
+        // ADVERSARIAL: bellek-içi bayrağı (GiderlestirilmeUtc) elle temizleyip ikinci kez
+        // giderleştirmeye çalış — gerçek çit DB'deki kısmi unique index (TenantId, IslemAnahtari)
+        // olmalı. Bu, damganın yazılamadığı (çökme) senaryosunun da ampirik karşılığıdır.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenant);
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var id = await svc.CreateManualAsync(Fatura("IDEM-2", 1000m, 200m));
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var row = await db.GelenEFaturalar.FirstAsync(x => x.Id == id);
+            row.GiderlestirilmeUtc = null;
+            row.GiderIslemAnahtari = null;
+            row.Durum = GelenEFaturaDurum.Onaylandi;
+            await db.SaveChangesAsync();
+        }
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        Assert.Single(await expenses.ListAsync()); // hâlâ TEK gider
+        var defter = await Defter(scope);
+        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+    }
+
+    [Fact]
+    public async Task Eszamanli_iki_giderlestirme_tek_defter_yazar()
+    {
+        // ADVERSARIAL (TOCTOU): iki paralel çağrı da "henüz giderleşmemiş" görüp devam ederse
+        // ikincisi DB unique index'ine çarpmalı; defter TEK kez yazılmalı.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using var scope = host.ScopeFor(tenant);
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var id = await svc.CreateManualAsync(Fatura("TOCTOU-1", 1000m, 200m));
+        await svc.OnaylaAsync(id);
+
+        var t1 = svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+        var t2 = svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+        var sonuclar = await Task.WhenAll(
+            Sonuc(t1), Sonuc(t2));
+        Assert.Equal(1, sonuclar.Count(s => s)); // tam olarak biri başarılı
+
+        Assert.Single(await expenses.ListAsync());
+        var defter = await Defter(scope);
+        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
+
+        static async Task<bool> Sonuc(Task<int> t)
+        {
+            try { await t; return true; }
+            catch (ValidationException) { return false; }
+            catch (DbUpdateException) { return false; }
+        }
+    }
+
+    // ---------------------------------------------------------------- ÇİFT SAYIM YOK (kırılgan regresyon)
+
+    [Fact]
+    public async Task Giderlestirilmemis_fatura_raporlara_SIZMAZ()
+    {
+        // KIRILGAN REGRESYON: gelen e-fatura hem kendi tablosunda hem gider olarak duracak.
+        // Raporlar YALNIZ deftere bakmalı; bu tablodaki tutarlar hiçbir toplama girmemeli.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
+
+        var once = await reports.GetGelirGiderAsync();
+        Assert.Equal(0m, once.GiderToplam);
+        Assert.Equal(0m, once.KdvIndirilecek);
+
+        // UÇUK tutarlı bir gelen fatura: giderleştirilmediği sürece raporlar DEĞİŞMEMELİ.
+        await svc.CreateManualAsync(Fatura("SIZ-1", 999_999m, 199_999.80m));
+
+        var sonra = await reports.GetGelirGiderAsync();
+        Assert.Equal(0m, sonra.GiderToplam);
+        Assert.Equal(0m, sonra.KdvIndirilecek);
+        Assert.Equal(once.NetKar, sonra.NetKar);
+    }
+
+    [Fact]
+    public async Task Giderlestirilen_fatura_raporlara_TAM_BIR_KEZ_girer()
+    {
+        // KIRILGAN REGRESYON: giderleştirmeden sonra rapor tam olarak belge kadar artmalı —
+        // ne eksik (kayıp gider) ne fazla (çift sayım).
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
+
+        // ELLE: %20 → 1000/200, %10 → 500/50. Σ net 1500, Σ KDV 250, genel 1750.
+        var id = await svc.CreateManualAsync(Fatura("SIZ-2", 1500m, 250m));
+        await svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m, Kdv10Matrah = 500m, Kdv10 = 50m
+        });
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var gg = await reports.GetGelirGiderAsync();
+        Assert.Equal(1500m, gg.GiderToplam);        // KDV gider değil (matrahlar)
+        Assert.Equal(250m, gg.KdvIndirilecek);      // indirilecek KDV ayrı
+        Assert.Equal(0m, gg.KdvTahsil);
+        Assert.Equal(-1500m, gg.NetKar);
+
+        // Kaynak kırılımı tek "Gider" kaleminde toplanır — gelen fatura tablosu ayrı bir kalem
+        // olarak GÖRÜNMEZ (görünseydi toplam iki kez sayılıyor demekti).
+        Assert.Equal(1500m, Assert.Single(gg.GiderKirilim, k => k.SourceType == "Gider").Tutar);
+        Assert.Single(gg.GiderKirilim);
+    }
+
+    // ---------------------------------------------------------------- çok döviz
+
+    [Fact]
+    public async Task Dovizli_fatura_kur_ile_yansir_ve_dengeli_kalir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        // ELLE: 1 EUR = 40 TRY (test kuru, belge tarihinden önce yayımlanmış).
+        // %20 → matrah 100 EUR, KDV 20 EUR, brüt 120 EUR.
+        var factory0 = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using (var seed = await factory0.CreateDbContextAsync())
+        {
+            seed.KurKayitlari.Add(new KurKaydi
+            {
+                Kod = "EUR", Ad = "EUR", Birim = 1,
+                Tarih = Gun().AddDays(-1),
+                ForexSatis = 40m, ForexAlis = 40m, EfektifSatis = 40m, EfektifAlis = 40m
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        var id = await svc.CreateManualAsync(Fatura("DVZ-1", 100m, 20m, "EUR"));
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var defter = await Defter(scope);
+        Assert.All(defter, e => Assert.Equal("EUR", e.Amount.Currency));
+        Assert.All(defter, e => Assert.Equal(40m, e.Amount.Rate));
+        var borc = defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var alacak = defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(4800m, borc);   // 120 EUR × 40 (elle: 100×40 gider + 20×40 KDV)
+        Assert.Equal(4800m, alacak); // 120 EUR × 40 kasa
+    }
+
+    // ---------------------------------------------------------------- kapılar, kilit, yetki, izolasyon
+
+    [Fact]
+    public async Task Yalniz_onaylanmis_fatura_giderlestirilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var beklemede = await svc.CreateManualAsync(Fatura("KAPI-1", 100m, 20m));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = beklemede, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        var reddedilen = await svc.CreateManualAsync(Fatura("KAPI-2", 100m, 20m));
+        await svc.ReddetAsync(reddedilen, "mükerrer");
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = reddedilen, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        // "Defter dışı işle" ile İşlendi'ye alınmış fatura da giderleştirilemez (çift kayıt çiti).
+        var elle = await svc.CreateManualAsync(Fatura("KAPI-3", 100m, 20m));
+        await svc.OnaylaAsync(elle);
+        await svc.IsleAsync(elle);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = elle, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        Assert.Empty(await expenses.ListAsync());
+    }
+
+    [Fact]
+    public async Task Giderlestirilmis_faturanin_kirilimi_KILITLI()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        var id = await svc.CreateManualAsync(Fatura("KILIT-1", 1000m, 200m));
+        await svc.BaglaAsync(new GelenEFaturaBaglamaInput { Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m });
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        // Defter yazıldıktan sonra belgeyi değiştirmek defterle diverge üretirdi → red.
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv10Matrah = 1000m, Kdv10 = 100m
+        }));
+        var r = await svc.GetAsync(id);
+        Assert.Equal(1000m, r!.Kdv20Matrah); // eski değer duruyor
+        Assert.Null(r.Kdv10Matrah);
+    }
+
+    [Fact]
+    public async Task Acik_hesapta_cari_zorunlu()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        var id = await svc.CreateManualAsync(Fatura("CARI-1", 100m, 20m));
+        await svc.OnaylaAsync(id);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.AcikHesap }));
+    }
+
+    [Fact]
+    public async Task Arac_bagi_gider_satirlarina_tasinir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+        var arac = Guid.NewGuid();
+
+        var id = await svc.CreateManualAsync(Fatura("ARAC-1", 1000m, 200m));
+        await svc.BaglaAsync(new GelenEFaturaBaglamaInput { Id = id, VehicleId = arac });
+        await svc.OnaylaAsync(id);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
+
+        var g = Assert.Single(await expenses.ListAsync());
+        Assert.Equal(ExpenseType.Arac, g.Tip);   // araç bağlıysa tür otomatik Araç
+        Assert.Equal(arac, g.VehicleId);
+
+        // Karne/karlılık atfı: Gider defter satırının AccountRef'i araçtır.
+        var defter = await Defter(scope);
+        Assert.Equal(arac, defter.Single(e => e.AccountType == LedgerAccountType.Gider).AccountRef);
+    }
+
+    [Fact]
+    public async Task NonFinance_kullanici_baglayamaz_ve_giderlestiremez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        Guid id;
+        using (var admin = host.ScopeFor(tenant))
+        {
+            var s = admin.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+            id = await s.CreateManualAsync(Fatura("YETKI-1", 100m, 20m));
+            await s.OnaylaAsync(id);
+        }
+
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
+        var svc = op.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.BaglaAsync(new GelenEFaturaBaglamaInput { Id = id, Kdv20Matrah = 100m, Kdv20 = 20m }));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+    }
+
+    [Fact]
+    public async Task Baska_tenant_faturasi_giderlestirilemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var t1 = Guid.NewGuid();
+        var t2 = Guid.NewGuid();
+        Guid id;
+        using (var s1 = host.ScopeFor(t1))
+        {
+            var s = s1.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+            id = await s.CreateManualAsync(Fatura("IZO-1", 1000m, 200m));
+            await s.OnaylaAsync(id);
+        }
+
+        using var s2 = host.ScopeFor(t2);
+        var svc2 = s2.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        // RLS + query filter: t2 için satır YOK → "bulunamadı" (sızıntı yok, defter yazılmaz).
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc2.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync());
+    }
+
+    // ---------------------------------------------------------------- adversarial regresyonlar
+
+    [Fact]
+    public async Task Kurus_alti_tutar_reddedilir()
+    {
+        // ADVERSARIAL: kolonlar numeric(19,4) → 1000,0050 SAKLANABİLİR. Kırılım/gider yolu 2
+        // ondalığa yuvarladığından defter 1000,01 taşır, belge 1000,0050 gösterirdi (kuruş-altı
+        // kopma). Girişte reddedilmeli.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CreateManualAsync(Fatura("KRS-1", 1000.0050m, 200.0010m)));
+
+        // Kırılım kolonlarında da aynı çit geçerli.
+        var id = await svc.CreateManualAsync(Fatura("KRS-2", 1000m, 200m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 999.9950m, Kdv20 = 200m, Kdv0Matrah = 0.0050m
+        }));
+        Assert.Null((await svc.GetAsync(id))!.Kdv20Matrah);
+    }
+
+    [Fact]
+    public async Task Matrahsiz_kdv_kademesi_reddedilir()
+    {
+        // ADVERSARIAL: yalnız KDV kolonu doldurularak "bedava indirilecek KDV" üretilebilir mi?
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        var id = await svc.CreateManualAsync(Fatura("MTR-1", 1000m, 200m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        {
+            Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m, Kdv10 = 500m // matrahsız 500 KDV
+        }));
+    }
+
+    [Fact]
+    public async Task Kapali_donemde_giderlestirme_defter_yazmaz()
+    {
+        // ADVERSARIAL: dönem kilidi gider yolunun sorumluluğunda — gelen fatura onu ATLAYAMAMALI.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var id = await svc.CreateManualAsync(Fatura("KLT-1", 1000m, 200m));
+        await svc.OnaylaAsync(id);
+        await scope.ServiceProvider.GetRequiredService<RentACar.Application.Periods.DonemKilidiService>()
+            .LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+
+        Assert.Empty(await expenses.ListAsync());
+        Assert.Empty(await Defter(scope));
+        // Belge damgalanmamış olmalı → kilit açılınca tekrar denenebilir.
+        Assert.Null((await svc.GetAsync(id))!.GiderlestirilmeUtc);
+    }
+
+    [Fact]
+    public async Task Tanimsiz_dovizde_gurultulu_red_defter_yazmaz()
+    {
+        // ADVERSARIAL: kuru bilinmeyen dövizde sessizce kur=1 kullanılırsa TL maliyeti uydurulmuş olur.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
+
+        var id = await svc.CreateManualAsync(Fatura("DVZ-2", 100m, 20m, "XAU"));
+        await svc.OnaylaAsync(id);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
+        Assert.Empty(await expenses.ListAsync());
+        Assert.Empty(await Defter(scope));
+    }
+
+    // ---------------------------------------------------------------- filtreler
+
+    [Fact]
+    public async Task Filtreler_firma_ettn_araligi_durum_ve_defter_durumu()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+
+        await svc.CreateManualAsync(new GelenEFaturaInput
+        {
+            Ettn = "FLT-100", GonderenVkn = "1111111111", GonderenUnvan = "Alfa Lojistik",
+            Tarih = Gun(), NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m
+        });
+        await svc.CreateManualAsync(new GelenEFaturaInput
+        {
+            Ettn = "FLT-200", GonderenVkn = "2222222222", GonderenUnvan = "Beta Servis",
+            Tarih = Gun(), NetTutar = 200m, KdvTutar = 40m, GenelToplam = 240m
+        });
+        var ucuncu = await svc.CreateManualAsync(new GelenEFaturaInput
+        {
+            Ettn = "FLT-300", GonderenVkn = "3333333333", GonderenUnvan = "Gama Petrol",
+            Tarih = Gun(), NetTutar = 300m, KdvTutar = 60m, GenelToplam = 360m
+        });
+        await svc.OnaylaAsync(ucuncu);
+        await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = ucuncu, OdemeYontemi = OdemeYontemi.Nakit });
+
+        Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "beta" }));         // ünvan (ILike)
+        Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "3333333333" }));   // VKN
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = "FLT-200" })).Count);
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = "FLT-100", EttnBit = "FLT-200" })).Count);
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { Durum = GelenEFaturaDurum.Beklemede })).Count);
+        Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Giderlestirildi = true }));
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { Giderlestirildi = false })).Count);
+    }
+}
