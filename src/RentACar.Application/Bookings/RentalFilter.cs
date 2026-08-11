@@ -17,4 +17,19 @@ public sealed class RentalFilter
     public string? Sube { get; set; }         // UI ofis filtresi (kullanıcı seçimi)
     /// <summary>Rol bazlı şube KAPSAMI (C4; servis ayarlar) — türetilmiş CikisSubeId + ofis metni.</summary>
     public Authorization.BranchScope.BranchFilter Kapsam { get; set; }
+
+    // ---- FAZ-46: canlı kira_listesi.aspx süzgeçleri ----
+    /// <summary><see cref="BaslangicMin"/>/<see cref="BaslangicMax"/> aralığının HANGİ tarihe
+    /// uygulanacağı. null → <see cref="Domain.Enums.TarihListesiTuru.Baslangic"/> (eski davranış).</summary>
+    public TarihListesiTuru? TarihTuru { get; set; }
+    /// <summary><see cref="Ofis"/> hangi ofise uygulansın. null → eski davranış (çıkış VEYA dönüş).</summary>
+    public OfisDurumu? OfisDurum { get; set; }
+    /// <summary>Araç sahibi (Vehicle.AracSahibi) — araç üzerinden süzer.</summary>
+    public string? SahipGrup { get; set; }
+    /// <summary>Araç grubu (Vehicle.Grup) — araç üzerinden süzer.</summary>
+    public string? AracGrubu { get; set; }
+    /// <summary>Rezervasyon kaynağı — sözleşmenin KENDİ Kaynak alanı (rezervasyondan taşınmış).</summary>
+    public string? RezKaynak { get; set; }
+    /// <summary>Dönüşü teslim alan personel (RentalContract.TeslimAlanPersonelId).</summary>
+    public Guid? PersonelId { get; set; }
 }

@@ -89,6 +89,29 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         if (n.SonraOdeOran is < 0m or > 100m) throw new ValidationException("Sonra öde oranı 0 ile 100 arasında olmalıdır (%).");
         if (n.GecerlilikBas is { } b && n.GecerlilikBit is { } t && t < b)
             throw new ValidationException("Geçerlilik bitişi başlangıçtan önce olamaz.");
+        // FAZ-46 — talep aralığı GEÇERLİLİK aralığından ayrı bir kavram; kendi tutarlılığı sınanır.
+        if (n.TalepBas is { } tb && n.TalepBit is { } tt && tt < tb)
+            throw new ValidationException("Talep bitişi başlangıçtan önce olamaz.");
+    }
+
+    /// <summary>
+    /// FAZ-46 — "0,6" gibi haftanın-günü listesini normalize eder: 0-6 dışı ya da sayı olmayan
+    /// değer GÜRÜLTÜLÜ reddedilir (sessizce atmak, kullanıcının kurduğunu sandığı kısıtı yok
+    /// ederdi). Tekrarlar ayıklanır, sıralanır; boş sonuç null döner (kısıt yok).
+    /// Saf fonksiyon — ekran ve servis AYNI kuralı kullansın diye public.
+    /// </summary>
+    public static string? HaftaGunNormalize(string? ham)
+    {
+        if (string.IsNullOrWhiteSpace(ham)) return null;
+        var gunler = new SortedSet<int>();
+        foreach (var parca in ham.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!int.TryParse(parca, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out var g) || g is < 0 or > 6)
+                throw new ValidationException($"Geçersiz hafta günü: '{parca}'. 0 (Pazar) ile 6 (Cumartesi) arası olmalıdır.");
+            gunler.Add(g);
+        }
+        return gunler.Count == 0 ? null : string.Join(',', gunler);
     }
 
     private static RentalRuleInput Normalize(RentalRuleInput input) => new()
@@ -111,6 +134,15 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         GecerlilikBas = input.GecerlilikBas,
         GecerlilikBit = input.GecerlilikBit,
         SartMetni = TrimOrNull(input.SartMetni),
+        // FAZ-46 — Normalize YENİ nesne kurar: buraya eklenmeyen alan SESSİZCE kaybolur
+        // (repoda bilinen tuzak). Yeni alan eklerken Apply ile birlikte İKİSİNE de yaz.
+        TalepBas = input.TalepBas,
+        TalepBit = input.TalepBit,
+        PromosyonTuru = input.PromosyonTuru,
+        KuponGecerlilik = input.KuponGecerlilik,
+        HesaplamaTipi = input.HesaplamaTipi,
+        HizliIslem = input.HizliIslem,
+        HaftaGunKisiti = HaftaGunNormalize(input.HaftaGunKisiti),
         Aktif = input.Aktif
     };
 
@@ -136,6 +168,13 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         row.GecerlilikBas = n.GecerlilikBas;
         row.GecerlilikBit = n.GecerlilikBit;
         row.SartMetni = n.SartMetni;
+        row.TalepBas = n.TalepBas;                    // FAZ-46
+        row.TalepBit = n.TalepBit;
+        row.PromosyonTuru = n.PromosyonTuru;
+        row.KuponGecerlilik = n.KuponGecerlilik;
+        row.HesaplamaTipi = n.HesaplamaTipi;
+        row.HizliIslem = n.HizliIslem;
+        row.HaftaGunKisiti = n.HaftaGunKisiti;
         row.Aktif = n.Aktif;
     }
 }
