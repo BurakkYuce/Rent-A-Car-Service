@@ -94,7 +94,19 @@
 
 @* FAZ-84: kanal filtresi — canlı mobil_odeme.aspx eşdeğeri (ayrı ekran yerine bu listeye süzgeç).
    Kanal SAF BİLGİDİR: yalnız CashTransaction belgesinde durur, defteri/bakiyeyi/özeti ETKİLEMEZ. *@
+@* FAZ-67 — canlı nakit_islem_ara.aspx süzgeci; FAZ-84'ün kanal seçimi korunarak genişletildi. *@
 <form method="get" class="filter-bar">
+    <input name="q" value="@Q" placeholder="İşlem no / cari / özel kod / açıklama" />
+    <select name="tip">
+        <option value="">Tip (tümü)</option>
+        <option value="Tahsilat" selected="@(Tip == "Tahsilat")">Tahsilat</option>
+        <option value="Odeme" selected="@(Tip == "Odeme")">Ödeme</option>
+    </select>
+    <select name="hesap">
+        <option value="">Hesap (tümü)</option>
+        <option value="Kasa" selected="@(HesapTur == "Kasa")">Kasa</option>
+        <option value="Banka" selected="@(HesapTur == "Banka")">Banka</option>
+    </select>
     <select name="kanal">
         <option value="">Kanal (tümü)</option>
         @foreach (var k in CashKanal.Hepsi)
@@ -102,26 +114,27 @@
             <option value="@k" selected="@(KanalFiltre == k)">@k</option>
         }
     </select>
+    <input name="bas" type="date" value="@Bas" title="İşlem tarihi ≥" />
+    <input name="bit" type="date" value="@Bit" title="İşlem tarihi ≤ (gün dahil)" />
     <button type="submit">Süz</button>
-    @if (!string.IsNullOrEmpty(KanalFiltre))
-    {
-        <a href="/kasa" class="link">Temizle</a>
-    }
+    @if (SuzgecVar) { <a href="/kasa" class="link">Temizle</a> }
+    <a class="link" href="/finans/nakit-islem"><strong>+ Yeni Nakit İşlem</strong></a>
 </form>
 
 <h2>Son İşlemler</h2>
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Kasa/Banka Hesabı</th><th>Kanal</th><th>Cari</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
+        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Kasa/Banka Hesabı</th><th>Kanal</th><th>Cari</th><th>Cari Kod</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
     </thead>
     <tbody>
         @if (_txns.Count == 0)
         {
-            <tr><td colspan="10" class="muted">İşlem yok.</td></tr>
+            <tr><td colspan="11" class="muted">İşlem yok.</td></tr>
         }
-        @foreach (var t in _txns)
+        @foreach (var satir in _txns)
         {
+            var t = satir.Islem;
             <tr>
                 <td>@t.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td class="mono">@t.No</td>
@@ -137,13 +150,8 @@
                    HesapId'den AYRI kavram: biri "hangi spesifik kasa/banka hesabı", diğeri
                    "hangi kanaldan girildi" (Masaüstü/Mobil/Tablet). *@
                 <td>@(t.Kanal ?? CashKanal.Masaustu)</td>
-                <td>
-                    @if (_adlar.TryGetValue(t.CariId, out var ad))
-                    {
-                        <a href="/cariler/@t.CariId/ekstre">@ad</a>
-                    }
-                    else { <span class="muted">—</span> }
-                </td>
+                <td><a href="/cariler/@t.CariId/ekstre">@satir.CariAd</a></td>
+                <td>@(satir.CariKod ?? "—")</td>
                 <td>@t.Amount.Amount.ToString("N2") @t.Amount.Currency</td>
                 <td>@t.Aciklama</td>
                 <td><a href="/kasa/makbuz/@t.Id/pdf" target="_blank" rel="noopener">PDF</a></td>
@@ -156,27 +164,46 @@
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "kanal")] public string? KanalFiltre { get; set; }
+    // ---- FAZ-67 süzgeçleri ----
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "tip")] public string? Tip { get; set; }
+    [SupplyParameterFromQuery(Name = "hesap")] public string? HesapTur { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+
+    private bool SuzgecVar => !string.IsNullOrEmpty(KanalFiltre) || !string.IsNullOrWhiteSpace(Q)
+        || !string.IsNullOrWhiteSpace(Tip) || !string.IsNullOrWhiteSpace(HesapTur)
+        || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit);
 
     private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
-    private IReadOnlyList<CashTransaction> _txns = [];
-    private Dictionary<Guid, string> _adlar = new();
+    private IReadOnlyList<NakitIslemSatirDto> _txns = [];
     private Dictionary<Guid, string> _hesapAdlari = new();
     private IReadOnlyList<KasaVirmanSatirDto> _virmanlar = [];
 
     protected override async Task OnInitializedAsync()
     {
         _summary = await Reports.GetKasaBankaSummaryAsync();
-        var all = await Cash.ListAsync();
-        // FAZ-84: Filtre önce (tüm listeden), sonra son-50 kesilir — aksi halde eşleşen satırlar
-        // ilk 50'nin dışında kalıp görünmezdi. Null → "Masaüstü" (geçmiş kayıt varsayımı).
-        var suzulmus = string.IsNullOrEmpty(KanalFiltre)
-            ? all
-            : all.Where(t => (t.Kanal ?? CashKanal.Masaustu) == KanalFiltre).ToList();
-        _txns = suzulmus.Take(50).ToList();
-        // PII'siz seçim listesi: ListAsync tüm müşterilerin TC/ehliyet alanlarını çözüyordu —
-        // bu ekranda yalnız görünen ad gerekiyor.
-        _adlar = (await Customers.ListSecimAsync()).ToDictionary(c => c.Id, c => c.Ad);
+        // FAZ-67: süzme SUNUCUDA (SearchIslemlerAsync) ve LİMİTTEN ÖNCE — FAZ-84'ün "önce süz,
+        // sonra kes" dersi korunuyor: tersi olsaydı eşleşen satırlar ilk 50'nin dışında kalıp
+        // görünmezdi. Cari adı/kodu da orada çözülür (PII çözülmez: düz-metin kolonlar).
+        var tumu = await Cash.SearchIslemlerAsync(new CashFilter
+        {
+            Ara = string.IsNullOrWhiteSpace(Q) ? null : Q,
+            Tip = Enum.TryParse<CashTransactionType>(Tip, out var tp) ? tp : null,
+            Hesap = Enum.TryParse<LedgerAccountType>(HesapTur, out var hs) ? hs : null,
+            Bas = ParseGun(Bas),
+            Bit = ParseGun(Bit)?.AddDays(1).AddTicks(-1),   // bitiş günü DAHİL
+            EnFazla = 2000
+        });
+        // Kanal süzgeci FAZ-84 semantiğini korur: NULL geçmiş kayıt "Masaüstü" sayılır.
+        _txns = [.. (string.IsNullOrEmpty(KanalFiltre)
+                ? tumu
+                : tumu.Where(x => (x.Islem.Kanal ?? CashKanal.Masaustu) == KanalFiltre))
+            .Take(50)];
         _hesapAdlari = (await Hesaplar.ListAsync()).ToDictionary(h => h.Id, h => h.Ad);
         _virmanlar = await Cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { EnFazla = 50 });
     }
+
+    private static DateTimeOffset? ParseGun(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 }
