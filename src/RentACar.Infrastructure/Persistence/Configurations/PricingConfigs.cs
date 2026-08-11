@@ -157,6 +157,13 @@ internal sealed class RentalRuleConfig : IEntityTypeConfiguration<RentalRule>
         e.Property(x => x.KampanyaKodu).HasMaxLength(64);
         e.Property(x => x.MusteriSegment).HasMaxLength(64); // FAZ 3.A2
         e.Property(x => x.SartMetni).HasMaxLength(4000);
+        // FAZ-46 — enum'lar int'e; hepsi NULLABLE (null = "belirtilmemiş", eski davranış).
+        e.Property(x => x.PromosyonTuru).HasConversion<int?>();
+        e.Property(x => x.KuponGecerlilik).HasConversion<int?>();
+        e.Property(x => x.HesaplamaTipi).HasConversion<int?>();
+        // "0,6" gibi kısa bir liste — ayrı child tablo veya jsonb kolonun karşılığı yok
+        // (en fazla 7 değer, sorgulanmıyor, yalnız kural formunda okunup yazılıyor).
+        e.Property(x => x.HaftaGunKisiti).HasMaxLength(32);
         e.Property(x => x.Iskonto).HasColumnType("numeric(9,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();

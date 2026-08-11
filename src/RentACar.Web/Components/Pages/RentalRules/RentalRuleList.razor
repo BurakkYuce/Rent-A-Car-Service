@@ -38,13 +38,34 @@
         <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" /></label>
         <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" /></label>
         <label>Şart Metni<input name="sartMetni" placeholder="Rez/sözleşme şartları" /></label>
+        @* FAZ-46 — TALEP aralığı, GEÇERLİLİK aralığından farklıdır: geçerlilik kiralama tarihine,
+           talep rezervasyonun YAPILDIĞI tarihe bakar (erken rezervasyon kampanyası). *@
+        <label>Talep Baş<input name="talepBas" type="date" title="Rezervasyonun yapıldığı tarih ≥" /></label>
+        <label>Talep Bit<input name="talepBit" type="date" title="Rezervasyonun yapıldığı tarih ≤" /></label>
+        <label>Promosyon Türü
+            <select name="promosyonTuru"><option value="">—</option><option value="Coklu">Çoklu</option><option value="Tek">Tek</option></select>
+        </label>
+        <label>Kupon Geçerliliği
+            <select name="kuponGecerlilik"><option value="">—</option><option value="Hepsi">Hepsi</option><option value="SadeceIlkBedel">Sadece ilk bedel</option></select>
+        </label>
+        <label>Hesaplama Tipi
+            <select name="hesaplamaTipi"><option value="">—</option><option value="Oran">Oran</option><option value="Serbest">Serbest</option></select>
+        </label>
+        <label class="check"><input type="checkbox" name="hizliIslem" value="true" /> Hızlı işlemde göster</label>
+        <fieldset class="u-col-full">
+            <legend>Geçerli günler (boş = tüm günler)</legend>
+            @foreach (var g in Gunler)
+            {
+                <label class="check"><input type="checkbox" name="haftaGun" value="@g.No" /> @g.Ad</label>
+            }
+        </fieldset>
         <button type="submit">Oluştur</button>
     </form>
 </details>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Şube</th><th>Araç Grubu</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
@@ -56,6 +77,9 @@
                 <td class="mono">@r.Kod</td>
                 <td>@r.Ad</td>
                 <td>@r.Kanal</td>
+                @* FAZ-46 — form alanları zaten vardı, grid'de görünmüyordu. *@
+                <td>@(r.Sube ?? "—")</td>
+                <td>@(r.AracGrupKod ?? "—")</td>
                 <td class="num">@(r.MinGun?.ToString() ?? "—") / @(r.MaxGun?.ToString() ?? "—")</td>
                 <td class="num">@(r.Iskonto?.ToString("N2") ?? "—")</td>
                 <td>@(r.KampanyaMi ? "Evet" : "Hayır")</td>
@@ -73,9 +97,9 @@
                             <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
                             <label>Min Gün<input name="minGun" type="number" min="0" value="@r.MinGun" /></label>
                             <label>Max Gün<input name="maxGun" type="number" min="0" value="@r.MaxGun" /></label>
-                            <label>İskonto %<input name="iskonto" type="number" step="0.01" min="0" max="100" value="@r.Iskonto" /></label>
-                            <label>Hafta Sonu Fark %<input name="haftaSonuFarkOran" type="number" step="0.01" min="0" max="200" value="@r.HaftaSonuFarkOran" /></label>
-                            <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" max="100" value="@r.SonraOdeOran" /></label>
+                            <label>İskonto %<input name="iskonto" type="number" step="0.01" min="0" max="100" value="@Inv(r.Iskonto)" /></label>
+                            <label>Hafta Sonu Fark %<input name="haftaSonuFarkOran" type="number" step="0.01" min="0" max="200" value="@Inv(r.HaftaSonuFarkOran)" /></label>
+                            <label>Sonra Öde %<input name="sonraOdeOran" type="number" step="0.01" min="0" max="100" value="@Inv(r.SonraOdeOran)" /></label>
                             <label>Hediye Gün<input name="hediyeGun" type="number" min="0" value="@r.HediyeGun" /></label>
                             <label>Kampanya mı
                                 <select name="kampanyaMi">
@@ -85,9 +109,40 @@
                             </label>
                             <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" value="@r.KampanyaKodu" /></label>
                             <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Boş = herkes" maxlength="64" value="@r.MusteriSegment" /></label>
-                            <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@r.GecerlilikBas?.ToString("yyyy-MM-dd")" /></label>
-                            <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@r.GecerlilikBit?.ToString("yyyy-MM-dd")" /></label>
+                            <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@Gun(r.GecerlilikBas)" /></label>
+                            <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@Gun(r.GecerlilikBit)" /></label>
                             <label>Şart Metni<input name="sartMetni" value="@r.SartMetni" /></label>
+                            <label>Talep Baş<input name="talepBas" type="date" value="@Gun(r.TalepBas)" /></label>
+                            <label>Talep Bit<input name="talepBit" type="date" value="@Gun(r.TalepBit)" /></label>
+                            <label>Promosyon Türü
+                                <select name="promosyonTuru">
+                                    <option value="" selected="@(r.PromosyonTuru is null)">—</option>
+                                    <option value="Coklu" selected="@(r.PromosyonTuru == PromosyonTuru.Coklu)">Çoklu</option>
+                                    <option value="Tek" selected="@(r.PromosyonTuru == PromosyonTuru.Tek)">Tek</option>
+                                </select>
+                            </label>
+                            <label>Kupon Geçerliliği
+                                <select name="kuponGecerlilik">
+                                    <option value="" selected="@(r.KuponGecerlilik is null)">—</option>
+                                    <option value="Hepsi" selected="@(r.KuponGecerlilik == KuponGecerlilik.Hepsi)">Hepsi</option>
+                                    <option value="SadeceIlkBedel" selected="@(r.KuponGecerlilik == KuponGecerlilik.SadeceIlkBedel)">Sadece ilk bedel</option>
+                                </select>
+                            </label>
+                            <label>Hesaplama Tipi
+                                <select name="hesaplamaTipi">
+                                    <option value="" selected="@(r.HesaplamaTipi is null)">—</option>
+                                    <option value="Oran" selected="@(r.HesaplamaTipi == HesaplamaTipi.Oran)">Oran</option>
+                                    <option value="Serbest" selected="@(r.HesaplamaTipi == HesaplamaTipi.Serbest)">Serbest</option>
+                                </select>
+                            </label>
+                            <label class="check"><input type="checkbox" name="hizliIslem" value="true" checked="@r.HizliIslem" /> Hızlı işlemde göster</label>
+                            <fieldset class="u-col-full">
+                                <legend>Geçerli günler (boş = tüm günler)</legend>
+                                @foreach (var g in Gunler)
+                                {
+                                    <label class="check"><input type="checkbox" name="haftaGun" value="@g.No" checked="@GunSecili(r.HaftaGunKisiti, g.No)" /> @g.Ad</label>
+                                }
+                            </fieldset>
                             <label>Durum
                                 <select name="aktif">
                                     <option value="true" selected="@r.Aktif">Aktif</option>
@@ -120,6 +175,25 @@
 
     private IReadOnlyList<RentalRule> _list = [];
     private List<string> _subeOpts = [];
+
+    /// <summary>Haftanın günleri — numaralandırma <see cref="DayOfWeek"/> ile AYNI (0=Pazar).</summary>
+    private static readonly (int No, string Ad)[] Gunler =
+    [
+        (1, "Pzt"), (2, "Sal"), (3, "Çar"), (4, "Per"), (5, "Cum"), (6, "Cmt"), (0, "Paz")
+    ];
+
+    private static bool GunSecili(string? kisit, int gun)
+        => !string.IsNullOrWhiteSpace(kisit)
+           && kisit.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .Contains(gun.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    // Ondalık prefill'i InvariantCulture ile: tr-TR "12,50" basınca tarayıcı type=number alanını
+    // BOŞALTIR ve kullanıcı dokunmadan kaydettiğinde değer NULL'lanır (repoda bilinen tuzak).
+    private static string? Inv(decimal? d) => d?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    // Tarih prefill'i YEREL gün ile: FormParse.Date sunucu-yerel parse edip UTC'ye çevirdiğinden
+    // UTC günü basmak her kayıtta bir gün geri kaydırırdı.
+    private static string? Gun(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
 
     protected override async Task OnInitializedAsync()
     {
