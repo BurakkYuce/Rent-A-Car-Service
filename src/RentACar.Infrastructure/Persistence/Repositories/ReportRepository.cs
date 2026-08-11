@@ -14,6 +14,68 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
+    /// <summary>
+    /// FAZ-57 — kasa/banka hareket satırlarının BELGE künyesi.
+    ///
+    /// <para><b>Cari GENERİK çözülür:</b> belge türü başına ayrı okuma yapmak yerine, aynı
+    /// <c>SourceId</c>'yi paylaşan dengeli kümenin <c>Cari</c>/<c>Depozito</c> bacağının
+    /// <c>AccountRef</c>'i alınır. Yeni bir para yolu eklendiğinde (ceza ödemesi, dış hizmet…)
+    /// bu liste kendiliğinden çalışır — bakımı unutulacak ikinci bir tür listesi doğmaz.</para>
+    ///
+    /// <para>Evrak no / şube / kanal belge türüne özgüdür ve yalnız KÜNYE taşıyan tablolardan
+    /// okunur; hiçbiri para hesabına girmez.</para>
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetHareketBelgeleriAsync(
+        IReadOnlyCollection<Guid> sourceIds, CancellationToken ct = default)
+    {
+        if (sourceIds.Count == 0) return new Dictionary<Guid, HareketBelgeDto>();
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var idler = sourceIds.Distinct().ToList();
+
+        // (a) Cari/Depozito bacağından cari kimliği (generik).
+        var cariBacak = (await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => idler.Contains(e.SourceId) && e.AccountRef != null
+                    && (e.AccountType == LedgerAccountType.Cari || e.AccountType == LedgerAccountType.Depozito))
+                .Select(e => new { e.SourceId, Ref = e.AccountRef!.Value })
+                .ToListAsync(ct))
+            .GroupBy(x => x.SourceId)
+            .ToDictionary(g => g.Key, g => g.First().Ref);
+
+        // Cari adı PII ÇÖZMEDEN: DisplayName girdileri (Unvan/Ad/Soyad) düz-metin kolonlar.
+        var cariIdler = cariBacak.Values.Distinct().ToList();
+        var cariAdlari = (await db.Customers.AsNoTracking().Where(c => cariIdler.Contains(c.Id))
+                .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad }).ToListAsync(ct))
+            .ToDictionary(c => c.Id,
+                c => new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName);
+
+        // (b) Belge künyeleri — her biri KENDİ tablosundan; tutar okunmaz.
+        var kasa = (await db.CashTransactions.AsNoTracking().Where(t => idler.Contains(t.Id))
+            .Select(t => new { t.Id, t.No, t.Kanal }).ToListAsync(ct)).ToDictionary(x => x.Id);
+        var gider = (await db.Expenses.AsNoTracking().Where(e => idler.Contains(e.Id))
+            .Select(e => new { e.Id, e.EvrakNo, e.Sube }).ToListAsync(ct)).ToDictionary(x => x.Id);
+        var fatura = (await db.Invoices.AsNoTracking().Where(i => idler.Contains(i.Id))
+            .Select(i => new { i.Id, i.No }).ToListAsync(ct)).ToDictionary(x => x.Id);
+        var virman = (await db.KasaVirmanBilgileri.AsNoTracking().Where(k => idler.Contains(k.Id))
+            .Select(k => new { k.Id, k.MakbuzNo, k.Sube }).ToListAsync(ct)).ToDictionary(x => x.Id);
+
+        var sonuc = new Dictionary<Guid, HareketBelgeDto>(idler.Count);
+        foreach (var id in idler)
+        {
+            Guid? cariId = cariBacak.TryGetValue(id, out var c) ? c : null;
+            string? belgeNo = null, sube = null, kanal = null;
+            if (kasa.TryGetValue(id, out var k)) { belgeNo = k.No; kanal = k.Kanal; }
+            else if (gider.TryGetValue(id, out var g)) { belgeNo = g.EvrakNo; sube = g.Sube; }
+            else if (fatura.TryGetValue(id, out var f)) { belgeNo = f.No; }
+            else if (virman.TryGetValue(id, out var v)) { belgeNo = v.MakbuzNo; sube = v.Sube; }
+
+            sonuc[id] = new HareketBelgeDto(
+                cariId,
+                cariId is { } ci ? cariAdlari.GetValueOrDefault(ci) : null,
+                belgeNo, sube, kanal);
+        }
+        return sonuc;
+    }
+
     public async Task<IReadOnlyList<LedgerRowDto>> GetLedgerRowsAsync(
         IReadOnlyCollection<LedgerAccountType> accountTypes,
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
@@ -28,14 +90,15 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(e => new
             {
                 e.EntryDateUtc, e.AccountType, e.Direction, e.SourceType, e.Description,
-                Amount = e.Amount.Amount, Rate = e.Amount.Rate, Doviz = e.Amount.Currency, e.AccountRef
+                Amount = e.Amount.Amount, Rate = e.Amount.Rate, Doviz = e.Amount.Currency, e.AccountRef,
+                e.SourceId
             })
             .ToListAsync(ct);
 
         return raw
             .Select(r => new LedgerRowDto(
                 r.EntryDateUtc, r.AccountType, r.Direction, r.SourceType, r.Description, r.Amount * r.Rate,
-                r.AccountRef, r.Amount, r.Doviz))   // FAZ-50: hesap + native tutar
+                r.AccountRef, r.Amount, r.Doviz, r.SourceId))   // FAZ-50 hesap/native + FAZ-57 belge kimliği
             .ToList();
     }
 

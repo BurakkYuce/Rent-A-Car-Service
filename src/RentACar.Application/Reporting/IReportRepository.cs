@@ -9,6 +9,14 @@ namespace RentACar.Application.Reporting;
 /// </summary>
 public interface IReportRepository
 {
+    /// <summary>
+    /// FAZ-57 — defter satırlarının arkasındaki belge künyesi (cari adı / evrak no / şube / kanal).
+    /// Cari GENERİK çözülür: aynı <c>SourceId</c>'yi paylaşan dengeli kümenin Cari/Depozito
+    /// bacağından. Sözlük anahtarı <c>SourceId</c>.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetHareketBelgeleriAsync(
+        IReadOnlyCollection<Guid> sourceIds, CancellationToken ct = default);
+
     Task<IReadOnlyList<LedgerRowDto>> GetLedgerRowsAsync(
         IReadOnlyCollection<LedgerAccountType> accountTypes,
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
