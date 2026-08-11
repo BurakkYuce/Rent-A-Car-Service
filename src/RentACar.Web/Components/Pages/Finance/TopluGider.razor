@@ -43,7 +43,7 @@
     </label>
     <label>Vade<input name="vade" type="date" title="Bilgi alanı — deftere girmez" /></label>
     <label>Hesap No
-        <select name="finansalHesapId" title="Belge bilgisi — defter karşı hesabı ödeme yöntemine göre Kasa/Banka'dır">
+        <select name="finansalHesapId" title="FAZ-50: seçilen hesap defterin nakit bacağına da yazılır (Kasa/Banka türü ödeme yönteminden gelir)">
             <option value="">— seçilmedi —</option>
             @foreach (var h in _hesaplar)
             {

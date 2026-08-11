@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.Kur.KurService>();
         services.AddScoped<RentACar.Application.Kur.SabitKurService>();
         services.AddScoped<RentACar.Application.Kur.KurCozucu>(); // ödeme uçları kur çözümü (1.1)
+        services.AddScoped<RentACar.Application.FinancialAccounts.HesapCozucu>(); // FAZ-50 hesap çözümü
         services.AddSingleton(RentACar.Application.Reporting.TutSatEsikleri.Varsayilan); // FAZ 2.2 (Web override edebilir)
         services.AddScoped<RentACar.Application.TransmissionTypes.TransmissionTypeService>();
         services.AddScoped<RentACar.Application.VehicleColors.VehicleColorService>();

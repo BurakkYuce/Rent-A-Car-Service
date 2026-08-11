@@ -46,6 +46,7 @@ yazılmaz, gelir-gider ve cari bakiyeyi etkilemez. Kalan, poliçe ödendiğinde 
                 <form method="post" action="/regulasyon-odeme/sigorta" style="display:inline"><AntiforgeryToken />
                     <input type="hidden" name="id" value="@s.Id" />
                     <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                    <HesapSecici Etiket="" />
                     <input name="zeyil" type="number" step="0.01" min="0" value="0" style="width:6em" title="Zeyil ek prim" />
                     @if (s.Currency != "TRY")
                     {
@@ -150,6 +151,7 @@ else
                     <input type="hidden" name="id" value="@m.Id" />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
                     <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                    <HesapSecici Etiket="" />
                     <input name="tutar" type="number" step="0.01" min="0.01" max="@m.Kalan.ToString(System.Globalization.CultureInfo.InvariantCulture)" placeholder="tümü" title="Kısmi tutar (boş = kalanın tamamı)" />
                     <input name="odemeTarihi" type="date" title="Ödeme tarihi (boş = bugün)" />
                     <input name="evrakNo" placeholder="Evrak No" maxlength="64" />
@@ -204,6 +206,7 @@ else
                     <input type="hidden" name="id" value="@m.Id" />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
                     <select name="hesap"><option>Kasa</option><option>Banka</option></select>
+                    <HesapSecici Etiket="" />
                     <input name="ceza" type="number" step="0.01" min="0" value="0" title="Ceza (borcu artırır)" />
                     <input name="tutar" type="number" step="0.01" min="0.01" placeholder="tümü" title="Kısmi tutar (boş = kalan + ceza)" />
                     <input name="odemeTarihi" type="date" title="Ödeme tarihi (boş = bugün)" />

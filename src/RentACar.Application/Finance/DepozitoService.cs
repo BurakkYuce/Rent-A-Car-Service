@@ -16,28 +16,43 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class DepozitoService(
     ILedgerPoster ledger, ICashRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu)
+    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
 {
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICashRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
+    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
 
     public Task<decimal> GetBakiyeAsync(Guid cariId, CancellationToken ct = default)
         => _repository.GetDepozitoBakiyeAsync(cariId, ct);
 
-    /// <summary>Depozito al: Borç Kasa/Banka / Alacak Depozito(cari).</summary>
-    public Task<Guid> AlAsync(Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz = "TRY",
-        decimal? kur = null, DateTimeOffset? tarih = null, Guid? islemAnahtari = null, CancellationToken ct = default)
-        => PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoAl", "Depozito al",
-            borc: hesap, borcRef: null, alacak: LedgerAccountType.Depozito, alacakRef: cariId, kontrolEt: false, ct);
+    /// <summary>Depozito al: Borç Kasa/Banka / Alacak Depozito(cari).
+    /// FAZ-50: <paramref name="hesapId"/> verilirse nakit bacağı o spesifik hesaba yazılır.</summary>
+    public async Task<Guid> AlAsync(Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz = "TRY",
+        decimal? kur = null, DateTimeOffset? tarih = null, Guid? islemAnahtari = null,
+        Guid? hesapId = null, CancellationToken ct = default)
+    {
+        // Guard GİRİŞ noktasında: hesap çözümü PostAsync'ten önce çalışıyor, yetkisiz kullanıcı
+        // hesap varlığını yoklayamamalı.
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        return await PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoAl", "Depozito al",
+            borc: hesap, borcRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct),
+            alacak: LedgerAccountType.Depozito, alacakRef: cariId, kontrolEt: false, ct);
+    }
 
-    /// <summary>Depozito iade: Borç Depozito(cari) / Alacak Kasa/Banka. Tutulan depozitoyu aşamaz.</summary>
-    public Task<Guid> IadeAsync(Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz = "TRY",
-        decimal? kur = null, DateTimeOffset? tarih = null, Guid? islemAnahtari = null, CancellationToken ct = default)
-        => PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoIade", "Depozito iade",
-            borc: LedgerAccountType.Depozito, borcRef: cariId, alacak: hesap, alacakRef: null, kontrolEt: true, ct);
+    /// <summary>Depozito iade: Borç Depozito(cari) / Alacak Kasa/Banka. Tutulan depozitoyu aşamaz.
+    /// FAZ-50: <paramref name="hesapId"/> verilirse nakit bacağı o spesifik hesaba yazılır.</summary>
+    public async Task<Guid> IadeAsync(Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz = "TRY",
+        decimal? kur = null, DateTimeOffset? tarih = null, Guid? islemAnahtari = null,
+        Guid? hesapId = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite); // bkz. AlAsync notu
+        return await PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoIade", "Depozito iade",
+            borc: LedgerAccountType.Depozito, borcRef: cariId,
+            alacak: hesap, alacakRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct), kontrolEt: true, ct);
+    }
 
     /// <summary>Depozito mahsup (cari borcuna): Borç Depozito(cari) / Alacak Cari(cari). Tutulanı aşamaz.</summary>
     public Task<Guid> MahsupAsync(Guid cariId, decimal tutar, string? doviz = "TRY",

@@ -11,4 +11,6 @@ public interface IFinancialAccountRepository
     Task CreateAsync(FinancialAccount account, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<FinancialAccount> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+    /// <summary>FAZ-50 adversarial M2 — bu hesabın defterde hareketi var mı (AccountRef eşleşmesi).</summary>
+    Task<bool> HasLedgerHistoryAsync(Guid id, CancellationToken ct = default);
 }

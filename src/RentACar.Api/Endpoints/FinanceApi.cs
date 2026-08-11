@@ -39,7 +39,9 @@ public static class FinanceApi
 
         grp.MapPost("/cash/transfer", async (TransferRequest req, CashService svc, CancellationToken ct) =>
         {
-            await svc.TransferAsync(req.Kaynak, req.Hedef, req.Tutar, req.Doviz, req.Kur, req.Aciklama, ct: ct);
+            await svc.TransferAsync(req.Kaynak, req.Hedef, req.Tutar, req.Doviz, req.Kur, req.Aciklama,
+                kaynakHesapId: req.KaynakHesapId, hedefHesapId: req.HedefHesapId,
+                makbuzNo: req.MakbuzNo, sube: req.Sube, ct: ct);   // FAZ-50
             return Results.Ok(new { transferred = true });
         });
 

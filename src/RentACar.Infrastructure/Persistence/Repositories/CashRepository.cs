@@ -393,6 +393,38 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     /// vade/makbuz/şube alanlarını UYDURMAK olurdu; boş künyeyle listelemek de "bilgi girilmemiş"
     /// ile "kayıt eski" ayrımını kaybettirirdi. Ekranda bu durum açıkça yazılıdır.</para>
     /// </summary>
+    /// <summary>
+    /// FAZ-50 adversarial M7 — künye SALT-YAZILIR kalmasın: kullanıcı formda doldurduğu Makbuz No
+    /// ve İşlem Şubesi'ni bir daha göremiyordu. Tutar DEFTERDEN (Debit bacağı) okunur; künye
+    /// para taşımaz (tek kaynak kuralı).
+    /// </summary>
+    public async Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
+        int enFazla = 100, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var limit = Math.Clamp(enFazla, 1, 1000);
+        var kunyeler = await db.KasaVirmanBilgileri.AsNoTracking()
+            .OrderByDescending(x => x.Tarih).Take(limit).ToListAsync(ct);
+        if (kunyeler.Count == 0) return [];
+
+        var idler = kunyeler.Select(k => k.Id).ToList();
+        var tutarlar = (await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => e.SourceType == "Virman" && e.Direction == LedgerDirection.Debit
+                            && idler.Contains(e.SourceId))
+                .Select(e => new { e.SourceId, e.Amount.Amount, e.Amount.Currency, e.Amount.Rate })
+                .ToListAsync(ct))
+            .GroupBy(x => x.SourceId)
+            .ToDictionary(g => g.Key, g => (g.First().Amount, g.First().Currency, g.First().Rate));
+
+        return [.. kunyeler.Select(k =>
+        {
+            var t = tutarlar.TryGetValue(k.Id, out var v) ? v : (Amount: 0m, Currency: "TRY", Rate: 1m);
+            return new KasaVirmanSatirDto(
+                k.Id, k.Tarih, k.KaynakTur, k.HedefTur, k.KaynakHesapId, k.HedefHesapId,
+                t.Amount, t.Currency, t.Rate, k.MakbuzNo, k.Sube, k.IslemYapan, k.Aciklama);
+        })];
+    }
+
     public async Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
         CariVirmanFilter? filter = null, CancellationToken ct = default)
     {
