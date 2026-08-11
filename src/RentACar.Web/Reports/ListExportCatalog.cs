@@ -103,11 +103,18 @@ public static class ListExportCatalog
 
     public static ExportTable Cezalar(IReadOnlyList<Penalty> c) => new(
         "Cezalar",
-        ["No", "Ceza Türü", "Tebliğ Tarihi", "Vade", "Tutar", "Durum", "Sebep"],
+        // FAZ-60: kısmi ödeme + bilgi alanları eklendi (mevcut 7 kolonun SIRASI korundu).
+        ["No", "Ceza Türü", "Tebliğ Tarihi", "Vade", "Tutar", "Durum", "Sebep",
+         "Makbuz No", "Ödenen", "Kalan", "Ödeme Tarihi", "Ceza Saati", "Ceza Yeri", "İşlem Şube"],
         c.Select(x => new object?[]
         {
-            x.No, x.CezaTuru, x.TebligTarihi.ToString("yyyy-MM-dd"), x.VadeTarihi.ToString("yyyy-MM-dd"),
-            x.Tutar, x.Durum.ToString(), x.Sebep
+            // Tarihler YEREL GÜN (ham UTC değil) — kullanıcı ekranda gördüğü günü indirsin.
+            x.No, x.CezaTuru, x.TebligTarihi.LocalDateTime.ToString("yyyy-MM-dd"),
+            x.VadeTarihi.LocalDateTime.ToString("yyyy-MM-dd"),
+            x.Tutar, x.Durum.ToString(), x.Sebep,
+            x.MakbuzNo, x.OdenenTutar, x.Kalan,
+            x.OdenmeTarihi?.LocalDateTime.ToString("yyyy-MM-dd"),
+            x.Saat, x.Yer, x.IslemSube
         }).ToList());
 
     public static ExportTable Giderler(IReadOnlyList<Expense> g) => new(

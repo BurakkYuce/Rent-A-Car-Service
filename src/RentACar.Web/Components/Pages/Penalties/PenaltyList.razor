@@ -1,5 +1,6 @@
 @page "/cezalar"
 @attribute [Authorize]
+@using System.Globalization
 @using RentACar.Domain.Enums
 @inject PenaltyService Penalties
 @inject PenaltyTypeService CezaTurleri
@@ -15,12 +16,17 @@
     <p class="error">@Hata</p>
 }
 
-<details class="new-vehicle" open="@(_list.Count == 0)">
+<details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Ceza</summary>
     <form method="post" action="/cezalar/create" class="grid-form"><AntiforgeryToken />
         <ComboBox Name="cezaTuru" Label="Ceza Türü" Options="_cezaTuruOpts" required="true" />
         <label>Tebliğ Tarihi<input name="tebligTarihi" type="date" /></label>
+        <label>Ceza Saati<input name="saat" type="time" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="15" /></label>
+        <label>Ceza Yeri<input name="yer" maxlength="256" /></label>
+        <label>Cep Tel<input name="cepTel" maxlength="32" /></label>
+        <label>Makbuz No<input name="makbuzNo" maxlength="64" /></label>
+        <label>İşlem Şube<input name="islemSube" maxlength="128" /></label>
         <label>Araç
             <select name="vehicleId">
                 <option value="">—</option>
@@ -39,32 +45,93 @@
                 }
             </select>
         </label>
-        <label>Tutar<input name="tutar" type="number" step="0.01" required /></label>
-        <label>Sebep<input name="sebep" /></label>
+
+        @* FAZ-60 — çok kalemli ceza (canlı Ceza_Tutari1-3 paritesi + 2 ek slot). Boş kalem atlanır. *@
+        <label>1. Kalem Tutar<input name="tutar" type="number" step="0.01" min="0.01" required /></label>
+        <label>1. Kalem Sebep<input name="sebep" maxlength="512" /></label>
+        <label>2. Kalem Tutar<input name="satirTutar2" type="number" step="0.01" min="0" /></label>
+        <label>2. Kalem Sebep<input name="satirSebep2" maxlength="512" /></label>
+        <label>3. Kalem Tutar<input name="satirTutar3" type="number" step="0.01" min="0" /></label>
+        <label>3. Kalem Sebep<input name="satirSebep3" maxlength="512" /></label>
+        <label>4. Kalem Tutar<input name="satirTutar4" type="number" step="0.01" min="0" /></label>
+        <label>4. Kalem Sebep<input name="satirSebep4" maxlength="512" /></label>
+        <label>5. Kalem Tutar<input name="satirTutar5" type="number" step="0.01" min="0" /></label>
+        <label>5. Kalem Sebep<input name="satirSebep5" maxlength="512" /></label>
+
         <button type="submit">Kaydet</button>
     </form>
 </details>
 
+<form method="get" class="filter-bar">
+    <label>Müşteri<input name="musteri" value="@Musteri" placeholder="Ad / e-posta / no" /></label>
+    <label>Makbuz No<input name="makbuz" value="@Makbuz" /></label>
+    <label>Plaka<input name="plaka" value="@Plaka" /></label>
+    <label>Tebliğ (min)<input name="bas" type="date" value="@Bas" /></label>
+    <label>Tebliğ (max)<input name="bit" type="date" value="@Bit" /></label>
+    <label>Ceza Durumu
+        <select name="durum">
+            <option value="">— tümü —</option>
+            @foreach (var d in Enum.GetValues<CezaDurum>())
+            {
+                <option value="@d" selected="@(d.ToString() == Durum)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Ödeme Durumu
+        <select name="odeme">
+            <option value="">— tümü —</option>
+            @foreach (var o in Enum.GetValues<CezaOdemeDurum>())
+            {
+                <option value="@o" selected="@(o.ToString() == Odeme)">@o</option>
+            }
+        </select>
+    </label>
+    <label>İşlem Şube<input name="sube" value="@Sube" /></label>
+    <button type="submit">Filtrele</button>
+    @if (SuzgecVar)
+    {
+        <a class="link" href="/cezalar">Temizle</a>
+    }
+</form>
+
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>No</th><th>Tür</th><th>Tebliğ</th><th>Vade</th><th>Araç</th><th>Müşteri</th><th>Tutar</th><th>Durum</th><th></th></tr>
+        <tr>
+            <th>No</th><th>Tür</th><th>Tebliğ</th><th>Saat</th><th>Vade</th><th>Araç</th>
+            <th>Müşteri</th><th>Mail Adresi</th><th>Sözleşme No</th><th>Fatura Tar./No</th>
+            <th>İşlem Şube</th><th>Rez. Kaynağı</th><th>Makbuz No</th>
+            <th>Tutar</th><th>Ödenen</th><th>Kalan</th><th>Ödeme Tarihi</th><th>Ödeme Şekli</th>
+            <th>Durum</th><th></th>
+        </tr>
     </thead>
     <tbody>
-        @if (_list.Count == 0)
+        @if (_rows.Count == 0)
         {
-            <tr><td colspan="9" class="muted">Ceza yok.</td></tr>
+            <tr><td colspan="20" class="muted">Ceza yok.</td></tr>
         }
-        @foreach (var p in _list)
+        @foreach (var row in _rows)
         {
+            var p = row.Ceza;
             <tr>
                 <td>@p.No</td>
                 <td>@p.CezaTuru</td>
                 <td>@p.TebligTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@(p.Saat ?? "—")</td>
                 <td>@p.VadeTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>@VehLabel(p.VehicleId)</td>
-                <td>@CustLabel(p.CariId)</td>
+                <td>@(row.Plaka ?? "—")</td>
+                <td>@(row.MusteriAd ?? "—")</td>
+                <td>@(row.MusteriEposta ?? "—")</td>
+                <td>@(row.SozlesmeNo ?? "—")</td>
+                <td>@Fatura(row)</td>
+                <td>@(p.IslemSube ?? "—")</td>
+                <td>@(row.RezKaynak ?? "—")</td>
+                <td>@(p.MakbuzNo ?? "—")</td>
                 <td>@p.Tutar.ToString("N2")</td>
+                <td>@p.OdenenTutar.ToString("N2")</td>
+                <td>@p.Kalan.ToString("N2")</td>
+                <td>@(p.OdenmeTarihi?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                <td>@Sekil(row)</td>
                 <td>@p.Durum</td>
                 <td>
                     @if (p.Durum == CezaDurum.Yeni && p.CariId is not null)
@@ -74,14 +141,7 @@
                             <button type="submit">Yansıt</button>
                         </form>
                     }
-                    @if (p.Durum is CezaDurum.Yeni or CezaDurum.Yansitildi)
-                    {
-                        <form method="post" action="/cezalar/ode" class="inline"><AntiforgeryToken />
-                            <input type="hidden" name="id" value="@p.Id" />
-                            <button type="submit">Öde</button>
-                        </form>
-                    }
-                    @if (p.Durum == CezaDurum.Yeni)
+                    @if (p.Durum == CezaDurum.Yeni && p.OdenenTutar == 0m)
                     {
                         <form method="post" action="/cezalar/iptal" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@p.Id" />
@@ -90,6 +150,66 @@
                     }
                 </td>
             </tr>
+            @if (p.Durum != CezaDurum.Iptal && row.Satirlar.Count > 0)
+            {
+                <tr class="detail-row">
+                    <td colspan="20">
+                        <details open="@(row.Satirlar.Count > 1 && p.Kalan > 0m)">
+                            <summary>Kalemler ve Kısmi Ödeme (@row.Satirlar.Count kalem · kalan @p.Kalan.ToString("N2"))</summary>
+                            <table class="grid">
+                                <thead><tr><th>#</th><th>Sebep</th><th>Tutar</th><th>Ödenen</th><th>Kalan</th><th>Ödeme</th></tr></thead>
+                                <tbody>
+                                @foreach (var s in row.Satirlar)
+                                {
+                                    <tr>
+                                        <td>@s.Sira</td>
+                                        <td>@(s.Sebep ?? "—")</td>
+                                        <td>@s.Tutar.ToString("N2")</td>
+                                        <td>@s.Odenen.ToString("N2")</td>
+                                        <td>@s.Kalan.ToString("N2")</td>
+                                        <td>
+                                            @if (s.Kalan > 0m)
+                                            {
+                                                <form method="post" action="/cezalar/kismi-ode" class="inline"><AntiforgeryToken />
+                                                    <input type="hidden" name="id" value="@p.Id" />
+                                                    <input type="hidden" name="satirId" value="@s.Id" />
+                                                    @* Çift-submit koruması: her render'da taze anahtar. *@
+                                                    <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                                                    <input name="tutar" type="number" step="0.01" min="0.01"
+                                                           max="@s.Kalan.ToString(CultureInfo.InvariantCulture)"
+                                                           value="@s.Kalan.ToString(CultureInfo.InvariantCulture)" required />
+                                                    <select name="hesap">
+                                                        <option value="Kasa">Kasa</option>
+                                                        <option value="Banka">Banka</option>
+                                                    </select>
+                                                    <input name="tarih" type="date" />
+                                                    <input name="makbuzNo" placeholder="Makbuz No" maxlength="64" />
+                                                    <input name="islemYapan" placeholder="İşlem Yapan" maxlength="128" />
+                                                    <button type="submit">Öde</button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <span class="muted">kapandı</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                            @if (row.Odemeler.Count > 0)
+                            {
+                                <p class="muted">
+                                    Ödeme geçmişi:
+                                    @string.Join(" · ", row.Odemeler.Select(o =>
+                                        $"{o.Tarih.LocalDateTime:dd.MM.yyyy} {o.Tutar.ToString("N2")} {o.Hesap}"
+                                        + (string.IsNullOrWhiteSpace(o.MakbuzNo) ? "" : $" ({o.MakbuzNo})")))
+                                </p>
+                            }
+                        </details>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
@@ -97,27 +217,49 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "musteri")] public string? Musteri { get; set; }
+    [SupplyParameterFromQuery(Name = "makbuz")] public string? Makbuz { get; set; }
+    [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
+    [SupplyParameterFromQuery(Name = "odeme")] public string? Odeme { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
-    private IReadOnlyList<Penalty> _list = [];
+    private IReadOnlyList<PenaltyRow> _rows = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
     private IReadOnlyList<PenaltyType> _cezaTurleri = [];
     private List<string> _cezaTuruOpts = [];
-    private Dictionary<Guid, string> _vehMap = new();
-    private Dictionary<Guid, string> _custMap = new();
+
+    private bool SuzgecVar =>
+        !string.IsNullOrWhiteSpace(Musteri) || !string.IsNullOrWhiteSpace(Makbuz)
+        || !string.IsNullOrWhiteSpace(Plaka) || !string.IsNullOrWhiteSpace(Bas)
+        || !string.IsNullOrWhiteSpace(Bit) || !string.IsNullOrWhiteSpace(Durum)
+        || !string.IsNullOrWhiteSpace(Odeme) || !string.IsNullOrWhiteSpace(Sube);
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Penalties.ListAsync();
+        var filter = new PenaltyFilter
+        {
+            Musteri = Musteri,
+            MakbuzNo = Makbuz,
+            Plaka = Plaka,
+            // Takvim günü: alt sınır günün başı, üst sınır repository'de GÜN DAHİL genişletilir.
+            Bas = Gun(Bas),
+            Bit = Gun(Bit),
+            Durum = Enum.TryParse<CezaDurum>(Durum, out var d) ? d : null,
+            OdemeDurum = Enum.TryParse<CezaOdemeDurum>(Odeme, out var o) ? o : null,
+            IslemSube = Sube
+        };
+        _rows = await Penalties.ListRowsAsync(filter);
         _cezaTurleri = await CezaTurleri.ListActiveAsync();
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
-        _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
 
         // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
         _cezaTuruOpts = _cezaTurleri.Select(t => t.Ad)
-            .Concat(_list.Select(p => p.CezaTuru))
+            .Concat(_rows.Select(r => r.Ceza.CezaTuru))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -125,8 +267,15 @@
             .ToList();
     }
 
-    private string VehLabel(Guid? id)
-        => id is Guid v && _vehMap.TryGetValue(v, out var p) ? p : "—";
-    private string CustLabel(Guid? id)
-        => id is Guid c && _custMap.TryGetValue(c, out var n) ? n : "—";
+    private static DateTimeOffset? Gun(string? s)
+        => DateTimeOffset.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
+
+    private static string Fatura(PenaltyRow r)
+        => r.FaturaNo is null ? "—" : $"{r.FaturaTarihi?.LocalDateTime.ToString("dd.MM.yyyy")} / {r.FaturaNo}";
+
+    /// <summary>Ödeme şekli = ödemelerin kullandığı hesap türleri (Kasa/Banka) — defterden gelir.</summary>
+    private static string Sekil(PenaltyRow r)
+        => r.Odemeler.Count == 0 ? "—"
+            : string.Join(", ", r.Odemeler.Select(o => o.Hesap.ToString()).Distinct());
 }

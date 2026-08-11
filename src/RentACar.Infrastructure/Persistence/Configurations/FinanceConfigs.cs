@@ -66,6 +66,11 @@ internal sealed class AccountLedgerEntryConfig : IEntityTypeConfiguration<Accoun
         e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_MuayeneOdeme_Idem")
             .IsUnique()
             .HasFilter("\"SourceType\" = 'MuayeneOdeme'");
+        // Ceza kalemi ödeme idempotency (FAZ-60): SourceId = PenaltyOdeme.Id; ödeme başına tam
+        // bir borç + bir alacak. Aynı ödeme satırı iki kez postlanamaz.
+        e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_CezaOdeme_Idem")
+            .IsUnique()
+            .HasFilter("\"SourceType\" = 'CezaOdeme'");
         // Sigorta ödeme idempotency (roadmap J3): SourceId=policyId; çift-ödeme reddedilir.
         e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_SigortaOdeme_Idem")
             .IsUnique()
