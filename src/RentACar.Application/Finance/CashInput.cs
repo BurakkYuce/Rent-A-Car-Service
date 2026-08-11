@@ -23,4 +23,9 @@ public sealed class CashInput
     /// <summary>İdempotency anahtarı (adversarial M5): form başına render edilen token; çift-submit
     /// (çift-tık/retry/geri-butonu) aynı anahtarla ikinci kez yazılamaz (kısmi unique index). Null → korumasız.</summary>
     public Guid? IslemAnahtari { get; set; }
+
+    /// <summary>FAZ-84 — tahsilatın/ödemenin yapıldığı kanal ("Masaüstü"/"Mobil"/"Tablet" —
+    /// <see cref="RentACar.Domain.Entities.CashKanal"/>). Boş → "Masaüstü". SAF BİLGİ: defter
+    /// şemasına/dengesine girmez, yalnız <see cref="RentACar.Domain.Entities.CashTransaction"/> belgesine yazılır.</summary>
+    public string? Kanal { get; set; }
 }
