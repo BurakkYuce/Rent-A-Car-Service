@@ -75,10 +75,15 @@ public sealed class RentalQuoteEngine(
         // kabul: doluluk create anında okunur, fiyat sözleşmede kilitlenir.
         if (req.DolulukUygula && gunlukUcret > 0)
         {
+            // FAZ-73 ŞUBE KAPSAMI: SadeceKendiSubeleri=false (varsayılan + tüm mevcut kayıtlar) →
+            // aşağıdaki yüklem SABİT true, yani aday kümesi ve seçilen çarpan göç öncesiyle BİREBİR
+            // aynı kalır. Bayrak yalnız kullanıcı açıkça işaretlerse kuralı tek şubeye kısıtlar.
+            // %50 tavan formülü DEĞİŞMEDİ (KARARLAR.md FAZ-73) — yalnız ADAYLIK daralır.
             var dolulukAdaylari = (await dolulukKurallari.ListActiveAsync(ct))
                 .Where(k => (k.AracGrupKod == null || k.AracGrupKod == grupKod)
                     && (k.GecerlilikBas == null || k.GecerlilikBas <= req.BasTar)
-                    && (k.GecerlilikBit == null || k.GecerlilikBit >= req.BasTar)).ToList();
+                    && (k.GecerlilikBit == null || k.GecerlilikBit >= req.BasTar)
+                    && SurgeSubeUyar(k, sube)).ToList();
             if (dolulukAdaylari.Count > 0
                 && await doluluk.GetGrupDolulukYuzdeAsync(grupKod, req.BasTar, req.BitTar, ct) is { } dolulukYuzde)
             {
@@ -253,6 +258,20 @@ public sealed class RentalQuoteEngine(
     /// ayrışırdı (ör. <c>AracGrupKod == null</c> wildcard'ı kapıda unutulur, o gruba özel tarifesi
     /// olmayan ama genel tarifeyle fiyatlanan grup vitrinden yanlışlıkla elenirdi).
     /// </summary>
+    /// <summary>
+    /// FAZ-73 — doluluk çarpanı kuralının ŞUBE adaylığı. SAF fonksiyon (test edilebilir).
+    ///
+    /// <para><c>SadeceKendiSubeleri == false</c> → DAİMA true: kuralın <c>Sube</c> alanı motorda hiç
+    /// okunmaz, davranış göç öncesiyle bit-birebir. <c>true</c> → teklifin şubesi kuralın şubesiyle
+    /// birebir eşleşmeli (RowMatches ile AYNI konvansiyon: OrdinalIgnoreCase). Teklifte şube yoksa
+    /// (şube-agnostik sorgu) şube-kısıtlı kural aday DEĞİLDİR — "belirtilmemiş" bir şubeyi "kendi
+    /// şubesi" saymak, kısıtı sessizce delerdi.</para>
+    /// </summary>
+    public static bool SurgeSubeUyar(DolulukFiyatKural k, string? sube)
+        => !k.SadeceKendiSubeleri
+           || (!string.IsNullOrWhiteSpace(k.Sube) && !string.IsNullOrWhiteSpace(sube)
+               && string.Equals(k.Sube, sube, StringComparison.OrdinalIgnoreCase));
+
     private static bool RowMatches(
         RateMatrix m, string grupKod, string? kanal, string? sube, Func<RateMatrix, bool> tarihKosulu)
         => m.OnayDurumu == TarifeOnayDurumu.Onayli &&
