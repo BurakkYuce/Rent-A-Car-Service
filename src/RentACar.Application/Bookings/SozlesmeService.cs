@@ -79,6 +79,12 @@ public sealed class SozlesmeService(
             teslimAlan = $"{p.Ad} {p.Soyad}";
 
         var ikinci = c.IkinciSurucuId is Guid isid ? await customers.FindAsync(isid, ct) : null; // decrypt'li
+        // FAZ-47: kayıtlı 2. sürücü YOKSA misafir (serbest metin) sürücü sözleşmeye basılır. Alan
+        // yalnız formda kalıp belgeye geçmeseydi hiç kaydedilmemiş sayılırdı. TC / ehliyet NUMARASI
+        // yoktur (şifreli PII; misafir katmanında bilinçli tutulmuyor) → o hücreler boş kalır.
+        var misafirIkinci = ikinci is null
+            ? Nz($"{c.IkinciSurucuSerbestAd} {c.IkinciSurucuSerbestSoyad}")
+            : null;
 
         int? kullanilan = c.CikisKm is int ck && c.DonusKm is int dk ? Math.Max(0, dk - ck) : null;
 
@@ -94,7 +100,8 @@ public sealed class SozlesmeService(
             musteri?.DisplayName ?? "(bilinmeyen cari)", musteri?.CepTel, musteri?.Email, musteri?.Adres,
             musteri?.TcKimlik, musteri?.EhliyetNo, musteri?.EhliyetSinifi, musteri?.EhliyetTarihi, musteri?.EhliyetYeri,
             musteri?.DogumTarihi,
-            ikinci?.DisplayName, ikinci?.TcKimlik, ikinci?.EhliyetNo, ikinci?.EhliyetSinifi,
+            ikinci?.DisplayName ?? misafirIkinci, ikinci?.TcKimlik, ikinci?.EhliyetNo,
+            ikinci?.EhliyetSinifi ?? c.IkinciSurucuSerbestEhliyetSinifi,
             ikinci?.EhliyetTarihi, ikinci?.EhliyetYeri, ikinci?.DogumTarihi,
             arac?.Plaka ?? "—", arac?.Marka, arac?.Tip, arac?.Grup, arac?.Yakit?.ToString() ?? "—", arac?.ModelYili,
             c.CikisKm, c.DonusKm, kullanilan, c.CikisYakit, c.DonusYakit,
@@ -109,4 +116,8 @@ public sealed class SozlesmeService(
             sablon.Baslik, sablon.HukukiMetinSol, sablon.HukukiMetinSag, sablon.AltBilgi,
             sablon.ImzaAlaniGoster);
     }
+
+    /// <summary>Boş/yalnız-boşluk metni null'a indirger (misafir 2. sürücü adı hiç girilmemişse
+    /// sözleşmede " " değil, HİÇ 2. sürücü satırı görünsün).</summary>
+    private static string? Nz(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

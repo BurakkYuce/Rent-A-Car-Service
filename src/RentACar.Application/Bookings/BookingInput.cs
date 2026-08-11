@@ -5,6 +5,15 @@ public sealed class BookingInput
 {
     public Guid MusteriId { get; set; }
     public Guid? IkinciSurucuId { get; set; } // 2. sürücü (opsiyonel Customer bağı — sözleşmede gösterilir)
+
+    // FAZ-47 — misafir (kayıtsız) 2. sürücü serbest metni. IkinciSurucuId ile BİRLİKTE dolu olamaz
+    // (RentalService gürültülü reddeder). TC/ehliyet-no bilinçli YOK (şifreli PII — Domain notu).
+    public string? IkinciSurucuSerbestAd { get; set; }
+    public string? IkinciSurucuSerbestSoyad { get; set; }
+    public string? IkinciSurucuSerbestTel { get; set; }
+    public string? IkinciSurucuSerbestEhliyetSinifi { get; set; }
+    /// <summary>FAZ-47 — ödeme şekli (bilgi; deftere/bakiyeye yansımaz).</summary>
+    public string? OdemeSekli { get; set; }
     public Guid VehicleId { get; set; }
     public DateTimeOffset BasTar { get; set; }
     public DateTimeOffset BitTar { get; set; }

@@ -233,7 +233,8 @@ public static class BookingEndpoints
                         secim = $"{v.Plaka} — {v.Marka} {v.Tip}", // vehicleId select option metni (SekmeArac ile aynı)
                         marka = v.Marka ?? "", tip = v.Tip ?? "", yil = v.ModelYili?.ToString() ?? "",
                         vites = v.Vites?.ToString() ?? "", yakit = v.Yakit.ToString(),
-                        grup = v.Grup ?? "", segment = v.Segment ?? "", km = v.Km.ToString(), sube = v.Sube ?? ""
+                        grup = v.Grup ?? "", segment = v.Segment ?? "", km = v.Km.ToString(), sube = v.Sube ?? "",
+                        konum = v.Konum ?? "" // FAZ-47: araç bilgi kartındaki "Araç Yeri" kutusu (data-veh=konum)
                     })
                 });
             }
@@ -301,7 +302,14 @@ public static class BookingEndpoints
                     AksIlkYardimCikis = FormBool(f, "aksIlkYardimCikis"),
                     AksIlkYardimDonus = FormBool(f, "aksIlkYardimDonus"),
                     AksLastikCikis = FormParse.Str(f, "aksLastikCikis"),
-                    AksLastikDonus = FormParse.Str(f, "aksLastikDonus")
+                    AksLastikDonus = FormParse.Str(f, "aksLastikDonus"),
+                    // FAZ-47 — teslim eden (çıkış) / ödeme şekli / misafir 2. sürücü (bilgi alanları)
+                    TeslimEdenPersonelId = FormParse.Id(f["teslimEdenPersonelId"].ToString()),
+                    OdemeSekli = FormParse.Str(f, "odemeSekli"),
+                    IkinciSurucuSerbestAd = FormParse.Str(f, "ikinciSurucuSerbestAd"),
+                    IkinciSurucuSerbestSoyad = FormParse.Str(f, "ikinciSurucuSerbestSoyad"),
+                    IkinciSurucuSerbestTel = FormParse.Str(f, "ikinciSurucuSerbestTel"),
+                    IkinciSurucuSerbestEhliyetSinifi = FormParse.Str(f, "ikinciSurucuSerbestEhliyetSinifi")
                 };
                 var ok = await svc.UpdateOpenAsync(id, input);
                 return Results.Redirect(ok
@@ -465,6 +473,13 @@ public static class BookingEndpoints
         input.AksZincirCikis = FormBool(f, "aksZincirCikis");
         input.AksIlkYardimCikis = FormBool(f, "aksIlkYardimCikis");
         input.AksLastikCikis = FormParse.Str(f, "aksLastikCikis");
+        // FAZ-47 — ödeme şekli + misafir (kayıtsız) 2. sürücü. Kayıtlı cari seçimiyle birlikte
+        // gelirse RentalService gürültülü reddeder (guard serviste — form iyi niyetine güvenilmez).
+        input.OdemeSekli = FormParse.Str(f, "odemeSekli");
+        input.IkinciSurucuSerbestAd = FormParse.Str(f, "ikinciSurucuSerbestAd");
+        input.IkinciSurucuSerbestSoyad = FormParse.Str(f, "ikinciSurucuSerbestSoyad");
+        input.IkinciSurucuSerbestTel = FormParse.Str(f, "ikinciSurucuSerbestTel");
+        input.IkinciSurucuSerbestEhliyetSinifi = FormParse.Str(f, "ikinciSurucuSerbestEhliyetSinifi");
     }
 
     /// <summary>Canlı hesap "ek" parametresi: "tanimId:miktar,..." — hatalı çift sessiz atlanır (önizleme).</summary>
