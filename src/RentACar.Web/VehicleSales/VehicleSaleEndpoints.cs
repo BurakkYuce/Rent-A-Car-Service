@@ -15,7 +15,7 @@ public static class VehicleSaleEndpoints
 
         // hedefFiyat/satisKm string? olarak alınır: opsiyonel sayısal alanlar boş string ("") gelince
         // [FromForm] decimal?/int? bağlama 400 verir (CLAUDE.md §5 tuzağı) → FormParse ile çevrilir.
-        grp.MapPost("/create", async (VehicleSaleService svc,
+        grp.MapPost("/create", async (VehicleSaleService svc, HttpRequest req,
             [FromForm] Guid vehicleId, [FromForm] Guid aliciCariId, [FromForm] decimal satisNet,
             [FromForm] decimal kdvOrani, [FromForm] string? noterNo, [FromForm] string? doviz,
             [FromForm] string? kur, [FromForm] string? aciklama,
@@ -23,6 +23,10 @@ public static class VehicleSaleEndpoints
             [FromForm] string? ihaleTarihi, [FromForm] string? ihaleFirmasi, [FromForm] string? noterSatisTarihi,
             [FromForm] string? satisKanali, [FromForm] string? devir) =>
         {
+            // FAZ-18 bilgi alanları: parametre listesi zaten sınırda → geri kalanı Form'dan okunur.
+            // Checkbox işaretlenmemişse alan HİÇ gönderilmez → varlık kontrolü = false (bool? bağlama 400 verirdi).
+            var f = req.Form;
+            bool Kutu(string k) => f.ContainsKey(k);
             var input = new VehicleSaleInput
             {
                 VehicleId = vehicleId, AliciCariId = aliciCariId, SatisNet = satisNet, KdvOrani = kdvOrani,
@@ -33,7 +37,17 @@ public static class VehicleSaleEndpoints
                 // FAZ-28 ihale/noter
                 IhaleTarihi = FormParse.Date(ihaleTarihi), IhaleFirmasi = ihaleFirmasi,
                 NoterSatisTarihi = FormParse.Date(noterSatisTarihi),
-                SatisKanali = satisKanali, Devir = devir
+                SatisKanali = satisKanali, Devir = devir,
+                // ---- FAZ-18 bilgi alanları (deftere yazmaz) ----
+                KirayaVerme = Kutu("kirayaVerme"),
+                IlanKm = FormParse.Int(FormParse.Str(f, "ilanKm")),
+                ListeDoviz = FormParse.Str(f, "listeDoviz"),
+                SatisNoktasi = FormParse.Str(f, "satisNoktasi"),
+                UygulananKampanya = FormParse.Str(f, "uygulananKampanya"),
+                IhaleSayisi = FormParse.Str(f, "ihaleSayisi"),
+                SatisiVerildi = Kutu("satisiVerildi"),
+                YevmiyeNumarasi = FormParse.Str(f, "yevmiyeNumarasi"),
+                Aciklama2 = FormParse.Str(f, "aciklama2")
             };
             try
             {

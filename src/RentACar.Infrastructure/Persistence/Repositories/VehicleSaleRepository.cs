@@ -22,6 +22,38 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
         return await db.VehicleSales.AsNoTracking().OrderByDescending(s => s.Tarih).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// FAZ-18 — filtreli liste. Plaka/Ofis kolonları satış belgesinde YOK (VehicleId var) → Vehicles
+    /// alt-sorgusu ile süzülür; tüm satışları belleğe çekip filtrelemek listeyi ölçeklenemez yapardı.
+    /// Plaka DB'de boşluksuz-büyük harf saklanır → arama terimi de AYNI kuraldan geçer (tek kural, kopya yok).
+    /// </summary>
+    public async Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter filtre, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.VehicleSales.AsNoTracking();
+
+        if (filtre.AliciCariId is Guid c) q = q.Where(x => x.AliciCariId == c);
+        if (filtre.Durum is { } d) q = q.Where(x => x.Durum == d);
+        if (filtre.SatisiVerildi is bool sv) q = q.Where(x => x.SatisiVerildi == sv);
+        if (filtre.Bas is { } bas) q = q.Where(x => x.Tarih >= bas);
+        if (filtre.Bit is { } bit) q = q.Where(x => x.Tarih <= bit);
+
+        if (!string.IsNullOrWhiteSpace(filtre.Plaka))
+        {
+            var p = RentACar.Application.Vehicles.VehicleService.PlakaAnahtar(filtre.Plaka);
+            q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && EF.Functions.ILike(v.Plaka, $"%{p}%")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filtre.Ofis))
+        {
+            // Ofis = SATILAN ARACIN şubesi (VehicleSale mali belgeye şube kolonu eklenmedi — bkz. filtre notu).
+            var o = filtre.Ofis.Trim();
+            q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && v.Sube != null && v.Sube == o));
+        }
+
+        return await q.OrderByDescending(s => s.Tarih).ToListAsync(ct);
+    }
+
     public async Task<VehicleSale?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

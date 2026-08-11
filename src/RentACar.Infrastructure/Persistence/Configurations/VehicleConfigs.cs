@@ -112,8 +112,16 @@ internal sealed class VehicleSaleConfig : IEntityTypeConfiguration<VehicleSale>
         e.Property(x => x.Kur).HasColumnType("numeric(19,6)");
         e.Property(x => x.Aciklama).HasMaxLength(512);
         e.Property(x => x.Durum).HasConversion<int>();
+        // FAZ-18 bilgi alanları (deftere yazmaz — tutar tipi YOK, bilinçli: ListeDoviz yalnız kod).
+        e.Property(x => x.ListeDoviz).HasMaxLength(3);
+        e.Property(x => x.SatisNoktasi).HasMaxLength(128);
+        e.Property(x => x.UygulananKampanya).HasMaxLength(128);
+        e.Property(x => x.IhaleSayisi).HasMaxLength(64);
+        e.Property(x => x.YevmiyeNumarasi).HasMaxLength(64);
+        e.Property(x => x.Aciklama2).HasMaxLength(512);
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.AliciCariId });
+        e.HasIndex(x => new { x.TenantId, x.Tarih });   // FAZ-18 tarih aralığı filtresi
         // Bir araç EN FAZLA bir kez 'Tamamlandi' satılabilir (çift satış güvencesi).
         e.HasIndex(x => new { x.TenantId, x.VehicleId })
             .IsUnique()
@@ -273,8 +281,12 @@ internal sealed class BafConfig : IEntityTypeConfiguration<Baf>
         e.Property(x => x.Sube).HasMaxLength(100);
         e.Property(x => x.Aciklama).HasMaxLength(512);
         e.Property(x => x.Durum).HasConversion<int>();
+        // FAZ-18 bilgi alanları
+        e.Property(x => x.DonusSube).HasMaxLength(100);
+        e.Property(x => x.KullanimAmaci).HasConversion<int?>();
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.PersonelId });
+        e.HasIndex(x => new { x.TenantId, x.CikisTarihi });   // FAZ-18 tarih aralığı filtresi
     }
 }
 

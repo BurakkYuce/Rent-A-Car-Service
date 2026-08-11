@@ -165,6 +165,9 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Araç (metin şube)", db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Kira kuralı (metin)", db.RentalRules.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("BAF (metin)", db.Baflar.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        // FAZ-18: dönüş şubesi de metin bir şube referansıdır → birleştirmede taşınmalı, yoksa
+        // kaynak şube adı BAF dönüş alanında "hayalet" olarak kalır.
+        await Say("BAF dönüş şubesi (metin)", db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == kaynak.Ad));
         await Say("Personel (metin)", db.Personeller.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Lokasyon (metin)", db.Locations.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Hesap (metin)", db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
@@ -223,6 +226,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.Baflar.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+            toplam += await db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == kaynak.Ad)   // FAZ-18
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.DonusSube, hedef.Ad), ct);
             toplam += await db.Personeller.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.Locations.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
