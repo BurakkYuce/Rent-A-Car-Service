@@ -23,6 +23,62 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().OrderByDescending(t => t.Tarih).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// FAZ-67 — süzgeçli nakit işlem listesi (canlı <c>nakit_islem_ara.aspx</c>).
+    ///
+    /// <para>Cari adı/özel kodu PII ÇÖZÜLMEDEN okunur: <c>DisplayName</c> girdileri (Unvan/Ad/Soyad)
+    /// ve <c>OzelKod</c> düz-metin kolonlardır. Ad araması bellek-içi ve ORDINAL yapılır — SQL'e
+    /// <c>lower()</c> olarak itmek karşılaştırmayı iki ayrı kültüre böler ve Türkçe I/İ çiftinde
+    /// sessizce eşleşmez (rezervasyon tarafında öğrenilen ders).</para>
+    /// </summary>
+    public async Task<IReadOnlyList<NakitIslemSatirDto>> SearchIslemlerAsync(
+        CashFilter? filter = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var f = filter ?? new CashFilter();
+        var limit = Math.Clamp(f.EnFazla, 1, 5000);
+
+        var q = db.CashTransactions.AsNoTracking();
+        if (f.Tip is { } tip) q = q.Where(t => t.Tip == tip);
+        if (f.Bas is { } b) q = q.Where(t => t.Tarih >= b);
+        if (f.Bit is { } bt) q = q.Where(t => t.Tarih <= bt);
+        if (f.Hesap is { } h) q = q.Where(t => t.KarsiHesap == h);
+        if (f.HesapId is { } hid)
+            q = hid == Guid.Empty ? q.Where(t => t.HesapId == null) : q.Where(t => t.HesapId == hid);
+        if (!string.IsNullOrWhiteSpace(f.Kanal))
+        {
+            var k = f.Kanal.Trim();
+            q = q.Where(t => t.Kanal == k);
+        }
+
+        var islemler = await q.OrderByDescending(t => t.Tarih).Take(limit).ToListAsync(ct);
+        if (islemler.Count == 0) return [];
+
+        var cariIdler = islemler.Select(t => t.CariId).Distinct().ToList();
+        var cariler = (await db.Customers.AsNoTracking().Where(c => cariIdler.Contains(c.Id))
+                .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.OzelKod }).ToListAsync(ct))
+            .ToDictionary(c => c.Id, c => (
+                Ad: new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
+                Kod: c.OzelKod));
+
+        IEnumerable<NakitIslemSatirDto> satirlar = islemler.Select(t =>
+        {
+            var c = cariler.TryGetValue(t.CariId, out var v) ? v : (Ad: "—", Kod: (string?)null);
+            return new NakitIslemSatirDto(t, c.Ad, c.Kod);
+        });
+
+        if (!string.IsNullOrWhiteSpace(f.Ara))
+        {
+            var a = f.Ara.Trim();
+            satirlar = satirlar.Where(x =>
+                x.Islem.No.Contains(a, StringComparison.OrdinalIgnoreCase)
+                || x.CariAd.Contains(a, StringComparison.OrdinalIgnoreCase)
+                || (x.CariKod?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Islem.Aciklama?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        return [.. satirlar];
+    }
+
     public async Task<CashTransaction?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

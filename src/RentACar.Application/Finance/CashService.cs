@@ -33,6 +33,14 @@ public sealed class CashService(
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
+    /// <summary>FAZ-67 — süzgeçli nakit işlem listesi (cari adı/kodu çözümlenmiş).</summary>
+    public Task<IReadOnlyList<NakitIslemSatirDto>> SearchIslemlerAsync(
+        CashFilter? filter = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ViewReports);
+        return _repository.SearchIslemlerAsync(filter, ct);
+    }
+
     public Task<CashTransaction?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 

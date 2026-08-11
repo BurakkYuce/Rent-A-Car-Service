@@ -88,7 +88,18 @@ public static class ListExportEndpoints
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
                         IptalleriGizle = req.Query["iptal"].ToString() == "gizle"
                     })),
-                "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.ListAsync()),
+                // FAZ-67: export ekranla AYNI kaynaktan (cari adı/kodu çözümlü) ve ekrandaki
+                // süzgeçlerle beslenir — "gördüğün = indirdiğin".
+                "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.SearchIslemlerAsync(new CashFilter
+                {
+                    Ara = NullIfEmpty(req.Query["q"].ToString()),
+                    Tip = Enum.TryParse<CashTransactionType>(req.Query["tip"].ToString(), out var nkTip) ? nkTip : null,
+                    Hesap = Enum.TryParse<LedgerAccountType>(req.Query["hesap"].ToString(), out var nkHes) ? nkHes : null,
+                    Kanal = NullIfEmpty(req.Query["kanal"].ToString()),
+                    Bas = FormParse.Date(NullIfEmpty(req.Query["bas"].ToString())),
+                    Bit = FormParse.Date(NullIfEmpty(req.Query["bit"].ToString()))?.AddDays(1).AddTicks(-1),
+                    EnFazla = 5000
+                })),
                 "arac-satislari" => ListExportCatalog.AracSatislari(await vss.ListAsync()),
                 // FAZ-17: ekrandaki filtre export'a AYNEN taşınır (giderler/AracKredi deseni) —
                 // kullanıcı gördüğü listeyi indirir, sessizce tüm tabloyu değil.

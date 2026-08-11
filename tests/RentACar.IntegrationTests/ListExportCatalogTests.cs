@@ -2,6 +2,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Legal;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Common;
+using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Web.Reports;
@@ -152,14 +153,21 @@ public sealed class ListExportCatalogTests
     [Fact]
     public void NakitIslemler_projeksiyon()
     {
-        var n = new CashTransaction { No = "TH-1", Tarih = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
-            Amount = new Money(250m, "TRY", 1m), KarsiHesap = LedgerAccountType.Kasa, TersKayitMi = false, Aciklama = "Peşin" };
-        var t = ListExportCatalog.NakitIslemler([n]);
-        Assert.Equal(8, t.Headers.Count);
+        // FAZ-67: kolon kümesi Cari / Cari Kod / Kanal ile genişledi; tarih YEREL GÜN yazılır.
+        var n = new CashTransaction { No = "TH-1", Tarih = new(2026, 3, 1, 12, 0, 0, TimeSpan.Zero),
+            Amount = new Money(250m, "TRY", 1m), KarsiHesap = LedgerAccountType.Kasa, TersKayitMi = false,
+            Kanal = "Mobil", Aciklama = "Peşin" };
+        var t = ListExportCatalog.NakitIslemler([new NakitIslemSatirDto(n, "Ahmet Yılmaz", "OZL-1")]);
+        Assert.Equal(11, t.Headers.Count);
         Assert.Equal("TH-1", t.Rows[0][0]);
-        Assert.Equal(250m, t.Rows[0][3]);
-        Assert.Equal("TRY", t.Rows[0][4]);
-        Assert.Equal("Hayır", t.Rows[0][6]);
+        Assert.Equal("Ahmet Yılmaz", t.Rows[0][3]);
+        Assert.Equal("OZL-1", t.Rows[0][4]);
+        Assert.Equal("Mobil", t.Rows[0][5]);
+        Assert.Equal(250m, t.Rows[0][6]);
+        Assert.Equal("TRY", t.Rows[0][7]);
+        Assert.Equal("Hayır", t.Rows[0][9]);
+        // Tarih ekranla AYNI günü göstermeli (UTC 12:00 → yerel gün 2026-03-01).
+        Assert.Equal(n.Tarih.LocalDateTime.ToString("yyyy-MM-dd"), t.Rows[0][2]);
     }
 
     [Fact]
