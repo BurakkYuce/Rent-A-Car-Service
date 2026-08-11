@@ -630,20 +630,118 @@ public sealed record EkHizmetRaporDto(
 /// Araç-bazlı kârlılık satırı (roadmap B2). Tutarlar DEFTERDEN: Gider = Σ Gider(Debit) AccountRef=araç;
 /// Gelir = Σ Gelir(Credit) base, SourceId→Fatura→Kira→Araç ile atfedilir. VehicleId null = "(Atanmamış)"
 /// (araca bağlanamayan genel gelir/gider). NetKar = Gelir − Gider.
+///
+/// <para><b>FAZ-79 — SÖZLEŞME (bozulması Critical):</b> ilk sekiz alan (<paramref name="Gelir"/>,
+/// <paramref name="Gider"/>, <paramref name="NetKar"/> dahil) P&amp;L'dir ve YALNIZ DEFTERDEN gelir.
+/// Aşağıdaki tüm ek alanlar <b>REFERANS / BİLGİ</b>dir; kaynak-varlık master alanından (araç kartı),
+/// tarife matrisinden veya cari defterinden okunur ve <paramref name="Gelir"/>/<paramref name="Gider"/>/
+/// <paramref name="NetKar"/> hesabına <b>ASLA</b> katılmaz. Servis bu alanları yalnız <c>with</c> ile
+/// ekler — para alanlarına dokunmaz (kırılgan regresyon testi kilitler).</para>
 /// </summary>
+/// <param name="Sipp">SIPP/ACRISS kodu — araç kartı, yoksa araç grubu. Bilgi.</param>
+/// <param name="Otopark">Aracın bağlı olduğu şube (FK çözümlü ad; FK yoksa serbest metin). Bilgi.</param>
+/// <param name="RezKaynagi">Dönem içindeki kiralarda EN ÇOK görülen rezervasyon kaynağı. Bilgi.</param>
+/// <param name="CariAd">Dönemdeki SON kiranın müşterisi. Bilgi.</param>
+/// <param name="CariBakiye">O müşterinin GÜNCEL net cari bakiyesi (pozitif = borçlu) — cari defterinden;
+/// araç P&amp;L'i DEĞİLDİR, dönem filtresinden de bağımsızdır.</param>
+/// <param name="ReferansAylikMaliyet">Araç kartındaki "Aylık Maliyet" master alanı (Ana Maliyet). Deftere
+/// GİRMEZ — gerçek gider Giderler modülünden postlanır; ikisi mutabık olmak ZORUNDA DEĞİLDİR.</param>
+/// <param name="ReferansFiloYonetimMaliyeti">Araç kartındaki "Filo Yönetim Maliyeti" master alanı
+/// (Yönetim Maliyeti). Deftere GİRMEZ.</param>
+/// <param name="PotansiyelGelir">Dönem kapasitesi × onaylı tarife matrisi günlük fiyatı (KARARLAR.md
+/// FAZ-79: kaynak RateMatrix, RateCard DEĞİL). Tarife çözülemezse null ("Hesaplanmadı"). Deftere GİRMEZ.</param>
+/// <param name="HesaplananKdv">Bu araca atfedilen SATIŞ belgelerinin KDV'si (defterdeki Kdv hesabı, işaretli:
+/// iade negatif). P&amp;L'e girmez — Gelir zaten NET taşınır; yalnız "KDV Dahil" gösterim modunu besler.</param>
+/// <param name="DolulukYuzde">Sahiplik penceresi doluluk yüzdesi (cap-100). ÖMÜR BOYU — sayfa dönem
+/// filtresinden bağımsız (karışık-payda yasak; Araç Karnesi/Filo Analiz ile aynı tanım).</param>
+/// <param name="RevPacd">Ömür geliri ÷ sahiplik günü (araç başına günlük verim). ÖMÜR BOYU.</param>
+/// <param name="Adr">Ömür geliri ÷ kiralanan gün (ortalama günlük fiyat). ÖMÜR BOYU.</param>
 public sealed record KarlilikSatirDto(
-    Guid? VehicleId, string Plaka, string? Sube, string? Grup, string? Segment, decimal Gelir, decimal Gider, decimal NetKar);
+    Guid? VehicleId, string Plaka, string? Sube, string? Grup, string? Segment, decimal Gelir, decimal Gider, decimal NetKar,
+    // ---- BURADAN AŞAĞISI DEFTER-DIŞI REFERANS/BİLGİ — P&L toplamına KARIŞMAZ ----
+    string? Sipp = null, string? Otopark = null, string? RezKaynagi = null,
+    string? CariAd = null, decimal? CariBakiye = null,
+    decimal? ReferansAylikMaliyet = null, decimal? ReferansFiloYonetimMaliyeti = null,
+    decimal? PotansiyelGelir = null, decimal? HesaplananKdv = null,
+    decimal? DolulukYuzde = null, decimal? RevPacd = null, decimal? Adr = null,
+    int SahiplikGun = 0, int KiralananGun = 0, int KiraAdet = 0)
+{
+    /// <summary>Ana + Yönetim referans maliyeti (canlının "Toplam Maliyet" kolonu). İkisi de boşsa null —
+    /// 0 yazmak "maliyeti sıfır" yanılsaması üretirdi. DEFTER GİDERİ DEĞİLDİR.</summary>
+    public decimal? ReferansToplamMaliyet
+        => ReferansAylikMaliyet is null && ReferansFiloYonetimMaliyeti is null
+            ? null : (ReferansAylikMaliyet ?? 0m) + (ReferansFiloYonetimMaliyeti ?? 0m);
 
-/// <summary>Dönem kârlılık raporu: araç/atanmamış satırları + genel toplamlar (defter Gelir/Gider ile mutabık).</summary>
+    /// <summary>Gelirin KDV dahil gösterimi (bilgi). KDV bilinmiyorsa null — Gelir'i "KDV dahil" diye
+    /// göstermek yanıltır. <see cref="Gelir"/> DEĞİŞMEZ.</summary>
+    public decimal? GelirKdvDahil => HesaplananKdv is { } k ? Gelir + k : null;
+}
+
+/// <summary>KDV gösterim modu (canlı "Kdv Durum"). SALT GÖSTERİM: Gelir/Gider/NetKar DEĞERLERİ hiçbir
+/// modda değişmez; yalnız ekranda ayrıca KDV/KDV-dahil referans kolonlarının gösterilip gösterilmediğini
+/// belirler (defter zaten net taşır, KDV ayrı hesaptadır).</summary>
+public enum KdvDurum
+{
+    /// <summary>Varsayılan — defterdeki net tutarlar gösterilir.</summary>
+    Kdvsiz = 0,
+    /// <summary>Net tutarların YANINA hesaplanan KDV + KDV dahil referans kolonları eklenir.</summary>
+    KdvDahil = 1
+}
+
+/// <summary>Dönem kârlılık raporu: araç/atanmamış satırları + genel toplamlar (defter Gelir/Gider ile mutabık).
+/// <para>FAZ-79: <paramref name="ToplamPotansiyelGelir"/>/<paramref name="ToplamReferansMaliyet"/>/
+/// <paramref name="ToplamHesaplananKdv"/> REFERANS toplamlarıdır — <paramref name="ToplamGelir"/>/
+/// <paramref name="ToplamGider"/>/<paramref name="ToplamNetKar"/> ile mutabık olmaları BEKLENMEZ ve
+/// birbirlerine EKLENMEZ.</para></summary>
 public sealed record KarlilikDto(
-    IReadOnlyList<KarlilikSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);
+    IReadOnlyList<KarlilikSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
+    KdvDurum KdvDurum = KdvDurum.Kdvsiz,
+    decimal? ToplamPotansiyelGelir = null, decimal? ToplamReferansMaliyet = null,
+    decimal? ToplamHesaplananKdv = null);
 
-/// <summary>Çok-boyutlu kârlılık özeti — araç-bazlı P&amp;L'in bir boyuta (grup/şube/segment) göre toplamı.
-/// referans sistem'in "araç gelir-gider tablosu × N boyut" paritesi: araç=KarlilikDto, hizmet=EkHizmetRaporDto,
-/// grup/şube/segment=bu.</summary>
-public sealed record KarlilikOzetSatirDto(string Boyut, int AracAdet, decimal Gelir, decimal Gider, decimal NetKar);
+/// <summary>Çok-boyutlu kârlılık özeti — araç-bazlı P&amp;L'in bir boyuta (grup/şube/segment/otopark/SIPP/
+/// rez. kaynağı) göre toplamı. referans sistem'in "araç gelir-gider tablosu × N boyut" paritesi:
+/// araç=KarlilikDto, hizmet=EkHizmetRaporDto, boyut=bu.
+/// <para>FAZ-79: <paramref name="AracBasiGelir"/> = Gelir ÷ AracAdet (yalnız pozitif paydayla);
+/// <paramref name="DolulukYuzde"/> HAVUZ hesabıdır (Σ kiralanan ÷ Σ sahiplik) — satır yüzdelerinin
+/// ortalaması DEĞİL (karışık-payda yasak). Referans kolonları P&amp;L'e katılmaz.</para></summary>
+public sealed record KarlilikOzetSatirDto(
+    string Boyut, int AracAdet, decimal Gelir, decimal Gider, decimal NetKar,
+    decimal? AracBasiGelir = null, decimal? DolulukYuzde = null,
+    decimal? PotansiyelGelir = null, decimal? ReferansToplamMaliyet = null);
 public sealed record KarlilikOzetDto(
     string BoyutAdi, IReadOnlyList<KarlilikOzetSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar);
+
+// ---------- FAZ-79 — Karlılık çok-boyutlu genişleme (DEFTER-DIŞI referans hamı) ----------
+
+/// <summary>Karlılık satırını zenginleştiren araç MASTER alanları (defter DEĞİL) + sahiplik penceresi
+/// girdileri. Para alanları (<paramref name="AylikMaliyet"/>/<paramref name="FiloYonetimMaliyeti"/>)
+/// yalnız REFERANS kolonuna akar.</summary>
+public sealed record KarlilikAracMetaRow(
+    Guid Id, string? Sipp, string? Otopark, string? GrupKod, string? SubeAdi,
+    decimal? AylikMaliyet, decimal? FiloYonetimMaliyeti,
+    DateTimeOffset? AlimTarihi, DateTimeOffset? FiloGirisTarih, DateTimeOffset? FiloCikisTarih,
+    VehicleStatus Durum, DateTimeOffset? SonSatisTarih);
+
+/// <summary>Karlılık satırının kira-türevli bilgi alanları (İptal hariç): doluluk günü + rez. kaynağı +
+/// müşteri. Tutar TAŞIMAZ — kira tutarının P&amp;L'e sızma yolu bilinçli olarak kapalıdır.</summary>
+public sealed record KarlilikKiraMetaRow(
+    Guid VehicleId, DateTimeOffset Bas, DateTimeOffset Bit, string? Kaynak, Guid MusteriId);
+
+/// <summary>Araca atfedilmiş SATIŞ-belgesi KDV'si (defterdeki Kdv hesabı, işaretli). VehicleId null =
+/// atfedilemeyen. P&amp;L'e girmez; "KDV Dahil" gösterim modunun kaynağıdır.</summary>
+public sealed record KarlilikKdvRow(Guid? VehicleId, decimal Kdv);
+
+/// <summary>FAZ-79 ham paketi. <paramref name="Omur"/> pencereden BAĞIMSIZ Karlilik satırlarıdır
+/// (Doluluk/RevPACD/ADR ömür-KPI paydaları için; from/to yoksa çağıran ile aynı liste).
+/// <paramref name="Tarifeler"/> onay/aktiflik filtresi UYGULANMAMIŞ ham matris satırlarıdır —
+/// eleme paylaşılan çözümleyicide (<c>RateMatrisCozumleme</c>) yapılır, ikinci bir kural yazılmaz.</summary>
+public sealed record KarlilikEkRawDto(
+    IReadOnlyList<KarlilikSatirDto> Omur,
+    IReadOnlyList<KarlilikAracMetaRow> Araclar,
+    IReadOnlyList<KarlilikKiraMetaRow> Kiralar,
+    IReadOnlyList<KarlilikKdvRow> KdvSatirlari,
+    IReadOnlyList<RateMatrix> Tarifeler);
 
 // ---------- Araç Karnesi (araç ön muhasebe 360°) ----------
 

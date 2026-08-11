@@ -189,6 +189,17 @@ public interface IReportRepository
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
+    /// FAZ-79 — Karlılık satırlarının DEFTER-DIŞI zenginleştirme hamı (araç master alanları, kira metası,
+    /// tarife matrisi, satış-belgesi KDV'si + ömür-boyu P&amp;L satırları).
+    ///
+    /// <para><b>Buradan dönen hiçbir tutar Gelir/Gider/NetKar'a eklenmez</b> — referans kolonları ayrı
+    /// durur. Ömür listesi from/to null iken BOŞ döner (çağıran pencere listesini kullanır; ikinci
+    /// defter taraması yapılmaz).</para>
+    /// </summary>
+    Task<KarlilikEkRawDto> GetKarlilikEkRawAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
     /// Araç karnesi ham paketi: TEK araca scope'lu defter Gelir/Gider satırları (Karlilik atfıyla birebir
     /// aynı kurallar: fark/iade KaynakKiraId, ServisYansitma, Ceza RentalId-fallback) + kaynak-varlık olay
     /// zaman çizelgesi + KPI hamı (kira/servis aralıkları, katedilen km). Vehicle null = bulunamadı/başka

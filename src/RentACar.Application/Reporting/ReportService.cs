@@ -19,47 +19,226 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
 
     /// <summary>
     /// Araç-bazlı kârlılık raporu (roadmap B2): defterden türetilen Gelir/Gider satırları (repo'da
-    /// SourceId→Fatura→Kira→Araç atfı). Opsiyonel şube/grup/plaka filtresi (filtre varsa "(Atanmamış)"
-    /// satırı hariç). Filtresiz toplamlar defter Gelir/Gider toplamıyla MUTABIK (invariant). NetKar desc sıralı.
+    /// SourceId→Fatura→Kira→Araç atfı). Opsiyonel şube/grup/plaka/kaynak/SIPP filtresi (filtre varsa
+    /// "(Atanmamış)" satırı hariç). Filtresiz toplamlar defter Gelir/Gider toplamıyla MUTABIK (invariant).
+    /// NetKar desc sıralı.
+    ///
+    /// <para><b>FAZ-79 — P&amp;L SÖZLEŞMESİ:</b> Gelir/Gider/NetKar satır ve toplamları YALNIZ
+    /// <see cref="IReportRepository.GetKarlilikRowsAsync"/> çıktısıdır. Bu metodun eklediği tüm yeni
+    /// kolonlar (SIPP/Otopark/Rez.Kaynağı/Cari Bakiye/Referans Maliyet/Potansiyel Gelir/KDV/Doluluk/
+    /// RevPACD/ADR) <c>with</c> ile SATIRA EKLENİR, hiçbiri para toplamına GİRMEZ. Kaynak-varlık
+    /// tutarının (ör. <c>Vehicle.AylikMaliyet</c>) Gider'e eklenmesi çift-sayımdır ve Critical'dır.</para>
+    ///
+    /// <para>KPI kolonları (Doluluk/RevPACD/ADR) <b>sahiplik penceresi = ÖMÜR BOYU</b>dur; sayfa dönem
+    /// filtresi P&amp;L'i daraltır ama KPI'yı DARALTMAZ (karışık payda yasak — Araç Karnesi/Filo Analiz
+    /// ile aynı tanım). <paramref name="kdvDurum"/> SALT GÖSTERİM anahtarıdır: tutarları değiştirmez.</para>
     /// </summary>
     public async Task<KarlilikDto> GetKarlilikAsync(
         DateTimeOffset? from = null, DateTimeOffset? to = null,
-        string? sube = null, string? grup = null, string? plaka = null, CancellationToken ct = default)
+        string? sube = null, string? grup = null, string? plaka = null,
+        string? kaynak = null, string? sipp = null, KdvDurum kdvDurum = KdvDurum.Kdvsiz,
+        CancellationToken ct = default)
     {
         const StringComparison OIC = StringComparison.OrdinalIgnoreCase;
+        // (1) P&L — DEFTERDEN. Bu liste aşağıda para bakımından DEĞİŞTİRİLMEZ.
         var rows = await _repository.GetKarlilikRowsAsync(from, to, ct);
+        // (2) Defter-DIŞI zenginleştirme (araç kartı / kira metası / tarife / cari defteri).
+        var zengin = await ZenginlestirAsync(rows, from, to, ct);
 
-        var filtreVar = !string.IsNullOrWhiteSpace(sube) || !string.IsNullOrWhiteSpace(grup) || !string.IsNullOrWhiteSpace(plaka);
-        IEnumerable<KarlilikSatirDto> q = rows;
+        var filtreVar = !string.IsNullOrWhiteSpace(sube) || !string.IsNullOrWhiteSpace(grup)
+            || !string.IsNullOrWhiteSpace(plaka) || !string.IsNullOrWhiteSpace(kaynak) || !string.IsNullOrWhiteSpace(sipp);
+        IEnumerable<KarlilikSatirDto> q = zengin;
         if (filtreVar)
-            q = rows.Where(r => r.VehicleId != null
+            q = zengin.Where(r => r.VehicleId != null
                 && (string.IsNullOrWhiteSpace(sube) || string.Equals(r.Sube, sube.Trim(), OIC))
                 && (string.IsNullOrWhiteSpace(grup) || string.Equals(r.Grup, grup.Trim(), OIC))
-                && (string.IsNullOrWhiteSpace(plaka) || r.Plaka.Contains(plaka.Trim(), OIC)));
+                && (string.IsNullOrWhiteSpace(plaka) || r.Plaka.Contains(plaka.Trim(), OIC))
+                && (string.IsNullOrWhiteSpace(kaynak) || string.Equals(r.RezKaynagi, kaynak.Trim(), OIC))
+                && (string.IsNullOrWhiteSpace(sipp) || string.Equals(r.Sipp, sipp.Trim(), OIC)));
 
         var list = q.OrderByDescending(r => r.NetKar).ThenBy(r => r.Plaka, StringComparer.OrdinalIgnoreCase).ToList();
-        return new KarlilikDto(list, list.Sum(r => r.Gelir), list.Sum(r => r.Gider), list.Sum(r => r.NetKar));
+        // Referans toplamları AYRI alanlarda taşınır; hiçbiri ToplamGelir/ToplamGider'e eklenmez.
+        decimal? Ref(Func<KarlilikSatirDto, decimal?> sec)
+        {
+            var v = list.Select(sec).Where(x => x != null).Select(x => x!.Value).ToList();
+            return v.Count > 0 ? v.Sum() : null;
+        }
+        return new KarlilikDto(list,
+            list.Sum(r => r.Gelir), list.Sum(r => r.Gider), list.Sum(r => r.NetKar),
+            kdvDurum,
+            ToplamPotansiyelGelir: Ref(r => r.PotansiyelGelir),
+            ToplamReferansMaliyet: Ref(r => r.ReferansToplamMaliyet),
+            ToplamHesaplananKdv: Ref(r => r.HesaplananKdv));
     }
 
     /// <summary>Çok-boyutlu kârlılık özeti (roadmap #2): araç-bazlı P&amp;L satırlarını bir boyuta göre toplar.
-    /// boyut: "grup"|"sube"|"segment" (varsayılan grup). Yalnız araca atfedilmiş satırlar (VehicleId!=null) —
-    /// "(Atanmamış)" gruba dahil edilmez (boyut değeri yok). Aggregation saf gruplama; para mantığı KarlilikDto'dan.</summary>
+    /// boyut: "grup"|"sube"|"segment"|"otopark"|"sipp" (varsayılan grup). Yalnız araca atfedilmiş satırlar
+    /// (VehicleId!=null) — "(Atanmamış)" gruba dahil edilmez (boyut değeri yok). Aggregation saf gruplama;
+    /// para mantığı KarlilikDto'dan.
+    /// <para>FAZ-79: "otopark" (araç kartının şube FK'sı) ve "sipp" boyutları eklendi; her araç TEK kovaya
+    /// düştüğü için Σ boyut = Σ araç invaryantı korunur. <b>Rez. kaynağı boyutu bilinçli EKLENMEDİ</b> — bir
+    /// araç dönemde birden çok kaynaktan kiralanabilir, "baskın kaynak" ile P&amp;L toplamak parayı yanlış
+    /// kaynağa yazardı; kaynak satır kolonu + filtresi olarak durur.</para></summary>
     public async Task<KarlilikOzetDto> GetKarlilikOzetAsync(
         string boyut, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
     {
-        var rows = (await _repository.GetKarlilikRowsAsync(from, to, ct)).Where(r => r.VehicleId != null).ToList();
+        var pnl = await _repository.GetKarlilikRowsAsync(from, to, ct);
+        var rows = (await ZenginlestirAsync(pnl, from, to, ct)).Where(r => r.VehicleId != null).ToList();
         var b = (boyut ?? "grup").Trim().ToLowerInvariant();
-        string ad = b switch { "sube" => "Şube", "segment" => "Segment", _ => "Grup" };
+        string ad = b switch
+        {
+            "sube" => "Şube", "segment" => "Segment", "otopark" => "Otopark", "sipp" => "SIPP", _ => "Grup"
+        };
         string Key(KarlilikSatirDto r) => b switch
         {
             "sube" => string.IsNullOrWhiteSpace(r.Sube) ? "(Şubesiz)" : r.Sube!.Trim(),
             "segment" => string.IsNullOrWhiteSpace(r.Segment) ? "(Segmentsiz)" : r.Segment!.Trim(),
+            "otopark" => string.IsNullOrWhiteSpace(r.Otopark) ? "(Otoparksız)" : r.Otopark!.Trim(),
+            "sipp" => string.IsNullOrWhiteSpace(r.Sipp) ? "(SIPP yok)" : r.Sipp!.Trim(),
             _ => string.IsNullOrWhiteSpace(r.Grup) ? "(Grupsuz)" : r.Grup!.Trim()
         };
+        decimal? R2(decimal? x) => x is { } d ? decimal.Round(d, 2, MidpointRounding.AwayFromZero) : null;
+        decimal? Ref(IEnumerable<decimal?> xs)
+        {
+            var v = xs.Where(x => x != null).Select(x => x!.Value).ToList();
+            return v.Count > 0 ? v.Sum() : null;
+        }
         var satirlar = rows.GroupBy(Key)
-            .Select(g => new KarlilikOzetSatirDto(g.Key, g.Count(), g.Sum(r => r.Gelir), g.Sum(r => r.Gider), g.Sum(r => r.NetKar)))
+            .Select(g =>
+            {
+                var gelir = g.Sum(r => r.Gelir);
+                var adet = g.Count();
+                // Havuz doluluğu: Σ kiralanan ÷ Σ sahiplik (satır yüzdelerinin ortalaması DEĞİL).
+                var sahiplik = g.Sum(r => r.SahiplikGun);
+                var kiralanan = g.Sum(r => r.KiralananGun);
+                return new KarlilikOzetSatirDto(g.Key, adet, gelir, g.Sum(r => r.Gider), g.Sum(r => r.NetKar),
+                    AracBasiGelir: adet > 0 ? R2(gelir / adet) : null,
+                    DolulukYuzde: sahiplik > 0 ? R2(Math.Min(100m, kiralanan * 100m / sahiplik)) : null,
+                    PotansiyelGelir: Ref(g.Select(r => r.PotansiyelGelir)),
+                    ReferansToplamMaliyet: Ref(g.Select(r => r.ReferansToplamMaliyet)));
+            })
             .OrderByDescending(s => s.NetKar).ThenBy(s => s.Boyut, StringComparer.CurrentCulture).ToList();
         return new KarlilikOzetDto(ad, satirlar, satirlar.Sum(s => s.Gelir), satirlar.Sum(s => s.Gider), satirlar.Sum(s => s.NetKar));
+    }
+
+    /// <summary>
+    /// FAZ-79 — Karlılık satırlarını DEFTER-DIŞI bilgi kolonlarıyla zenginleştirir.
+    ///
+    /// <para><b>Değişmez:</b> girdi satırlarının <c>Gelir</c>/<c>Gider</c>/<c>NetKar</c> alanlarına
+    /// DOKUNULMAZ — yalnız <c>with</c> ile referans alanları doldurulur. Satır sayısı ve sırası da
+    /// korunur (yalnız aynı listenin zenginleştirilmiş kopyası döner).</para>
+    /// </summary>
+    private async Task<IReadOnlyList<KarlilikSatirDto>> ZenginlestirAsync(
+        IReadOnlyList<KarlilikSatirDto> rows, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct)
+    {
+        if (rows.Count == 0) return rows;
+        var ek = await _repository.GetKarlilikEkRawAsync(from, to, ct);
+        // Ömür listesi boşsa pencere zaten ömrün tamamıdır (repo sözleşmesi) → aynı liste kullanılır.
+        var omurByVeh = (ek.Omur.Count == 0 ? rows : ek.Omur)
+            .Where(r => r.VehicleId != null).ToDictionary(r => r.VehicleId!.Value);
+        var metaByVeh = ek.Araclar.ToDictionary(a => a.Id);
+        var kiraByVeh = ek.Kiralar.GroupBy(k => k.VehicleId).ToDictionary(g => g.Key, g => g.ToList());
+        var kdvByVeh = ek.KdvSatirlari.Where(k => k.VehicleId != null)
+            .ToDictionary(k => k.VehicleId!.Value, k => k.Kdv);
+        var kdvAtanmamis = ek.KdvSatirlari.Where(k => k.VehicleId == null).Sum(k => k.Kdv);
+
+        // Cari bakiye: CARİ defterinden (araç P&L'i değil) — sıfır bakiyeli cari listede olmaz, o yüzden
+        // bulunamayan cari için 0 doğrudur (hareketsiz ya da net'i kapanmış).
+        var cariler = (await GetCariBalancesAsync(null, ct)).ToDictionary(c => c.CariId);
+
+        var simdi = DateTimeOffset.UtcNow;
+        var sonuc = new List<KarlilikSatirDto>(rows.Count);
+        foreach (var r in rows)
+        {
+            if (r.VehicleId is not Guid vid)
+            {
+                // "(Atanmamış)" satırı: araç kartı yok → yalnız atfedilemeyen KDV bilgisi taşınır.
+                sonuc.Add(r with { HesaplananKdv = kdvAtanmamis == 0m ? null : kdvAtanmamis });
+                continue;
+            }
+            var kiralar = kiraByVeh.TryGetValue(vid, out var ks) ? ks : [];
+            metaByVeh.TryGetValue(vid, out var meta);
+
+            // Ömür KPI'ları — sahiplik penceresi (dönem filtresinden BAĞIMSIZ).
+            var omurGelir = omurByVeh.TryGetValue(vid, out var og) ? og.Gelir : 0m;
+            var (sahiplik, kiralanan, _, _) = meta is null
+                ? (0, 0, default(DateTime), default(DateTime))
+                : SahiplikGunleri(meta.FiloGirisTarih, meta.AlimTarihi, meta.FiloCikisTarih,
+                    meta.Durum == VehicleStatus.Satildi && meta.SonSatisTarih is not null, meta.SonSatisTarih,
+                    kiralar.Select(k => (k.Bas, k.Bit)), simdi);
+
+            decimal? R2(decimal? x) => x is { } d ? decimal.Round(d, 2, MidpointRounding.AwayFromZero) : null;
+
+            // Potansiyel gelir — DÖNEM kapasitesi × onaylı tarife (KARARLAR: RateMatrix). Dönem verilmemişse
+            // sahiplik penceresinin tamamı. Tarife tarihi pencere sonu (bugün geçerli liste fiyatı).
+            var (donemSahiplik, _, _, _) = meta is null
+                ? (0, 0, default(DateTime), default(DateTime))
+                : SahiplikGunleri(meta.FiloGirisTarih, meta.AlimTarihi, meta.FiloCikisTarih,
+                    meta.Durum == VehicleStatus.Satildi && meta.SonSatisTarih is not null, meta.SonSatisTarih,
+                    [], simdi, from, to);
+            var gunlukTarife = meta is null ? null
+                : PotansiyelGelirHesap.GunlukTarife(ek.Tarifeler, meta.GrupKod, meta.SubeAdi, to ?? simdi);
+
+            // Kira-türevli bilgi: dönem içindeki kiralar (kesişen) — kaynak/müşteri BİLGİSİ, tutar DEĞİL.
+            var donemKiralari = kiralar
+                .Where(k => (from is null || k.Bit >= from) && (to is null || k.Bas <= to))
+                .OrderBy(k => k.Bas).ToList();
+            var baskinKaynak = donemKiralari
+                .Where(k => !string.IsNullOrWhiteSpace(k.Kaynak))
+                .GroupBy(k => k.Kaynak!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault()?.Key;
+            var sonKira = donemKiralari.LastOrDefault();
+            CariBalanceDto? cari = sonKira is not null && cariler.TryGetValue(sonKira.MusteriId, out var c) ? c : null;
+
+            sonuc.Add(r with
+            {
+                Sipp = meta?.Sipp,
+                Otopark = meta?.Otopark,
+                RezKaynagi = baskinKaynak,
+                CariAd = cari?.Ad,
+                CariBakiye = sonKira is null ? null : (cari?.Bakiye ?? 0m),
+                ReferansAylikMaliyet = meta?.AylikMaliyet,
+                ReferansFiloYonetimMaliyeti = meta?.FiloYonetimMaliyeti,
+                PotansiyelGelir = PotansiyelGelirHesap.Hesapla(gunlukTarife, donemSahiplik),
+                HesaplananKdv = kdvByVeh.TryGetValue(vid, out var kdv) ? kdv : null,
+                DolulukYuzde = sahiplik > 0 ? R2(Math.Min(100m, kiralanan * 100m / sahiplik)) : null,
+                RevPacd = sahiplik > 0 ? R2(omurGelir / sahiplik) : null,
+                Adr = kiralanan > 0 ? R2(omurGelir / kiralanan) : null,
+                SahiplikGun = sahiplik,
+                KiralananGun = kiralanan,
+                KiraAdet = donemKiralari.Count
+            });
+        }
+        return sonuc;
+    }
+
+    /// <summary>
+    /// Sahiplik penceresi gün matematiği — Araç Karnesi / Filo Analiz / Karlılık için TEK kaynak.
+    /// Pencere: bas = FiloGirisTarih ?? AlimTarihi; bit = FiloCikisTarih ?? (satılmışsa son satış) ?? şimdi.
+    /// Gün sayımı KAPSAYICI takvim günü (GetDolulukAsync deseni). <paramref name="kirpBas"/>/
+    /// <paramref name="kirpBit"/> verilirse pencere o aralıkla KESİŞTİRİLİR (dönem kapasitesi hesabı);
+    /// verilmezse ömür boyu.
+    /// </summary>
+    private static (int Sahiplik, int Kiralanan, DateTime BasD, DateTime BitD) SahiplikGunleri(
+        DateTimeOffset? filoGiris, DateTimeOffset? alimTarihi, DateTimeOffset? filoCikis,
+        bool satilmis, DateTimeOffset? sonSatis,
+        IEnumerable<(DateTimeOffset Bas, DateTimeOffset Bit)> kiralar, DateTimeOffset simdi,
+        DateTimeOffset? kirpBas = null, DateTimeOffset? kirpBit = null)
+    {
+        var wBas = filoGiris ?? alimTarihi;
+        var wBit = filoCikis ?? (satilmis ? sonSatis : null) ?? simdi;
+        if (wBas is not { } wb) return (0, 0, default, default);
+
+        var basD = wb.UtcDateTime.Date;
+        var bitD = wBit.UtcDateTime.Date;
+        if (kirpBas is { } kb && kb.UtcDateTime.Date > basD) basD = kb.UtcDateTime.Date;
+        if (kirpBit is { } kt && kt.UtcDateTime.Date < bitD) bitD = kt.UtcDateTime.Date;
+
+        var sahiplik = bitD >= basD ? (bitD - basD).Days + 1 : 0;
+        var kiralanan = sahiplik == 0 ? 0
+            : kiralar.Sum(k => OverlapDays(k.Bas.UtcDateTime.Date, k.Bit.UtcDateTime.Date, basD, bitD));
+        return (sahiplik, kiralanan, basD, bitD);
     }
 
     /// <summary>
@@ -172,19 +351,14 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         var gelir = raw.OmurGelir;
         var gider = raw.OmurGider;
         var netKar = gelir - gider;
-        DateTimeOffset? wBas = v.FiloGirisTarih ?? v.AlimTarihi;
-        DateTimeOffset? wBit = v.FiloCikisTarih
-            ?? (v.Durum == VehicleStatus.Satildi ? raw.SonSatisTarih : null)
-            ?? DateTimeOffset.UtcNow;
-
-        int sahiplik = 0, kiralanan = 0, servis = 0;
-        if (wBas is { } wb && wBit is { } we)
+        var satilmis = v.Durum == VehicleStatus.Satildi && raw.SonSatisTarih is not null;
+        // Gün matematiği PAYLAŞILAN helper'dan (filo analiz / karlılık ile TEK tanım).
+        var (sahiplik, kiralanan, basD, bitD) = SahiplikGunleri(
+            v.FiloGirisTarih, v.AlimTarihi, v.FiloCikisTarih, satilmis, raw.SonSatisTarih,
+            raw.KiraAraliklari.Select(r => (r.Bas, r.Bit)), DateTimeOffset.UtcNow);
+        var servis = 0;
+        if (sahiplik > 0)
         {
-            var basD = wb.UtcDateTime.Date;
-            var bitD = we.UtcDateTime.Date;
-            sahiplik = bitD >= basD ? (bitD - basD).Days + 1 : 0;
-            kiralanan = raw.KiraAraliklari.Sum(r =>
-                OverlapDays(r.Bas.UtcDateTime.Date, r.Bit.UtcDateTime.Date, basD, bitD));
             var now = DateTimeOffset.UtcNow.UtcDateTime.Date;
             servis = raw.ServisAraliklari.Sum(a =>
                 OverlapDays(a.Giris.UtcDateTime.Date, (a.Cikis?.UtcDateTime.Date ?? now), basD, bitD));
@@ -195,7 +369,6 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         // Gerçekleşen amortisman: SATILMIŞ araçta kalıntı realize edildi ve satış geliri netKar'ın İÇİNDE →
         // tam AlimBedeli düşülür (yoksa kalıntı çift sayılır — adversarial F3). Aktif araçta tahmin:
         // AlimBedeli − IkinciElDeger (yalnız >0; 0/negatif "veri yok" — modelin 0.30 varsayımıyla çelişmesin).
-        var satilmis = v.Durum == VehicleStatus.Satildi && raw.SonSatisTarih is not null;
         var amortisman = v.AlimBedeli is > 0m
             ? satilmis ? v.AlimBedeli
                        : v.IkinciElDeger is > 0m ? v.AlimBedeli.Value - v.IkinciElDeger.Value : (decimal?)null
@@ -253,21 +426,15 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             var omurNet = (om?.Gelir ?? 0m) - (om?.Gider ?? 0m);
             var kiralar = kiraByVeh.TryGetValue(a.Id, out var ks) ? ks : [];
 
-            int sahiplik = 0, kiralanan = 0; int? yasAy = null;
+            int? yasAy = null;
             decimal? doluluk = null, roi = null, kmMaliyet = null;
-            DateTimeOffset? wBas = a.FiloGirisTarih ?? a.AlimTarihi;
-            var wBit = a.FiloCikisTarih
-                ?? (a.Durum == VehicleStatus.Satildi ? a.SonSatisTarih : null) ?? simdi;
-            if (wBas is { } wb)
-            {
-                var basD = wb.UtcDateTime.Date;
-                var bitD = wBit.UtcDateTime.Date;
-                sahiplik = bitD >= basD ? (bitD - basD).Days + 1 : 0;
-                kiralanan = kiralar.Sum(k => OverlapDays(k.Bas.UtcDateTime.Date, k.Bit.UtcDateTime.Date, basD, bitD));
-                if (sahiplik > 0)
-                    doluluk = decimal.Round(Math.Min(100m, kiralanan * 100m / sahiplik), 2, MidpointRounding.AwayFromZero);
-            }
             var satilmis = a.Durum == VehicleStatus.Satildi && a.SonSatisTarih is not null;
+            // Gün matematiği PAYLAŞILAN helper'dan (karne/karlılık ile TEK tanım — üç kopya yazılmaz).
+            var (sahiplik, kiralanan, _, _) = SahiplikGunleri(
+                a.FiloGirisTarih, a.AlimTarihi, a.FiloCikisTarih, satilmis, a.SonSatisTarih,
+                kiralar.Select(k => (k.Bas, k.Bit)), simdi);
+            if (sahiplik > 0)
+                doluluk = decimal.Round(Math.Min(100m, kiralanan * 100m / sahiplik), 2, MidpointRounding.AwayFromZero);
             if (a.AlimBedeli is > 0m)
                 roi = decimal.Round((satilmis ? omurNet - a.AlimBedeli.Value : omurNet) * 100m / a.AlimBedeli.Value,
                     2, MidpointRounding.AwayFromZero);

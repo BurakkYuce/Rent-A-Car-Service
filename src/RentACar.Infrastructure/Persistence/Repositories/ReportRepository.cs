@@ -1289,10 +1289,52 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (to is { } et) lq = lq.Where(e => e.EntryDateUtc <= et);
         var gelirRaw = await lq.Select(e => new { e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync(ct);
 
-        // Atfetme haritaları: kaynak türüne göre araç çözümü. İade faturası RentalId=null taşır →
-        // kira bağı KaynakFaturaId üzerinden (iki-hop): iade → kaynak fatura → RentalId ?? KaynakKiraId.
-        // FARK faturası da RentalId=null taşır (kira-fatura unique index'ine çarpmasın) → kira bağı
-        // KaynakKiraId'dedir (atıf düzeltmesi: fark + iade-of-fark geliri önceden "(Atanmamış)"a düşüyordu).
+        // Atfetme: kaynak türü + SourceId → araç. FAZ-79'da AYNI çözücü KDV satırlarında da kullanılır
+        // (bkz. GetKarlilikEkRawAsync) — atıf kuralı iki yerde yazılıp sessizce ayrışmasın.
+        var atif = await AracAtifCozucuAsync(db, ct);
+
+        var gelirByVeh = new Dictionary<Guid, decimal>();
+        foreach (var e in gelirRaw)
+        {
+            var veh = atif(e.SourceType, e.SourceId);
+            // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
+            var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
+            gelirByVeh[veh] = gelirByVeh.GetValueOrDefault(veh) + signed;
+        }
+
+        var vehIds = giderByVeh.Keys.Concat(gelirByVeh.Keys).Where(k => k != Guid.Empty).Distinct().ToList();
+        var dims = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.Plaka, v.Sube, v.Grup, v.Segment }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => (v.Plaka, v.Sube, v.Grup, v.Segment));
+
+        var rows = new List<KarlilikSatirDto>();
+        foreach (var key in giderByVeh.Keys.Concat(gelirByVeh.Keys).Distinct())
+        {
+            var gelir = gelirByVeh.GetValueOrDefault(key);
+            var gider = giderByVeh.GetValueOrDefault(key);
+            if (key == Guid.Empty)
+                rows.Add(new KarlilikSatirDto(null, "(Atanmamış)", null, null, null, gelir, gider, gelir - gider));
+            else
+            {
+                var d = dims.TryGetValue(key, out var x) ? x : ("(bilinmeyen araç)", (string?)null, (string?)null, (string?)null);
+                rows.Add(new KarlilikSatirDto(key, d.Item1, d.Item2, d.Item3, d.Item4, gelir, gider, gelir - gider));
+            }
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// Defter satırının (SourceType, SourceId) çiftini ARACA çözen fonksiyon — Karlilik gelir atfının
+    /// TEK kaynağı (FAZ-79'da KDV referans kolonu da bunu kullanır; kural kopyalanmaz).
+    ///
+    /// <para>Fatura/FaturaIade→kira→araç (iade RentalId=null taşır → KaynakFaturaId iki-hop; FARK faturası
+    /// da RentalId=null taşır → kira bağı KaynakKiraId'dedir), AracSatis→satış→araç, Ceza→ceza→araç
+    /// (VehicleId yoksa RentalId fallback), ServisYansitma→servis→araç, DepozitoIrat/DisHizmet→kira→araç.
+    /// HGS (plaka-bazlı, kalıcı VehicleId yok) ve manuel/kaynaksız kayıt → <c>Guid.Empty</c> =
+    /// "(Atanmamış)".</para>
+    /// </summary>
+    private static async Task<Func<string, Guid, Guid>> AracAtifCozucuAsync(AppDbContext db, CancellationToken ct)
+    {
         var invAll = await db.Invoices.AsNoTracking()
             .Select(i => new { i.Id, i.RentalId, i.KaynakFaturaId, i.KaynakKiraId }).ToListAsync(ct);
         var invById = invAll.ToDictionary(x => x.Id);
@@ -1335,53 +1377,109 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Where(x => x.VehicleId != null)
             .ToDictionary(x => x.Id, x => x.VehicleId!.Value);
 
-        var gelirByVeh = new Dictionary<Guid, decimal>();
-        foreach (var e in gelirRaw)
+        return (sourceType, sourceId) => sourceType switch
         {
-            // Fatura/FaturaIade→kira→araç (fark faturası dahil), AracSatis→satış→araç, Ceza→ceza→araç
-            // (RentalId fallback'li), ServisYansitma→servis→araç. HGS (plaka-bazlı, kalıcı VehicleId yok) ve
-            // manuel/kaynaksız gelir → (Atanmamış). (roadmap B2 adversarial + araç-karne atıf düzeltmesi.)
-            var veh = Guid.Empty;
-            switch (e.SourceType)
-            {
-                case "Fatura" or "FaturaIade" when RentalOf(e.SourceId) is Guid rid && rentalToVeh.TryGetValue(rid, out var vid):
-                    veh = vid; break;
-                case "AracSatis" when saleToVeh.TryGetValue(e.SourceId, out var sv):
-                    veh = sv; break;
-                case "Ceza" when cezaToVeh.TryGetValue(e.SourceId, out var cv):
-                    veh = cv; break;
-                case "ServisYansitma" when servisToVeh.TryGetValue(e.SourceId, out var srv):
-                    veh = srv; break;
-                case "DepozitoIrat" when iratToVeh.TryGetValue(e.SourceId, out var irv):
-                    veh = irv; break;
-                case "DisHizmet" when disHizmetToVeh.TryGetValue(e.SourceId, out var dhv): // FAZ 4.3
-                    veh = dhv; break;
-            }
-            // İade Borç Gelir → negatif (kârı azaltır); normal Alacak Gelir → pozitif.
-            var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
-            gelirByVeh[veh] = gelirByVeh.GetValueOrDefault(veh) + signed;
-        }
-
-        var vehIds = giderByVeh.Keys.Concat(gelirByVeh.Keys).Where(k => k != Guid.Empty).Distinct().ToList();
-        var dims = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
-                .Select(v => new { v.Id, v.Plaka, v.Sube, v.Grup, v.Segment }).ToListAsync(ct))
-            .ToDictionary(v => v.Id, v => (v.Plaka, v.Sube, v.Grup, v.Segment));
-
-        var rows = new List<KarlilikSatirDto>();
-        foreach (var key in giderByVeh.Keys.Concat(gelirByVeh.Keys).Distinct())
-        {
-            var gelir = gelirByVeh.GetValueOrDefault(key);
-            var gider = giderByVeh.GetValueOrDefault(key);
-            if (key == Guid.Empty)
-                rows.Add(new KarlilikSatirDto(null, "(Atanmamış)", null, null, null, gelir, gider, gelir - gider));
-            else
-            {
-                var d = dims.TryGetValue(key, out var x) ? x : ("(bilinmeyen araç)", (string?)null, (string?)null, (string?)null);
-                rows.Add(new KarlilikSatirDto(key, d.Item1, d.Item2, d.Item3, d.Item4, gelir, gider, gelir - gider));
-            }
-        }
-        return rows;
+            "Fatura" or "FaturaIade" when RentalOf(sourceId) is Guid rid && rentalToVeh.TryGetValue(rid, out var vid) => vid,
+            "AracSatis" when saleToVeh.TryGetValue(sourceId, out var sv) => sv,
+            "Ceza" when cezaToVeh.TryGetValue(sourceId, out var cv) => cv,
+            "ServisYansitma" when servisToVeh.TryGetValue(sourceId, out var srv) => srv,
+            "DepozitoIrat" when iratToVeh.TryGetValue(sourceId, out var irv) => irv,
+            "DisHizmet" when disHizmetToVeh.TryGetValue(sourceId, out var dhv) => dhv, // FAZ 4.3
+            _ => Guid.Empty
+        };
     }
+
+    /// <summary>
+    /// FAZ-79 — Karlılık satırının DEFTER-DIŞI zenginleştirme hamı. Buradan dönen HİÇBİR tutar
+    /// Gelir/Gider/NetKar'a eklenmez; servis yalnız ayrı referans kolonlarına yazar.
+    /// </summary>
+    public async Task<KarlilikEkRawDto> GetKarlilikEkRawAsync(
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
+    {
+        // Ömür-boyu P&L satırları: KPI (Doluluk/RevPACD/ADR) paydaları sahiplik penceresidir; payı dönem
+        // geliriyle karıştırmak KARIŞIK PAYDA olurdu (FiloAnaliz/Karne ile aynı ders). Pencere yoksa
+        // ikinci sorgu atılmaz — çağıran zaten aynı listeyi kullanacak.
+        var omur = from is null && to is null ? [] : await GetKarlilikRowsAsync(null, null, ct);
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var sonSatis = (await db.VehicleSales.AsNoTracking()
+                .Where(s => s.Durum == SatisDurum.Tamamlandi)
+                .GroupBy(s => s.VehicleId)
+                .Select(g => new { VehicleId = g.Key, Tarih = g.Max(x => x.Tarih) })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.VehicleId, x => x.Tarih);
+
+        // Şube adı FK'den çözülür (FAZ 5-C5: FK doluysa FK karar verir); FK'sız eski satırda serbest metin.
+        var subeAdlari = (await db.Branches.AsNoTracking().Select(b => new { b.Id, b.Ad }).ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => x.Ad);
+        // Grup SIPP'i: araç kartında SIPP boşsa araç grubundan miras (canlıda SIPP grup seviyesinde tutulur).
+        var grupSipp = (await db.VehicleGroups.AsNoTracking()
+                .Where(g => g.Sipp != null)
+                .Select(g => new { g.Kod, g.Sipp }).ToListAsync(ct))
+            .GroupBy(x => x.Kod.Trim().ToUpperInvariant())
+            .ToDictionary(g => g.Key, g => g.First().Sipp);
+
+        var araclar = (await db.Vehicles.AsNoTracking()
+                .Select(v => new
+                {
+                    v.Id, v.Sipp, v.Grup, v.Sube, v.SubeId, v.AylikMaliyet, v.FiloYonetimMaliyeti,
+                    v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih, v.Durum
+                })
+                .ToListAsync(ct))
+            .Select(v =>
+            {
+                var grupKod = string.IsNullOrWhiteSpace(v.Grup) ? null : v.Grup.Trim().ToUpperInvariant();
+                var sipp = v.Sipp;
+                if (string.IsNullOrWhiteSpace(sipp) && grupKod is not null)
+                    sipp = grupSipp.GetValueOrDefault(grupKod);
+                var otopark = v.SubeId is Guid sid && subeAdlari.TryGetValue(sid, out var ad) ? ad : v.Sube;
+                return new KarlilikAracMetaRow(
+                    v.Id, sipp, otopark, grupKod, v.Sube,
+                    v.AylikMaliyet, v.FiloYonetimMaliyeti,
+                    v.AlimTarihi, v.FiloGirisTarih, v.FiloCikisTarih, v.Durum,
+                    sonSatis.TryGetValue(v.Id, out var t) ? t : null);
+            })
+            .ToList();
+
+        // Kira metası — TUTAR TAŞIMAZ (bilinçli): doluluk günü + kaynak + müşteri. İptal hariç, efektif
+        // bitiş (GercekDonusTar ?? BitTar) — FiloAnaliz ile aynı tanım.
+        var kiralar = await db.Rentals.AsNoTracking()
+            .Where(r => r.Durum != RentalStatus.Iptal)
+            .Select(r => new KarlilikKiraMetaRow(
+                r.VehicleId, r.BasTar, r.GercekDonusTar ?? r.BitTar, r.Kaynak, r.MusteriId))
+            .ToListAsync(ct);
+
+        // KDV (referans): SATIŞ belgelerinin KDV'si, gelir atfının BİREBİR aynı çözücüsüyle araca bağlanır.
+        // Gider/alış KDV'si (indirilecek) BİLİNÇLİ olarak dışarıda — "araç geliri KDV dahil" kolonuna
+        // alış KDV'si karışsaydı sayı hiçbir şeyi ifade etmezdi.
+        var kdvQ = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Kdv && e.SourceType != "DonemKapanis");
+        if (from is { } kf) kdvQ = kdvQ.Where(e => e.EntryDateUtc >= kf);
+        if (to is { } kt) kdvQ = kdvQ.Where(e => e.EntryDateUtc <= kt);
+        var kdvRaw = await kdvQ
+            .Select(e => new { e.SourceType, e.SourceId, e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
+            .ToListAsync(ct);
+        var atif = await AracAtifCozucuAsync(db, ct);
+        var kdvByVeh = new Dictionary<Guid, decimal>();
+        foreach (var e in kdvRaw.Where(x => SatisBelgesi.Contains(x.SourceType)))
+        {
+            var veh = atif(e.SourceType, e.SourceId);
+            var signed = (e.Direction == LedgerDirection.Credit ? 1m : -1m) * e.A * e.R;
+            kdvByVeh[veh] = kdvByVeh.GetValueOrDefault(veh) + signed;
+        }
+        var kdvSatirlari = kdvByVeh
+            .Select(x => new KarlilikKdvRow(x.Key == Guid.Empty ? null : x.Key, x.Value)).ToList();
+
+        // Tarife matrisi HAM çekilir; onay/aktiflik/kapsam elemesi paylaşılan çözümleyicidedir.
+        var tarifeler = await db.RateMatrices.AsNoTracking().ToListAsync(ct);
+
+        return new KarlilikEkRawDto(omur, araclar, kiralar, kdvSatirlari, tarifeler);
+    }
+
+    /// <summary>KDV referans kolonuna giren SATIŞ belgesi kaynak türleri (gelir atfının kapsadığı küme).</summary>
+    private static readonly HashSet<string> SatisBelgesi =
+        new(StringComparer.Ordinal) { "Fatura", "FaturaIade", "AracSatis", "Ceza", "ServisYansitma", "DepozitoIrat", "DisHizmet" };
 
     public async Task<AracKarneRawDto> GetAracKarneRawAsync(
         Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
