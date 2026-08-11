@@ -17,6 +17,16 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
     public Task<IReadOnlyList<Baf>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C3 (Baf FK'sız → metin dalı)
 
+    /// <summary>
+    /// FAZ-18 — filtreli liste (canlı baf_ara.aspx). Şube kapsamı filtreden BAĞIMSIZ uygulanır:
+    /// Operatör "Ofis=Kadıköy" yazsa bile kendi şubesi dışını göremez (filtre kapsamı GENİŞLETEMEZ).
+    /// </summary>
+    public Task<IReadOnlyList<Baf>> SearchAsync(BafFilter? filtre = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        return _repository.SearchAsync(BranchScope.EffectiveFilter(_currentUser), filtre ?? new BafFilter(), ct);
+    }
+
     public async Task<Baf?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var baf = await _repository.FindAsync(id, ct);
@@ -40,13 +50,24 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
             CikisYakit = input.CikisYakit,
             Sube = string.IsNullOrWhiteSpace(input.Sube) ? null : input.Sube.Trim(),
             Durum = Domain.Enums.BafDurum.Acik,
-            Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim()
+            Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim(),
+            // FAZ-18 bilgi alanları — hiçbiri iş kuralı işletmez, defter postlamaz.
+            KullanimAmaci = input.KullanimAmaci,
+            Onaylayan = input.Onaylayan == Guid.Empty ? null : input.Onaylayan,
+            KirayaVer = input.KirayaVer,
+            CikisSaat = input.CikisSaat
         };
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
 
-    public async Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset? donusTarihi = null, CancellationToken ct = default)
+    /// <summary>
+    /// Teslim al (dönüş). FAZ-18: <paramref name="donusSube"/>/<paramref name="donusSaat"/> BİLGİ alanlarıdır —
+    /// şube KAPSAMI hâlâ çıkış şubesinden (<c>baf.Sube</c>) işler; dönüş şubesi kapsamı değiştirmez
+    /// (aksi hâlde kullanıcı kendi göremediği bir şubeye "dönüş" yazarak kaydı kapsamından çıkarabilirdi).
+    /// </summary>
+    public async Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset? donusTarihi = null,
+        string? donusSube = null, TimeOnly? donusSaat = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var baf = await _repository.FindAsync(id, ct);
@@ -54,7 +75,8 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
         if (baf.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
         if (donusKm < baf.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
-        return await _repository.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi ?? DateTimeOffset.UtcNow, ct);
+        return await _repository.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi ?? DateTimeOffset.UtcNow,
+            string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim(), donusSaat, ct);
     }
 
     public async Task<bool> IptalAsync(Guid id, CancellationToken ct = default)

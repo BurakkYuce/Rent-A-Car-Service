@@ -10,4 +10,11 @@ public sealed class BafInput
     public int? CikisYakit { get; set; }
     public string? Sube { get; set; }
     public string? Aciklama { get; set; }
+
+    // ---- FAZ-18: çıkış anında girilen bilgi alanları (defter postlamaz) ----
+    public Domain.Enums.BafKullanimAmaci? KullanimAmaci { get; set; }
+    /// <summary>Onaylayan personel (Personel.Id) — BİLGİ; yetki kontrolü bu alandan YAPILMAZ.</summary>
+    public Guid? Onaylayan { get; set; }
+    public bool KirayaVer { get; set; }
+    public TimeOnly? CikisSaat { get; set; }
 }
