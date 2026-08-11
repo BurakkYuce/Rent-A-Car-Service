@@ -92,7 +92,8 @@ public static class FinanceEndpoints
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
-            [FromForm] string? hesapId, [FromForm] string? kanal) => // FAZ-50 hesapId + FAZ-84 kanal
+            [FromForm] string? hesapId, [FromForm] string? kanal, // FAZ-50 hesapId + FAZ-84 kanal
+            [FromForm] string? tarih) =>                          // FAZ-67: işlem tarihi formdan
         {
             try
             {
@@ -102,7 +103,8 @@ public static class FinanceEndpoints
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
                     HesapId = FormParse.Id(hesapId),  // FAZ-50: hangi spesifik kasa/banka
-                    Kanal = kanal // FAZ-84: boş → CashService "Masaüstü" varsayılanı
+                    Kanal = kanal, // FAZ-84: boş → CashService "Masaüstü" varsayılanı
+                    Tarih = FormParse.Date(tarih)  // FAZ-67: boş → sunucu "şimdi" (eski davranış)
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
@@ -118,7 +120,8 @@ public static class FinanceEndpoints
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
-            [FromForm] string? hesapId, [FromForm] string? kanal) => // FAZ-50 hesapId + FAZ-84 kanal
+            [FromForm] string? hesapId, [FromForm] string? kanal, // FAZ-50 hesapId + FAZ-84 kanal
+            [FromForm] string? tarih) =>                          // FAZ-67: işlem tarihi formdan
         {
             try
             {
@@ -128,7 +131,8 @@ public static class FinanceEndpoints
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
                     HesapId = FormParse.Id(hesapId),  // FAZ-50: hangi spesifik kasa/banka
-                    Kanal = kanal // FAZ-84
+                    Kanal = kanal, // FAZ-84
+                    Tarih = FormParse.Date(tarih)  // FAZ-67
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }

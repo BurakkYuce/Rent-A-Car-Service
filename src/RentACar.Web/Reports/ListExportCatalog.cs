@@ -1,6 +1,7 @@
 using RentACar.Application.Bookings;
 using RentACar.Application.Legal;
 using RentACar.Application.Regulation;
+using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -126,13 +127,20 @@ public static class ListExportCatalog
             x.KdvTutar, x.GenelToplam, x.Currency, x.OdemeYontemi.ToString(), x.KasaBankaHesap.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable NakitIslemler(IReadOnlyList<CashTransaction> n) => new(
+    /// <summary>
+    /// FAZ-67 — Cari / Cari Kod / Kanal kolonları eklendi (ekrandaki boşluk export'ta da vardı).
+    /// Tarih YEREL GÜN olarak yazılır: ham UTC yazmak, ekranda 01.03 görünen kaydı export'ta
+    /// 28.02 yapıyordu (repoda bilinen bir-gün-geri tuzağı).
+    /// </summary>
+    public static ExportTable NakitIslemler(IReadOnlyList<NakitIslemSatirDto> n) => new(
         "Nakit İşlemler",
-        ["No", "Tip", "Tarih", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
-        n.Select(x => new object?[]
+        ["No", "Tip", "Tarih", "Cari", "Cari Kod", "Kanal", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
+        n.Select(r => new object?[]
         {
-            x.No, x.Tip.ToString(), x.Tarih.ToString("yyyy-MM-dd"), x.Amount.Amount, x.Amount.Currency,
-            x.KarsiHesap.ToString(), x.TersKayitMi ? "Evet" : "Hayır", x.Aciklama
+            r.Islem.No, r.Islem.Tip.ToString(), r.Islem.Tarih.LocalDateTime.ToString("yyyy-MM-dd"),
+            r.CariAd, r.CariKod, r.Islem.Kanal,
+            r.Islem.Amount.Amount, r.Islem.Amount.Currency,
+            r.Islem.KarsiHesap.ToString(), r.Islem.TersKayitMi ? "Evet" : "Hayır", r.Islem.Aciklama
         }).ToList());
 
     public static ExportTable AracSatislari(IReadOnlyList<VehicleSale> s) => new(

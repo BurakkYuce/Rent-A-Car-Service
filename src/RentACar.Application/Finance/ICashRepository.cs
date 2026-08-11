@@ -10,6 +10,10 @@ public sealed record CashPosting(
 public interface ICashRepository
 {
     Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default);
+
+    /// <summary>FAZ-67 — süzgeçli nakit işlem listesi; cari adı/özel kodu çözümlenmiş.</summary>
+    Task<IReadOnlyList<NakitIslemSatirDto>> SearchIslemlerAsync(
+        CashFilter? filter = null, CancellationToken ct = default);
     Task<CashTransaction?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Verilen işlemin zaten bir ters kaydı var mı? (idempotency).</summary>

@@ -1,3 +1,4 @@
+using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Finance;
@@ -29,3 +30,27 @@ public sealed class CashInput
     /// şemasına/dengesine girmez, yalnız <see cref="RentACar.Domain.Entities.CashTransaction"/> belgesine yazılır.</summary>
     public string? Kanal { get; set; }
 }
+
+
+/// <summary>
+/// FAZ-67 — nakit işlem (tahsilat/ödeme) listesi süzgeci. Hepsi opsiyonel; hiçbiri verilmezse
+/// davranış bu fazdan öncekiyle AYNI (tüm işlemler, tarihe göre azalan).
+/// </summary>
+public sealed class CashFilter
+{
+    /// <summary>İşlem no / cari adı / özel kod içinde arama.</summary>
+    public string? Ara { get; set; }
+    public CashTransactionType? Tip { get; set; }
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Kasa/Banka türü.</summary>
+    public LedgerAccountType? Hesap { get; set; }
+    /// <summary>Spesifik kasa/banka hesabı (FAZ-50). <see cref="Guid.Empty"/> = hesap belirtilmemiş.</summary>
+    public Guid? HesapId { get; set; }
+    /// <summary>Tahsilat kanalı (FAZ-84).</summary>
+    public string? Kanal { get; set; }
+    public int EnFazla { get; set; } = 500;
+}
+
+/// <summary>FAZ-67 — nakit işlem listesi satırı: belge + cari adı/özel kodu çözümlenmiş.</summary>
+public sealed record NakitIslemSatirDto(CashTransaction Islem, string CariAd, string? CariKod);
