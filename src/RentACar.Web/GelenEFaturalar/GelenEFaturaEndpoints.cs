@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.GelenEFaturalar;
+using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.GelenEFaturalar;
@@ -31,6 +32,42 @@ public static class GelenEFaturaEndpoints
             var from = FormParse.Date(FormParse.Str(req.Form, "from")) ?? DateTimeOffset.Now.Date.AddMonths(-1);
             var to = FormParse.Date(FormParse.Str(req.Form, "to")) ?? DateTimeOffset.Now.Date;
             return await Run(() => svc.SyncFromGibAsync(from, to));
+        });
+
+        // FAZ-55 (a): KDV oran kırılımı + araç/kategori/cari bağlama. Tüm sayısal alanlar OPSİYONEL →
+        // string? + FormParse (boş string doğrudan [FromForm] decimal?'a bağlanırsa 400 üretir).
+        grp.MapPost("/bagla", async (GelenEFaturaService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            return await Run(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+            {
+                Id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty,
+                Kdv20Matrah = FormParse.Dec(FormParse.Str(f, "kdv20Matrah")),
+                Kdv20 = FormParse.Dec(FormParse.Str(f, "kdv20")),
+                Kdv10Matrah = FormParse.Dec(FormParse.Str(f, "kdv10Matrah")),
+                Kdv10 = FormParse.Dec(FormParse.Str(f, "kdv10")),
+                Kdv1Matrah = FormParse.Dec(FormParse.Str(f, "kdv1Matrah")),
+                Kdv1 = FormParse.Dec(FormParse.Str(f, "kdv1")),
+                Kdv0Matrah = FormParse.Dec(FormParse.Str(f, "kdv0Matrah")),
+                VehicleId = FormParse.Id(FormParse.Str(f, "vehicleId")),
+                ExpenseCategoryId = FormParse.Id(FormParse.Str(f, "expenseCategoryId")),
+                CariId = FormParse.Id(FormParse.Str(f, "cariId")),
+                GiderTipi = Enum.TryParse<ExpenseType>(FormParse.Str(f, "giderTipi"), out var gt) ? gt : null
+            }));
+        });
+
+        // FAZ-55 (b): giderleştirme — TEK para yolu. Deftere yazılan küme mevcut gider kümesidir.
+        grp.MapPost("/giderlestir", async (GelenEFaturaService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            return await Run(() => svc.GiderlestirAsync(new GelenEFaturaGiderInput
+            {
+                Id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty,
+                OdemeYontemi = Enum.TryParse<OdemeYontemi>(FormParse.Str(f, "odemeYontemi"), out var oy)
+                    ? oy : OdemeYontemi.AcikHesap,
+                CariId = FormParse.Id(FormParse.Str(f, "cariId")),
+                Sube = FormParse.Str(f, "sube")
+            }));
         });
 
         return app;
