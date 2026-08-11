@@ -123,7 +123,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var cari = await CariAsync(sp, "Tedarikci");
         var hesap = await sp.GetRequiredService<FinancialAccountService>()
-            .CreateAsync(new FinancialAccountInput { Kod = "ZR-TL", Ad = "Ziraat TL" });
+            .CreateAsync(new FinancialAccountInput { Kod = "ZR-TL", Ad = "Ziraat TL", Tur = "Banka" });
         var vade = DateTimeOffset.UtcNow.AddDays(30);
 
         await sp.GetRequiredService<ExpenseService>().BatchCreateAsync(

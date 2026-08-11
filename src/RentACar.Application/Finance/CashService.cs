@@ -46,6 +46,14 @@ public sealed class CashService(
     /// <summary>
     /// FAZ-59 — cari↔cari virman geçmişi (tüm cariler). Salt okuma; tutar defterden gelir.
     /// </summary>
+    /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar). Salt okuma.</summary>
+    public Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
+        int enFazla = 100, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ViewReports);
+        return _repository.ListKasaVirmanlarAsync(enFazla, ct);
+    }
+
     public Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
         CariVirmanFilter? filter = null, CancellationToken ct = default)
     {
@@ -81,7 +89,7 @@ public sealed class CashService(
 
         // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
-        var cozulenHesap = await _hesapCozucu.CozAsync(input.HesapId, input.Hesap, ct); // FAZ-50
+        var cozulenHesap = await _hesapCozucu.CozAsync(input.HesapId, input.Hesap, ct, input.Doviz); // FAZ-50
         var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
         var tx = new CashTransaction
         {
@@ -162,7 +170,7 @@ public sealed class CashService(
             {
                 if (!hesapCache.TryGetValue((hid, input.Hesap), out cozulenHesap))
                     hesapCache[(hid, input.Hesap)] = cozulenHesap =
-                        await _hesapCozucu.CozAsync(hid, input.Hesap, ct);
+                        await _hesapCozucu.CozAsync(hid, input.Hesap, ct, input.Doviz);
             }
 
             var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
@@ -381,9 +389,17 @@ public sealed class CashService(
         if (tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
 
         // Hesap doğrulaması guard'lardan ÖNCE: uydurma/başka tenant'ın hesabı buradan geri döner.
-        var kaynakRef = await _hesapCozucu.CozAsync(kaynakHesapId, kaynak, ct);
-        var hedefRef = await _hesapCozucu.CozAsync(hedefHesapId, hedef, ct);
+        var kaynakRef = await _hesapCozucu.CozAsync(kaynakHesapId, kaynak, ct, doviz);
+        var hedefRef = await _hesapCozucu.CozAsync(hedefHesapId, hedef, ct, doviz);
 
+        // ADVERSARIAL M1 — kural TÜRDEN BAĞIMSIZ: bir taraf hesap seçilmişse diğeri de seçilmeli.
+        // Önce yalnız aynı-tür dalında kontrol ediliyordu; Kasa→Banka virmanında tek taraf seçmek
+        // serbestti ve paranın diğer ucu "hesap belirtilmemiş" kovasına düşüp o kovanın bakiyesini
+        // tam da yasaklanan şekilde oynatıyordu.
+        if ((kaynakRef is null) != (hedefRef is null))
+            throw new ValidationException(
+                "Virmanda bir taraf için hesap seçtiyseniz diğer taraf için de seçmelisiniz " +
+                "(aksi hâlde paranın bir ucu 'hesap belirtilmemiş' kovasına düşer).");
         if (kaynak == hedef)
         {
             if (kaynakRef is null || hedefRef is null)

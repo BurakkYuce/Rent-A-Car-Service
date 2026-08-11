@@ -19,7 +19,11 @@
     <form method="post" action="/hesaplar/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="KASA-MERKEZ" /></label>
         <label>Ad<input name="ad" required placeholder="Merkez Kasa" /></label>
-        <label>Tür<input name="tur" placeholder="Kasa / Banka" /></label>
+        @* FAZ-50 adversarial H1 — tür ZORUNLU: serbest metin bırakıldığında aynı hesap hem Kasa
+           hem Banka bacağında kullanılabiliyor ve bakiyesi ikiye bölünüyordu. *@
+        <label>Tür<select name="tur" required>
+            <option value="">Seçiniz</option><option value="Kasa">Kasa</option><option value="Banka">Banka</option>
+        </select></label>
         <label>Döviz<input name="doviz" maxlength="3" placeholder="TRY" /></label>
         <label>IBAN<input name="iban" maxlength="34" placeholder="TR.. (banka için)" /></label>
         <label>Hesap No<input name="hesapNo" placeholder="(opsiyonel)" /></label>
@@ -64,7 +68,14 @@
                             <input type="hidden" name="id" value="@a.Id" />
                             <label>Kod<input name="kod" value="@a.Kod" required /></label>
                             <label>Ad<input name="ad" value="@a.Ad" required /></label>
-                            <label>Tür<input name="tur" value="@a.Tur" /></label>
+                            @* FAZ-50 adversarial H1 — tür ZORUNLU. Mevcut kayıtta serbest metin
+                               ("POS" gibi) varsa çözülemez ve "Seçiniz" görünür: kullanıcı
+                               kaydetmeden önce Kasa/Banka seçmek zorunda kalır. *@
+                            <label>Tür<select name="tur" required>
+                                <option value="" selected="@(Tur(a.Tur) is null)">Seçiniz</option>
+                                <option value="Kasa" selected="@(Tur(a.Tur) == LedgerAccountType.Kasa)">Kasa</option>
+                                <option value="Banka" selected="@(Tur(a.Tur) == LedgerAccountType.Banka)">Banka</option>
+                            </select></label>
                             <label>Döviz<input name="doviz" value="@a.Doviz" maxlength="3" /></label>
                             <label>IBAN<input name="iban" value="@a.Iban" maxlength="34" /></label>
                             <label>Hesap No<input name="hesapNo" value="@a.HesapNo" /></label>
@@ -94,6 +105,9 @@
 </div>
 
 @code {
+    /// <summary>Serbest metin türü Kasa/Banka'ya çözer (servisle AYNI kural — HesapCozucu.TuruCoz).</summary>
+    private static LedgerAccountType? Tur(string? t) => HesapCozucu.TuruCoz(t);
+
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<FinancialAccount> _list = [];

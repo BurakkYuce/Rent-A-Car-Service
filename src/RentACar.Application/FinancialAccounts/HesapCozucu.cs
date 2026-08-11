@@ -28,7 +28,8 @@ public sealed class HesapCozucu(IFinancialAccountRepository repository)
     /// <paramref name="tur"/> null verilirse tür kontrolü ATLANIR (para hangi taraftan geçtiği
     /// belirsiz olan kayıtlar için — ör. açık hesap gideri hesabı yalnız belge notudur).
     /// </summary>
-    public async Task<Guid?> CozAsync(Guid? hesapId, LedgerAccountType? tur, CancellationToken ct = default)
+    public async Task<Guid?> CozAsync(
+        Guid? hesapId, LedgerAccountType? tur, CancellationToken ct = default, string? doviz = null)
     {
         if (hesapId is not { } id || id == Guid.Empty) return null;
 
@@ -37,14 +38,26 @@ public sealed class HesapCozucu(IFinancialAccountRepository repository)
         if (!hesap.Aktif)
             throw new ValidationException($"'{hesap.Ad}' hesabı pasif — işlem yapılamaz.");
 
-        // Tür çelişkisi yalnız EMİN olduğumuzda reddedilir: FinancialAccount.Tur serbest metindir
-        // ("Kasa"/"Banka"/"POS"/boş olabilir). Çözülemeyen metin YOK SAYILIR — yoksa kullanıcının
-        // meşru "Ziraat TL Vadesiz" gibi bir türü uydurma bir hataya dönerdi.
-        var cozulen = TuruCoz(hesap.Tur);
-        if (tur is { } beklenen && cozulen is { } t && t != beklenen)
+        // ADVERSARIAL H1 — tür ÇÖZÜLEBİLİR OLMAK ZORUNDA. Önce çözülemeyen metin ("POS", boş)
+        // yok sayılıyordu; sonuç: AYNI hesap hem Kasa hem Banka bacağında kullanılabiliyor ve
+        // hesap-bazlı özet onu İKİ AYRI satıra bölüyordu (100 Kasa + 200 Banka), birleşik bakiyeyi
+        // hiçbir ekran göstermiyordu. Artık tür belirsizse işlem gürültülü reddedilir; tanım
+        // formu da Kasa/Banka seçimini zorunlu kılar (FinancialAccountService.Validate).
+        var cozulen = TuruCoz(hesap.Tur)
+            ?? throw new ValidationException(
+                $"'{hesap.Ad}' hesabının türü belirsiz. Hesap tanımında türü Kasa ya da Banka olarak seçin.");
+        if (tur is { } beklenen && cozulen != beklenen)
             throw new ValidationException(
-                $"'{hesap.Ad}' bir {(t == LedgerAccountType.Kasa ? "Kasa" : "Banka")} hesabı; " +
+                $"'{hesap.Ad}' bir {(cozulen == LedgerAccountType.Kasa ? "Kasa" : "Banka")} hesabı; " +
                 $"işlem {(beklenen == LedgerAccountType.Kasa ? "Kasa" : "Banka")} olarak seçilmiş.");
+
+        // ADVERSARIAL M4 — hesabın kendi dövizi ile işlem dövizi çelişkisi. Hesap-bazlı bakiye
+        // gerçek banka ekstresiyle mutabakat için kullanılacak; USD hesaba TRY yazmak o mutabakatı
+        // anlamsız kılar. Hesabın dövizi TANIMSIZSA karışmayız (eski hesaplar).
+        if (doviz is { Length: > 0 } d && !string.IsNullOrWhiteSpace(hesap.Doviz)
+            && !string.Equals(hesap.Doviz.Trim(), d.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException(
+                $"'{hesap.Ad}' hesabı {hesap.Doviz} tanımlı; işlem {d.Trim().ToUpperInvariant()} olarak giriliyor.");
 
         return id;
     }
@@ -57,6 +70,11 @@ public sealed class HesapCozucu(IFinancialAccountRepository repository)
     {
         if (string.IsNullOrWhiteSpace(tur)) return null;
         var t = tur.Trim();
+        // ADVERSARIAL L1 — "Banka Kasası" gerçekte bir KASA'dır; salt ön ek bakışı onu Banka
+        // sanıp meşru işlemi reddediyordu. Metin "kasa" ile BİTİYORSA kasa kazanır.
+        if (t.EndsWith("kasa", StringComparison.OrdinalIgnoreCase)
+            || t.EndsWith("kasası", StringComparison.OrdinalIgnoreCase)
+            || t.EndsWith("kasasi", StringComparison.OrdinalIgnoreCase)) return LedgerAccountType.Kasa;
         if (t.StartsWith("kasa", StringComparison.OrdinalIgnoreCase)) return LedgerAccountType.Kasa;
         if (t.StartsWith("banka", StringComparison.OrdinalIgnoreCase)) return LedgerAccountType.Banka;
         return null;

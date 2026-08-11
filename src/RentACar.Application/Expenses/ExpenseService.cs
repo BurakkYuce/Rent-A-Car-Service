@@ -63,6 +63,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
 
         var closing = await _lock.GetClosingDateAsync(ct); // dönem kilidi: bir kez oku, kalem-bazlı karşılaştır
         var kurCache = new Dictionary<(string, DateTime?), decimal>(); // 1.1b: aynı (kod,gün) tek lookup
+        var hesapCache = new Dictionary<(Guid, OdemeYontemi), Guid?>();  // FAZ-50 L5
         var postings = new List<ExpensePosting>(kalemler.Count);
         for (var i = 0; i < kalemler.Count; i++)
         {
@@ -81,7 +82,14 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
                 if (!kurCache.TryGetValue(kurKey, out cozulenKur))
                     kurCache[kurKey] = cozulenKur = await _kurCozucu.CozAsync(input.Doviz, null, input.Tarih, ct);
             }
-            var cozulenHesap = await CozHesapAsync(input, ct); // FAZ-50 (kalem-bazlı hesap seçimi)
+            // FAZ-50 adversarial L5 — aynı hesap tekrar ediyorsa tek doğrulama (500 kalemde 500 sorgu değil).
+            Guid? cozulenHesap = null;
+            if (input.FinansalHesapId is { } fh && fh != Guid.Empty)
+            {
+                var anahtar = (fh, input.OdemeYontemi);
+                if (!hesapCache.TryGetValue(anahtar, out cozulenHesap))
+                    hesapCache[anahtar] = cozulenHesap = await CozHesapAsync(input, ct);
+            }
             var p = BuildPosting(input, batchAnahtari is { } b ? CashService.RowKey(b, i) : null, cozulenKur, cozulenHesap);
             PeriodLock.ThrowIfClosed(p.Expense.Tarih, closing, $"Kalem {i + 1}");
             postings.Add(p);
@@ -103,7 +111,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
                 OdemeYontemi.AcikHesap => null,
                 OdemeYontemi.Banka => LedgerAccountType.Banka,
                 _ => LedgerAccountType.Kasa
-            }, ct);
+            }, ct, input.Doviz);
 
     /// <summary>Bir gider girişini doğrular + Expense belgesi + dengeli defter kümesi kurar (tek + toplu ortak).</summary>
     private static ExpensePosting BuildPosting(

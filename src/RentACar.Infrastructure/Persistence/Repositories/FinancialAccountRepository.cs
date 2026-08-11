@@ -93,4 +93,16 @@ public sealed class FinancialAccountRepository(IDbContextFactory<AppDbContext> f
         }
         return true;
     }
+
+    /// <summary>
+    /// FAZ-50 adversarial M2 — hesabın defterde izi var mı. Kasa/Banka bacaklarında AccountRef
+    /// bu hesabın kimliğidir; ayrıca nakit belgesinde HesapId olarak da geçer (belge yazıldı ama
+    /// defter bacağı legacy kaldıysa da yakalansın).
+    /// </summary>
+    public async Task<bool> HasLedgerHistoryAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        if (await db.AccountLedgerEntries.AsNoTracking().AnyAsync(e => e.AccountRef == id, ct)) return true;
+        return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.HesapId == id, ct);
+    }
 }
