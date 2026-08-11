@@ -402,7 +402,22 @@ public static class FinanceEndpoints
             KdvOrani = FormParse.Dec(S("kdvOrani")) ?? 0.20m,
             Tarih = FormParse.Date(S("tarih")),
             VadeTarihi = FormParse.Date(S("vadeTarihi")),
-            IslemAnahtari = FormParse.Id(S("islemAnahtari")) // çift-submit idempotency (adversarial M#1)
+            IslemAnahtari = FormParse.Id(S("islemAnahtari")), // çift-submit idempotency (adversarial M#1)
+            // FAZ-51 — bilgi alanları (defter/bakiyeye YANSIMAZ).
+            IslemSube = S("islemSube"),
+            EvrakNo = S("evrakNo"),
+            FaturaOzelKod = S("faturaOzelKod"),
+            OdemeTuru = S("odemeTuru"),
+            GonderimSekli = S("gonderimSekli"),
+            KdvSifirSebep = S("kdvSifirSebep"),
+            // ÖTV/tevkifat/damga — mevcut InvoiceTaxInfo/ApplyVergi (kira-fatura yoluyla AYNI doğrulama).
+            // IadeMi/ManuelMi bilinçli OLARAK verilmiyor (default false) — servis bunları kendi
+            // invariant'ı olarak sonradan zorlar (ApplyVergi sonrası invoice.ManuelMi=true).
+            Vergi = new InvoiceTaxInfo(
+                Otv: FormParse.Dec(S("otv")),
+                TevkifatOran: FormParse.Dec(S("tevkifatOran")),
+                TevkifatTutar: FormParse.Dec(S("tevkifatTutar")),
+                DamgaVergisi: FormParse.Dec(S("damgaVergisi")))
         };
         try
         {

@@ -63,9 +63,33 @@
     </label>
     <label>Net Tutar<input name="netTutar" type="number" step="0.01" min="0" required /></label>
     <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" min="0" value="0.20" /></label>
-    <label>Tarih<input name="tarih" type="date" /></label>
+    <label>Tarih/Saat<input name="tarih" type="datetime-local" title="Boş = şimdi (UTC). Saat de bu alandan girilir — ayrı sütun yok." /></label>
     <label>Vade<input name="vadeTarihi" type="date" /></label>
     <label>Açıklama<input name="aciklama" /></label>
+    <label>İşlem Şube<input name="islemSube" /></label>
+    <label>Evrak No<input name="evrakNo" /></label>
+    <label>Fatura Özel Kod<input name="faturaOzelKod" /></label>
+    <label>Ödeme Türü
+        <input name="odemeTuru" list="dl-fatura-odeme" autocomplete="off" placeholder="Seç veya yaz" />
+        <datalist id="dl-fatura-odeme"><option value="Kart" /><option value="Havale" /><option value="Nakit" /></datalist>
+    </label>
+    <label>Gönderim Şekli
+        <input name="gonderimSekli" list="dl-fatura-gonderim" autocomplete="off" placeholder="Seç veya yaz" />
+        <datalist id="dl-fatura-gonderim"><option value="Mail" /><option value="Kargo" /><option value="Posta" /></datalist>
+    </label>
+    <label>KDV Sıfır Sebep
+        <select name="kdvSifirSebep">
+            <option value="">—</option>
+            <option value="İstisna Olmayan Diğer">İstisna Olmayan Diğer</option>
+            <option value="15/b Uluslararası Kuruluşlara">15/b Uluslararası Kuruluşlara</option>
+            <option value="11/1-A Hizmet İhracatı">11/1-A Hizmet İhracatı</option>
+            <option value="350-Diğerleri">350-Diğerleri</option>
+        </select>
+    </label>
+    <label>ÖTV<input name="otv" type="number" step="0.01" min="0" title="Bilgi amaçlı — deftere yansımaz" /></label>
+    <label>Tevkifat Oran %<input name="tevkifatOran" type="number" step="0.01" min="0" max="100" title="Bilgi amaçlı — deftere yansımaz" /></label>
+    <label>Tevkifat Tutar<input name="tevkifatTutar" type="number" step="0.01" min="0" title="Bilgi amaçlı — deftere yansımaz" /></label>
+    <label>Damga Vergisi<input name="damgaVergisi" type="number" step="0.01" min="0" title="Bilgi amaçlı — deftere yansımaz" /></label>
     <button type="submit" formaction="/finans/fatura-manuel">Manuel Fatura Kes</button>
 </form>
 
