@@ -15,14 +15,31 @@ public sealed record LedgerRowDto(
     Guid? HesapId = null,
     // Native tutar + döviz kodu: raporda "1.000 EUR (32.000 ₺)" gösterebilmek için. Base tek başına
     // hangi dövizden geldiğini söylemiyordu.
-    decimal Native = 0m, string Doviz = "TRY");
+    decimal Native = 0m, string Doviz = "TRY",
+    // FAZ-57 — satırı doğuran belgenin kimliği; cari/evrak/şube çözümü buradan yürür.
+    Guid SourceId = default);
+
+/// <summary>
+/// FAZ-57 — bir defter satırının arkasındaki BELGE künyesi. Kasa/banka hareket listesi "bu para
+/// kimden/kime, hangi evrakla, hangi şubeden" sorusunu yanıtlayabilsin diye çözülür.
+///
+/// <para><b>Cari çözümü GENERİKTİR:</b> belge türüne göre ayrı ayrı okumak yerine, AYNI
+/// <c>SourceId</c>'yi paylaşan dengeli kümenin <c>Cari</c>/<c>Depozito</c> bacağından alınır.
+/// Böylece yeni bir para yolu eklendiğinde (ör. ceza ödemesi) bu liste kendiliğinden çalışır —
+/// belge türü listesi bakımı gerektiren ikinci bir yer olmaz.</para>
+/// </summary>
+public sealed record HareketBelgeDto(
+    Guid? CariId, string? CariAd, string? BelgeNo, string? Sube, string? Kanal);
 
 /// <summary>Defter satırı (yürüyen bakiyeli) — kasa/banka defteri görünümü.</summary>
 public sealed record LedgerLineDto(
     DateTimeOffset Tarih, string SourceType, string? Aciklama,
     decimal Borc, decimal Alacak, decimal YuruyenBakiye,
     // FAZ-50 — satırın hesabı ve kendi dövizindeki tutarı (grid kolonları).
-    Guid? HesapId = null, decimal Native = 0m, string Doviz = "TRY");
+    Guid? HesapId = null, decimal Native = 0m, string Doviz = "TRY",
+    // FAZ-57 — belge künyesi (cari / evrak no / şube / tahsilat kanalı) ve DEVİR satırı işareti.
+    string? CariAd = null, string? BelgeNo = null, string? Sube = null, string? Kanal = null,
+    bool DevirMi = false);
 
 /// <summary>
 /// FAZ-50 — hesap-bazlı kasa/banka özeti. <paramref name="HesapId"/> null olan satır, hesap bilgisi
