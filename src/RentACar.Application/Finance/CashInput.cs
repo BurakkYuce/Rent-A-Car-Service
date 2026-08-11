@@ -16,6 +16,10 @@ public sealed class CashInput
     /// <summary>Para hareketinin geçtiği hesap: Kasa veya Banka.</summary>
     public LedgerAccountType Hesap { get; set; } = LedgerAccountType.Kasa;
 
+    /// <summary>FAZ-50 — hangi SPESİFİK kasa/banka hesabı (<c>FinancialAccount</c>). Boş → eski
+    /// davranış (defterde <c>AccountRef=null</c>, "hesap belirtilmemiş" kovası).</summary>
+    public Guid? HesapId { get; set; }
+
     /// <summary>İdempotency anahtarı (adversarial M5): form başına render edilen token; çift-submit
     /// (çift-tık/retry/geri-butonu) aynı anahtarla ikinci kez yazılamaz (kısmi unique index). Null → korumasız.</summary>
     public Guid? IslemAnahtari { get; set; }

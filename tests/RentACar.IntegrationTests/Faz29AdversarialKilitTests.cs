@@ -171,7 +171,7 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         Guid baskaTenantHesap;
         using (var s0 = host.ScopeFor(Guid.NewGuid()))
             baskaTenantHesap = await s0.ServiceProvider.GetRequiredService<FinancialAccountService>()
-                .CreateAsync(new FinancialAccountInput { Kod = "X-1", Ad = "Başka tenant hesabı" });
+                .CreateAsync(new FinancialAccountInput { Kod = "X-1", Ad = "Başka tenant hesabı", Tur = "Banka" });
 
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<ExpenseService>();
@@ -202,11 +202,13 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var hesaplar = sp.GetRequiredService<FinancialAccountService>();
-        var hesap = await hesaplar.CreateAsync(new FinancialAccountInput { Kod = "ZR", Ad = "Ziraat" });
+        var hesap = await hesaplar.CreateAsync(new FinancialAccountInput { Kod = "ZR", Ad = "Ziraat", Tur = "Banka" });
 
         await sp.GetRequiredService<ExpenseService>().BatchCreateAsync(
         [
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, FinansalHesapId = hesap }
+            // FAZ-50: hesap türü ile ödeme yöntemi ARTIK çelişemez (banka hesabı → Banka ödeme).
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m,
+                OdemeYontemi = OdemeYontemi.Banka, FinansalHesapId = hesap }
         ]);
 
         var sil = await Wrap(hesaplar.DeleteAsync(hesap));

@@ -110,12 +110,13 @@ public static class RegulationEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        ode.MapPost("/sigorta", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap, [FromForm] string? zeyil, [FromForm] string? kur) =>
+        ode.MapPost("/sigorta", async (RegulationService svc, [FromForm] Guid id, [FromForm] string? hesap,
+            [FromForm] string? zeyil, [FromForm] string? kur, [FromForm] string? hesapId) =>
         {
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var z = FormParse.Dec(zeyil) ?? 0m;
             var k = FormParse.Dec(kur); // boş → otomatik çözüm (TRY=1; döviz KurService — 1.1)
-            try { await svc.SigortaOdeAsync(id, h, z, kur: k); return Results.Redirect("/regulasyon?ok=1"); }
+            try { await svc.SigortaOdeAsync(id, h, z, kur: k, hesapId: FormParse.Id(hesapId)); return Results.Redirect("/regulasyon?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -131,6 +132,7 @@ public static class RegulationEndpoints
         Aciklama = FormParse.Str(f, "odemeAciklama"),
         KasaKodu = FormParse.Str(f, "kasaKodu"),
         HesapNo = FormParse.Str(f, "hesapNo"),
+        HesapId = FormParse.Id(FormParse.Str(f, "hesapId")),   // FAZ-50: defter bağı
         IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
     };
 }

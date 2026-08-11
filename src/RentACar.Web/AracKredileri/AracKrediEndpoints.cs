@@ -42,10 +42,10 @@ public static class AracKrediEndpoints
         // grubun geri kalanı — create/iptal/toplu-iptal — OperationsWrite kalır).
         var fin = app.MapGroup("/arac-kredi").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
         fin.MapPost("/taksit-ode", async (AracKrediService svc, HttpRequest req, [FromForm] Guid id,
-            [FromForm] string? hesap, [FromForm] string? islemAnahtari) =>
+            [FromForm] string? hesap, [FromForm] string? islemAnahtari, [FromForm] string? hesapId) =>
             await Durum(req, () => svc.TaksitOdeAsync(id,
                 string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? Domain.Enums.LedgerAccountType.Banka : Domain.Enums.LedgerAccountType.Kasa,
-                null, FormParse.Id(islemAnahtari))));
+                null, FormParse.Id(islemAnahtari), FormParse.Id(hesapId))));   // FAZ-50
 
         grp.MapPost("/iptal", async (AracKrediService svc, HttpRequest req, [FromForm] Guid id) =>
             await Durum(req, () => svc.IptalAsync(id)));

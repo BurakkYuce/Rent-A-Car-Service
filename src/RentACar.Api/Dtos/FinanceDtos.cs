@@ -23,11 +23,14 @@ public sealed class CashRequest
     public DateTimeOffset? Tarih { get; set; }
     public string? Aciklama { get; set; }
     public LedgerAccountType Hesap { get; set; } = LedgerAccountType.Kasa;
+    /// <summary>FAZ-50 — hangi SPESİFİK kasa/banka hesabı (FinancialAccount.Id). Boş → hesap
+    /// belirtilmemiş (defterde AccountRef null).</summary>
+    public Guid? HesapId { get; set; }
 
     public CashInput ToInput() => new()
     {
         CariId = CariId, RentalId = RentalId, Tutar = Tutar, Doviz = Doviz, Kur = Kur,
-        Tarih = Tarih, Aciklama = Aciklama, Hesap = Hesap
+        Tarih = Tarih, Aciklama = Aciklama, Hesap = Hesap, HesapId = HesapId
     };
 }
 
@@ -41,23 +44,28 @@ public sealed class TransferRequest
     /// <summary>Boş/gönderilmez → otomatik çözüm (TRY=1; döviz sabit-kur/TCMB, yoksa red — 1.1b).</summary>
     public decimal? Kur { get; set; }
     public string? Aciklama { get; set; }
+    // FAZ-50 — spesifik hesaplar. İkisi de verilirse aynı türde (Banka→Banka) virman da mümkün.
+    public Guid? KaynakHesapId { get; set; }
+    public Guid? HedefHesapId { get; set; }
+    public string? MakbuzNo { get; set; }
+    public string? Sube { get; set; }
 }
 
 public sealed record CashTransactionResponse(
     Guid Id, string No, CashTransactionType Tip, Guid CariId, Guid? RentalId, DateTimeOffset Tarih,
-    MoneyDto Tutar, LedgerAccountType KarsiHesap, string? Aciklama, bool TersKayitMi, Guid? TersAlinanId)
+    MoneyDto Tutar, LedgerAccountType KarsiHesap, Guid? HesapId, string? Aciklama, bool TersKayitMi, Guid? TersAlinanId)
 {
     public static CashTransactionResponse From(CashTransaction t) => new(
         t.Id, t.No, t.Tip, t.CariId, t.RentalId, t.Tarih, MoneyDto.From(t.Amount),
-        t.KarsiHesap, t.Aciklama, t.TersKayitMi, t.TersAlinanId);
+        t.KarsiHesap, t.HesapId, t.Aciklama, t.TersKayitMi, t.TersAlinanId);
 }
 
 public sealed record LedgerEntryResponse(
-    DateTimeOffset EntryDateUtc, LedgerAccountType AccountType, LedgerDirection Direction,
+    DateTimeOffset EntryDateUtc, LedgerAccountType AccountType, Guid? AccountRef, LedgerDirection Direction,
     MoneyDto Tutar, decimal SignedBase, string SourceType, Guid? SourceId, string? Description)
 {
     public static LedgerEntryResponse From(AccountLedgerEntry e) => new(
-        e.EntryDateUtc, e.AccountType, e.Direction, MoneyDto.From(e.Amount), e.SignedBase,
+        e.EntryDateUtc, e.AccountType, e.AccountRef, e.Direction, MoneyDto.From(e.Amount), e.SignedBase,
         e.SourceType, e.SourceId, e.Description);
 }
 

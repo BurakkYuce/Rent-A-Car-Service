@@ -29,6 +29,15 @@ public class CashTransaction : ITenantOwned, IAuditable
     /// <summary>Karşı hesap (PR #5: Kasa).</summary>
     public LedgerAccountType KarsiHesap { get; set; } = LedgerAccountType.Kasa;
 
+    /// <summary>
+    /// FAZ-50 — para hareketinin geçtiği SPESİFİK kasa/banka hesabı (<c>FinancialAccount</c>).
+    /// <see cref="KarsiHesap"/> "Kasa mı Banka mı" sorusunu, bu alan "hangi kasa/banka" sorusunu
+    /// yanıtlar; enum EMEKLİ EDİLMEDİ çünkü defter türü ondan okunur.
+    /// <b>null = hesap belirtilmemiş</b> (bu fazdan önceki tüm kayıtlar ve hesap seçmeyen formlar).
+    /// Defter satırının <c>AccountRef</c>'ine bu değer yazılır.
+    /// </summary>
+    public Guid? HesapId { get; set; }
+
     public string? Aciklama { get; set; }
 
     public bool TersKayitMi { get; set; }

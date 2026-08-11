@@ -11,12 +11,14 @@ namespace RentACar.Application.AracKredileri;
 /// Banka entegrasyonu YOK, DEFTER POSTLAMAZ → salt kayıt/hesap; yazma OperationsWrite.
 /// </summary>
 public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUser currentUser,
-    RentACar.Application.Periods.IPeriodLockGuard periodLock, RentACar.Application.Kur.KurCozucu kurCozucu)
+    RentACar.Application.Periods.IPeriodLockGuard periodLock, RentACar.Application.Kur.KurCozucu kurCozucu,
+    RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
 {
     private readonly IAracKrediRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly RentACar.Application.Periods.IPeriodLockGuard _lock = periodLock;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
+    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
 
     public Task<IReadOnlyList<AracKredi>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -70,7 +72,8 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
     /// günü 1.1 sözleşmesi (TRY=1; döviz sabit-kur/TCMB, yoksa red). Mevcut kredilerin GEÇMİŞ
     /// ödenmiş taksitleri retro postlanmaz. Çift-submit: islemAnahtari + Expense kısmi unique index.</summary>
     public async Task<bool> TaksitOdeAsync(Guid id, LedgerAccountType hesap = LedgerAccountType.Kasa,
-        DateTimeOffset? odemeTarih = null, Guid? islemAnahtari = null, CancellationToken ct = default)
+        DateTimeOffset? odemeTarih = null, Guid? islemAnahtari = null,
+        Guid? hesapId = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite); // defter yazar
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
@@ -86,6 +89,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         var kur = await _kurCozucu.CozAsync(kredi.Currency, null, tarih, ct); // 1.1 sözleşmesi
         var ozet = Hesapla(kredi);
         var anahtar = islemAnahtari is { } a && a != Guid.Empty ? a : (Guid?)null;
+        var hesapRef = await _hesapCozucu.CozAsync(hesapId, hesap, ct); // FAZ-50 (lambda'dan ONCE: async)
 
         return await _repository.TaksitOdeAsync(id, sira =>
         {
@@ -105,6 +109,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
                 Currency = kredi.Currency, Kur = kur,
                 OdemeYontemi = hesap == LedgerAccountType.Banka ? OdemeYontemi.Banka : OdemeYontemi.Nakit,
                 KasaBankaHesap = hesap,
+                FinansalHesapId = hesapRef,   // FAZ-50: belge de hangi hesaptan odendigini tasir
                 Aciklama = desc,
                 IslemAnahtari = anahtar
             };
@@ -112,7 +117,8 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
             [
                 new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = kredi.VehicleId,
                     Direction = LedgerDirection.Debit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc },
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
+                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc }
             ];
             return (expense, entries);

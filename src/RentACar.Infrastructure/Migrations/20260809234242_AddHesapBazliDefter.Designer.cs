@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809234242_AddHesapBazliDefter")]
+    partial class AddHesapBazliDefter
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -128,9 +131,6 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"SourceType\" = 'Hgs'");
 
-                    b.HasIndex(new[] { "TenantId", "SourceType", "SourceId", "Direction" }, "IX_AccountLedgerEntries_CezaOdeme_Idem")
-                        .IsUnique()
-                        .HasFilter("\"SourceType\" = 'CezaOdeme'");
                     b.HasIndex("TenantId", "SourceType", "SourceId", "AccountType", "AccountRef")
                         .IsUnique()
                         .HasDatabaseName("IX_AccountLedgerEntries_Virman_Idem")
@@ -355,33 +355,12 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
-                    b.Property<string>("DosyaNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
-
-                    b.Property<decimal?>("FiloFiyat")
-                        .HasColumnType("numeric(19,4)");
 
                     b.Property<string>("Grup")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("IcRenk")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("ImzaTarih")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("KaynakTip")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid?>("KrediId")
-                        .HasColumnType("uuid");
 
                     b.Property<decimal>("Kur")
                         .HasColumnType("numeric(19,6)");
@@ -395,32 +374,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<decimal?>("OpsFiyat")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Opsiyon")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("OzelTemsilci")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<decimal?>("PiyasaFiyat")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Renk")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("SatisTemsilci")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("SatisTipi")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<DateTimeOffset>("SiparisTarihi")
                         .HasColumnType("timestamp with time zone");
 
@@ -429,9 +382,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid?>("TedarikciCariId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -439,29 +389,13 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("TsbKayitNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Versiyon")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "DosyaNo");
-
-                    b.HasIndex("TenantId", "KrediId");
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
-
-                    b.HasIndex("TenantId", "SiparisTarihi");
-
-                    b.HasIndex("TenantId", "TedarikciCariId");
 
                     b.ToTable("AracSiparisleri", (string)null);
                 });
@@ -587,9 +521,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("CikisKm")
                         .HasColumnType("integer");
 
-                    b.Property<TimeOnly?>("CikisSaat")
-                        .HasColumnType("time without time zone");
-
                     b.Property<DateTimeOffset>("CikisTarihi")
                         .HasColumnType("timestamp with time zone");
 
@@ -602,13 +533,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int?>("DonusKm")
                         .HasColumnType("integer");
 
-                    b.Property<TimeOnly?>("DonusSaat")
-                        .HasColumnType("time without time zone");
-
-                    b.Property<string>("DonusSube")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<DateTimeOffset?>("DonusTarihi")
                         .HasColumnType("timestamp with time zone");
 
@@ -618,19 +542,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("KirayaVer")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("KullanimAmaci")
-                        .HasColumnType("integer");
-
                     b.Property<string>("No")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
-
-                    b.Property<Guid?>("Onaylayan")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("PersonelId")
                         .HasColumnType("uuid");
@@ -649,8 +564,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "CikisTarihi");
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
@@ -2226,16 +2139,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<bool>("SadeceKendiSubeleri")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Sube")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("SubeId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -2244,12 +2147,8 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubeId");
-
                     b.HasIndex("TenantId", "Kod")
                         .IsUnique();
-
-                    b.HasIndex("TenantId", "SubeId");
 
                     b.ToTable("DolulukFiyatKurallari", (string)null);
                 });
@@ -3729,172 +3628,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("Locations", (string)null);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.MaliyetTeklifi", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<decimal>("AlisBedeli")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int>("AracSayisi")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("AracTakipYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("AylikGider")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("BakimYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("BankaDosyaDigerMasraf")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("BasaBasAylik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Baslik")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<decimal>("BsmvOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid?>("CariId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("Damga")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("DamgaOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("EnflasyonOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("FaizOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("FinansmanFaiz")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("FinansmanVergi")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid?>("HazirlayanId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Kar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("KarMarji")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("KaskoYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("KayitNo")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<decimal>("KdvOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("KkdfOran")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int>("KrediHesaplamaSekli")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("LastikKisYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("LastikYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("MtvYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("MuayeneEmisyonYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("NetAmortisman")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("Plaka")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<decimal>("ResidualDeger")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("ResidualYuzde")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<int>("SureAy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("Tarih")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("TeklifAylikNet")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("TeklifKdvli")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("TeklifNet")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("TescilPlakaYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("ToplamGider")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("ToplamMaliyet")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("TrafikSigortasiYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("YedekAracYillik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("YonetimGideriAylik")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "CariId");
-
-                    b.HasIndex("TenantId", "HazirlayanId");
-
-                    b.HasIndex("TenantId", "KayitNo")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId", "Tarih");
-
-                    b.ToTable("MaliyetTeklifleri", (string)null);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.MtvOdeme", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4232,10 +3965,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid?>("CariId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CepTel")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<string>("CezaTuru")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -4247,34 +3976,13 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("Durum")
                         .HasColumnType("integer");
 
-                    b.Property<string>("IslemSube")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<decimal>("Kalan")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("MakbuzNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("No")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<decimal>("OdenenTutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset?>("OdenmeTarihi")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid?>("RentalId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Saat")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("Sebep")
                         .HasMaxLength(512)
@@ -4298,15 +4006,9 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid?>("VehicleId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Yer")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "CariId");
-
-                    b.HasIndex("TenantId", "MakbuzNo");
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
@@ -4314,126 +4016,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasIndex("TenantId", "VehicleId");
 
                     b.ToTable("Penalties", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.PenaltyOdeme", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Anahtar")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Hesap")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("HesapNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("IslemAnahtari")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("IslemYapan")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<decimal>("KalanSonrasi")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<string>("KasaKodu")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("MakbuzNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("PenaltyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SatirId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Sira")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("Tarih")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Tutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Anahtar")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId", "IslemAnahtari")
-                        .IsUnique()
-                        .HasFilter("\"IslemAnahtari\" IS NOT NULL");
-
-                    b.HasIndex("TenantId", "PenaltyId");
-
-                    b.HasIndex("TenantId", "SatirId");
-
-                    b.ToTable("PenaltyOdemeleri", (string)null);
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.PenaltySatir", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("Kalan")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal>("Odenen")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<Guid>("PenaltyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Sebep")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<int>("Sira")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Tutar")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "PenaltyId", "Sira")
-                        .IsUnique();
-
-                    b.ToTable("PenaltySatirlari", (string)null);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.PenaltyType", b =>
@@ -5556,9 +5138,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("UzatmaGun")
                         .HasColumnType("integer");
 
-                    b.Property<DateTimeOffset?>("VadeTar")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
 
@@ -5610,27 +5189,14 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("GecerlilikBit")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("HaftaGunKisiti")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<decimal?>("HaftaSonuFarkOran")
                         .HasColumnType("numeric");
 
                     b.Property<int?>("HediyeGun")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("HesaplamaTipi")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("HizliIslem")
-                        .HasColumnType("boolean");
-
                     b.Property<decimal?>("Iskonto")
                         .HasColumnType("numeric(9,4)");
-
-                    b.Property<int>("KampanyaDurum")
-                        .HasColumnType("integer");
 
                     b.Property<string>("KampanyaKodu")
                         .HasMaxLength(64)
@@ -5648,9 +5214,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<int?>("KuponGecerlilik")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("MaxGun")
                         .HasColumnType("integer");
 
@@ -5660,9 +5223,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<string>("MusteriSegment")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<int?>("PromosyonTuru")
-                        .HasColumnType("integer");
 
                     b.Property<string>("SartMetni")
                         .HasMaxLength(4000)
@@ -5677,14 +5237,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<Guid?>("SubeId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("TalepBas")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("TalepBit")
-                        .HasColumnType("timestamp with time zone");
-                    b.Property<int>("TarihTipi")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -5752,10 +5304,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("GeldigiBirim")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int>("Gun")
                         .HasColumnType("integer");
 
@@ -5793,10 +5341,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid>("MusteriId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("OnayKodu")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<decimal?>("OtaBebekKoltugu")
                         .HasColumnType("numeric(19,4)");
 
@@ -5821,10 +5365,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal?>("OtaScdw")
                         .HasColumnType("numeric(19,4)");
 
-                    b.Property<string>("ProjeAdi")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
                     b.Property<decimal?>("Provizyon")
                         .HasColumnType("numeric(19,4)");
 
@@ -5838,10 +5378,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<decimal?>("SonraOdeOran")
                         .HasColumnType("numeric(9,4)");
-
-                    b.Property<string>("TalepTuru")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -5867,8 +5403,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "VehicleId");
 
-                    b.HasIndex("TenantId", "Durum", "BasTar");
-
                     b.ToTable("Reservations", (string)null);
                 });
 
@@ -5876,9 +5410,6 @@ namespace RentACar.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
-
-                    b.Property<bool>("AcenteFiyatDegistir")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("Ad")
                         .IsRequired()
@@ -5888,126 +5419,22 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<bool>("Aktif")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("AyniYonDrop")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("BebekKoltugu")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<bool>("CdwDahil")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DropKaynakNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<decimal?>("DropOrani")
                         .HasColumnType("numeric(5,2)");
 
-                    b.Property<decimal?>("EkSurucu")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<bool>("Gizle")
-                        .HasColumnType("boolean");
-
                     b.Property<decimal?>("HizmetOrani")
                         .HasColumnType("numeric(5,2)");
 
-                    b.Property<decimal?>("IndirimOrani")
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<int?>("KaynakGrubu")
-                        .HasColumnType("integer");
-
                     b.Property<decimal?>("KiraOrani")
                         .HasColumnType("numeric(5,2)");
-
-                    b.Property<bool>("KmSinirsiz")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("Kod")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
-
-                    b.Property<decimal?>("KomisyonOrani")
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<bool>("LcfDahil")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("MailAdres")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<bool>("MaliyetYansitma")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("MatrisErken")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("MatrisGecikme")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("MatrisIptal")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("MatrisNoShow")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("MatrisUzatma")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("MaxGun")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("MuafiyatSecenek")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<decimal?>("Navigasyon")
-                        .HasColumnType("numeric(19,4)");
-
-                    b.Property<decimal?>("OnOdemeOrani")
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<bool>("OtomatikMailGitme")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("PaiDahil")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ProvizyonSecenek")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<bool>("ProvizyonYok")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("PuanOrani")
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<bool>("RezTarihleriDegisemez")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RiskAnalizYapma")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("SadeceMusteriOdeme")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("ScdwDahil")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("SigortaKaynakNo")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<bool>("SubeGor")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("Tedarikci")
                         .HasMaxLength(128)
@@ -6018,12 +5445,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("Uzatamaz")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("Wifi")
-                        .HasColumnType("numeric(19,4)");
 
                     b.HasKey("Id");
 
@@ -6857,9 +6278,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<bool>("DonemselOtomatikTahsilat")
                         .HasColumnType("boolean");
 
-                    b.Property<bool?>("DropMesafeYokIseSifir")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("EFaturaKullanici")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
@@ -6899,12 +6317,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<string>("FirmaVergiNo")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
-
-                    b.Property<int?>("IadeIslemSaatSiniri")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("KurElleGirisKilitli")
-                        .HasColumnType("boolean");
 
                     b.Property<byte[]>("LogoBytes")
                         .HasColumnType("bytea");
@@ -6965,9 +6377,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<bool?>("RezOnayZorunlu")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("SaatFarkiToleransDk")
-                        .HasColumnType("integer");
-
                     b.Property<string>("SmsApiKeyEnc")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
@@ -7004,18 +6413,11 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
-                    b.Property<string>("VarsayilanFiyatTuru")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<Guid?>("VarsayilanGrupId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal?>("VarsayilanKdvOrani")
                         .HasColumnType("numeric(5,4)");
-
-                    b.Property<int?>("VarsayilanYakitSeviyesi")
-                        .HasColumnType("integer");
 
                     b.Property<bool>("WhatsAppGunlukOzet")
                         .HasColumnType("boolean");
@@ -7813,10 +7215,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
-                    b.Property<string>("Aciklama2")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<Guid>("AliciCariId")
                         .HasColumnType("uuid");
 
@@ -7844,15 +7242,8 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<string>("IhaleSayisi")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("IhaleTarihi")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("IlanKm")
-                        .HasColumnType("integer");
 
                     b.Property<decimal>("KdvOrani")
                         .HasColumnType("numeric(9,4)");
@@ -7860,15 +7251,8 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal>("KdvTutar")
                         .HasColumnType("numeric(19,4)");
 
-                    b.Property<bool>("KirayaVerme")
-                        .HasColumnType("boolean");
-
                     b.Property<decimal>("Kur")
                         .HasColumnType("numeric(19,6)");
-
-                    b.Property<string>("ListeDoviz")
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
 
                     b.Property<string>("No")
                         .IsRequired()
@@ -7891,29 +7275,14 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal>("SatisNet")
                         .HasColumnType("numeric(19,4)");
 
-                    b.Property<string>("SatisNoktasi")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<bool>("SatisiVerildi")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTimeOffset>("Tarih")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("UygulananKampanya")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("YevmiyeNumarasi")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
 
@@ -7921,8 +7290,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "No")
                         .IsUnique();
-
-                    b.HasIndex("TenantId", "Tarih");
 
                     b.HasIndex("TenantId", "VehicleId")
                         .IsUnique()
@@ -8222,21 +7589,6 @@ namespace RentACar.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.AracSiparis", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.AracKredi", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "KrediId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("RentACar.Domain.Entities.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "TedarikciCariId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.AssistansTalep", b =>
                 {
                     b.HasOne("RentACar.Domain.Entities.RentalContract", null)
@@ -8253,15 +7605,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasForeignKey("MusteriId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.DolulukFiyatKural", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.Branch", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "SubeId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Expense", b =>
@@ -8324,21 +7667,6 @@ namespace RentACar.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("RentACar.Domain.Entities.MaliyetTeklifi", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "CariId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("RentACar.Domain.Entities.Personel", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "HazirlayanId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("RentACar.Domain.Entities.MtvOdeme", b =>
                 {
                     b.HasOne("RentACar.Domain.Entities.MtvRecord", null)
@@ -8380,26 +7708,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasOne("RentACar.Domain.Entities.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.PenaltyOdeme", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.PenaltySatir", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "SatirId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.PenaltySatir", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.Penalty", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "PenaltyId")
-                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

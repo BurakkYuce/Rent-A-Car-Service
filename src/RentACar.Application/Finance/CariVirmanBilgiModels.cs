@@ -28,3 +28,18 @@ public sealed class CariVirmanFilter
     public DateTimeOffset? Bit { get; set; }
     public int EnFazla { get; set; } = 1000;
 }
+
+
+/// <summary>
+/// FAZ-50 — kasa/banka virman geçmişi satırı. Tutar DEFTERDEN okunur (künye para taşımaz);
+/// hesap adları çağıran tarafta çözülür.
+/// </summary>
+public sealed record KasaVirmanSatirDto(
+    Guid Id, DateTimeOffset Tarih,
+    RentACar.Domain.Enums.LedgerAccountType KaynakTur, RentACar.Domain.Enums.LedgerAccountType HedefTur,
+    Guid? KaynakHesapId, Guid? HedefHesapId,
+    decimal Tutar, string Doviz, decimal Kur,
+    string? MakbuzNo, string? Sube, string? IslemYapan, string? Aciklama)
+{
+    public decimal TutarTl => Tutar * Kur;
+}

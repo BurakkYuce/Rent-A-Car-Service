@@ -36,9 +36,9 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
 
-        await svc.CreateAsync(new FinancialAccountInput { Kod = "ZIRAAT", Ad = "Ziraat TL" });
+        await svc.CreateAsync(new FinancialAccountInput { Kod = "ZIRAAT", Ad = "Ziraat TL" , Tur = "Kasa" });
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new FinancialAccountInput { Kod = "ziraat", Ad = "Başka" }));
+            () => svc.CreateAsync(new FinancialAccountInput { Kod = "ziraat", Ad = "Başka" , Tur = "Kasa" }));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "Hatalı", Doviz = "TURK" }));
+            () => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "Hatalı", Doviz = "TURK" , Tur = "Kasa" }));
     }
 
     [Fact]
@@ -59,9 +59,9 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
 
-        var a = await svc.CreateAsync(new FinancialAccountInput { Kod = "A", Ad = "A Hesap" });
-        await svc.CreateAsync(new FinancialAccountInput { Kod = "B", Ad = "B Hesap" });
-        await svc.UpdateAsync(a, new FinancialAccountInput { Kod = "A", Ad = "A Hesap", Aktif = false });
+        var a = await svc.CreateAsync(new FinancialAccountInput { Kod = "A", Ad = "A Hesap" , Tur = "Kasa" });
+        await svc.CreateAsync(new FinancialAccountInput { Kod = "B", Ad = "B Hesap" , Tur = "Kasa" });
+        await svc.UpdateAsync(a, new FinancialAccountInput { Kod = "A", Ad = "A Hesap", Aktif = false , Tur = "Kasa" });
 
         var active = await svc.ListActiveAsync();
         Assert.Single(active);
@@ -76,8 +76,8 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FinancialAccountInput { Kod = "", Ad = "Ad" }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "  " }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FinancialAccountInput { Kod = "", Ad = "Ad" , Tur = "Kasa" }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "  " , Tur = "Kasa" }));
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "Yetkisiz" }));
+            () => svc.CreateAsync(new FinancialAccountInput { Kod = "X", Ad = "Yetkisiz" , Tur = "Kasa" }));
     }
 
     [Fact]
@@ -99,12 +99,12 @@ public sealed class FinancialAccountTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<FinancialAccountService>()
-                .CreateAsync(new FinancialAccountInput { Kod = "T1", Ad = "Tenant1" });
+                .CreateAsync(new FinancialAccountInput { Kod = "T1", Ad = "Tenant1" , Tur = "Kasa" });
 
         using var s2 = host.ScopeFor(t2);
         var svc2 = s2.ServiceProvider.GetRequiredService<FinancialAccountService>();
         Assert.Empty(await svc2.ListAsync());
-        await svc2.CreateAsync(new FinancialAccountInput { Kod = "T1", Ad = "Tenant2" });
+        await svc2.CreateAsync(new FinancialAccountInput { Kod = "T1", Ad = "Tenant2" , Tur = "Kasa" });
         Assert.Single(await svc2.ListAsync());
     }
 }

@@ -21,6 +21,10 @@ public sealed class RegulasyonOdemeInput
     public string? HesapNo { get; set; }
     /// <summary>Çift-submit koruması — form her render'da yeni GUID basar.</summary>
     public Guid? IslemAnahtari { get; set; }
+    /// <summary>FAZ-50 — ödemenin geçtiği SPESİFİK kasa/banka hesabı (<c>FinancialAccount</c>).
+    /// <see cref="KasaKodu"/>/<see cref="HesapNo"/> serbest METİN künyesidir; bu alan defterin
+    /// nakit bacağına <c>AccountRef</c> olarak yazılan gerçek bağdır. Boş → legacy kova.</summary>
+    public Guid? HesapId { get; set; }
 }
 
 /// <summary>
@@ -43,12 +47,13 @@ public sealed class ZeyilInput
 
 /// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı) + MTV ödeme→defter (J1).</summary>
 public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu)
+    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
 {
     private readonly IRegulationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
+    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
 
     /// <summary>Sigorta poliçesi para birimi beyaz-listesi (Currency kolonu HasMaxLength(3)).</summary>
     private static readonly HashSet<string> AllowedCurrencies = new(StringComparer.Ordinal) { "TRY", "EUR", "USD", "GBP" };
@@ -161,6 +166,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var cozulenKur = await _kurCozucu.CozAsync(paraBirimi, kur, tarih, ct);
         var g = odeme ?? new RegulasyonOdemeInput();
         AnahtarKontrol(g);
+        var hesapRef = await _hesapCozucu.CozAsync(g.HesapId, hesap, ct); // FAZ-50 (lambda'dan ONCE: async)
 
         return await _repository.PostMtvOdemeAsync(mtvId, (kalan, sira) =>
         {
@@ -180,7 +186,8 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
             [
                 new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                     Direction = LedgerDirection.Debit, Amount = money, SourceType = "MtvOdeme", SourceId = satir.Id, Description = desc },
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
+                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = satir.Id, Description = desc }
             ];
             return (satir, entries);
@@ -220,6 +227,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var cozulenKur = await _kurCozucu.CozAsync(paraBirimi, kur, tarih, ct);
         var g = odeme ?? new RegulasyonOdemeInput();
         AnahtarKontrol(g);
+        var hesapRef = await _hesapCozucu.CozAsync(g.HesapId, hesap, ct); // FAZ-50
 
         return await _repository.PostMuayeneOdemeAsync(inspectionId, (kalan, sira) =>
         {
@@ -240,7 +248,8 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
             [
                 new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                     Direction = LedgerDirection.Debit, Amount = money, SourceType = "MuayeneOdeme", SourceId = satir.Id, Description = desc },
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+                // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
+                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = satir.Id, Description = desc }
             ];
             return (satir, entries);
@@ -311,7 +320,8 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// (atomik, tek tx). Para birimi poliçenin Currency'si; kur ile baz tutara çevrilir.
     /// </summary>
     public async Task SigortaOdeAsync(Guid policyId, LedgerAccountType hesap, decimal zeyilEkPrim = 0m,
-        DateTimeOffset? odemeTarih = null, decimal? kur = null, CancellationToken ct = default)
+        DateTimeOffset? odemeTarih = null, decimal? kur = null,
+        Guid? hesapId = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
@@ -330,11 +340,13 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var cozulenKur = await _kurCozucu.CozAsync(rec.Currency, kur, tarih, ct);
         var money = new Money(toplam, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
         var desc = $"Sigorta ödeme {rec.Tip}" + (zeyilEkPrim > 0m ? $" (+zeyil {zeyilEkPrim})" : "");
+        var hesapRef = await _hesapCozucu.CozAsync(hesapId, hesap, ct); // FAZ-50
         await _repository.PostSigortaOdemeAsync(policyId, zeyilEkPrim,
         [
             new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc },
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = null,
+            // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
+            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc }
         ], ct);
     }
