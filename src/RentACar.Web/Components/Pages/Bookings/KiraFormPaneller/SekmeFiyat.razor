@@ -54,6 +54,14 @@
             <div class="card">
                 <strong>Ödeme / Komisyon (bilgi amaçlı — deftere/bakiyeye yansımaz)</strong>
                 <div class="grid-form">
+                    @* FAZ-47 — Ödeme Şekli (seç-veya-yaz ComboBox konvansiyonu: input list + datalist).
+                       BİLGİ alanı: gerçek tahsilat Kasa/Banka akışından geçer; buradaki seçim deftere,
+                       Genel Toplam'a ve Bakiye'ye YANSIMAZ (kırılgan regresyon testiyle kilitli). *@
+                    <label>Ödeme Şekli
+                        <input name="odemeSekli" list="dl-kf-odemesekli" autocomplete="off" maxlength="64"
+                               placeholder="Seç veya yaz" value="@Vm.S(c => c.OdemeSekli)"
+                               title="Bilgi alanı — tahsilatın kendisi Kasa/Banka ekranından yapılır; bu seçim deftere yazmaz" />
+                    </label>
                     <label>Provizyon<input name="provizyon" type="number" step="0.01" min="0" value="@Vm.D(c => c.Provizyon)" /></label>
                     <label>Depozito<input name="depozito" type="number" step="0.01" min="0" value="@Vm.D(c => c.Depozito)" /></label>
                     <label>Komisyon %<input name="komisyonOran" type="number" step="0.01" min="0" value="@Vm.D(c => c.KomisyonOran)" /></label>

@@ -78,6 +78,9 @@ public sealed class RentalService(
             if (await customerRepository.FindAsync(ikinci, ct) is null)
                 throw new ValidationException("2. sürücü (cari) bulunamadı.");
         }
+        // FAZ-47: kayıtlı (FK) ve misafir (serbest metin) 2. sürücü BİRLİKTE olamaz.
+        IkinciSurucuTekYolGuard(input.IkinciSurucuId, input.IkinciSurucuSerbestAd, input.IkinciSurucuSerbestSoyad,
+            input.IkinciSurucuSerbestTel, input.IkinciSurucuSerbestEhliyetSinifi);
         // FAZ 4.4 RİSK GUARD'ı (giriş noktasında — tarih-politikası dersi): cari RiskLimiti tanımlıysa
         // (>0) ve mevcut borç bakiyesi limiti AŞIYORSA kira ancak Yönetici/Admin RiskOnay'ıyla açılır.
         // Onay kutusunu Operatör işaretleyemez (rol doğrulaması burada — UI'daki gizleme yeterli değil).
@@ -188,7 +191,13 @@ public sealed class RentalService(
             AksStepneCikis = input.AksStepneCikis,
             AksZincirCikis = input.AksZincirCikis,
             AksIlkYardimCikis = input.AksIlkYardimCikis,
-            AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)")
+            AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)"),
+            // FAZ-47 — bilgi alanları (deftere/bakiyeye/fiyata GİRMEZ; kırılgan regresyon testiyle kilitli)
+            OdemeSekli = Lim(input.OdemeSekli, 64, "Ödeme şekli"),
+            IkinciSurucuSerbestAd = Lim(input.IkinciSurucuSerbestAd, 64, "2. sürücü adı"),
+            IkinciSurucuSerbestSoyad = Lim(input.IkinciSurucuSerbestSoyad, 64, "2. sürücü soyadı"),
+            IkinciSurucuSerbestTel = Lim(input.IkinciSurucuSerbestTel, 32, "2. sürücü telefonu"),
+            IkinciSurucuSerbestEhliyetSinifi = Lim(input.IkinciSurucuSerbestEhliyetSinifi, 16, "2. sürücü ehliyet sınıfı")
         };
         await _repository.CreateRentalAsync(contract, ct);
         // FAZ 3.A3a: sistem ücret satırları (genç/ek sürücü) — RentalAddOn olarak (KURAL A: BaseGross'a
@@ -225,6 +234,10 @@ public sealed class RentalService(
                 ? null : (await locationRepository.FindByAdAsync(cikisOfisi!, ct))?.SubeId;
             BranchScope.RequireInScope(_currentUser, hedefSubeId, cikisOfisi);
         }
+        // FAZ-47: kayıtlı (FK) + misafir (serbest metin) 2. sürücü BİRLİKTE olamaz — guard KODDA
+        // (form "iki bloktan birini doldur" diye yazdığı için değil).
+        IkinciSurucuTekYolGuard(input.IkinciSurucuId, input.IkinciSurucuSerbestAd, input.IkinciSurucuSerbestSoyad,
+            input.IkinciSurucuSerbestTel, input.IkinciSurucuSerbestEhliyetSinifi);
         if (input.KmLimit < 0)
             throw new ValidationException("KM limit negatif olamaz.");
         if (input.FazlaKmUcret < 0m || input.YakitBirimUcret < 0m)
@@ -343,6 +356,15 @@ public sealed class RentalService(
             c.AksIlkYardimDonus = input.AksIlkYardimDonus;
             c.AksLastikCikis = Lim(input.AksLastikCikis, 64, "Lastik durumu (çıkış)");
             c.AksLastikDonus = Lim(input.AksLastikDonus, 64, "Lastik durumu (dönüş)");
+            // ---- FAZ-47 bilgi alanları (Kirada/Tamamlandi serbest; para/defter hesabına GİRMEZ) ----
+            // Misafir 2. sürücü Tamamlandi'da da düzeltilebilir: FK'lı 2. sürücünün aksine ek-sürücü
+            // ÜCRET satırını (FeeLineService) tetiklemez — yani donduracak bir para etkisi yoktur.
+            c.TeslimEdenPersonelId = input.TeslimEdenPersonelId;
+            c.OdemeSekli = Lim(input.OdemeSekli, 64, "Ödeme şekli");
+            c.IkinciSurucuSerbestAd = Lim(input.IkinciSurucuSerbestAd, 64, "2. sürücü adı");
+            c.IkinciSurucuSerbestSoyad = Lim(input.IkinciSurucuSerbestSoyad, 64, "2. sürücü soyadı");
+            c.IkinciSurucuSerbestTel = Lim(input.IkinciSurucuSerbestTel, 32, "2. sürücü telefonu");
+            c.IkinciSurucuSerbestEhliyetSinifi = Lim(input.IkinciSurucuSerbestEhliyetSinifi, 16, "2. sürücü ehliyet sınıfı");
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
         // FAZ 3.A3a adversarial B2: 2. sürücü sonradan eklendi/kaldırıldıysa sistem ücret satırları
@@ -475,6 +497,20 @@ public sealed class RentalService(
 
     private static int? ValidFindex(int? puan)
         => puan is < 0 ? throw new ValidationException("Findeks puanı negatif olamaz.") : puan;
+
+    /// <summary>
+    /// FAZ-47 — 2. sürücü TEK YOL kuralı: ya kayıtlı cari (<c>IkinciSurucuId</c>) ya misafir serbest metni.
+    /// İkisi birden dolu gelirse GÜRÜLTÜLÜ RED — sessizce birini seçmek "sözleşmedeki 2. sürücü kim"
+    /// sorusunu belirsiz bırakırdı (ve FK'lı sürücü ek-sürücü ÜCRETİ üretirken serbest metin üretmez;
+    /// iki kayıt bir arada, ücret alınmayan görünmez bir sürücü demek olurdu).
+    /// </summary>
+    private static void IkinciSurucuTekYolGuard(Guid? fk, params string?[] serbestAlanlar)
+    {
+        if (fk is null) return;
+        if (serbestAlanlar.Any(s => !string.IsNullOrWhiteSpace(s)))
+            throw new ValidationException(
+                "2. sürücü ya kayıtlı cariden seçilir ya da misafir bilgileri girilir — ikisi birden doldurulamaz.");
+    }
 
     /// <summary>Teslim: araç çıkışında KM/yakıt girişi. Araç odometresi (Vehicle.Km) AYNI transaction'da
     /// güncellenir (monoton: yalnız İLERİ; küçük girilirse araç km'si değişmez, kira yine kaydolur).</summary>

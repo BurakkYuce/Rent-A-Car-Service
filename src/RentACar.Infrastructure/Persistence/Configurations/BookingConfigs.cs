@@ -169,6 +169,12 @@ internal sealed class RentalContractConfig : IEntityTypeConfiguration<RentalCont
         e.Property(x => x.OpsiyonNet).HasColumnType("numeric(19,4)"); // FAZ 4.4
         e.Property(x => x.AksLastikCikis).HasMaxLength(64);
         e.Property(x => x.AksLastikDonus).HasMaxLength(64);
+        // FAZ-47 — şube/teslim/ödeme/2.sürücü derinliği (hepsi NULLABLE bilgi alanı; para kolonu YOK).
+        e.Property(x => x.OdemeSekli).HasMaxLength(64);
+        e.Property(x => x.IkinciSurucuSerbestAd).HasMaxLength(64);
+        e.Property(x => x.IkinciSurucuSerbestSoyad).HasMaxLength(64);
+        e.Property(x => x.IkinciSurucuSerbestTel).HasMaxLength(32);
+        e.Property(x => x.IkinciSurucuSerbestEhliyetSinifi).HasMaxLength(16);
         e.HasIndex(x => new { x.TenantId, x.SozlesmeNo }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         e.HasMany(x => x.EkHizmetler).WithOne().HasForeignKey(a => a.RentalId).OnDelete(DeleteBehavior.Cascade);

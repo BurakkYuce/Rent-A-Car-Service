@@ -54,7 +54,15 @@
             </label>
             <label>Talep Türü<input name="talepTuru" maxlength="64" value="@Vm.S(c => c.TalepTuru)" /></label>
             <label>Geldiği Birim<input name="geldigiBirim" maxlength="64" value="@Vm.S(c => c.GeldigiBirim)" /></label>
-            <label>İşlem Şube<input value="çıkış ofisinden türetilir" readonly title="TODO: şube FK yetki katmanı (flagged iş)" /></label>
+            @* FAZ-47 — İŞLEM ŞUBE artık GERÇEK değeri gösterir (eski "TODO: şube FK yetki katmanı" notu
+               bayattı: FAZ 5-C1..C5 ile şube-FK katmanı tamamlandı). Alan SALT-OKUNUR ve bu bilinçlidir:
+               CikisSubeId, CikisOfisi'nden OfficeBranchInterceptor tarafından HER KAYITTA yeniden türetilir —
+               forma ayrı bir "şube override" select'i koymak (a) interceptor tarafından anında ezilir,
+               (b) sözleşmeyi operatörün kendi şube kapsamı dışına taşıyıp listelerinden düşürebilirdi.
+               Şube değiştirmek için yukarıdaki Çıkış Ofisi değiştirilir. *@
+            <label>İşlem Şube
+                <input readonly value="@(Vm.Edit ? (Vm.IslemSubeAdi ?? "— (ofis şubeye eşlenmemiş)") : "çıkış ofisinden türetilir")"
+                       title="Çıkış ofisinden türetilir (Ofis → Lokasyon → Şube). Değiştirmek için Çıkış Ofisi'ni değiştirin." /></label>
         </div>
     </div>
     <div class="card">
@@ -135,6 +143,25 @@
             <div class="grid-form">
                 <label>Çıkış Km<input readonly value="@(Vm.TeslimEdildi ? Vm.Rental!.CikisKm.ToString() : "kayıttan sonra teslimde girilir")" /></label>
                 <label>Çıkış Yakıt (0-12)<input readonly value="@(Vm.TeslimEdildi ? Vm.Rental!.CikisYakit?.ToString() : "kayıttan sonra teslimde girilir")" /></label>
+            </div>
+        }
+        @* FAZ-47 — TESLİM EDEN (çıkış) personeli. Dönüşteki "Teslim Alan"ın (SekmeDonus) çıkış karşılığı.
+           BİLİNÇLİ olarak ANA formda (form= attribute YOK): teslim mini-formu bir kez çalışır, oysa bu
+           bilgi sonradan da düzeltilebilmelidir (RentalUpdateInput whitelist'i — personel ataması, para/tarih
+           değil). Liste PersonelService.ListForSelectAsync'ten gelir (PII'siz; ListAsync ManageUsers ister
+           ve Operatör'de patlar — CLAUDE.md §6 tuzağı). Yetkisiz rolde liste boş → yalnız "—". *@
+        @if (Vm.Edit)
+        {
+            <div class="grid-form">
+                <label>Teslim Eden (çıkış)
+                    <select name="teslimEdenPersonelId">
+                        <option value="">—</option>
+                        @foreach (var p in Vm.Personeller)
+                        {
+                            <option value="@p.Id" selected="@(Vm.Rental!.TeslimEdenPersonelId == p.Id)">@p.Ad @p.Soyad</option>
+                        }
+                    </select>
+                </label>
             </div>
         }
     </div>
