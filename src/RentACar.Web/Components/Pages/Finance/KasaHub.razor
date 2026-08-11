@@ -92,16 +92,33 @@
 </table>
 </div>
 
+@* FAZ-84: kanal filtresi — canlı mobil_odeme.aspx eşdeğeri (ayrı ekran yerine bu listeye süzgeç).
+   Kanal SAF BİLGİDİR: yalnız CashTransaction belgesinde durur, defteri/bakiyeyi/özeti ETKİLEMEZ. *@
+<form method="get" class="filter-bar">
+    <select name="kanal">
+        <option value="">Kanal (tümü)</option>
+        @foreach (var k in CashKanal.Hepsi)
+        {
+            <option value="@k" selected="@(KanalFiltre == k)">@k</option>
+        }
+    </select>
+    <button type="submit">Süz</button>
+    @if (!string.IsNullOrEmpty(KanalFiltre))
+    {
+        <a href="/kasa" class="link">Temizle</a>
+    }
+</form>
+
 <h2>Son İşlemler</h2>
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Kasa/Banka Hesabı</th><th>Cari</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
+        <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Kasa/Banka Hesabı</th><th>Kanal</th><th>Cari</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
     </thead>
     <tbody>
         @if (_txns.Count == 0)
         {
-            <tr><td colspan="9" class="muted">İşlem yok.</td></tr>
+            <tr><td colspan="10" class="muted">İşlem yok.</td></tr>
         }
         @foreach (var t in _txns)
         {
@@ -115,6 +132,11 @@
                 <td>@t.KarsiHesap</td>
                 @* FAZ-50: hangi spesifik hesap. Boş = bu fazdan önceki kayıt (hesap belirtilmemiş). *@
                 <td>@(t.HesapId is { } hid && _hesapAdlari.TryGetValue(hid, out var hAd) ? hAd : "—")</td>
+                @* FAZ-84: Null → bu alan eklenmeden ÖNCE yazılmış geçmiş kayıt; o dönemde tek kanal
+                   masaüstüydü, ekranda bu yüzden "Masaüstü" gösterilir (DB'de gerçek NULL kalır).
+                   HesapId'den AYRI kavram: biri "hangi spesifik kasa/banka hesabı", diğeri
+                   "hangi kanaldan girildi" (Masaüstü/Mobil/Tablet). *@
+                <td>@(t.Kanal ?? CashKanal.Masaustu)</td>
                 <td>
                     @if (_adlar.TryGetValue(t.CariId, out var ad))
                     {
@@ -133,6 +155,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "kanal")] public string? KanalFiltre { get; set; }
 
     private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
     private IReadOnlyList<CashTransaction> _txns = [];
@@ -144,7 +167,12 @@
     {
         _summary = await Reports.GetKasaBankaSummaryAsync();
         var all = await Cash.ListAsync();
-        _txns = all.Take(50).ToList();
+        // FAZ-84: Filtre önce (tüm listeden), sonra son-50 kesilir — aksi halde eşleşen satırlar
+        // ilk 50'nin dışında kalıp görünmezdi. Null → "Masaüstü" (geçmiş kayıt varsayımı).
+        var suzulmus = string.IsNullOrEmpty(KanalFiltre)
+            ? all
+            : all.Where(t => (t.Kanal ?? CashKanal.Masaustu) == KanalFiltre).ToList();
+        _txns = suzulmus.Take(50).ToList();
         // PII'siz seçim listesi: ListAsync tüm müşterilerin TC/ehliyet alanlarını çözüyordu —
         // bu ekranda yalnız görünen ad gerekiyor.
         _adlar = (await Customers.ListSecimAsync()).ToDictionary(c => c.Id, c => c.Ad);
