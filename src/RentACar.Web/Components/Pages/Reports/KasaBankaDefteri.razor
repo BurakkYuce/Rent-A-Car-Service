@@ -10,8 +10,8 @@
 <div class="page-head">
     <h1>Kasa / Banka Defteri</h1>
     <div class="actions">
-        <a href="/raporlar/export/kasa-banka?format=excel&amp;hesap=@Hesap&amp;hesapId=@HesapId&amp;from=@From&amp;to=@To">Excel</a> ·
-        <a href="/raporlar/export/kasa-banka?format=csv&amp;hesap=@Hesap&amp;hesapId=@HesapId&amp;from=@From&amp;to=@To">CSV</a>
+        <a href="@ExportUrl("excel")">Excel</a> ·
+        <a href="@ExportUrl("csv")">CSV</a>
     </div>
 </div>
 
@@ -34,8 +34,30 @@
             }
         </select>
     </label>
+    @* FAZ-57 — canlı banka_hesap_hareketleri / banka_nakit_listesi / banka_para_listesi /
+       kasa_dagilimi ekranlarının dördü de bu tek sayfa + süzgeç bileşimiyle karşılanır. *@
+    <label>Döviz
+        <select name="doviz">
+            <option value="">Tümü</option>
+            @foreach (var d in _dovizler) { <option value="@d" selected="@(Doviz == d)">@d</option> }
+        </select>
+    </label>
+    <label>İşlem Türü
+        <select name="tur">
+            <option value="">Tümü</option>
+            @foreach (var t in _turler) { <option value="@t" selected="@(Tur == t)">@t</option> }
+        </select>
+    </label>
+    <label>Şube
+        <select name="sube">
+            <option value="">Tümü</option>
+            @foreach (var b in _subeler) { <option value="@b" selected="@(Sube == b)">@b</option> }
+        </select>
+    </label>
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
+    <label class="check"><input type="checkbox" name="devir" value="true" checked="@(Devir == "true")" />
+        Devir göster</label>
     <button type="submit">Göster</button>
 </form>
 
@@ -100,22 +122,30 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>Tarih</th><th>Kaynak</th><th>Hesap</th><th>Açıklama</th><th class="num">Tutar (kendi dövizinde)</th><th>Döviz</th><th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
+        <tr><th>Tarih</th><th>Kaynak</th><th>Hesap</th><th>Hesap No / IBAN</th><th>Cari</th>
+            <th>Evrak No</th><th>Şube</th><th>Kanal</th><th>Açıklama</th>
+            <th class="num">Tutar (kendi dövizinde)</th><th>Döviz</th>
+            <th>Giriş (Borç)</th><th>Çıkış (Alacak)</th><th>Bakiye</th></tr>
     </thead>
     <tbody>
         @if (_lines.Count == 0)
         {
-            <tr><td colspan="9" class="muted">Hareket yok.</td></tr>
+            <tr><td colspan="14" class="muted">Hareket yok.</td></tr>
         }
         @foreach (var l in _lines)
         {
-            <tr>
+            <tr class="@(l.DevirMi ? "row-strong" : null)">
                 <td>@l.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@l.SourceType</td>
                 <td>@(l.HesapId is { } lh ? (_adlar.TryGetValue(lh, out var lad) ? lad : "(silinmiş hesap)") : "—")</td>
+                <td>@(l.HesapId is { } lh2 && _hesapNo.TryGetValue(lh2, out var hn) ? hn : "—")</td>
+                <td>@(l.CariAd ?? "—")</td>
+                <td>@(l.BelgeNo ?? "—")</td>
+                <td>@(l.Sube ?? "—")</td>
+                <td>@(l.Kanal ?? "—")</td>
                 <td>@l.Aciklama</td>
-                <td class="num">@l.Native.ToString("N2")</td>
-                <td>@l.Doviz</td>
+                <td class="num">@(l.DevirMi ? "" : l.Native.ToString("N2"))</td>
+                <td>@(l.DevirMi ? "" : l.Doviz)</td>
                 <td>@(l.Borc > 0 ? l.Borc.ToString("N2") : "")</td>
                 <td>@(l.Alacak > 0 ? l.Alacak.ToString("N2") : "")</td>
                 <td class="@(l.YuruyenBakiye < 0 ? "neg" : "pos")">@l.YuruyenBakiye.ToString("N2")</td>
@@ -128,6 +158,11 @@
 @code {
     [SupplyParameterFromQuery(Name = "hesap")] public string? Hesap { get; set; }
     [SupplyParameterFromQuery(Name = "hesapId")] public string? HesapId { get; set; }
+    // ---- FAZ-57 süzgeçleri ----
+    [SupplyParameterFromQuery(Name = "doviz")] public string? Doviz { get; set; }
+    [SupplyParameterFromQuery(Name = "tur")] public string? Tur { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "devir")] public string? Devir { get; set; }
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
@@ -137,6 +172,15 @@
     private IReadOnlyList<HesapOzetDto> _hesapOzet = [];
     private IReadOnlyList<FinancialAccount> _hesaplar = [];
     private Dictionary<Guid, string> _adlar = new();
+    private Dictionary<Guid, string> _hesapNo = new();
+    private IReadOnlyList<string> _dovizler = [];
+    private IReadOnlyList<string> _turler = [];
+    private IReadOnlyList<string> _subeler = [];
+
+    /// <summary>Ekrandaki süzgeç export'a AYNEN taşınır ("gördüğün = indirdiğin").</summary>
+    private string ExportUrl(string format)
+        => $"/raporlar/export/kasa-banka?format={format}&hesap={Hesap}&hesapId={HesapId}" +
+           $"&from={From}&to={To}&doviz={Doviz}&tur={Tur}&sube={Uri.EscapeDataString(Sube ?? "")}&devir={Devir}";
 
     private decimal Giris => _hesap == LedgerAccountType.Kasa ? _summary.KasaGiris : _summary.BankaGiris;
     private decimal Cikis => _hesap == LedgerAccountType.Kasa ? _summary.KasaCikis : _summary.BankaCikis;
@@ -153,9 +197,24 @@
 
         _summary = await Reports.GetKasaBankaSummaryAsync(from, to);
         _hesapOzet = await Reports.GetHesapBazliOzetAsync(from, to);
-        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to, hesapFiltre);
+        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to, hesapFiltre,
+            doviz: Doviz, islemTuru: Tur, sube: Sube, devir: Devir == "true");
         _hesaplar = await Hesaplar.ListAsync();
         _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
+        // Hesap No / IBAN — banka_hesap_hareketleri.aspx kolonu; IBAN varsa o, yoksa hesap no.
+        _hesapNo = _hesaplar
+            .Where(h => !string.IsNullOrWhiteSpace(h.Iban) || !string.IsNullOrWhiteSpace(h.HesapNo))
+            .ToDictionary(h => h.Id, h => (h.Iban ?? h.HesapNo)!);
+
+        // Süzgeç seçenekleri VERİDEN türetilir: sabit liste bakımı unutulur ve gerçekte var olan
+        // bir işlem türü listede görünmezse kullanıcı onu hiç süzemez.
+        var tumu = await Reports.GetAccountLedgerAsync(_hesap, from, to);
+        _dovizler = [.. tumu.Select(x => x.Doviz).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Ordinal)];
+        _turler = [.. tumu.Select(x => x.SourceType).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal)];
+        _subeler = [.. tumu.Select(x => x.Sube).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
     }
 
     private static DateTimeOffset? ParseDate(string? s)

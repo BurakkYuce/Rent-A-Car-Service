@@ -29,6 +29,11 @@ public static class ReportExportEndpoints
             string? plaka = NullIfEmpty(req.Query["plaka"].ToString());
             // FAZ-50: ekrandaki hesap filtresi export'a AYNEN taşınır (gördüğün = indirdiğin).
             Guid? hesapId = Guid.TryParse(req.Query["hesapId"].ToString(), out var hid) ? hid : null;
+            // FAZ-57 — ekrandaki süzgeçler export'a AYNEN taşınır ("gördüğün = indirdiğin").
+            string? kbDoviz = NullIfEmpty(req.Query["doviz"].ToString());
+            string? kbTur = NullIfEmpty(req.Query["tur"].ToString());
+            string? kbSube = NullIfEmpty(req.Query["sube"].ToString());
+            var kbDevir = req.Query["devir"].ToString() is "true" or "True";
 
             Table? t = rapor switch
             {
@@ -44,7 +49,9 @@ public static class ReportExportEndpoints
                 "karlilik-sipp" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sipp", from, to)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
                 // ADVERSARIAL L2 — ekranın "Hesap" kolonu export'ta yoktu ("gördüğün = indirdiğin" ihlali).
-                "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to, hesapId),
+                "kasa-banka" => KasaBanka(hesap,
+                    await rs.GetAccountLedgerAsync(hesap, from, to, hesapId,
+                        doviz: kbDoviz, islemTuru: kbTur, sube: kbSube, devir: kbDevir),
                     (await fas.ListAsync()).ToDictionary(h => h.Id, h => h.Ad)),
                 // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
                 "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync(new CariBakiyeFilter
@@ -193,9 +200,11 @@ public static class ReportExportEndpoints
     private static Table KasaBanka(LedgerAccountType hesap, IReadOnlyList<LedgerLineDto> lines,
         IReadOnlyDictionary<Guid, string> adlar)
         => new($"{hesap} Defteri",
-            new[] { "Tarih", "Kaynak", "Hesap", "Açıklama", "Tutar", "Döviz", "Borç", "Alacak", "Yürüyen Bakiye" },
+            new[] { "Tarih", "Kaynak", "Hesap", "Cari", "Evrak No", "Şube", "Kanal", "Açıklama",
+                    "Tutar", "Döviz", "Borç", "Alacak", "Yürüyen Bakiye" },
             lines.Select(l => new object?[]
             { DG(l.Tarih), l.SourceType, adlar.GetValueOrDefault(l.HesapId ?? Guid.Empty, "—"),
+              l.CariAd, l.BelgeNo, l.Sube, l.Kanal,
               l.Aciklama, l.Native, l.Doviz, l.Borc, l.Alacak, l.YuruyenBakiye }).ToList());
 
     /// <summary>Export tarihi = YEREL gün+saat (ekranla aynı). Bkz. ListExportCatalog.DG.</summary>

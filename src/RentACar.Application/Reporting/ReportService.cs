@@ -561,15 +561,40 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     /// </summary>
     public async Task<IReadOnlyList<LedgerLineDto>> GetAccountLedgerAsync(
         LedgerAccountType type, DateTimeOffset? from = null, DateTimeOffset? to = null,
-        Guid? hesapId = null, CancellationToken ct = default)
+        Guid? hesapId = null, CancellationToken ct = default,
+        // ---- FAZ-57 süzgeçleri (hepsi opsiyonel; verilmezse davranış FAZ-50'deki gibi) ----
+        string? doviz = null, string? islemTuru = null, string? sube = null, bool devir = false)
     {
         var rows = await _repository.GetLedgerRowsAsync([type], from, to, ct);
-        IEnumerable<LedgerRowDto> secim = rows;
-        if (hesapId is { } h)
-            secim = h == Guid.Empty ? rows.Where(r => r.HesapId is null) : rows.Where(r => r.HesapId == h);
+
+        // Belge künyeleri (cari/evrak/şube/kanal) — şube süzgeci de buradan çalıştığı için
+        // süzmeden ÖNCE çözülür.
+        var belgeler = await _repository.GetHareketBelgeleriAsync(
+            [.. rows.Select(r => r.SourceId).Where(x => x != Guid.Empty).Distinct()], ct);
+
+        IEnumerable<LedgerRowDto> secim = Suz(rows);
+
+        // DEVİR (açılış bakiyesi): yalnız tarih ALT SINIRI verildiğinde anlamlıdır — "başlangıçtan
+        // önce ne vardı" sorusunun cevabı. Üst sınır varsa ve alt sınır yoksa devir 0'dır (liste
+        // zaten en baştan başlıyor). Aynı süzgeçler devir hesabına da uygulanır; aksi hâlde devir
+        // ile liste FARKLI kümeyi toplar ve yürüyen bakiye ilk satırdan itibaren yanlış olurdu.
+        decimal acilis = 0m;
+        if (devir && from is { } bas)
+        {
+            var oncekiler = await _repository.GetLedgerRowsAsync([type], null, bas.AddTicks(-1), ct);
+            var oncekiBelgeler = await _repository.GetHareketBelgeleriAsync(
+                [.. oncekiler.Select(r => r.SourceId).Where(x => x != Guid.Empty).Distinct()], ct);
+            acilis = Suz(oncekiler, oncekiBelgeler).Sum(
+                r => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base);
+        }
 
         var result = new List<LedgerLineDto>();
-        decimal running = 0m;
+        decimal running = acilis;
+        if (devir && from is not null)
+            result.Add(new LedgerLineDto(
+                from.Value, "Devir", "Önceki dönemden devir", 0m, 0m, acilis, hesapId, 0m, "TRY",
+                DevirMi: true));
+
         // ADVERSARIAL L4 — aynı tarihli satırlarda DB'nin keyfi sırası yürüyen bakiyenin ARA
         // değerlerini oynatıyordu (son bakiye her koşulda doğru ama mutabakat aracı olarak
         // kullanılan bir listede ara değerler de kararlı olmalı). Eşitlikte kaynak+açıklama ile
@@ -581,10 +606,41 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
             var borc = r.Direction == LedgerDirection.Debit ? r.Base : 0m;
             var alacak = r.Direction == LedgerDirection.Credit ? r.Base : 0m;
             running += borc - alacak;
+            var b = belgeler.GetValueOrDefault(r.SourceId);
             result.Add(new LedgerLineDto(
-                r.Tarih, r.SourceType, r.Aciklama, borc, alacak, running, r.HesapId, r.Native, r.Doviz));
+                r.Tarih, r.SourceType, r.Aciklama, borc, alacak, running, r.HesapId, r.Native, r.Doviz,
+                b?.CariAd, b?.BelgeNo, b?.Sube, b?.Kanal));
         }
         return result;
+
+        // Süzgeçler TEK yerde: devir hesabı ile liste AYNI kuralı kullanmak zorunda.
+        IEnumerable<LedgerRowDto> Suz(
+            IReadOnlyList<LedgerRowDto> kaynak, IReadOnlyDictionary<Guid, HareketBelgeDto>? kunye = null)
+        {
+            var k = kunye ?? belgeler;
+            IEnumerable<LedgerRowDto> q = kaynak;
+            if (hesapId is { } h)
+                q = h == Guid.Empty ? q.Where(r => r.HesapId is null) : q.Where(r => r.HesapId == h);
+            if (!string.IsNullOrWhiteSpace(doviz))
+            {
+                var d = doviz.Trim();
+                q = q.Where(r => string.Equals(r.Doviz, d, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(islemTuru))
+            {
+                var t = islemTuru.Trim();
+                q = q.Where(r => string.Equals(r.SourceType, t, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(sube))
+            {
+                var sb = sube.Trim();
+                // Şube belgede tutulur; künyesi olmayan satır şube süzgecine TAKILMAZ (gizlenir) —
+                // "şubesi bilinmeyen" ile "o şubeye ait" karıştırılmaz.
+                q = q.Where(r => k.TryGetValue(r.SourceId, out var b) && b.Sube != null
+                                 && string.Equals(b.Sube.Trim(), sb, StringComparison.OrdinalIgnoreCase));
+            }
+            return q;
+        }
     }
 
     /// <summary>
