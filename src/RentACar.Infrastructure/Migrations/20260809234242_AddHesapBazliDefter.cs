@@ -104,6 +104,24 @@ namespace RentACar.Infrastructure.Migrations
                 name: "HesapId",
                 table: "CashTransactions");
 
+            // ADVERSARIAL M5 — geri alma, AYNI TÜRDE (Banka→Banka) virman yazılmışsa yapısal olarak
+            // MÜMKÜN DEĞİL: eski 4 kolonlu anahtar o iki bacağı ayıramaz ve indeks kurulamaz
+            // (23505). Ham CreateIndex çirkin bir DB hatası veriyordu; burada NE OLDUĞUNU söyleyen
+            // bir mesajla reddediyoruz — sessiz/kriptik başarısızlık yerine açık teşhis.
+            migrationBuilder.Sql(@"
+DO $$
+DECLARE cakisan int;
+BEGIN
+    SELECT count(*) INTO cakisan FROM (
+        SELECT 1 FROM ""AccountLedgerEntries""
+        WHERE ""SourceType"" = 'Virman'
+        GROUP BY ""TenantId"", ""SourceType"", ""SourceId"", ""AccountType""
+        HAVING count(*) > 1
+    ) x;
+    IF cakisan > 0 THEN
+        RAISE EXCEPTION 'FAZ-50 geri alinamaz: % adet ayni-turde (or. Banka->Banka) virman var; eski benzersizlik anahtari bu kayitlari ayiramaz. Once o virmanlari ters kayitla kapatin.', cakisan;
+    END IF;
+END $$;");
             migrationBuilder.CreateIndex(
                 name: "IX_AccountLedgerEntries_Virman_Idem",
                 table: "AccountLedgerEntries",

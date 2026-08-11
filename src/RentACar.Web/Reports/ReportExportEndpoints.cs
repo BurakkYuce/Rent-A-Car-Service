@@ -15,7 +15,8 @@ public static class ReportExportEndpoints
     {
         var grp = app.MapGroup("/raporlar/export").RequirePermission(Permission.ViewReports);
 
-        grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex, PdfExportService pdf) =>
+        grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex, PdfExportService pdf,
+            RentACar.Application.FinancialAccounts.FinancialAccountService fas) =>
         {
             var from = FormParse.Date(req.Query["from"].ToString());
             var to = FormParse.Date(req.Query["to"].ToString());
@@ -42,7 +43,9 @@ public static class ReportExportEndpoints
                 "karlilik-otopark" => KarlilikOzet(await rs.GetKarlilikOzetAsync("otopark", from, to)),
                 "karlilik-sipp" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sipp", from, to)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
-                "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to, hesapId)),
+                // ADVERSARIAL L2 — ekranın "Hesap" kolonu export'ta yoktu ("gördüğün = indirdiğin" ihlali).
+                "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to, hesapId),
+                    (await fas.ListAsync()).ToDictionary(h => h.Id, h => h.Ad)),
                 // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
                 "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync(new CariBakiyeFilter
                 {
@@ -187,11 +190,13 @@ public static class ReportExportEndpoints
 
     /// <summary>FAZ-50 — ekrandaki kolonlarla aynı küme (tutar/döviz eklendi). Tarih YEREL GÜN
     /// olarak yazılır: ham UTC yazmak ekranda 01.03 görünen kaydı export'ta 28.02 yapıyordu.</summary>
-    private static Table KasaBanka(LedgerAccountType hesap, IReadOnlyList<LedgerLineDto> lines)
+    private static Table KasaBanka(LedgerAccountType hesap, IReadOnlyList<LedgerLineDto> lines,
+        IReadOnlyDictionary<Guid, string> adlar)
         => new($"{hesap} Defteri",
-            new[] { "Tarih", "Kaynak", "Açıklama", "Tutar", "Döviz", "Borç", "Alacak", "Yürüyen Bakiye" },
+            new[] { "Tarih", "Kaynak", "Hesap", "Açıklama", "Tutar", "Döviz", "Borç", "Alacak", "Yürüyen Bakiye" },
             lines.Select(l => new object?[]
-            { DG(l.Tarih), l.SourceType, l.Aciklama, l.Native, l.Doviz, l.Borc, l.Alacak, l.YuruyenBakiye }).ToList());
+            { DG(l.Tarih), l.SourceType, adlar.GetValueOrDefault(l.HesapId ?? Guid.Empty, "—"),
+              l.Aciklama, l.Native, l.Doviz, l.Borc, l.Alacak, l.YuruyenBakiye }).ToList());
 
     /// <summary>Export tarihi = YEREL gün+saat (ekranla aynı). Bkz. ListExportCatalog.DG.</summary>
     private static string DG(DateTimeOffset d) => d.LocalDateTime.ToString("yyyy-MM-dd HH:mm");

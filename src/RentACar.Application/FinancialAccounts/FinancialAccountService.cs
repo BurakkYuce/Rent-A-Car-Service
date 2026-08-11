@@ -10,16 +10,26 @@ namespace RentACar.Application.FinancialAccounts;
 /// <see cref="Permission.OperationsWrite"/>. <see cref="ListActiveAsync"/> (form açılır liste
 /// kaynağı) yetkisizdir. Tenant izolasyonu/audit alt katmanda otomatik. Döviz 3 harfe normalize.
 /// </summary>
-public sealed class FinancialAccountService(IFinancialAccountRepository repository, ICurrentUser currentUser)
+public sealed class FinancialAccountService(
+    IFinancialAccountRepository repository, ICurrentUser currentUser, ITenantCache cache)
 {
     private readonly IFinancialAccountRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ITenantCache _cache = cache;
+
+    private const string AktifCacheKey = "finansal-hesap:aktif";
 
     public Task<IReadOnlyList<FinancialAccount>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
+    /// <summary>
+    /// Form açılır listesinin kaynağı. FAZ-50 adversarial M6 — <c>HesapSecici</c> bileşeni satır
+    /// döngülerinin İÇİNDE kullanılıyor (kira listesi, pano, regülasyon, kredi); önbelleksiz hâlde
+    /// 50 satırlık listede 50 ek sorgu demekti. Yazma yollarında açıkça geçersizleştirilir —
+    /// TTL'e güvenmek "hesabı ekledim, listede yok" ile sonuçlanırdı.
+    /// </summary>
     public Task<IReadOnlyList<FinancialAccount>> ListActiveAsync(CancellationToken ct = default)
-        => _repository.ListActiveAsync(ct);
+        => _cache.GetOrCreateAsync(AktifCacheKey, () => _repository.ListActiveAsync(ct), ct);
 
     public Task<FinancialAccount?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -35,6 +45,7 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         var account = new FinancialAccount();
         Apply(account, n);
         await _repository.CreateAsync(account, ct);
+        _cache.Invalidate(AktifCacheKey);
         return account.Id;
     }
 
@@ -46,17 +57,29 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu hesap zaten var.");
 
-        return await _repository.UpdateAsync(id, account =>
+        var sonuc = await _repository.UpdateAsync(id, account =>
         {
             Apply(account, n);
             account.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+        _cache.Invalidate(AktifCacheKey);
+        return sonuc;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    /// <summary>
+    /// ADVERSARIAL M2 — defter hareketi OLAN hesap silinemez. Silinince bakiye yetim kalıyor,
+    /// raporda "(silinmiş hesap)" satırı olarak asılı duruyordu ve aynı kodla açılan yeni hesap
+    /// yanında sıfır bakiyeyle görünüyordu. Kullanılmış hesap PASİFE çekilir (mali iz korunur).
+    /// </summary>
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        if (await _repository.HasLedgerHistoryAsync(id, ct))
+            throw new ValidationException(
+                "Bu hesapta defter hareketi var; silinemez. Kullanımdan kaldırmak için 'Aktif' işaretini kaldırın.");
+        var silindi = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(AktifCacheKey);
+        return silindi;
     }
 
     private static void Validate(FinancialAccountInput n)
@@ -64,6 +87,12 @@ public sealed class FinancialAccountService(IFinancialAccountRepository reposito
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Hesap kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Hesap kodu en çok 32 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(n.Ad)) throw new ValidationException("Hesap adı zorunludur.");
+        // ADVERSARIAL H1 — tür ZORUNLU ve Kasa/Banka'ya çözülebilir olmalı. Serbest metin
+        // ("POS", boş) bırakıldığında aynı hesap iki ayrı defter türünde kullanılıp bakiyesi
+        // ikiye bölünüyordu. Serbest metin YAZIMI korunuyor (ör. "Banka - Vadesiz") ama
+        // Kasa/Banka'ya çözülmesi şart.
+        if (HesapCozucu.TuruCoz(n.Tur) is null)
+            throw new ValidationException("Hesap türü zorunludur ve Kasa ya da Banka olmalıdır.");
         if (n.Doviz is { Length: > 0 } d && d.Length != 3)
             throw new ValidationException("Döviz kodu 3 harf olmalıdır (ör. TRY, USD).");
     }

@@ -570,7 +570,13 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
 
         var result = new List<LedgerLineDto>();
         decimal running = 0m;
-        foreach (var r in secim.OrderBy(r => r.Tarih))
+        // ADVERSARIAL L4 — aynı tarihli satırlarda DB'nin keyfi sırası yürüyen bakiyenin ARA
+        // değerlerini oynatıyordu (son bakiye her koşulda doğru ama mutabakat aracı olarak
+        // kullanılan bir listede ara değerler de kararlı olmalı). Eşitlikte kaynak+açıklama ile
+        // kırılır — tamamen deterministik.
+        foreach (var r in secim.OrderBy(r => r.Tarih)
+                     .ThenBy(r => r.SourceType, StringComparer.Ordinal)
+                     .ThenBy(r => r.Aciklama, StringComparer.Ordinal))
         {
             var borc = r.Direction == LedgerDirection.Debit ? r.Base : 0m;
             var alacak = r.Direction == LedgerDirection.Credit ? r.Base : 0m;

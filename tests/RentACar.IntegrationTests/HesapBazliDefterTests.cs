@@ -245,9 +245,128 @@ public sealed class HesapBazliDefterTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(
             new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, HesapId = banka }));
 
-        // Türü ÇÖZÜLEMEYEN serbest metin (ör. "POS") çelişki sayılmaz — yanlış-pozitif red yok.
-        var pos = await SeedHesapAsync(scope, "POS1", "POS Cihazı", "POS Terminali");
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, HesapId = pos });
+        // ADVERSARIAL L1 — "Banka Kasası" GERÇEKTE bir kasadır; salt ön ek bakışı onu Banka sanıp
+        // meşru işlemi reddediyordu. Artık "…kasa/kasası" ile biten metin Kasa'ya çözülür.
+        var bankaKasasi = await SeedHesapAsync(scope, "BK", "Şube Kasası", "Banka Kasası");
+        await cash.CollectAsync(new CashInput
+        { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, HesapId = bankaKasasi });
+    }
+
+    /// <summary>
+    /// ADVERSARIAL H1 — türü ÇÖZÜLEMEYEN hesap kullanılamaz. Önce yok sayılıyordu ve AYNI hesap
+    /// hem Kasa hem Banka bacağında kullanılıp bakiyesi İKİYE bölünüyordu; birleşik bakiyeyi
+    /// hiçbir ekran göstermiyordu.
+    /// </summary>
+    [Fact]
+    public async Task Turu_belirsiz_hesap_kullanilamaz_ve_tanimda_zorunlu()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var hesaplar = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
+
+        // Tanım: tür olmadan/çözülemeyen türle hesap AÇILAMAZ.
+        await Assert.ThrowsAsync<ValidationException>(() => hesaplar.CreateAsync(
+            new FinancialAccountInput { Kod = "TURSUZ", Ad = "Türsüz" }));
+        await Assert.ThrowsAsync<ValidationException>(() => hesaplar.CreateAsync(
+            new FinancialAccountInput { Kod = "POS1", Ad = "POS Cihazı", Tur = "POS Terminali" }));
+
+        // Kullanım: geçmişten kalmış türsüz bir kayıt DOĞRUDAN yazılsa bile işlem reddedilir.
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var cari = await SeedCariAsync(scope, "Belirsiz");
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        Guid legacyId;
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var legacy = new FinancialAccount { Kod = "ESKI", Ad = "Eski Hesap", Tur = "POS" };
+            db.FinancialAccounts.Add(legacy);
+            await db.SaveChangesAsync();
+            legacyId = legacy.Id;
+        }
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(
+            new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, HesapId = legacyId }));
+        Assert.Contains("türü belirsiz", ex.Message);
+    }
+
+    /// <summary>ADVERSARIAL M4 — hesabın dövizi ile işlem dövizi çelişkisi reddedilir.</summary>
+    [Fact]
+    public async Task Hesap_dovizi_celiskisi_reddedilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var cari = await SeedCariAsync(scope, "Doviz");
+        var usd = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
+            .CreateAsync(new FinancialAccountInput { Kod = "ZRUSD", Ad = "Ziraat USD", Tur = "Banka", Doviz = "USD" });
+
+        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(new CashInput
+        { CariId = cari, Tutar = 1000m, Doviz = "TRY", Hesap = LedgerAccountType.Banka, HesapId = usd }));
+
+        // Dövizi TANIMSIZ hesapta karışmayız (eski kayıtlar).
+        var serbest = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
+            .CreateAsync(new FinancialAccountInput { Kod = "SRB", Ad = "Serbest", Tur = "Banka" });
+        await cash.CollectAsync(new CashInput
+        { CariId = cari, Tutar = 1000m, Doviz = "TRY", Hesap = LedgerAccountType.Banka, HesapId = serbest });
+    }
+
+    /// <summary>ADVERSARIAL M1 — kural türden BAĞIMSIZ: bir taraf seçildiyse diğeri de zorunlu.</summary>
+    [Fact]
+    public async Task Farkli_turde_virmanda_da_tek_taraf_hesap_secilemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var banka = await SeedHesapAsync(scope, "BNK", "Banka", "Banka");
+
+        // Kasa → Banka, yalnız hedef seçili: paranın diğer ucu legacy kovaya düşerdi.
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferAsync(
+            LedgerAccountType.Kasa, LedgerAccountType.Banka, 1000m, hedefHesapId: banka));
+
+        // İkisi de seçilmezse eski davranış korunur (legacy virman hâlâ mümkün).
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 1000m);
+    }
+
+    /// <summary>ADVERSARIAL M2 — defter hareketi olan hesap SİLİNEMEZ (bakiye yetim kalırdı).</summary>
+    [Fact]
+    public async Task Gecmisi_olan_hesap_silinemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var hesaplar = scope.ServiceProvider.GetRequiredService<FinancialAccountService>();
+        var cari = await SeedCariAsync(scope, "Silme");
+        var kasa = await SeedHesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+
+        // Hareketsiz hesap silinebilir.
+        var bos = await SeedHesapAsync(scope, "BOS", "Boş Kasa", "Kasa");
+        Assert.True(await hesaplar.DeleteAsync(bos));
+
+        await cash.CollectAsync(new CashInput
+        { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => hesaplar.DeleteAsync(kasa));
+        Assert.Contains("defter hareketi var", ex.Message);
+    }
+
+    /// <summary>ADVERSARIAL M7 — künye salt-yazılır değil: makbuz no / şube geri okunabiliyor.</summary>
+    [Fact]
+    public async Task Virman_kunyesi_geri_okunabiliyor()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var a = await SeedHesapAsync(scope, "A", "Banka A", "Banka");
+        var b = await SeedHesapAsync(scope, "B", "Banka B", "Banka");
+
+        await cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Banka, 1500m,
+            kaynakHesapId: a, hedefHesapId: b, makbuzNo: "MK-77", sube: "Kadıköy");
+
+        var satir = Assert.Single(await cash.ListKasaVirmanlarAsync());
+        Assert.Equal("MK-77", satir.MakbuzNo);
+        Assert.Equal("Kadıköy", satir.Sube);
+        Assert.Equal(a, satir.KaynakHesapId);
+        Assert.Equal(b, satir.HedefHesapId);
+        // Tutar DEFTERDEN gelir (künye para taşımaz) — elle: 1500.
+        Assert.Equal(1500m, satir.Tutar);
     }
 
     [Fact]

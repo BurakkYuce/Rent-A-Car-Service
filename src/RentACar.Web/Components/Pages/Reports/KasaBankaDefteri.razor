@@ -27,7 +27,7 @@
     <label>Kasa/Banka Hesabı
         <select name="hesapId">
             <option value="">— tümü —</option>
-            <option value="@Guid.Empty" selected="@(HesapId == Guid.Empty.ToString())">— hesap belirtilmemiş (eski kayıtlar) —</option>
+            <option value="@Guid.Empty" selected="@(HesapId == Guid.Empty.ToString())">— hesap belirtilmemiş —</option>
             @foreach (var h in _hesaplar)
             {
                 <option value="@h.Id" selected="@(HesapId == h.Id.ToString())">@h.Ad (@h.Kod)</option>
@@ -58,6 +58,12 @@
     </div>
 </div>
 
+@if (!string.IsNullOrWhiteSpace(HesapId))
+{
+    <p class="muted small">Yukarıdaki kartlar <strong>türün tamamını</strong> gösterir (hesap süzgecinden
+        etkilenmez); seçili hesabın bakiyesi aşağıdaki tabloda ve hareket listesindedir.</p>
+}
+
 <h2>Hesap Bazlı Bakiye</h2>
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -78,7 +84,7 @@
                     }
                     else
                     {
-                        <span class="muted" title="Bu satırlar hesap seçimi eklenmeden önce yazıldı; hangi kasa/banka olduğu bilinmiyor.">hesap belirtilmemiş</span>
+                        <span class="muted" title="Bu satırlarda kasa/banka hesabı seçilmemiş: ya bu özellik eklenmeden önce yazıldılar ya da işlem sırasında hesap seçilmedi (ör. gece çalışan otomatik tahsilat).">hesap belirtilmemiş</span>
                     }
                 </td>
                 <td class="num">@o.Giris.ToString("N2")</td>
