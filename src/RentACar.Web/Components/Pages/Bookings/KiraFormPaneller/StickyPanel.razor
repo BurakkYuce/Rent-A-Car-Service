@@ -135,6 +135,8 @@
                     <label>Tutar<input name="tutar" type="number" step="0.01" value="@Vm.Rental!.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
                     <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
                     <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş: TRY=1, dövizde sabit kur/TCMB otomatik" /></label>
+                    @* FAZ-84: kanal SAF BİLGİ — defteri/bakiyeyi etkilemez. *@
+                    <label>Kanal<select name="kanal"><option>Masaüstü</option><option>Mobil</option><option>Tablet</option></select></label>
                     <label>Ödemeyi Yapan / Not<input name="aciklama" placeholder="Kart/havale — ödeyen" /></label>
                     <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Kart/Havale Tahsilatı (Banka)</button></label>
                 </form>
@@ -145,6 +147,7 @@
                     <input type="hidden" name="hesap" value="Banka" />
                     <HesapSecici Etiket="Hesap" />
                     <label>Giden Havale Tutarı<input name="tutar" type="number" step="0.01" min="0.01" /></label>
+                    <label>Kanal<select name="kanal"><option>Masaüstü</option><option>Mobil</option><option>Tablet</option></select></label>
                     <label>Açıklama<input name="aciklama" placeholder="İade/giden havale" /></label>
                     <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Giden Havale</button></label>
                 </form>
@@ -186,6 +189,7 @@
                     <label>Tutar<input name="tutar" type="number" step="0.01" value="@Vm.Rental!.Bakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
                     <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
                     <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş: TRY=1, dövizde sabit kur/TCMB otomatik" /></label>
+                    <label>Kanal<select name="kanal"><option>Masaüstü</option><option>Mobil</option><option>Tablet</option></select></label>
                     <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Nakit Tahsilat (Kasa)</button></label>
                 </form>
                 <form method="post" action="/depozito/al" class="grid-form"><AntiforgeryToken />

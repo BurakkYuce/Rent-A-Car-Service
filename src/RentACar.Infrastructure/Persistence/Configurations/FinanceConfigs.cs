@@ -103,6 +103,10 @@ internal sealed class CashTransactionConfig : IEntityTypeConfiguration<CashTrans
         e.Property(x => x.Tip).HasConversion<int>();
         e.Property(x => x.KarsiHesap).HasConversion<int>();
         e.Property(x => x.Aciklama).HasMaxLength(512);
+        // FAZ-84: kanal SAF BİLGİ (Masaüstü/Mobil/Tablet) — nullable, DB-level default YOK (migration
+        // trap'i: non-null + default 0/sabit değer geçmiş kayıtları YANLIŞ kanala düşürürdü). Geçmiş
+        // kayıtlar NULL kalır; yeni kayıtlar CashService'te "Masaüstü" varsayılanı alır (C#-seviyesi).
+        e.Property(x => x.Kanal).HasMaxLength(16);
         e.ComplexProperty(x => x.Amount, m =>
         {
             m.Property(p => p.Amount).HasColumnName("Amount_Value").HasColumnType("numeric(19,4)");
@@ -115,6 +119,10 @@ internal sealed class CashTransactionConfig : IEntityTypeConfiguration<CashTrans
         // silinse bile mali belge okunabilir kalmali; silinen hesap raporda "hesap belirtilmemis"
         // kovasina duser (null-toleransli okuma karari).
         e.HasIndex(x => new { x.TenantId, x.HesapId });
+        // FAZ-84 — Kanal filtresi (/kasa) — sık sorgu, düşük kardinalite; kolon eklemek ucuz.
+        // HesapId'den AYRI kavram: biri "hangi spesifik kasa/banka hesabı", diğeri "hangi kanaldan
+        // girildi" (Masaüstü/Mobil/Tablet) — karıştırılmaz.
+        e.HasIndex(x => new { x.TenantId, x.Kanal });
         // Idempotency: bir işlemin EN FAZLA bir ters kaydı olabilir (yarış güvencesi).
         e.HasIndex(x => new { x.TenantId, x.TersAlinanId })
             .IsUnique()

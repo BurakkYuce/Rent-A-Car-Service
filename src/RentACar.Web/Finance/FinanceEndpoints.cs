@@ -92,7 +92,7 @@ public static class FinanceEndpoints
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
-            [FromForm] string? hesapId) =>
+            [FromForm] string? hesapId, [FromForm] string? kanal) => // FAZ-50 hesapId + FAZ-84 kanal
         {
             try
             {
@@ -101,7 +101,8 @@ public static class FinanceEndpoints
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
-                    HesapId = FormParse.Id(hesapId)   // FAZ-50: hangi spesifik kasa/banka
+                    HesapId = FormParse.Id(hesapId),  // FAZ-50: hangi spesifik kasa/banka
+                    Kanal = kanal // FAZ-84: boş → CashService "Masaüstü" varsayılanı
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
@@ -117,7 +118,7 @@ public static class FinanceEndpoints
             [FromForm] Guid cariId, [FromForm] string? rentalId, [FromForm] decimal tutar,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hesap, [FromForm] string? donus, [FromForm] string? islemAnahtari,
-            [FromForm] string? hesapId) =>
+            [FromForm] string? hesapId, [FromForm] string? kanal) => // FAZ-50 hesapId + FAZ-84 kanal
         {
             try
             {
@@ -126,7 +127,8 @@ public static class FinanceEndpoints
                     CariId = cariId, RentalId = FormParse.Id(rentalId), Tutar = tutar,
                     Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), // boş → otomatik (1.1b)
                     Aciklama = aciklama, Hesap = ParseHesap(hesap), IslemAnahtari = FormParse.Id(islemAnahtari), // M5
-                    HesapId = FormParse.Id(hesapId)   // FAZ-50: hangi spesifik kasa/banka
+                    HesapId = FormParse.Id(hesapId),  // FAZ-50: hangi spesifik kasa/banka
+                    Kanal = kanal // FAZ-84
                 });
                 return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
             }
@@ -227,6 +229,7 @@ public static class FinanceEndpoints
             var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
             var hesap = string.Equals(f["hesap"].ToString(), "Banka", StringComparison.OrdinalIgnoreCase)
                 ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            var kanal = FormParse.Str(f, "kanal"); // FAZ-84: tek seçim, batch'in TÜM satırlarına uygulanır
             // Her satır: "cariId;tutar[;açıklama]" (boş satırlar atlanır).
             var satirlar = new List<CashInput>();
             foreach (var line in (f["satirlar"].ToString() ?? string.Empty)
@@ -240,7 +243,8 @@ public static class FinanceEndpoints
                     Hesap = hesap,
                     Doviz = "TRY",
                     Kur = 1m,
-                    Aciklama = p.Length > 2 && !string.IsNullOrWhiteSpace(p[2]) ? p[2] : "Toplu tahsilat"
+                    Aciklama = p.Length > 2 && !string.IsNullOrWhiteSpace(p[2]) ? p[2] : "Toplu tahsilat",
+                    Kanal = kanal
                 });
             }
             try
@@ -380,7 +384,8 @@ public static class FinanceEndpoints
                     cariId, secim, hesap,
                     tarih: FormParse.Date(FormParse.Str(f, "tarih")),
                     aciklama: FormParse.Str(f, "aciklama"),
-                    islemAnahtari: FormParse.Id(f["islemAnahtari"].ToString()));
+                    islemAnahtari: FormParse.Id(f["islemAnahtari"].ToString()),
+                    kanal: FormParse.Str(f, "kanal")); // FAZ-84
                 return Results.Redirect($"{geri}&ok={Uri.EscapeDataString(tutar.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))}");
             }
             catch (ValidationException ex) { return Results.Redirect($"{geri}&hata={Uri.EscapeDataString(ex.Message)}"); }

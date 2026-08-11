@@ -166,7 +166,8 @@ public static class DonemFaturaUretici
                     Tarih = now, Amount = new Money(kesilecek, "TRY", 1m),
                     KarsiHesap = LedgerAccountType.Kasa,
                     Aciklama = $"Dönem {donemSira} tahsilatı ({invoice.No}) [job]",
-                    IslemAnahtari = CashService.RowKey(rentalId, donemSira)
+                    IslemAnahtari = CashService.RowKey(rentalId, donemSira),
+                    Kanal = RentACar.Domain.Entities.CashKanal.Masaustu // FAZ-84: otomatik iş — kanal seçilemez
                 };
                 var cashNo = await SequenceAllocator.NextAsync(db, tenantId, "CashNo", ct);
                 ctx.No = $"TH-{cashNo:D6}";
