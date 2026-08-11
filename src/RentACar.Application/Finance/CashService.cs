@@ -48,10 +48,10 @@ public sealed class CashService(
     /// </summary>
     /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar). Salt okuma.</summary>
     public Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
-        int enFazla = 100, CancellationToken ct = default)
+        KasaVirmanFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ViewReports);
-        return _repository.ListKasaVirmanlarAsync(enFazla, ct);
+        return _repository.ListKasaVirmanlarAsync(filter, ct);
     }
 
     public Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(

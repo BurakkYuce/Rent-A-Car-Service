@@ -398,31 +398,73 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     /// ve İşlem Şubesi'ni bir daha göremiyordu. Tutar DEFTERDEN (Debit bacağı) okunur; künye
     /// para taşımaz (tek kaynak kuralı).
     /// </summary>
+    /// <summary>
+    /// FAZ-50 adversarial M7 + FAZ-58 — kasa/banka virman geçmişi.
+    ///
+    /// <para><b>DEFTER ÖNCELİKLİ (FAZ-58 düzeltmesi):</b> sorgu künye tablosundan DEĞİL
+    /// <c>AccountLedgerEntry</c>'den başlar. Künyeden başlayan ilk sürüm, künye tablosu FAZ-50'de
+    /// açıldığı için <b>ondan önceki bütün virmanları sessizce gizliyordu</b>. Defter otoritedir;
+    /// künye (makbuz no / şube / işlemi yapan) varsa eklenir, yoksa satır künyesiz görünür.</para>
+    ///
+    /// <para>Tutar Debit (hedef) bacağından okunur — künye para taşımaz.</para>
+    /// </summary>
     public async Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
-        int enFazla = 100, CancellationToken ct = default)
+        KasaVirmanFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var limit = Math.Clamp(enFazla, 1, 1000);
-        var kunyeler = await db.KasaVirmanBilgileri.AsNoTracking()
-            .OrderByDescending(x => x.Tarih).Take(limit).ToListAsync(ct);
-        if (kunyeler.Count == 0) return [];
+        var f = filter ?? new KasaVirmanFilter();
+        var limit = Math.Clamp(f.EnFazla, 1, 2000);
 
-        var idler = kunyeler.Select(k => k.Id).ToList();
-        var tutarlar = (await db.AccountLedgerEntries.AsNoTracking()
-                .Where(e => e.SourceType == "Virman" && e.Direction == LedgerDirection.Debit
-                            && idler.Contains(e.SourceId))
-                .Select(e => new { e.SourceId, e.Amount.Amount, e.Amount.Currency, e.Amount.Rate })
-                .ToListAsync(ct))
-            .GroupBy(x => x.SourceId)
-            .ToDictionary(g => g.Key, g => (g.First().Amount, g.First().Currency, g.First().Rate));
+        var q = db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Virman");
+        if (f.Bas is { } b) q = q.Where(e => e.EntryDateUtc >= b);
+        if (f.Bit is { } t) q = q.Where(e => e.EntryDateUtc <= t);
 
-        return [.. kunyeler.Select(k =>
+        var bacaklar = await q
+            .Select(e => new
+            {
+                e.SourceId, e.EntryDateUtc, e.AccountType, e.AccountRef, e.Direction,
+                Tutar = e.Amount.Amount, e.Amount.Currency, e.Amount.Rate, e.Description
+            })
+            .ToListAsync(ct);
+        if (bacaklar.Count == 0) return [];
+
+        // Hesap süzgeci: kaynak VEYA hedef tarafı o hesap olan virmanlar.
+        var gruplar = bacaklar.GroupBy(x => x.SourceId).ToList();
+        if (f.HesapId is { } hid)
+            gruplar = [.. gruplar.Where(g => g.Any(x => x.AccountRef == hid))];
+
+        var idler = gruplar.Select(g => g.Key).ToList();
+        var kunyeler = (await db.KasaVirmanBilgileri.AsNoTracking()
+            .Where(k => idler.Contains(k.Id)).ToListAsync(ct)).ToDictionary(k => k.Id);
+
+        var satirlar = new List<KasaVirmanSatirDto>(gruplar.Count);
+        foreach (var g in gruplar)
         {
-            var t = tutarlar.TryGetValue(k.Id, out var v) ? v : (Amount: 0m, Currency: "TRY", Rate: 1m);
-            return new KasaVirmanSatirDto(
-                k.Id, k.Tarih, k.KaynakTur, k.HedefTur, k.KaynakHesapId, k.HedefHesapId,
-                t.Amount, t.Currency, t.Rate, k.MakbuzNo, k.Sube, k.IslemYapan, k.Aciklama);
-        })];
+            // Dengeli çift: Debit = hedef (para giren), Credit = kaynak (para çıkan).
+            var hedef = g.FirstOrDefault(x => x.Direction == LedgerDirection.Debit);
+            var kaynak = g.FirstOrDefault(x => x.Direction == LedgerDirection.Credit);
+            if (hedef is null || kaynak is null) continue;   // yarım küme olamaz (LedgerPoster dengeyi zorlar)
+
+            kunyeler.TryGetValue(g.Key, out var k);
+            satirlar.Add(new KasaVirmanSatirDto(
+                g.Key, k?.Tarih ?? hedef.EntryDateUtc,
+                kaynak.AccountType, hedef.AccountType,
+                kaynak.AccountRef, hedef.AccountRef,
+                hedef.Tutar, hedef.Currency, hedef.Rate,
+                k?.MakbuzNo, k?.Sube, k?.IslemYapan, k?.Aciklama ?? hedef.Description,
+                KunyeVar: k is not null));
+        }
+
+        if (!string.IsNullOrWhiteSpace(f.Ara))
+        {
+            var a = f.Ara.Trim();
+            satirlar = [.. satirlar.Where(x =>
+                (x.MakbuzNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Sube?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Aciklama?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false))];
+        }
+
+        return [.. satirlar.OrderByDescending(x => x.Tarih).ThenBy(x => x.Id).Take(limit)];
     }
 
     public async Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
