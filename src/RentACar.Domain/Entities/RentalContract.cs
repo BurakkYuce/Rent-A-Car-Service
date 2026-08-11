@@ -75,6 +75,14 @@ public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
     public int? HediyeGun { get; set; }
     /// <summary>Faturalanan gün (Gun − HediyeGun) — motordan.</summary>
     public int? FaturalananGun { get; set; }
+
+    /// <summary>
+    /// FAZ-46 — sözleşme ödeme VADESİ (canlı <c>kira_listesi.aspx</c> "Vade" kolonu/filtresi).
+    /// BİLGİ ALANIDIR: deftere, bakiyeye ve dönemsel faturalama planına GİRMEZ — yalnız listede
+    /// gösterilir ve "Tarih Listesi = Vade" filtresinin uygulandığı alandır. Gerçek tahsilat vadesi
+    /// takibi cari yaşlandırma raporundan yürür.
+    /// </summary>
+    public DateTimeOffset? VadeTar { get; set; }
     /// <summary>Uygulanan iskonto tutarı (brüt) — kural iskonto oranından hesaplandı; Tutar'a zaten yansıdı.</summary>
     public decimal? IskontoTutar { get; set; }
     /// <summary>Hafta sonu farkı (brüt) — Cmt/Pzr günlerine ek; Tutar'a zaten yansıdı.</summary>
