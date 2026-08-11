@@ -131,7 +131,7 @@
                 }
                 // Araç bilgi kartı: option data-* → [data-veh=*] gri alanları
                 if (opt) {
-                    ['marka', 'tip', 'yil', 'vites', 'yakit', 'grup', 'segment', 'km', 'sube'].forEach(function (k) {
+                    ['marka', 'tip', 'yil', 'vites', 'yakit', 'grup', 'segment', 'km', 'sube', 'konum'].forEach(function (k) {
                         var v = opt.getAttribute('data-' + k);
                         if (v !== null) document.querySelectorAll('[data-veh="' + k + '"]')
                             .forEach(function (el) { el.textContent = v || '—'; });
@@ -247,7 +247,7 @@
                     d.araclar.forEach(function (a) {
                         var o = document.createElement('option');
                         o.value = a.goruntu;
-                        ['id', 'marka', 'tip', 'yil', 'vites', 'yakit', 'grup', 'segment', 'km', 'sube'].forEach(function (k) {
+                        ['id', 'marka', 'tip', 'yil', 'vites', 'yakit', 'grup', 'segment', 'km', 'sube', 'konum'].forEach(function (k) {
                             o.setAttribute('data-' + k, a[k] != null ? a[k] : '');
                         });
                         dl.appendChild(o);

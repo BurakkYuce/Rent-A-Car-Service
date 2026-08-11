@@ -65,9 +65,42 @@ public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
     /// <summary>Dönüşü teslim alan personel (gevşek referans — Personel.Id; FK yok).</summary>
     public Guid? TeslimAlanPersonelId { get; set; }
 
+    /// <summary>
+    /// FAZ-47 — aracı ÇIKIŞTA teslim eden personel (gevşek referans — Personel.Id; FK yok).
+    /// <see cref="TeslimAlanPersonelId"/> dönüş anını yakalar; bu alan çıkış anını. İkisi ayrı
+    /// sorulardır (aynı kişi olmak zorunda değil). BİLGİ ALANI — para/defter hesabına girmez.
+    /// </summary>
+    public Guid? TeslimEdenPersonelId { get; set; }
+
+    /// <summary>
+    /// FAZ-47 — sözleşme ödeme şekli (Nakit/Kredi Kartı/Havale-EFT/Cari Hesap/Çek/Senet…; seç-veya-yaz).
+    /// BİLGİ ALANIDIR: gerçek tahsilat Kasa/Banka akışından geçer ve defterin tek kaynağıdır
+    /// (KARARLAR "yeni tutar alanları deftere yazmaz" genel politikası) — bu alan
+    /// <c>GenelToplam</c>/<c>Tahsilat</c>/<c>Bakiye</c>'yi ve fatura tutarını ETKİLEMEZ.
+    /// </summary>
+    public string? OdemeSekli { get; set; }
+
     /// <summary>2. sürücü (opsiyonel) — Customer bağı (gevşek referans; PII Customer'da şifreli, sözleşmede
     /// decrypt'li gösterilir). Oluşturma anında yakalanır (create-time otorite).</summary>
     public Guid? IkinciSurucuId { get; set; }
+
+    // ---- FAZ-47 — MİSAFİR (kayıtsız) 2. sürücü: serbest metin katmanı ----
+    // <see cref="IkinciSurucuId"/> ile BİRLİKTE kullanılamaz: ikisi de doluysa RentalService
+    // gürültülü reddeder (guard KODDA, yorumda değil) — "hangisi doğru sürücü" sorusu belirsiz kalmasın.
+    //
+    // KVKK/PII SINIRI (CLAUDE.md §4-F2): burada TC KİMLİK ve EHLİYET NO alanı BİLİNÇLİ YOKTUR.
+    // O iki alan at-rest ŞİFRELİ saklanır (Customer.TcKimlikEnc/EhliyetNoEnc + blind-index) ve
+    // RentalContract'ın okuma yolunda decrypt katmanı yoktur; buraya düz-metin kolon açmak
+    // şifreleme kararını sessizce delerdi. Kimlik/ehliyet no gerekiyorsa 2. sürücü CARİ olarak
+    // açılır (kira formunda tek adımda) ve FK ile bağlanır.
+    /// <summary>Misafir 2. sürücü adı (serbest metin).</summary>
+    public string? IkinciSurucuSerbestAd { get; set; }
+    /// <summary>Misafir 2. sürücü soyadı (serbest metin).</summary>
+    public string? IkinciSurucuSerbestSoyad { get; set; }
+    /// <summary>Misafir 2. sürücü telefonu (serbest metin; Customer.CepTel ile aynı at-rest sınıfı).</summary>
+    public string? IkinciSurucuSerbestTel { get; set; }
+    /// <summary>Misafir 2. sürücü ehliyet SINIFI (B, B1…) — ehliyet NUMARASI değil (şifreli alan; yukarıdaki nota bkz.).</summary>
+    public string? IkinciSurucuSerbestEhliyetSinifi { get; set; }
 
     // ---- Tam teklif bileşenleri (fiyat motoru "Otomatik" — BİLGİ/döküm; Tutar zaten net brütü içerir,
     // bunlar Tutar'a AYRICA katılmaz → çift-sayım yok; KURAL A) ----
