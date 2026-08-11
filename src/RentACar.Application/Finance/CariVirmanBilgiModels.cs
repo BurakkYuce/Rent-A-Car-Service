@@ -39,7 +39,22 @@ public sealed record KasaVirmanSatirDto(
     RentACar.Domain.Enums.LedgerAccountType KaynakTur, RentACar.Domain.Enums.LedgerAccountType HedefTur,
     Guid? KaynakHesapId, Guid? HedefHesapId,
     decimal Tutar, string Doviz, decimal Kur,
-    string? MakbuzNo, string? Sube, string? IslemYapan, string? Aciklama)
+    string? MakbuzNo, string? Sube, string? IslemYapan, string? Aciklama,
+    /// <summary>FAZ-58 — künye kaydı var mı. FAZ-50 ÖNCESİ virmanlarda künye yoktur; satır yine de
+    /// listelenir (defter otoritedir) ama makbuz/şube/işlemi-yapan boş görünür.</summary>
+    bool KunyeVar = true)
 {
     public decimal TutarTl => Tutar * Kur;
+}
+
+/// <summary>FAZ-58 — kasa/banka virman geçmişi süzgeci. Hepsi opsiyonel.</summary>
+public sealed class KasaVirmanFilter
+{
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Kaynak VEYA hedef tarafı bu hesap olan virmanlar.</summary>
+    public Guid? HesapId { get; set; }
+    /// <summary>Makbuz no / şube / açıklama içinde arama.</summary>
+    public string? Ara { get; set; }
+    public int EnFazla { get; set; } = 200;
 }
