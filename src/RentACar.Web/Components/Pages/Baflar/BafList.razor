@@ -18,6 +18,59 @@
     <p class="error">@Hata</p>
 }
 
+@* FAZ-18 arama/filtre formu — canlı baf_ara.aspx karşılığı. Salt-okur (GET).
+   Şube kapsamı bu formdan BAĞIMSIZDIR: Operatör başka ofis seçse de kendi şubesi dışını göremez. *@
+<form method="get" class="filter-bar">
+    <label>Personel
+        <select name="persF">
+            <option value="">— tümü —</option>
+            @foreach (var p in _persMap)
+            {
+                <option value="@p.Key" selected="@(p.Key.ToString() == PersF)">@p.Value</option>
+            }
+        </select>
+    </label>
+    <label>Plaka<input name="plakaF" value="@PlakaF" placeholder="34 ABC" /></label>
+    <label>Durum
+        <select name="durumF">
+            <option value="">— tümü —</option>
+            @foreach (var d in Enum.GetValues<BafDurum>())
+            {
+                <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Kullanım Amacı
+        <select name="amacF">
+            <option value="">— tümü —</option>
+            @foreach (var a in Enum.GetValues<BafKullanimAmaci>())
+            {
+                <option value="@a" selected="@(a.ToString() == AmacF)">@AmacAd(a)</option>
+            }
+        </select>
+    </label>
+    <label>Lokasyon
+        <select name="lokF">
+            <option value="">— tümü —</option>
+            <option value="AyniOfis" selected="@(LokF == "AyniOfis")">Aynı Ofis</option>
+            <option value="FarkliOfis" selected="@(LokF == "FarkliOfis")">Farklı Ofis</option>
+        </select>
+    </label>
+    <label>Ofis (çıkış)
+        <select name="ofisF">
+            <option value="">— tümü —</option>
+            @foreach (var s in _subeOpts)
+            {
+                <option value="@s" selected="@(s == OfisF)">@s</option>
+            }
+        </select>
+    </label>
+    <label>Çıkış ≥<input name="bas" type="date" value="@Bas" /></label>
+    <label>Çıkış ≤<input name="bit" type="date" value="@Bit" /></label>
+    <button type="submit">Filtrele</button>
+    @if (_filtreVar) { <a class="link" href="/baf">Temizle</a> }
+</form>
+
 <details>
     <summary>Yeni Tahsis</summary>
     <form method="post" action="/baf/create" class="grid-form"><AntiforgeryToken />
@@ -34,9 +87,27 @@
             </select>
         </label>
         <label>Çıkış Tarihi<input name="cikisTarihi" type="date" /></label>
+        <label>Çıkış Saati<input name="cikisSaat" type="time" title="Tarihten ayrı saat granülü (opsiyonel)" /></label>
         <label>Çıkış KM<input name="cikisKm" type="number" min="0" value="0" /></label>
         <label>Çıkış Yakıt<input name="cikisYakit" type="number" min="0" /></label>
-        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
+        <ComboBox Name="sube" Label="Şube (çıkış)" Options="_subeOpts" />
+        @* FAZ-18 bilgi alanları — hiçbiri iş kuralı işletmez, defter postlamaz. *@
+        <label>Kullanım Amacı
+            <select name="kullanimAmaci">
+                <option value="">—</option>
+                @foreach (var a in Enum.GetValues<BafKullanimAmaci>())
+                {
+                    <option value="@a">@AmacAd(a)</option>
+                }
+            </select>
+        </label>
+        <label>Onaylayan
+            <select name="onaylayan">
+                <option value="">—</option>
+                @foreach (var p in _persMap) { <option value="@p.Key">@p.Value</option> }
+            </select>
+        </label>
+        <label class="chk"><input name="kirayaVer" type="checkbox" value="1" /> Kiraya verilebilir</label>
         <label>Açıklama<input name="aciklama" /></label>
         <button type="submit">Tahsis Et</button>
     </form>
@@ -44,11 +115,11 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>No</th><th>Personel</th><th>Araç</th><th class="num">Çıkış KM</th><th class="num">Dönüş KM</th><th>Durum</th><th></th></tr></thead>
+    <thead><tr><th>No</th><th>Personel</th><th>Araç</th><th>Amaç</th><th>Çıkış Ofisi</th><th>Dönüş Ofisi</th><th class="num">Çıkış KM</th><th class="num">Dönüş KM</th><th>Onaylayan</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="7" class="muted">Tahsis yok.</td></tr>
+            <tr><td colspan="11" class="muted">@(_filtreVar ? "Filtreye uyan tahsis yok." : "Tahsis yok.")</td></tr>
         }
         @foreach (var b in _list)
         {
@@ -56,8 +127,12 @@
                 <td>@b.No</td>
                 <td>@PersName(b.PersonelId)</td>
                 <td>@VehName(b.VehicleId)</td>
+                <td>@(b.KullanimAmaci is { } a ? AmacAd(a) : "—")@(b.KirayaVer ? " (kiraya verilebilir)" : "")</td>
+                <td>@(b.Sube ?? "—")@(b.CikisSaat is { } cs ? $" · {cs:HH\\:mm}" : "")</td>
+                <td>@(b.DonusSube ?? "—")@(b.DonusSaat is { } dsa ? $" · {dsa:HH\\:mm}" : "")</td>
                 <td class="num">@b.CikisKm</td>
                 <td class="num">@(b.DonusKm?.ToString() ?? "—")</td>
+                <td>@(b.Onaylayan is Guid o ? PersName(o) : "—")</td>
                 <td>@b.Durum</td>
                 <td>
                     @if (b.Durum == BafDurum.Acik)
@@ -69,6 +144,9 @@
                                sormuyordu. Tarih boşsa servis "şimdi" kullanır (geriye uyum). *@
                             <input name="donusYakit" type="number" min="0" max="100" placeholder="Yakıt %" title="Dönüş yakıt yüzdesi (opsiyonel)" style="width:5.5rem" />
                             <input name="donusTarihi" type="datetime-local" title="Gerçek teslim anı — boş bırakılırsa şimdi" style="width:12rem" />
+                            @* FAZ-18: dönüş ofisi/saati BİLGİdir — şube kapsamı hâlâ ÇIKIŞ şubesinden işler. *@
+                            <input name="donusSube" list="dl-donus-sube" placeholder="Dönüş ofisi" title="Farklı ofise teslim edildiyse" style="width:9rem" />
+                            <input name="donusSaat" type="time" title="Dönüş saati (opsiyonel)" style="width:7rem" />
                             <button type="submit">Teslim Al</button>
                         </form>
                         <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
@@ -80,17 +158,69 @@
 </table>
 </div>
 
+@* Dönüş ofisi ComboBox'ının datalist'i (tablo içinde satır başına form var → tek paylaşılan liste). *@
+<datalist id="dl-donus-sube">
+    @foreach (var s in _subeOpts) { <option value="@s"></option> }
+</datalist>
+
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    // FAZ-18 filtre parametreleri (hepsi string? — boş değer bağlama hatası üretmesin).
+    [SupplyParameterFromQuery(Name = "persF")] public string? PersF { get; set; }
+    [SupplyParameterFromQuery(Name = "plakaF")] public string? PlakaF { get; set; }
+    [SupplyParameterFromQuery(Name = "durumF")] public string? DurumF { get; set; }
+    [SupplyParameterFromQuery(Name = "amacF")] public string? AmacF { get; set; }
+    [SupplyParameterFromQuery(Name = "lokF")] public string? LokF { get; set; }
+    [SupplyParameterFromQuery(Name = "ofisF")] public string? OfisF { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<Baf> _list = [];
     private Dictionary<Guid, string> _persMap = new();
     private Dictionary<Guid, string> _vehMap = new();
     private List<string> _subeOpts = [];
+    private bool _filtreVar;
+
+    /// <summary>Enum adı → okunur Türkçe etiket (canlı listedeki yazımlar).</summary>
+    private static string AmacAd(BafKullanimAmaci a) => a switch
+    {
+        BafKullanimAmaci.AracAyirma => "Araç Ayırma",
+        BafKullanimAmaci.AracDonusu => "Araç Dönüşü",
+        BafKullanimAmaci.AracTeslimati => "Araç Teslimatı",
+        BafKullanimAmaci.Yikama => "Yıkama",
+        BafKullanimAmaci.ServisBakim => "Servis / Bakım",
+        BafKullanimAmaci.Muayene => "Muayene",
+        BafKullanimAmaci.LastikDegisimi => "Lastik Değişimi",
+        BafKullanimAmaci.YakitIkmali => "Yakıt İkmali",
+        BafKullanimAmaci.SubelerArasiTransfer => "Şubeler Arası Transfer",
+        BafKullanimAmaci.PersonelKullanimi => "Personel Kullanımı",
+        _ => "Diğer"
+    };
+
+    /// <summary>Sorgu dizesi → filtre. Tarih ≤ GÜN SONUNA alınır (o günün çıkışları düşmesin).</summary>
+    private BafFilter FiltreKur()
+    {
+        var f = new BafFilter
+        {
+            PersonelId = Guid.TryParse(PersF, out var p) ? p : null,
+            Plaka = PlakaF,
+            Durum = Enum.TryParse<BafDurum>(DurumF, out var d) ? d : null,
+            KullanimAmaci = Enum.TryParse<BafKullanimAmaci>(AmacF, out var a) ? a : null,
+            Lokasyon = Enum.TryParse<BafLokasyon>(LokF, out var l) ? l : null,
+            Ofis = OfisF
+        };
+        if (DateTimeOffset.TryParse(Bas, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var b1)) f.Bas = b1.ToUniversalTime();
+        if (DateTimeOffset.TryParse(Bit, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var b2)) f.Bit = b2.AddDays(1).AddTicks(-1).ToUniversalTime();
+        return f;
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Baflar.ListAsync();
+        var filtre = FiltreKur();
+        _filtreVar = !filtre.Bos;
+        _list = await Baflar.SearchAsync(filtre);
         // ListAsync DEĞİL: o ManageUsers ister ve Operatör rolünde sayfayı 500'e düşürüyordu
         // (seed kullanıcı Admin olduğu için gözden kaçmıştı — iki rollü duman testi yakaladı).
         // Burada yalnız ad göstermek için isim lazım; ListForSelectAsync OperationsWrite yeter ve PII taşımaz.

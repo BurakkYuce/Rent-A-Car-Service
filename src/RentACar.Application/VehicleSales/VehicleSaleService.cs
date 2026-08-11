@@ -25,6 +25,19 @@ public sealed class VehicleSaleService(
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
+
+    /// <summary>
+    /// FAZ-18 — filtreli liste (canlı arac_satis_ara.aspx). Salt-okur; satış ekranını görebilen
+    /// rollerin hepsi arayabilsin diye izin OR'lanır (Muhasebe'de FinanceWrite/ViewReports,
+    /// Operatör'de yalnız OperationsWrite vardır — tek izin istemek Operatör'de 500 üretirdi).
+    /// </summary>
+    public Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter? filtre = null, CancellationToken ct = default)
+    {
+        PermissionGuard.RequireAny(_currentUser,
+            Permission.FinanceWrite, Permission.ViewReports, Permission.OperationsWrite);
+        return _repository.SearchAsync(filtre ?? new VehicleSaleFilter(), ct);
+    }
+
     public Task<VehicleSale?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
@@ -35,6 +48,10 @@ public sealed class VehicleSaleService(
         if (input.AliciCariId == Guid.Empty) throw new ValidationException("Alıcı (cari) seçilmelidir.");
         if (input.SatisNet <= 0) throw new ValidationException("Satış tutarı pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");
+        // FAZ-18 bilgi alanı doğrulamaları (kolon sınırına çarpıp 500 üretmesin; anlamsız değer girmesin).
+        if (input.IlanKm is < 0) throw new ValidationException("İlan KM negatif olamaz.");
+        if (!string.IsNullOrWhiteSpace(input.ListeDoviz) && input.ListeDoviz.Trim().Length != 3)
+            throw new ValidationException("Liste fiyatı para birimi 3 harfli olmalıdır (TRY/USD/EUR).");
 
         // Kur çözümü (1.1): açık kur (>0 guard çözücüde) aynen; boş → TRY=1 / döviz KurService (yoksa net red).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
@@ -60,6 +77,19 @@ public sealed class VehicleSaleService(
             SatisKm = input.SatisKm,
             SatisKanali = string.IsNullOrWhiteSpace(input.SatisKanali) ? null : input.SatisKanali.Trim(),
             Devir = string.IsNullOrWhiteSpace(input.Devir) ? null : input.Devir.Trim(),
+            // ---- FAZ-18 bilgi alanları ----
+            // DİKKAT: hiçbiri BuildEntries'e girmez; defter kümesi yalnız SatisNet/KdvTutar/GenelToplam
+            // üzerinden kurulur (KARARLAR.md genel politikası + "P&L yalnız defterden").
+            KirayaVerme = input.KirayaVerme,
+            IlanKm = input.IlanKm,
+            ListeDoviz = string.IsNullOrWhiteSpace(input.ListeDoviz)
+                ? null : input.ListeDoviz.Trim().ToUpperInvariant(),
+            SatisNoktasi = string.IsNullOrWhiteSpace(input.SatisNoktasi) ? null : input.SatisNoktasi.Trim(),
+            UygulananKampanya = string.IsNullOrWhiteSpace(input.UygulananKampanya) ? null : input.UygulananKampanya.Trim(),
+            IhaleSayisi = string.IsNullOrWhiteSpace(input.IhaleSayisi) ? null : input.IhaleSayisi.Trim(),
+            SatisiVerildi = input.SatisiVerildi,
+            YevmiyeNumarasi = string.IsNullOrWhiteSpace(input.YevmiyeNumarasi) ? null : input.YevmiyeNumarasi.Trim(),
+            Aciklama2 = string.IsNullOrWhiteSpace(input.Aciklama2) ? null : input.Aciklama2.Trim(),
             Durum = SatisDurum.Tamamlandi
         };
         await _lock.EnsureOpenAsync(sale.Tarih, ct); // dönem kilidi: kapalı tarihe araç satışı postlanamaz

@@ -25,7 +25,13 @@ public static class BafEndpoints
                 CikisKm = FormParse.Int(S("cikisKm")) ?? 0,
                 CikisYakit = FormParse.Int(S("cikisYakit")),
                 Sube = S("sube"),
-                Aciklama = S("aciklama")
+                Aciklama = S("aciklama"),
+                // ---- FAZ-18 bilgi alanları ----
+                // Enum'u doğrudan [FromForm] bağlamak boş string'te 400 verirdi → elle TryParse.
+                KullanimAmaci = Enum.TryParse<RentACar.Domain.Enums.BafKullanimAmaci>(S("kullanimAmaci"), out var ka) ? ka : null,
+                Onaylayan = FormParse.Id(S("onaylayan")),
+                KirayaVer = f.ContainsKey("kirayaVer"),   // işaretsiz checkbox HİÇ gönderilmez
+                CikisSaat = FormParse.Saat(S("cikisSaat"))
             };
             try { await svc.CreateAsync(input); return Results.Redirect("/baf?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -40,7 +46,10 @@ public static class BafEndpoints
             // wire-in: servis imzası donusTarihi'ni ZATEN alıyordu (varsayılan: şimdi) ama uç hiç
             // geçmiyordu → geç girilen teslimlerde tarih gerçek teslim anı değil kayıt anı oluyordu.
             var donusTarihi = FormParse.Date(f["donusTarihi"].ToString());
-            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi); return Results.Redirect("/baf"); }
+            // FAZ-18: dönüş şubesi/saati BİLGİdir — şube KAPSAMI hâlâ çıkış şubesinden işler.
+            var donusSube = FormParse.Str(f, "donusSube");
+            var donusSaat = FormParse.Saat(FormParse.Str(f, "donusSaat"));
+            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Results.Redirect("/baf"); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
