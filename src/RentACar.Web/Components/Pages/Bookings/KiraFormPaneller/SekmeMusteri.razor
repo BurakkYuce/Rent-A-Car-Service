@@ -20,9 +20,9 @@
                     </select>
                 </label>
             }
-            <label>2. Sürücü (opsiyonel)
+            <label>2. Sürücü (kayıtlı cari — opsiyonel)
                 <select name="ikinciSurucuId">
-                    <option value="">—</option>
+                    <option value="">— yok / misafir —</option>
                     @foreach (var c in Vm.Customers) { <option value="@c.Id" selected="@(Vm.Edit && Vm.Rental!.IkinciSurucuId == c.Id)">@c.DisplayName</option> }
                 </select>
             </label>
@@ -32,6 +32,26 @@
         {
             <p class="small"><a class="link" href="/cariler/@Vm.Rental!.MusteriId/ekstre">Cari Ekstre (Analiz)</a></p>
         }
+    </div>
+    @* FAZ-47 — MİSAFİR (kayıtlı olmayan) 2. sürücü. Yukarıdaki cari seçimiyle BİRLİKTE kullanılamaz:
+       ikisi de doluysa kayıt SUNUCUDA reddedilir (RentalService.IkinciSurucuTekYolGuard) — güvence
+       bu nottan değil, koddaki guard'dan gelir.
+       TC kimlik / ehliyet NUMARASI alanı BİLİNÇLİ YOKTUR: o iki bilgi at-rest şifreli saklanır
+       (CLAUDE.md §4-F2) ve sözleşme tablosunda düz-metin kolon açmak o kararı delerdi. Kimlik kaydı
+       gerekiyorsa 2. sürücüyü cari olarak açın (Hızlı Giriş sekmesi) ve yukarıdan seçin. *@
+    <div class="card">
+        <strong>2. Sürücü — Kayıtlı Değil (Misafir)</strong>
+        <div class="grid-form">
+            <label>Ad<input name="ikinciSurucuSerbestAd" maxlength="64" value="@Vm.S(c => c.IkinciSurucuSerbestAd)" /></label>
+            <label>Soyad<input name="ikinciSurucuSerbestSoyad" maxlength="64" value="@Vm.S(c => c.IkinciSurucuSerbestSoyad)" /></label>
+            <label>Telefon<input name="ikinciSurucuSerbestTel" maxlength="32" value="@Vm.S(c => c.IkinciSurucuSerbestTel)" /></label>
+            <label>Ehliyet Sınıfı<input name="ikinciSurucuSerbestEhliyetSinifi" maxlength="16"
+                value="@Vm.S(c => c.IkinciSurucuSerbestEhliyetSinifi)" placeholder="B" /></label>
+        </div>
+        <p class="muted small">Bu blok yalnız 2. sürücü <strong>kayıtlı cari değilken</strong> doldurulur;
+            yukarıdan cari seçildiyse burası boş kalmalıdır (aksi hâlde kayıt reddedilir).
+            Kimlik/ehliyet numarası burada tutulmaz — gerekiyorsa 2. sürücüyü cari olarak açın.
+            Misafir sürücü ek-sürücü <strong>ücreti üretmez</strong> (ücretli ek sürücü için cari seçimi kullanılır).</p>
     </div>
     @if (!Vm.Edit)
     {
@@ -52,6 +72,31 @@
         @if (Vm.Edit && KayitliMusteri is { } m && (m.KaraListe || m.Uyari))
         {
             <p class="error"><strong>DİKKAT:</strong> @(m.KaraListe ? "KARA LİSTE. " : "") @(m.Uyari ? $"Uyarı: {m.UyariNedeni}" : "")</p>
+        }
+    </div>
+    @* FAZ-47 — müşteri adres / ehliyet / pasaport SALT-OKUR paneli. Düzenleme BURADA YAPILMAZ
+       (kira formu RentalContract yazar; cari alanları cari kartının otoritesindedir) → "Cari kartını aç".
+       KVKK: ehliyet ve pasaport NUMARASI at-rest şifrelidir; CustomerRepository okuma yolunda bellekte
+       çözer. Ekranda yine de MASKELİ gösterilir (son 4 hane) — sözleşme ekranı kimlik numarası dökmek
+       için değil, doğru sürücüyle çalışıldığını teyit etmek içindir. Tam değer cari kartında. *@
+    <div class="card">
+        <strong>Adres / Sürücü Belgesi (cari karttan — salt-okunur)</strong>
+        <div class="grid-form">
+            <label class="u-col-full">Adres<input readonly value="@MusteriAlan(c => c.Adres)" /></label>
+            <label>İl<input readonly value="@MusteriAlan(c => c.Il)" /></label>
+            <label>İlçe<input readonly value="@MusteriAlan(c => c.Ilce)" /></label>
+            <label>Müşteri Tipi<input readonly value="@MusteriAlan(c => c.MusteriTipi)" /></label>
+            <label>Ehliyet No (maskeli)<input readonly value="@MusteriAlan(c => Maske(c.EhliyetNo))"
+                title="Tam değer cari kartında — şifreli saklanır (KVKK)" /></label>
+            <label>Ehliyet Tarihi<input readonly value="@MusteriAlan(c => c.EhliyetTarihi is { } t ? t.LocalDateTime.ToString("dd.MM.yyyy") : null)" /></label>
+            <label>Ehliyet Ülke<input readonly value="@MusteriAlan(c => c.EhliyetUlke)" /></label>
+            <label>Pasaport No (maskeli)<input readonly value="@MusteriAlan(c => Maske(c.PasaportNo))"
+                title="Tam değer cari kartında — şifreli saklanır (KVKK)" /></label>
+            <label>Pasaport Yeri<input readonly value="@MusteriAlan(c => c.PasaportYeri)" /></label>
+        </div>
+        @if (Vm.Edit)
+        {
+            <p class="small"><a class="link" href="/cariler/@Vm.Rental!.MusteriId">Cari kartını aç (düzenle) →</a></p>
         }
     </div>
     <div class="card">
@@ -80,5 +125,11 @@
         : null;
 
     private string MusteriAlan(Func<Customer, string?> f)
-        => KayitliMusteri is { } m ? (f(m) ?? "—") : "kayıt sonrası dolar";
+        => KayitliMusteri is { } m ? (string.IsNullOrWhiteSpace(f(m)) ? "—" : f(m)!) : "kayıt sonrası dolar";
+
+    /// <summary>Kimlik/belge numarası maskesi: yalnız son 4 hane görünür (tam değer cari kartında).</summary>
+    private static string? Maske(string? v)
+        => string.IsNullOrWhiteSpace(v)
+            ? null
+            : v!.Length <= 4 ? new string('*', v.Length) : new string('*', v.Length - 4) + v[^4..];
 }

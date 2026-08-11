@@ -34,6 +34,14 @@ public sealed class KiraFormVm
     public IReadOnlyList<Penalty> Cezalar { get; set; } = [];
     public string? TeslimAlanAd { get; set; }
     public string? DovizNot { get; set; }
+
+    /// <summary>
+    /// FAZ-47 — sözleşmenin İŞLEM ŞUBESİ adı. TÜRETİLMİŞTİR: <c>CikisOfisi → Location → Branch</c>
+    /// (OfficeBranchInterceptor her kayıtta yeniden çözer). Ekranda bu yüzden SALT-OKUNUR gösterilir;
+    /// şube değiştirmek için Çıkış Ofisi değiştirilir. Ofis Location master'ında eşleşmiyorsa null
+    /// (salt-metin davranış — kilitlenme yok).
+    /// </summary>
+    public string? IslemSubeAdi { get; set; }
     /// <summary>Kullanıcının FinanceWrite yetkisi var mı (tahsilat/fatura butonları — 403 sürprizi yerine disabled).</summary>
     public bool FinansYetkisi { get; set; }
     /// <summary>OperationsWrite var mı (Kaydet/teslim/dönüş/uzat/ek hizmet/iptal — Muhasebe'de disabled + not).</summary>
@@ -93,6 +101,10 @@ public sealed class KiraFormVm
     // listeye karşı doğrulandığı için en küçük yazım sapması ön-seçimi sessizce hiç eşleşmez yapardı.
     public static readonly string[] FiyatTurleri = RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi;
     public static readonly string[] Dovizler = ["TL", "EURO", "USD"];
+    /// <summary>FAZ-47 — Ödeme Şekli ComboBox önerileri (seç-veya-yaz; serbest metin de kabul edilir).
+    /// BİLGİ alanıdır: gerçek tahsilat Kasa/Banka akışından geçer, bu seçim deftere yazmaz.</summary>
+    public static readonly string[] OdemeSekilleri =
+        ["Nakit", "Kredi Kartı", "Havale/EFT", "Cari Hesap (Vadeli)", "Çek", "Senet", "Ödeme Yok (Bedelsiz)"];
 
     // Tarih sınırları (UI aynası; asıl koruma sunucuda — TarihPolitikasi: kira geçmişe açık, gelecek ≤ +1 yıl)
     public static string BugunStr => DateTime.Today.ToString("yyyy-MM-dd");

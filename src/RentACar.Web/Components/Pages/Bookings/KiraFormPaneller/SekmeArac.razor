@@ -58,7 +58,11 @@
             <label>Güncel Km<span class="kf-ro num kf-robox" data-veh="km">@(Vm.Edit ? (SeciliArac?.Km.ToString() ?? "—") : "—")</span></label>
             <label>Şube<span class="kf-ro kf-robox" data-veh="sube">@(Vm.Edit ? (SeciliArac?.Sube ?? "—") : "—")</span></label>
             <label>Rez. Grubu<span class="kf-ro kf-robox" title="TODO: araçta ayrı rezervasyon grubu alanı yok — Grup kullanılıyor">—</span></label>
-            <label>Araç Yeri<span class="kf-ro kf-robox" title="TODO: fiziksel araç-yeri alanı yok — Şube kullanılıyor">—</span></label>
+            @* FAZ-47 — "fiziksel araç-yeri alanı yok" notu BAYATTI: Vehicle.Konum FAZ-10'da eklenmişti,
+               yalnız bu ekrana bağlanmamıştı (wire-in). Salt-okunur: araç kartı alanı bu formdan
+               düzenlenmez (kira formu RentalContract yazar) — düzenleme aracın kendi kartında. *@
+            <label>Araç Yeri (park/konum)<span class="kf-ro kf-robox" data-veh="konum"
+                title="Aracın fiziksel konumu (araç kartındaki Konum alanı) — düzenleme araç kartında">@(Vm.Edit ? (SeciliArac?.Konum ?? "—") : "—")</span></label>
             <label>Doluluk Hesap<span class="kf-ro" title="Aracın ömür-boyu doluluk yüzdesi (karneden; dinamik fiyat çarpanı tarife kuralıyla — FAZ 3.A7)">@(Vm.AracDolulukYuzde is { } dol ? dol.ToString("N2") + "%" : "—")</span></label>
         </div>
     </div>

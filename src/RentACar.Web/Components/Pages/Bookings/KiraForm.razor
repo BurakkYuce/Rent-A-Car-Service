@@ -25,6 +25,7 @@
 @inject RentACar.Application.BelgeSablon.BelgeSablonService BelgeSablonlar
 @inject RentACar.Application.Bookings.SozlesmePaylasimService Paylasim
 @inject RentACar.Application.TenantSettings.FormVarsayilanCozucu Varsayilanlar
+@inject RentACar.Application.Branches.BranchService Subeler
 @inject NavigationManager Nav
 
 <PageTitle>@(_vm.Edit ? $"Kira {_vm.Rental!.SozlesmeNo}" : "Yeni Kira") — RentPro</PageTitle>
@@ -200,7 +201,7 @@ else
         <option value="@KiraFormVm.AracGoruntu(v)" data-id="@v.Id"
                 data-marka="@v.Marka" data-tip="@v.Tip" data-yil="@(v.ModelYili?.ToString() ?? "")"
                 data-vites="@(v.Vites?.ToString() ?? "")" data-yakit="@v.Yakit" data-grup="@v.Grup"
-                data-segment="@v.Segment" data-km="@v.Km" data-sube="@v.Sube"></option>
+                data-segment="@v.Segment" data-km="@v.Km" data-sube="@v.Sube" data-konum="@v.Konum"></option>
     }
 </datalist>
 <datalist id="dl-kf-kaynak">
@@ -208,6 +209,10 @@ else
 </datalist>
 <datalist id="dl-kf-ozelkod">
     @foreach (var k in _vm.OzelKodlar) { <option value="@k"></option> }
+</datalist>
+@* FAZ-47 — Ödeme Şekli önerileri (seç-veya-yaz; serbest metin de kabul edilir) *@
+<datalist id="dl-kf-odemesekli">
+    @foreach (var o in KiraFormVm.OdemeSekilleri) { <option value="@o"></option> }
 </datalist>
 }
 
@@ -333,6 +338,11 @@ else
 
 
             _vm.Vehicles = await Vehicles.ListAsync(); // araç kartı prefill (değişmez — whitelist dışı)
+
+            // FAZ-47: İşlem Şube kutusu — TÜRETİLMİŞ CikisSubeId'nin adı. Eşleşmezse null bırakılır
+            // (ekran "ofis şubeye eşlenmemiş" der; salt-metin davranış korunur).
+            if (c.CikisSubeId is Guid subeId)
+                _vm.IslemSubeAdi = (await Subeler.ListAsync()).FirstOrDefault(b => b.Id == subeId)?.Ad;
             return;
         }
 

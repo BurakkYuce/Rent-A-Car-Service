@@ -13,6 +13,20 @@ public sealed class RentalUpdateInput
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
     public Guid? IkinciSurucuId { get; set; }
+
+    // ---- FAZ-47 ----
+    /// <summary>Çıkışta aracı teslim eden personel (bilgi/atama — para/tarih DEĞİL, whitelist ilkesi korunur).
+    /// UI dropdown'ı <c>PersonelService.ListForSelectAsync</c> ile dolar (PII'sız; <c>ListAsync</c>
+    /// ManageUsers ister ve Operatör'de patlar — CLAUDE.md §6 mega-form tuzağı).</summary>
+    public Guid? TeslimEdenPersonelId { get; set; }
+    /// <summary>Ödeme şekli (bilgi) — deftere/bakiyeye YANSIMAZ.</summary>
+    public string? OdemeSekli { get; set; }
+    /// <summary>Misafir (kayıtsız) 2. sürücü — <see cref="IkinciSurucuId"/> ile birlikte doluysa red.</summary>
+    public string? IkinciSurucuSerbestAd { get; set; }
+    public string? IkinciSurucuSerbestSoyad { get; set; }
+    public string? IkinciSurucuSerbestTel { get; set; }
+    /// <summary>Ehliyet SINIFI (B, B1…) — ehliyet numarası bilinçli YOK (şifreli PII; Domain notuna bkz.).</summary>
+    public string? IkinciSurucuSerbestEhliyetSinifi { get; set; }
     public string? Aciklama { get; set; }
     public string? Kaynak { get; set; }
     public string? KiralamaTuru { get; set; }
