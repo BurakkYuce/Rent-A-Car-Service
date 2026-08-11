@@ -91,6 +91,8 @@ public sealed class CashService(
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
         var cozulenHesap = await _hesapCozucu.CozAsync(input.HesapId, input.Hesap, ct, input.Doviz); // FAZ-50
         var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
+        // FAZ-84: kanal SAF BİLGİ — CashTransaction belgesine yazılır, defter/bakiye hiç görmez.
+        var kanal = NormalizeKanalOrThrow(input.Kanal);
         var tx = new CashTransaction
         {
             Tip = tip,
@@ -101,7 +103,8 @@ public sealed class CashService(
             KarsiHesap = input.Hesap,
             HesapId = cozulenHesap,
             Aciklama = input.Aciklama,
-            IslemAnahtari = input.IslemAnahtari is { } k && k != Guid.Empty ? k : null // adversarial M5: çift-submit dedup
+            IslemAnahtari = input.IslemAnahtari is { } k && k != Guid.Empty ? k : null, // adversarial M5: çift-submit dedup
+            Kanal = kanal
         };
         await _lock.EnsureOpenAsync(tx.Tarih, ct); // dönem kilidi: kapalı tarihe tahsilat/ödeme YOK
 
@@ -174,6 +177,10 @@ public sealed class CashService(
             }
 
             var money = new Money(input.Tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz), cozulenKur);
+            // FAZ-84: satır-bazlı kanal (bozuk değer önekli hata — 500 satırda hangisi olduğu şart).
+            string? kanal;
+            try { kanal = NormalizeKanalOrThrow(input.Kanal); }
+            catch (ValidationException ex) { throw new ValidationException($"Satır {i + 1}: {ex.Message}"); }
             var tx = new CashTransaction
             {
                 Tip = tip,
@@ -184,7 +191,8 @@ public sealed class CashService(
                 KarsiHesap = input.Hesap,
                 HesapId = cozulenHesap,
                 Aciklama = input.Aciklama,
-                IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null
+                IslemAnahtari = batchAnahtari is { } b ? RowKey(b, i) : null,
+                Kanal = kanal
             };
             PeriodLock.ThrowIfClosed(tx.Tarih, closing, $"Satır {i + 1}"); // dönem kilidi (satır-bazlı)
             postings.Add(new CashPosting(tx, Natural(tx)));
@@ -249,7 +257,7 @@ public sealed class CashService(
     public async Task<decimal> TekCariTopluKapatAsync(
         Guid cariId, IReadOnlyDictionary<Guid, decimal?> secim, LedgerAccountType hesap,
         DateTimeOffset? tarih = null, string? aciklama = null, Guid? islemAnahtari = null,
-        CancellationToken ct = default)
+        string? kanal = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
@@ -315,7 +323,8 @@ public sealed class CashService(
             Amount = new Money(toplamHam, "TRY", 1m),
             KarsiHesap = hesap,
             Aciklama = aciklama ?? $"Toplu kapatma ({tahsisler.Count} kalem)",
-            IslemAnahtari = islemAnahtari is { } k && k != Guid.Empty ? k : null
+            IslemAnahtari = islemAnahtari is { } k && k != Guid.Empty ? k : null,
+            Kanal = NormalizeKanalOrThrow(kanal) // FAZ-84
         };
         TarihPolitikasi.ParaTarihi(tx.Tarih, "İşlem");
         await _lock.EnsureOpenAsync(tx.Tarih, ct);      // dönem kilidi
@@ -337,10 +346,10 @@ public sealed class CashService(
     public Task<decimal> TekCariTopluKapatAsync(
         Guid cariId, IReadOnlyCollection<Guid> secilenSatirIds, LedgerAccountType hesap,
         DateTimeOffset? tarih = null, string? aciklama = null, Guid? islemAnahtari = null,
-        CancellationToken ct = default)
+        string? kanal = null, CancellationToken ct = default)
         => TekCariTopluKapatAsync(
             cariId, secilenSatirIds.Distinct().ToDictionary(x => x, _ => (decimal?)null),
-            hesap, tarih, aciklama, islemAnahtari, ct);
+            hesap, tarih, aciklama, islemAnahtari, kanal, ct);
 
     /// <summary>Kapatılan kalemlerin HEPSİ aynı kiranın faturasından geliyorsa o kira; aksi halde
     /// null (tek tahsilatı iki kiraya atfetmek yanlış olurdu).</summary>
@@ -525,7 +534,8 @@ public sealed class CashService(
             HesapId = original.HesapId,
             Aciklama = $"Ters kayıt: {original.No}",
             TersKayitMi = true,
-            TersAlinanId = original.Id
+            TersAlinanId = original.Id,
+            Kanal = original.Kanal // FAZ-84 adversarial: ters kayıt orijinalin kanalını KAYBETMEMELİ
         };
         await _lock.EnsureOpenAsync(reversal.Tarih, ct); // dönem kilidi: ters kayıt bugün tarihli postlanır
 
@@ -566,4 +576,11 @@ public sealed class CashService(
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Hesap yalnız Kasa veya Banka olabilir.");
     }
+
+    /// <summary>FAZ-84 — boş → "Masaüstü"; bilinmeyen serbest metin GÜRÜLTÜLÜ reddedilir (sessiz
+    /// normalize, formdaki yazım hatasını "Masaüstü"ye düşürüp raporu yanlış gösterirdi).</summary>
+    private static string NormalizeKanalOrThrow(string? raw)
+        => CashKanal.TryNormalize(raw)
+            ?? throw new ValidationException(
+                $"Geçersiz kanal: '{raw}'. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.");
 }

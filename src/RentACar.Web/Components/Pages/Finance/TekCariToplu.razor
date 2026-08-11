@@ -106,6 +106,10 @@
                         <option value="Banka">Banka</option>
                     </select>
                 </label>
+                @* FAZ-84: kanal SAF BİLGİ — defteri/bakiyeyi etkilemez. *@
+                <label>Kanal
+                    <select name="kanal"><option>Masaüstü</option><option>Mobil</option><option>Tablet</option></select>
+                </label>
                 <label>Tarih<input name="tarih" type="date" title="Boş = bugün. Gelecek tarih reddedilir." /></label>
                 <label>Açıklama<input name="aciklama" placeholder="Toplu kapatma" /></label>
                 <button type="submit">Seçilenleri Kapat</button>
