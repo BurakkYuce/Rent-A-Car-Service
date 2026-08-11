@@ -24,4 +24,17 @@ public sealed class VehicleSaleInput
     public DateTimeOffset? IhaleTarihi { get; set; }
     public string? IhaleFirmasi { get; set; }
     public DateTimeOffset? NoterSatisTarihi { get; set; }
+
+    // ---- FAZ-18: canlı arac_satis.aspx alan derinliği ----
+    // KARARLAR.md genel politikası: hepsi BİLGİ — deftere yazılmaz, KDV/kur hesabına girmez.
+    // Deftere giden tek tutar zinciri: SatisNet → KdvMath.FromNet → GenelToplam (DEĞİŞMEDİ).
+    public bool KirayaVerme { get; set; }
+    public int? IlanKm { get; set; }
+    public string? ListeDoviz { get; set; }
+    public string? SatisNoktasi { get; set; }
+    public string? UygulananKampanya { get; set; }
+    public string? IhaleSayisi { get; set; }
+    public bool SatisiVerildi { get; set; }
+    public string? YevmiyeNumarasi { get; set; }
+    public string? Aciklama2 { get; set; }
 }

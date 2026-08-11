@@ -1,8 +1,16 @@
 @page "/satislar"
 @attribute [Authorize]
+@using System.Globalization
+@using RentACar.Application.AracKredileri
+@using RentACar.Application.Regulation
+@using RentACar.Application.VehicleSales
+@using RentACar.Domain.Enums
 @inject VehicleSaleService Sales
 @inject VehicleService Vehicles
 @inject CustomerService Customers
+@inject BranchService Subeler
+@inject AracKrediService Krediler
+@inject RegulationService Regulasyon
 
 <PageTitle>Araç Satışları — RentPro</PageTitle>
 
@@ -12,6 +20,49 @@
 {
     <p class="error">@Hata</p>
 }
+
+@* FAZ-18 arama/filtre formu — canlı arac_satis_ara.aspx karşılığı. Salt-okur (GET). *@
+<form method="get" class="filter-bar">
+    <label>Plaka<input name="plakaF" value="@PlakaF" placeholder="34 ABC" /></label>
+    <label>Alıcı
+        <select name="cariF">
+            <option value="">— tümü —</option>
+            @foreach (var c in _customers)
+            {
+                <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option>
+            }
+        </select>
+    </label>
+    <label>Durum
+        <select name="durumF">
+            <option value="">— tümü —</option>
+            @foreach (var d in Enum.GetValues<SatisDurum>())
+            {
+                <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
+            }
+        </select>
+    </label>
+    <label>Devir (Satışı Verildi)
+        <select name="devirF">
+            <option value="">— tümü —</option>
+            <option value="1" selected="@(DevirF == "1")">Verildi</option>
+            <option value="0" selected="@(DevirF == "0")">İşaretlenmemiş</option>
+        </select>
+    </label>
+    <label>Ofis (aracın şubesi)
+        <select name="ofisF">
+            <option value="">— tümü —</option>
+            @foreach (var s in _subeOpts)
+            {
+                <option value="@s" selected="@(s == OfisF)">@s</option>
+            }
+        </select>
+    </label>
+    <label>Tarih ≥<input name="bas" type="date" value="@Bas" /></label>
+    <label>Tarih ≤<input name="bit" type="date" value="@Bit" /></label>
+    <button type="submit">Filtrele</button>
+    @if (_filtreVar) { <a class="link" href="/satislar">Temizle</a> }
+</form>
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
     <summary>+ Yeni Satış</summary>
@@ -52,6 +103,32 @@
         <label>Döviz<select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select></label>
         <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik" title="Boş bırakılırsa TRY=1; dövizde sabit kur/TCMB'den çözülür" /></label>
         <label>Açıklama<input name="aciklama" /></label>
+
+        @* ---- FAZ-18 bilgi alanları (canlı arac_satis.aspx paritesi) ----
+           KARARLAR.md genel politikası: bunların HİÇBİRİ deftere yazmaz, hiçbir rapor toplamına girmez.
+           Kullanıcı uyarısı aşağıda YAZILI olarak da veriliyor. *@
+        <p class="muted small" style="grid-column:1/-1">
+            Aşağıdaki alanlar <strong>yalnız bilgidir</strong>: muhasebe defterine yazılmaz, Araç Karnesi /
+            Karlılık / Filo Analiz rakamlarını değiştirmez. Deftere giden tek tutar zinciri
+            <strong>Satış Net + KDV</strong>'dir. Satış belgesi kesildikten sonra <strong>değiştirilemez</strong>
+            (mali belge) — bu alanları kayıt anında doldurun.
+        </p>
+        <label>İlan KM<input name="ilanKm" type="number" min="0" placeholder="ilan anındaki km" title="Satış KM'den ayrı: ilanın verildiği andaki km" /></label>
+        <label>Liste Fiyatı Dövizi<select name="listeDoviz"><option value="">—</option><option>TRY</option><option>USD</option><option>EUR</option></select></label>
+        <label>Satış Noktası<input name="satisNoktasi" list="dl-satis-noktasi" placeholder="galeri / şube / plaza" /></label>
+        <datalist id="dl-satis-noktasi">
+            @foreach (var s in _subeOpts) { <option value="@s"></option> }
+        </datalist>
+        <label>Uygulanan Kampanya<input name="uygulananKampanya" placeholder="kampanya adı / kodu" /></label>
+        <label>İhale Firması<input name="ihaleFirmasi" /></label>
+        <label>İhale Tarihi<input name="ihaleTarihi" type="date" /></label>
+        <label>İhale Sayısı<input name="ihaleSayisi" placeholder="karar / sayı no" /></label>
+        <label>Noter Satış Tarihi<input name="noterSatisTarihi" type="date" /></label>
+        <label>Yevmiye No<input name="yevmiyeNumarasi" placeholder="dış muhasebe referansı" /></label>
+        <label>Açıklama 2<input name="aciklama2" /></label>
+        <label class="chk"><input name="kirayaVerme" type="checkbox" value="1" /> Kiraya veriliyordu</label>
+        <label class="chk"><input name="satisiVerildi" type="checkbox" value="1" /> Satışı verildi (devir tamam)</label>
+
         <button type="submit">Sat</button>
     </form>
 </details>
@@ -59,23 +136,31 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>No</th><th>Tarih</th><th>Araç</th><th>Alıcı</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Durum</th></tr>
+        <tr><th>No</th><th>Tarih</th><th class="num">Geçen Süre</th><th>Araç</th><th>Alıcı</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Devir</th><th>İhale</th><th>Kredi Firması</th><th>Poliçe (Kasko/Trafik)</th><th>Durum</th></tr>
     </thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="8" class="muted">Satış yok.</td></tr>
+            <tr><td colspan="13" class="muted">@(_filtreVar ? "Filtreye uyan satış yok." : "Satış yok.")</td></tr>
         }
         @foreach (var s in _list)
         {
             <tr>
                 <td>@s.No</td>
                 <td>@s.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                @* Geçen Süre: yeni alan GEREKTİRMEZ — Tarih'ten hesaplanır (SatisHesap.GecenGun, test edilebilir). *@
+                <td class="num">@SatisHesap.GecenGun(s.Tarih, _simdi) gün</td>
                 <td>@VehLabel(s.VehicleId)</td>
                 <td>@CustLabel(s.AliciCariId)</td>
                 <td>@s.SatisNet.ToString("N2")</td>
                 <td>@s.KdvTutar.ToString("N2")</td>
                 <td>@s.GenelToplam.ToString("N2")</td>
+                <td>@(s.SatisiVerildi ? "Verildi" : "—")</td>
+                <td>@(string.IsNullOrWhiteSpace(s.IhaleFirmasi) ? "—" : $"{s.IhaleFirmasi} {s.IhaleSayisi}".Trim())</td>
+                @* Kredi Firması / Poliçe kolonları BAŞKA modüllerin verisidir (bilgi). Veri yoksa
+                   "—" gösterilir; hata vermez (FAZ-13/17 alanlarına bağımlı olmayan gevşek bağ). *@
+                <td>@KrediFirma(s.VehicleId)</td>
+                <td>@PoliceOzet(s.VehicleId)</td>
                 <td>@s.Durum</td>
             </tr>
         }
@@ -85,23 +170,73 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    // FAZ-18 filtre parametreleri (hepsi string? — boş değer bağlama hatası üretmesin).
+    [SupplyParameterFromQuery(Name = "plakaF")] public string? PlakaF { get; set; }
+    [SupplyParameterFromQuery(Name = "cariF")] public string? CariF { get; set; }
+    [SupplyParameterFromQuery(Name = "durumF")] public string? DurumF { get; set; }
+    [SupplyParameterFromQuery(Name = "devirF")] public string? DevirF { get; set; }
+    [SupplyParameterFromQuery(Name = "ofisF")] public string? OfisF { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<VehicleSale> _list = [];
     private IReadOnlyList<Vehicle> _satilabilir = [];
     private IReadOnlyList<Customer> _customers = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
+    private Dictionary<Guid, string> _krediMap = new();
+    private Dictionary<Guid, string> _policeMap = new();
+    private List<string> _subeOpts = [];
+    private bool _filtreVar;
+    private DateTimeOffset _simdi = DateTimeOffset.UtcNow;
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Sales.ListAsync();
+        _simdi = DateTimeOffset.UtcNow;
+        var filtre = FiltreKur();
+        _filtreVar = !filtre.Bos;
+        _list = await Sales.SearchAsync(filtre);
         var vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
         _satilabilir = vehicles.Where(v => v.Durum != VehicleStatus.Satildi).ToList();
         _vehMap = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
+        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+
+        // Kredi firması + poliçe özeti: BAŞKA modüllerin bilgisi, satış tutarına etkisi YOK.
+        // Araç başına EN GÜNCEL kayıt gösterilir; kayıt yoksa kolon "—" kalır (hata vermez).
+        _krediMap = (await Krediler.ListAsync())
+            .Where(k => k.VehicleId is Guid && !string.IsNullOrWhiteSpace(k.BankaAdi))
+            .GroupBy(k => k.VehicleId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(k => k.BaslangicTarihi).First().BankaAdi);
+        _policeMap = (await Regulasyon.ListInsuranceAsync())
+            .GroupBy(p => p.VehicleId)
+            .ToDictionary(g => g.Key, g => string.Join(" · ", g
+                .GroupBy(p => p.Tip)
+                .OrderBy(t => t.Key)
+                .Select(t => $"{t.Key}: {t.OrderByDescending(p => p.Bitis).First().Bitis.LocalDateTime:dd.MM.yyyy}")));
+    }
+
+    /// <summary>Sorgu dizesi → filtre. Tarih ≤ GÜN SONUNA alınır (aksi hâlde o günün satışları düşerdi).</summary>
+    private VehicleSaleFilter FiltreKur()
+    {
+        var f = new VehicleSaleFilter
+        {
+            Plaka = PlakaF,
+            AliciCariId = Guid.TryParse(CariF, out var c) ? c : null,
+            Durum = Enum.TryParse<SatisDurum>(DurumF, out var d) ? d : null,
+            SatisiVerildi = DevirF switch { "1" => true, "0" => false, _ => (bool?)null },
+            Ofis = OfisF
+        };
+        if (DateTimeOffset.TryParse(Bas, CultureInfo.InvariantCulture, DateTimeStyles.None, out var b1))
+            f.Bas = b1.ToUniversalTime();
+        if (DateTimeOffset.TryParse(Bit, CultureInfo.InvariantCulture, DateTimeStyles.None, out var b2))
+            f.Bit = b2.AddDays(1).AddTicks(-1).ToUniversalTime();
+        return f;
     }
 
     private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
     private string CustLabel(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";
+    private string KrediFirma(Guid vehicleId) => _krediMap.TryGetValue(vehicleId, out var b) ? b : "—";
+    private string PoliceOzet(Guid vehicleId) => _policeMap.TryGetValue(vehicleId, out var p) ? p : "—";
 }
