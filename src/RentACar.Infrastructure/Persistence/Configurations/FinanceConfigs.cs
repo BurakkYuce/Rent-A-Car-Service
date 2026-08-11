@@ -147,6 +147,13 @@ internal sealed class InvoiceConfig : IEntityTypeConfiguration<Invoice>
         e.Property(x => x.TevkifatOran).HasColumnType("numeric(9,4)");
         e.Property(x => x.TevkifatTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.DamgaVergisi).HasColumnType("numeric(19,4)");
+        // Bilgi/belge alanları (FAZ-51; bilgi amaçlı, postlamaya yansımaz)
+        e.Property(x => x.IslemSube).HasMaxLength(128);
+        e.Property(x => x.EvrakNo).HasMaxLength(64);
+        e.Property(x => x.FaturaOzelKod).HasMaxLength(64);
+        e.Property(x => x.OdemeTuru).HasMaxLength(32);
+        e.Property(x => x.GonderimSekli).HasMaxLength(32);
+        e.Property(x => x.KdvSifirSebep).HasMaxLength(128);
         e.HasIndex(x => new { x.TenantId, x.No }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.CariId });
         // İdempotency: bir kira EN ÇOK bir kez faturalanır (RentalId dolu olduğunda benzersiz).
