@@ -115,6 +115,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<MtvOdeme> MtvOdemeleri => Set<MtvOdeme>();                 // FAZ-14 kısmi ödeme
     public DbSet<MuayeneOdeme> MuayeneOdemeleri => Set<MuayeneOdeme>();     // FAZ-14 kısmi ödeme
     public DbSet<Penalty> Penalties => Set<Penalty>();
+    public DbSet<PenaltySatir> PenaltySatirlari => Set<PenaltySatir>();     // FAZ-60 ceza kalemi
+    public DbSet<PenaltyOdeme> PenaltyOdemeleri => Set<PenaltyOdeme>();     // FAZ-60 kalem ödemesi
     public DbSet<VehicleSale> VehicleSales => Set<VehicleSale>();
     public DbSet<FiloKiralama> FiloKiralamalar => Set<FiloKiralama>(); // roadmap L1
     public DbSet<AracSiparis> AracSiparisleri => Set<AracSiparis>(); // roadmap L3
