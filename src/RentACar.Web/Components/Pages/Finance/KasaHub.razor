@@ -177,6 +177,6 @@
         // bu ekranda yalnız görünen ad gerekiyor.
         _adlar = (await Customers.ListSecimAsync()).ToDictionary(c => c.Id, c => c.Ad);
         _hesapAdlari = (await Hesaplar.ListAsync()).ToDictionary(h => h.Id, h => h.Ad);
-        _virmanlar = await Cash.ListKasaVirmanlarAsync(50);
+        _virmanlar = await Cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { EnFazla = 50 });
     }
 }

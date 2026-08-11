@@ -1,0 +1,118 @@
+@page "/raporlar/virman-gecmisi"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Domain.Entities
+@inject CashService Cash
+@inject FinancialAccountService Hesaplar
+
+<PageTitle>Virman Geçmişi — RentPro</PageTitle>
+
+<div class="page-head"><h1>Virman Geçmişi</h1></div>
+
+@* FAZ-58 — canlı banka_virman_islem_ara.aspx karşılığı. Kaynak DEFTERDİR: virman işlemi
+   CashTransaction üretmediği için "Nakit İşlemler" listesinde hiç görünmez; burada AccountLedgerEntry
+   (SourceType='Virman') okunur ve künye (makbuz/şube/işlemi yapan) varsa eklenir. *@
+<form method="get" class="filter-bar">
+    <label>Başlangıç<input name="bas" type="date" value="@Bas" /></label>
+    <label>Bitiş<input name="bit" type="date" value="@Bit" /></label>
+    <label>Hesap
+        <select name="hesapId">
+            <option value="">Tümü</option>
+            @foreach (var h in _hesaplar)
+            {
+                <option value="@h.Id" selected="@(HesapId == h.Id.ToString())">@h.Ad (@h.Kod)</option>
+            }
+        </select>
+    </label>
+    <label>Ara<input name="ara" value="@Ara" placeholder="Makbuz / şube / açıklama" /></label>
+    <button type="submit">Filtrele</button>
+    @if (SuzgecVar) { <a href="/raporlar/virman-gecmisi" class="link">Temizle</a> }
+</form>
+
+<p class="muted small">@_satirlar.Count virman
+    @foreach (var (doviz, toplam) in Toplamlar)
+    {
+        <text>· @toplam.ToString("N2") @doviz </text>
+    }
+    @if (_satirlar.Any(x => !x.KunyeVar))
+    {
+        <text>· </text>
+        <span title="Bu kayıtlar makbuz/şube künyesi eklenmeden önce yapılmış virmanlardır; tutar ve hesap bilgisi defterden okunur.">
+            @_satirlar.Count(x => !x.KunyeVar) kaydın künyesi yok
+        </span>
+    }
+</p>
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead>
+        <tr><th>Tarih</th><th>Kaynak</th><th>Hedef</th><th class="num">Tutar</th><th>Döviz</th>
+            <th class="num">TL Karşılığı</th><th>Makbuz No</th><th>İşlem Şubesi</th>
+            <th>İşlemi Yapan</th><th>Açıklama</th></tr>
+    </thead>
+    <tbody>
+        @if (_satirlar.Count == 0)
+        {
+            <tr><td colspan="10" class="muted">Virman yok.</td></tr>
+        }
+        @foreach (var v in _satirlar)
+        {
+            <tr>
+                <td>@v.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@Taraf(v.KaynakTur, v.KaynakHesapId)</td>
+                <td>@Taraf(v.HedefTur, v.HedefHesapId)</td>
+                <td class="num">@v.Tutar.ToString("N2")</td>
+                <td>@v.Doviz</td>
+                <td class="num">@v.TutarTl.ToString("N2")</td>
+                <td>@(v.MakbuzNo ?? "—")</td>
+                <td>@(v.Sube ?? "—")</td>
+                <td>@(v.IslemYapan ?? "—")</td>
+                <td>@(v.Aciklama ?? "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "hesapId")] public string? HesapId { get; set; }
+    [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
+
+    private IReadOnlyList<KasaVirmanSatirDto> _satirlar = [];
+    private IReadOnlyList<FinancialAccount> _hesaplar = [];
+    private Dictionary<Guid, string> _adlar = new();
+
+    private bool SuzgecVar => !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit)
+        || !string.IsNullOrWhiteSpace(HesapId) || !string.IsNullOrWhiteSpace(Ara);
+
+    /// <summary>Döviz kırılımlı toplam: farklı dövizleri tek sayıda toplamak anlamsız bir rakam üretir.</summary>
+    private IEnumerable<(string Doviz, decimal Toplam)> Toplamlar
+        => _satirlar.GroupBy(x => x.Doviz)
+            .Select(g => (Doviz: g.Key, Toplam: g.Sum(x => x.Tutar)))
+            .OrderBy(x => x.Doviz, StringComparer.Ordinal);
+
+    /// <summary>Hesap seçilmişse adı, değilse yalnız tür — FAZ-50 öncesi kayıtlarda tür tek bilgidir.</summary>
+    private string Taraf(LedgerAccountType tur, Guid? hesapId)
+        => hesapId is { } id
+            ? $"{tur} · {(_adlar.TryGetValue(id, out var ad) ? ad : "(silinmiş hesap)")}"
+            : tur.ToString();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hesaplar = await Hesaplar.ListAsync();
+        _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
+
+        _satirlar = await Cash.ListKasaVirmanlarAsync(new KasaVirmanFilter
+        {
+            Bas = ParseGun(Bas),
+            // Bitiş günü DAHİL.
+            Bit = ParseGun(Bit)?.AddDays(1).AddTicks(-1),
+            HesapId = Guid.TryParse(HesapId, out var h) ? h : null,
+            Ara = string.IsNullOrWhiteSpace(Ara) ? null : Ara
+        });
+    }
+
+    private static DateTimeOffset? ParseGun(string? s)
+        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+}
