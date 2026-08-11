@@ -4,6 +4,20 @@
 
 <PageTitle>Kârlılık Raporu — RentPro</PageTitle>
 
+@* FAZ-79: referans (defter-DIŞI) kolonlar P&L kolonlarından GÖRSEL olarak ayrılır — kullanıcı bu
+   sayıları Gelir/Gider/Net Kâr ile karıştırmasın. Ayrım yalnız renk değil, başlıkta da yazılıdır. *@
+<style>
+    .karlilik-wrap { overflow-x: auto; width: 100%; }
+    .karlilik-wrap table { min-width: 1700px; }
+    .karlilik-wrap th, .karlilik-wrap td { white-space: nowrap; }
+    /* Referans blok: soluk zemin + sol ayraç çizgisi. */
+    .ref-col { background: var(--surface-2); }
+    .ref-bas { border-left: 3px solid var(--border-strong); }
+    .ref-baslik { background: var(--surface-2); color: var(--text-muted); font-weight: 600; }
+    .ref-uyari { border-left: 3px solid var(--warn); padding: var(--space-2) var(--space-3);
+                 background: var(--surface-2); border-radius: var(--radius-sm); margin: var(--space-3) 0; }
+</style>
+
 <div class="page-head">
     <h1>Kârlılık Raporu (P&amp;L)</h1>
     <div class="actions">
@@ -18,25 +32,39 @@
         else
         {
             <span>
-                <a href="/raporlar/export/karlilik?format=excel&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">Excel</a> ·
-                <a href="/raporlar/export/karlilik?format=csv&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">CSV</a> ·
-                <a href="/raporlar/export/karlilik?format=pdf&amp;from=@From&amp;to=@To&amp;sube=@Sube&amp;grup=@Grup&amp;plaka=@Plaka">PDF</a>
+                <a href="@ExportUrl("excel")">Excel</a> ·
+                <a href="@ExportUrl("csv")">CSV</a> ·
+                <a href="@ExportUrl("pdf")">PDF</a>
             </span>
         }
     </div>
 </div>
 
-@* Çok-boyutlu P&L (referans sistem araç gelir-gider tablosu paritesi): araç / grup / şube / segment + ek hizmet. *@
+@* Çok-boyutlu P&L (referans sistem araç gelir-gider tablosu paritesi): araç / grup / şube / segment / otopark / SIPP + ek hizmet. *@
 <p class="muted small"><strong>Boyut:</strong>
     <a href="/raporlar/karlilik?from=@From&to=@To">@(Boyut is null ? Bold("Araç") : Plain("Araç"))</a> ·
     <a href="/raporlar/karlilik?boyut=grup&from=@From&to=@To">@(Boyut == "grup" ? Bold("Grup") : Plain("Grup"))</a> ·
     <a href="/raporlar/karlilik?boyut=sube&from=@From&to=@To">@(Boyut == "sube" ? Bold("Şube") : Plain("Şube"))</a> ·
     <a href="/raporlar/karlilik?boyut=segment&from=@From&to=@To">@(Boyut == "segment" ? Bold("Segment") : Plain("Segment"))</a> ·
+    <a href="/raporlar/karlilik?boyut=otopark&from=@From&to=@To">@(Boyut == "otopark" ? Bold("Otopark") : Plain("Otopark"))</a> ·
+    <a href="/raporlar/karlilik?boyut=sipp&from=@From&to=@To">@(Boyut == "sipp" ? Bold("SIPP") : Plain("SIPP"))</a> ·
     <a href="/raporlar/ek-hizmet">Ek Hizmet →</a>
 </p>
-<p class="muted small">Defterden türetilen kâr/zarar (Gelir − Gider). Araç görünümü tek tek araçları; grup/şube/segment
+<p class="muted small">Defterden türetilen kâr/zarar (Gelir − Gider). Araç görünümü tek tek araçları; boyut
     görünümü o boyutta toplanmış P&amp;L'i verir. Atfedilemeyen gelir/gider yalnız Araç görünümünde "(Atanmamış)"
     satırında; boyut özetleri yalnız araca atfedilmiş satırları toplar. Ek hizmet P&amp;L'i ayrı rapordadır.</p>
+
+<div class="ref-uyari">
+    <strong>Referans kolonları — P&amp;L toplamına KATILMAZ.</strong>
+    <span class="muted small">Tabloda soluk zeminli blok (Ana/Yönetim/Toplam Maliyet, Potansiyel Gelir, Cari Bakiye,
+    KDV, Doluluk/RevPACD/ADR) araç kartından, tarife matrisinden ve cari defterinden okunan <em>bilgi</em>
+    alanlarıdır. <b>Gelir / Gider / Net Kâr yalnız muhasebe defterinden</b> gelir; referans sayıların onlarla
+    mutabık olması <b>beklenmez</b> ve bu sayılar toplamlara eklenmez. Doluluk / RevPACD / ADR kolonları
+    <b>ömür boyu</b> (sahiplik penceresi) hesaplanır — tarih filtresi bunları daraltmaz. Potansiyel gelir
+    ise <b>dönem</b> kapasitesidir: seçili tarih aralığındaki sahiplik günü × onaylı tarife matrisinin
+    günlük liste fiyatı ("araç dönem boyunca kesintisiz kiralansaydı"); eşleşen onaylı tarife yoksa
+    "Hesaplanmadı" yazar. Ana/Yönetim maliyeti araç kartındaki bilgi alanlarıdır, deftere girmez.</span>
+</div>
 
 <form method="get" class="grid-form">
     @if (IsOzet) { <input type="hidden" name="boyut" value="@Boyut" /> }
@@ -47,19 +75,37 @@
         <label>Şube<input name="sube" value="@Sube" /></label>
         <label>Grup<input name="grup" value="@Grup" /></label>
         <label>Plaka<input name="plaka" value="@Plaka" /></label>
+        <label>Rez. Kaynağı<input name="kaynak" value="@Kaynak" /></label>
+        <label>SIPP<input name="sipp" value="@Sipp" /></label>
+        <label>Kdv Durum
+            <select name="kdv">
+                <option value="" selected="@(!KdvDahilMi)">KDV'siz (defter net)</option>
+                <option value="dahil" selected="@KdvDahilMi">KDV Dahil (referans)</option>
+            </select>
+        </label>
     }
     <button type="submit">Göster</button>
 </form>
 
 @if (IsOzet)
 {
-    <div class="table-scroll">
+    <div class="karlilik-wrap">
     <table class="grid tr-grid">
-        <thead><tr><th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
+        <thead>
+            <tr>
+                <th colspan="5">Defter (P&amp;L)</th>
+                <th colspan="4" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
+            </tr>
+            <tr>
+                <th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
+                <th class="num ref-baslik ref-bas">Araç Başı Gelir</th><th class="num ref-baslik">Doluluk %</th>
+                <th class="num ref-baslik">Potansiyel Gelir</th><th class="num ref-baslik">Toplam Maliyet (ref.)</th>
+            </tr>
+        </thead>
         <tbody>
             @if (_ozet.Satirlar.Count == 0)
             {
-                <tr><td colspan="5" class="muted">Kayıt yok.</td></tr>
+                <tr><td colspan="9" class="muted">Kayıt yok.</td></tr>
             }
             @foreach (var r in _ozet.Satirlar)
             {
@@ -69,6 +115,10 @@
                     <td class="num">@r.Gelir.ToString("N2")</td>
                     <td class="num">@r.Gider.ToString("N2")</td>
                     <td class="num">@r.NetKar.ToString("N2")</td>
+                    <td class="num ref-col ref-bas">@N(r.AracBasiGelir)</td>
+                    <td class="num ref-col">@N(r.DolulukYuzde)</td>
+                    <td class="num ref-col">@N(r.PotansiyelGelir, "Hesaplanmadı")</td>
+                    <td class="num ref-col">@N(r.ReferansToplamMaliyet)</td>
                 </tr>
             }
         </tbody>
@@ -76,20 +126,42 @@
             <tr><th>TOPLAM</th><th class="num"></th>
                 <th class="num">@_ozet.ToplamGelir.ToString("N2")</th>
                 <th class="num">@_ozet.ToplamGider.ToString("N2")</th>
-                <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th></tr>
+                <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th>
+                <th class="num ref-col ref-bas" colspan="4"></th></tr>
         </tfoot>
     </table>
     </div>
 }
 else
 {
-    <div class="table-scroll">
+    <div class="karlilik-wrap">
     <table class="grid tr-grid">
-        <thead><tr><th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th></tr></thead>
+        <thead>
+            <tr>
+                <th colspan="@(KdvDahilMi ? 9 : 7)">Defter (P&amp;L) + kimlik</th>
+                <th colspan="8" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
+            </tr>
+            <tr>
+                <th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th>
+                <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
+                @if (KdvDahilMi)
+                {
+                    <th class="num">Hesaplanan KDV</th><th class="num">Gelir (KDV Dahil)</th>
+                }
+                <th class="ref-baslik ref-bas">SIPP</th>
+                <th class="ref-baslik">Otopark</th>
+                <th class="ref-baslik">Rez. Kaynağı</th>
+                <th class="ref-baslik">Cari</th>
+                <th class="num ref-baslik">Cari Bakiye</th>
+                <th class="num ref-baslik">Doluluk %</th>
+                <th class="num ref-baslik">RevPACD / ADR</th>
+                <th class="num ref-baslik">Ana / Yönetim / Toplam Maliyet · Potansiyel Gelir</th>
+            </tr>
+        </thead>
         <tbody>
             @if (_d.Satirlar.Count == 0)
             {
-                <tr><td colspan="7" class="muted">Kayıt yok.</td></tr>
+                <tr><td colspan="@(KdvDahilMi ? 17 : 15)" class="muted">Kayıt yok.</td></tr>
             }
             @foreach (var r in _d.Satirlar)
             {
@@ -101,6 +173,22 @@ else
                     <td class="num">@r.Gelir.ToString("N2")</td>
                     <td class="num">@r.Gider.ToString("N2")</td>
                     <td class="num">@r.NetKar.ToString("N2")</td>
+                    @if (KdvDahilMi)
+                    {
+                        <td class="num">@N(r.HesaplananKdv)</td>
+                        <td class="num">@N(r.GelirKdvDahil)</td>
+                    }
+                    <td class="ref-col ref-bas">@r.Sipp</td>
+                    <td class="ref-col">@r.Otopark</td>
+                    <td class="ref-col">@r.RezKaynagi</td>
+                    <td class="ref-col">@r.CariAd</td>
+                    <td class="num ref-col">@N(r.CariBakiye)</td>
+                    <td class="num ref-col">@N(r.DolulukYuzde)</td>
+                    <td class="num ref-col">@N(r.RevPacd) / @N(r.Adr)</td>
+                    <td class="num ref-col">
+                        @N(r.ReferansAylikMaliyet) / @N(r.ReferansFiloYonetimMaliyeti) / @N(r.ReferansToplamMaliyet)
+                        · @N(r.PotansiyelGelir, "Hesaplanmadı")
+                    </td>
                 </tr>
             }
         </tbody>
@@ -108,7 +196,16 @@ else
             <tr><th colspan="4">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
                 <th class="num">@_d.ToplamGelir.ToString("N2")</th>
                 <th class="num">@_d.ToplamGider.ToString("N2")</th>
-                <th class="num">@_d.ToplamNetKar.ToString("N2")</th></tr>
+                <th class="num">@_d.ToplamNetKar.ToString("N2")</th>
+                @if (KdvDahilMi)
+                {
+                    <th class="num">@N(_d.ToplamHesaplananKdv)</th>
+                    <th class="num">@N(_d.ToplamHesaplananKdv is { } tk ? _d.ToplamGelir + tk : null)</th>
+                }
+                <th class="ref-col ref-bas" colspan="7"></th>
+                <th class="num ref-col">
+                    @N(_d.ToplamReferansMaliyet) · @N(_d.ToplamPotansiyelGelir, "Hesaplanmadı")
+                </th></tr>
         </tfoot>
     </table>
     </div>
@@ -121,14 +218,28 @@ else
     [SupplyParameterFromQuery(Name = "grup")] public string? Grup { get; set; }
     [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
     [SupplyParameterFromQuery(Name = "boyut")] public string? Boyut { get; set; }
+    [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+    [SupplyParameterFromQuery(Name = "sipp")] public string? Sipp { get; set; }
+    /// <summary>"dahil" → KDV dahil gösterim. SALT GÖSTERİM: tutarlar değişmez.</summary>
+    [SupplyParameterFromQuery(Name = "kdv")] public string? Kdv { get; set; }
 
     private KarlilikDto _d = new([], 0m, 0m, 0m);
     private KarlilikOzetDto _ozet = new("", [], 0m, 0m, 0m);
-    private bool IsOzet => Boyut is "grup" or "sube" or "segment";
-    private bool _filtreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Grup) || !string.IsNullOrWhiteSpace(Plaka);
+    private bool IsOzet => Boyut is "grup" or "sube" or "segment" or "otopark" or "sipp";
+    private bool KdvDahilMi => string.Equals(Kdv, "dahil", StringComparison.OrdinalIgnoreCase);
+    private bool _filtreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Grup)
+        || !string.IsNullOrWhiteSpace(Plaka) || !string.IsNullOrWhiteSpace(Kaynak) || !string.IsNullOrWhiteSpace(Sipp);
 
     private static MarkupString Bold(string s) => new($"<strong>{s}</strong>");
     private static MarkupString Plain(string s) => new(s);
+    /// <summary>Null referans değeri "—" (ya da özel metin) gösterilir; 0 YAZILMAZ — "hesaplanmadı" ile
+    /// "sıfır" farklı şeylerdir.</summary>
+    private static string N(decimal? v, string bos = "—") => v is { } d ? d.ToString("N2") : bos;
+
+    /// <summary>Ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).</summary>
+    private string ExportUrl(string format)
+        => $"/raporlar/export/karlilik?format={format}&from={From}&to={To}&sube={Sube}&grup={Grup}"
+         + $"&plaka={Plaka}&kaynak={Kaynak}&sipp={Sipp}&kdv={(KdvDahilMi ? "dahil" : "")}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,6 +248,7 @@ else
         if (IsOzet)
             _ozet = await Reports.GetKarlilikOzetAsync(Boyut!, f, t);
         else
-            _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka);
+            _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka, Kaynak, Sipp,
+                KdvDahilMi ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz);
     }
 }

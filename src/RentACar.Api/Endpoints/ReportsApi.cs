@@ -47,9 +47,13 @@ public static class ReportsApi
         grp.MapGet("/servis-maliyet", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetServiceCostSummaryAsync(from, to, ct)));
 
+        // FAZ-79: kaynak/sipp filtreleri + kdvDurum (salt gösterim) eklendi; mevcut sorgu-dizesi çağrıları
+        // (from/to/sube/grup/plaka) aynen çalışır ve AYNI Gelir/Gider/NetKar'ı döndürür.
         grp.MapGet("/karlilik", async (ReportService svc, CancellationToken ct,
-            DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null, string? grup = null, string? plaka = null) =>
-            Results.Ok(await svc.GetKarlilikAsync(from, to, sube, grup, plaka, ct)));
+            DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null, string? grup = null,
+            string? plaka = null, string? kaynak = null, string? sipp = null, bool kdvDahil = false) =>
+            Results.Ok(await svc.GetKarlilikAsync(from, to, sube, grup, plaka, kaynak, sipp,
+                kdvDahil ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz, ct)));
 
         return app;
     }
