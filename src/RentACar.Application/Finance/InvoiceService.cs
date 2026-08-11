@@ -378,7 +378,13 @@ public sealed class InvoiceService(
             GenelToplam = net + kdv,
             Currency = "TRY",
             Kur = 1m,
-            ManuelMi = true
+            ManuelMi = true,
+            IslemSube = input.IslemSube,
+            EvrakNo = input.EvrakNo,
+            FaturaOzelKod = input.FaturaOzelKod,
+            OdemeTuru = input.OdemeTuru,
+            GonderimSekli = input.GonderimSekli,
+            KdvSifirSebep = input.KdvSifirSebep
         };
         await _lock.EnsureOpenAsync(invoice.Tarih, ct); // dönem kilidi: kapalı döneme manuel fatura YOK
         invoice.Lines.Add(new InvoiceLine
@@ -388,6 +394,14 @@ public sealed class InvoiceService(
             Miktar = 1m, BirimNetFiyat = net, KdvOrani = input.KdvOrani,
             SatirNet = net, SatirKdv = kdv, SatirToplam = net + kdv
         });
+
+        // Vergi/belge metadata (bilgi amaçlı; defter postlamasına YANSIMAZ — BuildEntries dokunulmadı).
+        // ApplyVergi IadeMi/ManuelMi'yi de v'den yazar; manuel uçta bu SERVİS invariant'ıdır (formdan
+        // GELMEZ — ManualInvoiceInput.Vergi'de IadeMi/ManuelMi kullanılmıyor) → ApplyVergi SONRASI
+        // yeniden zorlanır (olası override'a karşı savunma derinliği).
+        ApplyVergi(invoice, input.Vergi);
+        invoice.ManuelMi = true;
+        invoice.IadeMi = false;
 
         await repository.PostAsync(invoice, BuildEntries(invoice), ct);
         return invoice.Id;

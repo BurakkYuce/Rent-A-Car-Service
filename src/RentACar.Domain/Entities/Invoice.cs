@@ -65,6 +65,21 @@ public class Invoice : ITenantOwned, IAuditable
     /// <summary>Kiradan bağımsız manuel fatura mı.</summary>
     public bool ManuelMi { get; set; }
 
+    // ---- Bilgi/belge alanları (FAZ-51; additive, BİLGİ AMAÇLI — postlamaya/deftere YANSIMAZ) ----
+    /// <summary>Faturanın kesildiği işlem şubesi (serbest metin — Şube master'a FK değil, canlı paritesi
+    /// serbest metin alanıydı).</summary>
+    public string? IslemSube { get; set; }
+    /// <summary>Evrak/belge no (serbest metin, fatura No'sundan ayrı — harici evrak çapraz referansı).</summary>
+    public string? EvrakNo { get; set; }
+    /// <summary>Fatura özel kodu (serbest metin — canlıda kod-listesi, burada serbest).</summary>
+    public string? FaturaOzelKod { get; set; }
+    /// <summary>Ödeme türü (ör. Kart/Havale/Nakit — seç-veya-yaz).</summary>
+    public string? OdemeTuru { get; set; }
+    /// <summary>Gönderim şekli (ör. Mail/Kargo/Posta — seç-veya-yaz).</summary>
+    public string? GonderimSekli { get; set; }
+    /// <summary>KDV sıfır/istisna sebebi (canlıda 4 sabit seçenek).</summary>
+    public string? KdvSifirSebep { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public List<InvoiceLine> Lines { get; set; } = [];

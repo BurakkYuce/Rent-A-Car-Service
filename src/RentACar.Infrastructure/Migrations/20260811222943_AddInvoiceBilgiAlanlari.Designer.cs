@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RentACar.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260811222943_AddInvoiceBilgiAlanlari")]
+    partial class AddInvoiceBilgiAlanlari
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2222,16 +2225,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<bool>("SadeceKendiSubeleri")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Sube")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("SubeId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -2240,12 +2233,8 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubeId");
-
                     b.HasIndex("TenantId", "Kod")
                         .IsUnique();
-
-                    b.HasIndex("TenantId", "SubeId");
 
                     b.ToTable("DolulukFiyatKurallari", (string)null);
                 });
@@ -5593,9 +5582,6 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<decimal?>("Iskonto")
                         .HasColumnType("numeric(9,4)");
 
-                    b.Property<int>("KampanyaDurum")
-                        .HasColumnType("integer");
-
                     b.Property<string>("KampanyaKodu")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -5647,8 +5633,6 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("TalepBit")
                         .HasColumnType("timestamp with time zone");
-                    b.Property<int>("TarihTipi")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -8217,15 +8201,6 @@ namespace RentACar.Infrastructure.Migrations
                         .HasForeignKey("MusteriId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("RentACar.Domain.Entities.DolulukFiyatKural", b =>
-                {
-                    b.HasOne("RentACar.Domain.Entities.Branch", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "SubeId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Expense", b =>
