@@ -1,5 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Expenses;
 using RentACar.Application.Integrations;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -8,20 +9,33 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.GelenEFaturalar;
 
 /// <summary>
-/// Gelen e-Fatura triage iş mantığı: liste + elle giriş + GİB-sync (stub) + durum akışı
-/// (Beklemede→Onaylandı/Reddedildi; Onaylandı→İşlendi). Yazma → <see cref="Permission.FinanceWrite"/>.
-/// ETTN tenant içinde benzersiz (elle + sync upsert idempotent). DEFTERE POSTLAMAZ — gelen faturayı
-/// gidere dönüştürme (para) ileriki adım. Tenant izolasyonu/audit alt katmanda otomatik.
+/// Gelen e-Fatura triage iş mantığı: liste/filtre + elle giriş + GİB-sync (stub) + durum akışı
+/// (Beklemede→Onaylandı/Reddedildi; Onaylandı→İşlendi) + FAZ-55 KDV oran kırılımı/bağlama
+/// (<see cref="BaglaAsync"/>) + giderleştirme (<see cref="GiderlestirAsync"/>).
+/// Yazma → <see cref="Permission.FinanceWrite"/>. ETTN tenant içinde benzersiz (elle + sync idempotent).
+///
+/// <para><b>DEFTER SÖZLEŞMESİ:</b> bu servis KENDİ defter kaydı YAZMAZ ve yeni bir defter şekli
+/// icat ETMEZ. Tek para yolu <see cref="GiderlestirAsync"/>'tir ve o da işi olduğu gibi
+/// <see cref="ExpenseService.BatchCreateAsync"/>'e devreder → yazılan küme mevcut, denetlenmiş
+/// gider kümesidir: <c>Borç Gider(net) + Borç KDV(indirilecek) / Alacak Kasa·Banka·Cari(gross)</c>.
+/// Dolayısıyla dönem kilidi, kur çözümü (KurCozucu), şube-FK, denge kontrolü ve idempotency
+/// çiti TEK yerde kalır — kopyalanmaz.</para>
 /// </summary>
 public sealed class GelenEFaturaService(
-    IGelenEFaturaRepository repository, IEInvoiceService einvoice, ICurrentUser currentUser)
+    IGelenEFaturaRepository repository, IEInvoiceService einvoice, ICurrentUser currentUser,
+    ExpenseService expenses)
 {
     private readonly IGelenEFaturaRepository _repository = repository;
     private readonly IEInvoiceService _einvoice = einvoice;
     private readonly ICurrentUser _currentUser = currentUser;
+    private readonly ExpenseService _expenses = expenses;
 
     public Task<IReadOnlyList<GelenEFatura>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+        => _repository.ListAsync(null, ct);
+
+    /// <summary>FAZ-55: filtreli liste (firma / ETTN aralığı / plaka / durum / tarih).</summary>
+    public Task<IReadOnlyList<GelenEFatura>> ListAsync(GelenEFaturaFilter? filter, CancellationToken ct = default)
+        => _repository.ListAsync(filter, ct);
 
     public Task<GelenEFatura?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -35,8 +49,9 @@ public sealed class GelenEFaturaService(
         if (string.IsNullOrWhiteSpace(ettn)) throw new ValidationException("ETTN zorunludur.");
         if (string.IsNullOrWhiteSpace(vkn)) throw new ValidationException("Gönderen VKN zorunludur.");
         if (string.IsNullOrWhiteSpace(unvan)) throw new ValidationException("Gönderen ünvanı zorunludur.");
-        if (input.NetTutar < 0m || input.KdvTutar < 0m || input.GenelToplam < 0m)
-            throw new ValidationException("Tutarlar negatif olamaz.");
+        // FAZ-55: belge kendi içinde tutarlı olmalı (net + KDV == genel toplam). Aksi halde hiçbir
+        // KDV kırılımı toplamı tutturamaz ve giderleştirmede defter belgeden kopardı.
+        GelenEFaturaKdvKirilim.ToplamlariDogrula(input.NetTutar, input.KdvTutar, input.GenelToplam);
         if (await _repository.EttnExistsAsync(ettn, ct))
             throw new ValidationException($"'{ettn}' ETTN'li gelen fatura zaten kayıtlı.");
 
@@ -67,6 +82,10 @@ public sealed class GelenEFaturaService(
         foreach (var it in items)
         {
             if (string.IsNullOrWhiteSpace(it.Ettn) || await _repository.EttnExistsAsync(it.Ettn.Trim(), ct)) continue;
+            // FAZ-55: entegratörden gelen belge de kendi içinde tutarlı olmalı. SESSİZ ATLAMA YOK —
+            // tutarsız belgeyi görmezden gelmek "eksik gider" üretir; ETTN'li gürültülü red daha dürüst.
+            try { GelenEFaturaKdvKirilim.ToplamlariDogrula(it.NetTutar, it.KdvTutar, it.GenelToplam); }
+            catch (ValidationException ex) { throw new ValidationException($"ETTN {it.Ettn.Trim()}: {ex.Message}"); }
             await _repository.CreateAsync(new GelenEFatura
             {
                 Ettn = it.Ettn.Trim(),
@@ -108,4 +127,133 @@ public sealed class GelenEFaturaService(
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
+
+    // ================= FAZ-55 (a): KDV oran kırılımı + araç/kategori/cari bağlama =================
+
+    /// <summary>
+    /// KDV oran kırılımını (%20/%10/%1/%0 matrah+KDV) ve araç / gider kategorisi / tedarikçi cari
+    /// bağını kaydeder. Hepsi BİLGİDİR — deftere YAZMAZ; yalnız <see cref="GiderlestirAsync"/>'e girdi olur.
+    ///
+    /// <para><b>Kilit:</b> fatura bir kez giderleştirildiyse bu alanlar DEĞİŞTİRİLEMEZ. Aksi halde
+    /// belge (kırılım) ile defter (yazılmış gider satırları) sessizce diverge ederdi — mali kayıtta
+    /// "sonradan düzeltme" yasağının bu ekrandaki karşılığı.</para>
+    /// </summary>
+    public async Task<bool> BaglaAsync(GelenEFaturaBaglamaInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        return await _repository.UpdateAsync(input.Id, row =>
+        {
+            if (row.GiderlestirilmeUtc is not null)
+                throw new ValidationException(
+                    "Bu fatura giderleştirilmiş; KDV kırılımı ve bağlama alanları artık değiştirilemez " +
+                    "(düzeltme, gider tarafında ters kayıtla yapılır).");
+            if (row.Durum == GelenEFaturaDurum.Reddedildi)
+                throw new ValidationException("Reddedilmiş faturaya kırılım/bağlama girilemez.");
+
+            row.Kdv20Matrah = input.Kdv20Matrah; row.Kdv20 = input.Kdv20;
+            row.Kdv10Matrah = input.Kdv10Matrah; row.Kdv10 = input.Kdv10;
+            row.Kdv1Matrah = input.Kdv1Matrah; row.Kdv1 = input.Kdv1;
+            row.Kdv0Matrah = input.Kdv0Matrah;
+            row.VehicleId = input.VehicleId;
+            row.ExpenseCategoryId = input.ExpenseCategoryId;
+            row.CariId = input.CariId;
+            row.GiderTipi = input.GiderTipi;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+            // Doğrulama SET'ten SONRA, kaydetmeden ÖNCE: tutarsız kırılım hiç yazılmaz (Update
+            // izleyici bağlamında SaveChanges'ten önce fırlar → transaction yok, değişiklik atılır).
+            GelenEFaturaKdvKirilim.ToplamlariDogrula(row.NetTutar, row.KdvTutar, row.GenelToplam);
+            GelenEFaturaKdvKirilim.Dogrula(row);
+        }, ct);
+    }
+
+    // ================= FAZ-55 (b): giderleştirme (TEK para yolu) =================
+
+    /// <summary>
+    /// Gelen faturayı gidere dönüştürür: her KDV oran kademesi AYRI bir <c>Expense</c> satırı olur ve
+    /// tümü TEK transaction'da (<see cref="ExpenseService.BatchCreateAsync"/>) yazılır. Dönen değer,
+    /// oluşan gider satırı sayısıdır.
+    ///
+    /// <para><b>Defter kümesi (satır başına, DEĞİŞMEDİ):</b>
+    /// <c>Borç Gider(matrah) + Borç KDV(indirilecek) / Alacak Cari|Kasa|Banka(matrah+KDV)</c>.
+    /// Σ Borç(baz) == Σ Alacak(baz) her satırda ayrı ayrı sağlanır.</para>
+    ///
+    /// <para><b>Kuruş:</b> yuvarlama SATIR BAZINDA yapılır; <see cref="GelenEFaturaKdvKirilim.Coz"/>
+    /// Σ matrah == NetTutar ve Σ KDV == KdvTutar eşitliğini KURUŞ-BİREBİR zorlar → defter toplamı
+    /// belgenin toplamına eşittir, bir kuruş bile uydurulamaz.</para>
+    ///
+    /// <para><b>İdempotency:</b> batch anahtarı = faturanın kendi <c>Id</c>'si (deterministik).
+    /// Her gider satırı <c>CashService.RowKey(Id, i)</c> alır; <c>Expenses</c> üzerindeki kısmi
+    /// unique index <c>(TenantId, IslemAnahtari)</c> ikinci yazımı DB seviyesinde reddeder. Yani
+    /// eşzamanlı iki çağrı (TOCTOU) durumunda bile ikinci küme YAZILAMAZ — bellek-içi bayrak
+    /// kontrolü yalnız kullanıcıya anlaşılır mesaj vermek içindir, güvenlik çiti DB'dedir.</para>
+    ///
+    /// <para><b>Bilinen dar yarış (Low, bilinçli):</b> <see cref="BaglaAsync"/> tam olarak
+    /// "kırılım okundu"–"damga atıldı" aralığında çalışırsa, belgenin oran DAĞILIMI defterdekinden
+    /// farklı görünebilir. Defter TOPLAMLARI etkilenmez: Bagla yalnız kırılım/bağlama alanlarını
+    /// yazar ve her kırılım zaten değişmeyen Net/KDV toplamlarına eşit olmak ZORUNDADIR; ayrıca
+    /// oluşan her gider satırı kendi oranını (<c>KdvOrani</c>) ve ETTN'i taşır. Kilit
+    /// (<c>GiderlestirilmeUtc</c>) bu aralıktan sonraki tüm değişiklikleri kapatır.</para>
+    /// </summary>
+    public async Task<int> GiderlestirAsync(GelenEFaturaGiderInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+
+        var row = await _repository.FindAsync(input.Id, ct)
+            ?? throw new ValidationException("Gelen fatura bulunamadı.");
+
+        if (row.GiderlestirilmeUtc is not null)
+            throw new ValidationException($"'{row.Ettn}' ETTN'li fatura zaten giderleştirilmiş.");
+        // Triage kapısı: yalnız ONAYLANMIŞ fatura deftere girer. "İşlendi" = dışarıda ele alınmış
+        // (elle muhasebeleştirilmiş) demektir → tekrar giderleştirmek çift kayıt üretirdi.
+        if (row.Durum != GelenEFaturaDurum.Onaylandi)
+            throw new ValidationException("Yalnız onaylanmış gelen fatura giderleştirilebilir.");
+
+        var satirlar = GelenEFaturaKdvKirilim.Coz(row); // kuruş-birebir doğrulama + oran çözümü
+
+        var cariId = input.CariId ?? row.CariId;
+        if (input.OdemeYontemi == OdemeYontemi.AcikHesap && (cariId is null || cariId == Guid.Empty))
+            throw new ValidationException("Açık hesap giderleştirmesi için tedarikçi cari seçilmelidir.");
+
+        var tip = row.GiderTipi ?? (row.VehicleId is { } v && v != Guid.Empty ? ExpenseType.Arac : ExpenseType.Genel);
+        if (tip == ExpenseType.Arac && (row.VehicleId is null || row.VehicleId == Guid.Empty))
+            throw new ValidationException("Araç gideri için faturaya önce araç bağlanmalıdır.");
+
+        var kalemler = satirlar.Select(s => new ExpenseInput
+        {
+            Tip = tip,
+            Tarih = row.Tarih,
+            VehicleId = row.VehicleId,
+            CariId = input.OdemeYontemi == OdemeYontemi.AcikHesap ? cariId : null,
+            Sube = input.Sube,
+            EvrakNo = Kirp(row.Ettn, 64),
+            NetTutar = s.Matrah,
+            KdvOrani = s.Oran,
+            Doviz = row.Currency,
+            Kur = null, // açık kur YOK → KurCozucu belge tarihinden çözer (tüm kalemler aynı gün → aynı kur)
+            OdemeYontemi = input.OdemeYontemi, // karşı hesabı TEK BAŞINA belirler (Nakit→Kasa/Banka→Banka/Açık→Cari)
+            // Oran etiketi InvariantCulture: belge izi makine-okunur ve kültürden bağımsız kalsın.
+            Aciklama = Kirp(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "Gelen e-Fatura {0} — {1} (%{2:0.##})", row.Ettn, row.GonderenUnvan, s.Oran * 100m), 512)
+        }).ToList();
+
+        // TEK transaction + deterministik idempotency anahtarı (batch = faturanın Id'si).
+        await _expenses.BatchCreateAsync(kalemler, batchAnahtari: row.Id, ct);
+
+        // Defter yazıldıktan SONRA belge damgalanır. Sıra bilinçli: damga önce atılıp post
+        // patlasaydı fatura "giderleşmiş" görünüp defterde karşılığı olmazdı. Ters sırada en kötü
+        // ihtimal damganın eksik kalmasıdır; o durumda ikinci deneme DB unique index'ine çarpar
+        // ("zaten kaydedilmiş") → çift defter YİNE imkânsız.
+        await _repository.UpdateAsync(row.Id, r =>
+        {
+            r.GiderlestirilmeUtc = DateTimeOffset.UtcNow;
+            r.GiderIslemAnahtari = row.Id;
+            r.Durum = GelenEFaturaDurum.Islendi;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+
+        return kalemler.Count;
+    }
+
+    private static string Kirp(string s, int max) => s.Length <= max ? s : s[..max];
 }
