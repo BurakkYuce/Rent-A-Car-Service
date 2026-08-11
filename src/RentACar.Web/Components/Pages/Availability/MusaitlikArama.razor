@@ -1,12 +1,15 @@
 @page "/musaitlik"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
 @using RentACar.Application.Availability
+@using RentACar.Application.BrokerYasaklari
 @using RentACar.Application.Pricing
 @inject AvailabilityService Availability
 @inject RentalQuoteEngine Quotes
 @inject BranchService Subeler
 @inject VehicleGroupService AracGruplari
 @inject ReservationSourceService Kaynaklar
+@inject BrokerYasakService BrokerYasaklari
+@inject RateMatrixService Tarifeler
 
 <PageTitle>Müsait Araç Ara — RentPro</PageTitle>
 
@@ -39,6 +42,19 @@
             }
         </select>
     </label>
+    @* FAZ-73 broker görünümü — DÖVİZ SÜZGECİ. Fiyatı DEĞİŞTİRMEZ, yalnız listeyi daraltır: teklif
+       dövizi tarife matrisinin para biriminden gelir (motor kararı), burada sadece o dövize uymayan
+       satırlar gizlenir. Kur çevirimi BİLİNÇLİ YOK — ekranda çevrilmiş fiyat göstermek, motorun
+       vermediği bir tutarı kullanıcıya sunmak olurdu. *@
+    <label>Döviz
+        <select name="doviz">
+            <option value="">(tümü)</option>
+            @foreach (var d in _dovizOpts)
+            {
+                <option value="@d" selected="@(string.Equals(d, Doviz, StringComparison.OrdinalIgnoreCase))">@d</option>
+            }
+        </select>
+    </label>
     <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 AA (boşluk serbest)" /></label>
     <button type="submit">Ara</button>
 </form>
@@ -46,18 +62,24 @@
 @if (_searched)
 {
     <p class="muted">@_pencereMetni arası @_list.Count müsait araç.</p>
+    @if (_brokerElenen > 0)
+    {
+        <p class="muted small">@_brokerElenen araç, seçili kaynak (@RezKaynak) için tanımlı broker
+            satış yasağı nedeniyle listelenmedi (@string.Join(", ", _brokerGerekce)).</p>
+    }
     <div class="table-scroll">
     <table class="grid tr-grid">
         <thead><tr><th>Plaka</th><th>Marka</th><th>Tipi</th><th class="num">Yılı</th><th class="num">Yaş</th><th>Yakıt</th>
             <th>Vites</th><th>Renk</th><th>SIPP</th><th>Grup</th><th>Şube</th>
             <th class="num">Km Limiti</th><th class="num">Min. Sürücü Yaşı</th>
+            <th class="num">Min. Ehliyet Yılı</th><th class="num">Provizyon</th>
             <th>Kar Lastiği</th><th>Temizlik</th><th>Özel Kod 1</th>
             <th class="num">Son Km</th><th class="num">Boşta (gün)</th><th>Son Müşteri</th>
             <th class="num">Günlük</th><th class="num">Toplam</th><th>Döviz</th><th></th></tr></thead>
         <tbody>
             @if (_list.Count == 0)
             {
-                <tr><td colspan="23" class="muted">Bu aralıkta müsait araç yok.</td></tr>
+                <tr><td colspan="25" class="muted">Bu aralıkta müsait araç yok.</td></tr>
             }
             @foreach (var v in _list)
             {
@@ -82,6 +104,12 @@
                        yaşı yalnız GRUPTA tanımlı. *@
                     <td class="num">@(KmLimiti(v)?.ToString("N0") ?? "—")</td>
                     <td class="num">@(MinSurucuYas(v.Grup)?.ToString() ?? "—")</td>
+                    @* FAZ-73 — broker/kanal yöneticisinin sorduğu iki kural daha; ikisi de yalnız
+                       GRUP tanımında var (araç seviyesinde karşılığı yok). Provizyon BİLGİDİR:
+                       teklif toplamına GİRMEZ (motor onu ayrı alanda döndürür), bu yüzden ekranda
+                       da fiyat kolonlarından ayrı durur. *@
+                    <td class="num">@(MinEhliyetYil(v.Grup)?.ToString() ?? "—")</td>
+                    <td class="num">@Provizyon(v.Grup)</td>
                     @* Canlıdaki "Lokasyon" kolonunun Vehicle'da karşılığı YOK (araçta yalnız Sube
                        var); uydurulmuş bir alan eklemek yerine gerçekten var olan operasyonel
                        bayraklar konuldu. Lokasyon istenirse ayrı bir alan işidir. *@
@@ -120,6 +148,9 @@
     /// ReservationSource eşleşirse; FAZ 3.A4 çiti — tanımsız kaynak kanal-özel tarife seçtiremez).</summary>
     [SupplyParameterFromQuery(Name = "rezkaynak")] public string? RezKaynak { get; set; }
     [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
+    /// <summary>FAZ-73 — döviz süzgeci: teklif dövizi (motorun verdiği ParaBirimi) bu değere
+    /// uymayan satırlar gizlenir. Fiyat DEĞİŞMEZ, kur çevirimi YOK.</summary>
+    [SupplyParameterFromQuery(Name = "doviz")] public string? Doviz { get; set; }
 
     private IReadOnlyList<Vehicle> _list = [];
     private IReadOnlyDictionary<Guid, SonKullanimRow> _son = new Dictionary<Guid, SonKullanimRow>();
@@ -130,6 +161,9 @@
     private List<string> _subeOpts = [];
     private List<string> _grupOpts = [];
     private List<string> _kaynakOpts = [];
+    private List<string> _dovizOpts = [];
+    private int _brokerElenen;
+    private List<string> _brokerGerekce = [];
     private Dictionary<string, VehicleGroup> _grupMap = new(StringComparer.OrdinalIgnoreCase);
     private string _pencereMetni = "";
     private string? _vfrom, _vto;   // Kirala bağlantısı için ÇÖZÜLMÜŞ pencere (gün-modunda To boş olabilir)
@@ -160,6 +194,18 @@
     private int? MinSurucuYas(string? grup)
         => grup is not null && _grupMap.TryGetValue(grup, out var g) ? g.SurucuMinYas : null;
 
+    /// <summary>FAZ-73 — asgari ehliyet yılı (yalnız grup tanımında).</summary>
+    private int? MinEhliyetYil(string? grup)
+        => grup is not null && _grupMap.TryGetValue(grup, out var g) ? g.EhliyetMinYil : null;
+
+    /// <summary>FAZ-73 — provizyon (bloke) tutarı + kendi dövizi. BİLGİ: teklif toplamına girmez.
+    /// Grup kendi dövizini taşımıyorsa yalnız tutar yazılır (uydurma bir para birimi basılmaz).</summary>
+    private string Provizyon(string? grup)
+    {
+        if (grup is null || !_grupMap.TryGetValue(grup, out var g) || g.Provizyon is not { } p) return "—";
+        return string.IsNullOrWhiteSpace(g.ProvizyonDoviz) ? p.ToString("N2") : $"{p:N2} {g.ProvizyonDoviz}";
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
@@ -171,6 +217,13 @@
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var aktifKaynaklar = await Kaynaklar.ListActiveAsync();
         _kaynakOpts = aktifKaynaklar.Select(k => k.Ad).ToList();
+
+        // Döviz seçenekleri AKTİF TARİFELERDEN gelir — teklif dövizinin tek kaynağı odur
+        // (RentalQuoteEngine: paraBirimi = matris.ParaBirimi ?? "TRY"). Sabit bir liste yazmak,
+        // seçilebilir ama hiçbir sonucu olmayan dövizler üretirdi.
+        _dovizOpts = (await Tarifeler.ListActiveAsync())
+            .Select(m => string.IsNullOrWhiteSpace(m.ParaBirimi) ? "TRY" : m.ParaBirimi!.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Ordinal).ToList();
 
         // Pencere kuralı SUNUCUDA (saf fonksiyon): gün sayısı bitişin yerine geçer, saatler
         // verilmezse 00:00 → eski davranışla birebir.
@@ -221,6 +274,41 @@
                     _fiyat[grup!] = (q.GunlukUcret, q.GenelToplam, q.ParaBirimi);
                 }
                 catch (RentACar.Application.Common.ValidationException) { /* grup/tarih geçersiz → fiyat gösterilmez */ }
+            }
+
+            // FAZ-73 (A) BROKER ÇİTİ — canlı broker_musaitlik_listesi.aspx. Kaynak seçiliyse, o
+            // brokera KAPALI gruptaki araçlar listeden düşer. Karar SAF fonksiyonda
+            // (BrokerMusaitlik.Engel); ekran kural taşımaz. Süzgeç LİSTE ÜZERİNDE — müsaitlik
+            // sorgusunun kapsam/izolasyon kuralları dokunulmadan kalır (plaka süzgeciyle aynı desen).
+            // Fiyata HİÇ dokunmaz: kalan satırların tutarı motordan geldiği gibi durur.
+            if (!string.IsNullOrWhiteSpace(RezKaynak))
+            {
+                var yasaklar = await BrokerYasaklari.ListActiveAsync();
+                if (yasaklar.Count > 0)
+                {
+                    var gun = BookingMath.ComputeGun(from, to);
+                    var kalan = new List<Vehicle>(_list.Count);
+                    var gerekce = new List<string>();
+                    foreach (var v in _list)
+                    {
+                        var engel = BrokerMusaitlik.Engel(yasaklar, RezKaynak, v.Grup, v.Sube, gun, from);
+                        if (engel is null) { kalan.Add(v); continue; }
+                        _brokerElenen++;
+                        if (!gerekce.Contains(engel.Kod, StringComparer.Ordinal)) gerekce.Add(engel.Kod);
+                    }
+                    _list = kalan;
+                    _brokerGerekce = gerekce;
+                }
+            }
+
+            // FAZ-73 (B) DÖVİZ SÜZGECİ — teklif dövizi motordan gelir; burada yalnız eşleşmeyen
+            // satırlar gizlenir. Fiyatı henüz hesaplanamamış (tarifesi olmayan) grup da gizlenir:
+            // "döviz X" filtresi altında dövizi bilinmeyen satır göstermek yanıltıcı olurdu.
+            if (!string.IsNullOrWhiteSpace(Doviz))
+            {
+                var d = Doviz.Trim();
+                _list = _list.Where(v => Fiyat(v.Grup) is { } f
+                    && string.Equals(f.Para, d, StringComparison.OrdinalIgnoreCase)).ToList();
             }
         }
         catch (RentACar.Application.Common.ValidationException ex)

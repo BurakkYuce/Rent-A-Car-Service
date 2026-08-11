@@ -162,6 +162,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Kira sözleşmesi", db.Rentals.Where(x => x.CikisSubeId == kaynakId));
         await Say("Lokasyon", db.Locations.Where(x => x.SubeId == kaynakId));
         await Say("Tarife matrisi", db.RateMatrices.Where(x => x.SubeId == kaynakId));
+        await Say("Doluluk fiyat kuralı", db.DolulukFiyatKurallari.Where(x => x.SubeId == kaynakId));   // FAZ-73
         await Say("Araç (metin şube)", db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Kira kuralı (metin)", db.RentalRules.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("BAF (metin)", db.Baflar.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
@@ -172,6 +173,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await Say("Lokasyon (metin)", db.Locations.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Hesap (metin)", db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Tarife matrisi (metin)", db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        await Say("Doluluk fiyat kuralı (metin)", db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == kaynak.Ad));   // FAZ-73
         await Say("Cari virman künyesi (metin)", db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Site talebi (metin)", db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
         await Say("Drop tanımı (metin)", db.DropTanimlari.Where(x => x.Sube == kaynak.Ad));
@@ -220,6 +222,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
             toplam += await db.RateMatrices.Where(x => x.SubeId == kaynakId)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
+            toplam += await db.DolulukFiyatKurallari.Where(x => x.SubeId == kaynakId)   // FAZ-73
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
             toplam += await db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId)   // FAZ-45
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
             toplam += await db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
@@ -237,6 +241,8 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
             toplam += await db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+            toplam += await db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-73
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
             toplam += await db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
