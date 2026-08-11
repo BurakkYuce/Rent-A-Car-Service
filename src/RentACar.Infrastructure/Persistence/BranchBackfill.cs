@@ -15,7 +15,7 @@ namespace RentACar.Infrastructure.Persistence;
 /// </summary>
 public static class BranchBackfill
 {
-    // (tablo, sube-metin kolonu, FK kolonu) — 6 mutable branch-scoped tablo.
+    // (tablo, sube-metin kolonu, FK kolonu) — 7 mutable branch-scoped tablo.
     private static readonly (string Table, string SubeCol, string FkCol)[] Targets =
     [
         ("Vehicles", "Sube", "SubeId"),
@@ -23,6 +23,7 @@ public static class BranchBackfill
         ("Personeller", "Sube", "SubeId"),
         ("TarifeMatris", "Sube", "SubeId"),
         ("KiralamaKurallari", "Sube", "SubeId"),
+        ("DolulukFiyatKurallari", "Sube", "SubeId"),   // FAZ-73
         ("Users", "AtanmisSube", "AtanmisSubeId"),
     ];
 

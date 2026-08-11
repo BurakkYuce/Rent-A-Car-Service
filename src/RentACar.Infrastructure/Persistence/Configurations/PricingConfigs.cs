@@ -166,6 +166,8 @@ internal sealed class RentalRuleConfig : IEntityTypeConfiguration<RentalRule>
         e.Property(x => x.HaftaGunKisiti).HasMaxLength(32);
         e.Property(x => x.Iskonto).HasColumnType("numeric(9,4)");
         e.Property(x => x.SonraOdeOran).HasColumnType("numeric(9,4)");
+        e.Property(x => x.KampanyaDurum).HasConversion<int>();  // FAZ-73
+        e.Property(x => x.TarihTipi).HasConversion<int>();      // FAZ-73 (bilgi alanı)
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
 }
@@ -194,11 +196,17 @@ internal sealed class DolulukFiyatKuralConfig : IEntityTypeConfiguration<Doluluk
     public void Configure(EntityTypeBuilder<DolulukFiyatKural> e)
     {
         e.ToTable("DolulukFiyatKurallari");
+        // FAZ-73 şube kapsamı — RentalRule/RateMatrix ile AYNI composite tenant-FK deseni
+        // (çapraz-tenant referans imkânsız).
+        e.HasOne<Branch>().WithMany().HasForeignKey(x => new { x.TenantId, x.SubeId })
+            .HasPrincipalKey(b => new { b.TenantId, b.Id }).OnDelete(DeleteBehavior.Restrict);
+        e.HasIndex(x => x.SubeId);
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Kod).IsRequired().HasMaxLength(32);
         e.Property(x => x.Ad).IsRequired().HasMaxLength(128);
         e.Property(x => x.AracGrupKod).HasMaxLength(32);
+        e.Property(x => x.Sube).HasMaxLength(64);   // FAZ-73
         e.Property(x => x.CarpanYuzde).HasColumnType("numeric(9,4)");
         e.HasIndex(x => new { x.TenantId, x.Kod }).IsUnique();
     }
