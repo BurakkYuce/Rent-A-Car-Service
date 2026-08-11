@@ -29,10 +29,16 @@ public static class ReportExportEndpoints
 
             Table? t = rapor switch
             {
-                "karlilik" => Karlilik(await rs.GetKarlilikAsync(from, to, sube, grup, plaka)),
+                // FAZ-79: ekrandaki filtre + KDV modu export'a AYNEN taşınır (gördüğün = indirdiğin).
+                "karlilik" => Karlilik(await rs.GetKarlilikAsync(from, to, sube, grup, plaka,
+                    NullIfEmpty(req.Query["kaynak"].ToString()), NullIfEmpty(req.Query["sipp"].ToString()),
+                    string.Equals(req.Query["kdv"].ToString(), "dahil", StringComparison.OrdinalIgnoreCase)
+                        ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz)),
                 "karlilik-grup" => KarlilikOzet(await rs.GetKarlilikOzetAsync("grup", from, to)),
                 "karlilik-sube" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sube", from, to)),
                 "karlilik-segment" => KarlilikOzet(await rs.GetKarlilikOzetAsync("segment", from, to)),
+                "karlilik-otopark" => KarlilikOzet(await rs.GetKarlilikOzetAsync("otopark", from, to)),
+                "karlilik-sipp" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sipp", from, to)),
                 "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
                 "kasa-banka" => KasaBanka(hesap, await rs.GetAccountLedgerAsync(hesap, from, to)),
                 // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
@@ -117,18 +123,49 @@ public static class ReportExportEndpoints
     private static Table KV(string sheet, params (string K, object? V)[] kv)
         => new(sheet, new[] { "Metrik", "Değer" }, kv.Select(x => new object?[] { x.K, x.V }).ToList());
 
+    /// <summary>FAZ-79: referans (defter-DIŞI) kolonlar EKLENDİ ama başlıkları "(ref.)" ile işaretli ve
+    /// TOPLAM satırında yalnız P&amp;L kolonları toplanır — Excel'de yanlışlıkla Gider'e eklenmesinler.</summary>
     private static Table Karlilik(KarlilikDto d)
     {
-        var rows = d.Satirlar.Select(s => new object?[] { s.Plaka, s.Sube, s.Grup, s.Gelir, s.Gider, s.NetKar }).ToList();
-        rows.Add(new object?[] { "TOPLAM", null, null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar });
-        return new Table("Kârlılık", new[] { "Plaka", "Şube", "Grup", "Gelir", "Gider", "Net Kâr" }, rows);
+        var kdv = d.KdvDurum == KdvDurum.KdvDahil;
+        var rows = d.Satirlar.Select(s => new object?[]
+        {
+            s.Plaka, s.Sube, s.Grup, s.Segment, s.Gelir, s.Gider, s.NetKar,
+            kdv ? s.HesaplananKdv : null, kdv ? s.GelirKdvDahil : null,
+            s.Sipp, s.Otopark, s.RezKaynagi, s.CariAd, s.CariBakiye,
+            s.DolulukYuzde, s.RevPacd, s.Adr,
+            s.ReferansAylikMaliyet, s.ReferansFiloYonetimMaliyeti, s.ReferansToplamMaliyet, s.PotansiyelGelir
+        }).ToList();
+        rows.Add(new object?[]
+        {
+            "TOPLAM", null, null, null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar,
+            kdv ? d.ToplamHesaplananKdv : null, null,
+            null, null, null, null, null, null, null, null,
+            null, null, d.ToplamReferansMaliyet, d.ToplamPotansiyelGelir
+        });
+        return new Table("Kârlılık", new[]
+        {
+            "Plaka", "Şube", "Grup", "Segment", "Gelir", "Gider", "Net Kâr",
+            "Hesaplanan KDV (ref.)", "Gelir KDV Dahil (ref.)",
+            "SIPP (ref.)", "Otopark (ref.)", "Rez. Kaynağı (ref.)", "Cari (ref.)", "Cari Bakiye (ref.)",
+            "Doluluk % (ömür, ref.)", "RevPACD (ömür, ref.)", "ADR (ömür, ref.)",
+            "Ana Maliyet (ref.)", "Yönetim Maliyeti (ref.)", "Toplam Maliyet (ref.)", "Potansiyel Gelir (ref.)"
+        }, rows);
     }
 
     private static Table KarlilikOzet(KarlilikOzetDto d)
     {
-        var rows = d.Satirlar.Select(s => new object?[] { s.Boyut, s.AracAdet, s.Gelir, s.Gider, s.NetKar }).ToList();
-        rows.Add(new object?[] { "TOPLAM", null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar });
-        return new Table($"Kârlılık ({d.BoyutAdi})", new[] { d.BoyutAdi, "Araç Adet", "Gelir", "Gider", "Net Kâr" }, rows);
+        var rows = d.Satirlar.Select(s => new object?[]
+        {
+            s.Boyut, s.AracAdet, s.Gelir, s.Gider, s.NetKar,
+            s.AracBasiGelir, s.DolulukYuzde, s.PotansiyelGelir, s.ReferansToplamMaliyet
+        }).ToList();
+        rows.Add(new object?[] { "TOPLAM", null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, null, null, null, null });
+        return new Table($"Kârlılık ({d.BoyutAdi})", new[]
+        {
+            d.BoyutAdi, "Araç Adet", "Gelir", "Gider", "Net Kâr",
+            "Araç Başı Gelir (ref.)", "Doluluk % (ömür, ref.)", "Potansiyel Gelir (ref.)", "Toplam Maliyet (ref.)"
+        }, rows);
     }
 
     private static Table GelirGider(GelirGiderDto d)
