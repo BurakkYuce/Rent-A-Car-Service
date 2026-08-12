@@ -167,6 +167,36 @@ public static class FinanceEndpoints
             }
         });
 
+        // FAZ-56 — bakiye düzeltme: Kasa/Banka'ya DOKUNMAZ, karşı bacak "Muhasebe Düzeltmesi".
+        grp.MapPost("/bakiye-duzeltme", async (BakiyeDuzeltmeService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var donus = FormParse.Str(f, "donus");
+            try
+            {
+                await svc.AdjustAsync(new BakiyeDuzeltmeInput
+                {
+                    CariId = FormParse.Id(FormParse.Str(f, "cariId")) ?? Guid.Empty,
+                    Tutar = FormParse.Dec(FormParse.Str(f, "tutar")) ?? 0m,
+                    Yon = Enum.TryParse<BakiyeDuzeltmeYonu>(FormParse.Str(f, "yon"), out var y)
+                        ? y : BakiyeDuzeltmeYonu.Alacaklandir,
+                    Doviz = FormParse.Str(f, "doviz") ?? "TRY",
+                    Kur = FormParse.Dec(FormParse.Str(f, "kur")),
+                    Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
+                    Vade = FormParse.Date(FormParse.Str(f, "vade")),
+                    MakbuzNo = FormParse.Str(f, "makbuzNo"),
+                    Aciklama = FormParse.Str(f, "aciklama"),
+                    IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
+                });
+                var hedef = SafeDonus(donus, "/finans/bakiye-duzeltme");
+                return Results.Redirect($"{hedef}{(hedef.Contains('?') ? '&' : '?')}ok=1");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect(HataUrl(SafeDonus(donus, "/finans/bakiye-duzeltme"), ex.Message));
+            }
+        });
+
         grp.MapPost("/tahsilat/ters", async (CashService svc, [FromForm] Guid id, [FromForm] Guid cariId) =>
         {
             try { await svc.ReverseAsync(id); return Results.Redirect($"/cariler/{cariId}/ekstre"); }
