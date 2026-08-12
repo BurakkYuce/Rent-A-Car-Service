@@ -22,6 +22,85 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Invoices.AsNoTracking().OrderByDescending(i => i.Tarih).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// FAZ-54 — süzgeçli fatura listesi (canlı fatura_islem_listesi.aspx).
+    /// Cari adı/özel kodu/vergi künyesi ve kira üzerinden plaka/sözleşme/ofis çözülür.
+    /// PII ÇÖZÜLMEZ: DisplayName girdileri, OzelKod, VergiDairesi/VergiNo, Ulke düz-metin kolonlar.
+    /// Metin araması bellek-içi ve ORDINAL — SQL'e lower() itmek Türkçe I/İ çiftinde sessizce
+    /// eşleşmez (rezervasyon tarafında öğrenilen ders).
+    /// </summary>
+    public async Task<IReadOnlyList<InvoiceRow>> SearchAsync(
+        InvoiceFilter? filter = null, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var f = filter ?? new InvoiceFilter();
+        var limit = Math.Clamp(f.EnFazla, 1, 5000);
+
+        var q = db.Invoices.AsNoTracking();
+        if (f.CariId is { } c) q = q.Where(i => i.CariId == c);
+        if (f.Durum is { } d) q = q.Where(i => i.Durum == d);
+        if (f.Iptal is { } ip)
+            q = ip ? q.Where(i => i.Durum == InvoiceStatus.Iptal) : q.Where(i => i.Durum != InvoiceStatus.Iptal);
+        if (f.Bas is { } b) q = q.Where(i => i.Tarih >= b);
+        if (f.Bit is { } t) q = q.Where(i => i.Tarih <= t);
+        if (!string.IsNullOrWhiteSpace(f.NoMin)) { var nm = f.NoMin.Trim(); q = q.Where(i => string.Compare(i.No, nm) >= 0); }
+        if (!string.IsNullOrWhiteSpace(f.NoMax)) { var nx = f.NoMax.Trim(); q = q.Where(i => string.Compare(i.No, nx) <= 0); }
+        if (!string.IsNullOrWhiteSpace(f.Doviz)) { var dv = f.Doviz.Trim(); q = q.Where(i => i.Currency == dv); }
+
+        var faturalar = await q.OrderByDescending(i => i.Tarih).Take(limit).ToListAsync(ct);
+        if (faturalar.Count == 0) return [];
+
+        var cariIdler = faturalar.Select(i => i.CariId).Distinct().ToList();
+        var cariler = (await db.Customers.AsNoTracking().Where(x => cariIdler.Contains(x.Id))
+                .Select(x => new { x.Id, x.Tip, x.Unvan, x.Ad, x.Soyad, x.OzelKod, x.VergiDairesi, x.VergiNo, x.Ulke })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.Id);
+
+        var kiraIdler = faturalar.Where(i => i.RentalId != null).Select(i => i.RentalId!.Value).Distinct().ToList();
+        var kiralar = (await db.Rentals.AsNoTracking().Where(r => kiraIdler.Contains(r.Id))
+            .Select(r => new { r.Id, r.SozlesmeNo, r.VehicleId, r.CikisOfisi }).ToListAsync(ct))
+            .ToDictionary(r => r.Id);
+        var aracIdler = kiralar.Values.Select(r => r.VehicleId).Distinct().ToList();
+        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => aracIdler.Contains(v.Id))
+            .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct)).ToDictionary(v => v.Id, v => v.Plaka);
+
+        IEnumerable<InvoiceRow> satirlar = faturalar.Select(i =>
+        {
+            cariler.TryGetValue(i.CariId, out var c);
+            var kira = i.RentalId is { } rid && kiralar.TryGetValue(rid, out var k) ? k : null;
+            return new InvoiceRow(
+                i,
+                c is null ? "—" : new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
+                c?.OzelKod, c?.VergiDairesi, c?.VergiNo, c?.Ulke,
+                kira is null ? null : plakalar.GetValueOrDefault(kira.VehicleId),
+                kira?.SozlesmeNo, kira?.CikisOfisi);
+        });
+
+        if (!string.IsNullOrWhiteSpace(f.Ofis))
+        {
+            var ofis = f.Ofis.Trim();
+            satirlar = satirlar.Where(x => x.Ofis != null
+                && string.Equals(x.Ofis.Trim(), ofis, StringComparison.OrdinalIgnoreCase));
+        }
+        if (!string.IsNullOrWhiteSpace(f.Ara))
+        {
+            var a = f.Ara.Trim();
+            // Plaka DB'de BOŞLUKSUZ saklanıyor: kullanıcı "34 FL 02" yazdığında da bulunsun diye
+            // terim ayrıca harf/rakama indirgenip DENENİR (kira listesindeki desenin aynısı).
+            // Yalnız GENİŞLETİR — ham eşleşme aynen korunur.
+            var plakaTerim = new string([.. a.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
+            satirlar = satirlar.Where(x =>
+                x.Fatura.No.Contains(a, StringComparison.OrdinalIgnoreCase)
+                || x.CariAd.Contains(a, StringComparison.OrdinalIgnoreCase)
+                || (x.CariOzelKod?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Plaka?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (plakaTerim.Length > 0 && (x.Plaka?.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase) ?? false))
+                || (x.SozlesmeNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.VergiNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        return [.. satirlar];
+    }
+
     public async Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
