@@ -99,6 +99,65 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     }
 
     /// <summary>
+    /// FAZ-64 — gidere kısmi ödeme kaydeder. <b>DEFTERE YAZMAZ</b> (KARARLAR.md FAZ-64): gider ilk
+    /// girişte TAM tutarıyla postlandı; burası yalnız "bu borcun ne kadarı kapandı" takibidir.
+    /// Gerçek nakit çıkışı tedarikçiye yapılan <c>CashService.PayAsync</c> ile yürür — buraya defter
+    /// bağlamak o hareketi İKİNCİ kez saydırırdı.
+    /// Çift-submit sessizce yutulur (null döner).
+    /// </summary>
+    public async Task<GiderOdeme?> OdemeEkleAsync(GiderOdemeInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (input.ExpenseId == Guid.Empty) throw new ValidationException("Gider seçilmelidir.");
+        if (input.Tutar is <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
+        TarihPolitikasi.ParaTarihi(input.Tarih, "Gider ödemesi"); // gelecek tarih reddi (para-yolu simetrisi)
+
+        var gider = await _repository.FindAsync(input.ExpenseId, ct)
+            ?? throw new ValidationException("Gider bulunamadı.");
+        // Şube kapsamı: kullanıcı görmediği gideri ödeyemez (liste kapsamlıyken tekil-ID probe'u).
+        BranchScope.RequireInScope(_currentUser, gider.SubeId, gider.Sube);
+
+        return await _repository.OdemeEkleAsync(
+            input.ExpenseId, input.Tutar, input.Tarih ?? DateTimeOffset.UtcNow,
+            Kirp(input.MakbuzNo), Kirp(input.Aciklama), _currentUser.UserName,
+            input.IslemAnahtari, ct);
+
+        static string? Kirp(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
+    }
+
+    /// <summary>
+    /// FAZ-64 — giderlerin ödeme durumu. <b>Nakit/Banka giderinde borç YOKTUR</b>: para kayıt anında
+    /// kasadan çıktı (defter öyle yazıldı) → Odenen = GenelToplam, Kalan = 0. Takip yalnız AÇIK
+    /// HESAP giderinde anlamlıdır; aksi hâlde ekran ödenmiş bir gideri "borçlu" gösterirdi.
+    /// </summary>
+    public async Task<Dictionary<Guid, GiderOdemeDurumu>> OdemeDurumlariAsync(
+        IReadOnlyCollection<Expense> giderler, CancellationToken ct = default)
+    {
+        var acikHesap = giderler.Where(g => g.OdemeYontemi == OdemeYontemi.AcikHesap).Select(g => g.Id).ToList();
+        var odenenler = await _repository.OdenenToplamlariAsync(acikHesap, ct);
+
+        var sonuc = new Dictionary<Guid, GiderOdemeDurumu>(giderler.Count);
+        foreach (var g in giderler)
+        {
+            if (g.OdemeYontemi != OdemeYontemi.AcikHesap)
+            {
+                sonuc[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, g.GenelToplam, 0m, TakipEdilir: false);
+                continue;
+            }
+            var odenen = odenenler.GetValueOrDefault(g.Id);
+            sonuc[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, odenen, g.GenelToplam - odenen, TakipEdilir: true);
+        }
+        return sonuc;
+    }
+
+    /// <summary>FAZ-64 — bir giderin ödeme geçmişi.</summary>
+    public Task<IReadOnlyList<GiderOdeme>> ListOdemelerAsync(Guid expenseId, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ViewReports);
+        return _repository.ListOdemelerAsync(expenseId, ct);
+    }
+
+    /// <summary>
     /// FAZ-50 — seçilen kasa/banka hesabını doğrular (var mı, aktif mi, türü çelişiyor mu).
     /// Açık hesapta (tedarikçiye borçlanma) para kasadan ÇIKMADIĞI için tür kontrolü atlanır ve
     /// değer yalnız belge notu olarak kalır — defter bacağı zaten tedarikçi carisidir.
@@ -154,6 +213,10 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             // karşılığı yok — o satırın AccountRef'i tedarikçi carisidir.
             Vade = input.Vade,
             FinansalHesapId = cozulenHesapId,
+            // FAZ-64 bilgi alanları — deftere GİRMEZ (BuildEntries bunlardan habersizdir).
+            OdemeTarihi = input.OdemeTarihi,
+            HazirAciklama = input.HazirAciklama,
+            RentalId = input.RentalId,
             IslemAnahtari = islemAnahtari
         };
 
