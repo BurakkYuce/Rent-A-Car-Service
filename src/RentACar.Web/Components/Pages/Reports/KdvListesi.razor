@@ -7,91 +7,212 @@
 <div class="page-head">
     <h1>KDV Listesi Raporu</h1>
     <div class="actions">
-        <a href="/raporlar/export/kdv-listesi?format=excel&amp;from=@From&amp;to=@To">Excel</a> ·
-        <a href="/raporlar/export/kdv-listesi?format=csv&amp;from=@From&amp;to=@To">CSV</a>
-    </div>
-</div>
-<p class="muted small">Seçilen dönemdeki (fatura tarihi) İptal olmayan faturaların KDV oranı bazında
-    kırılımı. Tutarlar baz para (kur uygulanmış). Beyanname/muhasebe için.</p>
-
-<div class="filter-panel">
-<form method="get" class="filter-bar">
-    <label>Başlangıç<input name="from" type="date" value="@From" /></label>
-    <label>Bitiş<input name="to" type="date" value="@To" /></label>
-    <button type="submit">Göster</button>
-    @if (!string.IsNullOrEmpty(From) || !string.IsNullOrEmpty(To))
-    {
-        <a href="/raporlar/kdv-listesi" class="link">Temizle</a>
-    }
-</form>
-</div>
-
-<div class="cards">
-    <div class="card">
-        <div class="card-num">@_data.ToplamNet.ToString("N2")</div>
-        <div class="card-label">Toplam Net ₺</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_data.ToplamKdv.ToString("N2")</div>
-        <div class="card-label">Toplam KDV ₺</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_data.ToplamBrut.ToString("N2")</div>
-        <div class="card-label">Genel Toplam ₺</div>
-    </div>
-    <div class="card">
-        <div class="card-num">@_data.FaturaAdet</div>
-        <div class="card-label">Fatura Adedi</div>
-    </div>
-</div>
-
-<div class="table-scroll">
-<table class="grid tr-grid">
-    <thead>
-        <tr><th>KDV Oranı</th><th>Fatura Adedi</th><th>Net</th><th>KDV</th><th>Brüt</th></tr>
-    </thead>
-    <tbody>
-        @if (_data.Satirlar.Count == 0)
+        @if (GenisMod)
         {
-            <tr><td colspan="5" class="muted">Bu dönemde fatura yok.</td></tr>
+            <a href="/raporlar/export/kdv-genis?format=excel&amp;from=@From&amp;to=@To&amp;alis=@AlisQ">Excel</a> <text>·</text>
+            <a href="/raporlar/export/kdv-genis?format=csv&amp;from=@From&amp;to=@To&amp;alis=@AlisQ">CSV</a>
         }
-        @foreach (var s in _data.Satirlar)
+        else
         {
-            <tr>
-                <td>@($"%{s.Oran * 100:0.##}")</td>
-                <td class="num">@s.FaturaAdet</td>
-                <td class="num">@s.Net.ToString("N2")</td>
-                <td class="num">@s.Kdv.ToString("N2")</td>
-                <td class="num">@s.Brut.ToString("N2")</td>
-            </tr>
+            <a href="/raporlar/export/kdv-listesi?format=excel&amp;from=@From&amp;to=@To">Excel</a> <text>·</text>
+            <a href="/raporlar/export/kdv-listesi?format=csv&amp;from=@From&amp;to=@To">CSV</a>
         }
-    </tbody>
-    @if (_data.Satirlar.Count > 0)
-    {
-        <tfoot>
-            <tr>
-                <th>Toplam</th>
-                <th class="num">@_data.FaturaAdet</th>
-                <th class="num">@_data.ToplamNet.ToString("N2")</th>
-                <th class="num">@_data.ToplamKdv.ToString("N2")</th>
-                <th class="num">@_data.ToplamBrut.ToString("N2")</th>
-            </tr>
-        </tfoot>
-    }
-</table>
+    </div>
 </div>
+
+@* FAZ-53 — iki görünüm: mevcut ORAN-BAZLI pivot (beyanname özeti) ve yeni GENİŞ format
+   (satır=belge, sütun=oran; canlı kdv_raporu.aspx grain'i). Pivot SİLİNMEDİ. *@
+<nav class="tabs">
+    <a class="tab @(GenisMod ? null : "active")"
+       href="/raporlar/kdv-listesi?from=@From&amp;to=@To">Oran Özeti</a>
+    <a class="tab @(GenisMod ? "active" : null)"
+       href="/raporlar/kdv-listesi?mod=genis&amp;from=@From&amp;to=@To&amp;alis=@AlisQ">Belge Bazlı (Geniş)</a>
+</nav>
+
+@if (!GenisMod)
+{
+    <p class="muted small">Seçilen dönemdeki (fatura tarihi) İptal olmayan SATIŞ faturalarının KDV
+        oranı bazında kırılımı. Tutarlar baz para (kur uygulanmış). Beyanname/muhasebe için.</p>
+
+    <div class="filter-panel">
+    <form method="get" class="filter-bar">
+        <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+        <label>Bitiş<input name="to" type="date" value="@To" /></label>
+        <button type="submit">Göster</button>
+        @if (!string.IsNullOrEmpty(From) || !string.IsNullOrEmpty(To))
+        {
+            <a href="/raporlar/kdv-listesi" class="link">Temizle</a>
+        }
+    </form>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <div class="card-num">@_data.ToplamNet.ToString("N2")</div>
+            <div class="card-label">Toplam Net ₺</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_data.ToplamKdv.ToString("N2")</div>
+            <div class="card-label">Toplam KDV ₺</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_data.ToplamBrut.ToString("N2")</div>
+            <div class="card-label">Genel Toplam ₺</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_data.FaturaAdet</div>
+            <div class="card-label">Fatura Adedi</div>
+        </div>
+    </div>
+
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
+            <tr><th>KDV Oranı</th><th>Fatura Adedi</th><th>Net</th><th>KDV</th><th>Brüt</th></tr>
+        </thead>
+        <tbody>
+            @if (_data.Satirlar.Count == 0)
+            {
+                <tr><td colspan="5" class="muted">Bu dönemde fatura yok.</td></tr>
+            }
+            @foreach (var s in _data.Satirlar)
+            {
+                <tr>
+                    <td>@($"%{s.Oran * 100:0.##}")</td>
+                    <td class="num">@s.FaturaAdet</td>
+                    <td class="num">@s.Net.ToString("N2")</td>
+                    <td class="num">@s.Kdv.ToString("N2")</td>
+                    <td class="num">@s.Brut.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+        @if (_data.Satirlar.Count > 0)
+        {
+            <tfoot>
+                <tr>
+                    <th>Toplam</th>
+                    <th class="num">@_data.FaturaAdet</th>
+                    <th class="num">@_data.ToplamNet.ToString("N2")</th>
+                    <th class="num">@_data.ToplamKdv.ToString("N2")</th>
+                    <th class="num">@_data.ToplamBrut.ToString("N2")</th>
+                </tr>
+            </tfoot>
+        }
+    </table>
+    </div>
+}
+else
+{
+    <p class="muted small">Her belge bir satır, KDV oranları sütun. Satış (kesilen fatura, hesaplanan
+        KDV) ve alış (gelen e-Fatura, indirilecek KDV) ayrı sayılır — <strong>toplanmaz, çıkarılır</strong>:
+        Net KDV = Satış − Alış (pozitif ise ödenecek, negatif ise devreden). %20/%10/%1/%0 dışındaki
+        oranlar "Diğer" sütununda toplanır, hiçbir tutar düşmez.</p>
+
+    <div class="filter-panel">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="mod" value="genis" />
+        <label>Başlangıç<input name="from" type="date" value="@From" /></label>
+        <label>Bitiş<input name="to" type="date" value="@To" /></label>
+        <label class="check">
+            <input type="checkbox" name="alis" value="1" checked="@DahilAlis" />
+            Alış (gelen e-Fatura) KDV'sini dahil et
+        </label>
+        <button type="submit">Göster</button>
+        <a href="/raporlar/kdv-listesi?mod=genis" class="link">Temizle</a>
+    </form>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <div class="card-num">@_genis.SatisKdv.ToString("N2")</div>
+            <div class="card-label">Hesaplanan KDV ₺ (@_genis.SatisBelgeAdet belge)</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_genis.AlisKdv.ToString("N2")</div>
+            <div class="card-label">İndirilecek KDV ₺ (@_genis.AlisBelgeAdet belge)</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_genis.NetKdv.ToString("N2")</div>
+            <div class="card-label">@(_genis.NetKdv >= 0 ? "Ödenecek KDV ₺" : "Devreden KDV ₺")</div>
+        </div>
+        <div class="card">
+            <div class="card-num">@_genis.SatisNet.ToString("N2")</div>
+            <div class="card-label">Satış Matrahı ₺</div>
+        </div>
+    </div>
+
+    @if (_genis.AtlananDovizliAlis > 0)
+    {
+        <div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
+            <strong>@_genis.AtlananDovizliAlis adet dövizli gelen e-Fatura rapora alınmadı.</strong>
+            Gelen e-Faturada kur alanı tutulmuyor (belge kendi para biriminde saklanır); uydurma kurla
+            baz paraya çevirmek yerine satır dışarıda bırakıldı. Bu belgelerin KDV'si yukarıdaki
+            "İndirilecek KDV" toplamına DAHİL DEĞİLDİR.
+        </div>
+    }
+
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
+            <tr><th>Tür</th><th>Belge No</th><th>Tarih</th><th>Cari</th><th>Durum</th>
+                <th class="num">%20 Matrah</th><th class="num">%20 KDV</th>
+                <th class="num">%10 Matrah</th><th class="num">%10 KDV</th>
+                <th class="num">%1 Matrah</th><th class="num">%1 KDV</th>
+                <th class="num">%0 Matrah</th>
+                <th class="num">Diğer Matrah</th><th class="num">Diğer KDV</th>
+                <th class="num">Toplam Matrah</th><th class="num">Toplam KDV</th></tr>
+        </thead>
+        <tbody>
+            @if (_genis.Satirlar.Count == 0)
+            {
+                <tr><td colspan="16" class="muted">Bu dönemde belge yok.</td></tr>
+            }
+            @foreach (var r in _genis.Satirlar)
+            {
+                <tr>
+                    <td>@r.Tur</td>
+                    <td>@r.No</td>
+                    <td>@r.Tarih.ToString("yyyy-MM-dd")</td>
+                    <td>@r.Cari</td>
+                    <td>@r.Durum</td>
+                    <td class="num">@r.Net20.ToString("N2")</td>
+                    <td class="num">@r.Kdv20.ToString("N2")</td>
+                    <td class="num">@r.Net10.ToString("N2")</td>
+                    <td class="num">@r.Kdv10.ToString("N2")</td>
+                    <td class="num">@r.Net1.ToString("N2")</td>
+                    <td class="num">@r.Kdv1.ToString("N2")</td>
+                    <td class="num">@r.Net0.ToString("N2")</td>
+                    <td class="num">@r.DigerNet.ToString("N2")</td>
+                    <td class="num">@r.DigerKdv.ToString("N2")</td>
+                    <td class="num">@r.ToplamNet.ToString("N2")</td>
+                    <td class="num">@r.ToplamKdv.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
 
 @code {
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    [SupplyParameterFromQuery(Name = "mod")] public string? Mod { get; set; }
+    [SupplyParameterFromQuery(Name = "alis")] public string? Alis { get; set; }
 
     private KdvListesiDto _data = new([], 0, 0, 0, 0);
+    private KdvGenisDto _genis = new([], 0, 0, 0, 0, 0, 0, 0);
+
+    private bool GenisMod => string.Equals(Mod, "genis", StringComparison.OrdinalIgnoreCase);
+    private bool DahilAlis => Alis is "1" or "on" or "true";
+    private string AlisQ => DahilAlis ? "1" : "";
 
     protected override async Task OnInitializedAsync()
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
-        _data = await Reports.GetKdvListesiAsync(from, to);
+
+        if (GenisMod) _genis = await Reports.GetKdvGenisAsync(from, to, DahilAlis);
+        else _data = await Reports.GetKdvListesiAsync(from, to);
     }
 
     private static DateTimeOffset? ParseDate(string? s)
