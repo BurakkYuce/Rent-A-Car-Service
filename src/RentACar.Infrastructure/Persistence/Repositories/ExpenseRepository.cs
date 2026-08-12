@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Expenses;
@@ -67,6 +68,95 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
+    /// <summary>
+    /// FAZ-64 — kısmi ödeme kaydı. Kontrol + sıra tahsisi + yazma AYNI transaction'da ve
+    /// <c>(tenant, gider)</c> danışma kilidinin ARKASINDA; kilitsiz "önce oku sonra yaz" TOCTOU'dur
+    /// (depozito/ceza deseniyle aynı). Aynı işlem anahtarıyla ikinci gönderim sessizce yutulur.
+    /// </summary>
+    public async Task<GiderOdeme?> OdemeEkleAsync(
+        Guid expenseId, decimal? tutar, DateTimeOffset tarih, string? makbuzNo, string? aciklama,
+        string? islemYapan, Guid? islemAnahtari, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        await KilitleAsync(db, $"gider:{db.TenantId}:{expenseId}", ct);
+
+        var gider = await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == expenseId, ct)
+            ?? throw new ValidationException("Gider bulunamadı.");
+        if (gider.OdemeYontemi != OdemeYontemi.AcikHesap)
+            throw new ValidationException(
+                "Bu gider kayıt anında ödendi (nakit/banka); kısmi ödeme takibi yalnız açık hesap giderlerinde yapılır.");
+
+        // Kalan KİLİDİN ARKASINDA okunur — eşzamanlı iki ödeme birlikte geçemez.
+        var odenen = await db.GiderOdemeleri.Where(o => o.ExpenseId == expenseId).SumAsync(o => (decimal?)o.Tutar, ct) ?? 0m;
+        var kalan = gider.GenelToplam - odenen;
+        if (kalan <= 0m) throw new ValidationException("Bu giderin kalanı yok; tamamı ödenmiş.");
+
+        var odenecek = tutar ?? kalan;
+        odenecek = decimal.Round(odenecek, 2, MidpointRounding.ToZero);
+        if (odenecek <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
+        if (odenecek > kalan)
+            throw new ValidationException($"Ödeme tutarı kalanı aşamaz (kalan {kalan:N2}).");
+
+        var sira = await db.GiderOdemeleri.Where(o => o.ExpenseId == expenseId).CountAsync(ct) + 1;
+        var kayit = new GiderOdeme
+        {
+            ExpenseId = expenseId, Sira = sira, Tutar = odenecek, KalanSonrasi = kalan - odenecek,
+            Tarih = tarih, MakbuzNo = makbuzNo, Aciklama = aciklama, IslemYapan = islemYapan,
+            // MONOTON bileşen = o gider için ödeme sırası. Değer-anlık-görüntüsünden (tutar+tarih)
+            // türetilen anahtar zamansal çakışır: aynı tutarlı iki meşru ödeme birbirini yutardı.
+            Anahtar = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"gider:{expenseId}:odeme:{sira}"),
+            IslemAnahtari = islemAnahtari is { } k && k != Guid.Empty ? k : null
+        };
+        db.GiderOdemeleri.Add(kayit);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return kayit;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Çift-submit: ikinci gönderim yutulur, bakiye DEĞİŞMEZ.
+            await tx.RollbackAsync(ct);
+            return null;
+        }
+    }
+
+    public async Task<Dictionary<Guid, decimal>> OdenenToplamlariAsync(
+        IReadOnlyCollection<Guid> expenseIds, CancellationToken ct = default)
+    {
+        if (expenseIds.Count == 0) return [];
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var idler = expenseIds.Distinct().ToList();
+        return await db.GiderOdemeleri.AsNoTracking()
+            .Where(o => idler.Contains(o.ExpenseId))
+            .GroupBy(o => o.ExpenseId)
+            .Select(g => new { g.Key, Toplam = g.Sum(x => x.Tutar) })
+            .ToDictionaryAsync(x => x.Key, x => x.Toplam, ct);
+    }
+
+    public async Task<IReadOnlyList<GiderOdeme>> ListOdemelerAsync(Guid expenseId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.GiderOdemeleri.AsNoTracking()
+            .Where(o => o.ExpenseId == expenseId).OrderBy(o => o.Sira).ToListAsync(ct);
+    }
+
+    /// <summary>Gider-kapsamlı serileştirme kilidi (depozito/ceza deseniyle aynı; tx bitince bırakılır).</summary>
+    private static async Task KilitleAsync(AppDbContext db, string anahtar, CancellationToken ct)
+    {
+        await db.Database.OpenConnectionAsync(ct);
+        await using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
+        var p = cmd.CreateParameter(); p.ParameterName = "k"; p.Value = anahtar;
+        cmd.Parameters.Add(p);
+        await cmd.ExecuteScalarAsync(ct);
     }
 
     public async Task PostAsync(Expense expense, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)

@@ -104,6 +104,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<GelenEFatura> GelenEFaturalar => Set<GelenEFatura>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    /// <summary>FAZ-64 — gider kısmi ödeme takibi (append-only; DEFTERE YAZMAZ).</summary>
+    public DbSet<GiderOdeme> GiderOdemeleri => Set<GiderOdeme>();
 
     /// <summary>FAZ-29 — kapatma tahsisleri (hangi tahsilat hangi borç kalemini kapattı).</summary>
     public DbSet<KapatmaTahsis> KapatmaTahsisleri => Set<KapatmaTahsis>();
