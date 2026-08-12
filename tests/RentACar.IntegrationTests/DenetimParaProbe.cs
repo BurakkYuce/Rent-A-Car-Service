@@ -29,10 +29,29 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
 
     // ---------- ortak kurulum ----------
 
+    /// <summary>
+    /// TEST İZOLASYONU: dövizli kirada <c>KurService</c> bir kur bulmak ZORUNDA. Kur zinciri
+    /// "tenant sabit kuru → TCMB" olduğu için TENANT-OWNED sabit kur yazılır (kod ISO'ya indirgenerek); paylaşımlı ulusal
+    /// <c>KurKayitlari</c> tablosuna DOKUNULMAZ (o tablo tenant'lar arası ortaktır — satır eklemek
+    /// başka testlerin kur beklentisini bozardı).
+    ///
+    /// <para><b>Neden gerekti:</b> bu sınıf EUR kurunun tabloda hazır olmasına güveniyordu, o satırı
+    /// aslında BAŞKA bir test sınıfı yazıyordu. Tam suite yeşil, tek başına koşunca kırmızıydı.
+    /// V6a zaten bu sabit-kur yolunu elle kuruyordu; kural ortak kuruluma alındı.</para>
+    ///
+    /// <para>Kurun DEĞERİ beklentileri etkilemez — tahsilat/ödeme uçları kendi açık kurlarını
+    /// taşır; sabit kur yalnız "kur var mı" kapısını açar.</para>
+    /// </summary>
     private static async Task<(IServiceProvider sp, Guid rentalId, Guid cariId)> Seed(
         IServiceScope scope, string plaka, string? doviz, int gun = 3)
     {
         var sp = scope.ServiceProvider;
+        // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
+        // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
+        var isoKod = RentACar.Application.Kur.KurService.NormalizeKod(doviz);
+        if (isoKod != "TRY" && isoKod.Length == 3)
+            await sp.GetRequiredService<SabitKurService>()
+                .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
         var cari = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Probe-" + plaka });
         var veh = await sp.GetRequiredService<VehicleService>()
