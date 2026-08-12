@@ -153,18 +153,92 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
             Assert.Equal(1, Assert.Single(await svc.ListShowcaseGroupsAsync()).Adet);
     }
 
+    /// <summary>
+    /// Görünürlük kapısı DETAY sayfasında sınanır: kart yalnız ilk üç çipi bastığı için ayrıca
+    /// "başlıkta geçeni tekrar etme" ayıklamasından da geçer (bkz.
+    /// <see cref="Kart_cipleri_BASLIKTA_gecen_degeri_tekrar_etmez"/>) — kapıyı orada ölçmek iki
+    /// ayrı kuralı tek iddiada karıştırırdı.
+    /// </summary>
     [Fact]
     public async Task Yalnizca_GORUNUR_ozellikler_siteye_cikar()
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t);
+        var (_, slug, _) = await IlanKurAsync(host, t);
+
+        var svc = Vitrin(host, t, out var scope); using (scope)
+        {
+            var detay = await svc.GetIlanDetayAsync(slug);
+            Assert.NotNull(detay);
+            Assert.Contains(detay!.Ozellikler, o => o.Etiket == "Marka");
+            Assert.DoesNotContain(detay.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
+        }
+    }
+
+    /// <summary>
+    /// KART çipleri, değeri BAŞLIKTA zaten geçen özellikleri tekrar etmez.
+    ///
+    /// <para><b>Neden kural var:</b> sihirbaz özellikleri araç kaydından tohumluyor
+    /// (Marka/Model/Vites/Yıl/Renk) ve başlık da aynı alanlardan kuruluyordu. Canlı denemede
+    /// "Fiat Egea Manuel" başlıklı kartın çipleri "Fiat · Egea · Manuel" çıkıyordu: kart yalnız
+    /// ilk üç çipi bastığı için ziyaretçiye YENİ hiçbir bilgi kalmıyor, yıl/renk/bagaj kesiliyordu.</para>
+    ///
+    /// <para>Bağımsız oracle: başlık "Fiat Egea Manuel Dizel"; "Fiat" ve "Dizel" ELENMELİ,
+    /// "BEYAZ" ve "510 litre" KALMALI. DETAY sayfası ise tam listeyi sürdürür.</para>
+    /// </summary>
+    [Fact]
+    public async Task Kart_cipleri_BASLIKTA_gecen_degeri_tekrar_etmez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var t = Guid.NewGuid();
+        var (ilanId, slug, _) = await IlanKurAsync(host, t);
+
+        using (var s = host.ScopeFor(t))
+            await s.ServiceProvider.GetRequiredService<WebIlanService>().AdimUcAsync(ilanId,
+            [
+                new OzellikSatiri("Marka", "Fiat"),      // başlıkta VAR  → çipe girmez
+                new OzellikSatiri("Yakıt", "Dizel"),     // başlıkta VAR  → çipe girmez
+                new OzellikSatiri("Renk", "BEYAZ"),      // başlıkta YOK  → çipte kalır
+                new OzellikSatiri("Bagaj", "510 litre")  // başlıkta YOK  → çipte kalır
+            ]);
 
         var svc = Vitrin(host, t, out var scope); using (scope)
         {
             var kart = Assert.Single(await svc.ListShowcaseGroupsAsync());
-            Assert.Contains(kart.Ozellikler, o => o.Etiket == "Marka");
-            Assert.DoesNotContain(kart.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
+            Assert.Equal("Fiat Egea Manuel Dizel", kart.Baslik);
+            var cipler = kart.Ozellikler.Select(o => o.Deger).ToList();
+            Assert.Equal(["BEYAZ", "510 litre"], cipler);
+
+            // Detay TAM listeyi gösterir — ayıklama yalnız karta özel.
+            var detay = await svc.GetIlanDetayAsync(slug);
+            Assert.Equal(4, detay!.Ozellikler.Count);
+            Assert.Contains(detay.Ozellikler, o => o.Deger == "Fiat");
+        }
+    }
+
+    /// <summary>
+    /// Aynı ayıklama MÜSAİTLİK sonucu kartlarında da geçerli (ikisi de KART yüzeyi) — biri
+    /// ayıklayıp diğeri ayıklamasaydı ziyaretçi aynı aracı iki sayfada iki farklı çip setiyle görürdü.
+    /// </summary>
+    [Fact]
+    public async Task Musaitlik_kartlari_da_ayni_cip_kuralini_uygular()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var t = Guid.NewGuid();
+        var (ilanId, _, _) = await IlanKurAsync(host, t);
+
+        using (var s = host.ScopeFor(t))
+            await s.ServiceProvider.GetRequiredService<WebIlanService>().AdimUcAsync(ilanId,
+            [
+                new OzellikSatiri("Marka", "Fiat"),
+                new OzellikSatiri("Renk", "BEYAZ")
+            ]);
+
+        var svc = Vitrin(host, t, out var scope); using (scope)
+        {
+            var bas = DateTimeOffset.UtcNow.AddDays(30);
+            var sonuc = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(3), null));
+            Assert.Equal(["BEYAZ"], sonuc.Ozellikler.Select(o => o.Deger));
         }
     }
 
