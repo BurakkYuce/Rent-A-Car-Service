@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.GelenEFaturalar;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -843,6 +844,125 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     }
 
     /// <summary>
+    /// FAZ-53 — kira FATURALAMA DURUMU: dönemle KESİŞEN kiralar + her birinin faturalanıp
+    /// faturalanmadığı. Fatura dönem raporunun tersi görünümü ("hangi kira eksik kaldı").
+    ///
+    /// <para><b>Dönem kuralı = KESİŞİM</b> (<c>BasTar &lt;= to &amp;&amp; BitTar &gt;= from</c>),
+    /// başlangıç-tarihi eşitliği DEĞİL: aya sarkan bir kira ("15 Ocak – 15 Şubat") Şubat'ta da
+    /// faturalanmamış olarak görünmelidir. Başlangıca bakan bir filtre onu Şubat listesinden
+    /// düşürür ve fatura kaçağı sessizce gizlenirdi.</para>
+    ///
+    /// <para><b>Faturalanan kuralı <c>OrtakSorgular.FarkStateAsync</c> ile birebir aynı</b>
+    /// (base <c>RentalId</c> + fark <c>KaynakKiraId</c>, İptal ve iade hariç) — ama N kira için
+    /// N sorgu atmamak adına TOPLU (tek IN sorgusu) yazılmıştır; kuralın kendisi kopyalanmadı,
+    /// kalıcı parite testiyle kilitli.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<KiraFaturaDurumRow>> GetKiraFaturaDurumRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, KiraFaturaDurumFilter? filter,
+        CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var f = filter ?? new KiraFaturaDurumFilter();
+
+        var q = db.Rentals.AsNoTracking();
+        if (from is { } bas) q = q.Where(r => r.BitTar >= bas);
+        if (to is { } bit) q = q.Where(r => r.BasTar <= bit);
+        if (f.SubeId is { } subeId && subeId != Guid.Empty)
+        {
+            // C4/C5 ŞABLON (BranchScope.InScope ile birebir): FK doluysa FK TEK BAŞINA karar verir;
+            // FK'sı olmayan eski satırlarda ofis-metni = şube-adı yolu kalıcıdır.
+            var subeAd = (await db.Branches.AsNoTracking()
+                .Where(b => b.Id == subeId).Select(b => b.Ad).FirstOrDefaultAsync(ct))?.Trim();
+            q = q.Where(r => r.CikisSubeId == subeId
+                || (r.CikisSubeId == null && subeAd != null
+                    && r.CikisOfisi != null && r.CikisOfisi.Trim() == subeAd));
+        }
+
+        var kiralar = await q
+            .Select(r => new { r.Id, r.SozlesmeNo, r.MusteriId, r.VehicleId, r.BasTar, r.BitTar, r.Durum, r.CikisOfisi })
+            .ToListAsync(ct);
+        if (kiralar.Count == 0) return [];
+
+        var ids = kiralar.Select(r => r.Id).ToList();
+
+        // Kesilen (İptal/iade olmayan) faturalar — kira başına adet + brüt (base para).
+        var kesilen = await db.Invoices.AsNoTracking()
+            .Where(i => i.Durum != InvoiceStatus.Iptal && !i.IadeMi
+                && ((i.RentalId != null && ids.Contains(i.RentalId.Value))
+                    || (i.KaynakKiraId != null && ids.Contains(i.KaynakKiraId.Value))))
+            .Select(i => new { i.Id, i.RentalId, i.KaynakKiraId, i.GenelToplam, i.Kur })
+            .ToListAsync(ct);
+
+        // İadeler kesilen faturaya KaynakFaturaId ile bağlı — tutar iade-netlenir (adet netlenmez:
+        // "kaç fatura kesildi" ile "ne kadarı ayakta" ayrı sorulardır).
+        var faturaIds = kesilen.Select(x => x.Id).ToList();
+        var iadeByFatura = new Dictionary<Guid, decimal>();
+        if (faturaIds.Count > 0)
+        {
+            var iadeler = await db.Invoices.AsNoTracking()
+                .Where(i => i.IadeMi && i.Durum != InvoiceStatus.Iptal
+                    && i.KaynakFaturaId != null && faturaIds.Contains(i.KaynakFaturaId.Value))
+                .Select(i => new { i.KaynakFaturaId, i.GenelToplam, i.Kur })
+                .ToListAsync(ct);
+            iadeByFatura = iadeler
+                .GroupBy(i => i.KaynakFaturaId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.GenelToplam * x.Kur));
+        }
+
+        var adet = new Dictionary<Guid, int>();
+        var tutar = new Dictionary<Guid, decimal>();
+        foreach (var i in kesilen)
+        {
+            var kiraId = i.RentalId ?? i.KaynakKiraId!.Value;
+            adet[kiraId] = adet.GetValueOrDefault(kiraId) + 1;
+            tutar[kiraId] = tutar.GetValueOrDefault(kiraId)
+                + (i.GenelToplam * i.Kur) - iadeByFatura.GetValueOrDefault(i.Id);
+        }
+
+        var custIds = kiralar.Select(r => r.MusteriId).Distinct().ToList();
+        var vehIds = kiralar.Select(r => r.VehicleId).Distinct().ToList();
+        // PII çözülmez: DisplayName girdileri düz-metin kolonlardan gelir (şifreli alanlara dokunulmaz).
+        var custAd = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id)).ToListAsync(ct))
+            .ToDictionary(c => c.Id, c => c.DisplayName);
+        var plaka = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+            .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
+            .ToDictionary(v => v.Id, v => v.Plaka);
+
+        var rows = kiralar.Select(r =>
+        {
+            var a = adet.GetValueOrDefault(r.Id);
+            return new KiraFaturaDurumRow(
+                r.Id, r.SozlesmeNo,
+                plaka.GetValueOrDefault(r.VehicleId) ?? "(bilinmeyen araç)",
+                custAd.GetValueOrDefault(r.MusteriId) ?? "(bilinmeyen cari)",
+                r.BasTar, r.BitTar, r.Durum.ToString(),
+                a > 0, a, tutar.GetValueOrDefault(r.Id), r.CikisOfisi);
+        });
+
+        if (f.Faturalanan is { } fd) rows = rows.Where(r => r.Faturalanan == fd);
+        if (!string.IsNullOrWhiteSpace(f.Q))
+        {
+            // Serbest metin bellek-içi (kira listesindeki desen) — cari adı düz-metin kolonlardan
+            // türetildiği için SQL'e itilmez. Plaka DB'de BOŞLUKSUZ saklanır: "34 AA 11" yazan da
+            // bulsun diye terim ayrıca harf/rakama indirgenip denenir (yalnız GENİŞLETİR).
+            var t = f.Q.Trim();
+            var plakaTerim = new string(t.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+            rows = rows.Where(r =>
+                r.Cari.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.SozlesmeNo.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || (plakaTerim.Length > 0 && r.Plaka.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // Faturalanmamışlar önce (raporun amacı onlar), sonra en yeni kira.
+        return rows
+            .OrderBy(r => r.Faturalanan)
+            .ThenByDescending(r => r.BasTar)
+            .ThenBy(r => r.SozlesmeNo, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
     /// FAZ-12 — araç durum-takip araç süzgeci (gün ve araç görünümü ORTAK kullanır; iki görünüm
     /// aynı araç kümesini anlatsın diye tek yerde). Tümü aracın KENDİ alanlarına bakar.
     /// </summary>
@@ -1280,6 +1400,121 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 return new KdvLineRowDto(r.KdvOrani, r.SatirNet * s, r.SatirKdv * s, r.SatirToplam * s, r.InvoiceId);
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// FAZ-53 — KDV GENİŞ format satırları: SATIR = belge, SÜTUN = KDV oranı. Satış tarafı kesilen
+    /// <c>Invoice</c>/<c>InvoiceLine</c>'dan, alış tarafı (<paramref name="dahilAlis"/>) gelen
+    /// e-Faturanın FAZ-55 oran-kırılımı kolonlarından gelir.
+    ///
+    /// <para><b>Alış tarafı kuralları:</b>
+    /// <list type="bullet">
+    /// <item><b>Reddedilen fatura HARİÇ</b> — reddedilmiş belgenin KDV'si indirilemez.</item>
+    /// <item><b>Kırılımı GİRİLMEMİŞ fatura HARİÇ</b> — belge toplamını "%20 kademesi" varsayarak
+    /// dağıtmak uydurma beyan üretir; kırılım FAZ-55'te girilmeden satır rapora giremez.</item>
+    /// <item><b>TRY olmayan fatura HARİÇ</b> ve sayılır: <c>GelenEFatura</c>'da KUR kolonu YOKTUR
+    /// (belge kendi para biriminde saklanır), uydurma kurla base'e çevrilemez. Atlanan sayısı
+    /// çağırana <c>AtlananDovizliAlis</c> olarak bildirilir — sessiz eksik toplam yasak.</item>
+    /// </list></para>
+    ///
+    /// <para><b>Satış tarafı</b> mevcut <see cref="GetKdvLineRowsAsync"/> ile AYNI işaret/kur
+    /// sözleşmesini kullanır (İptal hariç; iade satırı NEGATİF; tutarlar × <c>Kur</c> ile base
+    /// paraya çevrilir) — pivot ve geniş görünüm ayrışmasın diye. İki görünümün satış toplamlarının
+    /// eşitliği kalıcı testle kilitlidir.</para>
+    /// </summary>
+    public async Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetKdvGenisRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, bool dahilAlis, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var inv = db.Invoices.AsNoTracking().Where(i => i.Durum != InvoiceStatus.Iptal);
+        if (from is { } f) inv = inv.Where(i => i.Tarih >= f);
+        if (to is { } t) inv = inv.Where(i => i.Tarih <= t);
+
+        var satisBaslik = await inv
+            .Select(i => new { i.Id, i.No, i.Tarih, i.CariId, i.Kur, i.IadeMi, i.Durum })
+            .ToListAsync(ct);
+
+        var satirlar = new List<KdvGenisSatirDto>();
+
+        if (satisBaslik.Count > 0)
+        {
+            var invIds = satisBaslik.Select(x => x.Id).ToList();
+            var lines = await db.InvoiceLines.AsNoTracking()
+                .Where(l => invIds.Contains(l.InvoiceId))
+                .Select(l => new { l.InvoiceId, l.KdvOrani, l.SatirNet, l.SatirKdv })
+                .ToListAsync(ct);
+            var byInvoice = lines.GroupBy(l => l.InvoiceId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var custIds = satisBaslik.Select(x => x.CariId).Distinct().ToList();
+            var custAd = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id)).ToListAsync(ct))
+                .ToDictionary(c => c.Id, c => c.DisplayName);
+
+            foreach (var i in satisBaslik)
+            {
+                // GetKdvLineRowsAsync ile birebir işaret/kur sözleşmesi.
+                var s = (i.IadeMi ? -1m : 1m) * i.Kur;
+                decimal n20 = 0, k20 = 0, n10 = 0, k10 = 0, n1 = 0, k1 = 0, n0 = 0, nd = 0, kd = 0;
+                foreach (var l in byInvoice.GetValueOrDefault(i.Id) ?? [])
+                {
+                    var net = l.SatirNet * s; var kdv = l.SatirKdv * s;
+                    switch (l.KdvOrani)
+                    {
+                        case 0.20m: n20 += net; k20 += kdv; break;
+                        case 0.10m: n10 += net; k10 += kdv; break;
+                        case 0.01m: n1 += net; k1 += kdv; break;
+                        case 0m: n0 += net; kd += kdv; break;   // %0'da KDV çıkmamalı; çıkarsa Diğer'e düşer
+                        default: nd += net; kd += kdv; break;   // %18/%8 gibi kademe-dışı oranlar kaybolmaz
+                    }
+                }
+                satirlar.Add(new KdvGenisSatirDto(
+                    i.Id, KdvGenisDto.TurSatis,
+                    i.IadeMi ? $"{i.No} (iade)" : i.No, i.Tarih,
+                    custAd.GetValueOrDefault(i.CariId) ?? "(bilinmeyen cari)", i.Durum.ToString(),
+                    n20, k20, n10, k10, n1, k1, n0, nd, kd,
+                    n20 + n10 + n1 + n0 + nd, k20 + k10 + k1 + kd));
+            }
+        }
+
+        var atlanan = 0;
+        if (dahilAlis)
+        {
+            var gq = db.GelenEFaturalar.AsNoTracking()
+                .Where(g => g.Durum != GelenEFaturaDurum.Reddedildi);
+            if (from is { } f2) gq = gq.Where(g => g.Tarih >= f2);
+            if (to is { } t2) gq = gq.Where(g => g.Tarih <= t2);
+
+            var gelenler = await gq.ToListAsync(ct);
+            foreach (var g in gelenler)
+            {
+                // Kırılım girilmemişse belge dağıtılamaz (uydurma kademe yasak) — rapora girmez.
+                if (!GelenEFaturaKdvKirilim.KirilimVar(g)) continue;
+                if (!string.Equals(g.Currency?.Trim(), "TRY", StringComparison.OrdinalIgnoreCase))
+                {
+                    atlanan++;   // kur kolonu yok → base'e çevrilemez
+                    continue;
+                }
+
+                var n0g = g.Kdv0Matrah ?? 0m;
+                satirlar.Add(new KdvGenisSatirDto(
+                    g.Id, KdvGenisDto.TurAlis, g.Ettn, g.Tarih,
+                    string.IsNullOrWhiteSpace(g.GonderenUnvan) ? g.GonderenVkn : g.GonderenUnvan,
+                    g.Durum.ToString(),
+                    g.Kdv20Matrah ?? 0m, g.Kdv20 ?? 0m,
+                    g.Kdv10Matrah ?? 0m, g.Kdv10 ?? 0m,
+                    g.Kdv1Matrah ?? 0m, g.Kdv1 ?? 0m,
+                    n0g, 0m, 0m,
+                    (g.Kdv20Matrah ?? 0m) + (g.Kdv10Matrah ?? 0m) + (g.Kdv1Matrah ?? 0m) + n0g,
+                    (g.Kdv20 ?? 0m) + (g.Kdv10 ?? 0m) + (g.Kdv1 ?? 0m)));
+            }
+        }
+
+        return (satirlar
+            .OrderBy(r => r.Tur, StringComparer.Ordinal)
+            .ThenBy(r => r.Tarih)
+            .ThenBy(r => r.No, StringComparer.Ordinal)
+            .ToList(), atlanan);
     }
 
     public async Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(

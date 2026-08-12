@@ -457,6 +457,42 @@ public sealed record FaturaDonemRow(
     Guid InvoiceId, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi,
     string Cari, decimal GenelToplam, string Currency, decimal Kur, string Durum, bool IadeMi);
 
+/// <summary>
+/// FAZ-53 — kira FATURALAMA DURUMU satırı (canlı <c>fatura_donem_raporu.aspx</c>'in "faturalanmamış
+/// kira" sekmesi). Fatura dönem raporu KESİLMİŞ faturaları listeler; bu görünüm tersidir —
+/// "dönemdeki hangi kira henüz faturalanmadı".
+///
+/// <para><b>Faturalanan kuralı</b> <c>OrtakSorgular.FarkStateAsync</c> ile BİREBİR aynıdır: kiranın
+/// base faturası (<c>RentalId</c>) VEYA fark/dönem faturası (<c>KaynakKiraId</c>), İptal olmayan ve
+/// iade OLMAYAN. Ayrı bir kopya kural yazılsaydı, bu rapor "faturalanmamış" derken fatura ekranı
+/// "faturalanmış" diyebilirdi.</para>
+///
+/// <para><see cref="FaturalananTutar"/> iade-netlidir (kesilen brüt − iade brüt), fatura para
+/// biriminde DEĞİL base parada (Kur uygulanmış) döner.</para>
+/// </summary>
+public sealed record KiraFaturaDurumRow(
+    Guid RentalId, string SozlesmeNo, string Plaka, string Cari,
+    DateTimeOffset BasTar, DateTimeOffset BitTar, string Durum,
+    bool Faturalanan, int FaturaAdet, decimal FaturalananTutar,
+    /// <summary>Kiranın ÇIKIŞ OFİSİ adı (şube değil — şube süzgeci FK üzerinden çalışır).</summary>
+    string? Ofis);
+
+/// <summary>FAZ-53 — kira faturalama durumu süzgeci.</summary>
+public sealed class KiraFaturaDurumFilter
+{
+    /// <summary>Serbest metin: cari adı / sözleşme no / plaka (belleğe çözülmüş satırlara uygulanır).</summary>
+    public string? Q { get; set; }
+    /// <summary><c>null</c> = hepsi, <c>false</c> = yalnız faturalanmamış, <c>true</c> = yalnız faturalanmış.</summary>
+    public bool? Faturalanan { get; set; }
+    /// <summary>
+    /// İşlem (çıkış) ŞUBESİ. Kiranın <c>CikisOfisi</c> alanı bir OFİS adıdır, şube değil — bu yüzden
+    /// süzgeç ofis metnine değil türetilmiş <c>CikisSubeId</c> FK'sına uygulanır (C4/C5 şablonu:
+    /// FK doluysa FK TEK BAŞINA karar verir; FK'sız eski satırda ofis-metni = şube-adı yolu kalır).
+    /// Böylece bir şubenin TÜM ofislerindeki kiralar tek seçimle listelenir.
+    /// </summary>
+    public Guid? SubeId { get; set; }
+}
+
 /// <summary>Araç durum-takip (gün kırılımı) satırı — roadmap H3. Bos = Toplam − Dolu − Bakim (≥0).</summary>
 public sealed record AracDurumTakipRow(DateTimeOffset Gun, int ToplamArac, int Dolu, int Bakim, int Bos,
     /// <summary>O gün AÇIK olan BAF (araç tahsis) adedi — bilgi kolonu, Bos hesabına GİRMEZ.</summary>
@@ -647,6 +683,55 @@ public sealed record KdvListesiRowDto(decimal Oran, decimal Net, decimal Kdv, de
 public sealed record KdvListesiDto(
     IReadOnlyList<KdvListesiRowDto> Satirlar,
     decimal ToplamNet, decimal ToplamKdv, decimal ToplamBrut, int FaturaAdet);
+
+/// <summary>
+/// FAZ-53 — KDV GENİŞ format satırı (canlı <c>kdv_raporu.aspx</c> grain'i): SATIR = belge,
+/// SÜTUN = KDV oranı. Mevcut oran-bazlı pivot (<see cref="KdvListesiDto"/>) SİLİNMEDİ; bu ikinci
+/// bir görünümdür — beyanname pivotu toplamı verir, bu görünüm "hangi belge hangi orana düştü"yü.
+///
+/// <para><b>Neden "Diğer" kovası var:</b> sabit sütunlar %20/%10/%1/%0 kademeleridir, ama satış
+/// faturası satırı HERHANGİ bir oran taşıyabilir (geçmiş %18/%8 kayıtları, elle girilmiş oran).
+/// Sütunlara sığmayanı sessizce düşürmek raporu yalancı yapardı → ayrı kovada toplanır ve
+/// <c>Σ(sütunlar) == ToplamNet/ToplamKdv</c> her satırda GARANTİDİR (kalıcı test kilidi).</para>
+///
+/// <para><b>Tür:</b> "Satış" (kesilen <c>Invoice</c>, hesaplanan KDV) veya "Alış" (gelen e-Fatura,
+/// indirilecek KDV). İki tür TEK toplamda birleştirilmez — biri borç biri alacaktır (bkz.
+/// <see cref="KdvGenisDto.NetKdv"/>).</para>
+/// </summary>
+public sealed record KdvGenisSatirDto(
+    Guid BelgeId, string Tur, string No, DateTimeOffset Tarih, string Cari, string Durum,
+    decimal Net20, decimal Kdv20, decimal Net10, decimal Kdv10, decimal Net1, decimal Kdv1,
+    decimal Net0, decimal DigerNet, decimal DigerKdv,
+    decimal ToplamNet, decimal ToplamKdv)
+{
+    public decimal ToplamBrut => ToplamNet + ToplamKdv;
+    /// <summary>Alış satırı mı (indirilecek KDV)?</summary>
+    public bool AlisMi => Tur == KdvGenisDto.TurAlis;
+}
+
+/// <summary>
+/// FAZ-53 — KDV geniş format raporu: belge satırları + tür bazında toplamlar.
+///
+/// <para><b>Satış ve alış TOPLANMAZ, ÇIKARILIR.</b> Satış KDV'si hesaplanan (borç), alış KDV'si
+/// indirilecek (alacak) tutardır; ikisini tek "toplam KDV"de birleştirmek beyannameyi anlamsız
+/// kılar. <see cref="NetKdv"/> = <see cref="SatisKdv"/> − <see cref="AlisKdv"/>: pozitif ise
+/// ödenecek, negatif ise devreden KDV.</para>
+///
+/// <para><b><see cref="AtlananDovizliAlis"/>:</b> gelen e-Faturada KUR alanı YOKTUR (belge kendi
+/// para biriminde saklanır) — TRY olmayan alış faturası base paraya çevrilemez. Uydurma kur
+/// yerine satır rapora ALINMAZ ve sayısı burada açıkça bildirilir (sessiz eksik toplam yasak).</para>
+/// </summary>
+public sealed record KdvGenisDto(
+    IReadOnlyList<KdvGenisSatirDto> Satirlar,
+    decimal SatisNet, decimal SatisKdv, decimal AlisNet, decimal AlisKdv,
+    int SatisBelgeAdet, int AlisBelgeAdet, int AtlananDovizliAlis)
+{
+    public const string TurSatis = "Satış";
+    public const string TurAlis = "Alış";
+
+    /// <summary>Hesaplanan − indirilecek. Pozitif: ödenecek KDV; negatif: devreden KDV.</summary>
+    public decimal NetKdv => SatisKdv - AlisKdv;
+}
 /// <summary>Satılan bir kira ek hizmet kalemi (ham): ad + miktar + base para tutarları + kira referansı.</summary>
 public sealed record EkHizmetSalesRowDto(
     string Ad, decimal Miktar, decimal Net, decimal Kdv, decimal Brut, Guid RentalId);

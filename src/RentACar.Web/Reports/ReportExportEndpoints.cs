@@ -85,6 +85,17 @@ public static class ReportExportEndpoints
                 "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(
                     new RentACar.Application.Reporting.RezervasyonKaynakFilter { Bas = from, Bit = to })),
                 "fatura-donem" => FaturaDonem(await rs.GetFaturaDonemAsync(from, to)),
+                // FAZ-53 — ekrandaki "Kira Faturalama Durumu" sekmesi (süzgeç birebir taşınır).
+                "kira-fatura-durum" => KiraFaturaDurum(await rs.GetKiraFaturaDurumAsync(from, to,
+                    new KiraFaturaDurumFilter
+                    {
+                        Q = NullIfEmpty(req.Query["q"].ToString()),
+                        Faturalanan = req.Query["faturaDurum"].ToString() switch
+                        {
+                            "yok" => false, "var" => true, _ => (bool?)null
+                        },
+                        SubeId = Guid.TryParse(req.Query["sube"].ToString(), out var fsid) ? fsid : null
+                    })),
                 "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(
                     AracTakipFiltre(req), from, to)),
                 // FAZ-12 Bölüm A/B — ekrandaki görünüm ve filtre export'a AYNEN taşınır.
@@ -100,6 +111,9 @@ public static class ReportExportEndpoints
                     })),
                 "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),
                 "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
+                // FAZ-53 — KDV geniş format (satır=belge, sütun=oran); ?alis=1 → gelen e-Fatura dahil.
+                "kdv-genis" => KdvGenis(await rs.GetKdvGenisAsync(from, to,
+                    req.Query["alis"].ToString() is "1" or "on" or "true")),
                 "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
                 // FAZ-12 Bölüm C — araç-bazlı pivot (ad-bazlı özet export'u DEĞİŞMEDİ).
                 "ek-hizmet-arac" => EkHizmetAracPivot(await rs.GetEkHizmetAracPivotAsync(from, to)),
@@ -275,6 +289,18 @@ public static class ReportExportEndpoints
         => new("Fatura Dönem", new[] { "No", "Tarih", "Vade", "Cari", "Toplam", "Durum", "İade" },
             rows.Select(r => new object?[] { r.No, r.Tarih, r.VadeTarihi, r.Cari, r.GenelToplam, r.Durum, r.IadeMi ? "Evet" : "Hayır" }).ToList());
 
+    /// <summary>FAZ-53 — kira faturalama durumu. Tarihler ekrandakiyle AYNI biçimde (belge günü).</summary>
+    private static Table KiraFaturaDurum(IReadOnlyList<KiraFaturaDurumRow> rows)
+        => new("Kira Faturalama Durumu",
+            new[] { "Kayıt No", "Plaka", "Cari", "Baş. Tarih", "Bit. Tarih", "Kira Durumu",
+                    "Çıkış Ofisi", "Faturalanan", "Fatura Adet", "Faturalanan Tutar" },
+            rows.Select(r => new object?[]
+            {
+                r.SozlesmeNo, r.Plaka, r.Cari,
+                r.BasTar.ToString("yyyy-MM-dd"), r.BitTar.ToString("yyyy-MM-dd"), r.Durum,
+                r.Ofis, r.Faturalanan ? "Evet" : "Hayır", r.FaturaAdet, r.FaturalananTutar
+            }).ToList());
+
     private static Table AracDurumTakip(IReadOnlyList<AracDurumTakipRow> rows)
         => new("Araç Durum Takip", new[] { "Gün", "Toplam", "Dolu", "Bakım", "Boş" },
             rows.Select(r => new object?[] { r.Gun.ToString("yyyy-MM-dd"), r.ToplamArac, r.Dolu, r.Bakim, r.Bos }).ToList());
@@ -347,6 +373,34 @@ public static class ReportExportEndpoints
         var rows = d.Satirlar.Select(s => new object?[] { s.Oran, s.Net, s.Kdv, s.Brut, s.FaturaAdet }).ToList();
         rows.Add(new object?[] { "TOPLAM", d.ToplamNet, d.ToplamKdv, d.ToplamBrut, d.FaturaAdet });
         return new Table("KDV Listesi", new[] { "Oran", "Net", "KDV", "Brüt", "Fatura Adet" }, rows);
+    }
+
+    /// <summary>
+    /// FAZ-53 — KDV geniş format. Satış ve alış AYRI toplam satırı alır (tek "TOPLAM" satırı
+    /// hesaplanan ve indirilecek KDV'yi birbirine karıştırırdı); en sonda Net KDV satırı.
+    /// </summary>
+    private static Table KdvGenis(KdvGenisDto d)
+    {
+        var rows = d.Satirlar.Select(r => new object?[]
+        {
+            r.Tur, r.No, r.Tarih.ToString("yyyy-MM-dd"), r.Cari, r.Durum,
+            r.Net20, r.Kdv20, r.Net10, r.Kdv10, r.Net1, r.Kdv1, r.Net0,
+            r.DigerNet, r.DigerKdv, r.ToplamNet, r.ToplamKdv
+        }).ToList();
+        rows.Add(new object?[] { "TOPLAM SATIŞ", null, null, null, null,
+            null, null, null, null, null, null, null, null, null, d.SatisNet, d.SatisKdv });
+        rows.Add(new object?[] { "TOPLAM ALIŞ", null, null, null, null,
+            null, null, null, null, null, null, null, null, null, d.AlisNet, d.AlisKdv });
+        rows.Add(new object?[] { d.NetKdv >= 0 ? "ÖDENECEK KDV" : "DEVREDEN KDV", null, null, null, null,
+            null, null, null, null, null, null, null, null, null, null, d.NetKdv });
+        if (d.AtlananDovizliAlis > 0)
+            rows.Add(new object?[] { $"UYARI: {d.AtlananDovizliAlis} dövizli gelen e-Fatura kur alanı olmadığı için dahil edilmedi",
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null });
+        return new Table("KDV Geniş",
+            new[] { "Tür", "Belge No", "Tarih", "Cari", "Durum",
+                    "%20 Matrah", "%20 KDV", "%10 Matrah", "%10 KDV", "%1 Matrah", "%1 KDV", "%0 Matrah",
+                    "Diğer Matrah", "Diğer KDV", "Toplam Matrah", "Toplam KDV" },
+            rows);
     }
 
     private static Table EkHizmet(EkHizmetRaporDto d)
