@@ -24,6 +24,7 @@
 
     @if (_arandi)
     {
+        @* ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı ---- *@
         @if (_sonuclar is { Count: > 0 })
         {
             <p class="muted-note"><strong>@_sonuclar.Count araç</strong> müsait ·
@@ -31,35 +32,10 @@
             <div class="grid">
                 @foreach (var r in _sonuclar)
                 {
-                    <div class="card">
-                        @if (r.CoverPhotoId is { } photoId)
-                        {
-                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@r.Baslik" />
-                        }
-                        else
-                        {
-                            <div class="card-img-placeholder" aria-hidden="true"></div>
-                        }
-                        <div class="card-body">
-                            <h3>@r.Baslik</h3>
-                            @* PR-14: fiyat İLANDAN. Motor çağrılmaz; KDV etiketi ilanın kendi işaretinden. *@
-                            <div class="fiyat">
-                                <span class="fiyat-buyuk">@Para(r.GunlukFiyat)<span class="fiyat-birim">/gün</span></span>
-                                <span class="fiyat-kucuk">@(r.KdvDahil ? "KDV dahil" : "+ KDV")</span>
-                                <span class="fiyat-toplam">@r.Gun gün toplam <strong>@Para(r.Toplam)</strong></span>
-                            </div>
-                            <div class="chips">
-                                @if (!string.IsNullOrWhiteSpace(r.YilAralik)) { <span class="chip">@r.YilAralik model</span> }
-                                @foreach (var o in r.Ozellikler.Take(3)) { <span class="chip">@o.Deger</span> }
-                                @* Bu tarihlerde MÜSAİT adet (kirada olanlar düşülmüş). *@
-                                @if (r.Adet > 1) { <span class="chip">@r.Adet araç müsait</span> }
-                            </div>
-                            <div class="kart-aksiyon">
-                                <a href="@($"/araclar/{r.Slug}")">Detay</a>
-                                <a href="@TeklifLinki(r)">Teklif İste</a>
-                            </div>
-                        </div>
-                    </div>
+                    <AracKarti Slug="@r.Slug" Baslik="@r.Baslik" CoverPhotoId="r.CoverPhotoId"
+                               YilAralik="@r.YilAralik" GunlukFiyat="r.GunlukFiyat" KdvDahil="r.KdvDahil"
+                               Ozellikler="r.Ozellikler" Gun="r.Gun" Toplam="r.Toplam" Adet="r.Adet"
+                               TeklifLinki="@TeklifLinki(r.Slug, r.GunlukFiyat)" />
                 }
             </div>
         }
@@ -70,12 +46,40 @@
                gör, ya da doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler. *@
             <p class="empty-state">Seçtiğiniz tarihlerde müsait araç bulunamadı.</p>
             <p class="ust-linkler">
-                <a href="/">Tüm filoyu gör</a>
+                <a href="/musaitlik">Tüm filoyu gör</a>
                 <a href="/iletisim">Bize ulaşın</a>
             </p>
             <p class="muted small">Tarihleri biraz esnetmek çoğu zaman sonucu değiştirir;
                 yukarıdaki formdan yeniden deneyebilirsiniz.</p>
         }
+    }
+    else if (_filo is { Count: > 0 })
+    {
+        @* ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor ----
+           Tarih girmek ZORUNLU DEĞİL. Eskiden iki alan da `required`'dı ve tarihsiz açılan sayfa
+           bomboş kalıyordu: "önce ne zaman gideceğime karar vereyim" diyen ziyaretçi araçları
+           HİÇ göremiyordu. Artık tüm yayındaki filo, günlük fiyatlarıyla listelenir.
+
+           BURADA "müsait" DENMEZ: tarih olmadan hangi aracın boşta olduğu bilinemez. Kart adet
+           çipi de "9 araç" der, "9 araç müsait" demez (bkz. AracKarti). Yanlış söz vermemek,
+           ziyaretçiyi tarih girmeye zorlamaktan daha önemli. *@
+        <p class="muted-note"><strong>@_filo.Count araç</strong> · günlük fiyatlar aşağıda.
+            Tarih girerseniz o aralıkta <strong>gerçekten boşta olanları</strong> ve
+            seçtiğiniz gün sayısına göre toplam tutarı gösteririz.</p>
+        <div class="grid">
+            @foreach (var k in _filo)
+            {
+                <AracKarti Slug="@k.Slug" Baslik="@k.Baslik" CoverPhotoId="k.CoverPhotoId"
+                           YilAralik="@k.YilAralik" GunlukFiyat="k.GunlukFiyat" KdvDahil="k.KdvDahil"
+                           Ozellikler="k.Ozellikler" Adet="k.Adet"
+                           TeklifLinki="@TeklifLinki(k.Slug, k.GunlukFiyat)" />
+            }
+        </div>
+    }
+    else if (_filo is { Count: 0 })
+    {
+        <p class="empty-state">Şu anda sitede yayınlanmış araç yok.</p>
+        <p class="ust-linkler"><a href="/iletisim">Bize ulaşın</a></p>
     }
 </div>
 
@@ -90,24 +94,24 @@
     private FleetBranding? _branding;
     private IReadOnlyList<string> _subeler = [];
     private IReadOnlyList<PublicAvailabilityResult>? _sonuclar;
+    /// <summary>Tarihsiz mod: yayındaki TÜM filo (müsaitlik süzgeci uygulanmadan).</summary>
+    private IReadOnlyList<FleetShowcaseCard>? _filo;
     private bool _arandi;
     private string? _hata;
 
     /// <summary>PR-8 talep formuna bağlam taşır: İLAN + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
-    /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.</summary>
-    private string TeklifLinki(PublicAvailabilityResult r)
+    /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.
+    /// Tarihler BOŞ olabilir (misafir tarihsiz geziyorsa): talep formu onları kendisi sorar.</summary>
+    private string TeklifLinki(string slug, decimal gunlukFiyat)
     {
         var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        q["ilan"] = r.Slug; // slug: sayfa ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
-        q["bas"] = Bas;
-        q["bit"] = Bit;
+        q["ilan"] = slug; // slug: sayfa ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
+        if (!string.IsNullOrWhiteSpace(Bas)) q["bas"] = Bas;
+        if (!string.IsNullOrWhiteSpace(Bit)) q["bit"] = Bit;
         if (!string.IsNullOrWhiteSpace(Sube)) q["sube"] = Sube;
-        q["fiyat"] = r.GunlukFiyat.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        q["fiyat"] = gunlukFiyat.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return "/rezervasyon-talebi?" + q;
     }
-
-    /// <summary>PR-14: fiyatlar TRY tabanlıdır (kullanıcı kararı) — para birimi alanı kalktı.</summary>
-    private static string Para(decimal tutar) => $"₺{tutar:N2}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,7 +120,15 @@
 
         var bas = ParseDate(Bas);
         var bit = ParseDate(Bit);
-        if (bas is null || bit is null) return; // ilk açılış: arama yok
+
+        // İKİ tarih de girilmemişse (ya da yalnız biri girilmişse) müsaitlik HESAPLANMAZ — tek
+        // tarihten aralık uydurmak ziyaretçinin niyetini varsaymak olurdu. Bunun yerine filo
+        // listelenir; ziyaretçi isterse ikinci tarihi girip daraltır.
+        if (bas is null || bit is null)
+        {
+            _filo = await Showcase.ListShowcaseGroupsAsync();
+            return;
+        }
 
         _arandi = true;
         try
@@ -124,7 +136,14 @@
             _sonuclar = await Showcase.SearchAvailabilityAsync(bas.Value, bit.Value,
                 string.IsNullOrWhiteSpace(Sube) ? null : Sube);
         }
-        catch (ValidationException ex) { _hata = ex.Message; _arandi = false; }
+        catch (ValidationException ex)
+        {
+            // Geçersiz aralık (ör. iade < alış): hata gösterilir AMA ziyaretçi boş sayfada
+            // bırakılmaz — filo yine listelenir, düzeltip yeniden deneyebilir.
+            _hata = ex.Message;
+            _arandi = false;
+            _filo = await Showcase.ListShowcaseGroupsAsync();
+        }
     }
 
     private static DateTimeOffset? ParseDate(string? s)

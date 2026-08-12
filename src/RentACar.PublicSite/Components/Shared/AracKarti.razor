@@ -1,0 +1,75 @@
+@using RentACar.Application.Fleet
+
+@* Müsaitlik sayfasının araç kartı — İKİ mod tek bileşende:
+   (a) tarih SEÇİLMİŞ: gün sayısı + toplam tutar + "müsait adet" gösterilir;
+   (b) tarih YOK (misafir filoyu geziyor): yalnız günlük fiyat + toplam araç adedi.
+
+   Tek bileşen olmasının sebebi iki modun aynı sayfada yan yana yaşaması: ayrı ayrı yazılsalardı
+   çip sırası, fiyat biçimi ve aksiyon bağlantıları zamanla ayrışırdı. Ana sayfadaki kart
+   BİLİNÇLİ olarak ayrı kaldı — orada kartın TAMAMI tek bir bağlantı (farklı etkileşim modeli). *@
+
+<div class="card">
+    @if (CoverPhotoId is { } photoId)
+    {
+        <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@Baslik" loading="lazy" />
+    }
+    else
+    {
+        <div class="card-img-placeholder" aria-hidden="true"></div>
+    }
+    <div class="card-body">
+        <h3>@Baslik</h3>
+        @* PR-14: fiyat İLANDAN. Motor çağrılmaz; KDV etiketi ilanın kendi işaretinden. *@
+        <div class="fiyat">
+            <span class="fiyat-buyuk">@Para(GunlukFiyat)<span class="fiyat-birim">/gün</span></span>
+            <span class="fiyat-kucuk">@(KdvDahil ? "KDV dahil" : "+ KDV")</span>
+            @if (Gun is { } g && Toplam is { } t)
+            {
+                <span class="fiyat-toplam">@g gün toplam <strong>@Para(t)</strong></span>
+            }
+        </div>
+        <div class="chips">
+            @if (!string.IsNullOrWhiteSpace(YilAralik)) { <span class="chip">@YilAralik model</span> }
+            @* Yıl ZATEN kendi çipinde ("2023 model"); aynı değeri taşıyan özellik satırı
+               ("Model Yılı: 2023") ikinci kez basılmaz. Servis tarafındaki ayıklama özelliği
+               BAŞLIKLA karşılaştırır, yıl çipi ise karta özeldir — bu yüzden eleme burada. *@
+            @foreach (var o in Cipler().Take(3)) { <span class="chip">@o.Deger</span> }
+            @* Adet etiketi MODA göre değişir: tarih seçiliyse "müsait" diyebiliriz (kirada olanlar
+               düşülmüştür), tarihsizken diyemeyiz — o an kaçının boşta olduğunu BİLMİYORUZ.
+               Aynı etiketi iki modda kullanmak ziyaretçiye yanlış bir söz verirdi. *@
+            @if (Adet > 1) { <span class="chip">@Adet araç@(Gun is null ? "" : " müsait")</span> }
+        </div>
+        <div class="kart-aksiyon">
+            <a href="@($"/araclar/{Slug}")">Detay</a>
+            <a href="@TeklifLinki">Teklif İste</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+    [Parameter, EditorRequired] public string Baslik { get; set; } = "";
+    [Parameter] public Guid? CoverPhotoId { get; set; }
+    [Parameter] public string? YilAralik { get; set; }
+    [Parameter] public decimal GunlukFiyat { get; set; }
+    [Parameter] public bool KdvDahil { get; set; }
+    [Parameter] public IReadOnlyList<OzellikGoster> Ozellikler { get; set; } = [];
+
+    /// <summary>Tarih seçilmişse kiralama gün sayısı; <c>null</c> = misafir filoyu tarihsiz geziyor.</summary>
+    [Parameter] public int? Gun { get; set; }
+    /// <summary>Tarih seçilmişse dönem toplamı (<see cref="Gun"/> ile birlikte anlamlı).</summary>
+    [Parameter] public decimal? Toplam { get; set; }
+
+    [Parameter] public int Adet { get; set; }
+    [Parameter, EditorRequired] public string TeklifLinki { get; set; } = "";
+
+    /// <summary>PR-14: fiyatlar TRY tabanlıdır (kullanıcı kararı) — para birimi alanı yok.</summary>
+    private static string Para(decimal tutar) => $"₺{tutar:N2}";
+
+    /// <summary>Yıl çipiyle çakışan özellik satırını eleyen çip kaynağı.</summary>
+    private IEnumerable<OzellikGoster> Cipler()
+        => string.IsNullOrWhiteSpace(YilAralik)
+            ? Ozellikler
+            : Ozellikler.Where(o => !string.Equals((o.Deger ?? "").Trim(), YilAralik.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+}
