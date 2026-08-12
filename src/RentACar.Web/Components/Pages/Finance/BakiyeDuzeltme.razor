@@ -1,0 +1,115 @@
+@page "/finans/bakiye-duzeltme"
+@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@using RentACar.Domain.Entities
+@inject CustomerService Customers
+@inject CashService Cash
+
+<PageTitle>Bakiye Düzeltme — RentPro</PageTitle>
+
+<div class="page-head"><h1>Bakiye Düzeltme</h1></div>
+
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+@if (!string.IsNullOrEmpty(Ok)) { <p class="ok">Düzeltme kaydedildi.</p> }
+
+@* FAZ-56 — canlı bakiye_islem.aspx karşılığı: Kasa/Banka'ya DOKUNMADAN cari bakiyesi ayarlanır
+   (yuvarlama farkı, iyi niyet indirimi, manuel muhasebe düzeltmesi).
+   Dengeli çiftin karşı bacağı "Muhasebe Düzeltmesi" hesabıdır — Gelir/Gider'e YAZILMAZ, bu yüzden
+   Kârlılık / Araç Karnesi / Filo Analiz raporları bu kayıtlardan etkilenmez. *@
+<div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
+    <strong>Bu ekran kasadan/bankadan para hareketi YAPMAZ.</strong>
+    Yalnız carinin bakiyesini düzeltir; karşı kayıt "Muhasebe Düzeltmesi" hesabına gider ve
+    gelir-gider raporlarına karışmaz. Gerçek tahsilat/ödeme için Nakit İşlem ekranını kullanın.
+    Yanlış bir düzeltme <strong>silinemez</strong> — ters yönde ikinci bir düzeltmeyle kapatılır.
+</div>
+
+<form method="get" class="filter-bar">
+    <label>Cari Ara<input name="q" value="@Q" placeholder="Ad / unvan / özel kod" /></label>
+    <button type="submit">Ara</button>
+    @if (!string.IsNullOrWhiteSpace(Q)) { <a href="/finans/bakiye-duzeltme" class="link">Temizle</a> }
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Q))
+{
+    <div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead><tr><th>Cari</th><th>Özel Kod</th><th class="num">Bakiye ₺</th><th></th></tr></thead>
+        <tbody>
+            @if (_bulunanlar.Count == 0)
+            {
+                <tr><td colspan="4" class="muted">Eşleşen cari yok.</td></tr>
+            }
+            @foreach (var c in _bulunanlar)
+            {
+                <tr>
+                    <td><a href="/cariler/@c.Id/ekstre">@c.DisplayName</a></td>
+                    <td>@(c.OzelKod ?? "—")</td>
+                    <td class="num @(_bakiyeler.GetValueOrDefault(c.Id) > 0 ? "neg" : null)">
+                        @_bakiyeler.GetValueOrDefault(c.Id).ToString("N2")</td>
+                    <td><a class="link" href="/finans/bakiye-duzeltme?q=@Uri.EscapeDataString(Q!)&amp;cariId=@c.Id">Seç</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+
+@if (_secili is not null)
+{
+    <h2>@_secili.DisplayName</h2>
+    <p class="muted small">Güncel bakiye <strong>@_seciliBakiye.ToString("N2") ₺</strong>
+        @(_seciliBakiye > 0 ? "(müşteri borçlu)" : _seciliBakiye < 0 ? "(alacaklı)" : "")</p>
+
+    <form method="post" action="/finans/bakiye-duzeltme" class="grid-form"><AntiforgeryToken />
+        <input type="hidden" name="cariId" value="@_secili.Id" />
+        <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+        <input type="hidden" name="donus" value="/finans/bakiye-duzeltme?q=@Uri.EscapeDataString(Q ?? "")&amp;cariId=@_secili.Id" />
+        <label>Yön
+            <select name="yon">
+                <option value="Alacaklandir">Alacaklandır (borcu azalt)</option>
+                <option value="Borclandir">Borçlandır (borcu artır)</option>
+            </select>
+        </label>
+        <label>Tutar<input name="tutar" type="number" step="0.01" min="0.01" required /></label>
+        <label>Döviz
+            <select name="doviz"><option>TRY</option><option>USD</option><option>EUR</option></select>
+        </label>
+        <label>Kur<input name="kur" type="number" step="0.0001" placeholder="boş = otomatik"
+                        title="Boş: TRY=1, dövizde sabit kur/TCMB otomatik" /></label>
+        <label>Tarih<input name="tarih" type="date" title="Boş = bugün" /></label>
+        <label>Vade<input name="vade" type="date" title="Bilgi amaçlı — tahsilat akışına bağlı değil" /></label>
+        <label>Makbuz No<input name="makbuzNo" maxlength="32" /></label>
+        <label class="u-col-full">Açıklama<input name="aciklama" placeholder="Düzeltmenin sebebi" /></label>
+        <button type="submit" data-confirm="Cari bakiyesi düzeltilecek. Bu kayıt silinemez (düzeltme ters kayıtla yapılır). Devam?">
+            Düzeltmeyi Kaydet
+        </button>
+    </form>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "cariId")] public string? CariId { get; set; }
+
+    private IReadOnlyList<Customer> _bulunanlar = [];
+    private Dictionary<Guid, decimal> _bakiyeler = new();
+    private Customer? _secili;
+    private decimal _seciliBakiye;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            var sonuc = await Customers.SearchAsync(new CustomerFilter { Query = Q, PageSize = 25 });
+            _bulunanlar = sonuc.Items;
+            foreach (var c in _bulunanlar)
+                _bakiyeler[c.Id] = await Cash.GetCariBalanceAsync(c.Id);
+        }
+
+        if (Guid.TryParse(CariId, out var id))
+        {
+            _secili = _bulunanlar.FirstOrDefault(c => c.Id == id) ?? await Customers.GetAsync(id);
+            if (_secili is not null) _seciliBakiye = await Cash.GetCariBalanceAsync(_secili.Id);
+        }
+    }
+}
