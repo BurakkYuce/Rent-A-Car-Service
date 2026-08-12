@@ -37,7 +37,12 @@ public sealed class TenantHostResolutionMiddleware(IPublicTenantResolver resolve
             || p.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+        // Sağlık ucu TAM eşleşmeyle atlanır, ÖNEK ile değil. Önek atlaması `/health` gibi
+        // MAPLENMEMİŞ bir yolu da tenant çözümlemesinden muaf tutuyordu; istek Razor'a düşüyor,
+        // sayfa tenant-kapsamlı DB'ye gidiyor ve "Tenant bağlamı boş" ile 500 patlıyordu
+        // (temiz 404 yerine). Yeni bir sağlık yolu eklenirse buraya da eklenmeli — sessizce
+        // muaf kalan bir yol bırakmaktansa açıkça listelemek doğrusu.
+        return p.Equals("/health/live", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             // PR-5: Caddy on_demand_tls ask-endpoint'i — İSTEĞİN KENDİ Host header'ı (Caddy'nin ask isteği,
             // sorulan domain DEĞİL, query string'de) tenant çözümlemesine hiç GİRMEMELİ, platform-seviyesi bir uç.
