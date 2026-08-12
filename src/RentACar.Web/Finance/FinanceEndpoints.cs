@@ -197,6 +197,34 @@ public static class FinanceEndpoints
             }
         });
 
+        // FAZ-54 — toplu faturalama. Her kira mevcut tekil kesim yolundan geçer (tek mantık).
+        grp.MapPost("/fatura-toplu", async (InvoiceService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            var secim = f["secili"].ToArray()
+                .Select(x => Guid.TryParse(x, out var g) ? g : Guid.Empty)
+                .Where(x => x != Guid.Empty).Distinct().ToList();
+            try
+            {
+                var sonuc = await svc.BatchCreateFromRentalsAsync(secim, FormParse.Dec(FormParse.Str(f, "kdvOrani")));
+                var url = $"/faturalar?ok=1";
+                if (sonuc.Atlananlar.Count > 0)
+                {
+                    // URL uzunluk sınırı: ilk 10 satır + gizlenenin SAYISI (FAZ-30 M3 dersi —
+                    // sadece kesmek "atlanan yok" gibi okunuyordu).
+                    var goster = sonuc.Atlananlar.Take(10).ToList();
+                    if (sonuc.Atlananlar.Count > 10)
+                        goster.Add($"… ve {sonuc.Atlananlar.Count - 10} kayıt daha (toplam {sonuc.Atlananlar.Count}).");
+                    url += $"&atlanan={Uri.EscapeDataString(string.Join('|', goster))}";
+                }
+                return Results.Redirect(url);
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}");
+            }
+        });
+
         grp.MapPost("/tahsilat/ters", async (CashService svc, [FromForm] Guid id, [FromForm] Guid cariId) =>
         {
             try { await svc.ReverseAsync(id); return Results.Redirect($"/cariler/{cariId}/ekstre"); }
