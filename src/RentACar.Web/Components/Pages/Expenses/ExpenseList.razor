@@ -1,5 +1,7 @@
 @page "/giderler"
 @attribute [Authorize]
+@inject RentalService Rentals
+@inject AuthenticationStateProvider AuthState
 @inject ExpenseService Expenses
 @inject VehicleService Vehicles
 @inject CustomerService Customers
@@ -59,6 +61,21 @@
            "hesap belirtilmemiş" kovasına düşüyordu. Açık hesapta nakit bacağı olmadığı için
            seçim yalnız belge notu olarak kalır. *@
         <HesapSecici />
+        @* FAZ-64 bilgi alanları — deftere GİRMEZ. Gider belgesi DB-DEĞİŞMEZ olduğu için bu
+           alanlar yalnız kayıt anında yazılır; düzeltme ters kayıtla yapılır. *@
+        <label>Ödeme Tarihi<input name="odemeTarihi" type="date" title="Belge tarihinden ayrı ödeme tarihi (bilgi)" /></label>
+        <label>Hazır Açıklama
+            <input name="hazirAciklama" list="dl-gider-sablon" autocomplete="off" placeholder="Seç veya yaz" />
+        </label>
+        <datalist id="dl-gider-sablon">
+            @foreach (var t in HazirAciklamalar) { <option value="@t" /> }
+        </datalist>
+        <label>Sözleşme
+            <select name="rentalId">
+                <option value="">— yok —</option>
+                @foreach (var r in _kiralar) { <option value="@r.Id">@r.SozlesmeNo — @r.Plaka</option> }
+            </select>
+        </label>
         <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
         <label>Evrak No<input name="evrakNo" /></label>
         <label>Açıklama<input name="aciklama" /></label>
@@ -113,12 +130,12 @@
 <div class="table-scroll">
 <table class="grid tr-grid">
     <thead>
-        <tr><th>No</th><th>Tür</th><th>Tarih</th><th>Araç/Tedarikçi</th><th>Şube</th><th>Evrak No</th><th>Açıklama</th><th class="num">Net</th><th class="num">KDV</th><th class="num">Toplam</th><th>Ödeme</th></tr>
+        <tr><th>No</th><th>Tür</th><th>Tarih</th><th>Ödeme Tar.</th><th>Araç/Tedarikçi</th><th>Sözleşme</th><th>Şube</th><th>Evrak No</th><th>Açıklama</th><th class="num">Net</th><th class="num">KDV</th><th class="num">Toplam</th><th>Ödeme</th><th class="num">Ödenen</th><th class="num">Kalan</th><th></th></tr>
     </thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="11" class="muted">@(FiltreVar ? "Aramaya uyan gider yok." : "Gider yok.")</td></tr>
+            <tr><td colspan="16" class="muted">@(FiltreVar ? "Aramaya uyan gider yok." : "Gider yok.")</td></tr>
         }
         @foreach (var e in _list)
         {
@@ -126,14 +143,38 @@
                 <td>@e.No</td>
                 <td>@e.Tip</td>
                 <td>@e.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td>@(e.OdemeTarihi is { } ot ? ot.LocalDateTime.ToString("dd.MM.yyyy") : "—")</td>
                 <td>@RefLabel(e)</td>
+                <td>@(e.RentalId is { } rid && _kiraMap.TryGetValue(rid, out var sno) ? sno : "—")</td>
                 <td>@(e.Sube ?? "—")</td>
                 <td>@(e.EvrakNo ?? "—")</td>
-                <td>@(e.Aciklama ?? "—")</td>
+                <td>@(e.Aciklama ?? e.HazirAciklama ?? "—")</td>
                 <td class="num">@e.NetTutar.ToString("N2")</td>
                 <td class="num">@e.KdvTutar.ToString("N2")</td>
                 <td class="num">@e.GenelToplam.ToString("N2")</td>
                 <td>@e.OdemeYontemi</td>
+                @* FAZ-64 — Ödenen/Kalan YALNIZ açık hesap giderinde anlamlı: nakit/banka giderinde
+                   para kayıt anında çıktı (defter öyle yazıldı), borç yok. *@
+                @{ var d = _durumlar.GetValueOrDefault(e.Id); }
+                <td class="num">@(d is null ? "—" : d.Odenen.ToString("N2"))</td>
+                <td class="num @(d is { TakipEdilir: true, Kalan: > 0 } ? "neg" : null)">
+                    @(d is null ? "—" : d.TakipEdilir ? d.Kalan.ToString("N2") : "—")</td>
+                <td class="row-actions">
+                    @if (d is { TakipEdilir: true, Kalan: > 0 } && FinansYetkili)
+                    {
+                        <form method="post" action="/giderler/odeme" class="kf-inline"><AntiforgeryToken />
+                            <input type="hidden" name="expenseId" value="@e.Id" />
+                            <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
+                            <input name="tutar" type="number" step="0.01" min="0.01"
+                                   max="@d.Kalan.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                   placeholder="@d.Kalan.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                                   title="Boş = kalanın tamamı" class="u-w-auto" />
+                            <input name="makbuzNo" placeholder="Makbuz" maxlength="32" class="u-w-auto" />
+                            <button class="link" type="submit"
+                                    data-confirm="Bu gider için ödeme kaydedilecek (TAKİP — deftere yazılmaz). Devam?">Öde</button>
+                        </form>
+                    }
+                </td>
             </tr>
         }
     </tbody>
@@ -156,6 +197,19 @@
     private IReadOnlyList<string> _subeOpts = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
+    private IReadOnlyList<RentalRow> _kiralar = [];
+    private Dictionary<Guid, string> _kiraMap = new();
+    private Dictionary<Guid, GiderOdemeDurumu> _durumlar = new();
+
+    /// <summary>Ödeme kaydı FinanceWrite ister; operatöre buton gösterilmez (sunucu ayrıca zorlar).</summary>
+    private bool FinansYetkili { get; set; }
+
+    /// <summary>Sık kullanılan gider açıklamaları (canlı "Hazır Açıklama" listesi karşılığı).</summary>
+    private static readonly string[] HazirAciklamalar =
+    [
+        "Yakıt", "Otopark", "Köprü/Otoyol", "Temizlik", "Lastik", "Periyodik bakım",
+        "Sigorta", "Vergi/Harç", "Kira", "Personel", "Kırtasiye", "Diğer"
+    ];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(Plaka)
         || !string.IsNullOrWhiteSpace(CariId) || !string.IsNullOrWhiteSpace(Tip)
@@ -181,6 +235,14 @@
             // "bit" günündeki giderler dışarıda kalırdı.
             Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
         });
+
+        // FAZ-64: ödeme durumları TEK sorguda (satır başına sorgu değil).
+        _durumlar = await Expenses.OdemeDurumlariAsync(_list);
+        _kiralar = await Rentals.SearchAsync(new RentalFilter());
+        _kiraMap = _kiralar.ToDictionary(r => r.Id, r => r.SozlesmeNo);
+
+        var user = (await AuthState.GetAuthenticationStateAsync()).User;
+        FinansYetkili = user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe");
     }
 
     private static DateTimeOffset? Tarih(string? s)
