@@ -53,7 +53,7 @@ public static class ListExportCatalog
          "Cari", "Vade", "Para", "Kur", "Tür", "Damga Vergisi", "e-Fatura"],
         f.Select(x => new object?[]
         {
-            x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
+            x.No, ExportTarih.Gun(x.Tarih), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
             cariAd(x.CariId), D(x.VadeTarihi), x.Currency, x.Kur, FaturaTuru(x), x.DamgaVergisi,
             x.EFaturaGonderildi ? (x.EFaturaEttn ?? "Gönderildi") : ""
         }).ToList());
@@ -80,7 +80,7 @@ public static class ListExportCatalog
             var borc = e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase : 0m;
             var alacak = e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase : 0m;
             bakiye += borc - alacak;
-            rows.Add(new object?[] { e.EntryDateUtc.ToString("yyyy-MM-dd"), e.SourceType, e.Description, borc, alacak, bakiye });
+            rows.Add(new object?[] { ExportTarih.Gun(e.EntryDateUtc), e.SourceType, e.Description, borc, alacak, bakiye });
         }
         return new ExportTable("Cari Ekstre", ["Tarih", "Kaynak", "Açıklama", "Borç", "Alacak", "Bakiye"], rows);
     }
@@ -95,7 +95,7 @@ public static class ListExportCatalog
          "Döviz", "Kur", "Plaka", "Sözleşme No", "Çıkış Ofisi", "Rez. Kaynağı"],
         rows.Select(r => new object?[]
         {
-            r.FaturaNo, r.Tarih.ToString("yyyy-MM-dd"), r.VadeTarihi?.ToString("yyyy-MM-dd"),
+            r.FaturaNo, ExportTarih.Gun(r.Tarih), ExportTarih.Gun(r.VadeTarihi),
             r.Iptal ? "İptal" : r.IadeMi ? "İade" : "Geçerli",
             r.CariAd, r.CariSehir, r.CariEmail, r.CariVergiNo,
             r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani, r.SatirNet, r.SatirKdv, r.SatirToplam,
@@ -110,11 +110,11 @@ public static class ListExportCatalog
         c.Select(x => new object?[]
         {
             // Tarihler YEREL GÜN (ham UTC değil) — kullanıcı ekranda gördüğü günü indirsin.
-            x.No, x.CezaTuru, x.TebligTarihi.LocalDateTime.ToString("yyyy-MM-dd"),
-            x.VadeTarihi.LocalDateTime.ToString("yyyy-MM-dd"),
+            x.No, x.CezaTuru, ExportTarih.Gun(x.TebligTarihi),
+            ExportTarih.Gun(x.VadeTarihi),
             x.Tutar, x.Durum.ToString(), x.Sebep,
             x.MakbuzNo, x.OdenenTutar, x.Kalan,
-            x.OdenmeTarihi?.LocalDateTime.ToString("yyyy-MM-dd"),
+            ExportTarih.Gun(x.OdenmeTarihi),
             x.Saat, x.Yer, x.IslemSube
         }).ToList());
 
@@ -123,7 +123,7 @@ public static class ListExportCatalog
         ["No", "Tip", "Tarih", "Şube", "Evrak No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Ödeme", "Hesap", "Açıklama"],
         g.Select(x => new object?[]
         {
-            x.No, x.Tip.ToString(), x.Tarih.ToString("yyyy-MM-dd"), x.Sube, x.EvrakNo, x.NetTutar, x.KdvOrani,
+            x.No, x.Tip.ToString(), ExportTarih.Gun(x.Tarih), x.Sube, x.EvrakNo, x.NetTutar, x.KdvOrani,
             x.KdvTutar, x.GenelToplam, x.Currency, x.OdemeYontemi.ToString(), x.KasaBankaHesap.ToString(), x.Aciklama
         }).ToList());
 
@@ -137,7 +137,7 @@ public static class ListExportCatalog
         ["No", "Tip", "Tarih", "Cari", "Cari Kod", "Kanal", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
         n.Select(r => new object?[]
         {
-            r.Islem.No, r.Islem.Tip.ToString(), r.Islem.Tarih.LocalDateTime.ToString("yyyy-MM-dd"),
+            r.Islem.No, r.Islem.Tip.ToString(), ExportTarih.Gun(r.Islem.Tarih),
             r.CariAd, r.CariKod, r.Islem.Kanal,
             r.Islem.Amount.Amount, r.Islem.Amount.Currency,
             r.Islem.KarsiHesap.ToString(), r.Islem.TersKayitMi ? "Evet" : "Hayır", r.Islem.Aciklama
@@ -148,7 +148,7 @@ public static class ListExportCatalog
         ["No", "Tarih", "Noter No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Durum", "Açıklama"],
         s.Select(x => new object?[]
         {
-            x.No, x.Tarih.ToString("yyyy-MM-dd"), x.NoterNo, x.SatisNet, x.KdvOrani, x.KdvTutar,
+            x.No, ExportTarih.Gun(x.Tarih), x.NoterNo, x.SatisNet, x.KdvOrani, x.KdvTutar,
             x.GenelToplam, x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
@@ -171,8 +171,8 @@ public static class ListExportCatalog
         {
             x.No, x.DosyaNo, x.Tedarikci,
             x.TedarikciCariId is Guid c ? cari?.Invoke(c) : null,
-            x.SiparisTarihi.ToString("yyyy-MM-dd"), x.ImzaTarih?.ToString("yyyy-MM-dd"),
-            x.BeklenenTeslim?.ToString("yyyy-MM-dd"),
+            ExportTarih.Gun(x.SiparisTarihi), ExportTarih.Gun(x.ImzaTarih),
+            ExportTarih.Gun(x.BeklenenTeslim),
             x.SatisTemsilci, x.OzelTemsilci,
             x.Marka, x.Tip, x.Grup, x.Versiyon, x.Opsiyon, x.Renk, x.IcRenk, x.KaynakTip, x.SatisTipi,
             x.Adet, x.BirimFiyat, x.PiyasaFiyat, x.OpsFiyat, x.FiloFiyat, x.Currency,
@@ -193,7 +193,7 @@ public static class ListExportCatalog
             x.CariId is Guid c ? cari?.Invoke(c) : null,
             x.VehicleId is Guid v ? plaka?.Invoke(v) : null,
             x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
-            x.BaslangicTarihi.ToString("yyyy-MM-dd"), x.Currency, x.Durum.ToString(), x.Aciklama
+            ExportTarih.Gun(x.BaslangicTarihi), x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
     public static ExportTable Baflar(IReadOnlyList<Baf> b) => new(
@@ -201,7 +201,7 @@ public static class ListExportCatalog
         ["No", "Çıkış Tarihi", "Çıkış KM", "Çıkış Yakıt", "Dönüş Tarihi", "Dönüş KM", "Dönüş Yakıt", "Şube", "Durum", "Açıklama"],
         b.Select(x => new object?[]
         {
-            x.No, x.CikisTarihi.ToString("yyyy-MM-dd"), x.CikisKm, x.CikisYakit, x.DonusTarihi?.ToString("yyyy-MM-dd"),
+            x.No, ExportTarih.Gun(x.CikisTarihi), x.CikisKm, x.CikisYakit, ExportTarih.Gun(x.DonusTarihi),
             x.DonusKm, x.DonusYakit, x.Sube, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
@@ -210,7 +210,7 @@ public static class ListExportCatalog
         ["Sözleşme No", "Müşteri", "Plaka", "Başlangıç", "Bitiş", "Gün", "Tutar", "Bakiye", "Durum", "Faturalı"],
         r.Select(x => new object?[]
         {
-            x.SozlesmeNo, x.MusteriAd, x.Plaka, x.BasTar.ToString("yyyy-MM-dd"), x.BitTar.ToString("yyyy-MM-dd"),
+            x.SozlesmeNo, x.MusteriAd, x.Plaka, ExportTarih.Gun(x.BasTar), ExportTarih.Gun(x.BitTar),
             x.Gun, x.Tutar, x.Bakiye, x.Durum.ToString(), x.Faturali ? "Evet" : "Hayır"
         }).ToList());
 
@@ -226,7 +226,7 @@ public static class ListExportCatalog
         r.Select(x => new object?[]
         {
             x.Rez.ReservationNo, x.Rez.Durum.ToString(), x.MusteriAd, x.CepTel, x.Plaka,
-            x.Rez.BasTar.LocalDateTime.ToString("yyyy-MM-dd"), x.Rez.BitTar.LocalDateTime.ToString("yyyy-MM-dd"),
+            ExportTarih.Gun(x.Rez.BasTar), ExportTarih.Gun(x.Rez.BitTar),
             x.Rez.CikisOfisi, x.Rez.DonusOfisi, x.Rez.Kaynak,
             x.Rez.TalepTuru, x.Rez.GeldigiBirim, x.Rez.ProjeAdi, x.Rez.OnayKodu,
             x.Rez.Gun, x.Rez.GunlukUcret, x.Rez.Tutar
@@ -259,7 +259,7 @@ public static class ListExportCatalog
         ["Kod", "Ad", "Soyad", "TC Kimlik", "İşe Giriş", "İşe Çıkış", "Sürücü Belge No", "Maaş", "Şube", "Durum"],
         p.Select(x => new object?[]
         {
-            x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), x.IseGiris?.ToString("yyyy-MM-dd"), x.IseCikis?.ToString("yyyy-MM-dd"),
+            x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), ExportTarih.Gun(x.IseGiris), ExportTarih.Gun(x.IseCikis),
             x.SurucuBelgeNo, decrypt(x.MaasEnc), x.Sube, x.Aktif ? "Aktif" : "Pasif"
         }).ToList());
 
@@ -302,25 +302,15 @@ public static class ListExportCatalog
             x.Dosya.Avukat, x.Dosya.AvukatTel, x.Dosya.AvukatMail,
             x.Dosya.Avukat2Ad, x.Dosya.Avukat2Tel, x.Dosya.Avukat2Mail,
             x.Dosya.Tutar, x.Dosya.Tahsilat, x.Dosya.Kalan, x.Dosya.Durum.ToString(),
-            DG(x.Dosya.Tarih), E(x.Dosya.Aktif), x.Dosya.Aciklama
+            D(x.Dosya.Tarih), E(x.Dosya.Aktif), x.Dosya.Aciklama
         }).ToList());
 
     // Hücre biçimleyiciler (sütun zenginleştirme için): bool → Evet/Hayır, nullable tarih → yyyy-MM-dd.
     private static string E(bool b) => b ? "Evet" : "Hayır";
 
-    /// <summary>Tarihi SAKLANDIĞI offset'le (UTC) yazar — eski export'ların kullandığı biçimleyici.</summary>
-    private static string? D(DateTimeOffset? d) => d?.ToString("yyyy-MM-dd");
-
     /// <summary>
-    /// Tarihi YEREL TAKVİM GÜNÜ olarak yazar (ekranla aynı gün).
-    ///
-    /// <para><b>Neden ayrı:</b> tarih alanları forma yerel gün olarak girilir ve <c>FormParse.Date</c>
-    /// bunu UTC'ye çevirir (01.03 00:00 +03 → 28.02 21:00 UTC). Ham <see cref="D"/> ile yazınca
-    /// export "28.02", ekran "01.03" gösteriyordu — canlı duman testinde yakalandı. Ekranlar
-    /// <c>.LocalDateTime</c> kullandığı için export de öyle yazmalı ("gördüğün = indirdiğin").</para>
-    ///
-    /// <para>Eski export'lar bilinçli olarak <see cref="D"/>'de bırakıldı: hepsini çevirmek bu fazın
-    /// kapsamı dışında ~20 export'u ve testlerini etkileyen ayrı bir süpürme işidir.</para>
+    /// Tarih hücresi — kural (yerel takvim günü) ve gerekçesi <see cref="ExportTarih"/> içinde.
+    /// Burada yalnız kısa ad olarak durur; yeni bir "ham UTC" yolu AÇMAYIN.
     /// </summary>
-    private static string? DG(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
+    private static string? D(DateTimeOffset? d) => ExportTarih.Gun(d);
 }

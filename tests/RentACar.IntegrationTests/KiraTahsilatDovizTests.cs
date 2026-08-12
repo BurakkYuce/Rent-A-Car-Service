@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
+using RentACar.Application.Kur;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
@@ -19,10 +20,30 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
 {
     private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
 
+    /// <summary>
+    /// TEST İZOLASYONU: dövizli kira kurulurken <c>KurService</c> bir kur bulmak ZORUNDA. Kur
+    /// zinciri "tenant sabit kuru → TCMB" sırasıyla çalıştığı için burada TENANT-OWNED sabit kur
+    /// yazılır — paylaşımlı ulusal <c>KurKayitlari</c> tablosuna DOKUNULMAZ.
+    ///
+    /// <para><b>Neden:</b> bu sınıf eskiden EUR kurunun tabloda hazır olmasına güveniyordu; o satırı
+    /// aslında BAŞKA bir test sınıfı yazıyordu. Tam suite yeşil, tek başına koşunca kırmızıydı
+    /// ("'EUR' için TCMB kuru bulunamadı") — klasik sıra-bağımlılığı. Paylaşımlı tabloya satır
+    /// eklemek de çözüm DEĞİLDİ: o tablo tenant'lar arası ortaktır, başka testlerin kur
+    /// beklentisini bozardı. Sabit kur tenant'a kapalıdır, çakışma yapısal olarak imkânsız.</para>
+    ///
+    /// <para>Kurun DEĞERİ hiçbir beklentiyi etkilemez: kira tutarları EUR cinsinden birikir ve
+    /// tahsilat kendi açık kuruyla (40) postlanır. Kur yalnız "var mı" kapısını açar.</para>
+    /// </summary>
     private static async Task<(IServiceProvider sp, Guid rentalId, Guid cariId)> Seed(
         IServiceScope scope, string plaka, string? doviz)
     {
         var sp = scope.ServiceProvider;
+        // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
+        // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
+        var isoKod = RentACar.Application.Kur.KurService.NormalizeKod(doviz);
+        if (isoKod != "TRY" && isoKod.Length == 3)
+            await sp.GetRequiredService<SabitKurService>()
+                .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
         var cari = Guid.NewGuid();
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput

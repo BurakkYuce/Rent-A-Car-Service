@@ -54,7 +54,10 @@ public sealed class ReportExportService
         long l => l,
         double db => db,
         bool b => b,
-        DateTimeOffset dto => dto.DateTime,
+        // Ham DateTimeOffset hücresi YEREL takvim gününe düşer: tarihler forma yerel gün
+        // olarak girilip UTC'ye çevriliyor (FormParse.Date); UTC yazınca +03'te bir gün
+        // GERİ görünürdü. Ekranla aynı gün inmeli.
+        DateTimeOffset dto => ExportTarih.Hucre(dto),
         DateTime dt => dt,
         _ => v.ToString() ?? string.Empty
     };
@@ -65,7 +68,7 @@ public sealed class ReportExportService
         decimal d => d.ToString(CultureInfo.InvariantCulture),
         double db => db.ToString(CultureInfo.InvariantCulture),
         int i => i.ToString(CultureInfo.InvariantCulture),
-        DateTimeOffset dto => dto.ToString("yyyy-MM-dd"),
+        DateTimeOffset dto => ExportTarih.Gun(dto) ?? string.Empty,
         DateTime dt => dt.ToString("yyyy-MM-dd"),
         _ => v.ToString() ?? string.Empty
     };
