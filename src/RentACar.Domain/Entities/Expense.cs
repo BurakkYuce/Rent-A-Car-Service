@@ -32,6 +32,17 @@ public class Expense : ITenantOwned, IAuditable, IBranchScoped
     Guid? IBranchScoped.SubeFk { get => SubeId; set => SubeId = value; }
     public string? EvrakNo { get; set; }
 
+    // ---- FAZ-64 (canlı gider_islemleri.aspx) ----
+    // DİKKAT: Expenses tablosu DB-DEĞİŞMEZDİR (expenses_immutable trigger). Buradaki alanlar
+    // yalnız KAYIT ANINDA yazılır; sonradan düzeltme ters kayıtla yapılır.
+    /// <summary>Belge tarihinden AYRI ödeme tarihi (fatura 01'inde, ödeme 15'inde olabilir). BİLGİ.</summary>
+    public DateTimeOffset? OdemeTarihi { get; set; }
+    /// <summary>Şablon/hazır açıklama (sık kullanılan gider metni). BİLGİ.</summary>
+    public string? HazirAciklama { get; set; }
+    /// <summary>Gideri bir kira sözleşmesine bağlar (gevşek referans; FK yok — VehicleId/CariId deseni).
+    /// BİLGİ: kira bakiyesine ve karlılık atfına GİRMEZ, atıf zinciri araç/defter üzerinden yürür.</summary>
+    public Guid? RentalId { get; set; }
+
     public decimal NetTutar { get; set; }
     public decimal KdvOrani { get; set; }   // ör. 0.20
     public decimal KdvTutar { get; set; }

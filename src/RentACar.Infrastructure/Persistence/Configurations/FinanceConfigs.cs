@@ -344,6 +344,29 @@ internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirma
     }
 }
 
+// ---- GiderOdeme (FAZ-64 — gider kısmi ödeme takibi; append-only, DEFTERE YAZMAZ) ----
+internal sealed class GiderOdemeConfig : IEntityTypeConfiguration<GiderOdeme>
+{
+    public void Configure(EntityTypeBuilder<GiderOdeme> e)
+    {
+        e.ToTable("GiderOdemeleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Tutar).HasColumnType("numeric(19,4)");
+        e.Property(x => x.KalanSonrasi).HasColumnType("numeric(19,4)");
+        e.Property(x => x.MakbuzNo).HasMaxLength(32);
+        e.Property(x => x.Aciklama).HasMaxLength(512);
+        e.Property(x => x.IslemYapan).HasMaxLength(128);
+        e.Property(x => x.Anahtar).IsRequired().HasMaxLength(128);
+        e.HasIndex(x => new { x.TenantId, x.ExpenseId });
+        // İdempotency 1: deterministik anahtar (gider + ödeme sırası) iki kez yazılamaz.
+        e.HasIndex(x => new { x.TenantId, x.Anahtar }).IsUnique();
+        // İdempotency 2: form çift-submit'i (aynı render token'ı) yutulur.
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari }).IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL");
+    }
+}
+
 // ---- KasaVirmanBilgi (FAZ-50 — kasa/banka virman künyesi; PARA TAŞIMAZ, mali belge DEĞİL) ----
 internal sealed class KasaVirmanBilgiConfig : IEntityTypeConfiguration<KasaVirmanBilgi>
 {

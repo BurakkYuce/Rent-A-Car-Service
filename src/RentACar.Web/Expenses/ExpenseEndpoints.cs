@@ -19,7 +19,8 @@ public static class ExpenseEndpoints
             [FromForm] string? sube, [FromForm] string? evrakNo, [FromForm] decimal netTutar,
             [FromForm] decimal kdvOrani, [FromForm] OdemeYontemi odemeYontemi,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
-            [FromForm] string? hesapId) =>   // FAZ-50: hangi spesifik kasa/banka hesabından ödendi
+            [FromForm] string? hesapId,      // FAZ-50: hangi spesifik kasa/banka hesabından ödendi
+            [FromForm] string? odemeTarihi, [FromForm] string? hazirAciklama, [FromForm] string? rentalId) => // FAZ-64
         {
             var input = new ExpenseInput
             {
@@ -29,11 +30,38 @@ public static class ExpenseEndpoints
                 Sube = sube, EvrakNo = evrakNo,
                 NetTutar = netTutar, KdvOrani = kdvOrani, OdemeYontemi = odemeYontemi,
                 Doviz = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, Kur = FormParse.Dec(kur), Aciklama = aciklama, // boş kur → otomatik (1.1b)
-                FinansalHesapId = FormParse.Id(hesapId)   // FAZ-50
+                FinansalHesapId = FormParse.Id(hesapId),  // FAZ-50
+                // FAZ-64 bilgi alanları — deftere girmez.
+                OdemeTarihi = FormParse.Date(odemeTarihi),
+                HazirAciklama = hazirAciklama,
+                RentalId = FormParse.Id(rentalId)
             };
             try
             {
                 await svc.CreateAsync(input);
+                return Results.Redirect("/giderler");
+            }
+            catch (ValidationException ex)
+            {
+                return Results.Redirect($"/giderler?hata={Uri.EscapeDataString(ex.Message)}");
+            }
+        });
+
+        // FAZ-64 — kısmi ödeme kaydı. DEFTERE YAZMAZ (takip); çift-submit sessizce yutulur.
+        grp.MapPost("/odeme", async (ExpenseService svc, HttpRequest req) =>
+        {
+            var f = req.Form;
+            try
+            {
+                await svc.OdemeEkleAsync(new GiderOdemeInput
+                {
+                    ExpenseId = FormParse.Id(FormParse.Str(f, "expenseId")) ?? Guid.Empty,
+                    Tutar = FormParse.Dec(FormParse.Str(f, "tutar")),   // boş → kalanın tamamı
+                    Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
+                    MakbuzNo = FormParse.Str(f, "makbuzNo"),
+                    Aciklama = FormParse.Str(f, "aciklama"),
+                    IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
+                });
                 return Results.Redirect("/giderler");
             }
             catch (ValidationException ex)

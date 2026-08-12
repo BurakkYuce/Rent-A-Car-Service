@@ -17,6 +17,24 @@ public interface IExpenseRepository
     Task<Expense?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
+    /// FAZ-64 — kısmi ödeme kaydı. Kalan kontrolü, sıra tahsisi ve yazma AYNI transaction'da,
+    /// <c>(tenant, gider)</c> danışma kilidinin ARKASINDA yapılır (kilitsiz "önce oku sonra yaz"
+    /// TOCTOU'dur; bu repoda tam o sınıf bir hata canlı para hatası üretti).
+    /// <paramref name="tutar"/> null → kalanın tamamı. Aynı işlem anahtarıyla ikinci gönderim
+    /// sessizce yutulur (kısmi unique index).
+    /// </summary>
+    Task<GiderOdeme?> OdemeEkleAsync(
+        Guid expenseId, decimal? tutar, DateTimeOffset tarih, string? makbuzNo, string? aciklama,
+        string? islemYapan, Guid? islemAnahtari, CancellationToken ct = default);
+
+    /// <summary>FAZ-64 — verilen giderler için ödenen toplamlar (ExpenseId → Σ Tutar).</summary>
+    Task<Dictionary<Guid, decimal>> OdenenToplamlariAsync(
+        IReadOnlyCollection<Guid> expenseIds, CancellationToken ct = default);
+
+    /// <summary>FAZ-64 — bir giderin ödeme geçmişi (sıraya göre).</summary>
+    Task<IReadOnlyList<GiderOdeme>> ListOdemelerAsync(Guid expenseId, CancellationToken ct = default);
+
+    /// <summary>
     /// Gider belgesi + DENGELİ defter kümesini TEK transaction'da işler. No boşluksuz tahsis
     /// edilir; gider/defter DB-seviyesinde değişmez (trigger).
     /// </summary>
