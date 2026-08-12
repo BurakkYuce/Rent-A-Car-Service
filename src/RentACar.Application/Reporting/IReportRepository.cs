@@ -125,6 +125,14 @@ public interface IReportRepository
     Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
+    /// <summary>
+    /// FAZ-53 — kira faturalama durumu: dönemle KESİŞEN kiralar (BasTar &lt;= to &amp;&amp; BitTar &gt;= from)
+    /// + her birinin faturalanıp faturalanmadığı. "Faturalanmamış kira" sekmesinin kaynağı.
+    /// </summary>
+    Task<IReadOnlyList<KiraFaturaDurumRow>> GetKiraFaturaDurumRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, KiraFaturaDurumFilter? filter,
+        CancellationToken ct = default);
+
     /// <summary>Araç durum-takip (roadmap H3): [from,to] her gün için dolu/bakım/boş sayısı (gün kırılımı).</summary>
     Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
         DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default);
@@ -173,6 +181,14 @@ public interface IReportRepository
     /// </summary>
     Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
+
+    /// <summary>
+    /// FAZ-53 — KDV geniş format (satır=belge, sütun=oran) satırları. <paramref name="dahilAlis"/>
+    /// true ise gelen e-Faturaların (FAZ-55 oran kırılımı) alış satırları da eklenir; kırılımı
+    /// girilmemiş / reddedilmiş / TRY olmayan belgeler dışarıda kalır (sonuncuların sayısı döner).
+    /// </summary>
+    Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetKdvGenisRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, bool dahilAlis, CancellationToken ct = default);
 
     /// <summary>
     /// İptal olmayan kiraların ek hizmet kalemleri (RentalAddOn.CreatedAtUtc aralığında), base para.

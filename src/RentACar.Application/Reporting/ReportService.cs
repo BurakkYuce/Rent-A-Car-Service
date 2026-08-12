@@ -827,6 +827,34 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     }
 
     /// <summary>
+    /// FAZ-53 — KDV GENİŞ format (canlı <c>kdv_raporu.aspx</c> grain'i): SATIR = belge,
+    /// SÜTUN = KDV oranı. <paramref name="dahilAlis"/> true ise gelen e-Faturaların indirilecek
+    /// KDV'si de listelenir.
+    ///
+    /// <para><b>Neden pivot (<see cref="GetKdvListesiAsync"/>) genişletilmedi de yeni bir görünüm
+    /// açıldı:</b> alış KDV'si mevcut pivotun "Net/KDV/Brüt" kolonlarına eklenseydi, hesaplanan
+    /// (borç) ve indirilecek (alacak) KDV tek toplamda erirdi — beyanname için anlamsız bir sayı.
+    /// Pivot SATIŞ-only kaldı (regresyon sıfır), tür ayrımı ve <c>NetKdv = Satış − Alış</c> bu
+    /// görünümde durur. (FAZ-53 spec'i 4. maddede <c>GetKdvListesiAsync</c>'e <c>dahilAlis</c>
+    /// eklemeyi öneriyordu; muhasebe olarak yanlış olduğu için o madde uygulanmadı.)</para>
+    /// </summary>
+    public async Task<KdvGenisDto> GetKdvGenisAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null, bool dahilAlis = false,
+        CancellationToken ct = default)
+    {
+        var (satirlar, atlanan) = await _repository.GetKdvGenisRowsAsync(from, to, dahilAlis, ct);
+
+        var satis = satirlar.Where(r => !r.AlisMi).ToList();
+        var alis = satirlar.Where(r => r.AlisMi).ToList();
+
+        return new KdvGenisDto(
+            satirlar,
+            satis.Sum(r => r.ToplamNet), satis.Sum(r => r.ToplamKdv),
+            alis.Sum(r => r.ToplamNet), alis.Sum(r => r.ToplamKdv),
+            satis.Count, alis.Count, atlanan);
+    }
+
+    /// <summary>
     /// Ek hizmet satış raporu: dönemde (kalem eklenme tarihi) İptal olmayan kiralara satılan ek
     /// hizmetlerin ADINA göre özeti (toplam miktar/net/KDV/brüt + kaç kirada) + genel toplamlar.
     /// </summary>
@@ -1272,6 +1300,16 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
     public Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemAsync(
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
         => _repository.GetFaturaDonemRowsAsync(from, to, ct);
+
+    /// <summary>
+    /// FAZ-53 — kira faturalama durumu ("faturalanmamış kira" sekmesi). Dönemle KESİŞEN kiralar
+    /// listelenir; süzgeçle yalnız faturalanmamışlar (veya yalnız faturalanmışlar) daraltılabilir.
+    /// Fatura dönem raporu KESİLMİŞ belgeyi anlatır, bu görünüm EKSİK kalanı.
+    /// </summary>
+    public Task<IReadOnlyList<KiraFaturaDurumRow>> GetKiraFaturaDurumAsync(
+        DateTimeOffset? from = null, DateTimeOffset? to = null,
+        KiraFaturaDurumFilter? filtre = null, CancellationToken ct = default)
+        => _repository.GetKiraFaturaDurumRowsAsync(from, to, filtre, ct);
 
     /// <summary>Araç durum-takip raporu (roadmap H3): gün kırılımı dolu/bakım/boş (varsayılan son 30 gün).</summary>
     public Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipAsync(
