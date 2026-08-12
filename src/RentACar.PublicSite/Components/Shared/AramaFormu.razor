@@ -6,9 +6,13 @@
    `Hedef="/musaitlik"` verilir (form başka sayfadan gönderiliyor), `/musaitlik` içinde
    boş bırakılır (aynı sayfaya gönderir). *@
 
+@* TARİH ZORUNLU DEĞİL. Eskiden iki alan da `required`'dı: tarih girmeden gönderilemiyordu ve
+   `/musaitlik` tarihsiz açıldığında bomboş kalıyordu — "önce nereye/ne zaman gideceğime karar
+   vereyim" diyen ziyaretçi araçları hiç göremiyordu. Boş bırakılırsa sayfa tüm filoyu listeler;
+   tarih girilirse gerçek müsaitliğe ve dönem toplamına daralır. *@
 <form method="get" action="@Hedef" class="arama-form @(EkSinif ?? "")">
-    <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
-    <label>İade<input name="bit" type="date" value="@Bit" required /></label>
+    <label>Alış<input name="bas" type="date" value="@Bas" /></label>
+    <label>İade<input name="bit" type="date" value="@Bit" /></label>
     @if (Subeler.Count > 0)
     {
         <label>Şube
