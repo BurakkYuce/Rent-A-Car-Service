@@ -7,6 +7,9 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default);
     Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>FAZ-54 — süzgeçli fatura listesi; cari/araç künyesi çözümlenmiş (PII çözülmez).</summary>
+    Task<IReadOnlyList<InvoiceRow>> SearchAsync(InvoiceFilter? filter = null, CancellationToken ct = default);
+
     /// <summary>
     /// FAZ-52 — fatura SATIRI seviyesinde birleştirilmiş liste (fatura × cari × kira × araç ×
     /// rezervasyon). Salt okuma; para satırdan OLDUĞU GİBİ alınır, yeniden hesaplanmaz.

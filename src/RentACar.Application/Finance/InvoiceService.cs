@@ -33,6 +33,10 @@ public sealed class InvoiceService(
     public Task<IReadOnlyList<Invoice>> ListAsync(CancellationToken ct = default)
         => repository.ListAsync(ct);
 
+    /// <summary>FAZ-54 — süzgeçli fatura listesi (cari/araç künyesi çözümlenmiş). Salt okuma.</summary>
+    public Task<IReadOnlyList<InvoiceRow>> SearchAsync(InvoiceFilter? filter = null, CancellationToken ct = default)
+        => repository.SearchAsync(filter, ct);
+
     /// <summary>
     /// FAZ-52 — fatura SATIRI seviyesinde birleştirilmiş liste (canlı fatura_detay_listesi.aspx).
     /// Salt okuma; <see cref="Permission.ViewReports"/> ister (fatura listesi gibi finans görünümü).
@@ -51,6 +55,65 @@ public sealed class InvoiceService(
     /// Salt-okuma; ListAsync ile tutarlı olarak guard'sız.</summary>
     public Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
         => repository.ListByRentalAsync(rentalId, ct);
+
+    /// <summary>
+    /// FAZ-54 — <b>toplu faturalama</b>: seçili kiraları TEK istekle faturalar.
+    ///
+    /// <para><b>Spec'in bıraktığı iki karar mevcut tekil yolda ZATEN verilmiş; burada tekrar
+    /// karar üretilmez:</b>
+    /// <list type="bullet">
+    /// <item><b>Faturalanabilirlik</b> = <see cref="CreateFromRentalAsync"/>'in kabul ettiği ölçüt
+    /// (iptal değil, tutar &gt; 0, dövizli-kirada ek hizmet çakışması yok). Yeni bir ölçüt icat
+    /// etmek iki yolu ayrıştırır ve toplu kesim tekil kesimin reddettiğini yazabilirdi.</item>
+    /// <item><b>KDV/kur</b> = her kiranın KENDİ zinciri (parametre ?? kira özel oranı ?? net-mod
+    /// snapshot ?? tenant varsayılanı) ve KENDİ dövizi. Parti başına tek kur uygulamak, net-mod
+    /// snapshot guard'ını delip matrahı operatör niyetinden saptırırdı.</item>
+    /// </list></para>
+    ///
+    /// <para><b>Neden ATOMİK DEĞİL (bilinçli):</b> her fatura BAĞIMSIZ bir mali belgedir ve
+    /// boşluksuz numara alır. Tek-transaction hep-ya-hiç olsaydı, seçimdeki tek bozuk sözleşme
+    /// (ör. dövizli + ek hizmetli) 19 geçerli faturayı da geri alırdı ve kullanıcı hangisinin
+    /// bozuk olduğunu deneme-yanılma ile bulurdu. FAZ-30 (dönem faturası elle tetikleme) aynı
+    /// gerekçeyle satır-bazlı çalışır; buradaki desen onunla AYNI: her kira tek tek işlenir,
+    /// biri hata verirse diğerleri devam eder ve sonuçta "kaç kesildi / neler atlandı" döner.</para>
+    ///
+    /// <para><b>Çift-submit:</b> ayrı bir anahtar gerekmez — <see cref="CreateFromRentalAsync"/>
+    /// zaten faturalanmış kirada FARK faturasına düşer, fark yoksa "zaten tam faturalanmış" diye
+    /// reddeder. Yani ikinci gönderim yeni belge üretmez, atlananlar listesine yazılır.</para>
+    /// </summary>
+    public async Task<TopluFaturaSonuc> BatchCreateFromRentalsAsync(
+        IReadOnlyCollection<Guid> rentalIds, decimal? kdvRate = null, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (rentalIds.Count == 0) throw new ValidationException("En az bir kira seçilmelidir.");
+        if (rentalIds.Count > TopluMaxSecim)
+            throw new ValidationException($"Tek seferde en çok {TopluMaxSecim} kira faturalanabilir.");
+
+        var kesilen = new List<Guid>();
+        var atlananlar = new List<string>();
+        foreach (var id in rentalIds.Distinct())
+        {
+            // Sözleşme no mesajlarda TAŞINIR: çok seçimli kesimde "kira bulunamadı" yazan üç satır
+            // birbirinden ayırt edilemezdi (FAZ-30 dersi).
+            var rental = await bookingRepository.FindRentalAsync(id, ct);
+            var etiket = rental?.SozlesmeNo ?? id.ToString()[..8];
+            if (rental is null) { atlananlar.Add($"{etiket}: kira bulunamadı (kapsam dışı olabilir)."); continue; }
+            try
+            {
+                kesilen.Add(await CreateFromRentalAsync(id, kdvRate, ct: ct));
+            }
+            // Beklenmedik bir hata partiyi ORTADA bırakıp 500 vermemeli: önceki faturalar zaten
+            // yazıldı, kullanıcı ne kesildiğini görmeli (FAZ-30 ile aynı genişlik).
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                atlananlar.Add($"{etiket}: {ex.Message}");
+            }
+        }
+        return new TopluFaturaSonuc(kesilen, atlananlar);
+    }
+
+    /// <summary>Tek seferde faturalanabilecek en fazla kira (kazara "hepsini seç" freni).</summary>
+    public const int TopluMaxSecim = 200;
 
     public async Task<Guid> CreateFromRentalAsync(
         Guid rentalId, decimal? kdvRate = null, InvoiceTaxInfo? vergi = null, CancellationToken ct = default)

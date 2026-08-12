@@ -47,3 +47,40 @@ public sealed record CariEkstreSonuc(decimal Devir, IReadOnlyList<AccountLedgerE
 {
     public static readonly CariEkstreSonuc Bos = new(0m, []);
 }
+
+
+/// <summary>
+/// FAZ-54 — fatura listesi süzgeci (canlı <c>fatura_islem_listesi.aspx</c>). Hepsi opsiyonel;
+/// hiçbiri verilmezse davranış bu fazdan öncekiyle AYNI (tüm faturalar).
+/// </summary>
+public sealed class InvoiceFilter
+{
+    /// <summary>Fatura no / cari adı / özel kod / plaka / açıklama içinde arama.</summary>
+    public string? Ara { get; set; }
+    public Guid? CariId { get; set; }
+    /// <summary>Fatura no aralığı (metin karşılaştırması — no'lar sabit genişlikte: FT-000042).</summary>
+    public string? NoMin { get; set; }
+    public string? NoMax { get; set; }
+    public RentACar.Domain.Enums.InvoiceStatus? Durum { get; set; }
+    /// <summary>true → yalnız iptal edilenler; false → iptal HARİÇ; null → hepsi.</summary>
+    public bool? Iptal { get; set; }
+    public DateTimeOffset? Bas { get; set; }
+    public DateTimeOffset? Bit { get; set; }
+    /// <summary>Kiranın çıkış ofisi (fatura kira üzerinden ofise bağlanır).</summary>
+    public string? Ofis { get; set; }
+    public string? Doviz { get; set; }
+    public int EnFazla { get; set; } = 500;
+}
+
+/// <summary>
+/// FAZ-54 — fatura listesi satırı: belge + cari/araç künyesi çözümlenmiş.
+/// PII ÇÖZÜLMEZ (DisplayName girdileri, OzelKod, vergi dairesi/no düz-metin kolonlar).
+/// </summary>
+public sealed record InvoiceRow(
+    RentACar.Domain.Entities.Invoice Fatura,
+    string CariAd, string? CariOzelKod, string? VergiDairesi, string? VergiNo, string? Ulke,
+    string? Plaka, string? SozlesmeNo, string? Ofis);
+
+
+/// <summary>FAZ-54 — toplu faturalama sonucu: kaç belge kesildi, neler atlandı.</summary>
+public sealed record TopluFaturaSonuc(IReadOnlyList<Guid> Kesilen, IReadOnlyList<string> Atlananlar);
