@@ -21,7 +21,7 @@ public static class KarneExportKatalog
         rows.Add(["Durum", h.Durum.ToString()]);
         rows.Add(["KM", h.Km]);
         rows.Add(["Alım Bedeli", h.AlimBedeli]);
-        rows.Add(["Alım Tarihi", h.AlimTarihi?.UtcDateTime.ToString("yyyy-MM-dd")]);
+        rows.Add(["Alım Tarihi", ExportTarih.Gun(h.AlimTarihi)]);
         rows.Add(["İkinci El Değeri", h.IkinciElDeger]);
         rows.Add(["— P&L (dönem) —", null]);
         rows.Add(["Gelir", d.ToplamGelir]);

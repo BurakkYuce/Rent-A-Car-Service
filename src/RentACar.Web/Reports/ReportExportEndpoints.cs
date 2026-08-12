@@ -297,13 +297,13 @@ public static class ReportExportEndpoints
             rows.Select(r => new object?[]
             {
                 r.SozlesmeNo, r.Plaka, r.Cari,
-                r.BasTar.ToString("yyyy-MM-dd"), r.BitTar.ToString("yyyy-MM-dd"), r.Durum,
+                ExportTarih.Gun(r.BasTar), ExportTarih.Gun(r.BitTar), r.Durum,
                 r.Ofis, r.Faturalanan ? "Evet" : "Hayır", r.FaturaAdet, r.FaturalananTutar
             }).ToList());
 
     private static Table AracDurumTakip(IReadOnlyList<AracDurumTakipRow> rows)
         => new("Araç Durum Takip", new[] { "Gün", "Toplam", "Dolu", "Bakım", "Boş" },
-            rows.Select(r => new object?[] { r.Gun.ToString("yyyy-MM-dd"), r.ToplamArac, r.Dolu, r.Bakim, r.Bos }).ToList());
+            rows.Select(r => new object?[] { ExportTarih.Gun(r.Gun), r.ToplamArac, r.Dolu, r.Bakim, r.Bos }).ToList());
 
     /// <summary>FAZ-12 — ekrandaki araç süzgeci (gün ve araç görünümü ORTAK kullanır).</summary>
     private static AracDurumTakipFilter AracTakipFiltre(HttpRequest req) => new()
@@ -326,7 +326,7 @@ public static class ReportExportEndpoints
         var liste = rows.Select(r => new object?[]
         {
             r.Plaka, r.Sipp, r.Grup, r.AracSahibi, r.CikisOfisi, r.SozlesmeNo, r.Musteri,
-            r.BasTar.ToString("yyyy-MM-dd"), r.BitTar.ToString("yyyy-MM-dd"), r.Gun,
+            ExportTarih.Gun(r.BasTar), ExportTarih.Gun(r.BitTar), r.Gun,
             r.GunlukKira, r.GunlukHizmet, r.GunlukToplam
         }).ToList();
         if (liste.Count > 0)
@@ -383,7 +383,7 @@ public static class ReportExportEndpoints
     {
         var rows = d.Satirlar.Select(r => new object?[]
         {
-            r.Tur, r.No, r.Tarih.ToString("yyyy-MM-dd"), r.Cari, r.Durum,
+            r.Tur, r.No, ExportTarih.Gun(r.Tarih), r.Cari, r.Durum,
             r.Net20, r.Kdv20, r.Net10, r.Kdv10, r.Net1, r.Kdv1, r.Net0,
             r.DigerNet, r.DigerKdv, r.ToplamNet, r.ToplamKdv
         }).ToList();
