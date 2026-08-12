@@ -58,6 +58,13 @@ internal sealed class AccountLedgerEntryConfig : IEntityTypeConfiguration<Accoun
             .IsUnique()
             .HasFilter("\"SourceType\" = 'Virman'")
             .HasDatabaseName("IX_AccountLedgerEntries_Virman_Idem");
+        // FAZ-56 bakiye düzeltme idempotency: işlem anahtarı (SourceId) verilince çift-submit yutulur.
+        // Dengeli çift (Cari / MuhasebeDuzeltmesi) Direction'la ayrışır → ikisi de ilk post'ta geçer;
+        // aynı anahtarla tekrar gönderim çakışır. Depozito/Mtv deseniyle AYNI kolon kümesi, ayrı
+        // named kısmi index (EF birini diğerinin yerine düşürmesin).
+        e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId, x.Direction }, "IX_AccountLedgerEntries_BakiyeDuzeltme_Idem")
+            .IsUnique()
+            .HasFilter("\"SourceType\" = 'BakiyeDuzeltme'");
         // Depozito idempotency (roadmap I3): aynı SourceId ile çift-submit yutulur. Dengeli çift
         // (Borç/Alacak) Direction'la ayrışır → ikisi de geçer; tekrar çakışır. Named overload ile
         // Hgs index'iyle (aynı kolon seti) ÇAKIŞMAYAN ayrı kısmi index üretilir.
