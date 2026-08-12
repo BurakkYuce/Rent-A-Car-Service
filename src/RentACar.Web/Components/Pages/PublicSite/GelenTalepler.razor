@@ -6,6 +6,7 @@
 @using RentACar.Domain.Entities
 @inject PublicBookingRequestService Talepler
 @inject AvailabilityService Musaitlik
+@inject RentACar.Application.WebSite.WebIlanService Ilanlar
 
 <PageTitle>Gelen Talepler — RentPro</PageTitle>
 
@@ -163,18 +164,45 @@
                             }
                             else
                             {
+                                @* Ziyaretçinin İSTEDİĞİ ilanın araçları ÖNCE ve ayrı grupta gelir.
+                                   Düz tek liste, talebi karşılamayan bir aracı (ör. üst segment) seçmeyi
+                                   ilk sıradaki kadar kolay kılıyordu — oysa ilandan gelen GÜNLÜK FİYAT
+                                   rezervasyona aynen işleniyor: yanlış araç = yanlış fiyatlı sözleşme. *@
+                                var ilanAraclari = _ilanAraclari.GetValueOrDefault(t.Id) ?? [];
+                                var talepte = musait.Where(v => ilanAraclari.Contains(v.Id)).ToList();
+                                var digerleri = musait.Where(v => !ilanAraclari.Contains(v.Id)).ToList();
                                 <form method="post" action="/gelen-talepler/donustur" class="grid-form"><AntiforgeryToken />
                                     <input type="hidden" name="id" value="@t.Id" />
                                     <label>Araç
                                         <select name="vehicleId" required>
-                                            @foreach (var v in musait)
+                                            @if (talepte.Count > 0)
                                             {
-                                                <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
+                                                <optgroup label="Talep edilen ilan — @t.IlanBaslik">
+                                                    @foreach (var v in talepte)
+                                                    {
+                                                        <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
+                                                    }
+                                                </optgroup>
+                                            }
+                                            @if (digerleri.Count > 0)
+                                            {
+                                                <optgroup label="@(talepte.Count > 0 ? "Diğer araçlar (ilan dışı)" : "Müsait araçlar")">
+                                                    @foreach (var v in digerleri)
+                                                    {
+                                                        <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
+                                                    }
+                                                </optgroup>
                                             }
                                         </select>
                                     </label>
                                     <button type="submit">Rezervasyona Dönüştür</button>
                                 </form>
+                                @if (t.IlanId is not null && talepte.Count == 0)
+                                {
+                                    <p class="muted small"><strong>Dikkat:</strong> talep edilen ilandaki araçların
+                                        hiçbiri bu tarihlerde müsait değil. Başka bir araç seçerseniz sözleşmeye
+                                        ilanda gösterilen günlük fiyat işlenir — fiyatı kontrol edin.</p>
+                                }
                             }
                             <a class="link" href="@Link(SayfaNo)">Vazgeç</a>
                         }
@@ -219,6 +247,8 @@
 
     private IReadOnlyList<TalepSatiri> _satirlar = [];
     private Dictionary<Guid, IReadOnlyList<Vehicle>> _musait = [];
+    /// <summary>Talep -> talebin geldiği ilanın ÜYE araç kimlikleri (dropdown gruplaması için).</summary>
+    private Dictionary<Guid, HashSet<Guid>> _ilanAraclari = [];
     private Dictionary<Guid, IReadOnlyList<TalepNotu>> _notlar = [];
     private TalepOzet? _ozet;
     private int _toplam;
@@ -272,6 +302,12 @@
         {
             _musait[dId] = await Musaitlik.FindAvailableAsync(
                 hedef.Talep.BasTar, hedef.Talep.BitTar, null, hedef.Talep.Sube);
+
+            // Talebin geldiği ilanın araçları — YALNIZ açılan tek talep için (N+1 yok, aynı gerekçe).
+            // İlan silinmiş/yayından kalkmışsa küme boş kalır ve dropdown eski düz davranışına döner.
+            if (hedef.Talep.IlanId is Guid ilanId
+                && await Ilanlar.GetAsync(ilanId) is { } detay)
+                _ilanAraclari[dId] = [.. detay.Araclar.Select(v => v.Id)];
         }
 
         // Notlar: yalnız NOTU OLAN satırlar için (sayı zaten tek sorguyla geldi) — notsuz satır

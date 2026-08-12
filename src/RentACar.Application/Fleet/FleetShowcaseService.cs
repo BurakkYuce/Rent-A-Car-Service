@@ -110,6 +110,35 @@ public sealed class FleetShowcaseService(
     private static IReadOnlyList<OzellikGoster> Gorunur(WebIlanDetay d)
         => [.. d.Ozellikler.Where(o => o.Gorunur).OrderBy(o => o.Sira).Select(o => new OzellikGoster(o.Etiket, o.Deger))];
 
+    /// <summary>
+    /// KART çipleri: görünür özelliklerden, değeri BAŞLIKTA zaten geçenler atılır.
+    ///
+    /// <para><b>Neden:</b> sihirbaz özellikleri araç kaydından tohumluyor (Marka/Model/Vites/Yıl/Renk)
+    /// ve kart başlığı da <c>AracImza.Baslik</c> ile aynı üç alandan kuruluyor. Sonuç: "Fiat Egea
+    /// Manuel" başlığının altında "Fiat", "Egea", "Manuel" çipleri — kart yalnız İLK ÜÇ çipi
+    /// gösterdiği için ziyaretçiye hiçbir YENİ bilgi kalmıyordu (yıl, renk, bagaj hep kesiliyordu).
+    /// Ayıklama yalnız KARTA uygulanır; DETAY sayfasının teknik özellik tablosu tam listeyi
+    /// gösterir — orada Marka/Model satırı bilgi olarak yerinde.</para>
+    ///
+    /// <para><b>Kelime-bazlı karşılaştırma</b> (alt-dize değil): "Manuel" başlıkta bir KELİME olarak
+    /// geçiyorsa atılır, ama "2023"/"BEYAZ"/"510 litre" kalır. Alt-dize kullansaydık kısa bir değer
+    /// ("an" gibi) alakasız bir başlık kelimesinin içinde bulunup sessizce düşerdi.</para>
+    /// </summary>
+    private static IReadOnlyList<OzellikGoster> KartCipleri(WebIlanDetay d, string baslik)
+    {
+        var basKelimeler = TurkishText.Normalize(baslik)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return [.. Gorunur(d).Where(o =>
+        {
+            var kelimeler = TurkishText.Normalize(o.Deger ?? string.Empty)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            // Boş değer çip olmaz; TÜM kelimeleri başlıkta geçen değer tekrardır.
+            return kelimeler.Length > 0 && !kelimeler.All(basKelimeler.Contains);
+        })];
+    }
+
     private static int Adet(IEnumerable<Vehicle> araclar) => araclar.Sum(v => v.VitrinAdet ?? 1);
 
     // ---- Vitrin ----
@@ -123,7 +152,8 @@ public sealed class FleetShowcaseService(
             kartlar.Add(new FleetShowcaseCard(
                 y.Detay.Ilan.Id, y.Detay.Ilan.Slug, y.Detay.Ilan.Baslik, AracImza.YilAralik(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
-                y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Adet(y.Araclar), Gorunur(y.Detay)));
+                y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Adet(y.Araclar),
+                KartCipleri(y.Detay, y.Detay.Ilan.Baslik)));
         }
         return kartlar;
     }
@@ -187,7 +217,8 @@ public sealed class FleetShowcaseService(
             sonuclar.Add(new PublicAvailabilityResult(
                 i.Id, i.Slug, i.Baslik, AracImza.YilAralik(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
-                gun, gunluk, R(gunluk * gun), i.KdvDahil, Adet(musaitUyeler), Gorunur(y.Detay)));
+                gun, gunluk, R(gunluk * gun), i.KdvDahil, Adet(musaitUyeler),
+                KartCipleri(y.Detay, i.Baslik)));
         }
         return [.. sonuclar.OrderBy(r => r.GunlukFiyat)];
     }
