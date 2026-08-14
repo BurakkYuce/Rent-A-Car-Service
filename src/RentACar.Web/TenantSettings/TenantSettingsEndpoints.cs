@@ -123,6 +123,39 @@ public static class TenantSettingsEndpoints
             return Results.Redirect("/ayarlar?ok=1");
         });
 
+        // WhatsApp TEST gönderimi — "yapılandırma doğru mu?" sorusunun tek dürüst cevabı gerçek
+        // bir gönderimdir. Günlük özet job'ı yalnız sabah 08:00 sonrası ve günde BİR kez çalıştığı
+        // için (idempotency) yapılandırmayı onunla denemek pratikte imkânsızdı.
+        //
+        // Gerçek gönderici yalnız Twilio config VARSA DI'ya giriyor; yoksa stub no-op döner ve
+        // ekranda "yapılandırma yok" olarak görünür — sessiz başarı YOK.
+        grp.MapPost("/whatsapp-test", async (HttpRequest req,
+            RentACar.Application.Integrations.IWhatsAppService wa, IConfiguration cfg) =>
+        {
+            var no = req.Form["testNo"].ToString().Trim();
+            if (string.IsNullOrWhiteSpace(no))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Test için bir WhatsApp numarası girin (E.164, ör. +905321112233)."));
+
+            // YAPILANDIRMA KAPISI — testin en kritik satırı. Twilio config yoksa DI'da StubWhatsAppService
+            // duruyor ve o HER ZAMAN true döner (günlük özet job'ı "test modu"nda kayıt yazabilsin diye).
+            // Bu kontrol olmadan buton hiçbir şey göndermediği hâlde "başarılı" diyordu — canlı denemede
+            // yakalandı. Stub'ın dönüşünü değiştirmek yanlış olurdu (job'ın kayıt semantiğini bozar);
+            // dürüst olması gereken yer BU uç.
+            if (string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "Twilio yapılandırılmamış — test modundasınız, hiçbir mesaj gönderilmedi. "
+                    + "Twilio:AccountSid / AuthToken / WhatsAppFrom ayarlarını verin."));
+
+            // Şablon adı ÜRETİMDEKİYLE aynı (operasyon_ozet) — test, gerçek kod yolunu denemeli.
+            // Şablon SID'i tanımlıysa şablon gider; tanımlı değil ve AllowFreeform açıksa serbest
+            // metin gider (sandbox yolu). İkisi de yoksa gönderici false döner ve bunu görürüz.
+            var mesaj = $"RentPro test mesajı — {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. Bu mesajı aldıysanız WhatsApp yapılandırmanız çalışıyor.";
+            var ok = await wa.SendTemplateAsync(no, "operasyon_ozet", new Dictionary<string, string> { ["1"] = mesaj });
+            return Results.Redirect(ok
+                ? "/ayarlar?ok=1"
+                : "/ayarlar?hata=" + Uri.EscapeDataString("WhatsApp gönderilemedi. Twilio yapılandırmasını ve sunucu loglarını kontrol edin."));
+        });
+
         // PR-2: "Sitemi Aç" — subdomain host'u (idempotent) oluşturur + public-site'ı aktifleştirir.
         grp.MapPost("/site-ac", async (TenantSettingsService svc) =>
         {
