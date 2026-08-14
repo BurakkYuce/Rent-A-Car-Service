@@ -175,6 +175,41 @@ tenant-özel bytea döndürür (yalnız `site.css`/`app.css` gerçekten tenant-b
 ## 6. Opsiyonel entegrasyonlar (config VARSA aktif, yoksa no-op stub)
 - **WhatsApp/SMS (Twilio):** `Twilio:AccountSid` + `Twilio:AuthToken` + gönderen numara verilirse gerçek gönderici
   devreye girer; yoksa stub no-op. (SMS/HGS/POS/e-Fatura stub — kimlik gelince bağlanır.)
+
+### 6.1 WhatsApp — üretim (onaylı şablon) vs SANDBOX (serbest metin)
+| Anahtar | Ne işe yarar |
+|---|---|
+| `Twilio:AccountSid` / `Twilio:AuthToken` | Hesap kimliği (Basic auth). |
+| `Twilio:WhatsAppFrom` | Gönderen numara. Sandbox'ta Twilio'nun verdiği numara (ör. `+14155238886`). |
+| `Twilio:Templates:operasyon_ozet` | Günlük özet şablonunun ContentSid'i (`HX…`). |
+| `Twilio:Templates:ops_alert` | Watchdog alarm şablonunun ContentSid'i. |
+| `Twilio:AllowFreeform` | **Yalnız sandbox/test.** Şablon SID'i YOKSA serbest metin gönderilir. |
+
+**ÜRETİM:** şablon SID'leri tanımlı olmalı. İş-başlatımlı (proaktif) WhatsApp mesajı, WhatsApp
+tarafından onaylanmış bir şablon gerektirir — serbest metin 24 saatlik müşteri-hizmetleri
+penceresi dışında REDDEDİLİR. `Twilio:AllowFreeform` üretimde **AÇILMAZ**.
+
+**SANDBOX (onay çıkana kadar test):** Twilio'nun kendi dokümanı — *"You can't use custom message
+templates with the Sandbox."* Sandbox yalnız (a) hedef numaranın sandbox'a katılmasından sonraki
+24 saatlik pencerede serbest metni, (b) Twilio'nun 3 sabit hazır şablonunu kabul eder. Bizim iki
+şablonumuz ikisi de değil. Bu yüzden test için:
+```
+Twilio__AccountSid=AC…
+Twilio__AuthToken=…
+Twilio__WhatsAppFrom=+14155238886
+Twilio__AllowFreeform=true          # şablon SID'i VERME — serbest metin yolu açılsın
+```
+Hedef numara önce sandbox'a katılmalı (Twilio konsolundaki `join <kelime>` mesajını göndererek) ve
+son 24 saat içinde yazmış olmalıdır; aksi halde Twilio 63015/63016 döner.
+
+**Denemek için:** Ayarlar ekranı → **WhatsApp Testi** → numarayı gir → *Test Mesajı Gönder*.
+Günlük özetin kullandığı kod yolunun AYNISINI çalıştırır (sabah 08:00 penceresini ve günlük
+idempotency'yi beklemeden). Gönderim başarısızsa ekranda hata döner — sessiz başarı yoktur.
+
+**Bayrak neden var ve neden varsayılan KAPALI:** şablon SID'i üretimde unutulup sessizce serbest
+metne düşülseydi, net bir yapılandırma uyarısı yerine WhatsApp'ın reddettiği bir gönderim elde
+ederdik. Bayrak kapalıyken davranış eskisiyle birebir aynıdır (şablon yoksa uyar, hiç istek atma) —
+`TwilioWhatsAppTests` bunu kalıcı olarak kilitler.
 - **TCMB kur:** otomatik (config'siz çalışır; günlük çeker).
 
 ## 6.1 Gözlemlenebilirlik (opsiyonel, config-gated) — bkz. [observability.md](observability.md)

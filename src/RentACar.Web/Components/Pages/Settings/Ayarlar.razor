@@ -206,6 +206,9 @@
         <label>WhatsApp No (E.164)<input name="whatsAppNumarasi" value="@_m.WhatsAppNumarasi" placeholder="+90 5xx xxx xx xx" /></label>
         <label class="check"><input type="checkbox" name="whatsAppGunlukOzet" value="true" checked="@(_m.WhatsAppGunlukOzet == true)" /> Günlük özet gönderilsin</label>
 
+        <p class="muted small">Yapılandırmanın gerçekten çalışıp çalışmadığını aşağıdaki
+            <strong>WhatsApp Testi</strong> bölümünden tek mesajla deneyebilirsiniz.</p>
+
         @if (_gonderimler.Count > 0)
         {
             <p class="muted small">Son gönderimler:</p>
@@ -229,6 +232,26 @@
 
     <button type="submit">Kaydet</button>
 </form>
+
+@* Test gönderimi ANA FORMUN DIŞINDA: iç içe <form> geçersiz HTML'dir ve tarayıcı içteki formu
+   sessizce yok sayar (kaydet butonu test mesajı atardı). Logo / Sitemi Aç / Domain blokları da
+   aynı sebeple dışarıda. *@
+<fieldset>
+    <legend>WhatsApp Testi</legend>
+    <p class="muted small">Yapılandırmayı doğrulamak için <strong>tek</strong> bir mesaj gönderir —
+        günlük özetin kullandığı kod yolunun aynısını kullanır. Twilio yapılandırması yoksa gönderim
+        yapılmaz ve size hata döner (sessiz başarı yoktur).
+        <br />WhatsApp <strong>sandbox</strong> kullanıyorsanız hedef numara önce sandbox'a katılmış
+        olmalı ve son 24 saat içinde size yazmış olmalıdır; aksi halde Twilio mesajı reddeder.</p>
+    <form method="post" action="/ayarlar/whatsapp-test" class="grid-form"><AntiforgeryToken />
+        <label>Test numarası (E.164)
+            <input name="testNo" placeholder="+905321112233" value="@_m.WhatsAppNumarasi" required />
+        </label>
+        <button type="submit" data-confirm="Bu numaraya gerçek bir WhatsApp mesajı gönderilecek. Devam?">
+            Test Mesajı Gönder
+        </button>
+    </form>
+</fieldset>
 
 <fieldset>
     <legend>PDF Logo (sözleşme / fatura / makbuz başlığı)</legend>
