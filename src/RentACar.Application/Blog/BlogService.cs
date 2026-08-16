@@ -34,6 +34,39 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
         return repository.FindAsync(id, ct);
     }
 
+    /// <summary>Arama sonucu açıklamasının pratik üst sınırı (Google ~155-160 karakterde kırpar).</summary>
+    public const int MetaAciklamaMax = 160;
+    /// <summary>Arama başlığının pratik üst sınırı (~60 karakterden sonrası kırpılır).</summary>
+    public const int SeoBaslikMax = 70;
+
+    /// <summary>
+    /// SEO alanlarını normalize eder ve UZUNLUK sınırlarını uygular.
+    ///
+    /// <para><b>Neden REDDETMİYOR da kırpmıyor:</b> ikisi de yapılmıyor — sınırı aşan değer olduğu
+    /// gibi SAKLANIYOR, yalnız ekranda uyarı gösteriliyor. Sebep: bunlar tavsiye sınırlarıdır
+    /// (arama motoru kırpar, içerik kaybolmaz) ve yazarın metnini sessizce kesmek ya da kaydını
+    /// reddetmek gerçek bir hatayı değil bir stil tercihini dayatmak olurdu.</para>
+    /// </summary>
+    private static void SeoUygula(BlogPost p, BlogInput input)
+    {
+        static string? T(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+        p.AltBaslik = T(input.AltBaslik);
+        p.SeoBaslik = T(input.SeoBaslik);
+        p.MetaAciklama = T(input.MetaAciklama);
+        p.Yazar = T(input.Yazar);
+        p.KapakAlt = T(input.KapakAlt);
+        p.AramaDisi = input.AramaDisi;
+
+        // Anahtar kelimeler: virgülle ayrılır, uçlar kırpılır, BOŞLAR ve TEKRARLAR atılır.
+        // Tekrar ayıklaması Türkçe-duyarlı: "Antalya" ile "antalya" AYNI kelimedir.
+        p.AnahtarKelimeler = T(input.AnahtarKelimeler) is { } ham
+            ? string.Join(", ", ham
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .DistinctBy(TurkishText.Normalize))
+            : null;
+    }
+
     public async Task<Guid> CreateAsync(BlogInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
@@ -49,6 +82,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
             Durum = input.Durum,
             YayinTarihi = input.Durum == BlogPostDurum.Yayinda ? DateTimeOffset.UtcNow : null,
         };
+        SeoUygula(post, input);
         await repository.AddAsync(post, ct);
         return post.Id;
     }
@@ -73,6 +107,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
             p.Ozet = ozet;
             p.Icerik = icerik;
             p.Durum = input.Durum;
+            SeoUygula(p, input);
             // İLK yayında damgalanır; sonraki düzenlemelerde KORUNUR (yeniden yayınlamak tarihi ileri atmaz).
             if (input.Durum == BlogPostDurum.Yayinda && p.YayinTarihi is null) p.YayinTarihi = DateTimeOffset.UtcNow;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;

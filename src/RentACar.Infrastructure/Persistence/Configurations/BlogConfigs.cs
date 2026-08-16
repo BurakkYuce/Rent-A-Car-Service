@@ -17,6 +17,15 @@ internal sealed class BlogPostConfig : IEntityTypeConfiguration<BlogPost>
         e.Property(x => x.Ozet).HasMaxLength(500);
         e.Property(x => x.Icerik).IsRequired().HasMaxLength(20000);
         e.Property(x => x.KapakContentType).HasMaxLength(32);
+        // SEO alanları — hepsi opsiyonel. Uzunluklar SAKLAMA sınırıdır, tavsiye sınırı DEĞİL:
+        // arama motorunun kırpma eşiği (title ~60, description ~160) uygulamada UYARI olarak
+        // gösterilir, veritabanı onu dayatmaz (yazarın metnini sessizce kesmek yanlış olurdu).
+        e.Property(x => x.AltBaslik).HasMaxLength(300);
+        e.Property(x => x.SeoBaslik).HasMaxLength(300);
+        e.Property(x => x.MetaAciklama).HasMaxLength(500);
+        e.Property(x => x.AnahtarKelimeler).HasMaxLength(500);
+        e.Property(x => x.Yazar).HasMaxLength(160);
+        e.Property(x => x.KapakAlt).HasMaxLength(300);
         e.Property(x => x.Durum).HasConversion<int>();
         // Slug URL'in kendisi → tenant içinde benzersiz (public /blog/{slug} tekil satır çözer).
         e.HasIndex(x => new { x.TenantId, x.Slug }).IsUnique();

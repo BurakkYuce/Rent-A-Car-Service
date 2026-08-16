@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 using RentACar.Application.Blog;
+using RentACar.Application.Branches;
 using RentACar.Application.Fleet;
 
 namespace RentACar.PublicSite;
@@ -57,6 +59,102 @@ public static class SeoEndpoints
             return Results.Text(doc.ToString(), "application/xml; charset=utf-8");
         });
 
+        // `/llms.txt` — llmstxt.org konvansiyonu: AI arama motorları / LLM ajanları için sade metin
+        // site özeti. Neden HTML kazımak yerine ayrı bir uç: ajan tek istekte firmayı, iletişimi,
+        // yayındaki filoyu ve blogu MUTLAK adreslerle görsün — vitrin sayfaları static-SSR olsa da
+        // fiyat/adet bilgisi kart HTML'ine gömülü ve kazıma sırasında bayatlamaya açık.
+        // Host `GetCanonicalHostAsync`'ten: robots/sitemap ile AYNI kural (bkz. sınıf özeti) —
+        // ajanın alıntıladığı adres, sayfalardaki `canonical` etiketiyle çelişmemeli.
+        app.MapGet("/llms.txt", async (FleetShowcaseService showcase, BlogService blog,
+            BranchService subeler, RentACar.Application.SiteIcerik.SiteIcerikService icerik,
+            CancellationToken ct) =>
+        {
+            var host = await showcase.GetCanonicalHostAsync(ct);
+            if (host is null) return Results.NotFound(); // site hiç yayında değil — sitemap ile aynı davranış
+
+            var kok = $"https://{host}";
+            var b = await showcase.GetBrandingAsync(ct);
+            var marka = string.IsNullOrWhiteSpace(b.Marka) ? host : b.Marka!;
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"# {marka}");
+            sb.AppendLine();
+            sb.AppendLine($"> {marka} — araç kiralama (rent a car). Müsaitlik ve günlük fiyatlar site üzerinden");
+            sb.AppendLine("> sorgulanır, rezervasyon talebi çevrimiçi formla iletilir.");
+            sb.AppendLine();
+            sb.AppendLine("Bu dosya llmstxt.org konvansiyonuna göre üretilmiştir ve firmanın yayındaki");
+            sb.AppendLine("araç ilanlarını, blog yazılarını ve ana sayfalarını özetler. Veriler istek anında üretilir.");
+
+            // İletişim: yalnız DOLU alanlar — boş satır ("Telefon: ") ajanı yanıltır, hiç yazmamak dürüsttür.
+            var iletisim = new List<string>();
+            Ekle(iletisim, "Telefon", b.Tel);
+            Ekle(iletisim, "Mobil telefon", b.MobilTel);
+            Ekle(iletisim, "WhatsApp", b.WhatsApp);
+            Ekle(iletisim, "E-posta", b.Email);
+            Ekle(iletisim, "Adres", b.Adres);
+            iletisim.Add($"- Web: {kok}");
+            sb.AppendLine().AppendLine("## İletişim").AppendLine();
+            foreach (var s in iletisim) sb.AppendLine(s);
+
+            // Şubeler = hizmet lokasyonları. `WebIsim` varsa o kazanır: kurumsal ad ile sitede
+            // gösterilen ad kasıtlı olarak farklı olabilir (Branch.WebIsim'in var oluş nedeni).
+            var aktifSubeler = await subeler.ListActiveAsync(ct);
+            if (aktifSubeler.Count > 0)
+            {
+                sb.AppendLine().AppendLine("## Şubeler / Hizmet Lokasyonları").AppendLine();
+                foreach (var s in aktifSubeler)
+                {
+                    var ad = string.IsNullOrWhiteSpace(s.WebIsim) ? s.Ad : s.WebIsim!;
+                    var yer = string.Join(" / ", new[] { s.Il, s.Ilce }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    var ek = new[] { yer, s.Adres, s.Telefon }.Where(x => !string.IsNullOrWhiteSpace(x));
+                    sb.AppendLine($"- {ad}{(ek.Any() ? " — " + string.Join(" — ", ek) : "")}");
+                }
+            }
+
+            var tr = CultureInfo.GetCultureInfo("tr-TR");
+            var ilanlar = await showcase.ListShowcaseGroupsAsync(ct);
+            sb.AppendLine().AppendLine($"## Kiralanabilir Araçlar ({ilanlar.Count} ilan)").AppendLine();
+            if (ilanlar.Count == 0)
+            {
+                sb.AppendLine($"- Şu an yayında ilan yok. Güncel filo: {kok}/musaitlik");
+            }
+            else
+            {
+                // Fiyat biçimi tr-TR ile SABİTLENİR: sunucunun ambient kültürü ortama göre değişir
+                // (CI/konteyner çoğu zaman invariant) ve "1.500" ile "1,500" arasında gidip gelmek
+                // ajanın okuduğu rakamı bozar. Adet = vitrindeki gösterim adedi, kapasite değil.
+                foreach (var i in ilanlar)
+                {
+                    var yil = string.IsNullOrWhiteSpace(i.YilAralik) ? "" : $" ({i.YilAralik})";
+                    var kdv = i.KdvDahil ? "KDV dahil" : "KDV hariç";
+                    sb.AppendLine($"- {i.Baslik}{yil} — {i.GunlukFiyat.ToString("N0", tr)} TL/gün ({kdv}) — "
+                        + $"{i.Adet} adet: {kok}/araclar/{i.Slug}");
+                }
+                sb.AppendLine($"- Tarihe göre müsaitlik ve toplam fiyat: {kok}/musaitlik");
+            }
+
+            var yazilar = await blog.ListPublishedAsync(ct);
+            if (yazilar.Count > 0)
+            {
+                sb.AppendLine().AppendLine($"## Blog / Rehber ({yazilar.Count} yazı)").AppendLine();
+                foreach (var y in yazilar)
+                    sb.AppendLine($"- {y.Baslik}: {kok}/blog/{y.Slug}");
+            }
+
+            sb.AppendLine().AppendLine("## Önemli Sayfalar").AppendLine();
+            sb.AppendLine($"- Ana sayfa: {kok}/");
+            sb.AppendLine($"- Müsaitlik ve fiyat sorgulama: {kok}/musaitlik");
+            sb.AppendLine($"- Rezervasyon talebi: {kok}/rezervasyon-talebi");
+            if (yazilar.Count > 0) sb.AppendLine($"- Blog: {kok}/blog");
+            sb.AppendLine($"- İletişim: {kok}/iletisim");
+            // SSS ve serbest içerik sayfaları YAYINDAYSA listelenir — sitemap ile aynı kapı.
+            if ((await icerik.YayindakiSssAsync(ct)).Count > 0) sb.AppendLine($"- Sık sorulan sorular: {kok}/sss");
+            foreach (var sf in await icerik.YayindakiSayfalarAsync(ct))
+                sb.AppendLine($"- {sf.Baslik}: {kok}/{sf.Slug}");
+
+            return Results.Text(sb.ToString(), "text/plain; charset=utf-8");
+        });
+
         // PR-14 GEÇİŞ: eski `/araclar/{guid}` adresleri. Google bunları indeksledi ve blog
         // içeriğinde elle yazılmış linkler olabilir — hepsini 404'e düşürmek yerine slug'a
         // KALICI (301) yönlendiriyoruz. GUID bir ilana çözülmezse (eski GRUP id'si ya da
@@ -71,6 +169,12 @@ public static class SeoEndpoints
         });
 
         return app;
+    }
+
+    /// <summary>Boş/whitespace değeri hiç yazmaz — eksik alanı boş satırla göstermek ajanı yanıltır.</summary>
+    private static void Ekle(List<string> hedef, string etiket, string? deger)
+    {
+        if (!string.IsNullOrWhiteSpace(deger)) hedef.Add($"- {etiket}: {deger.Trim()}");
     }
 
     private static XElement Url(XNamespace ns, string loc, DateTimeOffset? lastMod = null)

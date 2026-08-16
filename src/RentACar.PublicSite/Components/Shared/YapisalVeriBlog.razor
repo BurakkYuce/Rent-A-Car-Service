@@ -1,0 +1,70 @@
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using RentACar.Application.Blog
+@using RentACar.Application.Fleet
+
+@* Blog yazısı için JSON-LD (schema.org BlogPosting) — arama motorları ve AI arama yüzeyleri
+   yazının başlığını, tarihini ve yayıncısını böyle okur.
+
+   `MarkupString` BURADA GÜVENLİ, gerekçesi YapisalVeri.razor'daki ile AYNI: çıktı
+   System.Text.Json ile ÜRETİLİYOR ve varsayılan JavaScriptEncoder `<` `>` `&` karakterlerini
+   kaçırdığı için tenant verisi ne içerirse içersin `</script>` dizisi üretilemez. *@
+
+@if (_json is { Length: > 0 })
+{
+    <script type="application/ld+json">@((MarkupString)_json)</script>
+}
+
+@code {
+    [Parameter, EditorRequired] public BlogDetail? Yazi { get; set; }
+    [Parameter] public FleetBranding? Marka { get; set; }
+    /// <summary>Kanonik kök (https://host) — göreli adresleri mutlak yapmak için. Yoksa url/image atlanır.</summary>
+    [Parameter] public string? KanonikKok { get; set; }
+
+    private string? _json;
+
+    private static readonly JsonSerializerOptions Opt = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = false,
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (Yazi is not { } y) { _json = null; return; }
+
+        var kok = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var model = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "BlogPosting",
+            ["headline"] = y.Baslik,
+            // alternativeHeadline = alt başlık; AI arama yüzeyleri yazının kapsamını buradan da okur.
+            ["alternativeHeadline"] = string.IsNullOrWhiteSpace(y.AltBaslik) ? null : y.AltBaslik,
+            // Özet YOKSA gövdeden türetilir — boş description basmaktansa anlamlı bir cümle.
+            // Sayfadaki meta description ile AYNI öncelik sırası — ikisi ayrışırsa arama motoru
+            // çelişen iki açıklama görür.
+            ["description"] = !string.IsNullOrWhiteSpace(y.MetaAciklama) ? y.MetaAciklama
+                : !string.IsNullOrWhiteSpace(y.Ozet) ? y.Ozet
+                : RentACar.Application.Common.IcerikMetni.Ozet(y.Icerik),
+            ["keywords"] = y.Kelimeler.Count > 0 ? string.Join(", ", y.Kelimeler) : null,
+            ["author"] = string.IsNullOrWhiteSpace(y.Yazar) ? null : new Dictionary<string, object?>
+            {
+                ["@type"] = "Person",
+                ["name"] = y.Yazar,
+            },
+            // Kelime sayısı: AI arama yüzeyleri içeriğin derinliğini bununla ölçüyor.
+            ["wordCount"] = RentACar.Application.Common.IcerikMetni.KelimeSayisi(y.Icerik),
+            ["datePublished"] = y.YayinTarihi?.ToString("yyyy-MM-dd"),
+            ["mainEntityOfPage"] = kok is null ? null : $"{kok}/blog/{y.Slug}",
+            ["image"] = kok is not null && y.KapakVar ? $"{kok}/blog-kapak/{y.Id}" : null,
+            ["publisher"] = string.IsNullOrWhiteSpace(Marka?.Marka) ? null : new Dictionary<string, object?>
+            {
+                ["@type"] = "Organization",
+                ["name"] = Marka!.Marka,
+            },
+        };
+
+        _json = JsonSerializer.Serialize(model, Opt);
+    }
+}

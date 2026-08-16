@@ -19,7 +19,7 @@
     <summary>+ Yeni Yazı</summary>
     <form method="post" action="/blog-yonetim/create" class="grid-form"><AntiforgeryToken />
         <label>Başlık<input name="baslik" required maxlength="200" /></label>
-        <label>Adres (boş bırakılırsa başlıktan üretilir)<input name="slug" maxlength="200" placeholder="ornek-yazi-adresi" /></label>
+        <label>Adres (boş bırakılırsa başlıktan üretilir)<input name="slug" maxlength="200" placeholder="ornek-yazi-adresi" data-seo-slug /></label>
         <label>Özet (liste kartında görünür)<input name="ozet" maxlength="500" /></label>
         <label>Durum
             <select name="durum">
@@ -28,6 +28,7 @@
             </select>
         </label>
         <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000"></textarea></label>
+        <SeoAlanlari />
         <button type="submit">Oluştur</button>
     </form>
 </details>
@@ -56,11 +57,11 @@
                             <label>Başlık<input name="baslik" value="@p.Baslik" required maxlength="200" /></label>
                             @if (p.YayinTarihi is null)
                             {
-                                <label>Adres<input name="slug" value="@p.Slug" maxlength="200" /></label>
+                                <label>Adres<input name="slug" value="@p.Slug" maxlength="200" data-seo-slug /></label>
                             }
                             else
                             {
-                                <label>Adres (yayınlandı — sabit)<input value="@p.Slug" readonly disabled /></label>
+                                <label>Adres (yayınlandı — sabit)<input value="@p.Slug" readonly disabled data-seo-slug /></label>
                             }
                             <label>Özet<input name="ozet" value="@p.Ozet" maxlength="500" /></label>
                             <label>Durum
@@ -69,7 +70,10 @@
                                     <option value="Yayinda" selected="@(p.Durum == BlogPostDurum.Yayinda)">Yayında</option>
                                 </select>
                             </label>
-                            <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_icerikler.GetValueOrDefault(p.Id)</textarea></label>
+                            <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_tam.GetValueOrDefault(p.Id)?.Icerik</textarea></label>
+                            @* SEO alanları ANA formun İÇİNDE (ayrı <form> açılmaz — iç içe form geçersizdir
+                               ve tarayıcı içteki alanları hiç göndermez). *@
+                            <SeoAlanlari Post="_tam.GetValueOrDefault(p.Id)" />
                             <button type="submit">Kaydet</button>
                         </form>
                         <form method="post" action="/blog-yonetim/@p.Id/kapak" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
@@ -99,17 +103,19 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<BlogListItem> _list = [];
-    // Liste projeksiyonu İçerik taşımaz (blob/uzun metin listeye girmesin) — düzenleme formu için ayrı çekilir.
-    private Dictionary<Guid, string> _icerikler = [];
+    // Liste projeksiyonu İçerik ve SEO alanlarını taşımaz (blob/uzun metin listeye girmesin) —
+    // düzenleme formu için tam kayıt ayrı çekilir. Önceden yalnız İçerik saklanıyordu; SEO alanları
+    // da forma prefill edileceği için kaydın TAMAMI tutuluyor (ek sorgu YOK, aynı GetAsync çağrısı).
+    private Dictionary<Guid, BlogPost> _tam = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Blog.ListAllAsync();
-        _icerikler = [];
+        _tam = [];
         foreach (var p in _list)
         {
             var full = await Blog.GetAsync(p.Id);
-            if (full is not null) _icerikler[p.Id] = full.Icerik;
+            if (full is not null) _tam[p.Id] = full;
         }
     }
 }
