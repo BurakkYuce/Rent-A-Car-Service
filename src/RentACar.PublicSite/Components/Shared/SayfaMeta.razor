@@ -1,0 +1,62 @@
+@using RentACar.Application.Fleet
+
+@* Sayfa meta etiketleri — açıklama + paylaşım (og/twitter) TEK yerde.
+
+   Neden gerekli: bu etiketler yalnız blog yazısında ve serbest içerik sayfasında vardı. Ana sayfa,
+   /musaitlik, araç detay ve /sss'te HİÇ description ve HİÇ og: yoktu — yani arama sonucundaki
+   açıklamayı Google sayfadan rastgele seçiyor, WhatsApp/Facebook'ta paylaşılan bağlantı başlıksız
+   ve görselsiz çıkıyordu. Rent-a-car'da bağlantı paylaşımı asıl kanal olduğu için bu ciddi bir kayıp.
+
+   Neden ORTAK bileşen: her sayfaya elle <meta> yazmak, dördünde yazıp beşincisini unutmak demek.
+   Tek giriş noktası olunca yeni sayfa eklendiğinde tek satır yeter. *@
+
+<HeadContent>
+    @if (!string.IsNullOrWhiteSpace(Aciklama))
+    {
+        <meta name="description" content="@Aciklama" />
+        <meta property="og:description" content="@Aciklama" />
+        <meta name="twitter:description" content="@Aciklama" />
+    }
+    <meta property="og:type" content="@(Tur ?? "website")" />
+    <meta property="og:title" content="@Baslik" />
+    <meta name="twitter:title" content="@Baslik" />
+    @if (!string.IsNullOrWhiteSpace(Marka?.Marka))
+    {
+        <meta property="og:site_name" content="@Marka!.Marka" />
+    }
+    @* Görsel varsa büyük kart, yoksa küçük — görselsiz "summary_large_image" boş bir kutu bastırır. *@
+    <meta name="twitter:card" content="@(Gorsel is { Length: > 0 } ? "summary_large_image" : "summary")" />
+    @if (KanonikKok is { Length: > 0 })
+    {
+        <meta property="og:url" content="@($"{KanonikKok}{Yol}")" />
+        @if (Gorsel is { Length: > 0 })
+        {
+            <meta property="og:image" content="@($"{KanonikKok}{Gorsel}")" />
+            <meta name="twitter:image" content="@($"{KanonikKok}{Gorsel}")" />
+        }
+    }
+</HeadContent>
+
+@code {
+    /// <summary>Paylaşım başlığı (sekme başlığından AYRI olabilir; sayfa ne verirse).</summary>
+    [Parameter, EditorRequired] public string Baslik { get; set; } = "";
+
+    /// <summary>Arama sonucu açıklaması. Boşsa hiçbir açıklama etiketi BASILMAZ —
+    /// boş bir description, olmayandan daha kötüdür (arama motoru onu da gösterebilir).</summary>
+    [Parameter] public string? Aciklama { get; set; }
+
+    /// <summary>og:type — varsayılan "website"; blog yazısı "article" verir.</summary>
+    [Parameter] public string? Tur { get; set; }
+
+    /// <summary>Bu sayfanın yolu ("/", "/musaitlik", "/araclar/x"). og:url için.</summary>
+    [Parameter] public string Yol { get; set; } = "/";
+
+    /// <summary>Paylaşım görselinin GÖRECELİ yolu ("/foto/{id}/thumb"). Yoksa görsel etiketi yok.</summary>
+    [Parameter] public string? Gorsel { get; set; }
+
+    [Parameter] public FleetBranding? Marka { get; set; }
+
+    /// <summary>Kanonik kök (https://host). Yoksa mutlak adres isteyen etiketler atlanır —
+    /// og:image GÖRECELİ yolu kabul etmez, yarım etiket basmaktansa hiç basmamak doğrusu.</summary>
+    [Parameter] public string? KanonikKok { get; set; }
+}

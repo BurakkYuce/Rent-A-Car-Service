@@ -10,6 +10,13 @@
 
 <PageTitle>Sık Sorulan Sorular — @(_marka ?? "RentPro")</PageTitle>
 
+@* FAQPage yapısal verisi: ana sayfada zaten basılıyordu ama ASIL SSS SAYFASINDA yoktu —
+   arama motorunun "zengin sonuç" (açılır soru-cevap) çıkarabileceği tek sayfa burasıyken.
+   Mevcut YapisalVeri bileşeni yeniden kullanılıyor (ikinci bir JSON-LD üreticisi yazılmadı). *@
+<YapisalVeri Marka="_branding" Sorular="_sorular" KanonikUrl="@_kanonik" />
+<SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_marka ?? "RentPro"}")"
+           Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_kanonikKok" />
+
 <div class="container">
     <header class="site-header"><h1>Sık Sorulan Sorular</h1></header>
 
@@ -35,13 +42,35 @@
 </div>
 
 @code {
+    [CascadingParameter] public HttpContext? Http { get; set; }
+
     private IReadOnlyList<SssSatiri> _sorular = [];
     private string? _marka;
+    private FleetBranding? _branding;
+    private string? _kanonik;
+    private string? _kanonikKok;
+
+    /// <summary>Açıklama İLK SORUDAN kurulur — sabit cümle yerine sayfanın gerçek içeriğini
+    /// yansıtır ve her tenant'ta farklı çıkar.</summary>
+    private string SssAciklama => _sorular.Count > 0
+        ? $"{_marka ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular: "
+          + string.Join(" ", _sorular.Take(3).Select(x => x.Soru))
+        : $"{_marka ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular ve cevapları.";
 
     protected override async Task OnInitializedAsync()
     {
         _sorular = await Icerik.YayindakiSssAsync();
-        try { _marka = (await Showcase.GetBrandingAsync()).Marka; }
+        try
+        {
+            _branding = await Showcase.GetBrandingAsync();
+            _marka = _branding.Marka;
+        }
         catch { /* marka çözülemezse sayfa yine basılır */ }
+
+        if (Http is not null)
+        {
+            _kanonikKok = $"https://{Http.Request.Host.Value}";
+            _kanonik = _kanonikKok + "/sss";
+        }
     }
 }
