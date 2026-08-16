@@ -43,6 +43,10 @@ public static class SeoEndpoints
 
             // PR-16: iletişim her zaman var (kod üretimli); SSS ve içerik sayfaları varsa eklenir.
             urls.Add(Url(ns, kok + "/iletisim"));
+            // Müsaitlik sayfası sitemap'te YOKTU: ziyaretçinin asıl aradığı yüzey (tarih + fiyat)
+            // ve tamamen indekslenebilir statik SSR. Ana sayfadan link var ama sitemap'te
+            // olmaması onu ikinci sınıf bir sayfa gibi gösteriyordu.
+            urls.Add(Url(ns, kok + "/musaitlik"));
             if ((await icerik.YayindakiSssAsync(ct)).Count > 0) urls.Add(Url(ns, kok + "/sss"));
             foreach (var sf in await icerik.YayindakiSayfalarAsync(ct))
                 urls.Add(Url(ns, $"{kok}/{sf.Slug}"));

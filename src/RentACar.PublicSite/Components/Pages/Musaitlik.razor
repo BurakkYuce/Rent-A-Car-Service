@@ -9,6 +9,10 @@
 
 <PageTitle>Müsaitlik ve Fiyat — @(_branding?.Marka ?? "RentPro")</PageTitle>
 
+<SayfaMeta Baslik="@($"Müsaitlik ve Fiyat — {_branding?.Marka ?? "RentPro"}")"
+           Aciklama="@($"{_branding?.Marka ?? "Firmamız"} filosunda tarihlerinize göre müsait araçları ve net günlük fiyatı görün. Kayıt gerekmez, teklif bırakmak ücretsizdir.")"
+           Yol="/musaitlik" Marka="_branding" KanonikKok="@_kanonikKok" />
+
 <div class="container">
     <a class="back-link" href="/">← Ana sayfa</a>
     <h1>Müsaitlik ve Fiyat Sorgula</h1>
@@ -87,11 +91,14 @@
 <BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
 
 @code {
+    [CascadingParameter] public HttpContext? Http { get; set; }
+
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private FleetBranding? _branding;
+    private string? _kanonikKok;
     private IReadOnlyList<string> _subeler = [];
     private IReadOnlyList<PublicAvailabilityResult>? _sonuclar;
     /// <summary>Tarihsiz mod: yayındaki TÜM filo (müsaitlik süzgeci uygulanmadan).</summary>
@@ -116,6 +123,7 @@
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
+        if (Http is not null) _kanonikKok = $"https://{Http.Request.Host.Value}";
         _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
         var bas = ParseDate(Bas);
