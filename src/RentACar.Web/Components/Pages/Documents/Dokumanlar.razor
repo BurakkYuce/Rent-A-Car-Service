@@ -1,0 +1,98 @@
+@page "/dokumanlar"
+@attribute [Authorize]
+@using RentACar.Application.FirmaDokumanlar
+@inject FirmaDokumanService DokumanServisi
+
+<PageTitle>Dokümanlar — RentPro</PageTitle>
+
+<div class="page-head"><h1>Dokümanlar</h1></div>
+<p class="muted small">Firmanızın kendi PDF belgeleri: sahada çıktı alınması gereken boş sözleşme
+    nüshası, teslim/hasar formu, ruhsat örneği, vekaletname… Yalnız <strong>PDF</strong> kabul edilir,
+    dosya başına en fazla <strong>@(FirmaDokumanService.MaxBayt / (1024 * 1024)) MB</strong> ve toplam
+    <strong>@FirmaDokumanService.MaxDokuman belge</strong> saklanabilir.<br />
+    RentPro'nun sizinle paylaştığı belgeler için <a href="/firma-belgeleri">Firma Belgeleri</a>
+    sayfasına bakın — orası salt okunurdur, burası sizin yüklediklerinizdir.</p>
+
+@if (Ok) { <p class="ok">İşlem tamamlandı.</p> }
+@if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
+
+<AuthorizeView Roles="@YazmaRolleri" Context="yazCtx">
+    @if (_satirlar.Count >= FirmaDokumanService.MaxDokuman)
+    {
+        @* Sınır dolduğunda formu göstermiyoruz; ama asıl dayatma SERVİSTE ve DB'de (yuva unique
+           index + CHECK) — bu yalnız kullanıcıya nazik bir uyarı. *@
+        <p class="warn">Belge sınırına ulaşıldı (@FirmaDokumanService.MaxDokuman/@FirmaDokumanService.MaxDokuman).
+            Yeni belge yüklemek için aşağıdakilerden birini silin.</p>
+    }
+    else
+    {
+        <details class="card" open="@(_satirlar.Count == 0)">
+            <summary class="link">＋ Yeni doküman yükle</summary>
+            <form method="post" action="/dokumanlar/yukle" enctype="multipart/form-data" class="grid-form">
+                <AntiforgeryToken />
+                <label>Başlık<input name="baslik" maxlength="200" placeholder="ör. Boş Kira Sözleşmesi" required /></label>
+                <label>Açıklama (isteğe bağlı)<input name="aciklama" maxlength="1000" placeholder="ör. Şubede elle doldurulan nüsha" /></label>
+                <label class="u-col-full">PDF dosyası
+                    <input name="dosya" type="file" accept="application/pdf,.pdf" required />
+                </label>
+                <button type="submit">Yükle</button>
+            </form>
+            @* accept="…pdf" yalnız dosya seçiciyi süzer; gerçek karar sunucuda MAGIC BYTE ile
+               veriliyor (uzantı da Content-Type de istemciden gelir, ikisi de yalan söyleyebilir). *@
+        </details>
+    }
+</AuthorizeView>
+
+@if (_satirlar.Count == 0)
+{
+    <p class="empty-state">Henüz doküman yüklenmemiş.</p>
+}
+else
+{
+    <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead>
+                <tr><th>Belge</th><th class="num">Boyut</th><th>Yükleyen</th><th>Tarih</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var d in _satirlar)
+                {
+                    <tr>
+                        <td>
+                            @d.Baslik
+                            @if (!string.IsNullOrWhiteSpace(d.Aciklama)) { <br /><span class="muted small">@d.Aciklama</span> }
+                        </td>
+                        <td class="num">@(Math.Max(1, d.Boyut / 1024)) KB</td>
+                        <td>@(d.YukleyenKullanici ?? "—")</td>
+                        <td>@d.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                        <td class="row-actions">
+                            <a class="link" href="/dokumanlar/@d.Id/indir">İndir</a>
+                            <AuthorizeView Roles="@YazmaRolleri" Context="silCtx">
+                                <form method="post" action="/dokumanlar/sil" style="display:inline">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="id" value="@d.Id" />
+                                    <button type="submit" class="btn-secondary">Sil</button>
+                                </form>
+                            </AuthorizeView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "ok")] public string? Ok_ { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    private bool Ok => Ok_ == "1";
+
+    /// <summary>Yükleme/silme yüzeyini gösteren roller — tek doğruluk kaynağı rol/izin matrisi
+    /// (elle "Admin,Yonetici,Operator" yazmak matris değişince sessizce eskir).</summary>
+    private static readonly string YazmaRolleri =
+        string.Join(",", RolePermissions.RolesWith(Permission.OperationsWrite));
+
+    private IReadOnlyList<FirmaDokumanSatiri> _satirlar = [];
+
+    protected override async Task OnInitializedAsync() => _satirlar = await DokumanServisi.ListeleAsync();
+}
