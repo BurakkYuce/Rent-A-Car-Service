@@ -522,6 +522,13 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
     /* min-width:0 ŞART: flex öğesi varsayılan `min-width:auto` ile içeriğinden dar olamaz,
        bu yüzden arama kutusu küçülmeyi reddedip satırı taşırıyordu. */
     .tb-search { min-width: 0; flex: 1 1 100%; order: 3; max-width: none; }
+    /* Formun KENDİSİ küçülse de içindeki input `min-width: auto` ile içeriğinden (placeholder
+       ölçüsünden) dar olamıyor ve "→" butonunu dışarı itiyor. macOS'ta tam sığıyordu, CI'ın
+       Linux fontları 2px daha geniş ölçünce 320px'te her sayfa taştı — yerelde görünmeyen,
+       yalnız CI'da yakalanan gerçek bir cihaz taşması. */
+    .tb-search input { min-width: 0; }
+    /* Klavye kısayolu rozeti dokunmatik cihazda anlamsız; dar ekranda yer de yiyor. */
+    .tb-search .kbd { display: none; }
     .topbar .spacer { display: none; }          /* sarmalı düzende itmeye gerek yok */
     .topbar .user { margin-left: auto; }
 
