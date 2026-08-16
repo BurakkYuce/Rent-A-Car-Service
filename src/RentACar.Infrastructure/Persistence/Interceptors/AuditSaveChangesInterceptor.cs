@@ -33,7 +33,14 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
     };
 
     private static object? Mask(string propertyName, object? value)
-        => value is string { Length: > 0 } && PiiMaskedProps.Contains(propertyName) ? "***" : value;
+    {
+        // bytea DEĞERLERİ denetim izine ASLA yazılmaz. Aksi halde 10 MB'lık bir PDF (FirmaDokuman)
+        // ya da logo/kapak her yazma işleminde base64 olarak AuditLog'a düşerdi — denetim izi
+        // dosya deposuna dönüşür. "Ne zaman, kim, ne büyüklükte" bilgisi iz için yeterli.
+        if (value is byte[] b) return $"<{b.Length} bayt>";
+
+        return value is string { Length: > 0 } && PiiMaskedProps.Contains(propertyName) ? "***" : value;
+    }
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData, InterceptionResult<int> result)

@@ -247,6 +247,12 @@
                     <a class="nav-solo" href="/firma-belgeleri" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
                         <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Firma Belgeleri
                     </a>
+                    @* Firmanın KENDİ yüklediği PDF'ler (yukarıdakinin TERSİ yön: orası RentPro→firma,
+                       burası firmanın kendi dosyası). Okuma oturum açmış herkese açık — yükleme/silme
+                       yüzeyi sayfanın kendisinde OperationsWrite ile kapılı. *@
+                    <a class="nav-solo" href="/dokumanlar" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Dokümanlar
+                    </a>
 
                     @* ---- Sistem (yalnız Admin) ---- *@
                     <AuthorizeView Roles="Admin" Context="adminCtx">

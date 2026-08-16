@@ -503,6 +503,7 @@ app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
 app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
 app.MapFirmaBelgeEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
+app.MapFirmaDokumanEndpoints(); // firmanın KENDİ yüklediği PDF dokümanları (yükle/sil/indir)
 app.MapSozlesmePaylasimEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
 app.MapSozlesmeGoruntuleEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
 app.MapSiteIcerikEndpoints();        // PR-16 — halka açık site içerik sayfaları + SSS yönetimi

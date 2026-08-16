@@ -15,6 +15,12 @@
 @if (_detay is not null)
 {
     <YapisalVeriArac Detay="_detay" KanonikKok="@_kanonikKok" />
+    @* Araç detayı SEO iniş sayfasıdır: paylaşılan bağlantı görselsiz/açıklamasız çıkarsa
+       tıklanmaz. Açıklama ilan verisinden kurulur (başlık + yıl + fiyat + adet). *@
+    <SayfaMeta Baslik="@($"{_detay.Baslik} — {_branding?.Marka ?? "RentPro"}")"
+               Aciklama="@AracAciklama" Yol="@($"/araclar/{_detay.Slug}")"
+               Marka="_branding" KanonikKok="@_kanonikKok"
+               Gorsel="@(_detay.PhotoIds.Count > 0 ? $"/foto/{_detay.PhotoIds[0]}/thumb" : null)" />
 }
 
 <div class="container">
@@ -131,6 +137,20 @@
     private FleetShowcaseDetail? _detay;
     private FleetBranding? _branding;
     private string? _kanonikKok;
+
+    /// <summary>Araç açıklaması — ilan verisinden; sabit pazarlama cümlesi YAZILMAZ (her tenant farklı).</summary>
+    private string AracAciklama
+    {
+        get
+        {
+            if (_detay is null) return "";
+            var yil = string.IsNullOrWhiteSpace(_detay.YilAralik) ? "" : $"{_detay.YilAralik} model ";
+            var kdv = _detay.KdvDahil ? "KDV dahil" : "+ KDV";
+            var adet = _detay.Adet > 1 ? $" Filoda {_detay.Adet} adet." : "";
+            return $"{_detay.Baslik} {yil}kiralama — günlük {_detay.GunlukFiyat:N0} TL ({kdv})."
+                 + $"{adet} Tarih seçerek müsaitliği ve toplam tutarı görün.";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

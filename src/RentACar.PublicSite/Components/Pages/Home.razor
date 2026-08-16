@@ -20,6 +20,11 @@
    parametrede tırnak içi literaldir). İlk yazımda öyleydi ve JSON-LD'ye `"url":"_kanonik"`
    basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU. *@
 <YapisalVeri Marka="_branding" Sorular="_sss" KanonikUrl="@_kanonik" />
+@* Açıklama tenant verisinden KURULUR, sabit metin yazılmaz: her firma için farklı olmalı
+   (çok-kiracılı site). Filo sayısı varsa cümleye girer — "3 araçlık filo" somut bir bilgi. *@
+<SayfaMeta Baslik="@($"{_branding?.Marka ?? "RentPro"} — Araç Kiralama")"
+           Aciklama="@AnaAciklama" Yol="/" Marka="_branding"
+           KanonikKok="@_kanonikKok" Gorsel="@KapakGorsel" />
 
 <BolumHero Marka="@_branding?.Marka" Subeler="_subeler" />
 
@@ -94,8 +99,27 @@
     private IReadOnlyList<FleetShowcaseCard>? _cards;
     private IReadOnlyList<SssSatiri> _sss = [];
     private FleetBranding? _branding;
+    /// <summary>Ana sayfa açıklaması — tenant verisinden kurulur (marka, şehir, filo adedi).</summary>
+    private string AnaAciklama
+    {
+        get
+        {
+            var marka = _branding?.Marka ?? "Firmamız";
+            var adet = _cards?.Count ?? 0;
+            var filo = adet > 0 ? $"{adet} araç seçeneğiyle " : "";
+            var yer = string.IsNullOrWhiteSpace(_branding?.Adres) ? "" : $"{_branding!.Adres} ve çevresinde ";
+            return $"{marka} {yer}{filo}günlük ve uzun dönem araç kiralama. "
+                 + "Tarihlerinizi girin, müsait araçları ve net fiyatı görün.";
+        }
+    }
+
+    /// <summary>Paylaşım görseli: ilk ilanın kapağı. Ayrı bir "site görseli" alanı YOK —
+    /// olmayan bir alanı uydurmaktansa var olan gerçek görseli kullanmak doğru.</summary>
+    private string? KapakGorsel => _cards?.FirstOrDefault(c => c.CoverPhotoId is not null) is { } k
+        ? $"/foto/{k.CoverPhotoId}/thumb" : null;
     private IReadOnlyList<string> _subeler = [];
     private string? _kanonik;
+    private string? _kanonikKok;
     private string? _kosulSayfasi;
 
     protected override async Task OnInitializedAsync()
@@ -110,6 +134,8 @@
 
         var host = await Showcase.GetCanonicalHostAsync();
         _kanonik = host is null ? null : $"https://{host}/";
+        // og:image mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) ondan türer.
+        _kanonikKok = host is null ? null : $"https://{host}";
 
         var sayfalar = await Icerik.YayindakiSayfalarAsync();
         _kosulSayfasi = sayfalar.FirstOrDefault(s => KosulSluglari.Contains(s.Slug)) is { } k
