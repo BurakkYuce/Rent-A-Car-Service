@@ -150,10 +150,42 @@ public static class TenantSettingsEndpoints
             // Şablon SID'i tanımlıysa şablon gider; tanımlı değil ve AllowFreeform açıksa serbest
             // metin gider (sandbox yolu). İkisi de yoksa gönderici false döner ve bunu görürüz.
             var mesaj = $"RentPro test mesajı — {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. Bu mesajı aldıysanız WhatsApp yapılandırmanız çalışıyor.";
-            var ok = await wa.SendTemplateAsync(no, "operasyon_ozet", new Dictionary<string, string> { ["1"] = mesaj });
-            return Results.Redirect(ok
-                ? "/ayarlar?ok=1"
-                : "/ayarlar?hata=" + Uri.EscapeDataString("WhatsApp gönderilemedi. Twilio yapılandırmasını ve sunucu loglarını kontrol edin."));
+            // Teşhis yolu SID'e ihtiyaç duyar (durum SID ile tekil sorulur) → GonderAsync.
+            var twilioSvc = wa as RentACar.Web.Integrations.TwilioWhatsAppService;
+            var pars = new Dictionary<string, string> { ["1"] = mesaj };
+            var (ok, mesajSid) = twilioSvc is not null
+                ? await twilioSvc.GonderAsync(no, "operasyon_ozet", pars)
+                : (await wa.SendTemplateAsync(no, "operasyon_ozet", pars), null);
+            if (!ok)
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "WhatsApp gönderilemedi. Twilio yapılandırmasını ve sunucu loglarını kontrol edin."));
+
+            // TESLİM DOĞRULAMASI — 201 Created "kabul edildi" demek, "ulaştı" demek DEĞİL. WhatsApp
+            // teslim hatası saniyeler içinde mesajın durumuna düşer. Canlı denemede birebir yaşandı:
+            // uç "gönderildi" dedi, mesaj `failed / 63015` idi. Test butonunun tek işi "çalışıyor mu"
+            // sorusuna dürüst cevap vermek olduğu için kısa bir yoklama yapılır.
+            if (twilioSvc is { } twilio && mesajSid is { Length: > 0 })
+            {
+                // 9 x 1sn: canlı denemede teslim hatası (63015) ~5-8 sn içinde düştü; 3,5 sn'lik
+                // ilk pencere ona yetişemeyip "belli değil" diyordu. Teşhis butonu için 9 sn kabul
+                // edilebilir bir bekleme, yanlış "başarılı" demekten iyidir.
+                for (var i = 0; i < 9; i++)
+                {
+                    await Task.Delay(1000);
+                    var (durum, kod) = await twilio.SonDurumAsync(mesajSid);
+                    if (durum is "failed" or "undelivered")
+                        return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                            $"Mesaj Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({durum}). "
+                            + RentACar.Web.Integrations.TwilioWhatsAppService.HataAciklama(kod)));
+                    if (durum is "delivered" or "read")
+                        return Results.Redirect("/ayarlar?ok=1");
+                }
+                // Hâlâ kuyrukta: başarısız DEĞİL ama teslim de doğrulanmadı — ikisini karıştırma.
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "Mesaj Twilio'ya iletildi, teslim durumu henüz belli değil. "
+                    + "Birkaç saniye sonra telefonu ve Twilio konsolunu kontrol edin."));
+            }
+            return Results.Redirect("/ayarlar?ok=1");
         });
 
         // PR-2: "Sitemi Aç" — subdomain host'u (idempotent) oluşturur + public-site'ı aktifleştirir.
