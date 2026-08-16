@@ -668,3 +668,90 @@ img.card-img, .card-img-placeholder {
 }
 
 .btn-cta.tam-genislik { text-align: center; width: 100%; }
+
+/* ---- Blog derinliği (PR: blog SEO + ara başlık + kapanış çağrısı) ---- */
+
+/* Kapak: 16:9 sabit oran — yükseklik yazıdan yazıya zıplamasın (CLS) ve referanstaki
+   1200x675 kapak oranıyla aynı çerçeve kullanılsın. */
+.blog-kapak {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--r);
+  margin: var(--s3) 0;
+}
+
+/* Okuma sütunu: uzun satır okumayı zorlaştırır. Referansta da içerik 48rem'de sınırlı.
+   Üst boşluk ŞART: künye çipleri (tarih/yazar/etiket) ile ilk paragraf arasında nefes olmazsa
+   çipler metnin parçası gibi okunuyor (canlı denemede görüldü). */
+.blog-icerik { max-width: 48rem; margin-top: var(--s3); }
+.blog-icerik h2 { margin: var(--s4) 0 var(--s1); font-size: var(--t1); }
+.blog-icerik h3 { margin: var(--s3) 0 var(--s1); font-size: 1.125rem; }
+.blog-icerik p + p { margin-top: var(--s2); }
+
+.blog-cta {
+  display: flex; flex-wrap: wrap; gap: var(--s2);
+  align-items: center; justify-content: space-between;
+  max-width: 48rem;
+  margin: var(--s4) 0;
+  padding: var(--s3);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.blog-cta p { margin: .25rem 0 0; }
+
+/* Alt başlık: h1'i tamamlayan cümle. Gövde metninden büyük ama başlıktan küçük — okuyucu
+   hiyerarşiyi tipografiden anlasın, ayrı bir etiket açıklamasına gerek kalmasın. */
+.alt-baslik {
+  max-width: 48rem;
+  margin: calc(var(--s1) * -1) 0 var(--s2);
+  font-size: var(--t1);
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+/* ---- Çerez bilgilendirme şeridi ----
+   Şerit sunucudan `hidden` gelir ve yalnız js/rc-cerez.js açar. `display: flex` `hidden`
+   özniteliğinin varsayılan `display: none`'ını EZDİĞİ için gizlemeyi burada AÇIKÇA geri
+   almak zorundayız — yoksa JS kapalı ziyaretçide şerit kapatılamaz biçimde görünürdü. */
+.cerez-serit[hidden] { display: none; }
+
+.cerez-serit {
+  position: fixed;
+  left: var(--s2);
+  right: var(--s2);
+  bottom: var(--s2);
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s2) var(--s3);
+  /* Token'lar aynı isimlerle koyu temada yeniden tanımlı → şerit iki temada da okunur;
+     yeni renk TANIMLANMADI. Kenarlık + gölge, sayfanın üstünde durduğunu belli eder. */
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--golge);
+}
+
+.cerez-metin {
+  margin: 0;
+  flex: 1 1 22rem;          /* dar ekranda düğme alt satıra iner */
+  font-size: .9em;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.cerez-metin strong { color: var(--ink); }
+.cerez-metin a { color: var(--brand); white-space: nowrap; }
+
+/* Dar ekranda düğme tam genişlik: parmakla vurulacak hedef küçülmesin. */
+@media (max-width: 520px) {
+  .cerez-serit { padding: var(--s2); }
+  .cerez-serit .btn-cta { width: 100%; text-align: center; }
+}

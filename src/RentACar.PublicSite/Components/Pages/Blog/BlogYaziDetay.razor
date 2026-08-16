@@ -2,10 +2,59 @@
 @using RentACar.Application.Blog
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
+@using RentACar.PublicSite.Components.Shared
 @inject BlogService Blog
 @inject FleetShowcaseService Showcase
 
-<PageTitle>@(_post?.Baslik ?? "Yazı") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+@* Sekme/arama başlığı SEO başlığından kurulur; verilmemişse görünen başlığa düşer (karar
+   BlogDetail.AramaBasligi'nde TEK yerde). *@
+<PageTitle>@(_post?.AramaBasligi ?? "Yazı") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+@if (_post is { } seo)
+{
+    @* Paylaşım/SEO etiketleri. Açıklama önce yazının kendi özeti, yoksa gövdeden türetilir —
+       description'ı boş bırakmak arama sonucunda rastgele bir cümlenin seçilmesi demek. *@
+    <HeadContent>
+        @if (_aciklama is { Length: > 0 })
+        {
+            <meta name="description" content="@_aciklama" />
+            <meta property="og:description" content="@_aciklama" />
+            <meta name="twitter:description" content="@_aciklama" />
+        }
+        @* AramaDisi: yazı YAYINDA kalır ama arama motorlarına girmez (kampanya/iç duyuru).
+           Sitemap'ten de düşer — iki yerde tutarlı olmazsa robots ile sitemap çelişir. *@
+        @if (seo.AramaDisi)
+        {
+            <meta name="robots" content="noindex, follow" />
+        }
+        @if (seo.Kelimeler.Count > 0)
+        {
+            <meta name="keywords" content="@string.Join(", ", seo.Kelimeler)" />
+        }
+        @if (!string.IsNullOrWhiteSpace(seo.Yazar))
+        {
+            <meta name="author" content="@seo.Yazar" />
+        }
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content="@seo.AramaBasligi" />
+        <meta name="twitter:title" content="@seo.AramaBasligi" />
+        <meta name="twitter:card" content="@(seo.KapakVar ? "summary_large_image" : "summary")" />
+        @if (_kanonikKok is { Length: > 0 })
+        {
+            <meta property="og:url" content="@($"{_kanonikKok}/blog/{seo.Slug}")" />
+            @if (seo.KapakVar)
+            {
+                <meta property="og:image" content="@($"{_kanonikKok}/blog-kapak/{seo.Id}")" />
+                <meta name="twitter:image" content="@($"{_kanonikKok}/blog-kapak/{seo.Id}")" />
+            }
+        }
+        @if (seo.YayinTarihi is { } yt)
+        {
+            <meta property="article:published_time" content="@yt.ToString("yyyy-MM-dd")" />
+        }
+    </HeadContent>
+    <YapisalVeriBlog Yazi="_post" Marka="_branding" KanonikKok="@_kanonikKok" />
+}
 
 <div class="container">
     <a class="back-link" href="/blog">← Blog</a>
@@ -17,22 +66,80 @@
     else
     {
         <h1>@_post.Baslik</h1>
-        @if (_post.YayinTarihi is { } t)
+        @* Alt başlık h1'in ALTINDA, ayrı bir cümle olarak. SEO açıklaması DEĞİL — o meta'da. *@
+        @if (!string.IsNullOrWhiteSpace(_post.AltBaslik))
         {
-            <div class="chips"><span class="chip">@t.ToString("dd.MM.yyyy")</span></div>
+            <p class="alt-baslik">@_post.AltBaslik</p>
         }
+        <div class="chips">
+            @if (_post.YayinTarihi is { } t) { <span class="chip">@t.ToString("dd.MM.yyyy")</span> }
+            @if (!string.IsNullOrWhiteSpace(_post.Yazar)) { <span class="chip">@_post.Yazar</span> }
+            @foreach (var k in _post.Kelimeler.Take(4)) { <span class="chip">@k</span> }
+        </div>
         @if (_post.KapakVar)
         {
-            <img class="card-img" src="@($"/blog-kapak/{_post.Id}")" alt="@_post.Baslik" style="border-radius:var(--r); margin:var(--s3) 0;" />
+            @* Alternatif metin: verilmişse o, yoksa başlık (erişilebilirlik + görsel arama). *@
+            <img class="card-img blog-kapak" src="@($"/blog-kapak/{_post.Id}")"
+                 alt="@(string.IsNullOrWhiteSpace(_post.KapakAlt) ? _post.Baslik : _post.KapakAlt)" />
         }
         <article class="blog-icerik">
-            @* MarkupString KULLANILMAZ — @p normal bir Razor ifadesi olduğu için otomatik HTML-encode edilir;
-               içerik düz metin saklandığından XSS risk sınıfı tasarım gereği ortadan kalkar. *@
-            @foreach (var p in IcerikMetni.Paragraflar(_post.Icerik))
+            @* MarkupString KULLANILMAZ — her blok normal Razor ifadesi olarak basılır ve otomatik
+               HTML-encode edilir. `##`/`###` yalnız ETİKET SEÇER (h2/h3); metnin kendisi hiçbir
+               zaman HTML'e dönüşmez, XSS risk sınıfı tasarım gereği ortadan kalkar. *@
+            @foreach (var b in IcerikMetni.Bloklar(_post.Icerik))
             {
-                <p>@p</p>
+                @switch (b.Tur)
+                {
+                    case IcerikMetni.BlokTuru.Baslik2:
+                        <h2>@b.Metin</h2>
+                        break;
+                    case IcerikMetni.BlokTuru.Baslik3:
+                        <h3>@b.Metin</h3>
+                        break;
+                    default:
+                        <p>@b.Metin</p>
+                        break;
+                }
             }
         </article>
+
+        @* Kapanış çağrısı — okuyucu yazının sonunda "peki şimdi ne yapayım" sorusuyla kalmasın. *@
+        <div class="blog-cta">
+            <div>
+                <strong>Aracınızı seçelim mi?</strong>
+                <p class="muted small">Tarihlerinizi girin, müsait araçları ve net fiyatı görün.</p>
+            </div>
+            <a class="btn-cta" href="/musaitlik">Müsaitlik sorgula</a>
+        </div>
+
+        @if (_ilgili.Count > 0)
+        {
+            <section class="bolum">
+                <h2 class="section-title">Diğer yazılar</h2>
+                <div class="grid">
+                    @foreach (var p in _ilgili)
+                    {
+                        <a class="card" href="@($"/blog/{p.Slug}")">
+                            @if (p.KapakVar)
+                            {
+                                <img class="card-img" src="@($"/blog-kapak/{p.Id}")" alt="@p.Baslik" loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="card-img-placeholder" aria-hidden="true"></div>
+                            }
+                            <div class="card-body">
+                                <h3>@p.Baslik</h3>
+                                @if (p.YayinTarihi is { } pt)
+                                {
+                                    <p class="muted small">@pt.ToString("dd.MM.yyyy")</p>
+                                }
+                            </div>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
     }
 </div>
 
@@ -40,15 +147,40 @@
     [Parameter] public string Slug { get; set; } = string.Empty;
     [CascadingParameter] public HttpContext? Http { get; set; }
 
+    /// <summary>Sonda gösterilecek diğer yazı adedi (referans sitedeki 3'lü şeritle aynı).</summary>
+    private const int IlgiliAdet = 3;
+
     private BlogDetail? _post;
     private FleetBranding? _branding;
+    private IReadOnlyList<BlogListItem> _ilgili = [];
+    private string? _aciklama;
+    private string? _kanonikKok;
 
-    /// <summary>Boş satırla ayrılmış blokları paragraflara böler (satır sonları korunmaz — düz metin).</summary>
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _post = await Blog.GetPublishedBySlugAsync(Slug);
+
         // Araç grubu detayıyla AYNI soft-404 kusuru (yayından kaldırılan yazı, yanlış slug).
-        if (_post is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+        if (_post is null)
+        {
+            if (Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        // Öncelik: yazarın yazdığı meta açıklama > kart özeti > gövdeden türetilen.
+        // Üçü de ayrı amaçlara hizmet ettiği için birbirinin yerine geçmiyor, SIRALANIYOR.
+        _aciklama = !string.IsNullOrWhiteSpace(_post.MetaAciklama) ? _post.MetaAciklama
+                  : !string.IsNullOrWhiteSpace(_post.Ozet) ? _post.Ozet
+                  : IcerikMetni.Ozet(_post.Icerik);
+
+        // og:/JSON-LD mutlak adres ister; host isteğin KENDİSİNDEN alınır (aynı içerik hem
+        // subdomain hem özel domainden servis edilebiliyor — App.razor'daki canonical ile aynı kural).
+        if (Http is not null) _kanonikKok = $"https://{Http.Request.Host.Value}";
+
+        // Diğer yazılar: bu yazı hariç, en yeniler. Ayrı bir sorgu yok — liste zaten yayındakileri döner.
+        _ilgili = [.. (await Blog.ListPublishedAsync())
+            .Where(p => p.Id != _post.Id)
+            .Take(IlgiliAdet)];
     }
 }

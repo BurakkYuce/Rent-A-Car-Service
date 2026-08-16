@@ -33,8 +33,10 @@ public sealed class TenantHostResolutionMiddleware(IPublicTenantResolver resolve
         var p = path.Value ?? "";
         // PR-9: uzantılı ama DİNAMİK (tenant-bağımlı) uçlar — `Path.HasExtension` bunları statik dosya
         // sanıp atlardı, tenant çözümlenmeden `TenantIdOrThrow` patlardı (canlı duman testinde yakalandı).
+        // `/llms.txt` de aynı sınıfta: `.txt` uzantılı ama içeriği tenant'tan üretiliyor.
         if (p.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase)
-            || p.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase))
+            || p.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase)
+            || p.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase))
             return false;
 
         // Sağlık ucu TAM eşleşmeyle atlanır, ÖNEK ile değil. Önek atlaması `/health` gibi

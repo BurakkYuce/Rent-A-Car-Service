@@ -61,6 +61,19 @@ public static class BlogEndpoints
         Ozet = FormParse.Str(f, "ozet"),
         Icerik = f["icerik"].ToString(),
         Durum = f["durum"].ToString() == nameof(BlogPostDurum.Yayinda) ? BlogPostDurum.Yayinda : BlogPostDurum.Taslak,
+
+        // ---- SEO alanları ----
+        // Hepsi opsiyonel: form boş gönderdiğinde "" gelir, FormParse.Str bunu null'a çevirir.
+        // (Servis ayrıca Trim + boşsa null yapıyor; buradaki çevrim yine de gerekli — nullable
+        // parametreli [FromForm] bağlaması boş string'te 400 verirdi, IFormCollection ile okuyoruz.)
+        AltBaslik = FormParse.Str(f, "altBaslik"),
+        SeoBaslik = FormParse.Str(f, "seoBaslik"),
+        MetaAciklama = FormParse.Str(f, "metaAciklama"),
+        AnahtarKelimeler = FormParse.Str(f, "anahtarKelimeler"),
+        Yazar = FormParse.Str(f, "yazar"),
+        KapakAlt = FormParse.Str(f, "kapakAlt"),
+        // Checkbox: işaretsizken tarayıcı alanı HİÇ göndermez → varlık kontrolü (değer değil).
+        AramaDisi = f.ContainsKey("aramaDisi"),
     };
 
     private static async Task<IResult> Run(Func<Task> action)
