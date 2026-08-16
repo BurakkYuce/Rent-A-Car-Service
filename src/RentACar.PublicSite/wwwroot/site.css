@@ -709,3 +709,49 @@ img.card-img, .card-img-placeholder {
   line-height: 1.4;
   color: var(--ink-muted);
 }
+
+/* ---- Çerez bilgilendirme şeridi ----
+   Şerit sunucudan `hidden` gelir ve yalnız js/rc-cerez.js açar. `display: flex` `hidden`
+   özniteliğinin varsayılan `display: none`'ını EZDİĞİ için gizlemeyi burada AÇIKÇA geri
+   almak zorundayız — yoksa JS kapalı ziyaretçide şerit kapatılamaz biçimde görünürdü. */
+.cerez-serit[hidden] { display: none; }
+
+.cerez-serit {
+  position: fixed;
+  left: var(--s2);
+  right: var(--s2);
+  bottom: var(--s2);
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s2) var(--s3);
+  /* Token'lar aynı isimlerle koyu temada yeniden tanımlı → şerit iki temada da okunur;
+     yeni renk TANIMLANMADI. Kenarlık + gölge, sayfanın üstünde durduğunu belli eder. */
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--golge);
+}
+
+.cerez-metin {
+  margin: 0;
+  flex: 1 1 22rem;          /* dar ekranda düğme alt satıra iner */
+  font-size: .9em;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.cerez-metin strong { color: var(--ink); }
+.cerez-metin a { color: var(--brand); white-space: nowrap; }
+
+/* Dar ekranda düğme tam genişlik: parmakla vurulacak hedef küçülmesin. */
+@media (max-width: 520px) {
+  .cerez-serit { padding: var(--s2); }
+  .cerez-serit .btn-cta { width: 100%; text-align: center; }
+}
