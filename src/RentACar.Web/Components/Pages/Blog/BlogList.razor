@@ -28,6 +28,7 @@
             </select>
         </label>
         <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000"></textarea></label>
+        <div class="full"><IcerikYardimi /></div>
         <SeoAlanlari />
         <button type="submit">Oluştur</button>
     </form>
@@ -35,11 +36,11 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Başlık</th><th>Adres</th><th>Durum</th><th>Yayın</th><th>Kapak</th><th>İşlem</th></tr></thead>
+    <thead><tr><th>Başlık</th><th>Adres</th><th>Durum</th><th>SEO</th><th>Yayın</th><th>Kapak</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="6" class="muted">Henüz yazı yok.</td></tr>
+            <tr><td colspan="7" class="muted">Henüz yazı yok.</td></tr>
         }
         @foreach (var p in _list)
         {
@@ -47,9 +48,24 @@
                 <td>@p.Baslik</td>
                 <td class="mono">@p.Slug</td>
                 <td>@(p.Durum == BlogPostDurum.Yayinda ? "Yayında" : "Taslak")</td>
+                @* SEO tamlık göstergesi: yazı yayına çıkmadan ÖNCE eksik alanı görmek, sonradan
+                   "neden aramada çıkmıyor" diye aramaktan iyidir. Eksik alan yazıyı ENGELLEMEZ —
+                   yalnız görünür kılar (hepsi opsiyonel, boşsa makul varsayılana düşüyor). *@
+                <td>
+                    @{ var eksik = SeoEksikler(_tam.GetValueOrDefault(p.Id)); }
+                    @if (eksik.Count == 0)
+                    {
+                        <span class="badge ok">Tam</span>
+                    }
+                    else
+                    {
+                        <span class="badge warn" title="@string.Join(", ", eksik)">@eksik.Count eksik</span>
+                    }
+                </td>
                 <td>@(p.YayinTarihi?.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td>@(p.KapakVar ? "Var" : "—")</td>
                 <td>
+                    <a class="link" href="/blog-yonetim/@p.Id/onizleme">Önizle</a>
                     <details>
                         <summary class="link">Düzenle</summary>
                         <form method="post" action="/blog-yonetim/update" class="grid-form"><AntiforgeryToken />
@@ -71,6 +87,7 @@
                                 </select>
                             </label>
                             <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_tam.GetValueOrDefault(p.Id)?.Icerik</textarea></label>
+                            <div class="full"><IcerikYardimi /></div>
                             @* SEO alanları ANA formun İÇİNDE (ayrı <form> açılmaz — iç içe form geçersizdir
                                ve tarayıcı içteki alanları hiç göndermez). *@
                             <SeoAlanlari Post="_tam.GetValueOrDefault(p.Id)" />
@@ -107,6 +124,26 @@
     // düzenleme formu için tam kayıt ayrı çekilir. Önceden yalnız İçerik saklanıyordu; SEO alanları
     // da forma prefill edileceği için kaydın TAMAMI tutuluyor (ek sorgu YOK, aynı GetAsync çağrısı).
     private Dictionary<Guid, BlogPost> _tam = [];
+
+    /// <summary>
+    /// Arama sonucunu doğrudan etkileyen, DOLDURULMAMIŞ alanlar. Yalnız GÖSTERGE — hiçbiri zorunlu
+    /// değil ve eksiklik kaydı/yayını engellemez; amaç yazıyı yayına almadan önce "neyi atladım"
+    /// sorusunu tek bakışta cevaplamak.
+    ///
+    /// Kapak yalnız yazıda görsel VARSA alt metni sorulur (olmayan görselin alt metni anlamsız).
+    /// </summary>
+    private static List<string> SeoEksikler(BlogPost? p)
+    {
+        if (p is null) return [];
+        var eksik = new List<string>();
+        if (string.IsNullOrWhiteSpace(p.SeoBaslik)) eksik.Add("Arama başlığı");
+        if (string.IsNullOrWhiteSpace(p.MetaAciklama) && string.IsNullOrWhiteSpace(p.Ozet))
+            eksik.Add("Arama açıklaması");
+        if (string.IsNullOrWhiteSpace(p.AnahtarKelimeler)) eksik.Add("Anahtar kelimeler");
+        if (p.KapakBytes is null) eksik.Add("Kapak görseli");
+        else if (string.IsNullOrWhiteSpace(p.KapakAlt)) eksik.Add("Kapak alt metni");
+        return eksik;
+    }
 
     protected override async Task OnInitializedAsync()
     {

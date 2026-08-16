@@ -1,0 +1,36 @@
+@* Gövde yazım kuralları — içerik kutusunun HEMEN altında.
+
+   Neden gerekli: gövde `##` ile ara başlık, `###` ile alt başlık üretiyor ama bunu hiçbir yerde
+   YAZMIYORDUK. Keşfedilemeyen özellik, olmayan özelliktir: yazar bilmediği için tüm yazı tek
+   blok paragraf olarak çıkıyordu. *@
+
+<details class="icerik-yardim">
+    <summary>Yazım kuralları (ara başlık, paragraf)</summary>
+    <table class="yardim-tablo">
+        <thead><tr><th>Yazdığınız</th><th>Sitede görünen</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><code>## Kilometre sınırı</code></td>
+                <td><strong>Ara başlık</strong> (büyük)</td>
+            </tr>
+            <tr>
+                <td><code>### Aşım ücreti</code></td>
+                <td><strong>Alt başlık</strong> (küçük)</td>
+            </tr>
+            <tr>
+                <td>Aralarında <em>boş satır</em> bırakılan metin</td>
+                <td>Ayrı paragraflar</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="muted small">
+        Diyezden sonra <strong>bir boşluk</strong> olmalı: <code>## Başlık</code> ara başlık olur,
+        <code>##Başlık</code> düz metin kalır. Satır ortasındaki diyez de düz metindir
+        (<code>Fiyat ## dahil</code> olduğu gibi görünür).
+    </p>
+    <p class="muted small">
+        Bağlantı, kalın yazı ve görsel gömme <strong>bilinçli olarak desteklenmiyor</strong>:
+        gövde düz metin olarak saklandığı için siteye HTML enjekte edilmesi yapısal olarak imkânsız.
+        Yazının nasıl görüneceğini <strong>Önizle</strong> ile tam olarak görebilirsiniz.
+    </p>
+</details>
