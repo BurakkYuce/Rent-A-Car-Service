@@ -821,6 +821,39 @@ span.flatpickr-weekday { font-weight: 600; }
    ===================================================================== */
 
 /* =====================================================================
+   TABLET KADEMESİ (Faz 6) — 900px
+
+   Ölçüm: 768px'te (iPad dikey) 128 rotanın 29'u taşıyordu. Suçlular telefondakiyle AYNI —
+   `.grid-form`'un 4 sabit kolonu — ama telefon eşiği (640px) o genişlikte hiç devreye girmiyordu.
+   Plan tableti "ayrı ele alınmaz" saymıştı; ayrı TASARIM gerekmiyor, ara KADEME gerekiyor:
+   4 kolon tablette sığmıyor, 1 kolon ise yarım ekranı boşa harcıyor → 2 kolon.
+
+   Bu blok telefon bloğunun ÖNÜNDE durmak zorunda: iki kural da aynı özgüllükte (0,1,0) ve
+   640px'te ikisi birden eşleşir; kazananı KAYNAK SIRASI belirler. Sıra bozulursa tablette
+   düzelen sayfa telefonda 2 kolona döner ve taşma geri gelir.
+   ===================================================================== */
+@media screen and (max-width: 900px) {
+    .grid-form { grid-template-columns: repeat(2, 1fr); }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .vt-boxes { grid-template-columns: repeat(2, 1fr); }
+    .import-grid { grid-template-columns: repeat(2, 1fr); }
+    .report-cols { grid-template-columns: 1fr; }
+
+    /* Sınırsız kolon üreten şerit tablette de taşıyor; sarmalı ızgara + 3 kolon. */
+    .summary-strip { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+
+    /* `fieldset` UA varsayılanı `min-width: min-content` — içeriğinden dar olamaz. Telefonda
+       bulunmuştu, tablette de aynı şekilde taşırıyor. */
+    fieldset { min-width: 0; }
+    /* Izgara/flex çocuğunun `min-width: auto` varsayılanı, içerik kolondan genişse kolonu şişirir. */
+    .grid-form > *, .cards > *, .vt-boxes > *, .import-grid > * { min-width: 0; }
+    /* `input[type=file]` tarayıcı varsayılanı olarak geniş bir asgari genişlik taşır ("Dosya Seç"
+       butonu + dosya adı alanı). Kartın kendisi daralsa da bu kutu daralmadığı için 320px'te
+       /ice-aktar taşıyordu — kutuyu kabına bağla. */
+    .import-card input[type="file"] { max-width: 100%; }
+}
+
+/* =====================================================================
    MOBİL İÇERİK (Faz 2) — telefon eşiği 640px
 
    Neden kabuktan (900px) AYRI bir eşik: 900px'te menü çekmeceye döndüğü için içerik zaten tam
@@ -1016,3 +1049,31 @@ span.flatpickr-weekday { font-weight: 600; }
     .kf-inline { flex-wrap: wrap; }
 }
 
+/* =====================================================================
+   MOBİL RAPOR TABLOLARI (Faz 6)
+
+   26 rapor sayfası kart görünümüne ÇEVRİLMEDİ ve bu bilinçli: rapor tablosu çok-kolonlu SAYISAL
+   KARŞILAŞTIRMADIR (ay ay gelir/gider, araç araç kârlılık). Kart, satırları birbirinden ayırmakta
+   iyidir ama satırları KARŞILAŞTIRMAKTA kötüdür — okuyucu iki kartı yan yana koyamaz.
+   Bu yüzden rapor tabloları yatay kaydırmada kalır; eksik olan şey kaydırmanın KENDİSİ değil,
+   kaydırılabilir olduğunun görünmemesiydi.
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+    /* Kaydırma ipucu: sağ kenarda yumuşak gölge. `background-attachment: local` sayesinde
+       kaydırma sona gelince gölge KENDİLİĞİNDEN kaybolur — JS gerekmez, "daha var mı" sorusunu
+       kenarın kendisi cevaplar. Kart moduna uygulanmaz (orada yatay kaydırma yok). */
+    .table-scroll:not(:has(> .kart-mobil)) {
+        background:
+            linear-gradient(to right, var(--surface, #fff) 30%, rgb(255 255 255 / 0)) left / 40px 100% no-repeat local,
+            linear-gradient(to left, var(--surface, #fff) 30%, rgb(255 255 255 / 0)) right / 40px 100% no-repeat local,
+            radial-gradient(farthest-side at 0 50%, rgb(10 37 64 / 14%), rgb(10 37 64 / 0)) left / 14px 100% no-repeat scroll,
+            radial-gradient(farthest-side at 100% 50%, rgb(10 37 64 / 14%), rgb(10 37 64 / 0)) right / 14px 100% no-repeat scroll;
+    }
+    /* Başlık satırı yapışkan: 12 kolonlu bir raporda sağa kaydırınca hangi sütuna baktığını
+       unutmak, sayının kendisini okumaktan daha büyük sorun. */
+    .table-scroll:not(:has(> .kart-mobil)) { max-height: 70vh; overflow-y: auto; }
+    .table-scroll:not(:has(> .kart-mobil)) thead th {
+        position: sticky; top: 0; z-index: 1;
+        background: var(--surface-2, #eef2f7);
+    }
+}
