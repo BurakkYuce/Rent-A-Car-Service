@@ -1,0 +1,44 @@
+# RentACar — Caddy yapılandırması. /etc/caddy/Caddyfile olarak kopyala, domainleri değiştir.
+#
+# İKİ AYRI BLOK ŞART (checklist §5.1). Hepsini tek catch-all bloğa toplamak YANLIŞ:
+# ask-endpoint yalnız TenantDomains tablosunu tanır, ERP'nin kendi host'u orada YOKTUR —
+# tek blok olsaydı ERP'nin isteği de ask'a düşer, 404 alır ve Caddy ERP'nin sertifikasını
+# ÇIKARAMAZ/YENİLEYEMEZ.
+
+{
+	# Tenant özel domainleri için istek-anında sertifika. Hangi host'a izin verileceğini
+	# uygulama söyler (TenantDomains'e bakar) — Caddy herkese cert çıkarmaz.
+	on_demand_tls {
+		ask http://127.0.0.1:5230/dogrulama/ask
+	}
+}
+
+# --- ERP (personel) — STATİK blok, on_demand YOK ---
+erp.senindomainin.com {
+	reverse_proxy 127.0.0.1:5220
+	request_body {
+		max_size 2MB
+	}
+}
+
+# --- REST API (kullanıyorsan) ---
+# api.senindomainin.com {
+# 	reverse_proxy 127.0.0.1:5240
+# 	request_body { max_size 2MB }
+# }
+
+# --- Halka açık site — catch-all, on_demand YALNIZ BURADA ---
+# Tenant subdomainleri (*.senindomainin.com) ve müşterilerin kendi domainleri buraya düşer.
+# ÖN KOŞUL: *.senindomainin.com için sunucu IP'sine wildcard A kaydı ÖNCEDEN kurulu olmalı.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:5230
+	request_body {
+		max_size 2MB
+	}
+}
+
+# ROLLBACK: site sorun çıkarırsa YALNIZ yukarıdaki https:// bloğunu sil + `caddy reload`.
+# ERP/API ayrı blokta olduğu için ETKİLENMEZ.

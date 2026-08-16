@@ -1,0 +1,41 @@
+[Unit]
+Description=RentACar ERP (Web)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+# Type=simple (notify DEĞİL): uygulamalar UseSystemd() çağırmıyor, sd_notify sinyali göndermezler.
+# Type=notify verilseydi systemd "hazır" bildirimini bekler, alamaz ve servisi başlangıçta
+# zaman aşımına düşürüp yeniden başlatma döngüsüne sokardı. Hazır-olma kontrolü systemd'de
+# değil deploy script'inde: yayinla.sh /health/ready'i yoklar, geçmezse sürümü geri alır.
+Type=simple
+User=racar
+Group=racar
+# Yayın dizini SYMLINK: yayinla.sh yeni sürümü ayrı klasöre açıp linki çevirir (anlık geçiş + rollback).
+WorkingDirectory=/opt/racar/current/web
+ExecStart=/usr/bin/dotnet /opt/racar/current/web/RentACar.Web.dll
+EnvironmentFile=/etc/racar/racar.env
+# İÇ AĞA bind: dışarıya yalnız Caddy açar.
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5220
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+SyslogIdentifier=racar-web
+
+# --- Sertleştirme (kod değil, işletim sistemi seviyesi) ---
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# ProtectSystem=strict tüm dosya sistemini salt-okunur yapar; yazılabilir olması GEREKEN
+# İKİ yol açıkça delinir: DataProtection key-ring ve log dizini.
+ReadWritePaths=/var/lib/racar/dp-keys /var/log/racar
+
+[Install]
+WantedBy=multi-user.target
