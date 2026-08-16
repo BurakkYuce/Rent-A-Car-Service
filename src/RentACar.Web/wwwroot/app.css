@@ -417,7 +417,9 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .feed-url input { width: 100%; max-width: 640px; padding: .55rem .7rem; font-family: ui-monospace, monospace;
   font-size: .82rem; border: 1px solid var(--tr-border, #cbd5e1); border-radius: .45rem; background: var(--tr-bg, #f8fafc); }
 
-@media (max-width: 900px) {
+/* `screen and` ŞART: yazdırmada genişlik sorgusu KÂĞIT genişliğine göre değerlendirilir; bu blok
+   korumasızken dar kâğıtta yazdırma çıktısını da mobil düzene çeviriyordu. */
+@media screen and (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .donus-cikis { grid-template-columns: 1fr; }
 }
@@ -481,11 +483,65 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
 .badge-unread { background: #ff5b5b; color: #fff; font-size: .68rem; font-weight: 700; border-radius: 1rem;
     padding: .05rem .4rem; min-width: 1.1rem; text-align: center; margin-left: auto; }
 
-@media (max-width: 900px) {
+/* Hamburger + çekmece perdesi — TEMEL kurallar (masaüstünde gizli).
+   SIRA ÖNEMLİ: bu blok mobil medya sorgusundan ÖNCE gelmeli. Sonra gelseydi aynı özgüllükteki
+   `display:none` mobildeki `display:inline-flex`i ezer ve hamburger hiç görünmezdi — ilk yazımda
+   tam olarak bu oldu, tarayıcıda ölçülünce yakalandı (çekmece JS ile açılıyordu ama kullanıcının
+   açacağı düğme yoktu).
+   `.menu-perde[hidden]` açıkça gizlenir: display değeri hidden özniteliğini ezerdi ve JS'siz
+   ziyaretçide kapatılamayan bir perde kalırdı (aynı tuzak public site çerez şeridinde yaşanmıştı). */
+.menu-btn { display: none; background: none; border: 0; padding: .5rem; cursor: pointer;
+    color: var(--text, #16324f); border-radius: .4rem; }
+.menu-btn:hover { background: var(--surface-2, #eef2f7); }
+.menu-cizgi, .menu-cizgi::before, .menu-cizgi::after {
+    display: block; width: 20px; height: 2px; background: currentColor; border-radius: 2px; }
+.menu-cizgi { position: relative; }
+.menu-cizgi::before, .menu-cizgi::after { content: ""; position: absolute; left: 0; }
+.menu-cizgi::before { top: -6px; }
+.menu-cizgi::after { top: 6px; }
+.menu-perde[hidden] { display: none; }
+
+/* =====================================================================
+   MOBİL KABUK (Faz 1)
+   Ölçüm: 390px'te 27 sayfanın 27'si yatay taşıyordu ve taşmanın SABİT 221px'lik kısmı
+   içerikten değil ÜST ŞERİTTEN geliyordu — arama + kullanıcı + tema + Şifre + Çıkış
+   sarmayan tek bir flex satırında sağ kenarı 611px'e itiyordu. Tek kural 145 sayfayı bozuyordu.
+   Ampirik doğrulama: yalnız aşağıdaki iki topbar kuralıyla /bildirimler 221px → 28px'e düştü
+   (kalan 28px tablo kaynaklı, Faz 2/3'ün işi).
+
+   Menü artık YIĞILMIYOR, ÇEKMECE oluyor: eski kural `.sidebar { position: static }` ile menüyü
+   içeriğin ÜSTÜNE yığıyordu, yani telefonda her sayfada ~40 menü satırını geçmeden içeriğe
+   ulaşılamıyordu. Çekmece hem daha kısa yol hem de kaydırma konumunu bozmuyor.
+   ===================================================================== */
+@media screen and (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
-    .sidebar { position: static; height: auto; }
     .kpi-row, .stat-row { grid-template-columns: repeat(2, 1fr); }
+
+    /* --- üst şerit: sarsın, arama kendi satırına insin --- */
+    .topbar { flex-wrap: wrap; gap: .5rem; padding: .5rem .75rem; }
+    /* min-width:0 ŞART: flex öğesi varsayılan `min-width:auto` ile içeriğinden dar olamaz,
+       bu yüzden arama kutusu küçülmeyi reddedip satırı taşırıyordu. */
+    .tb-search { min-width: 0; flex: 1 1 100%; order: 3; max-width: none; }
+    .topbar .spacer { display: none; }          /* sarmalı düzende itmeye gerek yok */
+    .topbar .user { margin-left: auto; }
+
+    /* --- hamburger --- */
+    .menu-btn { display: inline-flex; }
+
+    /* --- sidebar → çekmece --- */
+    .sidebar {
+        position: fixed; inset: 0 auto 0 0; z-index: 60;
+        width: min(86vw, 300px); height: 100dvh;
+        transform: translateX(-100%); transition: transform .18s ease-out;
+        box-shadow: 0 0 40px rgb(0 0 0 / 25%);
+    }
+    body[data-menu="acik"] .sidebar { transform: translateX(0); }
+    /* Çekmece açıkken arka plan kaymasın — kullanıcı menüyü kapatınca aynı yerde kalsın. */
+    body[data-menu="acik"] { overflow: hidden; }
+
+    .menu-perde { position: fixed; inset: 0; z-index: 50; background: rgb(10 37 64 / 45%); }
 }
+
 
 /* ===================================================================== */
 /* Radzen page-level bileşenleri (back-office interaktif grid ekranları)  */

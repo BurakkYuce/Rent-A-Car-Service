@@ -46,3 +46,7 @@ dash-*.png
 
 # Geçici UI doğrulama ekran görüntüleri (repo kökü)
 /*.png
+
+# Mobil taşma koşumu (scripts/mobil-tasma.mjs) — Playwright yerel kurulumu
+node_modules/
+.playwright-mcp/

@@ -57,3 +57,65 @@
     }
     hookTheme();
 })();
+
+/* ---------------------------------------------------------------------------
+   MOBİL MENÜ ÇEKMECESİ (Faz 1)
+
+   Neden burada: repoda tüm sayfa-JS'i harici dosyalarda ve `data-*` delegasyonuyla bağlanıyor —
+   CSP `script-src 'self'` (inline script/onclick YOK). Global davranışların yeri bu dosya.
+
+   Neden delegasyon: statik SSR + enhanced navigation'da sayfa gövdesi değişince doğrudan
+   bağlanmış dinleyiciler kopar. `document` üzerinde delege edilen dinleyici her gezinmede
+   çalışmaya devam eder — yeniden bağlama gerekmez.
+--------------------------------------------------------------------------- */
+(function () {
+    var ACIK = 'acik';
+
+    function perde() { return document.querySelector('.menu-perde'); }
+    function acButonu() { return document.querySelector('[data-menu-ac]'); }
+
+    function ayarla(acik) {
+        document.body.setAttribute('data-menu', acik ? ACIK : '');
+        var p = perde();
+        if (p) p.hidden = !acik;
+        var b = acButonu();
+        if (b) b.setAttribute('aria-expanded', acik ? 'true' : 'false');
+
+        // Odak yönetimi: açılınca çekmecenin ilk bağlantısına, kapanınca butona döner.
+        // Bu olmadan klavye kullanıcısı menüyü açar ama odak arka planda kalır.
+        if (acik) {
+            var ilk = document.querySelector('#sb-menu a, #sb-menu button');
+            if (ilk) ilk.focus();
+        } else if (b) {
+            b.focus();
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest) return;
+        if (e.target.closest('[data-menu-ac]')) { e.preventDefault(); ayarla(true); return; }
+        if (e.target.closest('[data-menu-kapat]')) { ayarla(false); return; }
+        // Çekmecedeki bir bağlantıya gidilince menü kapanmalı; aksi halde yeni sayfa
+        // açık menünün ARKASINDA yüklenir ve kullanıcı boş ekrana bakar.
+        if (document.body.getAttribute('data-menu') === ACIK && e.target.closest('#sb-menu a')) {
+            ayarla(false);
+        }
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && document.body.getAttribute('data-menu') === ACIK) ayarla(false);
+    });
+
+    // Masaüstüne genişletilince açık kalan çekmece, sabit menüyle üst üste binerdi.
+    var mq = window.matchMedia('(max-width: 900px)');
+    var mqDinle = mq.addEventListener ? mq.addEventListener.bind(mq, 'change') : mq.addListener.bind(mq);
+    mqDinle(function (ev) { if (!(ev.matches)) ayarla(false); });
+
+    // Gezinme sonrası: yeni sayfada menü KAPALI başlamalı (body özniteliği korunabiliyor).
+    function baglaGezinme() {
+        if (window.Blazor && window.Blazor.addEventListener) {
+            window.Blazor.addEventListener('enhancedload', function () { ayarla(false); });
+        } else setTimeout(baglaGezinme, 200);
+    }
+    baglaGezinme();
+})();
