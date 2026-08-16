@@ -5,12 +5,26 @@ namespace RentACar.Application.Blog;
 /// <summary>Liste kartı — BLOB kolonları TAŞIMAZ (kapak ayrı uçtan serve edilir).</summary>
 public sealed record BlogListItem(
     Guid Id, string Baslik, string Slug, string? Ozet, BlogPostDurum Durum,
-    DateTimeOffset? YayinTarihi, bool KapakVar);
+    DateTimeOffset? YayinTarihi, bool KapakVar,
+    string? AltBaslik = null, string? KapakAlt = null, bool AramaDisi = false);
 
 /// <summary>Detay sayfası — BLOB kolonları TAŞIMAZ (kapak ayrı uçtan; liste ile aynı gerekçe).</summary>
 public sealed record BlogDetail(
     Guid Id, string Baslik, string Slug, string? Ozet, string Icerik,
-    BlogPostDurum Durum, DateTimeOffset? YayinTarihi, bool KapakVar);
+    BlogPostDurum Durum, DateTimeOffset? YayinTarihi, bool KapakVar,
+    string? AltBaslik = null, string? SeoBaslik = null, string? MetaAciklama = null,
+    string? AnahtarKelimeler = null, string? Yazar = null, string? KapakAlt = null,
+    bool AramaDisi = false)
+{
+    /// <summary>Arama başlığı — SEO başlığı verilmemişse görünen başlığa düşer (TEK yerde karar).</summary>
+    public string AramaBasligi => string.IsNullOrWhiteSpace(SeoBaslik) ? Baslik : SeoBaslik!;
+
+    /// <summary>Anahtar kelimeler listesi (virgülle ayrılmış metinden; boşlar atılır).</summary>
+    public IReadOnlyList<string> Kelimeler =>
+        string.IsNullOrWhiteSpace(AnahtarKelimeler)
+            ? []
+            : [.. AnahtarKelimeler.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+};
 
 /// <summary>Kapak serve — TEK blob-dokunan yol. `UpdatedAtUtc` ETag üretimi için (kapak DEĞİŞEBİLİR →
 /// VehiclePhoto'nun `immutable` cache'i burada YANLIŞ olurdu).</summary>

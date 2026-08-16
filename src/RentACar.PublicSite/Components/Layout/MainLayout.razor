@@ -57,16 +57,60 @@
                     @if (_sssVar) { <li><a href="/sss">Sık sorulan sorular</a></li> }
                     @if (_blogVar) { <li><a href="/blog">Blog</a></li> }
                     <li><a href="/iletisim">İletişim</a></li>
-                    @* PR-16: firmanın kendi yazdığı sayfalar (sıra alanına göre). *@
-                    @foreach (var sf in _sayfalar)
+                    @* PR-16: firmanın kendi yazdığı sayfalar (sıra alanına göre).
+                       Yasal metinler bu listeden ÇIKARILDI — kendi sütunlarında yaşıyorlar,
+                       aksi halde alt bilgide iki kez görünürlerdi. *@
+                    @foreach (var sf in _digerSayfalar)
                     {
                         <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
                     }
                 </ul>
             </div>
+            @* Yasal sütunu YALNIZ yayında yasal sayfa varsa basılır: yayında olmayan bir slug'a
+               link vermek 404 üretir (Sayfa.razor bilinçli olarak gerçek 404 döner). Sabit
+               "/gizlilik" linki basmak, sayfa hiç yazılmamışken kırık bağlantı demekti. *@
+            @if (_yasalSayfalar.Count > 0)
+            {
+                <div>
+                    <h2>Yasal</h2>
+                    <ul>
+                        @foreach (var sf in _yasalSayfalar)
+                        {
+                            <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
+                        }
+                    </ul>
+                </div>
+            }
         </div>
         <div class="site-footer-alt">© @DateTime.Now.Year @Marka</div>
     </footer>
+
+    @* ---- Çerez bilgilendirme şeridi ----
+       `hidden` SUNUCUDAN gelir; yalnız `js/rc-cerez.js` açar (bkz. o dosyanın başlığı):
+       JS yoksa şerit hiç görünmez ve sayfa tam çalışır.
+
+       METİN DÜRÜSTLÜĞÜ: bu sitede analitik/izleme/reklam çerezi YOK (kod okunarak doğrulandı —
+       Program.cs'te oturum/analitik yok, üçüncü taraf betik yok, tek çerez rezervasyon talep
+       formundaki antiforgery/CSRF çerezi). Zorunlu çerez için izin alınmaz; bu yüzden burada
+       "Kabul et / Reddet" ikilisi YOK — reddedilecek bir izleme olmadığı halde "Reddet"
+       göstermek, kullanıcıya sahte bir seçim (ve sahte bir koruma hissi) sunardı. Şerit bir
+       ONAY değil BİLGİLENDİRME'dir; tek eylem "Tamam"dır.
+       İleride izin gerektiren bir çerez eklenirse: gerçek Kabul/Reddet düğmeleri buraya gelir ve
+       rc-cerez.js'teki ANAHTAR v2'ye çıkarılır (eski kayıt yeni izni kapsamaz). *@
+    <section id="cerez-serit" class="cerez-serit" hidden aria-label="Çerez bilgilendirmesi">
+        <p class="cerez-metin">
+            Bu sitede <strong>yalnızca sitenin çalışması için gerekli çerezler</strong> kullanılır:
+            rezervasyon talep formunu açtığınızda, formu sahte isteklere karşı korumak için tarayıcınıza
+            tek bir teknik çerez yazılır. Ziyaretçi takibi, reklam ve analitik çerezi kullanılmaz;
+            üçüncü taraf hiçbir betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada
+            reddedilecek bir izleme yoktur.
+            @if (_cerezPolitikasiSlug is not null)
+            {
+                <a href="@($"/{_cerezPolitikasiSlug}")">Ayrıntılı bilgi</a>
+            }
+        </p>
+        <button type="button" class="btn-cta" data-cerez-kapat>Tamam</button>
+    </section>
 </div>
 
 @code {
@@ -74,7 +118,11 @@
     private string? _telLink;
     private bool _blogVar;
     private bool _sssVar;
-    private IReadOnlyList<SayfaOzet> _sayfalar = [];
+    // Yayındaki içerik sayfaları alt bilgide İKİYE ayrılır: yasal metinler kendi sütununda
+    // (görünürlük + KVKK/çerez şeridinin hedefi), gerisi "Sayfalar" sütununda.
+    private IReadOnlyList<SayfaOzet> _digerSayfalar = [];
+    private IReadOnlyList<SayfaOzet> _yasalSayfalar = [];
+    private string? _cerezPolitikasiSlug;
 
     private string Marka => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
 
@@ -87,7 +135,10 @@
             _branding = await Showcase.GetBrandingAsync();
             _telLink = TelefonLink.Tel(_branding.Tel);
             _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
-            _sayfalar = await Icerik.YayindakiSayfalarAsync();
+            var sayfalar = await Icerik.YayindakiSayfalarAsync();
+            _yasalSayfalar = sayfalar.Where(YasalSayfalar.Yasal).ToList();
+            _digerSayfalar = sayfalar.Where(s => !YasalSayfalar.Yasal(s)).ToList();
+            _cerezPolitikasiSlug = YasalSayfalar.CerezPolitikasiSlug(sayfalar);
             _sssVar = (await Icerik.YayindakiSssAsync()).Count > 0;
         }
         catch

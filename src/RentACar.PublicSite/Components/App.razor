@@ -29,6 +29,12 @@
        hiçbir bileşende `@@rendermode` YOK, enhanced form/streaming kullanılmıyor. Dosyanın tek
        katkısı "enhanced navigation" idi; karşılığında her ziyaretçiye 200 KB indiriliyordu.
        Sayfa ağırlığı ~210 KB → ~10 KB. Formlar zaten saf GET/POST, `<details>` tarayıcıdan. *@
+
+    @* Çerez bilgilendirme şeridi — sitedeki TEK betik (~1 KB). Harici dosya ŞART: CSP
+       `script-src 'self'` inline betiği bloklar. `defer` ile ayrıştırma engellenmez; şerit
+       zaten sunucudan `hidden` geldiği için geç açılması düzen kaymasına yol açmaz (sabit
+       konumlu, akış dışı). *@
+    <script src="js/rc-cerez.js" defer></script>
 </body>
 
 </html>

@@ -713,3 +713,38 @@ span.flatpickr-weekday { font-weight: 600; }
 .grid-form label.check { flex-direction: row; align-items: center; gap: .4rem; }
 /* Seçili liste filtresi bağlantısı (servis durum sekmeleri). */
 .link.aktif { font-weight: 700; text-decoration: underline; }
+
+/* ============================================================================
+   Blog SEO alanları + arama sonucu önizlemesi (Components/Pages/Blog/SeoAlanlari.razor).
+   Renkler TOKEN'dan gelir (--color-data / --success / --text-muted): koyu temada da
+   okunur kalsın diye sabit hex YAZILMAZ — arama sonucu kutusu "beyaz zemin" varsayamaz.
+   ============================================================================ */
+.seo-alanlar .seo-yardim { font-size: .72rem; color: var(--text-muted); line-height: 1.35; font-weight: 400; }
+/* Sayaç: sınır TAVSİYEDİR — aşınca yalnız renk döner, kayıt engellenmez (bkz. rc-blog-seo.js). */
+.seo-sayac { display: inline-block; margin-left: .35rem; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.seo-sayac.uyari { color: var(--warn); font-weight: 700; }
+
+.seo-onizleme { display: flex; flex-direction: column; gap: .3rem; }
+.seo-onizleme .serp { background: var(--surface); border: 1px solid var(--line, var(--border));
+    border-radius: .5rem; padding: .6rem .75rem; max-width: 40rem; }
+.seo-onizleme .serp-adres { font-size: .75rem; color: var(--success); word-break: break-all; }
+.seo-onizleme .serp-baslik { font-size: 1.05rem; line-height: 1.3; color: var(--color-data); margin: .15rem 0; }
+.seo-onizleme .serp-aciklama { font-size: .8rem; line-height: 1.45; color: var(--text-muted); }
+
+/* ---- Blog yazım yardımı + önizleme ---- */
+.icerik-yardim { margin: .25rem 0 .5rem; font-size: .875rem; }
+.icerik-yardim summary { cursor: pointer; color: var(--text-muted); }
+.yardim-tablo { margin: .5rem 0; border-collapse: collapse; }
+.yardim-tablo th, .yardim-tablo td { padding: .25rem .75rem .25rem 0; text-align: left; }
+.yardim-tablo code { background: var(--surface-muted, rgba(127,127,127,.12)); padding: .1rem .35rem; border-radius: 4px; }
+
+.onizleme-kunye {
+  display: grid; gap: .75rem; margin: 1rem 0; padding: 1rem;
+  border: 1px solid var(--line, #ddd); border-radius: 8px;
+}
+/* Önizleme gövdesi okuma sütununda: sitedeki 48rem sınırının aynısı, satır uzunluğu
+   yanıltmasın (dar sütunda başka, geniş sütunda başka görünen metin önizleme olmaz). */
+.onizleme-govde { max-width: 48rem; margin-top: 1rem; }
+.onizleme-govde h3 { margin: 1.75rem 0 .5rem; }
+.onizleme-govde h4 { margin: 1.25rem 0 .5rem; }
+.onizleme-alt { font-size: 1.125rem; color: var(--text-muted); }
