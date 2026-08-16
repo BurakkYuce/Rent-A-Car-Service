@@ -1,0 +1,42 @@
+# RentACar — üretim ortam değişkenleri (systemd EnvironmentFile).
+#
+# Bu dosyanın sunucudaki yeri: /etc/racar/racar.env  (mod 0640, sahibi root:racar)
+# ÜÇ servis de (web/api/publicsite) AYNI dosyayı okur — anahtarların ayrışması imkânsız olsun diye.
+#
+# !!! kurulum.sh bu dosyayı VARSA ASLA ÜZERİNE YAZMAZ. Sebebi ölümcül: Pii__HmacKey değişirse
+# !!! kayıtlı TC blind-index'leri eşleşmez (TC araması sessizce boş döner), RACAR_DP_KEYS başka
+# !!! bir dizini gösterirse şifreli PII (*Enc) KALICI olarak çözülemez.
+# !!! Anahtarları elle değiştirmen gerekiyorsa önce yedek + geçiş planı; körlemesine döndürme.
+
+ASPNETCORE_ENVIRONMENT=Production
+
+# --- Veritabanı ---------------------------------------------------------------
+# Default  = racar_app  (NOSUPERUSER NOBYPASSRLS) — uygulama DAİMA bununla bağlanır, RLS'in temeli.
+# Migrator = racar_owner (DDL) — yalnız açılıştaki migration için.
+ConnectionStrings__Default=Host=localhost;Port=5432;Database=racar;Username=racar_app;Password=DEGISTIR_APP_PW
+ConnectionStrings__Migrator=Host=localhost;Port=5432;Database=racar;Username=racar_owner;Password=DEGISTIR_OWNER_PW
+
+# --- Şifreleme anahtarları (YEDEKLE — kaybolursa veri kurtarılamaz) -----------
+# Pii__HmacKey : TC blind-index (kısmi unique index + tam-eşleşme araması)
+Pii__HmacKey=DEGISTIR_openssl_rand_base64_48
+# RACAR_DP_KEYS: DataProtection key-ring KALICI dizini. Üç binary de AYNI dizin.
+# /opt/racar ALTINDA OLMAMALI — deploy dizini değiştiğinde ring ile birlikte PII gider.
+RACAR_DP_KEYS=/var/lib/racar/dp-keys
+
+# --- Platform süper-admin konsolu (/platform) --------------------------------
+Platform__AdminUser=DEGISTIR
+# Düz şifre DEĞİL, hash (PlatformCredentials.HashPassword ile üretilir).
+Platform__AdminPasswordHash=DEGISTIR
+
+# --- Yalnız API (racar-api.service) ------------------------------------------
+# API'yi yayınlamıyorsan boş bırakabilirsin; servis de kapalı kalsın.
+Jwt__Key=DEGISTIR_openssl_rand_base64_48
+
+# --- Opsiyonel: telemetri (SET DEĞİLSE hiç exporter kurulmaz) ----------------
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317
+# Observability__AlertToken=
+
+# --- Opsiyonel: WhatsApp/SMS (config yoksa stub no-op) -----------------------
+# Twilio__AccountSid=
+# Twilio__AuthToken=
+# Twilio__AlertPhone=
