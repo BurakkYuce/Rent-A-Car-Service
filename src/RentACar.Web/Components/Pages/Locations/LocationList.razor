@@ -48,21 +48,23 @@
                bu tablo yapılı veridir. Checkbox işaretsizse tarayıcı alanı GÖNDERMEZ → sunucu
                varlık kontrolüyle okur. *@
             <div class="muted small">Haftalık Çalışma Saatleri (boş bırakılan gün kapalı sayılır)</div>
-            <table class="grid tr-grid">
-                <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
-                <tbody>
-                    @for (var g = 1; g <= 7; g++)
-                    {
-                        var gun = g;
-                        <tr>
-                            <td>@GunAdi(gun)</td>
-                            <td><input name="gun@(gun)Acilis" type="time" /></td>
-                            <td><input name="gun@(gun)Kapanis" type="time" /></td>
-                            <td><input type="checkbox" name="gun@(gun)Kapali" value="true" /></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            <div class="table-scroll">
+                <table class="grid tr-grid">
+                    <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
+                    <tbody>
+                        @for (var g = 1; g <= 7; g++)
+                        {
+                            var gun = g;
+                            <tr>
+                                <td>@GunAdi(gun)</td>
+                                <td><input name="gun@(gun)Acilis" type="time" /></td>
+                                <td><input name="gun@(gun)Kapanis" type="time" /></td>
+                                <td><input type="checkbox" name="gun@(gun)Kapali" value="true" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
         <button type="submit">Oluştur</button>
     </form>
@@ -124,22 +126,24 @@
 
                             <div class="u-col-full">
                                 <div class="muted small">Haftalık Çalışma Saatleri</div>
-                                <table class="grid tr-grid">
-                                    <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
-                                    <tbody>
-                                        @for (var g = 1; g <= 7; g++)
-                                        {
-                                            var gun = g;
-                                            var kayit = l.HaftalikCalismaSaatleri.FirstOrDefault(x => x.Gun == gun);
-                                            <tr>
-                                                <td>@GunAdi(gun)</td>
-                                                <td><input name="gun@(gun)Acilis" type="time" value="@kayit?.Acilis" /></td>
-                                                <td><input name="gun@(gun)Kapanis" type="time" value="@kayit?.Kapanis" /></td>
-                                                <td><input type="checkbox" name="gun@(gun)Kapali" value="true" checked="@(kayit?.Kapali == true)" /></td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                                <div class="table-scroll">
+                                    <table class="grid tr-grid">
+                                        <thead><tr><th>Gün</th><th>Açılış</th><th>Kapanış</th><th>Kapalı</th></tr></thead>
+                                        <tbody>
+                                            @for (var g = 1; g <= 7; g++)
+                                            {
+                                                var gun = g;
+                                                var kayit = l.HaftalikCalismaSaatleri.FirstOrDefault(x => x.Gun == gun);
+                                                <tr>
+                                                    <td>@GunAdi(gun)</td>
+                                                    <td><input name="gun@(gun)Acilis" type="time" value="@kayit?.Acilis" /></td>
+                                                    <td><input name="gun@(gun)Kapanis" type="time" value="@kayit?.Kapanis" /></td>
+                                                    <td><input type="checkbox" name="gun@(gun)Kapali" value="true" checked="@(kayit?.Kapali == true)" /></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                             <label>Durum
                                 <select name="aktif">

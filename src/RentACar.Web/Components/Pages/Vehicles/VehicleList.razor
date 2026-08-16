@@ -196,36 +196,38 @@
                 </span>
             </summary>
             <div class="mg-body">
-                <table class="grid tr-grid">
-                    <thead>
-                        <tr>
-                            <th>Plaka</th><th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th>
-                            <th>KM</th><th>Şube</th><th>Durum</th><th>SIPP</th><th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var v in m.Araclar)
-                        {
+                <div class="table-scroll">
+                    <table class="grid tr-grid">
+                        <thead>
                             <tr>
-                                <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
-                                <td>@v.ModelYili</td>
-                                <td>@v.Renk</td>
-                                <td>@v.Vites</td>
-                                <td>@(v.Yakit?.ToString() ?? "—")</td>
-                                <td class="num">@v.Km</td>
-                                <td>@v.Sube</td>
-                                <td><StatusBadge Durum="@v.Durum" /></td>
-                                <td>@v.Sipp</td>
-                                <td>
-                                    <a href="/araclar/@v.Id" class="link">Detay</a>
-                                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneGrpCtx">
-                                        <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
-                                    </AuthorizeView>
-                                </td>
+                                <th>Plaka</th><th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th>
+                                <th>KM</th><th>Şube</th><th>Durum</th><th>SIPP</th><th></th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in m.Araclar)
+                            {
+                                <tr>
+                                    <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
+                                    <td>@v.ModelYili</td>
+                                    <td>@v.Renk</td>
+                                    <td>@v.Vites</td>
+                                    <td>@(v.Yakit?.ToString() ?? "—")</td>
+                                    <td class="num">@v.Km</td>
+                                    <td>@v.Sube</td>
+                                    <td><StatusBadge Durum="@v.Durum" /></td>
+                                    <td>@v.Sipp</td>
+                                    <td>
+                                        <a href="/araclar/@v.Id" class="link">Detay</a>
+                                        <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneGrpCtx">
+                                            <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
+                                        </AuthorizeView>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </details>
     }
@@ -233,95 +235,97 @@
 else
 {
 <div class="arac-grid-wrap">
-<table class="grid tr-grid">
-    <thead>
-        <tr>
-            <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
-            <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th>KM</th><th>Şube</th><th>Durum</th>
-            <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th>Motor Gücü</th><th>Araç Sahibi</th>
-            <th>HGS No</th><th>OGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th>
-            @* --- FAZ-11: canlı arac_listesi kolonları (hepsi araç kartının kendi alanları) --- *@
-            <th class="num">Alış Bedeli</th><th>Filo Giriş</th><th>Filo Çıkış</th><th>İlk Tescil</th>
-            <th>Alınan Firma</th><th>Ruhsat No</th><th class="num">2.El Değeri</th>
-            <th class="num">Kasko Değeri</th><th>Yedek Anahtar</th><th>Kar Lastiği</th><th>Lastik Bilgisi</th>
-            <th>Z-İzni</th><th>Statü</th><th>Lokasyon</th><th>GPS Takip No</th><th>Teyp Kodu</th><th>Açıklama</th>
-            @* --- FAZ-11: diğer tablolardan CANLI çözülen kolonlar --- *@
-            <th>Aktif Söz. No</th><th>Servis</th><th>BAF</th><th>Satış</th>
-            <th>Kasko Bitiş</th><th class="num">Kasko Primi</th><th>Kredi Kuruluşu</th><th>Kredi Son Tarih</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (_page.Items.Count == 0)
-        {
-            <tr><td colspan="49" class="muted">Kayıtlı araç yok.</td></tr>
-        }
-        @foreach (var v in _page.Items)
-        {
-            var ek = _ek.GetValueOrDefault(v.Id);
+<div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
             <tr>
-                <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
-                <td>@v.Marka</td>
-                <td>@v.Tip</td>
-                <td>@v.DetayTipi</td>
-                <td>@v.Grup</td>
-                <td>@v.Segment</td>
-                <td>@v.Sipp</td>
-                <td>@v.ModelYili</td>
-                <td>@v.Renk</td>
-                <td>@v.Vites</td>
-                <td>@(v.Yakit?.ToString() ?? "—")</td>
-                <td class="num">@v.Km</td>
-                <td>@v.Sube</td>
-                <td><StatusBadge Durum="@v.Durum" /></td>
-                <td>@v.FiloDurum</td>
-                <td>@v.SasiNo</td>
-                <td>@v.MotorNo</td>
-                <td class="num">@v.MotorGucu</td>
-                <td>@v.AracSahibi</td>
-                <td>@v.HgsNo</td>
-                <td>@v.OgsNo</td>
-                <td>@v.KasaTipi</td>
-                <td class="num">@v.SonBakimKm</td>
-                <td class="num">@Para(v.AlimBedeli)</td>
-                <td>@Gun(v.FiloGirisTarih)</td>
-                <td>@Gun(v.FiloCikisTarih)</td>
-                <td>@Gun(v.TescilTarihi)</td>
-                <td>@v.AlimYapilanFirma</td>
-                <td>@v.RuhsatNo</td>
-                <td class="num">@Para(v.IkinciElDeger)</td>
-                <td class="num">@Para(v.TsbKaskoDegeri)</td>
-                <td>@(v.YedekAnahtar ? "Var" : "—")</td>
-                <td>@(v.KarLastigi ? "Var" : "—")</td>
-                <td>@v.LastikDurumu</td>
-                <td>@(v.ZIzni ? "Var" : "—")</td>
-                <td>@v.SonDurum</td>
-                <td>@v.Konum</td>
-                <td>@v.TakipNo</td>
-                <td>@v.TeypKodu</td>
-                <td>@v.Aciklama</td>
-                <td>@(ek?.AktifKiraSozlesmeNo ?? "—")</td>
-                <td>@(ek?.AcikServis == true ? "Açık" : "—")</td>
-                <td>@(ek?.AcikBaf == true ? "Tahsisli" : "—")</td>
-                <td>@(ek?.SatisVar == true ? "Var" : "—")</td>
-                <td>@Gun(ek?.KaskoBitis)</td>
-                <td class="num">@Para(ek?.KaskoPrim)</td>
-                <td>@ek?.KrediKurulusu</td>
-                <td>@Gun(ek?.KrediSonTarih)</td>
-                <td>
-                    <a href="/araclar/@v.Id" class="link">Detay</a>
-                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
-                        <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
-                    </AuthorizeView>
-                    <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
-                        <input type="hidden" name="id" value="@v.Id" />
-                        <button type="submit" class="link danger">Sil</button>
-                    </form>
-                </td>
+                <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
+                <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th>KM</th><th>Şube</th><th>Durum</th>
+                <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th>Motor Gücü</th><th>Araç Sahibi</th>
+                <th>HGS No</th><th>OGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th>
+                @* --- FAZ-11: canlı arac_listesi kolonları (hepsi araç kartının kendi alanları) --- *@
+                <th class="num">Alış Bedeli</th><th>Filo Giriş</th><th>Filo Çıkış</th><th>İlk Tescil</th>
+                <th>Alınan Firma</th><th>Ruhsat No</th><th class="num">2.El Değeri</th>
+                <th class="num">Kasko Değeri</th><th>Yedek Anahtar</th><th>Kar Lastiği</th><th>Lastik Bilgisi</th>
+                <th>Z-İzni</th><th>Statü</th><th>Lokasyon</th><th>GPS Takip No</th><th>Teyp Kodu</th><th>Açıklama</th>
+                @* --- FAZ-11: diğer tablolardan CANLI çözülen kolonlar --- *@
+                <th>Aktif Söz. No</th><th>Servis</th><th>BAF</th><th>Satış</th>
+                <th>Kasko Bitiş</th><th class="num">Kasko Primi</th><th>Kredi Kuruluşu</th><th>Kredi Son Tarih</th>
+                <th></th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @if (_page.Items.Count == 0)
+            {
+                <tr><td colspan="49" class="muted">Kayıtlı araç yok.</td></tr>
+            }
+            @foreach (var v in _page.Items)
+            {
+                var ek = _ek.GetValueOrDefault(v.Id);
+                <tr>
+                    <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
+                    <td>@v.Marka</td>
+                    <td>@v.Tip</td>
+                    <td>@v.DetayTipi</td>
+                    <td>@v.Grup</td>
+                    <td>@v.Segment</td>
+                    <td>@v.Sipp</td>
+                    <td>@v.ModelYili</td>
+                    <td>@v.Renk</td>
+                    <td>@v.Vites</td>
+                    <td>@(v.Yakit?.ToString() ?? "—")</td>
+                    <td class="num">@v.Km</td>
+                    <td>@v.Sube</td>
+                    <td><StatusBadge Durum="@v.Durum" /></td>
+                    <td>@v.FiloDurum</td>
+                    <td>@v.SasiNo</td>
+                    <td>@v.MotorNo</td>
+                    <td class="num">@v.MotorGucu</td>
+                    <td>@v.AracSahibi</td>
+                    <td>@v.HgsNo</td>
+                    <td>@v.OgsNo</td>
+                    <td>@v.KasaTipi</td>
+                    <td class="num">@v.SonBakimKm</td>
+                    <td class="num">@Para(v.AlimBedeli)</td>
+                    <td>@Gun(v.FiloGirisTarih)</td>
+                    <td>@Gun(v.FiloCikisTarih)</td>
+                    <td>@Gun(v.TescilTarihi)</td>
+                    <td>@v.AlimYapilanFirma</td>
+                    <td>@v.RuhsatNo</td>
+                    <td class="num">@Para(v.IkinciElDeger)</td>
+                    <td class="num">@Para(v.TsbKaskoDegeri)</td>
+                    <td>@(v.YedekAnahtar ? "Var" : "—")</td>
+                    <td>@(v.KarLastigi ? "Var" : "—")</td>
+                    <td>@v.LastikDurumu</td>
+                    <td>@(v.ZIzni ? "Var" : "—")</td>
+                    <td>@v.SonDurum</td>
+                    <td>@v.Konum</td>
+                    <td>@v.TakipNo</td>
+                    <td>@v.TeypKodu</td>
+                    <td>@v.Aciklama</td>
+                    <td>@(ek?.AktifKiraSozlesmeNo ?? "—")</td>
+                    <td>@(ek?.AcikServis == true ? "Açık" : "—")</td>
+                    <td>@(ek?.AcikBaf == true ? "Tahsisli" : "—")</td>
+                    <td>@(ek?.SatisVar == true ? "Var" : "—")</td>
+                    <td>@Gun(ek?.KaskoBitis)</td>
+                    <td class="num">@Para(ek?.KaskoPrim)</td>
+                    <td>@ek?.KrediKurulusu</td>
+                    <td>@Gun(ek?.KrediSonTarih)</td>
+                    <td>
+                        <a href="/araclar/@v.Id" class="link">Detay</a>
+                        <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
+                            <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
+                        </AuthorizeView>
+                        <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@v.Id" />
+                            <button type="submit" class="link danger">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 </div>
 
 @if (_page.TotalPages > 1)

@@ -543,6 +543,72 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
 }
 
 
+/* =====================================================================
+   MOBİL İÇERİK (Faz 2) — telefon eşiği 640px
+
+   Neden kabuktan (900px) AYRI bir eşik: 900px'te menü çekmeceye döndüğü için içerik zaten tam
+   genişliği alıyor; 4 kolonlu bir form orada hâlâ makul. Asıl kırılma telefonda oluyor.
+   Ölçüm bunu doğruladı: Faz 1 sonrası kalan taşmaların suçluları `label`/`input`/`select` —
+   hepsi `.grid-form`'un 4 sabit kolonu yüzünden.
+
+   `screen and` ŞART: yazdırmada genişlik KÂĞIT genişliğine göre değerlendirilir; korumasız bir
+   kural dar kâğıtta çıktıyı da mobil düzene çevirir.
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+
+    /* --- sabit kolonlu ızgaralar tek kolona --- */
+    /* .grid-form 115 dosyada / 219 örnekte kullanılıyor: tek kural, tek noktadan düzeltme. */
+    .grid-form { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    .vt-boxes { grid-template-columns: 1fr; }
+    .report-cols { grid-template-columns: 1fr; }
+    .import-grid { grid-template-columns: 1fr; }
+
+    /* KPI/istatistik kartları 2 KOLONDA BIRAKILDI (1 değil): telefonda yan yana iki sayı hâlâ
+       rahat okunuyor ve tek kolon paneli gereksiz uzatıp "bugün ne var" özetini ekran dışına
+       itiyordu. Karar ekran görüntüsüne bakılarak verildi, kural gereği değil. */
+    .kpi-row, .stat-row, .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+
+    /* .summary-strip `grid-auto-flow: column` ile SINIRSIZ kolon üretiyordu — 6 hücreli bir şerit
+       telefonda garanti taşma. Sarmalı ızgaraya çevrildi. */
+    .summary-strip { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
+    .summary-strip .cell { border-right: none; border-bottom: 1px solid rgb(255 255 255 / 12%); }
+
+    /* .kirilim-satir sabit 3 kolon (minmax 90px + 1fr + 80px) — dar ekranda etiket eziliyor. */
+    .kirilim-satir { grid-template-columns: 1fr auto; }
+
+    /* `fieldset`'in TARAYICI VARSAYILANI `min-width: min-content`'tir: içeriğinden dar olamaz ve
+       uzun bir kelime/adres kutuyu viewport dışına iter. Ölçümde /ayarlar'da tam bu görüldü
+       (fieldset 391px, sağ kenar 415px). Yazarın CSS'inde bir hata yoktu, UA stil sayfası
+       yapıyordu — bu yüzden açıkça sıfırlanır. */
+    fieldset { min-width: 0; }
+    /* Aynı sebeple ızgara/flex çocukları: varsayılan `min-width:auto` küçülmeyi engeller. */
+    .grid-form > label, .filter-bar > label, .filter-panel > label { min-width: 0; }
+    .grid-form input, .grid-form select, .grid-form textarea { max-width: 100%; }
+
+    /* --- dokunma hedefleri: 44px --- */
+    /* Bugün hiçbir kuralda 44px yok; form kontrolleri 38px, sayfa başlığı aksiyonları 32px,
+       tablo içi butonlar 30px, `.link` ise PADDING'SİZ ~23px. Parmakla ıskalanan her dokunuş
+       kullanıcıya yanlış satırı açtırıyor. */
+    .grid-form input:not([type=checkbox]):not([type=radio]),
+    .grid-form select, .grid-form textarea,
+    .filter-bar input, .filter-bar select, .filter-panel input, .filter-panel select {
+        min-height: 44px;
+    }
+    .grid-form button, .btn-primary, .page-head .actions a, .page-head .actions button,
+    details > summary, .view-toggle a, .sb-quick a, .nav-group > summary, .nav-group .sub a {
+        min-height: 44px;
+        display: inline-flex; align-items: center;
+    }
+    /* `.link` satır içinde kullanılıyor (tablo hücresi, cümle arası). `inline-flex` + dikey
+       padding hedefi büyütür ama metin akışını bozmaz; `min-height` yerine padding tercih edildi
+       çünkü satır içi bir öğede min-height satır kutusunu şişirir. */
+    .link { display: inline-flex; align-items: center; padding: .6rem .25rem; }
+    .grid td button:not([class]), .grid td .link, .photo-actions button { min-height: 44px; }
+    /* Hamburger: ölçümde 36x18 çıkmıştı — dokunma hedefi olarak yetersiz. */
+    .menu-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+}
+
 /* ===================================================================== */
 /* Radzen page-level bileşenleri (back-office interaktif grid ekranları)  */
 /* ===================================================================== */
