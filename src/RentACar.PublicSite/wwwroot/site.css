@@ -116,6 +116,12 @@ body {
   font-size: var(--t0);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* Çerez şeridi `position: fixed` — AÇIKKEN sayfanın son içeriği (alt bilgi, kapanış
+     CTA'sı, "Teklif İste") şeridin ALTINDA kalıyor ve tıklanamıyordu. Telafi boşluğunu
+     js/rc-cerez.js şeridin GERÇEK yüksekliğinden ölçüp bu değişkene yazar; şerit yoksa
+     ya da kapatıldıysa değişken tanımsızdır ve fallback 0px devreye girer. Sabit bir
+     değer yazılamaz: yükseklik metin uzunluğuna ve ekran genişliğine göre değişiyor. */
+  padding-bottom: var(--cerez-bosluk, 0px);
 }
 
 h1, h2, h3, .fiyat-buyuk {
@@ -374,6 +380,21 @@ img.card-img, .card-img-placeholder {
 
 .back-link { display: inline-block; margin-bottom: var(--s3); }
 
+/* `.link` — kart/panel içindeki İKİNCİL eylem bağlantısı (IlanDetay "müsaitlik ve toplam
+   tutar", Iletisim "Haritada aç"). Sınıf iki sayfada KULLANILIYORDU ama CSS'te karşılığı
+   YOKTU: görünüm çıplak <a>'ya düşüyor, birincil eylemden ayırt edilemiyordu.
+   inline-flex seçildi (block değil): bağlantı kendi metni kadar geniş kalır, çevresindeki
+   metin akışı bozulmaz — dokunma kutusu yalnız dikeyde büyür (mobil bloğunda 44px'e çıkar). */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link:hover { text-decoration: underline; }
+
 /* ---- Müsaitlik arama formu + fiyat kartı (PR-7) ---- */
 .arama-form {
   display: flex;
@@ -619,8 +640,10 @@ img.card-img, .card-img-placeholder {
   margin-bottom: var(--s4);
 }
 
-/* Dar ekranda tek sütun: fiyat kartı görselin ALTINA iner (karar bilgisi görselden sonra). */
-@media (max-width: 720px) {
+/* Dar ekranda tek sütun: fiyat kartı görselin ALTINA iner (karar bilgisi görselden sonra).
+   `screen and` ZORUNLU: çıplak `max-width` yazdırmada da değerlendirilir (ölçüt kâğıt
+   genişliği olur) ve A4 çıktı sessizce mobil düzene düşer. */
+@media screen and (max-width: 720px) {
   .detay-ust { grid-template-columns: 1fr; }
 }
 
@@ -650,7 +673,7 @@ img.card-img, .card-img-placeholder {
   top: calc(var(--s5) + var(--s2));
 }
 
-@media (max-width: 720px) {
+@media screen and (max-width: 720px) {
   .fiyat-kart { position: static; }
 }
 
@@ -750,8 +773,89 @@ img.card-img, .card-img-placeholder {
 .cerez-metin strong { color: var(--ink); }
 .cerez-metin a { color: var(--brand); white-space: nowrap; }
 
+/* Metin İKİ parçaya bölündü (bkz. MainLayout.razor): `.cerez-ozet` her yerde görünen
+   çekirdek bilgi, `.cerez-detay` yalnız geniş ekranda görünen teknik ayrıntı.
+   Masaüstünde ikisi PEŞ PEŞE tek paragraf gibi okunur — temel kural burada, mobil
+   gizlemesi aşağıdaki medya bloğunda (temel kural medya bloğundan ÖNCE gelmeli,
+   aksi halde aynı özgüllükteki sonraki kural mobil kuralı ezerdi). */
+.cerez-ozet, .cerez-detay { display: inline; }
+
 /* Dar ekranda düğme tam genişlik: parmakla vurulacak hedef küçülmesin. */
-@media (max-width: 520px) {
+@media screen and (max-width: 520px) {
   .cerez-serit { padding: var(--s2); }
   .cerez-serit .btn-cta { width: 100%; text-align: center; }
+}
+
+/* ============================================================================
+   MOBİL (≤640px) — DOKUNMA HEDEFLERİ ve ÇEREZ ŞERİDİ KISALTMASI
+
+   Bu blok dosyanın SONUNDA: temel (masaüstü) kurallar yukarıda tanımlı olduğundan
+   aynı özgüllükteki mobil kuralları HİÇBİR şey ezemez. Ters sıra yazılsaydı (mobil
+   önce) sonraki temel kural kazanır ve blok sessizce hiç çalışmazdı.
+
+   `screen and` ZORUNLU: çıplak `max-width` yazdırmada da tetiklenir — kâğıt genişliği
+   ölçüt alınır ve A4 çıktı mobil düzene düşer.
+
+   NEDEN 44px: Apple HIG ve WCAG 2.5.5 asgari dokunma hedefi. Ölçüm öncesinde gezinme
+   ve alt bilgi bağlantıları 20-26px, form alanları 35-41px idi.
+   ============================================================================ */
+@media screen and (max-width: 640px) {
+
+  /* Gezinme ve aksiyon bağlantıları.
+     inline-flex SEÇİLDİ (block DEĞİL): bağlantı kendi metni kadar geniş kalır, satır içi
+     akış ve satır sarması bozulmaz; büyüyen tek şey dikey dokunma kutusudur. `block`
+     yapılsaydı alt bilgi ve kart bağlantıları satır boyunca uzayıp yanlışlıkla
+     tıklanabilir geniş şeritlere dönüşürdü. */
+  .site-nav a,
+  .site-footer li a,
+  .back-link,
+  .kart-aksiyon a,
+  .ust-linkler a,
+  .link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Bağlantı kutusu 44px olunca satır arası ek boşluk hem gereksiz hem de alt bilgiyi
+     mobilde iyice uzatıyor — sıfırlanıyor (dokunma hedefleri zaten ayrışmış durumda). */
+  .site-footer li { margin-bottom: 0; }
+
+  /* Düğmeler: aynı sınıflar hem <a> hem <button> üzerinde kullanılıyor, ikisi de aynı
+     kutu davranışını almalı. justify-content: center gerekli — `.tam-genislik` ile
+     genişleyen düğmede metnin ortalanması artık `text-align`'dan değil flex'ten gelir. */
+  .btn-cta,
+  .btn-ikincil,
+  .arama-form button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Form alanları. font-size DEĞİŞTİRİLMİYOR: `font: inherit` ile 16px geliyor ve iOS
+     Safari 16px altındaki alana odaklanınca sayfayı kendiliğinden yakınlaştırır. */
+  .arama-form input,
+  .arama-form select,
+  .talep-form textarea {
+    min-height: 44px;
+  }
+
+  /* <summary>: display DEĞİŞTİRİLMEZ. flex/inline-flex yapmak açılır-kapanır üçgen
+     işaretini (::marker) yok eder — hedef bu yüzden dikey padding ile büyütülüyor. */
+  .sss > summary {
+    min-height: 44px;
+    padding-block: .55rem;
+  }
+
+  /* Çerez şeridi: teknik ayrıntı gizlenir, ekranı yiyen uzun metin yerine çekirdek bilgi
+     + "Ayrıntılı bilgi" bağlantısı kalır. Ölçüm: 375px'te şerit 286px (ekranın %43'ü) idi. */
+  .cerez-detay { display: none; }
+
+  /* "Ayrıntılı bilgi" SATIR İÇİ bir bağlantı — mobilde ayrıntıya giden TEK yol olduğu için
+     17px'lik hedef yetersiz. Yine de `display` DEĞİŞTİRİLMEZ: inline-flex paragrafın son
+     satırını 44px'e şişirip küçültmeye çalıştığımız şeridi tekrar büyütürdü. Bunun yerine
+     satır içi kutuya dikey padding veriliyor: satır kutusu YÜKSEKLİĞİNİ etkilemez
+     (şerit 159px'te kalır) ama tıklama/dokunma alanını 44px'e çıkarır. */
+  .cerez-metin a { padding-block: .85rem; }
 }

@@ -213,15 +213,15 @@
         {
             <p class="muted small">Son gönderimler:</p>
             <div class="table-scroll">
-            <table class="grid tr-grid">
+            <table class="grid tr-grid kart-mobil">
                 <thead><tr><th>Gün</th><th>Durum</th><th>Not</th></tr></thead>
                 <tbody>
                     @foreach (var g in _gonderimler)
                     {
                         <tr>
-                            <td>@g.Gun.ToString("dd.MM.yyyy")</td>
-                            <td>@(g.Basarili ? "Gönderildi" : "Başarısız")</td>
-                            <td class="muted small">@(g.Basarili ? "" : g.HataMesaji)</td>
+                            <td class="kart-baslik">@g.Gun.ToString("dd.MM.yyyy")</td>
+                            <td data-etiket="Durum">@(g.Basarili ? "Gönderildi" : "Başarısız")</td>
+                            <td class="muted small" data-etiket="Not">@(g.Basarili ? "" : g.HataMesaji)</td>
                         </tr>
                     }
                 </tbody>
@@ -312,15 +312,15 @@
     @if (_m.CustomDomains.Count > 0)
     {
         <div class="table-scroll">
-        <table class="grid tr-grid">
+        <table class="grid tr-grid kart-mobil">
             <thead><tr><th>Host</th><th>Tür</th><th>Durum</th></tr></thead>
             <tbody>
                 @foreach (var d in _m.CustomDomains)
                 {
                     <tr>
-                        <td class="mono">@d.Host</td>
-                        <td>@(d.Kind == "Custom" ? "Özel Domain" : "Alt Domain")</td>
-                        <td>@d.Durum</td>
+                        <td class="mono kart-baslik">@d.Host</td>
+                        <td data-etiket="Tür">@(d.Kind == "Custom" ? "Özel Domain" : "Alt Domain")</td>
+                        <td data-etiket="Durum">@d.Durum</td>
                     </tr>
                 }
             </tbody>

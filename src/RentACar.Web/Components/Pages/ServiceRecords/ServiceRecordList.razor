@@ -133,7 +133,10 @@
 </details>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta servis kaydını tanıtan çekirdek kalır
+   (no başlık; araç, tür, giriş, genel toplam, durum); plan/km/işçilik/KDV/fatura masaüstünde.
+   Ayrıntı satırı (colspan) mekanizma gereği kartın altında açılır kalır. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr>
             <th>No</th><th>Araç</th><th>Tür</th><th>Giriş</th><th>Plan</th><th>KM</th>
@@ -149,18 +152,18 @@
         {
             var toplam = Toplam(s);
             <tr>
-                <td>@s.No</td>
-                <td>@VehLabel(s.VehicleId)</td>
-                <td>@s.Tip</td>
-                <td>@s.GirisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td class="kart-baslik">@s.No</td>
+                <td data-etiket="Araç">@VehLabel(s.VehicleId)</td>
+                <td data-etiket="Tür">@s.Tip</td>
+                <td data-etiket="Giriş">@s.GirisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>@PlanMetin(s)</td>
                 <td>@s.GirisKm@(s.CikisKm is int ck ? $" → {ck}" : "")</td>
                 <td class="num">@s.ToplamIscilik.ToString("N2")</td>
                 <td class="num">@toplam.KdvTutar.ToString("N2")</td>
-                <td class="num">@toplam.GenelToplam.ToString("N2")</td>
+                <td class="num" data-etiket="Genel Toplam">@toplam.GenelToplam.ToString("N2")</td>
                 <td>@(s.FaturaNo ?? "—")@(s.FaturaGenelToplam is decimal fg ? $" / {fg:N2}" : "")</td>
-                <td>@DurumAd(s.Durum)</td>
-                <td>
+                <td data-etiket="Durum">@DurumAd(s.Durum)</td>
+                <td class="kart-aksiyon">
                     @if (s.Durum == ServisDurum.Rezerve)
                     {
                         <form method="post" action="/servisler/servise-al" class="inline"><AntiforgeryToken />
@@ -223,7 +226,10 @@
 
                         @if (s.Lines.Count > 0)
                         {
-                            <table class="grid">
+                            @* İÇ TABLO da işaretlenmeli: kart kuralları ("etiketsiz hücre gizlenir")
+                               torun hücrelere de iner — etiketsiz bırakılsaydı kalemler telefonda
+                               tamamen kaybolurdu. *@
+                            <table class="grid kart-mobil">
                                 <thead>
                                     <tr><th>Açıklama</th><th>Birim Fiyat</th><th>Miktar</th><th>Toplam Fiyat</th>
                                         <th>İndirim</th><th>Tutar (net)</th><th>KDV</th><th>Genel Toplam</th></tr>
@@ -233,22 +239,22 @@
                                     {
                                         var h = ServisKalemHesap.Hesapla(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
                                         <tr>
-                                            <td>@l.Aciklama</td>
-                                            <td class="num">@(l.BirimFiyat?.ToString("N2") ?? "—")</td>
-                                            <td class="num">@(l.Miktar?.ToString("N2") ?? "—")</td>
+                                            <td class="kart-baslik">@l.Aciklama</td>
+                                            <td class="num" data-etiket="Birim Fiyat">@(l.BirimFiyat?.ToString("N2") ?? "—")</td>
+                                            <td class="num" data-etiket="Miktar">@(l.Miktar?.ToString("N2") ?? "—")</td>
                                             <td class="num">@h.Brut.ToString("N2")</td>
-                                            <td class="num">@(l.Indirim?.ToString("N2") ?? "—")</td>
-                                            <td class="num">@h.Net.ToString("N2")</td>
-                                            <td class="num">@h.KdvTutar.ToString("N2")@(l.KdvOran is decimal ko ? $" (%{ko * 100m:0.##})" : "")</td>
-                                            <td class="num">@h.GenelToplam.ToString("N2")</td>
+                                            <td class="num" data-etiket="İndirim">@(l.Indirim?.ToString("N2") ?? "—")</td>
+                                            <td class="num" data-etiket="Net">@h.Net.ToString("N2")</td>
+                                            <td class="num" data-etiket="KDV">@h.KdvTutar.ToString("N2")@(l.KdvOran is decimal ko ? $" (%{ko * 100m:0.##})" : "")</td>
+                                            <td class="num" data-etiket="Genel Toplam">@h.GenelToplam.ToString("N2")</td>
                                         </tr>
                                     }
                                 </tbody>
                                 <tfoot>
                                     <tr><td colspan="5">Toplam (satır bazında yuvarlanmış)</td>
-                                        <td class="num">@s.ToplamIscilik.ToString("N2")</td>
-                                        <td class="num">@toplam.KdvTutar.ToString("N2")</td>
-                                        <td class="num">@toplam.GenelToplam.ToString("N2")</td></tr>
+                                        <td class="num" data-etiket="Net">@s.ToplamIscilik.ToString("N2")</td>
+                                        <td class="num" data-etiket="KDV">@toplam.KdvTutar.ToString("N2")</td>
+                                        <td class="num" data-etiket="Genel Toplam">@toplam.GenelToplam.ToString("N2")</td></tr>
                                 </tfoot>
                             </table>
                         }

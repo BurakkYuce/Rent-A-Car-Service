@@ -95,7 +95,10 @@
 </form>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. 19 kolonun tamamı kartta anlamsız olurdu; kartta
+   cezayı tanıtan çekirdek var (no başlık; tebliğ, araç, müşteri, tutar, kalan, durum). Kalem/kısmi
+   ödeme satırı (colspan) kartın altında açılır kalır. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr>
             <th>No</th><th>Tür</th><th>Tebliğ</th><th>Saat</th><th>Vade</th><th>Araç</th>
@@ -114,26 +117,26 @@
         {
             var p = row.Ceza;
             <tr>
-                <td>@p.No</td>
+                <td class="kart-baslik">@p.No</td>
                 <td>@p.CezaTuru</td>
-                <td>@p.TebligTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td data-etiket="Tebliğ">@p.TebligTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>@(p.Saat ?? "—")</td>
                 <td>@p.VadeTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>@(row.Plaka ?? "—")</td>
-                <td>@(row.MusteriAd ?? "—")</td>
+                <td data-etiket="Araç">@(row.Plaka ?? "—")</td>
+                <td data-etiket="Müşteri">@(row.MusteriAd ?? "—")</td>
                 <td>@(row.MusteriEposta ?? "—")</td>
                 <td>@(row.SozlesmeNo ?? "—")</td>
                 <td>@Fatura(row)</td>
                 <td>@(p.IslemSube ?? "—")</td>
                 <td>@(row.RezKaynak ?? "—")</td>
                 <td>@(p.MakbuzNo ?? "—")</td>
-                <td>@p.Tutar.ToString("N2")</td>
+                <td data-etiket="Tutar">@p.Tutar.ToString("N2")</td>
                 <td>@p.OdenenTutar.ToString("N2")</td>
-                <td>@p.Kalan.ToString("N2")</td>
+                <td data-etiket="Kalan">@p.Kalan.ToString("N2")</td>
                 <td>@(p.OdenmeTarihi?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td>@Sekil(row)</td>
-                <td>@p.Durum</td>
-                <td>
+                <td data-etiket="Durum">@p.Durum</td>
+                <td class="kart-aksiyon">
                     @if (p.Durum == CezaDurum.Yeni && p.CariId is not null)
                     {
                         <form method="post" action="/cezalar/yansit" class="inline"><AntiforgeryToken />
@@ -156,18 +159,21 @@
                     <td colspan="20">
                         <details open="@(row.Satirlar.Count > 1 && p.Kalan > 0m)">
                             <summary>Kalemler ve Kısmi Ödeme (@row.Satirlar.Count kalem · kalan @p.Kalan.ToString("N2"))</summary>
-                            <table class="grid">
+                            @* İÇ TABLO da işaretlenmeli: "etiketsiz hücre gizlenir" kuralı torun
+                               hücrelere de iner — işaretlenmeseydi kalemler ve kısmi ödeme formu
+                               telefonda tamamen kaybolurdu. *@
+                            <table class="grid kart-mobil">
                                 <thead><tr><th>#</th><th>Sebep</th><th>Tutar</th><th>Ödenen</th><th>Kalan</th><th>Ödeme</th></tr></thead>
                                 <tbody>
                                 @foreach (var s in row.Satirlar)
                                 {
                                     <tr>
                                         <td>@s.Sira</td>
-                                        <td>@(s.Sebep ?? "—")</td>
-                                        <td>@s.Tutar.ToString("N2")</td>
-                                        <td>@s.Odenen.ToString("N2")</td>
-                                        <td>@s.Kalan.ToString("N2")</td>
-                                        <td>
+                                        <td class="kart-baslik">@(s.Sebep ?? "—")</td>
+                                        <td data-etiket="Tutar">@s.Tutar.ToString("N2")</td>
+                                        <td data-etiket="Ödenen">@s.Odenen.ToString("N2")</td>
+                                        <td data-etiket="Kalan">@s.Kalan.ToString("N2")</td>
+                                        <td class="kart-aksiyon">
                                             @if (s.Kalan > 0m)
                                             {
                                                 <form method="post" action="/cezalar/kismi-ode" class="inline"><AntiforgeryToken />

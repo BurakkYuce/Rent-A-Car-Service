@@ -52,7 +52,10 @@
 </p>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta YALNIZ data-etiket taşıyan hücreler görünür —
+   16 kolonluk fatura satırını telefona dökmek okumayı zorlaştırırdı. Kartta kalanlar faturayı
+   ayırt eden alanlar: tarih, cari, GENEL TOPLAM (net/KDV ayrıntısı masaüstünde), döviz ve durum. *@
+<table class="grid tr-grid kart-mobil">
     <thead><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th>Cari Kod</th><th>Vergi D./No</th><th>Ülke</th>
         <th>Sözleşme</th><th>Plaka</th><th>Ofis</th><th>Net</th><th>KDV</th><th>Toplam</th><th>Döviz</th>
         <th>Tür</th><th>Durum</th><th></th></tr></thead>
@@ -65,9 +68,9 @@
         {
             var i = satir.Fatura;
             <tr>
-                <td>@i.No</td>
-                <td>@i.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>@satir.CariAd</td>
+                <td class="kart-baslik">@i.No</td>
+                <td data-etiket="Tarih">@i.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td data-etiket="Müşteri">@satir.CariAd</td>
                 <td>@(satir.CariOzelKod ?? "—")</td>
                 <td>@(string.IsNullOrWhiteSpace(satir.VergiDairesi) && string.IsNullOrWhiteSpace(satir.VergiNo)
                         ? "—" : $"{satir.VergiDairesi} / {satir.VergiNo}")</td>
@@ -77,11 +80,11 @@
                 <td>@(satir.Ofis ?? "—")</td>
                 <td>@i.NetTutar.ToString("N2")</td>
                 <td>@i.KdvTutar.ToString("N2")</td>
-                <td>@i.GenelToplam.ToString("N2")</td>
-                <td>@(i.Currency == "TRY" ? "TL" : $"{i.Currency} @ {i.Kur.ToString("N4")} → {(i.GenelToplam * i.Kur).ToString("N2")} TL")</td>
+                <td data-etiket="Toplam">@i.GenelToplam.ToString("N2")</td>
+                <td data-etiket="Döviz">@(i.Currency == "TRY" ? "TL" : $"{i.Currency} @ {i.Kur.ToString("N4")} → {(i.GenelToplam * i.Kur).ToString("N2")} TL")</td>
                 <td>@(i.IadeMi ? "İade" : (_iadeEdilmis.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
-                <td>@i.Durum</td>
-                <td>
+                <td data-etiket="Durum">@i.Durum</td>
+                <td class="kart-aksiyon">
                     <a href="/faturalar/@i.Id/pdf" class="link" target="_blank" rel="noopener">Yazdır (PDF)</a>
                     @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
                     {
@@ -159,20 +162,22 @@
     {
         <form method="post" action="/finans/fatura-toplu"><AntiforgeryToken />
             <div class="table-scroll">
-                <table class="grid tr-grid">
+                @* Seçim kutusuna data-etiket VERİLDİ: etiketsiz hücre kartta gizlenir ve toplu
+                   faturalama telefonda kullanılamaz hâle gelirdi. *@
+                <table class="grid tr-grid kart-mobil">
                     <thead><tr><th></th><th>Sözleşme</th><th>Müşteri</th><th>Plaka</th><th>Durum</th>
                         <th class="num">Tutar</th><th>Döviz</th></tr></thead>
                     <tbody>
                         @foreach (var r in _faturalanabilir)
                         {
                             <tr>
-                                <td><input type="checkbox" name="secili" value="@r.Id" /></td>
-                                <td class="mono">@r.SozlesmeNo</td>
-                                <td>@r.MusteriAd</td>
-                                <td>@r.Plaka</td>
+                                <td data-etiket="Seç"><input type="checkbox" name="secili" value="@r.Id" /></td>
+                                <td class="mono kart-baslik">@r.SozlesmeNo</td>
+                                <td data-etiket="Müşteri">@r.MusteriAd</td>
+                                <td data-etiket="Plaka">@r.Plaka</td>
                                 <td>@r.Durum</td>
-                                <td class="num">@r.Tutar.ToString("N2")</td>
-                                <td>@(r.Doviz ?? "TRY")</td>
+                                <td class="num" data-etiket="Tutar">@r.Tutar.ToString("N2")</td>
+                                <td data-etiket="Döviz">@(r.Doviz ?? "TRY")</td>
                             </tr>
                         }
                     </tbody>

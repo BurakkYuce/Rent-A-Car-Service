@@ -208,16 +208,16 @@
                             @foreach (var v in m.Araclar)
                             {
                                 <tr>
-                                    <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
-                                    <td>@v.ModelYili</td>
-                                    <td>@v.Renk</td>
-                                    <td>@v.Vites</td>
+                                    <td class="kart-baslik"><a href="/vehicles/@v.Id">@v.Plaka</a></td>
+                                    <td data-etiket="Yıl">@v.ModelYili</td>
+                                    <td data-etiket="Renk">@v.Renk</td>
+                                    <td data-etiket="Vites">@v.Vites</td>
                                     <td>@(v.Yakit?.ToString() ?? "—")</td>
-                                    <td class="num">@v.Km</td>
-                                    <td>@v.Sube</td>
-                                    <td><StatusBadge Durum="@v.Durum" /></td>
+                                    <td class="num" data-etiket="KM">@v.Km</td>
+                                    <td data-etiket="Şube">@v.Sube</td>
+                                    <td data-etiket="Durum"><StatusBadge Durum="@v.Durum" /></td>
                                     <td>@v.Sipp</td>
-                                    <td>
+                                    <td class="kart-aksiyon">
                                         <a href="/araclar/@v.Id" class="link">Detay</a>
                                         <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneGrpCtx">
                                             <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
@@ -236,7 +236,9 @@ else
 {
 <div class="arac-grid-wrap">
 <div class="table-scroll">
-    <table class="grid tr-grid">
+    @* kart-mobil: 640px altında satırlar karta döner. Kartta YALNIZ data-etiket taşıyan hücreler
+       görünür — 49 kolonu telefona dökmek tabloyu okumaktan da kötü olurdu. *@
+    <table class="grid tr-grid kart-mobil">
         <thead>
             <tr>
                 <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
@@ -263,20 +265,20 @@ else
             {
                 var ek = _ek.GetValueOrDefault(v.Id);
                 <tr>
-                    <td><a href="/vehicles/@v.Id">@v.Plaka</a></td>
-                    <td>@v.Marka</td>
-                    <td>@v.Tip</td>
+                    <td class="kart-baslik"><a href="/vehicles/@v.Id">@v.Plaka</a></td>
+                    <td data-etiket="Marka">@v.Marka</td>
+                    <td data-etiket="Tip">@v.Tip</td>
                     <td>@v.DetayTipi</td>
-                    <td>@v.Grup</td>
+                    <td data-etiket="Grup">@v.Grup</td>
                     <td>@v.Segment</td>
                     <td>@v.Sipp</td>
                     <td>@v.ModelYili</td>
                     <td>@v.Renk</td>
                     <td>@v.Vites</td>
                     <td>@(v.Yakit?.ToString() ?? "—")</td>
-                    <td class="num">@v.Km</td>
-                    <td>@v.Sube</td>
-                    <td><StatusBadge Durum="@v.Durum" /></td>
+                    <td class="num" data-etiket="KM">@v.Km</td>
+                    <td data-etiket="Şube">@v.Sube</td>
+                    <td data-etiket="Durum"><StatusBadge Durum="@v.Durum" /></td>
                     <td>@v.FiloDurum</td>
                     <td>@v.SasiNo</td>
                     <td>@v.MotorNo</td>
