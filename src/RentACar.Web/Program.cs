@@ -293,6 +293,16 @@ builder.Services.AddHostedService<RentACar.Web.Jobs.PendingDomainExpireJob>(); /
 // WhatsApp: Twilio config VARSA gerçek gönderici stub'ı override eder (son kayıt kazanır); yoksa stub no-op kalır.
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"]))
     builder.Services.AddSingleton<RentACar.Application.Integrations.IWhatsAppService, RentACar.Web.Integrations.TwilioWhatsAppService>();
+// SMS: aynı Twilio hesabı. Kimlik + bir gönderen kaynağı (numara ya da Messaging Service) gerekir;
+// tenant kendi başlığını verirse o kazanır ama hesap kimliği yine de şarttır → kapı burada.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"])
+    && (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:SmsFrom"])
+        || !string.IsNullOrWhiteSpace(builder.Configuration["Twilio:MessagingServiceSid"])))
+    builder.Services.AddSingleton<RentACar.Application.Integrations.ISmsService, RentACar.Web.Integrations.TwilioSmsService>();
+// E-posta: KOŞULSUZ gerçek gönderici. Yapılandırma global config'te değil TENANT satırındadır
+// (TenantSettings.Smtp*), bu yüzden "kurulu mu" kararı DI'da değil gönderim anında verilir —
+// BildirimKanaliService ayar yoksa açık hata döndürür, sessiz başarı üretmez.
+builder.Services.AddSingleton<RentACar.Application.Integrations.IEmailSender, RentACar.Web.Integrations.MailKitEmailSender>();
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 builder.Services.AddScoped<RentACar.Web.Import.ImportService>(); // veri göçü: Excel/CSV → araç/cari (PII şifreli)

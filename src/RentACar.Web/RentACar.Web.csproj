@@ -14,6 +14,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <!-- Rapor export (roadmap B1): Excel (.xlsx) -->
     <PackageReference Include="ClosedXML" />
+    <!-- Bildirim omurgası: SMTP gönderimi (Twilio deseninde — dış dünya bağımlılığı Web'de kalır) -->
+    <PackageReference Include="MailKit" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />

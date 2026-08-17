@@ -84,6 +84,8 @@ public static class TenantSettingsEndpoints
                 SmtpKullanici = f["smtpKullanici"].ToString(),
                 SmtpSifre = f["smtpSifre"].ToString(),
                 SmtpSsl = f["smtpSsl"].ToString() is "true" or "on",
+                SmtpGonderenAdres = f["smtpGonderenAdres"].ToString(),
+                SmtpGonderenAd = f["smtpGonderenAd"].ToString(),
                 WhatsAppNumarasi = f["whatsAppNumarasi"].ToString(),
                 WhatsAppGunlukOzet = f["whatsAppGunlukOzet"].ToString() is "true" or "on"
             };
@@ -183,6 +185,82 @@ public static class TenantSettingsEndpoints
                 // Hâlâ kuyrukta: başarısız DEĞİL ama teslim de doğrulanmadı — ikisini karıştırma.
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
                     "Mesaj Twilio'ya iletildi, teslim durumu henüz belli değil. "
+                    + "Birkaç saniye sonra telefonu ve Twilio konsolunu kontrol edin."));
+            }
+            return Results.Redirect("/ayarlar?ok=1");
+        });
+
+        // E-POSTA TEST gönderimi — WhatsApp testiyle aynı gerekçe: "yapılandırma doğru mu?" sorusunun
+        // tek dürüst cevabı gerçek bir gönderimdir. SMTP'de yapılandırma TENANT satırındadır, bu yüzden
+        // kapı config'te değil ayarın kendisinde: BildirimKanaliService ayar eksikse açık hata döndürür.
+        grp.MapPost("/smtp-test", async (HttpRequest req,
+            RentACar.Application.Integrations.BildirimKanaliService kanal) =>
+        {
+            var alici = req.Form["testMail"].ToString().Trim();
+            if (string.IsNullOrWhiteSpace(alici))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Test için bir e-posta adresi girin."));
+
+            var zaman = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm");
+            var sonuc = await kanal.EpostaGonderAsync(
+                alici,
+                "RentPro e-posta testi",
+                $"<p>RentPro test mesajı — {zaman} UTC.</p><p>Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.</p>",
+                $"RentPro test mesajı — {zaman} UTC. Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.");
+
+            // SMTP'de gönderim SENKRONDUR: sunucu mesajı kabul ettiyse teslim sorumluluğu ona geçmiştir.
+            // WhatsApp'taki "201 kabul ≠ teslim" yoklaması burada GEREKMEZ; kabul edilmeyen mesaj zaten
+            // istisnaya düşer ve hata cümlesiyle geri gelir.
+            return sonuc.Ok
+                ? Results.Redirect("/ayarlar?ok=1")
+                : Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(sonuc.Hata ?? "E-posta gönderilemedi."));
+        });
+
+        // SMS TEST gönderimi — gerçek gönderici yalnız Twilio kimliği + gönderen kaynağı varsa DI'ya
+        // girer; yoksa StubSmsService kalır ve o artık DÜRÜSTÇE false döner (sahte başarı yok).
+        // Yine de "neden gitmedi" sorusuna net cevap vermek için yapılandırma ayrıca kontrol edilir.
+        grp.MapPost("/sms-test", async (HttpRequest req,
+            RentACar.Application.Integrations.BildirimKanaliService kanal,
+            RentACar.Application.Integrations.ISmsService sms, IConfiguration cfg) =>
+        {
+            var no = req.Form["testSmsNo"].ToString().Trim();
+            if (string.IsNullOrWhiteSpace(no))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Test için bir telefon numarası girin (E.164, ör. +905321112233)."));
+
+            if (string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]))
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "Twilio yapılandırılmamış — hiçbir SMS gönderilmedi. Twilio:AccountSid / AuthToken "
+                    + "ve Twilio:SmsFrom (ya da MessagingServiceSid) ayarlarını verin."));
+
+            // Gönderen başlığı ÜRETİMDEKİ yoldan çözülür (tenant başlığı → yoksa sağlayıcı varsayılanı):
+            // test, gerçek kod yolunu denemeli.
+            var mesaj = $"RentPro test mesaji - {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. "
+                      + "Bu mesajı aldıysanız SMS yapılandırmanız çalışıyor.";
+            var baslik = await kanal.SmsBaslikAsync();
+            var twilioSvc = sms as RentACar.Web.Integrations.TwilioSmsService;
+            var (ok, mesajSid) = twilioSvc is not null
+                ? await twilioSvc.GonderAsync(no, mesaj, baslik)
+                : (await sms.SendAsync(no, mesaj, baslik), null);
+            if (!ok)
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "SMS gönderilemedi. Twilio yapılandırmasını, gönderen başlığını ve sunucu loglarını kontrol edin."));
+
+            // TESLİM DOĞRULAMASI — WhatsApp'takiyle aynı ders: 201 Created "kabul edildi" demek,
+            // "ulaştı" demek DEĞİL. Operatör reddi (kayıtsız alfanümerik başlık 30007, ülke izni
+            // kapalı 21408) saniyeler içinde mesajın DURUMUNA düşer, HTTP yanıtına değil.
+            if (twilioSvc is { } twilio && mesajSid is { Length: > 0 })
+            {
+                for (var i = 0; i < 9; i++)
+                {
+                    await Task.Delay(1000);
+                    var (durum, kod) = await twilio.SonDurumAsync(mesajSid);
+                    if (durum is "failed" or "undelivered")
+                        return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                            $"SMS Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({durum}). "
+                            + RentACar.Web.Integrations.TwilioSmsService.HataAciklama(kod)));
+                    if (durum is "delivered" or "sent") return Results.Redirect("/ayarlar?ok=1");
+                }
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
+                    "SMS Twilio'ya iletildi, teslim durumu henüz belli değil. "
                     + "Birkaç saniye sonra telefonu ve Twilio konsolunu kontrol edin."));
             }
             return Results.Redirect("/ayarlar?ok=1");

@@ -36,7 +36,26 @@ Jwt__Key=DEGISTIR_openssl_rand_base64_48
 # OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317
 # Observability__AlertToken=
 
-# --- Opsiyonel: WhatsApp/SMS (config yoksa stub no-op) -----------------------
+# --- Opsiyonel: WhatsApp + SMS (Twilio) --------------------------------------
+# Config yoksa gönderici DEVREYE GİRMEZ ve stub gönderim yapmadan false döner
+# (sahte başarı yoktur — mesaj gitmediyse çağıran bunu görür).
 # Twilio__AccountSid=
 # Twilio__AuthToken=
+# WhatsApp gönderen numarası (whatsapp: öneki KOD tarafından eklenir)
+# Twilio__WhatsAppFrom=
+# Kritik alarmların (OpsWatchdog) gideceği numara
 # Twilio__AlertPhone=
+#
+# SMS için AYRI bir sağlayıcı gerekmez — aynı Twilio hesabı kullanılır. Yalnız bir
+# gönderen kaynağı şarttır: numara VEYA Messaging Service (ikisi birlikte gönderilemez).
+# Twilio__SmsFrom=+1XXXXXXXXXX
+# Twilio__MessagingServiceSid=MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#
+# NOT: tenant kendi SMS başlığını (Ayarlar → SMS Başlığı) girerse gönderen olarak o kullanılır.
+# Alfanümerik başlık Türkiye'de operatör kaydı ister; kayıtsız başlıkla mesaj teslim EDİLMEZ
+# (Twilio 30007). Kayıt yoksa başlığı boş bırakıp numara ile gönderin.
+#
+# --- E-posta (SMTP) ----------------------------------------------------------
+# SMTP ayarı ortam değişkeninde DEĞİL, her tenant'ın kendi Ayarlar ekranındadır
+# (host/port/kullanıcı/şifre/gönderen adres). Şifre at-rest şifreli saklanır.
+# Sunucu tarafında yapılacak bir şey yoktur; giden port 587/465'in açık olması yeterlidir.

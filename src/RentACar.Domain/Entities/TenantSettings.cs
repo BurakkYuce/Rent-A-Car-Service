@@ -49,6 +49,12 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? SmtpKullanici { get; set; }
     public string? SmtpSifreEnc { get; set; }
     public bool? SmtpSsl { get; set; }
+    /// <summary>Giden e-postaların "Kimden" adresi. Ayrı alandır çünkü kimlik doğrulama kullanıcı adı
+    /// çoğu sağlayıcıda e-posta DEĞİLDİR ve alan adı doğrulaması (SPF/DKIM) gönderen adrese bakar.
+    /// Boşsa kullanıcı adı e-posta biçimindeyse ona düşülür.</summary>
+    public string? SmtpGonderenAdres { get; set; }
+    /// <summary>Giden e-postalarda görünecek gönderen adı (boşsa firma unvanı kullanılır).</summary>
+    public string? SmtpGonderenAd { get; set; }
 
     // ---- WhatsApp günlük operasyon özeti (additive) ----
     /// <summary>Günlük özetin gideceği WhatsApp no (E.164; boşsa gönderilmez).</summary>
