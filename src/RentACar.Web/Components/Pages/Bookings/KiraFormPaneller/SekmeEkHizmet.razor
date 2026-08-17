@@ -59,31 +59,33 @@
     }
     else
     {
-        <table class="grid tr-grid">
-            <thead><tr><th>Hizmet</th><th class="num">Miktar</th><th class="num">Birim NET</th><th class="num">KDV</th><th class="num">Net</th><th class="num">KDV Tutar</th><th class="num">Toplam</th><th></th></tr></thead>
-            <tbody>
-                @if (Vm.Kalemler.Count == 0)
-                {
-                    <tr><td colspan="8" class="muted">Ek hizmet eklenmemiş.</td></tr>
-                }
-                @foreach (var a in Vm.Kalemler)
-                {
-                    <tr>
-                        <td>@a.Ad</td>
-                        <td class="num">@a.Miktar</td>
-                        <td class="num">@a.BirimNetFiyat.ToString("N2")</td>
-                        <td class="num">@($"%{a.KdvOrani * 100:0.##}")</td>
-                        <td class="num">@a.NetTutar.ToString("N2")</td>
-                        <td class="num">@a.KdvTutar.ToString("N2")</td>
-                        <td class="num">@a.Toplam.ToString("N2")</td>
-                        <td>@if (Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal)
-                            {
-                                <button type="submit" form="ekhizmet-sil-@a.Id" class="link danger" disabled="@(!Vm.OperasyonYetkisi)">Sil</button>
-                            }</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="table-scroll">
+            <table class="grid tr-grid">
+                <thead><tr><th>Hizmet</th><th class="num">Miktar</th><th class="num">Birim NET</th><th class="num">KDV</th><th class="num">Net</th><th class="num">KDV Tutar</th><th class="num">Toplam</th><th></th></tr></thead>
+                <tbody>
+                    @if (Vm.Kalemler.Count == 0)
+                    {
+                        <tr><td colspan="8" class="muted">Ek hizmet eklenmemiş.</td></tr>
+                    }
+                    @foreach (var a in Vm.Kalemler)
+                    {
+                        <tr>
+                            <td>@a.Ad</td>
+                            <td class="num">@a.Miktar</td>
+                            <td class="num">@a.BirimNetFiyat.ToString("N2")</td>
+                            <td class="num">@($"%{a.KdvOrani * 100:0.##}")</td>
+                            <td class="num">@a.NetTutar.ToString("N2")</td>
+                            <td class="num">@a.KdvTutar.ToString("N2")</td>
+                            <td class="num">@a.Toplam.ToString("N2")</td>
+                            <td>@if (Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal)
+                                {
+                                    <button type="submit" form="ekhizmet-sil-@a.Id" class="link danger" disabled="@(!Vm.OperasyonYetkisi)">Sil</button>
+                                }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
         @if (Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal)
         {
             @* Ekle mini-formu — ikincil form (form="kira-ekhizmet", ana formun dışında) *@

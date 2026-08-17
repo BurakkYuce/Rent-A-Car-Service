@@ -98,12 +98,21 @@
        İleride izin gerektiren bir çerez eklenirse: gerçek Kabul/Reddet düğmeleri buraya gelir ve
        rc-cerez.js'teki ANAHTAR v2'ye çıkarılır (eski kayıt yeni izni kapsamaz). *@
     <section id="cerez-serit" class="cerez-serit" hidden aria-label="Çerez bilgilendirmesi">
+        @* MOBİL KISALTMA: metin tek parça 470 karakterdi ve şerit 375px'te 286px yer kaplıyordu
+           (ekranın %43'ü) — telefonda şerit sayfayı yiyordu. Metin İKİYE bölündü:
+             .cerez-ozet   → her yerde görünen ÇEKİRDEK bilgi (tek başına da doğru ve yeterli);
+             .cerez-detay  → yalnız ≥641px'te görünen teknik ayrıntı (site.css mobil bloğu gizler).
+           Masaüstünde ikisi peş peşe basılır ve eskisiyle aynı tam metin okunur; hiçbir bilgi
+           silinmedi, mobilde yalnız SIRALANDI. Ayrıntı, çerez politikası sayfası yayındaysa
+           "Ayrıntılı bilgi" bağlantısıyla mobilde de erişilebilir kalır; sayfa yayında değilse
+           özet metnin kendisi tek başına doğru bilgiyi verdiği için eksik bilgi doğmaz. *@
         <p class="cerez-metin">
-            Bu sitede <strong>yalnızca sitenin çalışması için gerekli çerezler</strong> kullanılır:
-            rezervasyon talep formunu açtığınızda, formu sahte isteklere karşı korumak için tarayıcınıza
-            tek bir teknik çerez yazılır. Ziyaretçi takibi, reklam ve analitik çerezi kullanılmaz;
-            üçüncü taraf hiçbir betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada
-            reddedilecek bir izleme yoktur.
+            <span class="cerez-ozet">Bu sitede <strong>yalnızca zorunlu çerezler</strong> kullanılır;
+                ziyaretçi takibi, reklam ve analitik çerezi yoktur.</span>
+            <span class="cerez-detay">Rezervasyon talep formunu açtığınızda, formu sahte isteklere
+                karşı korumak için tarayıcınıza tek bir teknik çerez yazılır; üçüncü taraf hiçbir
+                betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada reddedilecek bir
+                izleme yoktur.</span>
             @if (_cerezPolitikasiSlug is not null)
             {
                 <a href="@($"/{_cerezPolitikasiSlug}")">Ayrıntılı bilgi</a>

@@ -43,88 +43,90 @@
 <p class="muted small">@_rows.Count araç</p>
 
 <div class="detay-grid-wrap">
-<table class="grid tr-grid">
-    <thead>
-        <tr>
-            <th>Plaka</th><th>Marka</th><th>Tip</th><th>Grup</th><th>Şube</th><th>Durum</th>
-            <th>Belge No</th><th>Ruhsat Sahibi</th><th>Söz. No</th><th>Aracı Alan</th>
-            <th>Alım Firma</th><th>Alım Tarihi</th><th class="num">Alım Bedeli</th>
-            <th>EUR mu</th><th class="num">Alış EUR</th><th class="num">Hedef Satış EUR</th>
-            <th>Kredi Bankası</th><th>Muayene Bitiş</th><th>Kasko Bitiş</th><th>Trafik Bitiş</th>
-            <th>Aktif Kira Müşteri</th><th>Aktif Kira Sözleşme</th><th>Aktif Kira Bitiş</th>
-            <th>Kiralayan (not)</th><th class="num">Kira Gün (not)</th><th class="num">Kira Fiyat (not)</th>
-            <th>Kira Bitiş (not)</th><th>Beklenen Dönüş (not)</th>
-            <th class="num">Son Teslim KM</th><th>Son Teslim Tarihi</th>
-            <th>Assistans</th><th>HGS Firma</th><th class="num">Dış KM Limiti</th>
-            <th>TSB Kodu</th><th class="num">TSB Kasko</th><th>Ödeme Şekli</th>
-            <th class="num">Hedef Satış Fiyatı</th><th>İhale Tarihi</th><th>İhale Firması</th><th>Noter Satış</th>
-            <th>Filo Giriş</th><th>Filo Çıkış</th><th>Pasif Sebebi</th><th>Son Durum</th>
-            <th>Özel 1</th><th>Özel 2</th><th>Özel 3</th><th>Özel 4</th><th>Özel 5</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (_rows.Count == 0)
-        {
-            <tr><td colspan="49" class="muted">@(FiltreVar ? "Filtreye uyan araç yok." : "Araç yok.")</td></tr>
-        }
-        @foreach (var r in _rows)
-        {
-            var v = r.Arac;
+<div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
             <tr>
-                <td class="mono"><a href="/araclar/@v.Id">@v.Plaka</a></td>
-                <td>@G(v.Marka)</td>
-                <td>@G(v.Tip)</td>
-                <td>@G(v.Grup)</td>
-                <td>@G(v.Sube)</td>
-                <td>@v.Durum</td>
-                <td>@G(v.BelgeNo)</td>
-                <td>@G(v.RuhsatSahibi)</td>
-                <td>@G(v.SozNo)</td>
-                <td>@G(v.AraciAlan)</td>
-                <td>@G(v.AlimYapilanFirma)</td>
-                <td>@T(v.AlimTarihi)</td>
-                <td class="num">@P(v.AlimBedeli)</td>
-                <td>@(v.AlisEuro == true ? "Evet" : "—")</td>
-                <td class="num">@P(v.AlisEuroFiyat)</td>
-                <td class="num">@P(v.SatisEuroFiyat)</td>
-                <td>@G(r.KrediBanka)</td>
-                <td>@T(r.MuayeneBitis)</td>
-                <td>@T(r.KaskoBitis)</td>
-                <td>@T(r.TrafikBitis)</td>
-                @* Aktif kira: CANLI çözüldü (araçta kolon YOK). *@
-                <td>@G(r.AktifKiraMusteri)</td>
-                <td class="mono">@G(r.AktifKiraSozlesmeNo)</td>
-                <td>@T(r.AktifKiraBitis)</td>
-                <td>@G(v.Kiralayan)</td>
-                <td class="num">@(v.KiraGun?.ToString() ?? "—")</td>
-                <td class="num">@P(v.KiraFiyat)</td>
-                <td>@T(v.KiraBitTar)</td>
-                <td>@T(v.KiraBekTar)</td>
-                <td class="num">@(v.SonTeslimKm?.ToString() ?? "—")</td>
-                <td>@T(v.SonTeslimTarihi)</td>
-                <td>@G(v.AssistanFirma)</td>
-                <td>@G(v.HgsFirma)</td>
-                <td class="num">@(v.DisKmLimit?.ToString() ?? "—")</td>
-                <td>@G(v.TsbKodu)</td>
-                <td class="num">@P(v.TsbKaskoDegeri)</td>
-                <td>@G(v.OdemeSekli)</td>
-                <td class="num">@P(r.SatisHedefFiyat)</td>
-                <td>@T(r.IhaleTarihi)</td>
-                <td>@G(r.IhaleFirmasi)</td>
-                <td>@T(r.NoterSatisTarihi)</td>
-                <td>@T(v.FiloGirisTarih)</td>
-                <td>@T(v.FiloCikisTarih)</td>
-                <td>@G(v.PasifSebep)</td>
-                <td>@G(v.SonDurum)</td>
-                <td>@G(v.OzelKod1)</td>
-                <td>@G(v.OzelKod2)</td>
-                <td>@G(v.OzelKod3)</td>
-                <td>@G(v.OzelKod4)</td>
-                <td>@G(v.OzelKod5)</td>
+                <th>Plaka</th><th>Marka</th><th>Tip</th><th>Grup</th><th>Şube</th><th>Durum</th>
+                <th>Belge No</th><th>Ruhsat Sahibi</th><th>Söz. No</th><th>Aracı Alan</th>
+                <th>Alım Firma</th><th>Alım Tarihi</th><th class="num">Alım Bedeli</th>
+                <th>EUR mu</th><th class="num">Alış EUR</th><th class="num">Hedef Satış EUR</th>
+                <th>Kredi Bankası</th><th>Muayene Bitiş</th><th>Kasko Bitiş</th><th>Trafik Bitiş</th>
+                <th>Aktif Kira Müşteri</th><th>Aktif Kira Sözleşme</th><th>Aktif Kira Bitiş</th>
+                <th>Kiralayan (not)</th><th class="num">Kira Gün (not)</th><th class="num">Kira Fiyat (not)</th>
+                <th>Kira Bitiş (not)</th><th>Beklenen Dönüş (not)</th>
+                <th class="num">Son Teslim KM</th><th>Son Teslim Tarihi</th>
+                <th>Assistans</th><th>HGS Firma</th><th class="num">Dış KM Limiti</th>
+                <th>TSB Kodu</th><th class="num">TSB Kasko</th><th>Ödeme Şekli</th>
+                <th class="num">Hedef Satış Fiyatı</th><th>İhale Tarihi</th><th>İhale Firması</th><th>Noter Satış</th>
+                <th>Filo Giriş</th><th>Filo Çıkış</th><th>Pasif Sebebi</th><th>Son Durum</th>
+                <th>Özel 1</th><th>Özel 2</th><th>Özel 3</th><th>Özel 4</th><th>Özel 5</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @if (_rows.Count == 0)
+            {
+                <tr><td colspan="49" class="muted">@(FiltreVar ? "Filtreye uyan araç yok." : "Araç yok.")</td></tr>
+            }
+            @foreach (var r in _rows)
+            {
+                var v = r.Arac;
+                <tr>
+                    <td class="mono"><a href="/araclar/@v.Id">@v.Plaka</a></td>
+                    <td>@G(v.Marka)</td>
+                    <td>@G(v.Tip)</td>
+                    <td>@G(v.Grup)</td>
+                    <td>@G(v.Sube)</td>
+                    <td>@v.Durum</td>
+                    <td>@G(v.BelgeNo)</td>
+                    <td>@G(v.RuhsatSahibi)</td>
+                    <td>@G(v.SozNo)</td>
+                    <td>@G(v.AraciAlan)</td>
+                    <td>@G(v.AlimYapilanFirma)</td>
+                    <td>@T(v.AlimTarihi)</td>
+                    <td class="num">@P(v.AlimBedeli)</td>
+                    <td>@(v.AlisEuro == true ? "Evet" : "—")</td>
+                    <td class="num">@P(v.AlisEuroFiyat)</td>
+                    <td class="num">@P(v.SatisEuroFiyat)</td>
+                    <td>@G(r.KrediBanka)</td>
+                    <td>@T(r.MuayeneBitis)</td>
+                    <td>@T(r.KaskoBitis)</td>
+                    <td>@T(r.TrafikBitis)</td>
+                    @* Aktif kira: CANLI çözüldü (araçta kolon YOK). *@
+                    <td>@G(r.AktifKiraMusteri)</td>
+                    <td class="mono">@G(r.AktifKiraSozlesmeNo)</td>
+                    <td>@T(r.AktifKiraBitis)</td>
+                    <td>@G(v.Kiralayan)</td>
+                    <td class="num">@(v.KiraGun?.ToString() ?? "—")</td>
+                    <td class="num">@P(v.KiraFiyat)</td>
+                    <td>@T(v.KiraBitTar)</td>
+                    <td>@T(v.KiraBekTar)</td>
+                    <td class="num">@(v.SonTeslimKm?.ToString() ?? "—")</td>
+                    <td>@T(v.SonTeslimTarihi)</td>
+                    <td>@G(v.AssistanFirma)</td>
+                    <td>@G(v.HgsFirma)</td>
+                    <td class="num">@(v.DisKmLimit?.ToString() ?? "—")</td>
+                    <td>@G(v.TsbKodu)</td>
+                    <td class="num">@P(v.TsbKaskoDegeri)</td>
+                    <td>@G(v.OdemeSekli)</td>
+                    <td class="num">@P(r.SatisHedefFiyat)</td>
+                    <td>@T(r.IhaleTarihi)</td>
+                    <td>@G(r.IhaleFirmasi)</td>
+                    <td>@T(r.NoterSatisTarihi)</td>
+                    <td>@T(v.FiloGirisTarih)</td>
+                    <td>@T(v.FiloCikisTarih)</td>
+                    <td>@G(v.PasifSebep)</td>
+                    <td>@G(v.SonDurum)</td>
+                    <td>@G(v.OzelKod1)</td>
+                    <td>@G(v.OzelKod2)</td>
+                    <td>@G(v.OzelKod3)</td>
+                    <td>@G(v.OzelKod4)</td>
+                    <td>@G(v.OzelKod5)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 </div>
 
 @code {

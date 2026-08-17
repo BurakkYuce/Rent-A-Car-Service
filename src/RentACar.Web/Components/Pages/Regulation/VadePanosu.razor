@@ -14,7 +14,9 @@
 </form>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satırlar karta döner. Telefonda "hangi araç, neyin vadesi,
+   ne zaman doluyor, ne kadar kaldı, ne kadar acil" — beş alanın hepsi karar için gerekli. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr><th>Araç</th><th>Tür</th><th>Bitiş</th><th>Kalan Gün</th><th>Durum</th></tr>
     </thead>
@@ -26,11 +28,11 @@
         @foreach (var i in _items.Where(x => PlakaUyar(x.VehicleId)))
         {
             <tr>
-                <td>@Plaka(i.VehicleId)</td>
-                <td>@i.Tur</td>
-                <td>@i.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>@i.KalanGun</td>
-                <td><span class="badge @BucketClass(i.Bucket)">@BucketLabel(i.Bucket)</span></td>
+                <td class="kart-baslik">@Plaka(i.VehicleId)</td>
+                <td data-etiket="Tür">@i.Tur</td>
+                <td data-etiket="Bitiş">@i.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
+                <td data-etiket="Kalan Gün">@i.KalanGun</td>
+                <td data-etiket="Durum"><span class="badge @BucketClass(i.Bucket)">@BucketLabel(i.Bucket)</span></td>
             </tr>
         }
     </tbody>

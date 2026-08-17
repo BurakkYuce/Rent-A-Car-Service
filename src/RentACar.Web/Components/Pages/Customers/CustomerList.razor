@@ -87,7 +87,10 @@
 </div>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta YALNIZ data-etiket taşıyan hücreler görünür.
+   Kart başlığı Ad/Ünvan (ilk kolon Tür değil — cariyi telefonda ADIYLA tanırsın); kalanlar cariyi
+   ayırt eden kimlik no, telefon, ciro ve uyarı rozetleri. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr>
             <th>Tür</th><th>Ad / Ünvan</th><th>TC / Vergi No</th><th>Telefon</th>
@@ -104,10 +107,10 @@
         @foreach (var c in _page.Items)
         {
             <tr>
-                <td>@c.Tip</td>
-                <td><a href="/cariler/@c.Id">@c.DisplayName</a></td>
-                <td>@(c.Tip == CariType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
-                <td>@c.CepTel</td>
+                <td data-etiket="Tür">@c.Tip</td>
+                <td class="kart-baslik"><a href="/cariler/@c.Id">@c.DisplayName</a></td>
+                <td data-etiket="TC / Vergi No">@(c.Tip == CariType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
+                <td data-etiket="Telefon">@c.CepTel</td>
                 <td>@(c.Gsm2 ?? "—")</td>
                 <td>@(c.Ilce ?? "—")</td>
                 <td>@(c.MusteriTemsilcisi ?? "—")</td>
@@ -117,9 +120,9 @@
                 <td class="num">@(c.VadeGun?.ToString() ?? "—")</td>
                 <td>@c.Kaynak</td>
                 <td class="num">@c.KiraAdet</td>
-                <td class="num">@c.Ciro.ToString("N2")</td>
+                <td class="num" data-etiket="Ciro">@c.Ciro.ToString("N2")</td>
                 <td>@(c.SonKira?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
-                <td>
+                <td data-etiket="Durum">
                     @if (c.KaraListe) { <span class="badge danger">Kara Liste</span> }
                     @if (c.Uyari) { <span class="badge warn">Uyarı</span> }
                     @if (c.IysIzinli) { <span class="badge">İYS</span> }
@@ -128,7 +131,7 @@
                     @if (c.AracVerilmez) { <span class="badge danger">Araç Verilmez</span> }
                     @if (!string.IsNullOrWhiteSpace(c.UyariNedeni)) { <span class="badge warn" title="@c.UyariNedeni">Not</span> }
                 </td>
-                <td class="row-actions">
+                <td class="row-actions kart-aksiyon">
                     <a href="/cariler/@c.Id/detay" class="link">Detay</a>
                     <a href="/cariler/@c.Id/ekstre" class="link">Ekstre</a>
                     <form method="post" action="/cariler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />

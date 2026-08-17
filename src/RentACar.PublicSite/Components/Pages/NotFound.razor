@@ -2,4 +2,19 @@
 
 <PageTitle>Bulunamadı</PageTitle>
 
-<h1>Sayfa bulunamadı</h1>
+@* Sayfa HİÇBİR düzen sınıfı kullanmıyordu: <h1> doğrudan <main>'in içindeydi ve mobilde
+   metin ekranın sol kenarına yapışıyordu (kenar boşluğu yalnız `.container`'dan geliyor).
+   Sitenin diğer sayfalarıyla AYNI kabuk kullanılıyor — boşluk ve tipografi tek yerden
+   gelsin, 404 sayfası "yarım kalmış" görünmesin.
+
+   Ayrıca bir ÇIKIŞ yolu eklendi: 404'e düşen ziyaretçinin tek eylemi tarayıcı geri
+   düğmesi olmamalı. *@
+<div class="container">
+    <header class="site-header">
+        <h1>Sayfa bulunamadı</h1>
+        <p class="contact">Aradığınız sayfa taşınmış, kaldırılmış ya da adresi yanlış
+            yazılmış olabilir.</p>
+    </header>
+
+    <a class="back-link" href="/">← Ana sayfaya dön</a>
+</div>

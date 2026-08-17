@@ -74,7 +74,10 @@
 <p class="muted small">@_rows.Count sözleşme • @_rows.Count(r => r.Durum == RentalStatus.Kirada) kirada • @_rows.Count(r => !r.Faturali) faturasız</p>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta YALNIZ data-etiket taşıyan hücreler görünür —
+   23 kolonu telefona dökmek tabloyu okumaktan kötü olurdu. Kartta kalanlar: sözleşmeyi tanımlayan
+   müşteri/araç, dönem, para (tutar + BAKİYE) ve durum. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         @* FAZ-46 — canlı kira_listesi.aspx kolonları. Provizyon/Depozito/Komisyon BİLGİDİR:
            bakiyeye ve deftere girmez, bu yüzden sayfa altındaki özet satırında da TOPLANMAZ. *@
@@ -92,15 +95,15 @@
         @foreach (var r in _rows)
         {
             <tr>
-                <td><a href="/kiralar/@r.Id">@r.SozlesmeNo</a></td>
-                <td>@r.MusteriAd</td>
-                <td>@r.Plaka</td>
-                <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
+                <td class="kart-baslik"><a href="/kiralar/@r.Id">@r.SozlesmeNo</a></td>
+                <td data-etiket="Müşteri">@r.MusteriAd</td>
+                <td data-etiket="Araç">@r.Plaka</td>
+                <td data-etiket="Tarih">@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm") – @r.BitTar.LocalDateTime.ToString("dd.MM HH:mm")</td>
                 <td>@(r.VadeTar is { } v ? v.LocalDateTime.ToString("dd.MM.yyyy") : "—")</td>
                 <td>@r.Gun</td>
                 <td>@(r.HediyeGun is { } hg ? hg.ToString() : "—") / @(r.FaturalananGun is { } fg ? fg.ToString() : "—")</td>
-                <td class="num">@r.Tutar.ToString("N2")</td>
-                <td class="num">@r.Bakiye.ToString("N2")</td>
+                <td class="num" data-etiket="Tutar">@r.Tutar.ToString("N2")</td>
+                <td class="num" data-etiket="Bakiye">@r.Bakiye.ToString("N2")</td>
                 <td>@(r.Kaynak ?? "—")</td>
                 <td>@(r.CikisOfisi ?? "—")</td>
                 <td>@(r.DonusOfisi ?? "—")</td>
@@ -112,9 +115,9 @@
                 <td>@(r.ProjeAdi ?? "—")</td>
                 <td>@(r.AssistFirma ?? "—")</td>
                 <td>@(r.OzelSoforBilgisi ?? "—")</td>
-                <td>@r.Durum</td>
+                <td data-etiket="Durum">@r.Durum</td>
                 <td>@(r.Faturali ? "Faturalı" : "—")</td>
-                <td class="row-actions">
+                <td class="row-actions kart-aksiyon">
                     <a href="/kiralar/@r.Id/pdf" class="link" target="_blank" rel="noopener" title="Tarayıcıda görüntüler (indirmez)">Sözleşme (PDF)</a>
                     @if (r.Durum == RentalStatus.Kirada)
                     {

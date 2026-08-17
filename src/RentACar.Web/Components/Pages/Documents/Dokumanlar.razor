@@ -50,7 +50,9 @@
 else
 {
     <div class="table-scroll">
-        <table class="grid tr-grid">
+        @* kart-mobil: 640px altında satırlar karta döner. Başlık (+açıklama) kartın başlığı;
+           boyut/yükleyen/tarih etiketli satırlar; İndir ve Sil alt aksiyon şeridinde kalır. *@
+        <table class="grid tr-grid kart-mobil">
             <thead>
                 <tr><th>Belge</th><th class="num">Boyut</th><th>Yükleyen</th><th>Tarih</th><th></th></tr>
             </thead>
@@ -58,14 +60,14 @@ else
                 @foreach (var d in _satirlar)
                 {
                     <tr>
-                        <td>
+                        <td class="kart-baslik">
                             @d.Baslik
                             @if (!string.IsNullOrWhiteSpace(d.Aciklama)) { <br /><span class="muted small">@d.Aciklama</span> }
                         </td>
-                        <td class="num">@(Math.Max(1, d.Boyut / 1024)) KB</td>
-                        <td>@(d.YukleyenKullanici ?? "—")</td>
-                        <td>@d.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</td>
-                        <td class="row-actions">
+                        <td class="num" data-etiket="Boyut">@(Math.Max(1, d.Boyut / 1024)) KB</td>
+                        <td data-etiket="Yükleyen">@(d.YukleyenKullanici ?? "—")</td>
+                        <td data-etiket="Tarih">@d.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                        <td class="row-actions kart-aksiyon">
                             <a class="link" href="/dokumanlar/@d.Id/indir">İndir</a>
                             <AuthorizeView Roles="@YazmaRolleri" Context="silCtx">
                                 <form method="post" action="/dokumanlar/sil" style="display:inline">

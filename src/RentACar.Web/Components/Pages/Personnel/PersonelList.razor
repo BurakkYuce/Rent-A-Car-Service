@@ -42,7 +42,10 @@
 <p class="muted small">@_list.Count personel@(FiltreVar ? " (filtreli)" : "")</p>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satırlar karta döner. Kartta kimliği taşıyan alanlar kaldı
+   (sicil + ad soyad + görev + şube + cep + durum); mail, sürücü belgesi, tablet no ve işe
+   giriş masaüstünde kalıyor — telefonda listeden doğru kişiyi seçmek için gerekmiyorlar. *@
+<table class="grid tr-grid kart-mobil">
     <thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Görev</th><th>Şube</th><th>Cep Tel</th><th>Mail</th><th>Sür. Belge</th><th>Rac Tablet</th><th>İşe Giriş</th><th>Durum</th><th></th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
@@ -52,17 +55,17 @@
         @foreach (var p in _list)
         {
             <tr>
-                <td class="mono">@p.Kod</td>
-                <td>@p.Ad @p.Soyad</td>
-                <td>@(p.GorevTanimi ?? "—")</td>
-                <td>@p.Sube</td>
-                <td>@(p.CepTel ?? "—")</td>
+                <td class="mono" data-etiket="Sicil">@p.Kod</td>
+                <td class="kart-baslik">@p.Ad @p.Soyad</td>
+                <td data-etiket="Görev">@(p.GorevTanimi ?? "—")</td>
+                <td data-etiket="Şube">@p.Sube</td>
+                <td data-etiket="Cep Tel">@(p.CepTel ?? "—")</td>
                 <td>@(p.MailAdresi ?? "—")</td>
                 <td>@(p.SurucuBelgeNo ?? "—")</td>
                 <td>@(p.RacTabletNo ?? "—")</td>
                 <td>@(p.IseGiris?.ToString("yyyy-MM-dd"))</td>
-                <td>@(p.Aktif ? "Aktif" : "Pasif")</td>
-                <td><a href="/personel?duzenle=@p.Id">Düzenle</a></td>
+                <td data-etiket="Durum">@(p.Aktif ? "Aktif" : "Pasif")</td>
+                <td class="kart-aksiyon"><a href="/personel?duzenle=@p.Id">Düzenle</a></td>
             </tr>
         }
     </tbody>

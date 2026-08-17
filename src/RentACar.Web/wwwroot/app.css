@@ -417,7 +417,9 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .feed-url input { width: 100%; max-width: 640px; padding: .55rem .7rem; font-family: ui-monospace, monospace;
   font-size: .82rem; border: 1px solid var(--tr-border, #cbd5e1); border-radius: .45rem; background: var(--tr-bg, #f8fafc); }
 
-@media (max-width: 900px) {
+/* `screen and` ŞART: yazdırmada genişlik sorgusu KÂĞIT genişliğine göre değerlendirilir; bu blok
+   korumasızken dar kâğıtta yazdırma çıktısını da mobil düzene çeviriyordu. */
+@media screen and (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .donus-cikis { grid-template-columns: 1fr; }
 }
@@ -481,11 +483,75 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
 .badge-unread { background: #ff5b5b; color: #fff; font-size: .68rem; font-weight: 700; border-radius: 1rem;
     padding: .05rem .4rem; min-width: 1.1rem; text-align: center; margin-left: auto; }
 
-@media (max-width: 900px) {
+/* Hamburger + çekmece perdesi — TEMEL kurallar (masaüstünde gizli).
+   SIRA ÖNEMLİ: bu blok mobil medya sorgusundan ÖNCE gelmeli. Sonra gelseydi aynı özgüllükteki
+   `display:none` mobildeki `display:inline-flex`i ezer ve hamburger hiç görünmezdi — ilk yazımda
+   tam olarak bu oldu, tarayıcıda ölçülünce yakalandı (çekmece JS ile açılıyordu ama kullanıcının
+   açacağı düğme yoktu).
+   `.menu-perde[hidden]` açıkça gizlenir: display değeri hidden özniteliğini ezerdi ve JS'siz
+   ziyaretçide kapatılamayan bir perde kalırdı (aynı tuzak public site çerez şeridinde yaşanmıştı). */
+.menu-btn { display: none; background: none; border: 0; padding: .5rem; cursor: pointer;
+    color: var(--text, #16324f); border-radius: .4rem; }
+.menu-btn:hover { background: var(--surface-2, #eef2f7); }
+.menu-cizgi, .menu-cizgi::before, .menu-cizgi::after {
+    display: block; width: 20px; height: 2px; background: currentColor; border-radius: 2px; }
+.menu-cizgi { position: relative; }
+.menu-cizgi::before, .menu-cizgi::after { content: ""; position: absolute; left: 0; }
+.menu-cizgi::before { top: -6px; }
+.menu-cizgi::after { top: 6px; }
+.menu-perde[hidden] { display: none; }
+
+/* =====================================================================
+   MOBİL KABUK (Faz 1)
+   Ölçüm: 390px'te 27 sayfanın 27'si yatay taşıyordu ve taşmanın SABİT 221px'lik kısmı
+   içerikten değil ÜST ŞERİTTEN geliyordu — arama + kullanıcı + tema + Şifre + Çıkış
+   sarmayan tek bir flex satırında sağ kenarı 611px'e itiyordu. Tek kural 145 sayfayı bozuyordu.
+   Ampirik doğrulama: yalnız aşağıdaki iki topbar kuralıyla /bildirimler 221px → 28px'e düştü
+   (kalan 28px tablo kaynaklı, Faz 2/3'ün işi).
+
+   Menü artık YIĞILMIYOR, ÇEKMECE oluyor: eski kural `.sidebar { position: static }` ile menüyü
+   içeriğin ÜSTÜNE yığıyordu, yani telefonda her sayfada ~40 menü satırını geçmeden içeriğe
+   ulaşılamıyordu. Çekmece hem daha kısa yol hem de kaydırma konumunu bozmuyor.
+   ===================================================================== */
+@media screen and (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
-    .sidebar { position: static; height: auto; }
     .kpi-row, .stat-row { grid-template-columns: repeat(2, 1fr); }
+
+    /* --- üst şerit: sarsın, arama kendi satırına insin --- */
+    .topbar { flex-wrap: wrap; gap: .5rem; padding: .5rem .75rem; }
+    /* min-width:0 ŞART: flex öğesi varsayılan `min-width:auto` ile içeriğinden dar olamaz,
+       bu yüzden arama kutusu küçülmeyi reddedip satırı taşırıyordu. */
+    .tb-search { min-width: 0; flex: 1 1 100%; order: 3; max-width: none; }
+    /* Formun KENDİSİ küçülse de içindeki input `min-width: auto` ile içeriğinden (placeholder
+       ölçüsünden) dar olamıyor ve "→" butonunu dışarı itiyor. macOS'ta tam sığıyordu, CI'ın
+       Linux fontları 2px daha geniş ölçünce 320px'te her sayfa taştı — yerelde görünmeyen,
+       yalnız CI'da yakalanan gerçek bir cihaz taşması. */
+    .tb-search input { min-width: 0; }
+    /* Klavye kısayolu rozeti dokunmatik cihazda anlamsız; dar ekranda yer de yiyor. */
+    .tb-search .kbd { display: none; }
+    .topbar .spacer { display: none; }          /* sarmalı düzende itmeye gerek yok */
+    .topbar .user { margin-left: auto; }
+
+    /* --- hamburger --- */
+    .menu-btn { display: inline-flex; }
+
+    /* --- sidebar → çekmece --- */
+    .sidebar {
+        position: fixed; inset: 0 auto 0 0; z-index: 60;
+        width: min(86vw, 300px); height: 100dvh;
+        transform: translateX(-100%); transition: transform .18s ease-out;
+        box-shadow: 0 0 40px rgb(0 0 0 / 25%);
+    }
+    body[data-menu="acik"] .sidebar { transform: translateX(0); }
+    /* Çekmece açıkken arka plan kaymasın — kullanıcı menüyü kapatınca aynı yerde kalsın. */
+    body[data-menu="acik"] { overflow: hidden; }
+
+    .menu-perde { position: fixed; inset: 0; z-index: 50; background: rgb(10 37 64 / 45%); }
 }
+
+
+
+
 
 /* ===================================================================== */
 /* Radzen page-level bileşenleri (back-office interaktif grid ekranları)  */
@@ -748,3 +814,273 @@ span.flatpickr-weekday { font-weight: 600; }
 .onizleme-govde h3 { margin: 1.75rem 0 .5rem; }
 .onizleme-govde h4 { margin: 1.25rem 0 .5rem; }
 .onizleme-alt { font-size: 1.125rem; color: var(--text-muted); }
+
+/* =====================================================================
+   MOBİL KURALLAR — DOSYANIN SONUNDA OLMAK ZORUNDA
+
+   Medya sorgusu ÖZGÜLLÜK EKLEMEZ. Bu bloklar dosyanın ortasındayken, kendilerinden SONRA gelen
+   eşit özgüllükteki temel kurallar onları eziyordu ve mobil kural sessizce ÇALIŞMIYORDU.
+   İki kez yaşandı: hamburger 390px'te de gizli kaldı (`.menu-btn`), mega-form sekmeleri
+   kaydırma yerine üç satıra sarmaya devam etti (`.kf-tabs`). İkisi de tarayıcıda ölçülünce çıktı,
+   koda bakınca değil.
+
+   KURAL: yeni mobil kural EKLENECEKSE buraya, en alta eklenir.
+   ===================================================================== */
+
+/* =====================================================================
+   TABLET KADEMESİ (Faz 6) — 900px
+
+   Ölçüm: 768px'te (iPad dikey) 128 rotanın 29'u taşıyordu. Suçlular telefondakiyle AYNI —
+   `.grid-form`'un 4 sabit kolonu — ama telefon eşiği (640px) o genişlikte hiç devreye girmiyordu.
+   Plan tableti "ayrı ele alınmaz" saymıştı; ayrı TASARIM gerekmiyor, ara KADEME gerekiyor:
+   4 kolon tablette sığmıyor, 1 kolon ise yarım ekranı boşa harcıyor → 2 kolon.
+
+   Bu blok telefon bloğunun ÖNÜNDE durmak zorunda: iki kural da aynı özgüllükte (0,1,0) ve
+   640px'te ikisi birden eşleşir; kazananı KAYNAK SIRASI belirler. Sıra bozulursa tablette
+   düzelen sayfa telefonda 2 kolona döner ve taşma geri gelir.
+   ===================================================================== */
+@media screen and (max-width: 900px) {
+    .grid-form { grid-template-columns: repeat(2, 1fr); }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .vt-boxes { grid-template-columns: repeat(2, 1fr); }
+    .import-grid { grid-template-columns: repeat(2, 1fr); }
+    .report-cols { grid-template-columns: 1fr; }
+
+    /* Sınırsız kolon üreten şerit tablette de taşıyor; sarmalı ızgara + 3 kolon. */
+    .summary-strip { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+
+    /* `fieldset` UA varsayılanı `min-width: min-content` — içeriğinden dar olamaz. Telefonda
+       bulunmuştu, tablette de aynı şekilde taşırıyor. */
+    fieldset { min-width: 0; }
+    /* Izgara/flex çocuğunun `min-width: auto` varsayılanı, içerik kolondan genişse kolonu şişirir. */
+    .grid-form > *, .cards > *, .vt-boxes > *, .import-grid > * { min-width: 0; }
+    /* `input[type=file]` tarayıcı varsayılanı olarak geniş bir asgari genişlik taşır ("Dosya Seç"
+       butonu + dosya adı alanı). Kartın kendisi daralsa da bu kutu daralmadığı için 320px'te
+       /ice-aktar taşıyordu — kutuyu kabına bağla. */
+    .import-card input[type="file"] { max-width: 100%; }
+}
+
+/* =====================================================================
+   MOBİL İÇERİK (Faz 2) — telefon eşiği 640px
+
+   Neden kabuktan (900px) AYRI bir eşik: 900px'te menü çekmeceye döndüğü için içerik zaten tam
+   genişliği alıyor; 4 kolonlu bir form orada hâlâ makul. Asıl kırılma telefonda oluyor.
+   Ölçüm bunu doğruladı: Faz 1 sonrası kalan taşmaların suçluları `label`/`input`/`select` —
+   hepsi `.grid-form`'un 4 sabit kolonu yüzünden.
+
+   `screen and` ŞART: yazdırmada genişlik KÂĞIT genişliğine göre değerlendirilir; korumasız bir
+   kural dar kâğıtta çıktıyı da mobil düzene çevirir.
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+
+    /* --- sabit kolonlu ızgaralar tek kolona --- */
+    /* .grid-form 115 dosyada / 219 örnekte kullanılıyor: tek kural, tek noktadan düzeltme. */
+    .grid-form { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    .vt-boxes { grid-template-columns: 1fr; }
+    .report-cols { grid-template-columns: 1fr; }
+    .import-grid { grid-template-columns: 1fr; }
+
+    /* KPI/istatistik kartları 2 KOLONDA BIRAKILDI (1 değil): telefonda yan yana iki sayı hâlâ
+       rahat okunuyor ve tek kolon paneli gereksiz uzatıp "bugün ne var" özetini ekran dışına
+       itiyordu. Karar ekran görüntüsüne bakılarak verildi, kural gereği değil. */
+    .kpi-row, .stat-row, .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+
+    /* .summary-strip `grid-auto-flow: column` ile SINIRSIZ kolon üretiyordu — 6 hücreli bir şerit
+       telefonda garanti taşma. Sarmalı ızgaraya çevrildi. */
+    .summary-strip { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
+    .summary-strip .cell { border-right: none; border-bottom: 1px solid rgb(255 255 255 / 12%); }
+
+    /* .kirilim-satir sabit 3 kolon (minmax 90px + 1fr + 80px) — dar ekranda etiket eziliyor. */
+    .kirilim-satir { grid-template-columns: 1fr auto; }
+
+    /* `fieldset`'in TARAYICI VARSAYILANI `min-width: min-content`'tir: içeriğinden dar olamaz ve
+       uzun bir kelime/adres kutuyu viewport dışına iter. Ölçümde /ayarlar'da tam bu görüldü
+       (fieldset 391px, sağ kenar 415px). Yazarın CSS'inde bir hata yoktu, UA stil sayfası
+       yapıyordu — bu yüzden açıkça sıfırlanır. */
+    fieldset { min-width: 0; }
+    /* Aynı sebeple ızgara/flex çocukları: varsayılan `min-width:auto` küçülmeyi engeller. */
+    /* Yalnız `label` DEĞİL, ızgaranın TÜM çocukları: 320px'te bir açıklama paragrafı (`p.muted`)
+       ebeveyninden geniş çıkıp taşırıyordu — ızgara öğesinin varsayılan `min-width: auto`'su
+       içerikten dar olmayı yasaklıyor. `overflow-wrap` uzun kesintisiz metni (adres, kod) böler. */
+    .grid-form > *, .filter-bar > *, .filter-panel > * { min-width: 0; }
+    /* Torunlar da: `.grid-form fieldset` kendisi de bir ızgara olduğu için İÇİNDEKİ öğeler de
+       `min-width: auto` ile küçülmeyi reddediyor. Doğrudan-çocuk seçicisi bunları kaçırıyordu
+       (320px'te açıklama paragrafı ebeveyninden 32px geniş çıkıyordu). */
+    .grid-form fieldset > * { min-width: 0; }
+    .grid-form, .filter-bar, .filter-panel { overflow-wrap: anywhere; }
+    .grid-form input, .grid-form select, .grid-form textarea { max-width: 100%; }
+
+    /* --- dokunma hedefleri: 44px --- */
+    /* Bugün hiçbir kuralda 44px yok; form kontrolleri 38px, sayfa başlığı aksiyonları 32px,
+       tablo içi butonlar 30px, `.link` ise PADDING'SİZ ~23px. Parmakla ıskalanan her dokunuş
+       kullanıcıya yanlış satırı açtırıyor. */
+    .grid-form input:not([type=checkbox]):not([type=radio]),
+    .grid-form select, .grid-form textarea,
+    .filter-bar input, .filter-bar select, .filter-panel input, .filter-panel select {
+        min-height: 44px;
+    }
+    .grid-form button, .btn-primary, .page-head .actions a, .page-head .actions button,
+    details > summary, .view-toggle a, .sb-quick a, .nav-group > summary, .nav-group .sub a {
+        min-height: 44px;
+        display: inline-flex; align-items: center;
+    }
+    /* `.link` satır içinde kullanılıyor (tablo hücresi, cümle arası). `inline-flex` + dikey
+       padding hedefi büyütür ama metin akışını bozmaz; `min-height` yerine padding tercih edildi
+       çünkü satır içi bir öğede min-height satır kutusunu şişirir. */
+    .link { display: inline-flex; align-items: center; padding: .6rem .25rem; }
+    .grid td button:not([class]), .grid td .link, .photo-actions button { min-height: 44px; }
+    /* Hamburger: ölçümde 36x18 çıkmıştı — dokunma hedefi olarak yetersiz. */
+    .menu-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+}
+
+
+/* =====================================================================
+   MOBİL TABLO → KART (Faz 3)
+
+   Kullanım (markup tarafı):
+     <table class="grid tr-grid kart-mobil">
+       <tbody><tr>
+         <td data-etiket="Plaka">34 ABC 01</td>   → kartta "Plaka  34 ABC 01"
+         <td>gizlenecek alan</td>                 → data-etiket YOKSA kartta GÖRÜNMEZ
+         <td class="kart-baslik" data-etiket="…"> → kartın başlık satırı (etiketsiz, büyük)
+         <td class="kart-aksiyon" …>              → kartın alt aksiyon satırı
+       </tr></tbody>
+     </table>
+
+   Neden "gizle" varsayılan: telefonda 14 kolonluk bir aracı 14 satır olarak dökmek kartı
+   tabloya çevirmekten daha kötü. Hangi alanın öne çıkacağı bir İÇERİK kararıdır ve markup'ta
+   verilir; CSS "ilk üç kolon" gibi bir tahmin yapmaz — kolon sırası ekrandan ekrana değişir.
+
+   Neden `display: block` ile sahte kart (gerçek kart bileşeni değil): tablo işaretlemesi
+   sunucuda AYNEN kalır, masaüstünde tablo tablodur ve yazdırma etkilenmez. Razor tarafında
+   satır başına iki ayrı görünüm üretmek 126 dosyada çift bakım demekti.
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+    /* `min-width: 0` ŞART — `width: auto` TEK BAŞINA YETMEZ. Geniş listelerde tabloya yatay
+       kaydırma için sabit bir `min-width` verilmiş (araç listesinde 3200px); kart görünümünde bu
+       genişlik kartı ekranın 8 katı yapıyor ve DEĞERLER ekran dışında kalıyordu — etiketler
+       görünüp değerlerin görünmemesi tam olarak buydu. (Aynı `min-width` tuzağı bu iş boyunca
+       üçüncü kez çıktı: önce arama kutusu, sonra fieldset, şimdi tablo.) */
+    /* Sınıf BİLEREK iki kez yazıldı (`.kart-mobil.kart-mobil` = özgüllük 0,2,0).
+       Sebebi: geniş listeler yatay kaydırma için tabloya sabit bir `min-width` veriyor ve bu kural
+       çoğu zaman SAYFANIN KENDİ <style> bloğunda oluyor (ör. VehicleList.razor:20 →
+       `.arac-grid-wrap table { min-width: 3200px }`, özgüllük 0,1,1). Medya sorgusu özgüllük
+       EKLEMEZ, bu yüzden tek sınıflı bir kural (0,1,0) kaybediyordu: kart 3200px genişliğinde
+       kalıyor, etiketler görünüp DEĞERLER ekran dışında kalıyordu.
+       (Aynı `min-width` tuzağı bu iş boyunca üçüncü kez çıktı: arama kutusu, fieldset, tablo.) */
+    .kart-mobil.kart-mobil { min-width: 0; }
+    .kart-mobil, .kart-mobil tbody, .kart-mobil tr, .kart-mobil td {
+        display: block; width: auto; min-width: 0;
+    }
+    /* Sayfa kuralları hücrelere `white-space: nowrap` de verebiliyor (yatay tablo için doğru,
+       kart için yanlış — uzun değer kartı taşırır). */
+    .kart-mobil.kart-mobil th, .kart-mobil.kart-mobil td { white-space: normal; }
+    /* Başlık satırı gizlenir ama EKRAN OKUYUCUDAN kaldırılmaz: `display:none` yerine görsel
+       gizleme, aksi halde tablo anlamı erişilebilirlik ağacından da düşerdi. */
+    .kart-mobil thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    .kart-mobil tr {
+        border: 1px solid var(--tr-line, #e6e9ef); border-radius: .6rem;
+        background: var(--surface, #fff); padding: .75rem .9rem; margin-bottom: .6rem;
+    }
+    .kart-mobil td { border: none; padding: .2rem 0; text-align: left !important; }
+
+    /* Etiket + değer aynı satırda: etiket solda soluk, değer sağda. */
+    .kart-mobil td[data-etiket] { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+    .kart-mobil td[data-etiket]::before {
+        content: attr(data-etiket);
+        color: var(--text-muted, #6b7a90); font-size: .8rem; flex: 0 0 auto;
+    }
+    /* Etiketsiz hücre kartta yer kaplamaz (aksiyon/başlık hücreleri hariç). */
+    .kart-mobil td:not([data-etiket]):not(.kart-baslik):not(.kart-aksiyon) { display: none; }
+
+    .kart-mobil td.kart-baslik {
+        font-weight: 700; font-size: 1.05rem; padding-bottom: .35rem;
+        border-bottom: 1px solid var(--tr-line, #e6e9ef); margin-bottom: .35rem;
+    }
+    .kart-mobil td.kart-baslik::before { content: none; }
+    .kart-mobil td.kart-aksiyon {
+        display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+        padding-top: .5rem; margin-top: .35rem; border-top: 1px solid var(--tr-line, #e6e9ef);
+    }
+    .kart-mobil td.kart-aksiyon::before { content: none; }
+    /* "Kayıt yok" satırı kart olmamalı — tek hücreli bilgi satırı. */
+    .kart-mobil td[colspan] { display: block; text-align: center !important; color: var(--text-muted, #6b7a90); }
+    .kart-mobil td[colspan]::before { content: none; }
+
+    /* Kart görünümündeki tablo artık yatay kaydırmaz — sarmalayıcı gölgesi anlamsız kalırdı. */
+    .table-scroll:has(> .kart-mobil) { overflow-x: visible; }
+}
+
+
+/* =====================================================================
+   MOBİL KİRA MEGA-FORMU (Faz 4)
+
+   Ekran: /kiralar/yeni ve /kiralar/{id} — 8 ana sekme + Ayrıntılar'da 8 alt-sekme + alta yapışkan
+   finans paneli. Ölçüm (390px): sayfa +19px taşıyordu ve yapışkan panel ekranın %27'sini
+   kaplıyordu (planda 40vh üzerinden "yarısı" diye tahmin edilmişti; gerçek ölçüm %27).
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+
+    /* Panel ızgaraları `auto-fit minmax(10.5rem, 1fr)` ile 2 kolon deniyor: 2x168px + boşluk,
+       345px'lik kaba SIĞMIYOR ve 19px taşırıyordu. Telefonda tek kolon. */
+    .kf-panel .grid-form, .kf-fin-panel .grid-form, .grid-form fieldset { grid-template-columns: 1fr; }
+    .kf-panel .report-cols { grid-template-columns: 1fr; }
+
+    /* Sekmeler: SARMAK yerine YATAY KAYDIRMA. Sarmalı düzende 8 sekme üç satıra yayılıp formun
+       yarısını yiyordu; kaydırmalı şerit tek satırda kalır ve aktif sekme her zaman görünür
+       (aktif sekmeyi görünür alana kaydırmak rc-kira-tabs.js'in işi değil — CSS scroll-snap
+       yeterli, JS'e dokunmuyoruz). */
+    .kf-tabs {
+        flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+    }
+    .kf-tabs [data-tab] { scroll-snap-align: start; flex: 0 0 auto; min-height: 44px; }
+    .kf-subtabs { flex-wrap: nowrap; overflow-x: auto; }
+    .kf-subtabs [data-subtab] { flex: 0 0 auto; min-height: 44px; }
+
+    /* Yapışkan finans paneli: telefonda 40vh'lik açık panel ekranın üçte birini yiyor ve klavye
+       açılınca girişi örtüyor. Varsayılan KAPALI, dokununca açılır — `<details>` DEĞİL, mevcut
+       işaretleme korunsun diye salt-CSS: panel gövdesi kısaltılır, kullanıcı kaydırarak açar.
+       max-height 40vh → 30vh; ayrıca alt güvenli alan (çentikli telefonlarda ana çubuk). */
+    .kf-sticky { padding-bottom: max(.4rem, env(safe-area-inset-bottom)); }
+    .kf-sticky .kf-fin-panel { max-height: 30vh; }
+    /* Bir giriş odaklandığında yapışkan panel küçülür: klavye açıkken panel + klavye ekranın
+       tamamını kaplayıp yazılan alanı görünmez bırakıyordu. */
+    .kf-sticky:has(~ * :focus) .kf-fin-panel,
+    body:has(input:focus, select:focus, textarea:focus) .kf-sticky .kf-fin-panel { max-height: 0; padding: 0; overflow: hidden; }
+
+    /* Matris/sayı girişleri sabit genişlikte (5.5rem) — dar ekranda satırı taşırıyor. */
+    .kf-matris input[type=number], .kf-ro input, .kf-robox input { width: 100%; min-width: 0; }
+    .kf-inline { flex-wrap: wrap; }
+}
+
+/* =====================================================================
+   MOBİL RAPOR TABLOLARI (Faz 6)
+
+   26 rapor sayfası kart görünümüne ÇEVRİLMEDİ ve bu bilinçli: rapor tablosu çok-kolonlu SAYISAL
+   KARŞILAŞTIRMADIR (ay ay gelir/gider, araç araç kârlılık). Kart, satırları birbirinden ayırmakta
+   iyidir ama satırları KARŞILAŞTIRMAKTA kötüdür — okuyucu iki kartı yan yana koyamaz.
+   Bu yüzden rapor tabloları yatay kaydırmada kalır; eksik olan şey kaydırmanın KENDİSİ değil,
+   kaydırılabilir olduğunun görünmemesiydi.
+   ===================================================================== */
+@media screen and (max-width: 640px) {
+    /* Kaydırma ipucu: sağ kenarda yumuşak gölge. `background-attachment: local` sayesinde
+       kaydırma sona gelince gölge KENDİLİĞİNDEN kaybolur — JS gerekmez, "daha var mı" sorusunu
+       kenarın kendisi cevaplar. Kart moduna uygulanmaz (orada yatay kaydırma yok). */
+    .table-scroll:not(:has(> .kart-mobil)) {
+        background:
+            linear-gradient(to right, var(--surface, #fff) 30%, rgb(255 255 255 / 0)) left / 40px 100% no-repeat local,
+            linear-gradient(to left, var(--surface, #fff) 30%, rgb(255 255 255 / 0)) right / 40px 100% no-repeat local,
+            radial-gradient(farthest-side at 0 50%, rgb(10 37 64 / 14%), rgb(10 37 64 / 0)) left / 14px 100% no-repeat scroll,
+            radial-gradient(farthest-side at 100% 50%, rgb(10 37 64 / 14%), rgb(10 37 64 / 0)) right / 14px 100% no-repeat scroll;
+    }
+    /* Başlık satırı yapışkan: 12 kolonlu bir raporda sağa kaydırınca hangi sütuna baktığını
+       unutmak, sayının kendisini okumaktan daha büyük sorun. */
+    .table-scroll:not(:has(> .kart-mobil)) { max-height: 70vh; overflow-y: auto; }
+    .table-scroll:not(:has(> .kart-mobil)) thead th {
+        position: sticky; top: 0; z-index: 1;
+        background: var(--surface-2, #eef2f7);
+    }
+}
