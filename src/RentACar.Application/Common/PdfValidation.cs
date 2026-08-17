@@ -7,8 +7,12 @@ namespace RentACar.Application.Common;
 /// </summary>
 public static class PdfValidation
 {
-    /// <summary>Platform belgesi üst sınırı (plan kararı).</summary>
-    public const long MaxBayt = 10L * 1024 * 1024;
+    /// <summary>PDF üst sınırı — kullanıcı kararı 3 MB (2026-08-17; önceki plan kararı 10 MB'tı).
+    /// Gerekçe: belgeler bytea olarak DB'de yaşıyor ve yedek kapsamında — 10 yuva × 10 MB tenant
+    /// başına 100 MB'a kadar şişebiliyordu; metin ağırlıklı sözleşme/çıktı PDF'leri için 3 MB bol.
+    /// Sınır tarama kalitesi yüzünden dar gelirse tek sabit burada büyütülür (tüm tüketiciler
+    /// — firma dokümanı, platform belgesi, uç kapıları — bu sabitten türetir).</summary>
+    public const long MaxBayt = 3L * 1024 * 1024;
 
     /// <summary>PDF imzası: <c>%PDF-</c>. Sürüm numarası (1.4/1.7/2.0) kontrol EDİLMEZ — QuestPDF
     /// üretmiyoruz, yalnız saklayıp geri veriyoruz; tarayıcı hangi sürümü açacağını kendi bilir.</summary>
