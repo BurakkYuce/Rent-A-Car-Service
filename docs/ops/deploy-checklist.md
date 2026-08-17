@@ -200,7 +200,29 @@ altında Türkiye açık olmalı (kapalıysa hata 21408).
 Doğrulama: Ayarlar → **SMS Testi**. Tek mesaj gönderir ve teslim durumunu Twilio'dan SID ile okur —
 "iletildi" ile "teslim edildi" ayrı raporlanır.
 
-### 6.3 E-posta (SMTP) — tenant başına
+### 6.3 Ödeme (iyzico) — barındırılan sayfa, PCI kapsamı dışı
+| Anahtar | Ne işe yarar |
+|---|---|
+| `Iyzico:BaseUrl` | `https://sandbox-api.iyzipay.com` (test) / `https://api.iyzipay.com` (üretim). |
+| `Iyzico:ApiKey` / `Iyzico:SecretKey` | Firma API + güvenlik anahtarı (iyzico panelinde Ayarlar → Firma Ayarları). |
+
+Kart verisi **sunucumuza hiç uğramaz**: müşteri iyzico'nun kendi sayfasında kartını girer, biz
+yalnız bir jeton ve sonuç görürüz. Doğrudan API'nin kart alan uçları bilinçli olarak kullanılmıyor.
+
+Kullanılan uçlar (sandbox'a karşı ampirik doğrulandı): ön provizyon
+`/payment/iyzipos/checkoutform/initialize/preauth/ecom`, tahsilat `.../auth/ecom`, sonuç sorgusu
+`/payment/iyzipos/checkoutform/auth/ecom/detail`, kapatma `/payment/postauth`, iptal
+`/payment/cancel`, iade `/payment/refund`.
+
+**Üretim uyarısı:** `sandbox-` ile başlayan anahtarla üretimde çalışmak *hiç para tahsil etmemek*
+demektir. Uygulama açılışta gürültülü uyarır ama açılışı engellemez (staging bilinçli olarak
+sandbox kullanabilir). `BaseUrl`'i de birlikte değiştirin.
+
+**Doğrulama:** kimlikleri `~/.racar-iyzico.env` dosyasına koyup
+`dotnet test --filter IyzicoCanliSandboxTests` koşun — gerçek adaptör gerçek sandbox'a çıkar.
+Kimlik yoksa bu testler atlanır (CI'da böyle).
+
+### 6.4 E-posta (SMTP) — tenant başına
 Ayarlar → SMTP: host, port, kullanıcı, şifre (at-rest şifreli), **gönderen adres**, gönderen ad.
 Port 465 örtük SSL, 587 STARTTLS olarak bağlanır; SSL kutusu yalnız STARTTLS'in zorunlu tutulup
 tutulmayacağını belirler. Gönderen adres boşsa kullanıcı adı e-posta biçimindeyse ona düşülür; ikisi de

@@ -66,16 +66,65 @@ public interface IEInvoiceService
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }
 
-public sealed record PosCharge(decimal Amount, string Currency, string CardToken, bool ThreeD);
+/// <summary>Ödeme sayfasına gönderilecek alıcı bilgisi (sağlayıcı zorunlu alanları).</summary>
+public sealed record PosAlici(
+    string Id, string Ad, string Soyad, string Eposta, string Telefon,
+    string KimlikNo, string Adres, string Sehir, string Ulke, string Ip);
+
+/// <summary>
+/// Barındırılan ödeme sayfası isteği.
+/// </summary>
+/// <param name="Provizyon">true → ön provizyon (kart bloke edilir, tutar ÇEKİLMEZ);
+/// false → doğrudan tahsilat.</param>
+/// <param name="Referans">Bizim tarafımızdaki iş referansı (sağlayıcıya conversationId olarak gider,
+/// sonuç sorgusunda geri döner) — sözleşme/rezervasyon numarası gibi.</param>
+/// <param name="DonusUrl">Müşteri ödeme sayfasından döndüğünde çağrılacak bizim ucumuz.</param>
+public sealed record PosOdemeIstegi(
+    decimal Tutar, string ParaBirimi, string Referans, string DonusUrl,
+    PosAlici Alici, string Aciklama, bool Provizyon);
+
+/// <summary>Ödeme sayfası açma sonucu — müşteri <paramref name="OdemeSayfasiUrl"/>'ye yönlendirilir.</summary>
+public sealed record PosBaslatSonuc(bool Ok, string? Token, string? OdemeSayfasiUrl, string? Hata);
+
+/// <summary>
+/// Ödeme sayfasından dönüş sonrası SUNUCUDAN sorgulanan sonuç.
+/// </summary>
+/// <param name="OdemeId">Sağlayıcıdaki ödeme kimliği — kapatma/iptal bunu ister.</param>
+/// <param name="IslemId">Kalem işlem kimliği — iade bunu ister (iyzico'da paymentTransactionId).</param>
+public sealed record PosDurumSonuc(
+    bool Ok, string? OdemeId, string? IslemId, string? Durum, decimal? Tutar,
+    string? KartOzet, string? Referans, string? Hata);
+
 public sealed record PosResult(bool Success, string? TxRef, string? Error);
 
+/// <summary>
+/// Ödeme sağlayıcısı portu — <b>BARINDIRILAN</b> ödeme sayfası modeli.
+///
+/// <para><b>Kart verisi bizim sunucumuza UĞRAMAZ.</b> Bu bilinçli ve kalıcı bir karardır
+/// (<c>RentalContract</c>: "kart alanları PCI gereği kalıcı disabled"): müşteri sağlayıcının kendi
+/// sayfasında kartını girer, biz yalnız bir jeton ve sonuç görürüz. Bu yüzden port "kart al, çek"
+/// değil "sayfa aç, sonucu sor" biçimindedir — kart numarası alan bir imza PCI kapsamını
+/// üstümüze alırdı.</para>
+///
+/// <para><b>Sonuç ASLA istemciden okunmaz:</b> müşteri dönüş adresine ne gönderirse göndersin,
+/// gerçek durum <see cref="SonucAsync"/> ile SUNUCUDAN sorulur.</para>
+/// </summary>
 public interface IPosService
 {
-    Task<PosResult> ChargeAsync(PosCharge charge, CancellationToken ct = default);
-    /// <summary>Provizyon (depozit hold).</summary>
-    Task<PosResult> AuthorizeAsync(PosCharge charge, CancellationToken ct = default);
-    Task<PosResult> CaptureAsync(string txRef, decimal amount, CancellationToken ct = default);
-    Task<PosResult> RefundAsync(string txRef, decimal amount, CancellationToken ct = default);
+    /// <summary>Barındırılan ödeme sayfasını açar (provizyon ya da tahsilat).</summary>
+    Task<PosBaslatSonuc> BaslatAsync(PosOdemeIstegi istek, CancellationToken ct = default);
+
+    /// <summary>Dönüş sonrası gerçek sonucu sağlayıcıdan sorar.</summary>
+    Task<PosDurumSonuc> SonucAsync(string token, CancellationToken ct = default);
+
+    /// <summary>Provizyonu kapatır (bloke tutarı tahsile çevirir). Kısmi tutar desteklenir.</summary>
+    Task<PosResult> KapatAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default);
+
+    /// <summary>Ödemeyi/provizyonu iptal eder (aynı gün; bloke çözülür).</summary>
+    Task<PosResult> IptalAsync(string odemeId, string ip, CancellationToken ct = default);
+
+    /// <summary>Tahsil edilmiş tutarı iade eder (kısmi olabilir).</summary>
+    Task<PosResult> IadeAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default);
 }
 
 // ───────────────────────── Regülasyon (Faz 3) ─────────────────────────
