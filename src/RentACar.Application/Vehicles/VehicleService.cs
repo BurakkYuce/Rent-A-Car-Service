@@ -163,7 +163,7 @@ public sealed class VehicleService(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: yazan herkes SİLEMEZ
         var vDel = await _repository.FindAsync(id, ct);
         BranchScope.RequireInScope(_currentUser, vDel?.SubeId, vDel?.Sube); // adversarial M3 + C3 FK
         var ok = await _repository.DeleteAsync(id, ct);

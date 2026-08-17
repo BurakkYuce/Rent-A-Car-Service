@@ -658,7 +658,7 @@ public sealed class RentalService(
 
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: sözleşme iptali ayrı izin
         return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3

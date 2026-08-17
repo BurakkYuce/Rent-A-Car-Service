@@ -238,10 +238,17 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
             await Assert.ThrowsAsync<ValidationException>(() => svc.TaksitleriIptalEtAsync([id]));
         }
 
-        // Operatör'de OperationsWrite VAR → geçer.
+        // İnceltme (2026-08-17): taksit İPTALİ artık OperationsDelete ister — operatör
+        // (OperationsWrite'ı olsa da) REDDEDİLİR; Yönetici geçer.
         using (var op = host.ScopeFor(tenant, role: UserRole.Operator))
         {
-            Assert.Equal(1, await op.ServiceProvider.GetRequiredService<AracKrediService>()
+            await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+                .GetRequiredService<AracKrediService>().TaksitleriIptalEtAsync([id]));
+        }
+
+        using (var yon = host.ScopeFor(tenant, role: UserRole.Yonetici))
+        {
+            Assert.Equal(1, await yon.ServiceProvider.GetRequiredService<AracKrediService>()
                 .TaksitleriIptalEtAsync([id]));
         }
     }

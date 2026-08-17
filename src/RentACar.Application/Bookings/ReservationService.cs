@@ -238,7 +238,7 @@ public sealed class ReservationService(
 
     public Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: belge iptali ayrı izin
         return Transition(id, ReservationStatus.Iptal, [ReservationStatus.Rezerv, ReservationStatus.Onayli], ct);
     }
 

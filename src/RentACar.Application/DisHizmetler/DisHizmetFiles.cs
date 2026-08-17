@@ -120,7 +120,7 @@ public sealed class DisHizmetService(
     /// <summary>İptal — ters kayıt (net sıfır); kayıt Durum=Iptal (silme yok).</summary>
     public async Task IptalEtAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(currentUser, Permission.FinanceWrite);
+        PermissionGuard.Require(currentUser, Permission.FinanceReverse); // inceltme: ters kayıt yazar
         var kayit = await repository.FindAsync(id, ct)
             ?? throw new ValidationException("Dış hizmet kaydı bulunamadı.");
         if (kayit.Durum == DisHizmetDurum.Iptal)

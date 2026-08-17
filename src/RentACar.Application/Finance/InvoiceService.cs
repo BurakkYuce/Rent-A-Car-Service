@@ -479,7 +479,7 @@ public sealed class InvoiceService(
     /// </summary>
     public async Task<Guid> CreateIadeAsync(Guid kaynakFaturaId, DateTimeOffset? tarih = null, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        PermissionGuard.Require(_currentUser, Permission.FinanceReverse); // inceltme: iade defteri geri sarar
 
         var src = await repository.FindAsync(kaynakFaturaId, ct)
             ?? throw new ValidationException("Kaynak fatura bulunamadı.");
