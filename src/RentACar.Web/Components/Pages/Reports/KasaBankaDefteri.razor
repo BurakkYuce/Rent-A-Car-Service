@@ -1,5 +1,5 @@
 @page "/raporlar/kasa-banka"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @using RentACar.Domain.Entities
 @using RentACar.Domain.Enums
 @inject ReportService Reports

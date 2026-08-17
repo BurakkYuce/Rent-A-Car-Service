@@ -13,7 +13,7 @@ public static class BranchEndpoints
     public static IEndpointRouteBuilder MapBranchEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/subeler")
-            .RequireAuthorization(p => p.RequireRole(nameof(UserRole.Admin)))
+            .RequirePermission(RentACar.Application.Authorization.Permission.ManageUsers) // sayfa politikasıyla hizalı (etkin izin)
             .AntiforgeryByEnv();
 
         // FAZ-23: alan sayısı 30'a çıktı → pozisyonel imza yerine form koleksiyonu (diğer

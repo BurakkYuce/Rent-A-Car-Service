@@ -21,6 +21,8 @@ public sealed class CircuitTenantContext : ITenantContext, ICurrentUser
     public UserRole? Role { get; private set; }
     public string? AssignedBranch { get; private set; }
     public Guid? AssignedBranchId { get; private set; } // FAZ 5-C1
+    public IReadOnlyCollection<string> EkIzinler { get; private set; } = [];    // kullanıcı-bazlı istisna
+    public IReadOnlyCollection<string> YasakIzinler { get; private set; } = []; // (login claim'inden)
 
     /// <summary>Kimlik circuit'te dolduruldu mu (RLS-in-circuit teşhisi için).</summary>
     public bool IsSet { get; private set; }
@@ -36,6 +38,8 @@ public sealed class CircuitTenantContext : ITenantContext, ICurrentUser
         AssignedBranch = string.IsNullOrWhiteSpace(branch) ? null : branch;
         AssignedBranchId = Guid.TryParse(user.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var bid)
             ? bid : null; // FAZ 5-C1 (eski oturum claim'siz → null, hatasız)
+        EkIzinler = user.FindAll(IdentityClaims.IzinEk).Select(c => c.Value).ToArray();
+        YasakIzinler = user.FindAll(IdentityClaims.IzinYasak).Select(c => c.Value).ToArray();
         IsSet = true;
     }
 }

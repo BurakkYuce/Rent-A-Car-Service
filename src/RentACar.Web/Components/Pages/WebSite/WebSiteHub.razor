@@ -1,5 +1,5 @@
 @page "/web-sitesi"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.Vehicles
 @using RentACar.Application.WebSite
 @using RentACar.Domain.Common

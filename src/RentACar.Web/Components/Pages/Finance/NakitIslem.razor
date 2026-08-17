@@ -1,5 +1,5 @@
 @page "/finans/nakit-islem"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Domain.Entities
 @inject CustomerService Customers
 @inject CashService Cash

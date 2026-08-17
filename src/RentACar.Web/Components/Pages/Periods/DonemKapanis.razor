@@ -1,5 +1,5 @@
 @page "/donem-kapanis"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject DonemKilidiService Donem
 @inject RentACar.Application.Reporting.ReportService Rapor
 

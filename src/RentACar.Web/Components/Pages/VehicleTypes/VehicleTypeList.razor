@@ -1,5 +1,5 @@
 @page "/arac-tipleri"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject VehicleTypeService AracTipleri
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari

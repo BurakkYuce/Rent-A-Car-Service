@@ -1,5 +1,5 @@
 @page "/gelen-talepler"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.Availability
 @using RentACar.Application.Common
 @using RentACar.Application.PublicSite

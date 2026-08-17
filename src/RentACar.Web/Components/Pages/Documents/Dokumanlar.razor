@@ -16,7 +16,7 @@
 @if (Ok) { <p class="ok">İşlem tamamlandı.</p> }
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
-<AuthorizeView Roles="@YazmaRolleri" Context="yazCtx">
+<AuthorizeView Policy="izin:OperationsWrite" Context="yazCtx">
     @if (_satirlar.Count >= FirmaDokumanService.MaxDokuman)
     {
         @* Sınır dolduğunda formu göstermiyoruz; ama asıl dayatma SERVİSTE ve DB'de (yuva unique
@@ -69,7 +69,7 @@ else
                         <td data-etiket="Tarih">@d.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</td>
                         <td class="row-actions kart-aksiyon">
                             <a class="link" href="/dokumanlar/@d.Id/indir">İndir</a>
-                            <AuthorizeView Roles="@YazmaRolleri" Context="silCtx">
+                            <AuthorizeView Policy="izin:OperationsWrite" Context="silCtx">
                                 <form method="post" action="/dokumanlar/sil" style="display:inline">
                                     <AntiforgeryToken />
                                     <input type="hidden" name="id" value="@d.Id" />
@@ -88,11 +88,6 @@ else
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok_ { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private bool Ok => Ok_ == "1";
-
-    /// <summary>Yükleme/silme yüzeyini gösteren roller — tek doğruluk kaynağı rol/izin matrisi
-    /// (elle "Admin,Yonetici,Operator" yazmak matris değişince sessizce eskir).</summary>
-    private static readonly string YazmaRolleri =
-        string.Join(",", RolePermissions.RolesWith(Permission.OperationsWrite));
 
     private IReadOnlyList<FirmaDokumanSatiri> _satirlar = [];
 

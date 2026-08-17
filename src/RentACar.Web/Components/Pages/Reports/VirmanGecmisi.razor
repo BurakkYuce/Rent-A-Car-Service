@@ -1,5 +1,5 @@
 @page "/raporlar/virman-gecmisi"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @using RentACar.Domain.Entities
 @inject CashService Cash
 @inject FinancialAccountService Hesaplar

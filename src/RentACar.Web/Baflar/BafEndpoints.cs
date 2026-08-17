@@ -57,7 +57,7 @@ public static class BafEndpoints
         {
             try { await svc.IptalAsync(id); return Results.Redirect("/baf"); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }

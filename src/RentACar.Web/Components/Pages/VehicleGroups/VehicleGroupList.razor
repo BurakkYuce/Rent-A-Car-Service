@@ -1,5 +1,5 @@
 @page "/arac-gruplari"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject VehicleGroupService AracGruplari
 @inject BrandService Markalar
 

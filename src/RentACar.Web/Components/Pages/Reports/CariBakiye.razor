@@ -1,5 +1,5 @@
 @page "/raporlar/cari-bakiye"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 
 <PageTitle>Cari Bakiye / Yaşlandırma — RentPro</PageTitle>

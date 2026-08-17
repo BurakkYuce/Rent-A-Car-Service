@@ -13,6 +13,8 @@ public static class IdentityClaims
     public const string UserId = "user_id";
     public const string AssignedBranch = "assigned_sube";
     public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
+    public const string IzinEk = "izin_ek";       // kullanıcı-bazlı EK izin (izin adı başına bir claim)
+    public const string IzinYasak = "izin_yasak"; // kullanıcı-bazlı YASAK izin
     // Rol, standart ClaimTypes.Role olarak yazılır → [Authorize(Roles="Admin")] doğrudan çalışır.
 }
 
@@ -50,6 +52,12 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
 
     public Guid? AssignedBranchId
         => Guid.TryParse(User.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g : null;
+
+    public IReadOnlyCollection<string> EkIzinler
+        => User.FindAll(IdentityClaims.IzinEk).Select(c => c.Value).ToArray();
+
+    public IReadOnlyCollection<string> YasakIzinler
+        => User.FindAll(IdentityClaims.IzinYasak).Select(c => c.Value).ToArray();
 }
 
 /// <summary>
@@ -95,6 +103,19 @@ public sealed class HybridIdentity(IHttpContextAccessor accessor, CircuitTenantC
     public Guid? AssignedBranchId
         => (Guid.TryParse(U?.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g : (Guid?)null)
            ?? circuit.AssignedBranchId;
+
+    // İstisnalarda COALESCE anahtarı KİMLİĞİN varlığı (izin listesinin doluluğu değil):
+    // istisnasız kullanıcının claim'i meşru olarak BOŞTUR — boşluğu "claim yok" sayıp circuit'e
+    // düşmek yanlış olmaz ama kimliksiz HttpContext'te iki kaynağı karıştırmamak için tek kapı.
+    public IReadOnlyCollection<string> EkIzinler
+        => U?.Identity?.IsAuthenticated == true
+            ? U.FindAll(IdentityClaims.IzinEk).Select(c => c.Value).ToArray()
+            : circuit.EkIzinler;
+
+    public IReadOnlyCollection<string> YasakIzinler
+        => U?.Identity?.IsAuthenticated == true
+            ? U.FindAll(IdentityClaims.IzinYasak).Select(c => c.Value).ToArray()
+            : circuit.YasakIzinler;
 }
 
 /// <summary>

@@ -67,7 +67,7 @@ public static class FinanceEndpoints
             try { await svc.IptalEtAsync(id); return Results.Redirect($"{geri}?ok=1"); }
             catch (ValidationException ex)
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.FinanceReverse);
 
         // FAZ 4.2-B3: dönem faturası kes (+opsiyonel tahsilat kaydı). Çift-submit güvenli: fatura
         // idempotent (Kesildi→mevcut), tahsilat deterministik RowKey(rentalId, donemSira) anahtarlı.
@@ -229,7 +229,7 @@ public static class FinanceEndpoints
         {
             try { await svc.ReverseAsync(id); return Results.Redirect($"/cariler/{cariId}/ekstre"); }
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{cariId}/ekstre?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.FinanceReverse);
 
         grp.MapPost("/fatura", async (InvoiceService svc, HttpRequest req) =>
         {
@@ -258,7 +258,7 @@ public static class FinanceEndpoints
             var kaynak = FormParse.Id(req.Form["kaynakFaturaId"].ToString()) ?? Guid.Empty;
             try { await svc.CreateIadeAsync(kaynak); return Results.Redirect("/faturalar?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.FinanceReverse);
 
         grp.MapPost("/cari-virman", async (CashService svc, HttpRequest req) =>
         {

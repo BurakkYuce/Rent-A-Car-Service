@@ -1,5 +1,5 @@
 @page "/raporlar/gunluk"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @inject BranchService Subeler
 

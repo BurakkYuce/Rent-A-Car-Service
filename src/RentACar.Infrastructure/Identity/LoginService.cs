@@ -7,7 +7,11 @@ using RentACar.Infrastructure.Persistence;
 
 namespace RentACar.Infrastructure.Identity;
 
-public sealed record LoginResult(Tenant Tenant, User User);
+/// <summary>EkIzinler/YasakIzinler: kullanıcı-bazlı istisna ADLARI (login'de tek doğruluk
+/// kaynağından yüklenir; hem cookie hem JWT üreticisi buradan claim yazar — iki host ayrışamaz).</summary>
+public sealed record LoginResult(
+    Tenant Tenant, User User,
+    IReadOnlyList<string> EkIzinler, IReadOnlyList<string> YasakIzinler);
 
 /// <summary>
 /// İki aşamalı login doğrulaması: firma kodu → tenant, sonra (tenant + kullanıcı + şifre) →
@@ -58,6 +62,16 @@ public sealed class LoginService(
         }
         catch (Exception ex) { logger.LogWarning(ex, "LastLoginAtUtc yazılamadı (login etkilenmedi)."); }
 
-        return new LoginResult(tenant, user);
+        // Kullanıcı-bazlı izin istisnaları (2026-08-17). Login-bootstrap yolunda GUC yok →
+        // istisna_select politikası GUC-boşken açık (Users deseni); sorgu (TenantId, UserId) ile
+        // DAR okur. Buradan dönen adlar claim'e yazılır — değişiklik SONRAKİ girişte etkinleşir.
+        var istisnalar = await db.KullaniciIzinIstisnalari.AsNoTracking()
+            .Where(i => i.TenantId == tenant.Id && i.UserId == user.Id)
+            .Select(i => new { i.Izin, i.Ver })
+            .ToListAsync(ct);
+
+        return new LoginResult(tenant, user,
+            EkIzinler: istisnalar.Where(i => i.Ver).Select(i => i.Izin).ToList(),
+            YasakIzinler: istisnalar.Where(i => !i.Ver).Select(i => i.Izin).ToList());
     }
 }

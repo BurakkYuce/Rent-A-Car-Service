@@ -1,5 +1,5 @@
 @page "/teklifler"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject QuotationService Quotations
 @inject CustomerService Customers
 @inject VehicleService Vehicles

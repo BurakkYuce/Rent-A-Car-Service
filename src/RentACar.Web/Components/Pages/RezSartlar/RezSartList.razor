@@ -1,5 +1,5 @@
 @page "/rez-sartlari"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject RezSartService RezSartlari
 @inject CustomerService Customers
 

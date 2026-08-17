@@ -41,6 +41,7 @@ public sealed class AppDbContext : DbContext
     // Platform tabloları (RLS yok)
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<KullaniciIzinIstisna> KullaniciIzinIstisnalari => Set<KullaniciIzinIstisna>(); // kullanıcı-bazlı izin istisnası (platform deseni, Users gibi)
     public DbSet<TenantDomain> TenantDomains => Set<TenantDomain>(); // PR-0: public site host→tenant (platform, RLS yok)
     // PR-B: platformdan tenant'lara dağıtılan hazır PDF'ler. RLS YOK → izolasyon uygulama
     // katmanında (PlatformBelgeRepository.Gorunur); ModelGuardTests platform listesini pinliyor.

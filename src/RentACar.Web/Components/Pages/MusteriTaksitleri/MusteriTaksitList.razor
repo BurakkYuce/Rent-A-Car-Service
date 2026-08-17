@@ -1,5 +1,5 @@
 @page "/musteri-taksit"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Domain.Enums
 @inject MusteriTaksitService Taksitler
 @inject CustomerService Cariler

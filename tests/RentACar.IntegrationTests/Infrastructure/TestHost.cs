@@ -19,6 +19,11 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
     /// <summary>PR-4.5: varsayılan false — mevcut default-deny testleri (TenantIsolationTests) etkilenmez.
     /// Yalnız PublicTenantContext'in ThrowIfTenantMissing=true davranışını taklit eden testler set eder.</summary>
     public bool ThrowIfTenantMissing { get; set; }
+
+    /// <summary>Kullanıcı-bazlı izin istisnaları (2026-08-17). Varsayılan boş — istisna testleri
+    /// claim'e yazılmış hâli taklit etmek için doldurur (web'de login claim'inden gelir).</summary>
+    public IReadOnlyCollection<string> EkIzinler { get; set; } = [];
+    public IReadOnlyCollection<string> YasakIzinler { get; set; } = [];
 }
 
 /// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>
@@ -40,6 +45,7 @@ public sealed class TestHost : IDisposable
     public TestHost(string appConnectionString)
     {
         var services = new ServiceCollection();
+        services.AddLogging(); // LoginService gibi ILogger isteyen gerçek servisler için (no-op sink)
         services.AddScoped<TestIdentity>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TestIdentity>());
         services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<TestIdentity>());

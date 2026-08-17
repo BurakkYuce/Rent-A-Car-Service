@@ -79,7 +79,7 @@ public static class FiloKiralamaEndpoints
         {
             try { await svc.IptalAsync(id); return Results.Redirect("/filo-kiralama"); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         grp.MapPost("/tamamla", async (FiloKiralamaService svc, [FromForm] Guid id) =>
         {

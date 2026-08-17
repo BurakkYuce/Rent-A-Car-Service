@@ -1,5 +1,5 @@
 @page "/raporlar/servis-ozet"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 
 <PageTitle>Servis Maliyet Özeti — RentPro</PageTitle>

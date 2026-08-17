@@ -1,5 +1,5 @@
 @page "/aksesuarlar"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject AccessoryService Aksesuarlar
 
 <PageTitle>Aksesuarlar — RentPro</PageTitle>

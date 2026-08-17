@@ -34,6 +34,10 @@ public static class AuthEndpoints
                 new(IdentityClaims.TenantId, result.Tenant.Id.ToString()),
                 new(IdentityClaims.TenantCode, result.Tenant.Code),
             };
+            // Kullanıcı-bazlı istisnalar: izin adı başına BİR claim (CSV değil — FindAll ile
+            // ayrıştırmasız okunur). Değişiklik sonraki girişte etkinleşir (claim login'de donar).
+            claims.AddRange(result.EkIzinler.Select(i => new Claim(IdentityClaims.IzinEk, i)));
+            claims.AddRange(result.YasakIzinler.Select(i => new Claim(IdentityClaims.IzinYasak, i)));
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await http.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
