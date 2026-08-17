@@ -148,6 +148,7 @@ public static class DependencyInjection
         services.AddScoped<ServiceRecordService>();
         services.AddScoped<ReportService>();
         services.AddScoped<UserService>();
+        services.AddScoped<KullaniciIzinService>(); // kullanıcı-bazlı izin istisnaları
         services.AddScoped<AvailabilityService>();
         services.AddScoped<DetailService>();
         services.AddScoped<AuditService>();

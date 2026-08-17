@@ -1,5 +1,5 @@
 @page "/depozito"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject CustomerService Customers
 @inject RentACar.Application.Finance.DepozitoService Depozitolar
 

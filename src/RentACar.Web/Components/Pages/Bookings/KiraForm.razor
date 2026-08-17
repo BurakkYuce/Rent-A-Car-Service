@@ -252,8 +252,10 @@ else
         if (AuthState is not null)
         {
             var user = (await AuthState).User;
-            _vm.FinansYetkisi = RolePermissions.RolesWith(Permission.FinanceWrite).Any(user.IsInRole);
-            _vm.OperasyonYetkisi = RolePermissions.RolesWith(Permission.OperationsWrite).Any(user.IsInRole);
+            // Etkin izin (matris + istisna claim'leri): salt rol bakışı, ek izinli kullanıcıya
+            // pasif buton, yasaklıya aktif buton gösterirdi (sunucu yine reddeder ama UI yalan olur).
+            _vm.FinansYetkisi = RentACar.Web.Identity.AuthExtensions.HasPermission(user, Permission.FinanceWrite);
+            _vm.OperasyonYetkisi = RentACar.Web.Identity.AuthExtensions.HasPermission(user, Permission.OperationsWrite);
         }
 
         // FAZ-82 tenant form varsayılanları — YALNIZ ön-doldurma (ayar boşsa yakıt 8 / fiyat türü "—",

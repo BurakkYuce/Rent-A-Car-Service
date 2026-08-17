@@ -1,5 +1,5 @@
 @page "/faturalar/{Id:guid}/yazdir"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject NavigationManager Nav
 
 @* Eski HTML print emekliye ayrıldı — fatura çıktısı TEK KAYNAK: QuestPDF (/pdf).

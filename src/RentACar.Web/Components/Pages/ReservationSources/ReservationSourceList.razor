@@ -1,5 +1,5 @@
 @page "/rezervasyon-kaynaklari"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject ReservationSourceService RezKaynaklari
 
 <PageTitle>Rezervasyon Kaynakları — RentPro</PageTitle>

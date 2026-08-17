@@ -1,5 +1,5 @@
 @page "/site-icerik"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.SiteIcerik
 @using RentACar.Domain.Common
 @using RentACar.Domain.Entities

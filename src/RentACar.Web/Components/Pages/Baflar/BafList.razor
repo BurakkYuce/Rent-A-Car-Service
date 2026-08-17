@@ -1,5 +1,5 @@
 @page "/baf"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.Baflar
 @using RentACar.Application.Personnel
 @using RentACar.Domain.Enums

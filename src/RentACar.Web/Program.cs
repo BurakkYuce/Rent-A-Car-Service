@@ -189,7 +189,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 // PlatformAdmin policy: platform operatörü claim'i (tenant login'i ASLA yazmaz).
 builder.Services.AddAuthorization(o =>
-    o.AddPolicy(PlatformClaims.Policy, p => p.RequireClaim(PlatformClaims.PlatformAdmin, "true")));
+{
+    o.AddPolicy(PlatformClaims.Policy, p => p.RequireClaim(PlatformClaims.PlatformAdmin, "true"));
+    // İzin policy'leri (izin:OperationsWrite vb.): sayfa [Authorize(Policy=...)] attribute'ları
+    // rol listesi yerine ETKİN izne bakar — kullanıcı-bazlı ek izin sayfayı AÇAR, yasak KAPATIR.
+    o.AddPermissionPolicies();
+});
 
 // ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız /auth/login) ----
 var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);

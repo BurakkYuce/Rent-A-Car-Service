@@ -1,5 +1,5 @@
 @page "/ceza-turleri"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject PenaltyTypeService CezaTurleri
 
 <PageTitle>Ceza Türleri — RentPro</PageTitle>

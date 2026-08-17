@@ -1,5 +1,5 @@
 @page "/arac-durum"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject FleetStatusService Fleet
 @inject BranchService Subeler
 @inject PersonelService Personeller

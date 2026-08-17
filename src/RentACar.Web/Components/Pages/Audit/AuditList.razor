@@ -1,5 +1,5 @@
 @page "/denetim"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "izin:ManageUsers")]
 @using RentACar.Application.Auditing
 @using RentACar.Domain.Enums
 @inject AuditService Audit

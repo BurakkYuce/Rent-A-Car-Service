@@ -40,7 +40,7 @@ public static class VehicleEndpoints
         {
             await svc.DeleteAsync(id);
             return Results.Redirect("/vehicles");
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         // FAZ 2.5: manuel odometre girişi — km log + Vehicle.Km aynı transaction (geriye gitme reddi).
         group.MapPost("/km-log", async (VehicleService svc, [FromForm] Guid id, [FromForm] string? km) =>

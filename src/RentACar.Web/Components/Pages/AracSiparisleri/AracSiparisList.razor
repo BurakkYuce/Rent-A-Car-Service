@@ -1,5 +1,5 @@
 @page "/arac-siparis"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using System.Globalization
 @using RentACar.Application.AracKredileri
 @using RentACar.Application.AracSiparisleri

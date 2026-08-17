@@ -1,5 +1,5 @@
 @page "/toplu-tahsilat"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject CustomerService Cariler
 
 <PageTitle>Toplu Tahsilat — RentPro</PageTitle>

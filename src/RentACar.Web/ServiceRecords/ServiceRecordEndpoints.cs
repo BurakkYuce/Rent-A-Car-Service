@@ -56,7 +56,7 @@ public static class ServiceRecordEndpoints
         grp.MapPost("/baslat", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.BaslatAsync(id)));
         grp.MapPost("/tamamla", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] string? sonrakiBakimKm)
             => Run(() => svc.TamamlaAsync(id, cikisKm, FormParse.Int(sonrakiBakimKm))));
-        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.IptalAsync(id)));
+        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
         grp.MapPost("/kalem", async (ServiceRecordService svc, HttpRequest req) =>
         {
             var f = req.Form;

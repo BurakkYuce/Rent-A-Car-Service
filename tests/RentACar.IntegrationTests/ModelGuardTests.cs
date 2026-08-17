@@ -63,9 +63,13 @@ public sealed class ModelGuardTests(PostgresFixture fx)
         //       PDF'in kendisi SozlesmePdf'te ve O tenant-owned + RLS'li (kişisel veri orada).
         // Bu liste bilinçli olarak ELLE tutuluyor: yeni bir filtresiz (=RLS'siz) tablo eklemek,
         // izolasyonun uygulama katmanına taşınması demek ve bu testi güncellemeyi ZORUNLU kılıyor.
+        // 2026-08-17: KullaniciIzinIstisna eklendi — istisnalar LOGIN sırasında (tenant GUC'u
+        //       henüz yokken) okunup claim'e yazılır; merkezi filtre o okumayı boş döndürürdü.
+        //       Users ile aynı komut-bazlı RLS deseni (SELECT GUC-boşken açık, yazma tenant-kilitli).
         Type[] beklenenPlatform =
         [
-            typeof(KurKaydi), typeof(PaylasimLink), typeof(PlatformBelge), typeof(PlatformBelgeHedef),
+            typeof(KullaniciIzinIstisna), typeof(KurKaydi), typeof(PaylasimLink),
+            typeof(PlatformBelge), typeof(PlatformBelgeHedef),
             typeof(Tenant), typeof(TenantDomain), typeof(User),
         ];
         Assert.Equal(beklenenPlatform, filtresizler);

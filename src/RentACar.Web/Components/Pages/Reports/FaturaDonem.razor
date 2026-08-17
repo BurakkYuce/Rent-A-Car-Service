@@ -1,5 +1,5 @@
 @page "/raporlar/fatura-donem"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @inject BranchService Branches
 

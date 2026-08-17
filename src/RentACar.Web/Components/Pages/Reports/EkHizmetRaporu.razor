@@ -1,5 +1,5 @@
 @page "/raporlar/ek-hizmet"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @inject PersonelService Personeller
 @inject LocationService Ofisler

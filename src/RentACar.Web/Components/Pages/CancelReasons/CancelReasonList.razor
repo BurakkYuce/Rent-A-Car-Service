@@ -1,5 +1,5 @@
 @page "/iptal-sebepleri"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject CancelReasonService IptalSebepleri
 
 <PageTitle>İptal Sebepleri — RentPro</PageTitle>

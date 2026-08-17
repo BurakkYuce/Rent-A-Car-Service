@@ -1,5 +1,5 @@
 @page "/faturalar/detay-listesi"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject InvoiceService Faturalar
 @inject CustomerService Customers
 @inject LocationService Ofisler
