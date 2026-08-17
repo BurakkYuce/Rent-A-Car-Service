@@ -69,6 +69,8 @@ public sealed class TenantSettingsService(
             SmtpKullanici = s.SmtpKullanici,
             SmtpSifre = secrets.Unprotect(s.SmtpSifreEnc),
             SmtpSsl = s.SmtpSsl,
+            SmtpGonderenAdres = s.SmtpGonderenAdres,
+            SmtpGonderenAd = s.SmtpGonderenAd,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
             // PR-2: public-site
@@ -213,6 +215,8 @@ public sealed class TenantSettingsService(
             s.SmtpKullanici = Trim(m.SmtpKullanici);
             s.SmtpSifreEnc = Secret(m.SmtpSifre, s.SmtpSifreEnc);
             s.SmtpSsl = m.SmtpSsl;
+            s.SmtpGonderenAdres = Trim(m.SmtpGonderenAdres);
+            s.SmtpGonderenAd = Trim(m.SmtpGonderenAd);
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }, ct);

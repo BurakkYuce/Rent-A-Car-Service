@@ -4,7 +4,31 @@ namespace RentACar.Application.Integrations;
 
 public interface ISmsService
 {
-    Task<bool> SendAsync(string phone, string message, CancellationToken ct = default);
+    /// <param name="gonderen">Gönderen kimliği (alfanümerik başlık ya da numara). Tenant'ın kendi
+    /// başlığı (<c>TenantSettings.SmsBaslik</c>) buraya geçer; boşsa sağlayıcı varsayılanı kullanılır.
+    /// Not: alfanümerik başlık Türkiye'de operatör kaydı ister — kayıtsız başlık teslim edilmez.</param>
+    Task<bool> SendAsync(string phone, string message, string? gonderen = null, CancellationToken ct = default);
+}
+
+// ───────────────────────── E-posta (bildirim omurgası) ─────────────────────────
+
+/// <summary>Tek bir gönderim için çözülmüş SMTP yapılandırması (şifre DÜZ METİN — çağıran çözer).</summary>
+public sealed record SmtpAyar(
+    string Host, int Port, bool Ssl, string? Kullanici, string? Sifre,
+    string GonderenAdres, string? GonderenAd);
+
+public sealed record EpostaMesaj(string Alici, string Konu, string GovdeHtml, string? GovdeDuz = null);
+
+/// <summary>Gönderim sonucu. <paramref name="Hata"/> operatöre gösterilecek Türkçe cümledir.</summary>
+public sealed record EpostaSonuc(bool Ok, string? Hata);
+
+/// <summary>
+/// SMTP gönderici. Yapılandırma TENANT BAŞINA olduğu için ayar parametre olarak geçer —
+/// gönderici durum tutmaz ve singleton kaydedilebilir.
+/// </summary>
+public interface IEmailSender
+{
+    Task<EpostaSonuc> SendAsync(SmtpAyar ayar, EpostaMesaj mesaj, CancellationToken ct = default);
 }
 
 public interface IWhatsAppService

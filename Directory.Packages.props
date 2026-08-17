@@ -38,6 +38,12 @@
   <ItemGroup>
     <PackageVersion Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
+  <!-- Bildirim omurgası: SMTP gönderimi. MailKit (MIT) — System.Net.Mail.SmtpClient .NET tarafından
+       "yeni geliştirme için kullanmayın" olarak işaretli; MailKit resmî önerilen alternatif ve
+       STARTTLS/SslOnConnect ayrımını, modern kimlik doğrulamayı düzgün destekler. -->
+  <ItemGroup>
+    <PackageVersion Include="MailKit" Version="4.17.0" />
+  </ItemGroup>
   <!-- Ayarlar şifreleme (roadmap D1): tenant entegrasyon kimliklerini at-rest şifreler (IDataProtector). -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.11" />

@@ -4,13 +4,24 @@ using RentACar.Application.Integrations;
 namespace RentACar.Infrastructure.Integrations;
 
 // v1 STUB adapter'lar: gerçek entegrasyon (e-Fatura/POS/KABIS/HGS/SMS/WhatsApp/Calendar)
-// Faz 2/3'te bu port'ların arkasına gelir. Stub'lar başarı taklidi yapar / no-op döner →
-// akışlar entegrasyon olmadan da uçtan uca çalışır ve test edilir.
-
+// bu port'ların arkasına kademeli olarak gelir.
+//
+// KURAL (dürüst stub): yapılandırma YOKKEN bir stub ASLA "başarılı" dönmez. Sahte başarı, çağıranın
+// "gitti" sanıp kalıcı kayda (fatura ETTN'i, bildirim izi, provizyon kaydı) yanlış yazmasına yol
+// açar — e-Fatura stub'ında bu bilinçli olarak zaten böyleydi (M2), aynı kural SMS/POS/KABİS'e de
+// uygulandı. Boş liste dönenler (HGS, e-Fatura gelen kutusu) zaten dürüsttür: "veri yok" ≠ "başarı".
 public sealed class StubSmsService : ISmsService
 {
-    public Task<bool> SendAsync(string phone, string message, CancellationToken ct = default)
-        => Task.FromResult(true);
+    // Sahte başarı YOK: SMS sağlayıcısı yapılandırılmadıysa mesaj GİTMEZ, çağıran bunu görmelidir.
+    public Task<bool> SendAsync(string phone, string message, string? gonderen = null, CancellationToken ct = default)
+        => Task.FromResult(false);
+}
+
+/// <summary>SMTP yapılandırılmadığında devreye giren gönderici — sessizce başarı dönmez.</summary>
+public sealed class NoopEmailSender : IEmailSender
+{
+    public Task<EpostaSonuc> SendAsync(SmtpAyar ayar, EpostaMesaj mesaj, CancellationToken ct = default)
+        => Task.FromResult(new EpostaSonuc(false, "E-posta göndericisi yapılandırılmadı."));
 }
 
 public sealed class StubWhatsAppService : IWhatsAppService
@@ -43,16 +54,22 @@ public sealed class StubEInvoiceService : IEInvoiceService
 
 public sealed class StubPosService : IPosService
 {
-    public Task<PosResult> ChargeAsync(PosCharge charge, CancellationToken ct = default) => Ok();
-    public Task<PosResult> AuthorizeAsync(PosCharge charge, CancellationToken ct = default) => Ok();
-    public Task<PosResult> CaptureAsync(string txRef, decimal amount, CancellationToken ct = default) => Ok();
-    public Task<PosResult> RefundAsync(string txRef, decimal amount, CancellationToken ct = default) => Ok();
-    private static Task<PosResult> Ok() => Task.FromResult(new PosResult(true, "STUBTX-" + Guid.NewGuid().ToString("N"), null));
+    // Sahte "STUBTX-…" referansı ÜRETMEZ: o referans provizyon/tahsilat kaydına yazılsa, hiçbir kart
+    // bloke edilmemişken sistemde geçerli bir işlem referansı varmış gibi görünürdü. Para yolunda
+    // sahte başarı, e-Fatura'daki sahte ETTN ile aynı sınıf hatadır.
+    public Task<PosResult> ChargeAsync(PosCharge charge, CancellationToken ct = default) => Yok();
+    public Task<PosResult> AuthorizeAsync(PosCharge charge, CancellationToken ct = default) => Yok();
+    public Task<PosResult> CaptureAsync(string txRef, decimal amount, CancellationToken ct = default) => Yok();
+    public Task<PosResult> RefundAsync(string txRef, decimal amount, CancellationToken ct = default) => Yok();
+    private static Task<PosResult> Yok()
+        => Task.FromResult(new PosResult(false, TxRef: null, Error: "Ödeme sağlayıcısı yapılandırılmadı (stub)."));
 }
 
 public sealed class StubKabisService : IKabisService
 {
-    public Task<bool> BildirAsync(KabisBildirim bildirim, CancellationToken ct = default) => Task.FromResult(true);
+    // KABİS bildirimi YASAL yükümlülük (1774 sayılı Kanun). Yapılandırma yokken "bildirildi" demek,
+    // bildirilmemiş kiralamayı bildirilmiş göstermek olur — cezası kiralama BAŞINA işler.
+    public Task<bool> BildirAsync(KabisBildirim bildirim, CancellationToken ct = default) => Task.FromResult(false);
 }
 
 public sealed class StubHgsService : IHgsService
@@ -68,6 +85,7 @@ public static class IntegrationStubs
     public static IServiceCollection AddIntegrationStubs(this IServiceCollection services)
     {
         services.AddSingleton<ISmsService, StubSmsService>();
+        services.AddSingleton<IEmailSender, NoopEmailSender>();
         services.AddSingleton<IWhatsAppService, StubWhatsAppService>();
         services.AddSingleton<IGoogleCalendarService, StubGoogleCalendarService>();
         services.AddSingleton<IEInvoiceService, StubEInvoiceService>();

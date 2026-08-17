@@ -172,9 +172,42 @@ tenant-özel bytea döndürür (yalnız `site.css`/`app.css` gerçekten tenant-b
   (aksi halde sahte forwarded header'a güvenilir). DevTools kontrolü (§9) sonucu yakalar.
 - `sudo systemctl reload caddy`.
 
-## 6. Opsiyonel entegrasyonlar (config VARSA aktif, yoksa no-op stub)
-- **WhatsApp/SMS (Twilio):** `Twilio:AccountSid` + `Twilio:AuthToken` + gönderen numara verilirse gerçek gönderici
-  devreye girer; yoksa stub no-op. (SMS/HGS/POS/e-Fatura stub — kimlik gelince bağlanır.)
+## 6. Opsiyonel entegrasyonlar (config VARSA aktif, yoksa stub)
+- **WhatsApp (Twilio):** `Twilio:AccountSid` + `Twilio:AuthToken` + `Twilio:WhatsAppFrom` verilirse gerçek
+  gönderici devreye girer.
+- **SMS (Twilio):** aynı hesap. `Twilio:AccountSid` + `Twilio:AuthToken` + (`Twilio:SmsFrom` **veya**
+  `Twilio:MessagingServiceSid`) → gerçek gönderici. Bkz. §6.2.
+- **E-posta (SMTP):** ortam değişkeni YOK — yapılandırma her tenant'ın Ayarlar ekranındadır. Sunucuda
+  yapılacak tek şey giden 587/465 portunun açık olması.
+- HGS / POS / e-Fatura / KABİS hâlâ stub — kimlik gelince bağlanır.
+
+> **Stub davranışı değişti (dürüst stub kuralı):** yapılandırma yokken hiçbir stub artık "başarılı"
+> dönmez. SMS, POS ve KABİS stub'ları `false` döndürür; e-Fatura zaten öyleydi. Sebebi: sahte başarı,
+> çağıranın kalıcı kayda yanlış yazmasına yol açıyordu (sahte ETTN, var olmayan işlem referansı,
+> yapılmamış yasal bildirim). Bir akış "gönderdim" diyorsa gerçekten göndermiştir.
+
+### 6.2 SMS (Twilio) — gönderen kaynağı ve Türkiye uyarısı
+| Anahtar | Ne işe yarar |
+|---|---|
+| `Twilio:SmsFrom` | Gönderen numara (E.164). |
+| `Twilio:MessagingServiceSid` | Numara yerine Messaging Service (`MG…`). **İkisi birlikte gönderilemez** — açık gönderen varsa o kazanır. |
+
+Tenant Ayarlar'da **SMS Başlığı** doluysa gönderen olarak o kullanılır. Alfanümerik başlık Türkiye'de
+operatör kaydı ister; kayıtsız başlıkla mesaj Twilio'ya kabul edilse de **teslim edilmez** (hata 30007).
+Kayıt yoksa başlığı boş bırakın, numara ile gidilsin. Ayrıca Twilio konsolunda **Geographic Permissions**
+altında Türkiye açık olmalı (kapalıysa hata 21408).
+
+Doğrulama: Ayarlar → **SMS Testi**. Tek mesaj gönderir ve teslim durumunu Twilio'dan SID ile okur —
+"iletildi" ile "teslim edildi" ayrı raporlanır.
+
+### 6.3 E-posta (SMTP) — tenant başına
+Ayarlar → SMTP: host, port, kullanıcı, şifre (at-rest şifreli), **gönderen adres**, gönderen ad.
+Port 465 örtük SSL, 587 STARTTLS olarak bağlanır; SSL kutusu yalnız STARTTLS'in zorunlu tutulup
+tutulmayacağını belirler. Gönderen adres boşsa kullanıcı adı e-posta biçimindeyse ona düşülür; ikisi de
+yoksa **gönderim yapılmaz** (uydurma "Kimden" üretilmez — SPF/DKIM uyumsuz gönderen spam'e düşer).
+Alan adınızın SPF ve DKIM kaydını gönderen adrese göre ayarlayın.
+
+Doğrulama: Ayarlar → **E-posta Testi**.
 
 ### 6.1 WhatsApp — üretim (onaylı şablon) vs SANDBOX (serbest metin)
 | Anahtar | Ne işe yarar |
