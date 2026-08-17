@@ -4,7 +4,15 @@ using RentACar.Infrastructure.Integrations;
 
 namespace RentACar.IntegrationTests;
 
-/// <summary>v1 entegrasyon stub'ları kayıtlı + çağrılabilir (DB gerektirmez).</summary>
+/// <summary>
+/// v1 entegrasyon stub'ları kayıtlı + çağrılabilir (DB gerektirmez).
+///
+/// <para><b>DÜRÜST STUB KURALI (kalıcı kilit):</b> yapılandırma yokken hiçbir stub "başarılı"
+/// dönmez. Sahte başarı, çağıranın kalıcı kayda yanlış yazmasına yol açar — e-Fatura'da sahte
+/// ETTN (M2), POS'ta var olmayan işlem referansı, KABİS'te yapılmamış yasal bildirim, SMS'te
+/// gitmemiş müşteri mesajı. Bu testler o kuralı her port için ayrı ayrı sabitler; bir stub
+/// yeniden "true" dönmeye başlarsa suite kırmızıya döner.</para>
+/// </summary>
 public sealed class IntegrationStubTests
 {
     private static ServiceProvider Build()
@@ -15,6 +23,7 @@ public sealed class IntegrationStubTests
     {
         using var sp = Build();
         Assert.NotNull(sp.GetService<ISmsService>());
+        Assert.NotNull(sp.GetService<IEmailSender>());
         Assert.NotNull(sp.GetService<IWhatsAppService>());
         Assert.NotNull(sp.GetService<IGoogleCalendarService>());
         Assert.NotNull(sp.GetService<IEInvoiceService>());
@@ -36,13 +45,67 @@ public sealed class IntegrationStubTests
     }
 
     [Fact]
-    public async Task Pos_authorize_capture_flow_stub()
+    public async Task Pos_stub_sahte_islem_referansi_uretmez()
     {
+        // Yapılandırma yokken hiçbir kart bloke EDİLMEZ. Eskiden "STUBTX-…" referansıyla true dönüyordu;
+        // o referans provizyon kaydına yazılsaydı sistemde geçerli bir işlem varmış gibi görünürdü.
         using var sp = Build();
         var pos = sp.GetRequiredService<IPosService>();
+
         var auth = await pos.AuthorizeAsync(new PosCharge(500m, "TRY", "tok_x", ThreeD: true));
-        Assert.True(auth.Success);
-        var capture = await pos.CaptureAsync(auth.TxRef!, 500m);
-        Assert.True(capture.Success);
+        Assert.False(auth.Success);
+        Assert.Null(auth.TxRef);
+        Assert.False(string.IsNullOrWhiteSpace(auth.Error));
+
+        foreach (var sonuc in new[]
+        {
+            await pos.ChargeAsync(new PosCharge(10m, "TRY", "tok_x", ThreeD: false)),
+            await pos.CaptureAsync("herhangi", 10m),
+            await pos.RefundAsync("herhangi", 10m),
+        })
+        {
+            Assert.False(sonuc.Success);
+            Assert.Null(sonuc.TxRef);
+        }
+    }
+
+    [Fact]
+    public async Task Sms_stub_gondermez()
+    {
+        // Gitmeyen müşteri mesajı "gitti" sayılmamalı — çağıran bunu bildirim kaydına yazacak.
+        using var sp = Build();
+        Assert.False(await sp.GetRequiredService<ISmsService>().SendAsync("+905321112233", "deneme"));
+    }
+
+    [Fact]
+    public async Task Kabis_stub_bildirim_yapmaz()
+    {
+        // KABİS yasal yükümlülük: bildirilmemiş kiralamayı "bildirildi" göstermek cezayı gizler.
+        using var sp = Build();
+        var ok = await sp.GetRequiredService<IKabisService>().BildirAsync(
+            new KabisBildirim("RZ-000001", "34ABC123", "11111111110",
+                DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(3)));
+        Assert.False(ok);
+    }
+
+    [Fact]
+    public async Task Eposta_noop_gonderici_hata_dondurur()
+    {
+        using var sp = Build();
+        var sonuc = await sp.GetRequiredService<IEmailSender>().SendAsync(
+            new SmtpAyar("mail.ornek.com", 587, true, null, null, "a@ornek.com", null),
+            new EpostaMesaj("b@ornek.com", "konu", "<p>gövde</p>"));
+        Assert.False(sonuc.Ok);
+        Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata));
+    }
+
+    [Fact]
+    public async Task Hgs_stub_bos_liste_dondurur()
+    {
+        // Boş liste DÜRÜSTTÜR: "veri yok" ≠ "başarı". Yansıtma mantığı no-op çalışır, yanlış kayıt yazmaz.
+        using var sp = Build();
+        var gecisler = await sp.GetRequiredService<IHgsService>().GetCrossingsAsync(
+            "34ABC123", DateTimeOffset.UtcNow.AddDays(-7), DateTimeOffset.UtcNow);
+        Assert.Empty(gecisler);
     }
 }

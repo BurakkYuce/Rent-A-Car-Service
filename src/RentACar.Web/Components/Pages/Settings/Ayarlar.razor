@@ -192,12 +192,19 @@
 
     <fieldset>
         <legend>SMTP (E-posta Gönderimi)</legend>
-        <p class="muted small">SMTP şifresi şifreli saklanır; boş bırakırsanız mevcut korunur.</p>
-        <label>SMTP Host<input name="smtpHost" value="@_m.SmtpHost" /></label>
-        <label>SMTP Port<input name="smtpPort" type="number" min="0" value="@_m.SmtpPort" /></label>
+        <p class="muted small">Müşteriye giden e-postalar (rezervasyon onayı, hatırlatma, belge) bu
+            sunucudan gönderilir. SMTP şifresi şifreli saklanır; boş bırakırsanız mevcut korunur.</p>
+        <label>SMTP Host<input name="smtpHost" value="@_m.SmtpHost" placeholder="mail.firmaniz.com" /></label>
+        <label>SMTP Port<input name="smtpPort" type="number" min="0" value="@_m.SmtpPort" placeholder="587" /></label>
         <label>SMTP Kullanıcı<input name="smtpKullanici" value="@_m.SmtpKullanici" /></label>
         <label>SMTP Şifre<input name="smtpSifre" type="password" placeholder="@Placeholder(_m.SmtpSifre)" /></label>
+        <label>Gönderen Adres<input name="smtpGonderenAdres" type="email" value="@_m.SmtpGonderenAdres" placeholder="rezervasyon@@firmaniz.com" /></label>
+        <label>Gönderen Ad<input name="smtpGonderenAd" value="@_m.SmtpGonderenAd" placeholder="@_m.FirmaUnvan" /></label>
         <label class="check"><input type="checkbox" name="smtpSsl" value="true" checked="@(_m.SmtpSsl == true)" /> SSL/TLS</label>
+        <p class="muted small u-col-full">Port 465 örtük SSL, 587 STARTTLS olarak bağlanır — kutu yalnız
+            STARTTLS'in zorunlu tutulup tutulmayacağını belirler. Gönderen adres boşsa, SMTP kullanıcı adı
+            e-posta biçimindeyse o kullanılır. Alan adınızın SPF/DKIM kaydı gönderen adrese göre
+            değerlendirilir; uyumsuz adres mesajları spam'e düşürür.</p>
     </fieldset>
 
     <fieldset>
@@ -249,6 +256,39 @@
         </label>
         <button type="submit" data-confirm="Bu numaraya gerçek bir WhatsApp mesajı gönderilecek. Devam?">
             Test Mesajı Gönder
+        </button>
+    </form>
+</fieldset>
+
+<fieldset>
+    <legend>E-posta Testi</legend>
+    <p class="muted small">Yapılandırmayı doğrulamak için <strong>tek</strong> bir e-posta gönderir —
+        müşteri bildirimlerinin kullandığı kod yolunun aynısını kullanır. SMTP ayarları eksikse
+        gönderim yapılmaz ve size hangi alanın eksik olduğu söylenir (sessiz başarı yoktur).</p>
+    <form method="post" action="/ayarlar/smtp-test" class="grid-form"><AntiforgeryToken />
+        <label>Test e-posta adresi
+            <input name="testMail" type="email" placeholder="siz@@firmaniz.com" value="@_m.FirmaEmail" required />
+        </label>
+        <button type="submit" data-confirm="Bu adrese gerçek bir e-posta gönderilecek. Devam?">
+            Test E-postası Gönder
+        </button>
+    </form>
+</fieldset>
+
+<fieldset>
+    <legend>SMS Testi</legend>
+    <p class="muted small">Yapılandırmayı doğrulamak için <strong>tek</strong> bir SMS gönderir ve
+        teslim durumunu Twilio'dan okur — "iletildi" ile "teslim edildi" ayrı şeylerdir.
+        SMS, WhatsApp ile <strong>aynı Twilio hesabını</strong> kullanır; ayrıca
+        <code>Twilio:SmsFrom</code> (numara) ya da <code>Twilio:MessagingServiceSid</code> gerekir.
+        Yukarıdaki <strong>SMS Başlığı</strong> doluysa gönderen olarak o kullanılır — alfanümerik
+        başlık Türkiye'de operatör kaydı ister, kayıtsız başlıkla mesaj teslim edilmez.</p>
+    <form method="post" action="/ayarlar/sms-test" class="grid-form"><AntiforgeryToken />
+        <label>Test numarası (E.164)
+            <input name="testSmsNo" placeholder="+905321112233" value="@_m.WhatsAppNumarasi" required />
+        </label>
+        <button type="submit" data-confirm="Bu numaraya gerçek bir SMS gönderilecek (ücretlendirilir). Devam?">
+            Test SMS'i Gönder
         </button>
     </form>
 </fieldset>

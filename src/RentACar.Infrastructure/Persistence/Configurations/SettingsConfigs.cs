@@ -49,6 +49,8 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SmtpHost).HasMaxLength(256);
         e.Property(x => x.SmtpKullanici).HasMaxLength(256);
         e.Property(x => x.SmtpSifreEnc).HasMaxLength(1024);
+        e.Property(x => x.SmtpGonderenAdres).HasMaxLength(256);
+        e.Property(x => x.SmtpGonderenAd).HasMaxLength(128);
         e.Property(x => x.WhatsAppNumarasi).HasMaxLength(32);
         // PR-10: varsayılan araç grubu. Grup silinirse ayar NULL'a düşer (ON DELETE SET NULL) —
         // ölü Id'ye işaret eden ayar, çözücüde "bulunamadı" olarak sessizce Ekonomi'ye kayardı.
