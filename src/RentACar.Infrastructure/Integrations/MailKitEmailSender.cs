@@ -1,9 +1,10 @@
 using MailKit.Net.Smtp;
+using Microsoft.Extensions.Logging;
 using MailKit.Security;
 using MimeKit;
 using RentACar.Application.Integrations;
 
-namespace RentACar.Web.Integrations;
+namespace RentACar.Infrastructure.Integrations;
 
 /// <summary>
 /// Gerçek SMTP göndericisi (MailKit). <see cref="NoopEmailSender"/>'ı Program.cs DI'da KOŞULSUZ

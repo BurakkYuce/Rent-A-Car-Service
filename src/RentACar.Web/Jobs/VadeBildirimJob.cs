@@ -12,6 +12,8 @@ namespace RentACar.Web.Jobs;
 /// </summary>
 public sealed class VadeBildirimJob(
     IConfiguration config, IWhatsAppService whatsapp,
+    RentACar.Application.Common.ISecretProtector secrets,
+    IEmailSender eposta, ISmsService sms,
     RentACar.Application.Reporting.TutSatEsikleri tutSatEsik, ILogger<VadeBildirimJob> log) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
@@ -71,6 +73,13 @@ public sealed class VadeBildirimJob(
                     toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
                         JobCalismaKaydedici.FiloBildirim,
                         () => FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct), n => n, ct: ct);
+                    // Müşteriye giden hatırlatmalar (yarın teslim / bugün iade) + kuyrukta kalan
+                    // mesajların yeniden denenmesi. Şablon tanımlı değilse mesaj KUYRUKTA kalır ve
+                    // firma şablonu yazınca bu koşu onu gönderir.
+                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
+                        JobCalismaKaydedici.MusteriBildirim,
+                        () => MusteriBildirimUretici.RunAsync(db, tenantId, now, Tz, secrets, eposta, sms, ct),
+                        n => n, ct: ct);
                 } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
 
                 // Günlük operasyon özeti WhatsApp (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).
