@@ -9,7 +9,10 @@ namespace RentACar.Application.Authorization;
 ///   İzin / Rol        Admin  Yonetici  Operator  Muhasebe
 ///   ManageUsers         ✓
 ///   OperationsWrite     ✓       ✓          ✓
+///   OperationsDelete    ✓       ✓                          (inceltme: operatör siler DEĞİL)
 ///   FinanceWrite        ✓       ✓                     ✓
+///   FinanceReverse      ✓       ✓                     ✓    (varsayılan FinanceWrite'la aynı;
+///                                                           değeri kullanıcı-bazlı kısıtlamada)
 ///   ViewReports         ✓       ✓                     ✓
 /// </summary>
 public static class RolePermissions
@@ -18,11 +21,13 @@ public static class RolePermissions
     {
         [UserRole.Admin] =
         [
-            Permission.ManageUsers, Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports
+            Permission.ManageUsers, Permission.OperationsWrite, Permission.OperationsDelete,
+            Permission.FinanceWrite, Permission.FinanceReverse, Permission.ViewReports
         ],
         [UserRole.Yonetici] =
         [
-            Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports
+            Permission.OperationsWrite, Permission.OperationsDelete,
+            Permission.FinanceWrite, Permission.FinanceReverse, Permission.ViewReports
         ],
         [UserRole.Operator] =
         [
@@ -30,7 +35,7 @@ public static class RolePermissions
         ],
         [UserRole.Muhasebe] =
         [
-            Permission.FinanceWrite, Permission.ViewReports
+            Permission.FinanceWrite, Permission.FinanceReverse, Permission.ViewReports
         ]
     };
 

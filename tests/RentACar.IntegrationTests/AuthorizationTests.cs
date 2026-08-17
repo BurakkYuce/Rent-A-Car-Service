@@ -17,18 +17,28 @@ public sealed class RolePermissionMatrixTests
     [InlineData(UserRole.Admin, Permission.FinanceWrite, true)]
     [InlineData(UserRole.Admin, Permission.OperationsWrite, true)]
     [InlineData(UserRole.Admin, Permission.ViewReports, true)]
+    [InlineData(UserRole.Admin, Permission.OperationsDelete, true)]
+    [InlineData(UserRole.Admin, Permission.FinanceReverse, true)]
     [InlineData(UserRole.Yonetici, Permission.ManageUsers, false)]
     [InlineData(UserRole.Yonetici, Permission.FinanceWrite, true)]
     [InlineData(UserRole.Yonetici, Permission.OperationsWrite, true)]
     [InlineData(UserRole.Yonetici, Permission.ViewReports, true)]
+    [InlineData(UserRole.Yonetici, Permission.OperationsDelete, true)]
+    [InlineData(UserRole.Yonetici, Permission.FinanceReverse, true)]
     [InlineData(UserRole.Operator, Permission.ManageUsers, false)]
     [InlineData(UserRole.Operator, Permission.FinanceWrite, false)]
     [InlineData(UserRole.Operator, Permission.OperationsWrite, true)]
     [InlineData(UserRole.Operator, Permission.ViewReports, false)]
+    // İnceltme (2026-08-17): operatör kayıt AÇAR ama YOK EDEMEZ; defteri hiç geri saramaz.
+    [InlineData(UserRole.Operator, Permission.OperationsDelete, false)]
+    [InlineData(UserRole.Operator, Permission.FinanceReverse, false)]
     [InlineData(UserRole.Muhasebe, Permission.ManageUsers, false)]
     [InlineData(UserRole.Muhasebe, Permission.FinanceWrite, true)]
     [InlineData(UserRole.Muhasebe, Permission.OperationsWrite, false)]
     [InlineData(UserRole.Muhasebe, Permission.ViewReports, true)]
+    // Muhasebe defteri geri sarabilir (düzeltme onun işi) ama operasyonel belge YOK EDEMEZ.
+    [InlineData(UserRole.Muhasebe, Permission.OperationsDelete, false)]
+    [InlineData(UserRole.Muhasebe, Permission.FinanceReverse, true)]
     public void Matrix_matches_locked_decision(UserRole role, Permission perm, bool expected)
         => Assert.Equal(expected, RolePermissions.Has(role, perm));
 

@@ -129,7 +129,12 @@ public sealed class ServiceRecordService(
 
     /// <summary>Rezerve/Açık/Serviste → Iptal; araç Serviste'den çıktıysa Musait'e döner.</summary>
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
-        => _repository.TransitionAsync(id, r =>
+    {
+        // İnceltme sırasında bulunan AÇIK: bu metotta hiç guard yoktu — oturum açan herkes
+        // (rol ne olursa olsun) servis kaydı iptal edebiliyordu. Diğer geçişler OperationsWrite
+        // istiyordu; iptal artık OperationsDelete sınıfında.
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete);
+        return _repository.TransitionAsync(id, r =>
         {
             // Rezerve de iptal edilebilir (randevu iptali). İptal kayıtları bakım günü SAYILMAZ
             // (FAZ-76 düzeltmesi) — Rezerve de aynı şekilde sayılmaz.
@@ -137,6 +142,7 @@ public sealed class ServiceRecordService(
                 throw new ValidationException("Kapanmış servis iptal edilemez.");
             r.Durum = ServisDurum.Iptal;
         }, setVehicleTo: VehicleStatus.Musait, onlyWhenVehicleIs: VehicleStatus.Serviste, ct: ct);
+    }
 
     /// <summary>Serbest tutarlı kalem (eski imza — bileşensiz kullanım korunur).</summary>
     public Task<bool> KalemEkleAsync(Guid id, string aciklama, decimal tutar, CancellationToken ct = default)

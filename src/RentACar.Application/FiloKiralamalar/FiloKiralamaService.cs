@@ -109,7 +109,7 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme
         return _repository.SetDurumAsync(id, FiloKiraDurum.Iptal, ct);
     }
 

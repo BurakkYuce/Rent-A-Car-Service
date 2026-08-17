@@ -95,7 +95,7 @@ public sealed class CustomerService(
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: yazan herkes SİLEMEZ
         return _repository.DeleteAsync(id, ct);
     }
 

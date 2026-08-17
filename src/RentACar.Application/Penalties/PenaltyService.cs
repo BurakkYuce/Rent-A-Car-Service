@@ -228,7 +228,7 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial L1
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // adversarial L1 + inceltme
         return _repository.UpdateAsync(id, p =>
         {
             if (p.Durum == CezaDurum.Yansitildi) throw new ValidationException("Yansıtılmış ceza iptal edilemez (ters kayıt gerekir).");
