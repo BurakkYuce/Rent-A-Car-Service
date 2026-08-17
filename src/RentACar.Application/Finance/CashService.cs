@@ -522,7 +522,7 @@ public sealed class CashService(
 
     public async Task<Guid> ReverseAsync(Guid cashTransactionId, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        PermissionGuard.Require(_currentUser, Permission.FinanceReverse); // inceltme: defteri geri sarma ayrı izin
         var original = await _repository.FindAsync(cashTransactionId, ct)
             ?? throw new ValidationException("İşlem bulunamadı.");
         if (original.TersKayitMi)

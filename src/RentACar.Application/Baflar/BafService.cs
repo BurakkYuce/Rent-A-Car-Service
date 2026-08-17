@@ -81,7 +81,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
 
     public async Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme
         var baf = await _repository.FindAsync(id, ct);
         if (baf is null) return false;
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam

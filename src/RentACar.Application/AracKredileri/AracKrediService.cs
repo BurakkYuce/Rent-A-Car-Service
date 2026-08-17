@@ -127,7 +127,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme
         return _repository.SetDurumAsync(id, KrediDurum.Iptal, ct);
     }
 
@@ -146,7 +146,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
     /// </summary>
     public async Task<int> TaksitleriIptalEtAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // deftere yazmaz → FinanceWrite gerekmez
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // deftere yazmaz ama İPTAL → Delete izni
         if (ids is null || ids.Count == 0) throw new ValidationException("İptal edilecek kredi seçilmedi.");
 
         // Aktif-mi kontrolü + yazım TEK transaction'da, satır kilidi altında (repository) — servis
