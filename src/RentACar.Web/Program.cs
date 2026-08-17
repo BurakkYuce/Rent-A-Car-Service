@@ -20,6 +20,7 @@ using RentACar.Web.Observability;
 using RentACar.Web.Calendar;
 using RentACar.Web.Import;
 using RentACar.Web.Notifications;
+using RentACar.Infrastructure.Integrations;
 using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
@@ -76,6 +77,7 @@ using RentACar.Web.Crm;
 using RentACar.Web.Periods;
 using RentACar.Web.Authorization;
 using RentACar.Web.Notifications;
+using RentACar.Infrastructure.Integrations;
 using RentACar.Web.Users;
 using RentACar.Web.VehicleGroups;
 using RentACar.Web.Documents;
@@ -300,6 +302,9 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"])
     && (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:SmsFrom"])
         || !string.IsNullOrWhiteSpace(builder.Configuration["Twilio:MessagingServiceSid"])))
     builder.Services.AddSingleton<RentACar.Application.Integrations.ISmsService, RentACar.Web.Integrations.TwilioSmsService>();
+// Ödeme: iyzico config VARSA gerçek adaptör stub'ı override eder; yoksa stub dürüstçe
+// "yapılandırılmadı" döner (sahte işlem referansı ÜRETMEZ).
+builder.Services.AddIyzico(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 builder.Services.AddScoped<RentACar.Web.Import.ImportService>(); // veri göçü: Excel/CSV → araç/cari (PII şifreli)

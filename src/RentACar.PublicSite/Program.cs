@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure;
+using RentACar.Infrastructure.Integrations;
 using RentACar.PublicSite;
 using RentACar.PublicSite.Components;
 
@@ -54,6 +55,8 @@ if (!builder.Environment.IsDevelopment()
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
+// Ödeme: halka açık sitede online rezervasyon ödemesi de aynı adaptörü kullanır.
+builder.Services.AddIyzico(builder.Configuration, builder.Environment.IsDevelopment());
 
 // ---- PR-8: rate-limit (IP başına sabit pencere). PR-4.5'in UseForwardedHeaders'ına BAĞIMLI —
 // o olmadan Caddy arkasında RemoteIpAddress hep 127.0.0.1 olur, limit tek partition'a düşerdi.
