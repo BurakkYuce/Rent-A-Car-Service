@@ -12,6 +12,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
+    <!-- Bildirim omurgası: SMTP gönderimi. Web/Api/PublicSite üçü de kullandığı için
+         host projesinde değil BURADA (Twilio'nun aksine HttpClient bağımlılığı getirmez). -->
+    <PackageReference Include="MailKit" />
     <!-- Design: dotnet ef migrations / database update için -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>

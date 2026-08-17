@@ -1,0 +1,144 @@
+@page "/mesaj-sablonlari"
+@attribute [Authorize(Policy = "izin:ManageUsers")]
+@using RentACar.Application.Notifications
+@using RentACar.Domain.Enums
+@inject MusteriBildirimService Bildirim
+
+<PageTitle>Mesaj Şablonları — RentPro</PageTitle>
+
+<div class="page-head"><h1>Müşteri Mesaj Şablonları</h1><div class="actions"></div></div>
+<p class="muted small">
+    Müşteriye giden e-posta ve SMS metinleri. <strong>Şablon yazılmadan mesaj gönderilmez</strong> —
+    firmanız adına giden bir metni siz görmeden yollamayız. Şablonu sonradan yazarsanız, o ana kadar
+    kuyrukta bekleyen mesajlar ilk taramada doğru içerikle gönderilir.
+</p>
+<p class="muted small">
+    Kullanabileceğiniz yer tutucular:
+    @foreach (var a in SablonDoldur.Anahtarlar)
+    {
+        <code class="chip-kod">@("{" + a + "}")</code>
+    }
+    <br />Tanımadığımız bir yer tutucu metinde <em>olduğu gibi</em> kalır — yazım hatasını görebilirsiniz.
+    E-posta gövdesine HTML yazabilirsiniz; müşteri adı gibi <em>değerler</em> otomatik kaçırılır.
+</p>
+
+@if (!string.IsNullOrEmpty(Hata))
+{
+    <p class="error">@Hata</p>
+}
+@if (Ok)
+{
+    <p class="ok">Kaydedildi.</p>
+}
+
+<div class="table-scroll">
+<table class="grid tr-grid">
+    <thead><tr><th>Olay</th><th>Kanal</th><th>Konu</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+        @foreach (var tur in Turler)
+        {
+            @foreach (var kanal in Kanallar)
+            {
+                var mevcut = _sablonlar.FirstOrDefault(x => x.Tur == tur && x.Kanal == kanal);
+                <tr>
+                    <td>@Aciklama(tur)</td>
+                    <td>@(kanal == MesajKanal.Eposta ? "E-posta" : "SMS")</td>
+                    <td>@(mevcut?.Konu ?? "—")</td>
+                    <td>
+                        @if (mevcut is null)
+                        {
+                            <span class="muted">tanımlı değil</span>
+                        }
+                        else
+                        {
+                            <span>@(mevcut.Aktif ? "Aktif" : "Kapalı")</span>
+                        }
+                    </td>
+                    <td>
+                        <details>
+                            <summary class="link">@(mevcut is null ? "Tanımla" : "Düzenle")</summary>
+                            <form method="post" action="/mesaj-sablonlari/kaydet" class="grid-form"><AntiforgeryToken />
+                                <input type="hidden" name="tur" value="@tur" />
+                                <input type="hidden" name="kanal" value="@kanal" />
+                                @if (kanal == MesajKanal.Eposta)
+                                {
+                                    <label class="u-col-full">Konu
+                                        <input name="konu" value="@mevcut?.Konu" required
+                                               placeholder="@KonuOnerisi(tur)" />
+                                    </label>
+                                }
+                                <label class="u-col-full">Gövde
+                                    <textarea name="govde" rows="@(kanal == MesajKanal.Eposta ? 8 : 4)" required
+                                              placeholder="@GovdeOnerisi(tur, kanal)">@mevcut?.Govde</textarea>
+                                </label>
+                                <label class="kf-inline">
+                                    <input type="checkbox" name="aktif" value="true"
+                                           checked="@(mevcut is null || mevcut.Aktif)" /> Aktif
+                                </label>
+                                <button type="submit">Kaydet</button>
+                            </form>
+                        </details>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ok")] public bool Ok { get; set; }
+
+    private IReadOnlyList<MesajSablonRow> _sablonlar = [];
+
+    private static readonly MesajTuru[] Turler = Enum.GetValues<MesajTuru>();
+    private static readonly MesajKanal[] Kanallar = Enum.GetValues<MesajKanal>();
+
+    protected override async Task OnInitializedAsync() => _sablonlar = await Bildirim.SablonListAsync();
+
+    private static string Aciklama(MesajTuru t) => t switch
+    {
+        MesajTuru.TalepAlindi => "Web sitesinden talep alındı",
+        MesajTuru.RezervasyonOnay => "Rezervasyon oluşturuldu",
+        MesajTuru.RezervasyonIptal => "Rezervasyon iptal edildi",
+        MesajTuru.TeslimHatirlatma => "Yarın araç teslim edilecek",
+        MesajTuru.IadeHatirlatma => "Bugün araç iade edilecek",
+        MesajTuru.OdemeHatirlatma => "Ödeme vadesi hatırlatması",
+        _ => t.ToString(),
+    };
+
+    private static string KonuOnerisi(MesajTuru t) => t switch
+    {
+        MesajTuru.TalepAlindi => "Talebiniz alındı — {Firma}",
+        MesajTuru.RezervasyonOnay => "Rezervasyonunuz onaylandı ({No})",
+        MesajTuru.RezervasyonIptal => "Rezervasyonunuz iptal edildi ({No})",
+        MesajTuru.TeslimHatirlatma => "Yarın aracınızı teslim alıyorsunuz",
+        MesajTuru.IadeHatirlatma => "Aracınızın iade günü bugün",
+        MesajTuru.OdemeHatirlatma => "Ödeme hatırlatması",
+        _ => "",
+    };
+
+    private static string GovdeOnerisi(MesajTuru t, MesajKanal k)
+    {
+        if (k == MesajKanal.Sms)
+            return t switch
+            {
+                MesajTuru.TeslimHatirlatma => "Sayin {MusteriAd}, {CikisTarih} tarihinde {Plaka} plakali aracinizi teslim alacaksiniz.",
+                MesajTuru.IadeHatirlatma => "Sayin {MusteriAd}, {Plaka} plakali aracin iade saati {DonusTarih}.",
+                _ => "Sayin {MusteriAd}, ...",
+            };
+
+        return t switch
+        {
+            MesajTuru.TalepAlindi =>
+                "<p>Sayın {MusteriAd},</p><p>{CikisTarih} — {DonusTarih} tarihleri için talebinizi aldık. "
+                + "En kısa sürede size dönüş yapacağız.</p><p>Talep no: {No}</p>",
+            MesajTuru.TeslimHatirlatma =>
+                "<p>Sayın {MusteriAd},</p><p>{CikisTarih} tarihinde {Arac} ({Plaka}) aracınızı teslim alacaksınız.</p>",
+            MesajTuru.IadeHatirlatma =>
+                "<p>Sayın {MusteriAd},</p><p>{Plaka} plakalı aracınızın iade saati {DonusTarih}.</p>",
+            _ => "<p>Sayın {MusteriAd},</p><p>...</p>",
+        };
+    }
+}

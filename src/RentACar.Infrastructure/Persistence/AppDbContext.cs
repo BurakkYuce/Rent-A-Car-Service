@@ -133,6 +133,10 @@ public sealed class AppDbContext : DbContext
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<WhatsAppGonderim> WhatsAppGonderimler => Set<WhatsAppGonderim>();
+    /// <summary>Müşteriye giden mesaj şablonları (tür + kanal başına tek).</summary>
+    public DbSet<MesajSablon> MesajSablonlari => Set<MesajSablon>();
+    /// <summary>Müşteriye giden mesajların kalıcı gönderim kaydı (idempotency + "gitti mi").</summary>
+    public DbSet<GidenMesaj> GidenMesajlar => Set<GidenMesaj>();
     public DbSet<Personel> Personeller => Set<Personel>();
     public DbSet<PersonelVardiya> PersonelVardiyalari => Set<PersonelVardiya>();   // FAZ-45 — vardiya/çalışma grafiği
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();

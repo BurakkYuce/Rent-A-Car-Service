@@ -95,6 +95,49 @@ internal sealed class WhatsAppGonderimConfig : IEntityTypeConfiguration<WhatsApp
     }
 }
 
+// ---- MesajSablon (tenant-owned; müşteriye giden mesaj metni — tür + kanal başına tek) ----
+internal sealed class MesajSablonConfig : IEntityTypeConfiguration<MesajSablon>
+{
+    public void Configure(EntityTypeBuilder<MesajSablon> e)
+    {
+        e.ToTable("MesajSablonlari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Tur).HasConversion<string>().IsRequired().HasMaxLength(32);
+        e.Property(x => x.Kanal).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.Konu).HasMaxLength(256);
+        e.Property(x => x.Govde).IsRequired().HasMaxLength(8192);
+        // Tür + kanal başına TEK şablon: "hangi metin gitti" sorusunun tek cevabı olsun.
+        e.HasIndex(x => new { x.TenantId, x.Tur, x.Kanal }).IsUnique();
+    }
+}
+
+// ---- GidenMesaj (tenant-owned; gönderim kaydı + ŞEMA düzeyinde idempotency) ----
+internal sealed class GidenMesajConfig : IEntityTypeConfiguration<GidenMesaj>
+{
+    public void Configure(EntityTypeBuilder<GidenMesaj> e)
+    {
+        e.ToTable("GidenMesajlar");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Anahtar).IsRequired().HasMaxLength(128);
+        e.Property(x => x.Tur).IsRequired().HasMaxLength(32);
+        e.Property(x => x.Kanal).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.Alici).IsRequired().HasMaxLength(256);
+        e.Property(x => x.Konu).HasMaxLength(256);
+        e.Property(x => x.Govde).IsRequired().HasMaxLength(8192);
+        e.Property(x => x.DegerlerJson).HasMaxLength(4096);
+        e.Property(x => x.Durum).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.Hata).HasMaxLength(1024);
+        e.Property(x => x.KaynakTur).HasMaxLength(32);
+        // İDEMPOTENCY ŞEMADA: aynı anahtar tenant içinde iki kez yazılamaz. Job iki kez koşsa da
+        // (çoklu instance, elle tetikleme) müşteri aynı mesajı iki kez almaz — uygulama katmanının
+        // "önce sorgula, sonra yaz" kontrolü yarışta yetersiz kalır, benzersiz index kalmaz.
+        e.HasIndex(x => new { x.TenantId, x.Anahtar }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.OlusturmaUtc });
+    }
+}
+
 // ---- ScreenPermission / Ekran yetki override (tenant-owned, roadmap E3) ----
 internal sealed class ScreenPermissionConfig : IEntityTypeConfiguration<ScreenPermission>
 {

@@ -153,6 +153,8 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.TarifeGruplari.ITarifeGrubuRepository, TarifeGrubuRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsRepository,
             Persistence.Repositories.TenantSettingsRepository>();
+        services.AddScoped<RentACar.Application.Notifications.IMesajRepository,
+            Persistence.Repositories.MesajRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantDomainRepository,
             Persistence.Repositories.TenantDomainRepository>(); // PR-2: public-site host self-servis
         services.AddScoped<RentACar.Application.Personnel.IPersonelRepository,
@@ -225,6 +227,12 @@ public static class DependencyInjection
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();
+        // E-posta: gerçek SMTP göndericisi stub'ı KOŞULSUZ override eder (son kayıt kazanır).
+        // Yapılandırma global config'te değil TENANT satırındadır (TenantSettings.Smtp*), bu yüzden
+        // "kurulu mu" kararı DI'da değil gönderim anında verilir — BildirimKanaliService ayar yoksa
+        // açık hata döndürür, sessiz başarı üretmez.
+        services.AddSingleton<RentACar.Application.Integrations.IEmailSender,
+            Integrations.MailKitEmailSender>();
 
         return services;
     }

@@ -56,6 +56,7 @@ public sealed class PublicBookingRequestService(
     ReservationService reservations,
     WebSite.IWebIlanRepository ilanlar, // PR-14: fiyat/başlık snapshot'ı SUNUCUDAN çözülür
     Finance.KdvVarsayilan kdv,          // PR-14: ilan fiyatı KDV dahilse ERP'nin beklediği NET'e çevrilir
+    Notifications.MusteriBildirimService bildirim, // talep alındı bildirimi (anonim yol — guard'sız)
     ICurrentUser currentUser)
 {
     // ---- Public (GUARD'SIZ — anonim ziyaretçi) ----
@@ -77,7 +78,7 @@ public sealed class PublicBookingRequestService(
         // ve personel dönüştürürken fiyatı kendi girer.
         var ilan = input.IlanId is { } ilanId ? await ilanlar.FindAsync(ilanId, ct) : null;
 
-        await repository.AddAsync(new PublicBookingRequest
+        var talep = new PublicBookingRequest
         {
             AdSoyad = adSoyad,
             Telefon = telefon,
@@ -93,7 +94,43 @@ public sealed class PublicBookingRequestService(
             GosterilenGunlukUcretKdvDahil = ilan?.Ilan.GunlukFiyat,
             GosterilenKdvDahil = ilan?.Ilan.KdvDahil,
             Durum = PublicBookingRequestDurum.Yeni,
-        }, ct);
+        };
+        await repository.AddAsync(talep, ct);
+
+        // Talebi bırakan ziyaretçiye ALINDI bildirimi. Ayrı bir pazarlama izni ARANMAZ: kişi
+        // hizmet talebini kendisi başlattı ve bu mesaj o talebin cevabıdır (sözleşme öncesi
+        // iletişim), pazarlama değil. Pazarlama izinleri (İYS/MailIzin) kampanya yollarında okunur.
+        //
+        // Bildirim HİÇBİR KOŞULDA talebin kaydını düşürmez: gönderim hatası müşterinin formunu
+        // reddetmek için sebep değildir. Bu yüzden sonuç yutulmaz ama istisna yukarı sızmaz —
+        // durum GidenMesajlar tablosuna yazılır, operatör oradan görür.
+        if (!string.IsNullOrWhiteSpace(talep.Email))
+        {
+            try
+            {
+                await bildirim.GonderAsync(new Notifications.MesajIstegi(
+                    Tur: MesajTuru.TalepAlindi,
+                    Kanal: MesajKanal.Eposta,
+                    Alici: talep.Email!,
+                    Anahtar: $"talep-alindi:{talep.Id:N}",
+                    Degerler: new Dictionary<string, string?>
+                    {
+                        ["MusteriAd"] = talep.AdSoyad,
+                        ["Arac"] = talep.IlanBaslik,
+                        ["CikisTarih"] = talep.BasTar.ToString("dd.MM.yyyy HH:mm"),
+                        ["DonusTarih"] = talep.BitTar.ToString("dd.MM.yyyy HH:mm"),
+                        ["CikisOfis"] = talep.Sube,
+                        ["No"] = talep.Id.ToString("N")[..8].ToUpperInvariant(),
+                    },
+                    KaynakTur: "Talep",
+                    KaynakId: talep.Id), izinVar: true, ct);
+            }
+            catch (Exception)
+            {
+                // Yutuluyor ve bu bilinçli: anonim yazma yolunda bildirim ikincil bir yan etkidir.
+                // Kalıcı iz GidenMesajlar'da; burada loglayacak bir logger da yok (Application katmanı).
+            }
+        }
     }
 
     // ---- Staff (OperationsWrite) ----
