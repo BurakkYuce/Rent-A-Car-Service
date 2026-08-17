@@ -55,6 +55,18 @@ Jwt__Key=DEGISTIR_openssl_rand_base64_48
 # Alfanümerik başlık Türkiye'de operatör kaydı ister; kayıtsız başlıkla mesaj teslim EDİLMEZ
 # (Twilio 30007). Kayıt yoksa başlığı boş bırakıp numara ile gönderin.
 #
+# --- Ödeme (iyzico) ----------------------------------------------------------
+# Config yoksa ödeme adaptörü DEVREYE GİRMEZ ve stub sahte işlem referansı üretmeden
+# "yapılandırılmadı" döner. Kart verisi sunucumuza HİÇ uğramaz: müşteri iyzico'nun
+# barındırılan ödeme sayfasında kartını girer (PCI kapsamı dışı).
+# Iyzico__BaseUrl=https://sandbox-api.iyzipay.com   # ÜRETİM: https://api.iyzipay.com
+# Iyzico__ApiKey=
+# Iyzico__SecretKey=
+#
+# UYARI: üretimde "sandbox-" ile başlayan anahtar kullanmak = hiç para tahsil etmemek.
+# Uygulama bunu açılışta gürültülü uyarır ama açılışı ENGELLEMEZ (staging bilinçli
+# olarak sandbox kullanabilir). Canlıya geçerken BaseUrl'i de değiştirmeyi unutmayın.
+
 # --- E-posta (SMTP) ----------------------------------------------------------
 # SMTP ayarı ortam değişkeninde DEĞİL, her tenant'ın kendi Ayarlar ekranındadır
 # (host/port/kullanıcı/şifre/gönderen adres). Şifre at-rest şifreli saklanır.

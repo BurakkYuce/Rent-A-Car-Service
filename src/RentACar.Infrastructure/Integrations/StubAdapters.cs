@@ -54,15 +54,23 @@ public sealed class StubEInvoiceService : IEInvoiceService
 
 public sealed class StubPosService : IPosService
 {
-    // Sahte "STUBTX-…" referansı ÜRETMEZ: o referans provizyon/tahsilat kaydına yazılsa, hiçbir kart
-    // bloke edilmemişken sistemde geçerli bir işlem referansı varmış gibi görünürdü. Para yolunda
-    // sahte başarı, e-Fatura'daki sahte ETTN ile aynı sınıf hatadır.
-    public Task<PosResult> ChargeAsync(PosCharge charge, CancellationToken ct = default) => Yok();
-    public Task<PosResult> AuthorizeAsync(PosCharge charge, CancellationToken ct = default) => Yok();
-    public Task<PosResult> CaptureAsync(string txRef, decimal amount, CancellationToken ct = default) => Yok();
-    public Task<PosResult> RefundAsync(string txRef, decimal amount, CancellationToken ct = default) => Yok();
+    // Sahte işlem referansı ÜRETMEZ: o referans provizyon/tahsilat kaydına yazılsa, hiçbir kart
+    // bloke edilmemişken sistemde geçerli bir işlem varmış gibi görünürdü. Para yolunda sahte
+    // başarı, e-Fatura'daki sahte ETTN ile aynı sınıf hatadır.
+    private const string Yapilandirilmadi = "Ödeme sağlayıcısı yapılandırılmadı (stub).";
+
+    public Task<PosBaslatSonuc> BaslatAsync(PosOdemeIstegi istek, CancellationToken ct = default)
+        => Task.FromResult(new PosBaslatSonuc(false, null, null, Yapilandirilmadi));
+
+    public Task<PosDurumSonuc> SonucAsync(string token, CancellationToken ct = default)
+        => Task.FromResult(new PosDurumSonuc(false, null, null, null, null, null, null, Yapilandirilmadi));
+
+    public Task<PosResult> KapatAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> IptalAsync(string odemeId, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> IadeAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
+
     private static Task<PosResult> Yok()
-        => Task.FromResult(new PosResult(false, TxRef: null, Error: "Ödeme sağlayıcısı yapılandırılmadı (stub)."));
+        => Task.FromResult(new PosResult(false, TxRef: null, Error: Yapilandirilmadi));
 }
 
 public sealed class StubKabisService : IKabisService

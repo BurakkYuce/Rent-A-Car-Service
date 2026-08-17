@@ -44,6 +44,13 @@
   <ItemGroup>
     <PackageVersion Include="MailKit" Version="4.17.0" />
   </ItemGroup>
+  <!-- Ödeme adaptörü (iyzico): IHttpClientFactory. Infrastructure'da çünkü hem Web (ERP provizyonu)
+       hem PublicSite (online rezervasyon ödemesi) aynı adaptörü kullanıyor — host projesine
+       koymak ikisinden birinde kopya gerektirirdi. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+  </ItemGroup>
   <!-- Ayarlar şifreleme (roadmap D1): tenant entegrasyon kimliklerini at-rest şifreler (IDataProtector). -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.11" />

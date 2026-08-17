@@ -47,21 +47,31 @@ public sealed class IntegrationStubTests
     [Fact]
     public async Task Pos_stub_sahte_islem_referansi_uretmez()
     {
-        // Yapılandırma yokken hiçbir kart bloke EDİLMEZ. Eskiden "STUBTX-…" referansıyla true dönüyordu;
-        // o referans provizyon kaydına yazılsaydı sistemde geçerli bir işlem varmış gibi görünürdü.
+        // Yapılandırma yokken hiçbir kart bloke EDİLMEZ ve hiçbir ödeme sayfası açılmaz. Eskiden
+        // "STUBTX-…" referansıyla true dönüyordu; o referans provizyon kaydına yazılsaydı sistemde
+        // geçerli bir işlem varmış gibi görünürdü.
         using var sp = Build();
         var pos = sp.GetRequiredService<IPosService>();
 
-        var auth = await pos.AuthorizeAsync(new PosCharge(500m, "TRY", "tok_x", ThreeD: true));
-        Assert.False(auth.Success);
-        Assert.Null(auth.TxRef);
-        Assert.False(string.IsNullOrWhiteSpace(auth.Error));
+        var baslat = await pos.BaslatAsync(new PosOdemeIstegi(
+            500m, "TRY", "RZ-1", "https://ornek/donus",
+            new PosAlici("M1", "Ahmet", "Yılmaz", "a@b.c", "+905000000000", "11111111110",
+                "Adres", "İstanbul", "Turkey", "1.2.3.4"),
+            "Depozito", Provizyon: true));
+        Assert.False(baslat.Ok);
+        Assert.Null(baslat.Token);
+        Assert.Null(baslat.OdemeSayfasiUrl);
+        Assert.False(string.IsNullOrWhiteSpace(baslat.Hata));
+
+        var durum = await pos.SonucAsync("herhangi-token");
+        Assert.False(durum.Ok);
+        Assert.Null(durum.OdemeId);
 
         foreach (var sonuc in new[]
         {
-            await pos.ChargeAsync(new PosCharge(10m, "TRY", "tok_x", ThreeD: false)),
-            await pos.CaptureAsync("herhangi", 10m),
-            await pos.RefundAsync("herhangi", 10m),
+            await pos.KapatAsync("1", 10m, "1.2.3.4"),
+            await pos.IptalAsync("1", "1.2.3.4"),
+            await pos.IadeAsync("1", 10m, "1.2.3.4"),
         })
         {
             Assert.False(sonuc.Success);
