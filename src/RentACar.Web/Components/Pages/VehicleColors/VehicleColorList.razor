@@ -1,5 +1,5 @@
 @page "/renkler"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject VehicleColorService Renkler
 
 <PageTitle>Renkler — RentPro</PageTitle>

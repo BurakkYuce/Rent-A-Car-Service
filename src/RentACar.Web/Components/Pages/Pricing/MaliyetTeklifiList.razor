@@ -1,5 +1,5 @@
 @page "/maliyet-teklifleri"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using System.Globalization
 @using RentACar.Application.Pricing
 @using RentACar.Domain.Enums

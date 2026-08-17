@@ -76,7 +76,7 @@ public static class BookingEndpoints
         {
             try { await svc.CancelAsync(id); return Results.Redirect("/rezervasyonlar"); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         rez.MapPost("/convert", async (ReservationService svc, [FromForm] Guid id) =>
         {
@@ -326,7 +326,7 @@ public static class BookingEndpoints
         {
             try { await svc.CancelAsync(id); return Results.Redirect("/kiralar"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}"); }
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         kira.MapPost("/teslim", async (RentalService svc,
             [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] int cikisYakit) =>

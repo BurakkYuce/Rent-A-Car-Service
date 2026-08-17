@@ -1,5 +1,5 @@
 @page "/otomatik-tahsilat"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Application.FaturaDonemleri
 @using RentACar.Domain.Enums
 @inject OtomatikTahsilatService Tetik

@@ -1,5 +1,5 @@
 @page "/tarife-matris"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject RateMatrixService TarifeMatris
 @inject BranchService Subeler
 @inject LocationService Locations

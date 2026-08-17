@@ -100,7 +100,7 @@ public static class PenaltyEndpoints
             }
         });
 
-        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id)));
+        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }

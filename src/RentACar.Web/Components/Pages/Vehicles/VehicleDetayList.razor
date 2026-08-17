@@ -1,5 +1,5 @@
 @page "/vehicles/detayli"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject VehicleService Vehicles
 @inject BranchService Subeler
 

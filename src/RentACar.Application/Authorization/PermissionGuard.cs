@@ -11,7 +11,9 @@ public static class PermissionGuard
 {
     public static void Require(ICurrentUser user, Permission permission)
     {
-        if (!RolePermissions.Has(user.Role, permission))
+        // 2026-08-17: karar artık EffectivePermission'dan — rol matrisi + kullanıcı-bazlı
+        // ek izin/yasak bileşimi. İstisnası olmayan kullanıcıda davranış birebir eski matris.
+        if (!EffectivePermission.Has(user, permission))
             throw new ValidationException($"Bu işlem için yetkiniz yok ({permission}).");
     }
 
@@ -23,7 +25,7 @@ public static class PermissionGuard
     /// </summary>
     public static void RequireAny(ICurrentUser user, params Permission[] permissions)
     {
-        if (!permissions.Any(p => RolePermissions.Has(user.Role, p)))
+        if (!permissions.Any(p => EffectivePermission.Has(user, p)))
             throw new ValidationException(
                 $"Bu işlem için yetkiniz yok ({string.Join(" veya ", permissions)}).");
     }

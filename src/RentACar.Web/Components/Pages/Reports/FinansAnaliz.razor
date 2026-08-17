@@ -1,5 +1,5 @@
 @page "/raporlar/finans-analiz"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @using RentACar.Web.Components.Shared.Charts
 

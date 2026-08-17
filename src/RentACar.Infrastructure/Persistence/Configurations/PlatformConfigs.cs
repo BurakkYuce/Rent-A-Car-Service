@@ -27,6 +27,25 @@ internal sealed class TenantConfig : IEntityTypeConfiguration<Tenant>
     }
 }
 
+// ---- KullaniciIzinIstisna (platform deseni — Users gibi: login bootstrap'ta GUC'suz okunur) ----
+internal sealed class KullaniciIzinIstisnaConfig : IEntityTypeConfiguration<KullaniciIzinIstisna>
+{
+    public void Configure(EntityTypeBuilder<KullaniciIzinIstisna> e)
+    {
+        e.ToTable("KullaniciIzinIstisnalari");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Izin).IsRequired().HasMaxLength(64);
+        e.Property(x => x.TanimlayanKullanici).HasMaxLength(128);
+        // Kullanıcı silinmez (pasifleştirilir) ama bütünlük için FK; kullanıcı satırı bir gün
+        // silinirse istisnaları da gitsin (yetim istisna, yeni kullanıcıya sızma riski).
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        // Aynı kullanıcı + aynı izin için TEK satır: ver/yasak çatışması tabloda temsil EDİLEMEZ,
+        // son yazılan kazanır (upsert). Çatışma çözümü kural değil yapı ile.
+        e.HasIndex(x => new { x.TenantId, x.UserId, x.Izin }).IsUnique();
+    }
+}
+
 // ---- User (platform; tenant'a bağlı ama RLS yok) ----
 internal sealed class UserConfig : IEntityTypeConfiguration<User>
 {

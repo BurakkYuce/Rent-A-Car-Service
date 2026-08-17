@@ -1,5 +1,5 @@
 @page "/assistans"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject AssistansTalepService Talepler
 @inject RentalService Kiralar
 

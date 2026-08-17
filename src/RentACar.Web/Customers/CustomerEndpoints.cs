@@ -39,7 +39,7 @@ public static class CustomerEndpoints
         {
             await svc.DeleteAsync(id);
             return Results.Redirect("/cariler");
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }

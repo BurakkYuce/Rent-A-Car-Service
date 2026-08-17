@@ -1,5 +1,5 @@
 @page "/arac-sahipleri"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject VehicleOwnerService AracSahipleri
 
 <PageTitle>Araç Sahipleri — RentPro</PageTitle>

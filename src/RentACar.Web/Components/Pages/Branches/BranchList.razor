@@ -1,5 +1,5 @@
 @page "/subeler"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "izin:ManageUsers")]
 @inject BranchService Branches
 
 <PageTitle>Şubeler — RentPro</PageTitle>

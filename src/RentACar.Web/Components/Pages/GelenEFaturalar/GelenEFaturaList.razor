@@ -1,5 +1,5 @@
 @page "/gelen-efatura"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject GelenEFaturaService GelenFaturalar
 @inject VehicleService Vehicles
 @inject CustomerService Customers

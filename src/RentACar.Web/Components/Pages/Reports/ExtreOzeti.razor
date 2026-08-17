@@ -1,5 +1,5 @@
 @page "/raporlar/extre-ozeti"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @inject CustomerService Customers
 @inject LocationService Ofisler

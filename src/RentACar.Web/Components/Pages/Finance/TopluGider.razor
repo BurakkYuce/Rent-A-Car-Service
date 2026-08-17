@@ -1,5 +1,5 @@
 @page "/toplu-gider"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Domain.Enums
 @inject CustomerService Cariler
 @inject FinancialAccountService Hesaplar

@@ -1,5 +1,5 @@
 @page "/personel"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "izin:ManageUsers")]
 @inject PersonelService Personel
 @inject BranchService Subeler
 @inject NavigationManager Nav

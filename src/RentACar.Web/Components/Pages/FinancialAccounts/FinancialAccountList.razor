@@ -1,5 +1,5 @@
 @page "/hesaplar"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject FinancialAccountService Hesaplar
 @inject BranchService Subeler
 

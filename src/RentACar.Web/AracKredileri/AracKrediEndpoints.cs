@@ -48,7 +48,7 @@ public static class AracKrediEndpoints
                 null, FormParse.Id(islemAnahtari), FormParse.Id(hesapId))));   // FAZ-50
 
         grp.MapPost("/iptal", async (AracKrediService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Durum(req, () => svc.IptalAsync(id)));
+            await Durum(req, () => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
 
         // FAZ-13 — toplu "Taksitleri İptal Et". Seçim checkbox'ları tablo satırlarının İÇİNDE ama
         // form= attribute'üyle tablonun DIŞINDAKİ bu forma bağlı (satırlarda zaten form var; iç içe
@@ -63,7 +63,7 @@ public static class AracKrediEndpoints
                 // sanır): seçilenlerin hepsi zaten kapalı/iptalse bunu söyle.
                 if (n == 0) throw new ValidationException("Seçilen kredilerin hiçbiri aktif değil; iptal edilecek taksit yok.");
             }, "ok=1");
-        });
+        }).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }

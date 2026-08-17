@@ -1,5 +1,5 @@
 @page "/yetki"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "izin:ManageUsers")]
 @inject ScreenPermissionService Yetkiler
 @using RentACar.Domain.Enums
 

@@ -1,5 +1,5 @@
 @page "/raporlar/tahsilat-fatura"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 
 <PageTitle>Tahsilat-Fatura Mutabakatı — RentPro</PageTitle>

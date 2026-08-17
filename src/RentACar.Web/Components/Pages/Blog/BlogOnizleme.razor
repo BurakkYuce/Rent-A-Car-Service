@@ -1,5 +1,5 @@
 @page "/blog-yonetim/{Id:guid}/onizleme"
-@attribute [Authorize(Roles = "Admin,Yonetici,Operator")]
+@attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.Blog
 @using RentACar.Application.Common
 @inject BlogService Blog

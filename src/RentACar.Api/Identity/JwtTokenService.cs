@@ -32,6 +32,10 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options)
             new(ApiClaims.AssignedBranchId, login.User.AtanmisSubeId?.ToString() ?? string.Empty), // FAZ 5-C1
         };
 
+        // Kullanıcı-bazlı istisnalar — cookie ile AYNI claim adları (izin adı başına bir claim).
+        claims.AddRange(login.EkIzinler.Select(i => new Claim(ApiClaims.IzinEk, i)));
+        claims.AddRange(login.YasakIzinler.Select(i => new Claim(ApiClaims.IzinYasak, i)));
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_o.Key));
         var descriptor = new SecurityTokenDescriptor
         {

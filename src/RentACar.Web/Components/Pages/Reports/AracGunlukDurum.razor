@@ -1,5 +1,5 @@
 @page "/raporlar/arac-gunluk-durum"
-@attribute [Authorize(Roles = "Admin,Yonetici,Muhasebe")]
+@attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
 @inject VehicleService Araclar
 @inject LocationService Ofisler

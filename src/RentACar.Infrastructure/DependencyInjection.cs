@@ -213,6 +213,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IKullaniciIzinRepository, KullaniciIzinRepository>(); // izin istisnaları
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
         services.AddScoped<IDetailRepository, DetailRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
