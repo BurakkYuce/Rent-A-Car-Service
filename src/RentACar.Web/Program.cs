@@ -19,6 +19,7 @@ using RentACar.Web.Components;
 using RentACar.Web.Observability;
 using RentACar.Web.Calendar;
 using RentACar.Web.Import;
+using RentACar.Web.Notifications;
 using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
@@ -299,10 +300,6 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:AccountSid"])
     && (!string.IsNullOrWhiteSpace(builder.Configuration["Twilio:SmsFrom"])
         || !string.IsNullOrWhiteSpace(builder.Configuration["Twilio:MessagingServiceSid"])))
     builder.Services.AddSingleton<RentACar.Application.Integrations.ISmsService, RentACar.Web.Integrations.TwilioSmsService>();
-// E-posta: KOŞULSUZ gerçek gönderici. Yapılandırma global config'te değil TENANT satırındadır
-// (TenantSettings.Smtp*), bu yüzden "kurulu mu" kararı DI'da değil gönderim anında verilir —
-// BildirimKanaliService ayar yoksa açık hata döndürür, sessiz başarı üretmez.
-builder.Services.AddSingleton<RentACar.Application.Integrations.IEmailSender, RentACar.Web.Integrations.MailKitEmailSender>();
 builder.Services.AddScoped<RentACar.Web.Reports.ReportExportService>(); // roadmap B1: rapor export
 builder.Services.AddSingleton<RentACar.Web.Reports.PdfExportService>(); // roadmap F4: PDF export
 builder.Services.AddScoped<RentACar.Web.Import.ImportService>(); // veri göçü: Excel/CSV → araç/cari (PII şifreli)
@@ -508,6 +505,7 @@ app.MapListExportEndpoints(); // roadmap G6: liste export
 app.MapPdfEndpoints();
 app.MapImportEndpoints(); // veri göçü içe-aktarım (ManageUsers)
 app.MapTenantSettingsEndpoints();
+app.MapMesajSablonEndpoints();
 app.MapPersonelEndpoints();
 app.MapHukukEndpoints();
 app.MapCrmEndpoints();

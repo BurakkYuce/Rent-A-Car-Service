@@ -25,6 +25,7 @@ public static class JobCalismaKaydedici
     // Mevcut metrik etiketleriyle AYNI sözlük (RacarMetrics.JobFailed) — iki yerde iki ad olmasın.
     public const string VadeBildirim = "vade-bildirim";
     public const string FiloBildirim = "filo-bildirim";
+    public const string MusteriBildirim = "musteri-bildirim";
     public const string DonemFatura = "donem-fatura";
 
     /// <summary>

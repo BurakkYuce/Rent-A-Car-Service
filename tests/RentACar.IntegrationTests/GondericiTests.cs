@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RentACar.Application.Integrations;
+using RentACar.Infrastructure.Integrations;
 using RentACar.Web.Integrations;
 
 namespace RentACar.IntegrationTests;
