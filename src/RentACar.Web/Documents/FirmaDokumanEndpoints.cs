@@ -24,9 +24,10 @@ namespace RentACar.Web.Documents;
 /// </summary>
 public static class FirmaDokumanEndpoints
 {
-    /// <summary>Servis sınırı 10 MB; multipart zarfı + metin alanları için pay bırakılır.
-    /// Uçtaki bu kapı sunucuyu korur (10 MB'ı belleğe almadan reddeder), asıl karar SERVİSTE.</summary>
-    private const long IstekBoyutSiniri = 11L * 1024 * 1024;
+    /// <summary>Servis sınırı (<see cref="FirmaDokumanService.MaxBayt"/>) + multipart zarfı ve metin
+    /// alanları için 1 MB pay. Uçtaki bu kapı sunucuyu korur (sınır üstünü belleğe almadan reddeder),
+    /// asıl karar SERVİSTE. Sabitten türetilir ki servis sınırı değişince burası sessizce dar kalmasın.</summary>
+    private const long IstekBoyutSiniri = FirmaDokumanService.MaxBayt + 1024 * 1024;
 
     public static IEndpointRouteBuilder MapFirmaDokumanEndpoints(this IEndpointRouteBuilder app)
     {

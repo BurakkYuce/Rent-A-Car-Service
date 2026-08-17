@@ -11,7 +11,7 @@ namespace RentACar.IntegrationTests;
 /// Firmanın KENDİ yüklediği PDF dokümanları (/dokumanlar).
 ///
 /// <para><b>BAĞIMSIZ ORACLE:</b> beklenen değerler ELLE kurulur — sınır sayısı (10), boyut eşiği
-/// (10 MB) ve PDF imzası (<c>%PDF-</c>) testte SABİT yazılır, servisten/koddan türetilmez. Sınır
+/// (3 MB) ve PDF imzası (<c>%PDF-</c>) testte SABİT yazılır, servisten/koddan türetilmez. Sınır
 /// bir gün 20'ye çıkarılırsa bu testler kırmızıya döner; istenen budur.</para>
 ///
 /// <para>Karıştırma uyarısı: <c>PlatformBelge</c> (RentPro→firma dağıtımı, RLS'siz platform tablosu)
@@ -127,7 +127,7 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
     }
 
     [Fact]
-    public async Task Boyut_siniri_10_mb_ustu_reddedilir_altinda_kabul_edilir()
+    public async Task Boyut_siniri_3_mb_ustu_reddedilir_altinda_kabul_edilir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
@@ -135,23 +135,23 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var svc = Svc(scope);
 
-        // ELLE: sınır 10 MB = 10 * 1024 * 1024 = 10.485.760 bayt.
-        const int onMb = 10 * 1024 * 1024;
+        // ELLE: sınır 3 MB = 3 * 1024 * 1024 = 3.145.728 bayt (kullanıcı kararı, 2026-08-17).
+        const int ucMb = 3 * 1024 * 1024;
 
         // Bir bayt FAZLASI → red (geçerli PDF imzasıyla; hata boyut hatası olmalı, "PDF değil" değil).
-        var buyuk = new byte[onMb + 1];
+        var buyuk = new byte[ucMb + 1];
         Pdf("").CopyTo(buyuk, 0);
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.YukleAsync(Girdi("Çok büyük", buyuk)));
-        Assert.Equal("Dosya en fazla 10 MB olabilir.", ex.Message);
+        Assert.Equal("Dosya en fazla 3 MB olabilir.", ex.Message);
 
-        // TAM sınır (10.485.760 bayt) → KABUL (sınır dahil).
-        var tamSinir = new byte[onMb];
+        // TAM sınır (3.145.728 bayt) → KABUL (sınır dahil).
+        var tamSinir = new byte[ucMb];
         Pdf("").CopyTo(tamSinir, 0);
         var id = await svc.YukleAsync(Girdi("Tam sınır", tamSinir));
-        Assert.Equal(onMb, (await svc.ListeleAsync()).Single().Boyut);
+        Assert.Equal(ucMb, (await svc.ListeleAsync()).Single().Boyut);
 
         var indirilen = await svc.IndirAsync(id);
-        Assert.Equal(onMb, indirilen!.Bytes.Length);
+        Assert.Equal(ucMb, indirilen!.Bytes.Length);
     }
 
     [Fact]

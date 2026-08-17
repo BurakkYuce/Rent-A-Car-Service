@@ -17,7 +17,7 @@ public sealed record FirmaDokumanInput(string? Baslik, string? Aciklama, string?
 /// EKLENMEDİ (rol matrisi testleri dalgalanmasın; <c>PlatformBelgeService</c> ile aynı karar).</para>
 ///
 /// <para><b>Sınırlar SERVİSTE</b> — UI'da butonu gizlemek yetmez, uçlara doğrudan POST edilebilir:
-/// (1) tenant başına en fazla <see cref="MaxDokuman"/> belge, (2) dosya ≤ 10 MB, (3) yalnız PDF.
+/// (1) tenant başına en fazla <see cref="MaxDokuman"/> belge, (2) dosya ≤ 3 MB, (3) yalnız PDF.
 /// (1) ayrıca DB'de yuva unique index + CHECK ile yapısal; (3) MAGIC BYTE ile doğrulanır —
 /// uzantı da Content-Type de İSTEMCİDEN gelir, ikisi de yalan söyleyebilir.</para>
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class FirmaDokumanService(IFirmaDokumanRepository repository, ICur
     /// <summary>Tenant başına belge üst sınırı (ürün kararı). Yuva numaraları 1..10.</summary>
     public const int MaxDokuman = 10;
 
-    /// <summary>Dosya üst sınırı — <see cref="PdfValidation.MaxBayt"/> (10 MB) ile TEK kaynaktan.</summary>
+    /// <summary>Dosya üst sınırı — <see cref="PdfValidation.MaxBayt"/> (3 MB) ile TEK kaynaktan.</summary>
     public const long MaxBayt = PdfValidation.MaxBayt;
 
     // ---- Okuma: guard YOK (oturum açmış herkes) ----
