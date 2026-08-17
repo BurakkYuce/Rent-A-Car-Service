@@ -124,22 +124,24 @@
 
     <div class="u-col-full">
         <div class="muted small">Sorular — soru metni boş bırakılan satır kaydedilmez.</div>
-        <table class="grid tr-grid">
-            <thead><tr><th>#</th><th>Soru</th><th>Cevap</th><th>Açıklama</th></tr></thead>
-            <tbody>
-                @for (var i = 1; i <= AnketService.VarsayilanSorular.Length; i++)
-                {
-                    var no = i;
-                    var mevcut = _edit?.Cevaplar.FirstOrDefault(c => c.SoruNo == no);
-                    <tr>
-                        <td>@no</td>
-                        <td><input name="soru@(no)" value="@(mevcut?.Soru ?? AnketService.VarsayilanSorular[no - 1])" maxlength="512" /></td>
-                        <td><input name="cevap@(no)" value="@mevcut?.Cevap" maxlength="1024" /></td>
-                        <td><input name="aciklama@(no)" value="@mevcut?.Aciklama" maxlength="1024" /></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="table-scroll">
+            <table class="grid tr-grid">
+                <thead><tr><th>#</th><th>Soru</th><th>Cevap</th><th>Açıklama</th></tr></thead>
+                <tbody>
+                    @for (var i = 1; i <= AnketService.VarsayilanSorular.Length; i++)
+                    {
+                        var no = i;
+                        var mevcut = _edit?.Cevaplar.FirstOrDefault(c => c.SoruNo == no);
+                        <tr>
+                            <td>@no</td>
+                            <td><input name="soru@(no)" value="@(mevcut?.Soru ?? AnketService.VarsayilanSorular[no - 1])" maxlength="512" /></td>
+                            <td><input name="cevap@(no)" value="@mevcut?.Cevap" maxlength="1024" /></td>
+                            <td><input name="aciklama@(no)" value="@mevcut?.Aciklama" maxlength="1024" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>

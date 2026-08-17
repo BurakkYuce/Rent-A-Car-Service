@@ -111,107 +111,109 @@
 <p class="muted small">@_rows.Count araç • @_rows.Count(r => r.Kirada) kirada • @_rows.Count(r => r.Serviste) serviste • @_rows.Count(r => r.Bafta) BAF'ta</p>
 
 <div class="durum-grid-wrap">
-<table class="grid tr-grid">
-    <thead>
-        <tr>
-            <th>Plaka</th><th>Marka/Tip</th><th>Grup</th><th>Filo</th><th>Durum</th>
-            <th>Söz. No</th><th>Ad Soyad</th><th>Cep Tel</th><th>Bitiş</th><th>Kira Kalan</th><th>Bakiye</th>
-            <th>Sıradaki Rez.</th><th>Servis</th><th>BAF</th><th>Dosya No</th>
-            <th>Pasif Sebebi</th><th>Konum</th><th>GPS</th><th>HGS/OGS</th><th>Kar L.</th><th>Rez. Kapalı</th>
-            <th>KM</th><th>Şube</th><th>İşlem</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (_rows.Count == 0)
-        {
-            <tr><td colspan="24" class="muted">Kayıt yok.</td></tr>
-        }
-        @foreach (var r in _rows)
-        {
+<div class="table-scroll">
+    <table class="grid tr-grid">
+        <thead>
             <tr>
-                <td><a href="/vehicles/@r.VehicleId">@r.Plaka</a></td>
-                <td>@r.Marka @r.Tip</td>
-                <td>@r.Grup</td>
-                <td>@(r.FiloDurum?.ToString() ?? "—")</td>
-                <td><StatusBadge Durum="@r.Durum" /></td>
-                <td>@(r.KiraSozlesmeNo ?? "—")</td>
-                <td>@(r.MusteriAd ?? "—")</td>
-                <td>@(r.MusteriTel ?? "—")</td>
-                <td>@(r.KiraBitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
-                <td class="num">@KalanMetin(r.KiraKalanGun)</td>
-                <td class="num">@(r.KiraBakiye?.ToString("N2") ?? "—")</td>
-                <td>@(r.RezMusteriAd is null ? "—" : $"{r.RezMusteriAd} ({r.RezBasTar?.LocalDateTime:dd.MM})")</td>
-                <td>@(r.AcikServisNo is null ? "—" : $"{r.AcikServisNo} {r.ServisAtolye}".Trim())</td>
-                <td>@(r.AktifBafNo is null ? "—" : $"{r.AktifBafNo} {r.BafPersonelAd}".Trim())</td>
-                <td>@(r.DosyaNo ?? "—")</td>
-                <td>@(r.PasifSebep ?? "—")</td>
-                <td>@(r.Konum ?? "—")</td>
-                <td>@(r.TakipNo ?? "—")</td>
-                <td>@(r.HgsNo ?? "—")</td>
-                <td>@(r.KarLastigi ? "Var" : "—")</td>
-                <td>@RezKapaliMetin(r)</td>
-                <td class="num">@r.Km</td>
-                <td>@r.Sube</td>
-                <td>
-                    @* Satır-içi aksiyon konsolu. YENİ UÇ YOK: mevcut /servisler/create ve /baf/create
-                       uçlarına post edilir, "Kirala" ise kira mega-formuna araç ön-seçili gider
-                       (o bir GET sayfası — POST edilecek bir uç değil).
-                       İç içe form YASAK: bu hücrelerdeki formlar sayfadaki filtre formunun DIŞINDA. *@
-                    <div class="satir-aksiyon">
-                        @if (!r.Kirada && r.Durum != VehicleStatus.Satildi)
-                        {
-                            <a class="link" href="/kiralar/yeni?varac=@r.VehicleId" title="Bu araçla yeni kira sözleşmesi">Kirala</a>
-                        }
-                        @if (!r.Serviste)
-                        {
-                            <form method="post" action="/servisler/create"
-                                  data-confirm="@($"{r.Plaka} için servis kaydı açılsın mı?")"><AntiforgeryToken />
-                                <input type="hidden" name="vehicleId" value="@r.VehicleId" />
-                                @* Giriş KM aracın güncel odometresidir; kullanıcı servis ekranından düzeltebilir. *@
-                                <input type="hidden" name="girisKm" value="@r.Km" />
-                                <input type="hidden" name="hasarSorumlu" value="@HasarSorumlu.Yok" />
-                                <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından açıldı" />
-                                <select name="tip" title="Servis türü">
-                                    @foreach (var t in Enum.GetValues<ServisTipi>())
-                                    {
-                                        <option value="@t">@t</option>
-                                    }
-                                </select>
-                                <button type="submit" class="link">Servis</button>
-                            </form>
-                        }
-                        else
-                        {
-                            <span class="muted small" title="Açık servis kaydı var">Serviste</span>
-                        }
-                        @if (!r.Bafta && !r.Kirada && _personeller.Count > 0)
-                        {
-                            <form method="post" action="/baf/create"
-                                  data-confirm="@($"{r.Plaka} personele tahsis edilsin mi?")"><AntiforgeryToken />
-                                <input type="hidden" name="vehicleId" value="@r.VehicleId" />
-                                <input type="hidden" name="cikisKm" value="@r.Km" />
-                                <input type="hidden" name="sube" value="@r.Sube" />
-                                <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından tahsis" />
-                                <select name="personelId" required title="Tahsis edilecek personel">
-                                    <option value="">BAF personeli…</option>
-                                    @foreach (var p in _personeller)
-                                    {
-                                        <option value="@p.Id">@p.Ad @p.Soyad</option>
-                                    }
-                                </select>
-                                <button type="submit" class="link">Tahsis</button>
-                            </form>
-                        }
-                        else if (r.Bafta)
-                        {
-                            <span class="muted small" title="Açık BAF tahsisi var">BAF'ta</span>
-                        }
-                    </div>
-                </td>
+                <th>Plaka</th><th>Marka/Tip</th><th>Grup</th><th>Filo</th><th>Durum</th>
+                <th>Söz. No</th><th>Ad Soyad</th><th>Cep Tel</th><th>Bitiş</th><th>Kira Kalan</th><th>Bakiye</th>
+                <th>Sıradaki Rez.</th><th>Servis</th><th>BAF</th><th>Dosya No</th>
+                <th>Pasif Sebebi</th><th>Konum</th><th>GPS</th><th>HGS/OGS</th><th>Kar L.</th><th>Rez. Kapalı</th>
+                <th>KM</th><th>Şube</th><th>İşlem</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @if (_rows.Count == 0)
+            {
+                <tr><td colspan="24" class="muted">Kayıt yok.</td></tr>
+            }
+            @foreach (var r in _rows)
+            {
+                <tr>
+                    <td><a href="/vehicles/@r.VehicleId">@r.Plaka</a></td>
+                    <td>@r.Marka @r.Tip</td>
+                    <td>@r.Grup</td>
+                    <td>@(r.FiloDurum?.ToString() ?? "—")</td>
+                    <td><StatusBadge Durum="@r.Durum" /></td>
+                    <td>@(r.KiraSozlesmeNo ?? "—")</td>
+                    <td>@(r.MusteriAd ?? "—")</td>
+                    <td>@(r.MusteriTel ?? "—")</td>
+                    <td>@(r.KiraBitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
+                    <td class="num">@KalanMetin(r.KiraKalanGun)</td>
+                    <td class="num">@(r.KiraBakiye?.ToString("N2") ?? "—")</td>
+                    <td>@(r.RezMusteriAd is null ? "—" : $"{r.RezMusteriAd} ({r.RezBasTar?.LocalDateTime:dd.MM})")</td>
+                    <td>@(r.AcikServisNo is null ? "—" : $"{r.AcikServisNo} {r.ServisAtolye}".Trim())</td>
+                    <td>@(r.AktifBafNo is null ? "—" : $"{r.AktifBafNo} {r.BafPersonelAd}".Trim())</td>
+                    <td>@(r.DosyaNo ?? "—")</td>
+                    <td>@(r.PasifSebep ?? "—")</td>
+                    <td>@(r.Konum ?? "—")</td>
+                    <td>@(r.TakipNo ?? "—")</td>
+                    <td>@(r.HgsNo ?? "—")</td>
+                    <td>@(r.KarLastigi ? "Var" : "—")</td>
+                    <td>@RezKapaliMetin(r)</td>
+                    <td class="num">@r.Km</td>
+                    <td>@r.Sube</td>
+                    <td>
+                        @* Satır-içi aksiyon konsolu. YENİ UÇ YOK: mevcut /servisler/create ve /baf/create
+                           uçlarına post edilir, "Kirala" ise kira mega-formuna araç ön-seçili gider
+                           (o bir GET sayfası — POST edilecek bir uç değil).
+                           İç içe form YASAK: bu hücrelerdeki formlar sayfadaki filtre formunun DIŞINDA. *@
+                        <div class="satir-aksiyon">
+                            @if (!r.Kirada && r.Durum != VehicleStatus.Satildi)
+                            {
+                                <a class="link" href="/kiralar/yeni?varac=@r.VehicleId" title="Bu araçla yeni kira sözleşmesi">Kirala</a>
+                            }
+                            @if (!r.Serviste)
+                            {
+                                <form method="post" action="/servisler/create"
+                                      data-confirm="@($"{r.Plaka} için servis kaydı açılsın mı?")"><AntiforgeryToken />
+                                    <input type="hidden" name="vehicleId" value="@r.VehicleId" />
+                                    @* Giriş KM aracın güncel odometresidir; kullanıcı servis ekranından düzeltebilir. *@
+                                    <input type="hidden" name="girisKm" value="@r.Km" />
+                                    <input type="hidden" name="hasarSorumlu" value="@HasarSorumlu.Yok" />
+                                    <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından açıldı" />
+                                    <select name="tip" title="Servis türü">
+                                        @foreach (var t in Enum.GetValues<ServisTipi>())
+                                        {
+                                            <option value="@t">@t</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="link">Servis</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="muted small" title="Açık servis kaydı var">Serviste</span>
+                            }
+                            @if (!r.Bafta && !r.Kirada && _personeller.Count > 0)
+                            {
+                                <form method="post" action="/baf/create"
+                                      data-confirm="@($"{r.Plaka} personele tahsis edilsin mi?")"><AntiforgeryToken />
+                                    <input type="hidden" name="vehicleId" value="@r.VehicleId" />
+                                    <input type="hidden" name="cikisKm" value="@r.Km" />
+                                    <input type="hidden" name="sube" value="@r.Sube" />
+                                    <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından tahsis" />
+                                    <select name="personelId" required title="Tahsis edilecek personel">
+                                        <option value="">BAF personeli…</option>
+                                        @foreach (var p in _personeller)
+                                        {
+                                            <option value="@p.Id">@p.Ad @p.Soyad</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="link">Tahsis</button>
+                                </form>
+                            }
+                            else if (r.Bafta)
+                            {
+                                <span class="muted small" title="Açık BAF tahsisi var">BAF'ta</span>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 </div>
 
 @code {

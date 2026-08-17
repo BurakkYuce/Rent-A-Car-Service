@@ -1,0 +1,12 @@
+{
+  "name": "rentacar-mobil-guard",
+  "private": true,
+  "type": "module",
+  "description": "Yalnız mobil taşma koşumu için (scripts/mobil-tasma.mjs). Uygulama .NET'tir; bu paket üretime GİRMEZ.",
+  "scripts": {
+    "mobil": "node scripts/mobil-tasma.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.60.0"
+  }
+}

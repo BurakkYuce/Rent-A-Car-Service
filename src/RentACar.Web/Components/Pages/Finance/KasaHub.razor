@@ -66,7 +66,9 @@
    burada okunur. Tutar DEFTERDEN gelir (künye para taşımaz). *@
 <h2>Son Virmanlar</h2>
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta virmanı tanımlayan çekirdek kalır
+   (tarih başlık; kaynak/hedef/tutar/döviz/makbuz); künyenin geri kalanı masaüstünde. *@
+<table class="grid tr-grid kart-mobil">
     <thead><tr><th>Tarih</th><th>Kaynak</th><th>Hedef</th><th class="num">Tutar</th><th>Döviz</th>
         <th>Makbuz No</th><th>İşlem Şubesi</th><th>İşlemi Yapan</th><th>Açıklama</th></tr></thead>
     <tbody>
@@ -77,12 +79,12 @@
         @foreach (var v in _virmanlar)
         {
             <tr>
-                <td>@v.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
-                <td>@v.KaynakTur@(v.KaynakHesapId is { } kh && _hesapAdlari.TryGetValue(kh, out var kad) ? $" · {kad}" : "")</td>
-                <td>@v.HedefTur@(v.HedefHesapId is { } hh && _hesapAdlari.TryGetValue(hh, out var had) ? $" · {had}" : "")</td>
-                <td class="num">@v.Tutar.ToString("N2")</td>
-                <td>@v.Doviz</td>
-                <td>@(v.MakbuzNo ?? "—")</td>
+                <td class="kart-baslik">@v.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td data-etiket="Kaynak">@v.KaynakTur@(v.KaynakHesapId is { } kh && _hesapAdlari.TryGetValue(kh, out var kad) ? $" · {kad}" : "")</td>
+                <td data-etiket="Hedef">@v.HedefTur@(v.HedefHesapId is { } hh && _hesapAdlari.TryGetValue(hh, out var had) ? $" · {had}" : "")</td>
+                <td class="num" data-etiket="Tutar">@v.Tutar.ToString("N2")</td>
+                <td data-etiket="Döviz">@v.Doviz</td>
+                <td data-etiket="Makbuz No">@(v.MakbuzNo ?? "—")</td>
                 <td>@(v.Sube ?? "—")</td>
                 <td>@(v.IslemYapan ?? "—")</td>
                 <td>@(v.Aciklama ?? "—")</td>
@@ -123,7 +125,9 @@
 
 <h2>Son İşlemler</h2>
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta işlem no başlık; tarih/tip/hesap/cari/tutar
+   kalır. Kanal, cari kod, spesifik hesap ve açıklama masaüstünde kalır (kart 11 satır olmasın). *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr><th>Tarih</th><th>No</th><th>Tip</th><th>Hesap</th><th>Kasa/Banka Hesabı</th><th>Kanal</th><th>Cari</th><th>Cari Kod</th><th>Tutar</th><th>Açıklama</th><th>Makbuz</th></tr>
     </thead>
@@ -136,13 +140,15 @@
         {
             var t = satir.Islem;
             <tr>
-                <td>@t.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
-                <td class="mono">@t.No</td>
-                <td>
+                @* Başlık ilk hücre: kart başlığının ortada değil ÜSTTE olması için. İşlem no hemen
+                   altında ilk etiketli alan olarak duruyor. *@
+                <td class="kart-baslik">@t.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td class="mono" data-etiket="No">@t.No</td>
+                <td data-etiket="Tip">
                     @if (t.TersKayitMi) { <span class="badge warn">Ters</span> }
                     @(t.Tip == CashTransactionType.Odeme ? "Ödeme" : "Tahsilat")
                 </td>
-                <td>@t.KarsiHesap</td>
+                <td data-etiket="Hesap">@t.KarsiHesap</td>
                 @* FAZ-50: hangi spesifik hesap. Boş = bu fazdan önceki kayıt (hesap belirtilmemiş). *@
                 <td>@(t.HesapId is { } hid && _hesapAdlari.TryGetValue(hid, out var hAd) ? hAd : "—")</td>
                 @* FAZ-84: Null → bu alan eklenmeden ÖNCE yazılmış geçmiş kayıt; o dönemde tek kanal
@@ -150,11 +156,11 @@
                    HesapId'den AYRI kavram: biri "hangi spesifik kasa/banka hesabı", diğeri
                    "hangi kanaldan girildi" (Masaüstü/Mobil/Tablet). *@
                 <td>@(t.Kanal ?? CashKanal.Masaustu)</td>
-                <td><a href="/cariler/@t.CariId/ekstre">@satir.CariAd</a></td>
+                <td data-etiket="Cari"><a href="/cariler/@t.CariId/ekstre">@satir.CariAd</a></td>
                 <td>@(satir.CariKod ?? "—")</td>
-                <td>@t.Amount.Amount.ToString("N2") @t.Amount.Currency</td>
+                <td data-etiket="Tutar">@t.Amount.Amount.ToString("N2") @t.Amount.Currency</td>
                 <td>@t.Aciklama</td>
-                <td><a href="/kasa/makbuz/@t.Id/pdf" target="_blank" rel="noopener">PDF</a></td>
+                <td class="kart-aksiyon"><a href="/kasa/makbuz/@t.Id/pdf" target="_blank" rel="noopener">PDF</a></td>
             </tr>
         }
     </tbody>

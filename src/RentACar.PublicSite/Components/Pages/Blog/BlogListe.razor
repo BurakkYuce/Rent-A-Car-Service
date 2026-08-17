@@ -18,7 +18,11 @@
                 <a class="card" href="@($"/blog/{p.Slug}")">
                     @if (p.KapakVar)
                     {
-                        <img class="card-img" src="@($"/blog-kapak/{p.Id}")" alt="@p.Baslik" />
+                        @* loading="lazy": LİSTE kartı, kapak DEĞİL. Mobilde ekrana sığmayan
+                           kartların görselleri ilk boyamayı geciktirmesin (AracKarti.razor ile
+                           aynı davranış). BlogYaziDetay/IlanDetay KAPAK görselleri LCP adayı
+                           olduğu için bilinçli olarak lazy DEĞİL. *@
+                        <img class="card-img" src="@($"/blog-kapak/{p.Id}")" alt="@p.Baslik" loading="lazy" />
                     }
                     else
                     {

@@ -30,6 +30,33 @@
     try { window.localStorage.setItem(ANAHTAR, deger); } catch { /* depolama yok: sessiz geç */ }
   }
 
+  // ---- Gövde telafi boşluğu -------------------------------------------------
+  // Şerit `position: fixed` → normal akıştan ÇIKAR ve sayfanın SON içeriğinin (alt bilgi,
+  // kapanış CTA'sı, "Teklif İste" düğmesi) üzerine biner. Ölçüldü: mobilde şerit ekranın
+  // %43'ünü kaplıyordu ve altındaki her şey ŞERİT KAPATILANA KADAR tıklanamıyordu.
+  //
+  // Telafi neden JS'te: yükseklik metin uzunluğuna, ekran genişliğine ve font yüklenmesine
+  // göre değişiyor (375px'te ~3 satır, 320px'te ~4). CSS'e sabit bir değer yazmak dar
+  // ekranda yetersiz, geniş ekranda gereksiz boşluk demekti. Gerçek yüksekliği ölçüp
+  // `--cerez-bosluk` değişkenine yazıyoruz; site.css'te `body { padding-bottom: var(...) }`.
+  //
+  // CSP: `style-src` denetimi inline <style> etiketi ve `style` ÖZNİTELİĞİ içindir;
+  // `element.style.setProperty` bir CSSOM çağrısıdır ve denetime girmez → katı CSP'de çalışır.
+  const ALT_PAY = 24;                // şeridin kendi `bottom` boşluğu (--s2 = 16px) + nefes payı
+  let sonYukseklik = -1;             // aynı değeri tekrar yazmayı önler (ResizeObserver döngüsü)
+
+  function bosluguYaz(serit) {
+    const y = serit.offsetHeight;
+    if (y === sonYukseklik) return;
+    sonYukseklik = y;
+    document.documentElement.style.setProperty('--cerez-bosluk', (y + ALT_PAY) + 'px');
+  }
+
+  function bosluguSil() {
+    sonYukseklik = -1;
+    document.documentElement.style.removeProperty('--cerez-bosluk');
+  }
+
   function kur() {
     const serit = document.getElementById('cerez-serit');
     if (!serit) return;              // şerit basılmamış (ör. gelecekte kapatılırsa) → iş yok
@@ -40,10 +67,21 @@
       kapat.addEventListener('click', () => {
         yaz('okundu');
         serit.hidden = true;
+        bosluguSil();                // şerit gidince telafi boşluğu da gitmeli
       });
     }
 
     serit.hidden = false;            // görünürlük EN SON: buton bağlanmadan şerit açılmasın
+    bosluguYaz(serit);
+
+    // Ekran döndüğünde / pencere daraldığında satır sayısı değişir → boşluk bayatlar.
+    // ResizeObserver şeridin KENDİ kutusunu izler: `resize` olayının kaçırdığı geç font
+    // yüklemesi kaynaklı reflow'u da yakalar. Yoksa `resize`'a düşülür.
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => { if (!serit.hidden) bosluguYaz(serit); }).observe(serit);
+    } else {
+      window.addEventListener('resize', () => { if (!serit.hidden) bosluguYaz(serit); });
+    }
   }
 
   if (document.readyState === 'loading') {

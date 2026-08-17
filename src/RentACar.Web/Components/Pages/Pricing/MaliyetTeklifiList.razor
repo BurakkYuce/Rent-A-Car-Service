@@ -83,19 +83,21 @@
                 <tr>
                     <td colspan="13">
                         <strong>Gider kalemleri (kayıtlı girdiden yeniden üretildi)</strong>
-                        <table class="grid tr-grid">
-                            <thead><tr><th>Kalem</th><th>Periyot</th><th class="num">Birim</th><th class="num">Dönem</th></tr></thead>
-                            <tbody>
-                                @foreach (var k in MaliyetTeklifiService.Kalemler(t))
-                                {
-                                    <tr><td>@k.Ad</td><td>@k.Periyot</td>
-                                        <td class="num">@k.Birim.ToString("N2")</td>
-                                        <td class="num">@k.DonemTutar.ToString("N2")</td></tr>
-                                }
-                                <tr><td colspan="3"><strong>Toplam İşletme Gideri (snapshot)</strong></td>
-                                    <td class="num"><strong>@t.ToplamGider.ToString("N2")</strong></td></tr>
-                            </tbody>
-                        </table>
+                        <div class="table-scroll">
+                            <table class="grid tr-grid">
+                                <thead><tr><th>Kalem</th><th>Periyot</th><th class="num">Birim</th><th class="num">Dönem</th></tr></thead>
+                                <tbody>
+                                    @foreach (var k in MaliyetTeklifiService.Kalemler(t))
+                                    {
+                                        <tr><td>@k.Ad</td><td>@k.Periyot</td>
+                                            <td class="num">@k.Birim.ToString("N2")</td>
+                                            <td class="num">@k.DonemTutar.ToString("N2")</td></tr>
+                                    }
+                                    <tr><td colspan="3"><strong>Toplam İşletme Gideri (snapshot)</strong></td>
+                                        <td class="num"><strong>@t.ToplamGider.ToString("N2")</strong></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <p class="muted small">Kredi hesap şekli: <strong>@t.KrediHesaplamaSekli</strong> ·
                             Enflasyon: @t.EnflasyonOran.ToString("N4") · Kâr marjı: @t.KarMarji.ToString("N4") ·
                             KDV: @t.KdvOran.ToString("N4")</p>

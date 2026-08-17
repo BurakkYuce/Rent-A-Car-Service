@@ -48,3 +48,84 @@ jobs:
 
       - name: Test
         run: dotnet test RentACar.slnx -c Release --no-build --verbosity normal
+
+  # ---------------------------------------------------------------------------
+  # Mobil taşma koruması — yeni bir sayfa telefonda yatay kaydırma üretirse build kırılır.
+  #
+  # Neden AYRI iş: gerçek tarayıcı (Playwright) + ayağa kalkmış uygulama ister; entegrasyon
+  # testleriyle aynı işe koymak testleri yavaşlatır ve iki farklı arıza sınıfını tek kırmızıya
+  # karıştırır.
+  #
+  # KAPSAM SINIRI (bilinçli): CI veritabanı yalnız kiracı + kullanıcı tohumlar, iş verisi
+  # tohumlamaz. Boş bir liste taşmadığı için kart görünümü kuralları burada ÖLÇÜLMEZ; koşum
+  # bunu "tablo var ama satır YOK" satırıyla açıkça bildirir. Burada yakalanan sınıf kabuk,
+  # form, ızgara ve filtre çubuğu taşmalarıdır — ki 145 sayfayı birden bozan sınıf tam da budur.
+  mobil-tasma:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: racar_owner
+          POSTGRES_PASSWORD: racar_owner_pw
+          POSTGRES_DB: racar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U racar_owner"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=localhost;Port=5432;Database=racar;Username=racar_app;Password=racar_app_pw"
+      ConnectionStrings__Migrator: "Host=localhost;Port=5432;Database=racar;Username=racar_owner;Password=racar_owner_pw"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kısıtlı runtime rolü (racar_app) — RLS bu role uygulanır
+        run: PGPASSWORD=racar_owner_pw psql -h localhost -U racar_owner -d racar -v ON_ERROR_STOP=1 -f scripts/db-init-roles.sql
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Playwright (yalnız chromium)
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Uygulamayı ayağa kaldır
+        run: |
+          # --no-launch-profile: launchSettings.json aksi halde ASPNETCORE_URLS'i EZİYOR
+          # (uygulama 5220'de açılıyor, sağlık yoklaması başka portu dinliyordu).
+          ASPNETCORE_URLS=http://localhost:5220 \
+            dotnet run --project src/RentACar.Web --no-launch-profile > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5220/health/live)" = "200" ]; then
+              echo "hazır"; exit 0
+            fi
+            sleep 5
+          done
+          echo "uygulama ayağa kalkmadı"; cat /tmp/web.log; exit 1
+
+      - name: Taşma koşumu (390px telefon)
+        run: node scripts/mobil-tasma.mjs --tum
+
+      - name: Taşma koşumu (320px en dar cihaz)
+        run: node scripts/mobil-tasma.mjs --tum --genislik 320
+
+      - name: Taşma koşumu (768px tablet)
+        run: node scripts/mobil-tasma.mjs --tum --genislik 768
+
+      - name: Uygulama günlüğü (yalnız hata durumunda)
+        if: failure()
+        run: cat /tmp/web.log

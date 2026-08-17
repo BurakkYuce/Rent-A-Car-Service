@@ -20,7 +20,7 @@
 <AuthorizeView>
     <Authorized>
         <div class="app">
-            <aside class="sidebar">
+            <aside class="sidebar" id="sb-menu">
                 <div class="sb-brand">
                     <span class="logo">RP</span>
                     <a class="name" href="/">RentPro</a>
@@ -273,8 +273,19 @@
                 </nav>
             </aside>
 
+            @* Çekmece perdesi: açıkken arka planı karartır ve dışına dokununca kapatır.
+               `hidden` ile başlar — JS yoksa hiç görünmez ve sayfa bugünkü gibi çalışır. *@
+            <div class="menu-perde" data-menu-kapat hidden></div>
+
             <div class="main">
                 <header class="topbar">
+                    @* Çekmece açma düğmesi — YALNIZ mobilde görünür (CSS). Statik SSR olduğu için
+                       davranış harici js/rc-ui.js'te data-* delegasyonuyla; inline onclick CSP'ye
+                       (script-src 'self') takılırdı. *@
+                    <button type="button" class="menu-btn" data-menu-ac
+                            aria-label="Menüyü aç" aria-expanded="false" aria-controls="sb-menu">
+                        <span class="menu-cizgi" aria-hidden="true"></span>
+                    </button>
                     <form method="get" action="/ara" class="tb-search">
                         <span></span>
                         <input name="q" placeholder="Hızlı Arama — Müşteri, Plaka, RA No, TC…" />

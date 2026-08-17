@@ -47,7 +47,10 @@
 </form>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta talebi tanıyacak alanlar var (tarih başlık,
+   ad soyad, telefon, tarih aralığı, araç, durum); e-posta / şube / gösterilen fiyat masaüstünde
+   kalır. Takip ve İşlem hücreleri "kart-aksiyon" — içlerindeki formlar sarmalı düzende çalışır. *@
+<table class="grid tr-grid kart-mobil">
     <thead><tr>
         <th>Tarih</th><th>Ad Soyad</th><th>Telefon</th><th>E-posta</th>
         <th>Alış</th><th>İade</th><th>Araç</th><th>Şube</th><th class="num">Gösterilen ₺/gün</th>
@@ -62,7 +65,7 @@
         {
             var t = s.Talep;
             <tr>
-                <td>
+                <td data-etiket="Tarih">
                     @t.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                     @* Yaşlanma rozeti YALNIZ açık taleplerde: kapanmışta "12 gündür bekliyor" yanıltır. *@
                     @if (TalepDurumu.Aktif(t.Durum) && s.BekleyenGun >= 1)
@@ -70,12 +73,13 @@
                         <br /><span class="badge @(s.BekleyenGun >= 3 ? "danger" : "warn")">@s.BekleyenGun gün</span>
                     }
                 </td>
-                <td>@t.AdSoyad</td>
-                <td class="mono">@t.Telefon</td>
+                @* Kart başlığı ADdır: bir lead listesinde "doğru satır" kişiden tanınır. *@
+                <td class="kart-baslik">@t.AdSoyad</td>
+                <td class="mono" data-etiket="Telefon">@t.Telefon</td>
                 <td>@t.Email</td>
-                <td>@t.BasTar.ToString("dd.MM.yyyy")</td>
-                <td>@t.BitTar.ToString("dd.MM.yyyy")</td>
-                <td>@(t.IlanBaslik ?? t.AracGrupKod)</td>
+                <td data-etiket="Alış">@t.BasTar.ToString("dd.MM.yyyy")</td>
+                <td data-etiket="İade">@t.BitTar.ToString("dd.MM.yyyy")</td>
+                <td data-etiket="Araç">@(t.IlanBaslik ?? t.AracGrupKod)</td>
                 <td>@t.Sube</td>
                 <td class="num">
                     @if (t.GosterilenGunlukUcretKdvDahil is { } f)
@@ -85,7 +89,7 @@
                     }
                     else { <text>—</text> }
                 </td>
-                <td>
+                <td data-etiket="Durum">
                     <span class="badge @DurumSinif(t.Durum)">@TalepDurumu.Etiket(t.Durum)</span>
                     @if (t.Durum == PublicBookingRequestDurum.Donustu && t.DonusenReservationId is null)
                     {
@@ -97,7 +101,9 @@
                         <br /><span class="muted small">@ad</span>
                     }
                 </td>
-                <td class="muted small">
+                @* Takip: not listesi + "not ekle" formu. Etiketsiz bıraksaydım telefonda tamamen
+                   kaybolurdu; kart-aksiyon olarak alt bloğa iniyor ve form çalışmaya devam ediyor. *@
+                <td class="muted small kart-aksiyon">
                     @if (!string.IsNullOrWhiteSpace(t.Not)) { <div><em>@t.Not</em></div> }
                     @if (s.NotSayisi > 0)
                     {
@@ -120,7 +126,9 @@
                         </form>
                     }
                 </td>
-                <td>
+                @* İşlem hücresi büyük (Ara / WhatsApp / Bana ata / Dönüştür / Reddet + dönüştürme
+                   paneli); kart-aksiyon sarmalı düzende bunları alt alta indirir, formlar bozulmaz. *@
+                <td class="kart-aksiyon">
                     @* Hızlı temas: link üretimi SUNUCUDA (TelefonLink) — rc-kira-tabs.js'teki JS
                        normalizasyon kuralının ikinci kopyası çıkarılmıyor. *@
                     @if (TelefonLink.Tel(t.Telefon) is { } tel)

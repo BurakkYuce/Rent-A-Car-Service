@@ -90,124 +90,128 @@
 @if (IsOzet)
 {
     <div class="karlilik-wrap">
-    <table class="grid tr-grid">
-        <thead>
-            <tr>
-                <th colspan="5">Defter (P&amp;L)</th>
-                <th colspan="4" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
-            </tr>
-            <tr>
-                <th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
-                <th class="num ref-baslik ref-bas">Araç Başı Gelir</th><th class="num ref-baslik">Doluluk %</th>
-                <th class="num ref-baslik">Potansiyel Gelir</th><th class="num ref-baslik">Toplam Maliyet (ref.)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (_ozet.Satirlar.Count == 0)
-            {
-                <tr><td colspan="9" class="muted">Kayıt yok.</td></tr>
-            }
-            @foreach (var r in _ozet.Satirlar)
-            {
+    <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead>
                 <tr>
-                    <td>@r.Boyut</td>
-                    <td class="num">@r.AracAdet</td>
-                    <td class="num">@r.Gelir.ToString("N2")</td>
-                    <td class="num">@r.Gider.ToString("N2")</td>
-                    <td class="num">@r.NetKar.ToString("N2")</td>
-                    <td class="num ref-col ref-bas">@N(r.AracBasiGelir)</td>
-                    <td class="num ref-col">@N(r.DolulukYuzde)</td>
-                    <td class="num ref-col">@N(r.PotansiyelGelir, "Hesaplanmadı")</td>
-                    <td class="num ref-col">@N(r.ReferansToplamMaliyet)</td>
+                    <th colspan="5">Defter (P&amp;L)</th>
+                    <th colspan="4" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
                 </tr>
-            }
-        </tbody>
-        <tfoot>
-            <tr><th>TOPLAM</th><th class="num"></th>
-                <th class="num">@_ozet.ToplamGelir.ToString("N2")</th>
-                <th class="num">@_ozet.ToplamGider.ToString("N2")</th>
-                <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th>
-                <th class="num ref-col ref-bas" colspan="4"></th></tr>
-        </tfoot>
-    </table>
+                <tr>
+                    <th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
+                    <th class="num ref-baslik ref-bas">Araç Başı Gelir</th><th class="num ref-baslik">Doluluk %</th>
+                    <th class="num ref-baslik">Potansiyel Gelir</th><th class="num ref-baslik">Toplam Maliyet (ref.)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_ozet.Satirlar.Count == 0)
+                {
+                    <tr><td colspan="9" class="muted">Kayıt yok.</td></tr>
+                }
+                @foreach (var r in _ozet.Satirlar)
+                {
+                    <tr>
+                        <td>@r.Boyut</td>
+                        <td class="num">@r.AracAdet</td>
+                        <td class="num">@r.Gelir.ToString("N2")</td>
+                        <td class="num">@r.Gider.ToString("N2")</td>
+                        <td class="num">@r.NetKar.ToString("N2")</td>
+                        <td class="num ref-col ref-bas">@N(r.AracBasiGelir)</td>
+                        <td class="num ref-col">@N(r.DolulukYuzde)</td>
+                        <td class="num ref-col">@N(r.PotansiyelGelir, "Hesaplanmadı")</td>
+                        <td class="num ref-col">@N(r.ReferansToplamMaliyet)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr><th>TOPLAM</th><th class="num"></th>
+                    <th class="num">@_ozet.ToplamGelir.ToString("N2")</th>
+                    <th class="num">@_ozet.ToplamGider.ToString("N2")</th>
+                    <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th>
+                    <th class="num ref-col ref-bas" colspan="4"></th></tr>
+            </tfoot>
+        </table>
+    </div>
     </div>
 }
 else
 {
     <div class="karlilik-wrap">
-    <table class="grid tr-grid">
-        <thead>
-            <tr>
-                <th colspan="@(KdvDahilMi ? 9 : 7)">Defter (P&amp;L) + kimlik</th>
-                <th colspan="8" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
-            </tr>
-            <tr>
-                <th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th>
-                <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
-                @if (KdvDahilMi)
-                {
-                    <th class="num">Hesaplanan KDV</th><th class="num">Gelir (KDV Dahil)</th>
-                }
-                <th class="ref-baslik ref-bas">SIPP</th>
-                <th class="ref-baslik">Otopark</th>
-                <th class="ref-baslik">Rez. Kaynağı</th>
-                <th class="ref-baslik">Cari</th>
-                <th class="num ref-baslik">Cari Bakiye</th>
-                <th class="num ref-baslik">Doluluk %</th>
-                <th class="num ref-baslik">RevPACD / ADR</th>
-                <th class="num ref-baslik">Ana / Yönetim / Toplam Maliyet · Potansiyel Gelir</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (_d.Satirlar.Count == 0)
-            {
-                <tr><td colspan="@(KdvDahilMi ? 17 : 15)" class="muted">Kayıt yok.</td></tr>
-            }
-            @foreach (var r in _d.Satirlar)
-            {
+    <div class="table-scroll">
+        <table class="grid tr-grid">
+            <thead>
                 <tr>
-                    <td>@if (r.VehicleId is Guid vid)
-                        { <a href="/raporlar/arac-karne/@vid" title="Araç Karnesi — ön muhasebe 360°">@r.Plaka</a> }
-                        else { @r.Plaka }</td>
-                    <td>@r.Sube</td><td>@r.Grup</td><td>@r.Segment</td>
-                    <td class="num">@r.Gelir.ToString("N2")</td>
-                    <td class="num">@r.Gider.ToString("N2")</td>
-                    <td class="num">@r.NetKar.ToString("N2")</td>
+                    <th colspan="@(KdvDahilMi ? 9 : 7)">Defter (P&amp;L) + kimlik</th>
+                    <th colspan="8" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
+                </tr>
+                <tr>
+                    <th>Plaka</th><th>Şube</th><th>Grup</th><th>Segment</th>
+                    <th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
                     @if (KdvDahilMi)
                     {
-                        <td class="num">@N(r.HesaplananKdv)</td>
-                        <td class="num">@N(r.GelirKdvDahil)</td>
+                        <th class="num">Hesaplanan KDV</th><th class="num">Gelir (KDV Dahil)</th>
                     }
-                    <td class="ref-col ref-bas">@r.Sipp</td>
-                    <td class="ref-col">@r.Otopark</td>
-                    <td class="ref-col">@r.RezKaynagi</td>
-                    <td class="ref-col">@r.CariAd</td>
-                    <td class="num ref-col">@N(r.CariBakiye)</td>
-                    <td class="num ref-col">@N(r.DolulukYuzde)</td>
-                    <td class="num ref-col">@N(r.RevPacd) / @N(r.Adr)</td>
-                    <td class="num ref-col">
-                        @N(r.ReferansAylikMaliyet) / @N(r.ReferansFiloYonetimMaliyeti) / @N(r.ReferansToplamMaliyet)
-                        · @N(r.PotansiyelGelir, "Hesaplanmadı")
-                    </td>
+                    <th class="ref-baslik ref-bas">SIPP</th>
+                    <th class="ref-baslik">Otopark</th>
+                    <th class="ref-baslik">Rez. Kaynağı</th>
+                    <th class="ref-baslik">Cari</th>
+                    <th class="num ref-baslik">Cari Bakiye</th>
+                    <th class="num ref-baslik">Doluluk %</th>
+                    <th class="num ref-baslik">RevPACD / ADR</th>
+                    <th class="num ref-baslik">Ana / Yönetim / Toplam Maliyet · Potansiyel Gelir</th>
                 </tr>
-            }
-        </tbody>
-        <tfoot>
-            <tr><th colspan="4">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
-                <th class="num">@_d.ToplamGelir.ToString("N2")</th>
-                <th class="num">@_d.ToplamGider.ToString("N2")</th>
-                <th class="num">@_d.ToplamNetKar.ToString("N2")</th>
-                @if (KdvDahilMi)
+            </thead>
+            <tbody>
+                @if (_d.Satirlar.Count == 0)
                 {
-                    <th class="num">@N(_d.ToplamHesaplananKdv)</th>
-                    <th class="num">@N(_d.ToplamHesaplananKdv is { } tk ? _d.ToplamGelir + tk : null)</th>
+                    <tr><td colspan="@(KdvDahilMi ? 17 : 15)" class="muted">Kayıt yok.</td></tr>
                 }
-                <th class="ref-col ref-bas" colspan="7"></th>
-                <th class="num ref-col">
-                    @N(_d.ToplamReferansMaliyet) · @N(_d.ToplamPotansiyelGelir, "Hesaplanmadı")
-                </th></tr>
-        </tfoot>
-    </table>
+                @foreach (var r in _d.Satirlar)
+                {
+                    <tr>
+                        <td>@if (r.VehicleId is Guid vid)
+                            { <a href="/raporlar/arac-karne/@vid" title="Araç Karnesi — ön muhasebe 360°">@r.Plaka</a> }
+                            else { @r.Plaka }</td>
+                        <td>@r.Sube</td><td>@r.Grup</td><td>@r.Segment</td>
+                        <td class="num">@r.Gelir.ToString("N2")</td>
+                        <td class="num">@r.Gider.ToString("N2")</td>
+                        <td class="num">@r.NetKar.ToString("N2")</td>
+                        @if (KdvDahilMi)
+                        {
+                            <td class="num">@N(r.HesaplananKdv)</td>
+                            <td class="num">@N(r.GelirKdvDahil)</td>
+                        }
+                        <td class="ref-col ref-bas">@r.Sipp</td>
+                        <td class="ref-col">@r.Otopark</td>
+                        <td class="ref-col">@r.RezKaynagi</td>
+                        <td class="ref-col">@r.CariAd</td>
+                        <td class="num ref-col">@N(r.CariBakiye)</td>
+                        <td class="num ref-col">@N(r.DolulukYuzde)</td>
+                        <td class="num ref-col">@N(r.RevPacd) / @N(r.Adr)</td>
+                        <td class="num ref-col">
+                            @N(r.ReferansAylikMaliyet) / @N(r.ReferansFiloYonetimMaliyeti) / @N(r.ReferansToplamMaliyet)
+                            · @N(r.PotansiyelGelir, "Hesaplanmadı")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr><th colspan="4">@(_filtreVar ? "TOPLAM (filtreli — genel P&L değil)" : "TOPLAM")</th>
+                    <th class="num">@_d.ToplamGelir.ToString("N2")</th>
+                    <th class="num">@_d.ToplamGider.ToString("N2")</th>
+                    <th class="num">@_d.ToplamNetKar.ToString("N2")</th>
+                    @if (KdvDahilMi)
+                    {
+                        <th class="num">@N(_d.ToplamHesaplananKdv)</th>
+                        <th class="num">@N(_d.ToplamHesaplananKdv is { } tk ? _d.ToplamGelir + tk : null)</th>
+                    }
+                    <th class="ref-col ref-bas" colspan="7"></th>
+                    <th class="num ref-col">
+                        @N(_d.ToplamReferansMaliyet) · @N(_d.ToplamPotansiyelGelir, "Hesaplanmadı")
+                    </th></tr>
+            </tfoot>
+        </table>
+    </div>
     </div>
 }
 

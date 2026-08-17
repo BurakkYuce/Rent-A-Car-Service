@@ -133,7 +133,10 @@
 </form>
 
 <div class="table-scroll">
-<table class="grid tr-grid">
+@* kart-mobil: 640px altında satır karta döner. Kartta YALNIZ data-etiket taşıyan hücreler görünür —
+   16 kolonun tamamı kartta 16 satır olurdu. Seçilenler: kimi/neyi (müşteri, araç), ne zaman
+   (başlangıç + teslim), ne kadar ve hangi durumda. *@
+<table class="grid tr-grid kart-mobil">
     <thead>
         <tr><th>No</th><th>Müşteri</th><th>Cep Tel</th><th>Araç</th><th>Başlangıç</th><th>Teslim</th><th>Alış Şube</th><th>Kaynak</th>
             <th>Talep Türü</th><th>Geldiği Birim</th><th>Proje</th><th>Onay Kodu</th>
@@ -148,14 +151,14 @@
         {
             var r = row.Rez;
             <tr>
-                <td>@r.ReservationNo</td>
-                <td>@row.MusteriAd</td>
+                <td class="kart-baslik">@r.ReservationNo</td>
+                <td data-etiket="Müşteri">@row.MusteriAd</td>
                 <td>@(row.CepTel ?? "—")</td>
-                <td>@row.Plaka</td>
+                <td data-etiket="Araç">@row.Plaka</td>
                 @* Birleşik "Tarih" hücresi ayrıştırıldı: başlangıç ve teslim ayrı kolonlarda —
                    bilgi kaybı yok, teslim tarihine göre bakmak kolaylaştı. *@
-                <td>@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
-                <td>@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td data-etiket="Başlangıç">@r.BasTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td data-etiket="Teslim">@r.BitTar.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@(r.CikisOfisi ?? "—")</td>
                 <td>@(r.Kaynak ?? "—")</td>
                 @* FAZ-48 — talep/organizasyon bilgisi (bilgi alanları; hesaba girmez). *@
@@ -164,10 +167,10 @@
                 <td>@(r.ProjeAdi ?? "—")</td>
                 <td>@(r.OnayKodu ?? "—")</td>
                 <td>@r.Gun</td>
-                <td>@r.Tutar.ToString("N2")</td>
+                <td data-etiket="Tutar">@r.Tutar.ToString("N2")</td>
                 @* FAZ-81: "Opsiyonlu" (henüz onaylanmamış tutma) tenant rengiyle ayrışır.
                    Renk seçilmemişse değişken tanımsız → nötr rozete düşer, eski görünüm korunur. *@
-                <td>
+                <td data-etiket="Durum">
                     @if (r.Durum == ReservationStatus.Rezerv)
                     {
                         <span class="status-pill" style="color:var(--tr-renk-opsiyonlu, var(--text-muted));background:var(--tr-renk-opsiyonlu-soft, var(--surface-2));border-color:var(--tr-renk-opsiyonlu, var(--border))">@r.Durum</span>
@@ -177,7 +180,7 @@
                         @r.Durum
                     }
                 </td>
-                <td class="row-actions">
+                <td class="row-actions kart-aksiyon">
                     @if (r.Durum == ReservationStatus.Rezerv)
                     {
                         <form method="post" action="/rezervasyonlar/confirm"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link">Onayla</button></form>
