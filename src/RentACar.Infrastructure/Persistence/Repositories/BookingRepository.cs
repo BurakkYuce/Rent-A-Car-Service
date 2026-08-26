@@ -5,6 +5,8 @@ using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -110,8 +112,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
-            reservation.ReservationNo = $"RZ-{n:D6}";
+            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Rezervasyon, ct);
             db.Reservations.Add(reservation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -299,8 +300,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
-            contract.SozlesmeNo = $"KS-{n:D6}";
+            contract.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.KiraSozlesmesi, ct);
             db.Rentals.Add(contract);
             try
             {
@@ -393,8 +393,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                 ?? throw new ValidationException("Rezervasyon bulunamadı.");
 
             var rental = buildRental(reservation);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "RentalNo", ct);
-            rental.SozlesmeNo = $"KS-{n:D6}";
+            rental.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.KiraSozlesmesi, ct);
             db.Rentals.Add(rental);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;

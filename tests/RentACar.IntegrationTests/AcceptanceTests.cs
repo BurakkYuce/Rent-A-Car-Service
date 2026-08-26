@@ -39,14 +39,14 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         // 1) Rezervasyon (RZ-000001, Rezerv)
         var resId = await reservations.CreateAsync(Input());
         var res = await reservations.GetAsync(resId);
-        Assert.Equal("RZ-000001", res!.ReservationNo);
+        BelgeNoOracle.BeklenenlerdenBiri(2, 1, res!.ReservationNo);
         Assert.Equal(ReservationStatus.Rezerv, res.Durum);
 
         // 2) Tasfiye: kiraya çevir (KS-000001, Kirada; rezervasyon KirayaCevrildi)
         var rentalId = await reservations.ConvertToRentalAsync(resId);
         Assert.Equal(ReservationStatus.KirayaCevrildi, (await reservations.GetAsync(resId))!.Durum);
         var rental = await rentals.GetAsync(rentalId);
-        Assert.Equal("KS-000001", rental!.SozlesmeNo);
+        BelgeNoOracle.BeklenenlerdenBiri(1, 1, rental!.SozlesmeNo);
         Assert.Equal(RentalStatus.Kirada, rental.Durum);
         Assert.Equal(400m, rental.Tutar);
 
@@ -81,6 +81,6 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         // 9) Dönüş sonrası araç tekrar müsait → yeniden kiralanabilir
         var rentalId2 = await rentals.CreateDirectAsync(Input());
         Assert.NotEqual(Guid.Empty, rentalId2);
-        Assert.Equal("KS-000002", (await rentals.GetAsync(rentalId2))!.SozlesmeNo); // boşluksuz no devam
+        BelgeNoOracle.BeklenenlerdenBiri(1, 2, (await rentals.GetAsync(rentalId2))!.SozlesmeNo);   // boşluksuz no devam
     }
 }

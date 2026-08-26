@@ -5,6 +5,8 @@ using RentACar.Application.ServiceRecords;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -35,8 +37,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ServiceNo", ct);
-            record.No = $"SRV-{n:D6}";
+            record.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.ServisKaydi, ct);
             foreach (var l in record.Lines) l.ServiceRecordId = record.Id;
             record.ToplamIscilik = record.Lines.Sum(l => l.Tutar);
             db.ServiceRecords.Add(record);
