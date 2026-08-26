@@ -43,8 +43,6 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             q = ip ? q.Where(i => i.Durum == InvoiceStatus.Iptal) : q.Where(i => i.Durum != InvoiceStatus.Iptal);
         if (f.Bas is { } b) q = q.Where(i => i.Tarih >= b);
         if (f.Bit is { } t) q = q.Where(i => i.Tarih <= t);
-        if (!string.IsNullOrWhiteSpace(f.NoMin)) { var nm = f.NoMin.Trim(); q = q.Where(i => string.Compare(i.No, nm) >= 0); }
-        if (!string.IsNullOrWhiteSpace(f.NoMax)) { var nx = f.NoMax.Trim(); q = q.Where(i => string.Compare(i.No, nx) <= 0); }
         if (!string.IsNullOrWhiteSpace(f.Doviz)) { var dv = f.Doviz.Trim(); q = q.Where(i => i.Currency == dv); }
 
         var faturalar = await q.OrderByDescending(i => i.Tarih).Take(limit).ToListAsync(ct);
@@ -161,7 +159,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
 
         var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
         var rows = await q
-            .OrderByDescending(x => x.i.Tarih).ThenBy(x => x.i.No)
+            .OrderByDescending(x => x.i.Tarih).ThenBy(x => x.i.CreatedAtUtc)
             .Take(limit)
             .Select(x => new
             {
@@ -206,7 +204,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 .Where(i => i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value))
                 .ToListAsync(ct);
         return kiraFaturalari.Concat(iadeler.Where(i => !ids.Contains(i.Id)))
-            .OrderByDescending(i => i.Tarih).ThenByDescending(i => i.No).ToList();
+            .OrderByDescending(i => i.Tarih).ThenByDescending(i => i.CreatedAtUtc).ToList();
     }
 
     public async Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
@@ -275,8 +273,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                     throw new ValidationException("Kira bu sırada faturalandı (eşzamanlı istek) — kalan tutar için 'Fatura Kes' fark yolunu kullanın.");
             }
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "InvoiceNo", ct);
-            invoice.No = $"FT-{n:D6}";
+            invoice.No = await BelgeNoUretici.FaturaAsync(db, db.TenantId, ct);
             // No defter açıklamasında kullanıldığından satırların ait olduğu fatura no'yu yansıt.
             // İade satırları cari ekstrede "İade" etiketiyle görünsün (adversarial Low: eskiden
             // hepsi "Fatura" yazılıyordu).
@@ -338,8 +335,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             donem.KesilenTutar = kesilenTutar;
             donem.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "InvoiceNo", ct);
-            invoice.No = $"FT-{n:D6}";
+            invoice.No = await BelgeNoUretici.FaturaAsync(db, db.TenantId, ct);
             foreach (var entry in entries)
                 entry.Description = $"Fatura {invoice.No}";
 

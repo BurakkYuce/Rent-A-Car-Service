@@ -132,7 +132,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         Assert.Equal(8, list.Count);
 
         // Küme karşılaştırması (sıra garantisi değil, BOŞLUKSUZLUK): TH-000001..TH-000008, tekrarsız.
-        var beklenen = Enumerable.Range(1, 8).Select(i => $"TH-{i:D6}").OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var beklenen = Enumerable.Range(1, 8).Select(i => BelgeNoOracle.Bekle(5, i)).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var gercek = list.Select(t => t.No).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Assert.Equal(beklenen, gercek);
 

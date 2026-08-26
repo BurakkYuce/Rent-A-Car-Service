@@ -38,7 +38,7 @@ public sealed class ReportExportService
         var sb = new StringBuilder();
         sb.Append(string.Join(",", headers.Select(Quote))).Append("\r\n");
         foreach (var row in rows)
-            sb.Append(string.Join(",", row.Select(c => Quote(Fmt(c))))).Append("\r\n");
+            sb.Append(string.Join(",", row.Select(c => Alan(Fmt(c))))).Append("\r\n");
         // UTF-8 BOM elle eklenir (GetBytes preamble emit etmez) → Excel-TR Türkçe karakterleri doğru okur.
         var enc = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
         return [.. enc.GetPreamble(), .. enc.GetBytes(sb.ToString())];
@@ -77,4 +77,21 @@ public sealed class ReportExportService
         => s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r')
             ? "\"" + s.Replace("\"", "\"\"") + "\""
             : s;
+
+    /// <summary>
+    /// UZUN ve TAMAMI RAKAM olan dizeler Excel'de bozulur: sayı sanılıp bilimsel gösterime
+    /// (<c>2,02626E+12</c>) çevrilir, baştaki sıfır düşer (<c>0532…</c> → <c>532…</c>).
+    /// Bunlar MİKTAR değil KİMLİK: belge no (13-16 hane), TC kimlik (11), telefon (10-11).
+    ///
+    /// <para><c>="…"</c> Excel'e "bu metindir" der. Parasal değerler bu yoldan GEÇMEZ — onlar
+    /// <c>decimal</c>/<c>double</c> dalında biçimlenir, dolayısıyla toplanabilirlikleri korunur.</para>
+    ///
+    /// <para>Xlsx yolu zaten güvenli (<c>XLCellValue</c> metin kalır); bu yalnız CSV içindir.
+    /// Bilinen ödün: <c>="…"</c> Excel'e özgüdür, ham CSV okuyan bir tüketici bunu aynen görür.</para>
+    /// </summary>
+    private static string Alan(string s)
+        // SIRA ÖNEMLİ: `="…"` biçimi Quote'tan GEÇMEMELİ — geçerse tırnaklar kaçışlanır
+        // (`"=""123"""`) ve Excel formülü artık metin sanır, hile işlevini yitirir. Rakam dizesi
+        // virgül/satırsonu içeremeyeceği için ham yazmak CSV açısından da güvenlidir.
+        => s.Length >= 11 && s.All(char.IsAsciiDigit) ? $"=\"{s}\"" : Quote(s);
 }

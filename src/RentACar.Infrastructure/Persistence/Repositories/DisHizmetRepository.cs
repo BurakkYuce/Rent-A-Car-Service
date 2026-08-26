@@ -19,7 +19,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.DisHizmetAlimlari.AsNoTracking()
             .Where(d => d.RentalId == rentalId)
-            .OrderByDescending(d => d.Tarih).ThenByDescending(d => d.No).ToListAsync(ct);
+            .OrderByDescending(d => d.Tarih).ThenByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task<DisHizmetAlimi?> FindAsync(Guid id, CancellationToken ct = default)

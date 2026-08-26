@@ -38,13 +38,13 @@ public sealed class PenaltyTests(PostgresFixture fx)
         });
 
         var p = await svc.GetAsync(id);
-        Assert.Equal("CZ-000001", p!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(8, 1, p!.No);
         Assert.Equal(teblig.AddDays(15), p.VadeTarihi);
         Assert.Equal(CezaDurum.Yeni, p.Durum);
 
         // İkinci ceza boşluksuz devam eder.
         var id2 = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 100m });
-        Assert.Equal("CZ-000002", (await svc.GetAsync(id2))!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(8, 2, (await svc.GetAsync(id2))!.No);
     }
 
     [Fact]

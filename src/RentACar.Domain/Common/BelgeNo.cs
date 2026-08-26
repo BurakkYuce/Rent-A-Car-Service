@@ -65,6 +65,19 @@ public static class BelgeNo
     /// </summary>
     public static string FaturaSayacAnahtari(string seri, int yil) => $"F:{seri}:{Dort(yil)}";
 
+    /// <summary>
+    /// Seri kodu ayarlanmamışsa kullanılacak varsayılan.
+    ///
+    /// <para><b>Neden varsayılan var (dürüst-stub kuralıyla çelişmez):</b> seri kodu bir DIŞ
+    /// sistemin ürettiği kimlik değil, firmanın SERBESTÇE seçtiği 3 karakterdir — GİB harfleri
+    /// belirlemez, yalnız biçimi şart koşar. Bu yüzden varsayılan "uydurma" değil, geçerli bir
+    /// seçimdir. Zorunlu tutmak, ayar satırı henüz oluşmamış her tenant'ta fatura kesmeyi bozardı.</para>
+    ///
+    /// <para>Firma sonradan kendi kodunu girerse sıra o seri için 1'den başlar — mevzuata uygun,
+    /// çünkü her seri kendi içinde boşluksuz ilerler. Eski seriyle kesilmiş faturalar etkilenmez.</para>
+    /// </summary>
+    public const string VarsayilanSeri = "RNT";
+
     /// <summary>Tam 3 karakter, yalnız <c>A-Z</c> veya <c>0-9</c>. Türkçe karakter (İ, Ğ, Ş…) yasak.</summary>
     public static bool SeriGecerliMi(string? seri)
         => seri is { Length: 3 } && seri.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9');

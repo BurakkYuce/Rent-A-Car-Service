@@ -35,7 +35,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
-        Assert.Equal("FT-000001", inv!.No);
+        Assert.Equal(BelgeNoOracle.FaturaBekle(RentACar.Domain.Common.BelgeNo.VarsayilanSeri, 1), inv!.No);   // GİB: seri+yıl+9 hane
         Assert.Equal(400m, inv.GenelToplam);
         Assert.Equal(333.33m, inv.NetTutar);
         Assert.Equal(66.67m, inv.KdvTutar);

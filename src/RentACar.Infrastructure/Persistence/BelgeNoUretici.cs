@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using RentACar.Domain.Common;
 
 namespace RentACar.Infrastructure.Persistence;
@@ -38,12 +39,23 @@ public static class BelgeNoUretici
     /// kalıcı ve değiştirilemez bir mali kayda YANLIŞ seri yazardı — dürüst stub kuralının aynı sınıfı.
     /// </exception>
     public static async Task<string> FaturaAsync(
-        AppDbContext db, Guid tenantId, string? seriKodu, CancellationToken ct, DateTimeOffset? simdi = null)
+        AppDbContext db, Guid tenantId, CancellationToken ct, DateTimeOffset? simdi = null)
     {
+        // Seri kodu AYNI transaction'dan okunur: ayrı bir servis/scope açmak (a) tenant bağlamını
+        // yeniden kurmayı gerektirir, (b) TenantSettingsService ManageUsers ister ve fatura kesen
+        // kullanıcı çoğu zaman Muhasebe'dir (BildirimKanaliService'te öğrenilen ders).
+        var ayar = await db.TenantSettings.AsNoTracking()
+            .Select(x => x.FaturaSeriKodu).FirstOrDefaultAsync(ct);
+
+        // Ayarlanmamışsa varsayılan seri. Ayar satırı tenant'ta LAZY oluşuyor (ilk kaydetmede),
+        // bu yüzden "ayar yok" normal bir durumdur ve fatura kesmeyi engellememelidir.
+        // Ayar DOLU ama biçimsizse sessizce varsayılana kaçılmaz — kullanıcı bilerek bir şey
+        // yazmış, yanlış seriyle fatura kesmektense gürültülü reddedilir.
+        var seriKodu = string.IsNullOrWhiteSpace(ayar) ? BelgeNo.VarsayilanSeri : ayar;
         if (!BelgeNo.SeriGecerliMi(seriKodu))
             throw new InvalidOperationException(
-                "Fatura seri kodu tanımlı değil ya da geçersiz. Ayarlar ekranından tam 3 karakterlik " +
-                "(A-Z veya 0-9) bir seri kodu girin — e-Fatura fatura numarası bu kodu zorunlu kılar.");
+                $"Fatura seri kodu geçersiz: '{ayar}'. Tam 3 karakter olmalı ve yalnız büyük harf " +
+                "(A-Z) veya rakam içermelidir (Türkçe karakter kabul edilmez). Ayarlar ekranından düzeltin.");
 
         var yil = TenantGun.Gun(simdi ?? DateTimeOffset.UtcNow).Year;
         var n = await SequenceAllocator.NextAsync(db, tenantId, BelgeNo.FaturaSayacAnahtari(seriKodu!, yil), ct);

@@ -3,6 +3,8 @@ using RentACar.Application.AracKredileri;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Araç kredisi kalıcılığı (roadmap L4). CreateAsync boşluksuz No (KR-000001) tahsis eder.</summary>
@@ -61,8 +63,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracKrediNo", ct);
-            row.No = $"KR-{n:D6}";
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracKredi, ct);
             db.AracKredileri.Add(row);
             try
             {
@@ -113,8 +114,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
                 if (debit != credit)
                     throw new RentACar.Application.Common.ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
-                var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
-                expense.No = $"GD-{n:D6}";
+                expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
                 db.Expenses.Add(expense);
                 db.AccountLedgerEntries.AddRange(entries);
             }
