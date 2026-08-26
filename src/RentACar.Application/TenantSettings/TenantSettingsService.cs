@@ -71,6 +71,7 @@ public sealed class TenantSettingsService(
             SmtpSsl = s.SmtpSsl,
             SmtpGonderenAdres = s.SmtpGonderenAdres,
             SmtpGonderenAd = s.SmtpGonderenAd,
+            FaturaSeriKodu = s.FaturaSeriKodu,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
             // PR-2: public-site
@@ -217,6 +218,15 @@ public sealed class TenantSettingsService(
             s.SmtpSsl = m.SmtpSsl;
             s.SmtpGonderenAdres = Trim(m.SmtpGonderenAdres);
             s.SmtpGonderenAd = Trim(m.SmtpGonderenAd);
+            // GİB fatura seri kodu: boş bırakılabilir (o zaman fatura kesilemez, gürültülü red gelir),
+            // ama DOLU ise mevzuat biçimine uymalı — yanlış seri kesilen faturaya kalıcı yazılır ve
+            // fatura numarası sonradan DEĞİŞTİRİLEMEZ (rc_prevent_mutation).
+            var seri = Trim(m.FaturaSeriKodu)?.ToUpperInvariant();
+            if (seri is not null && !RentACar.Domain.Common.BelgeNo.SeriGecerliMi(seri))
+                throw new ValidationException(
+                    "Fatura seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam " +
+                    "içermelidir (Türkçe karakter kabul edilmez). Örnek: RNT");
+            s.FaturaSeriKodu = seri;
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }, ct);
