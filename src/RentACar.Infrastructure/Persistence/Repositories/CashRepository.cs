@@ -6,6 +6,8 @@ using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -143,8 +145,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var dbTx = await db.Database.BeginTransactionAsync(ct);
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-            tx.No = $"{(tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
+            tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId,
+                tx.Tip == CashTransactionType.Odeme ? BelgeNoTuru.Tediye : BelgeNoTuru.Tahsilat, ct);
             db.CashTransactions.Add(tx);
             db.AccountLedgerEntries.AddRange(entries);
             await ApplyRentalDeltaAsync(db, tx, ct); // atomik SQL += (O1); kira dövizi doğrulanır (K2)
@@ -257,8 +259,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 throw new ValidationException(
                     $"Tahsil edilecek tutar ({tahsilTutar:N2}) carinin güncel borcunu ({bakiye:N2}) aşıyor.");
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-            tx.No = $"TH-{n:D6}";
+            tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Tahsilat, ct);
             db.CashTransactions.Add(tx);
             db.AccountLedgerEntries.AddRange(entries);
             db.KapatmaTahsisleri.AddRange(tahsisler);
@@ -397,8 +398,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // ATOMİK: tüm satırlar TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
             foreach (var it in items)
             {
-                var n = await SequenceAllocator.NextAsync(db, db.TenantId, "CashNo", ct);
-                it.Tx.No = $"{(it.Tx.Tip == CashTransactionType.Odeme ? "TD" : "TH")}-{n:D6}";
+                it.Tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId,
+                    it.Tx.Tip == CashTransactionType.Odeme ? BelgeNoTuru.Tediye : BelgeNoTuru.Tahsilat, ct);
                 db.CashTransactions.Add(it.Tx);
                 db.AccountLedgerEntries.AddRange(it.Entries);
                 await ApplyRentalDeltaAsync(db, it.Tx, ct); // atomik += (O1) + kira dövizi doğrulama (K2)

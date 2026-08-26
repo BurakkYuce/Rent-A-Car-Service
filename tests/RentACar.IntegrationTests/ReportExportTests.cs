@@ -30,6 +30,28 @@ public sealed class ReportExportTests
     }
 
     [Fact]
+    public void Uzun_rakam_dizeleri_CSV_de_metne_zorlanir()
+    {
+        // Belge no artık 13-16 hane. Excel bunu SAYI sanıp "2,02626E+12" gösteriyordu; TC kimlik
+        // (11 hane) ve telefonda da baştaki sıfır düşüyordu. Bunlar miktar değil KİMLİK.
+        var svc = new ReportExportService();
+        var csv = Encoding.UTF8.GetString(svc.Csv(
+            ["No", "TC", "Tel", "Tutar", "Plaka"],
+            [new object?[] { "2026260801001", "11111111110", "05321112233", 1500.50m, "34ABC123" }]));
+
+        Assert.Contains("=\"2026260801001\"", csv);   // belge no
+        Assert.Contains("=\"11111111110\"", csv);     // TC
+        Assert.Contains("=\"05321112233\"", csv);     // telefon (baştaki sıfır korunur)
+
+        // Parasal değer DOKUNULMADAN kalır — decimal dalından geçer, toplanabilirliği bozulmaz.
+        Assert.Contains(",1500.50,", csv);
+        Assert.DoesNotContain("=\"1500.50\"", csv);
+        // Kısa / harf içeren dizeler de dokunulmaz.
+        Assert.Contains("34ABC123", csv);
+        Assert.DoesNotContain("=\"34ABC123\"", csv);
+    }
+
+    [Fact]
     public void Xlsx_is_nonempty_valid_zip()
     {
         var svc = new ReportExportService();
