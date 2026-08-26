@@ -57,7 +57,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         var satir = Assert.Single(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa));
         // Cari, belge türüne özel okuma YAPILMADAN, dengeli kümenin Cari bacağından çözülür.
         Assert.Equal("Ahmet Test", satir.CariAd);
-        Assert.StartsWith("TH-", satir.BelgeNo);   // tahsilat belge no'su
+        BelgeNoOracle.BeklenenlerdenBiri(5, 1, satir.BelgeNo);   // 05 = Tahsilat
         Assert.Equal("Mobil", satir.Kanal);
         Assert.Equal(300m, satir.Borc);
     }

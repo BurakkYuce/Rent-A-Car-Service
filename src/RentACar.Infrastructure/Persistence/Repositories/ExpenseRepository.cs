@@ -6,6 +6,8 @@ using RentACar.Application.Expenses;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -171,8 +173,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
-            expense.No = $"GD-{n:D6}";
+            expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
 
             db.Expenses.Add(expense);
             db.AccountLedgerEntries.AddRange(entries);
@@ -201,8 +202,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             // ATOMİK: tüm kalemler TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
             foreach (var it in items)
             {
-                var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ExpenseNo", ct);
-                it.Expense.No = $"GD-{n:D6}";
+                it.Expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
                 db.Expenses.Add(it.Expense);
                 db.AccountLedgerEntries.AddRange(it.Entries);
             }

@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using RentACar.Application.DamageFiles;
 using RentACar.Domain.Entities;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Hasar dosyası (BAF) kalıcılığı. Boşluksuz No + onay akışı güncellemeleri.</summary>
@@ -27,8 +29,7 @@ public sealed class DamageFileRepository(IDbContextFactory<AppDbContext> factory
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "DamageFileNo", ct);
-            file.No = $"BAF-{n:D6}";
+            file.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.HasarDosyasi, ct);
             db.DamageFiles.Add(file);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

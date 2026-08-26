@@ -17,14 +17,9 @@ public sealed class VadeBildirimJob(
     RentACar.Application.Reporting.TutSatEsikleri tutSatEsik, ILogger<VadeBildirimJob> log) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
-    private static readonly TimeZoneInfo Tz = ResolveTz();
-
-    private static TimeZoneInfo ResolveTz()
-    {
-        foreach (var id in new[] { "Europe/Istanbul", "Turkey Standard Time" })
-            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { /* diğerini dene */ }
-        return TimeZoneInfo.Utc;
-    }
+    // Saat dilimi TEK kaynaktan: aynı çözüm mantığı üç ayrı yerde kopyalanmıştı (iki job +
+    // belge numarası). Numaradaki gün ile job'un günü ayrışmasın diye ortaklaştırıldı.
+    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantGun.Dilim;
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

@@ -58,9 +58,6 @@ public sealed class InvoiceFilter
     /// <summary>Fatura no / cari adı / özel kod / plaka / açıklama içinde arama.</summary>
     public string? Ara { get; set; }
     public Guid? CariId { get; set; }
-    /// <summary>Fatura no aralığı (metin karşılaştırması — no'lar sabit genişlikte: FT-000042).</summary>
-    public string? NoMin { get; set; }
-    public string? NoMax { get; set; }
     public RentACar.Domain.Enums.InvoiceStatus? Durum { get; set; }
     /// <summary>true → yalnız iptal edilenler; false → iptal HARİÇ; null → hepsi.</summary>
     public bool? Iptal { get; set; }

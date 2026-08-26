@@ -134,10 +134,13 @@
                 <td class="row-actions kart-aksiyon">
                     <a href="/cariler/@c.Id/detay" class="link">Detay</a>
                     <a href="/cariler/@c.Id/ekstre" class="link">Ekstre</a>
-                    <form method="post" action="/cariler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
-                        <input type="hidden" name="id" value="@c.Id" />
-                        <button type="submit" class="link danger">Sil</button>
-                    </form>
+                    @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
+                    <AuthorizeView Policy="izin:OperationsDelete" Context="silCtx">
+                        <form method="post" action="/cariler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <button type="submit" class="link danger">Sil</button>
+                        </form>
+                    </AuthorizeView>
                 </td>
             </tr>
         }

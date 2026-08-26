@@ -60,9 +60,9 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var id3 = await svc.CreateAsync(Teklif("Üçüncü teklif"));
 
         var t1 = (await svc.GetAsync(id1))!;
-        Assert.Equal("MT-000001", t1.KayitNo);
-        Assert.Equal("MT-000002", (await svc.GetAsync(id2))!.KayitNo);
-        Assert.Equal("MT-000003", (await svc.GetAsync(id3))!.KayitNo);   // sıra atlamıyor
+        BelgeNoOracle.BeklenenlerdenBiri(17, 1, t1.KayitNo);
+        BelgeNoOracle.BeklenenlerdenBiri(17, 2, (await svc.GetAsync(id2))!.KayitNo);
+        BelgeNoOracle.BeklenenlerdenBiri(17, 3, (await svc.GetAsync(id3))!.KayitNo);   // sıra atlamıyor
 
         Assert.Equal(58_000m, t1.ToplamGider);
         Assert.Equal(700_000m, t1.NetAmortisman);
@@ -130,7 +130,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
 
         // Numara da TÜKETİLMEDİ: red hesap aşamasında, sıra tahsisinden önce olur.
         await svc.CreateAsync(Teklif("Eşit taksitli"));
-        Assert.Equal("MT-000001", Assert.Single(await svc.SearchAsync()).KayitNo);
+        BelgeNoOracle.BeklenenlerdenBiri(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
     }
 
     [Fact]
@@ -196,11 +196,13 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         await svc.CreateAsync(Teklif("Ankara filosu", Girdi(), plaka: "06 AA 11", cari: cari, tarih: t));
         // B: 2.000.000 alış → amortisman 1.400.000 → aylık net 1.400.000/36 = 38.888,8888… → 38.888,89
         var gB = Girdi(); gB.AlisBedeli = 2_000_000m;
-        await svc.CreateAsync(Teklif("İzmir filosu", gB, plaka: "35 BB 22", tarih: t.AddDays(10)));
+        var izmirId = await svc.CreateAsync(Teklif("İzmir filosu", gB, plaka: "35 BB 22", tarih: t.AddDays(10)));
 
         Assert.Equal(2, (await svc.SearchAsync()).Count);
         Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = "ankara" })).Baslik);
-        Assert.Equal("MT-000002", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = "MT-000002" })).KayitNo);
+        // Arama, ÜRETİLEN numarayla yapılır (format değiştiği için sabit dize yazılamaz).
+        var ikinciNo = (await svc.GetAsync(izmirId))!.KayitNo;
+        Assert.Equal(ikinciNo, Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = ikinciNo })).KayitNo);
         Assert.Equal("06 AA 11", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Plaka = "06 aa" })).Plaka);
         Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { CariId = cari })).Baslik);
 
@@ -231,7 +233,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         Assert.True(await svc.UpdateAsync(id, Teklif("Revize", g, plaka: "34 RV 01")));
 
         var t = (await svc.GetAsync(id))!;
-        Assert.Equal("MT-000001", t.KayitNo);      // numara KORUNUR
+        BelgeNoOracle.BeklenenlerdenBiri(17, 1, t.KayitNo);      // numara KORUNUR
         Assert.Equal("Revize", t.Baslik);
         Assert.Equal(18_000m, t.ToplamGider);
         Assert.Equal(718_000m, t.ToplamMaliyet);
@@ -309,7 +311,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
 
             // B kendi teklifini yazınca numara 1'DEN başlar (sıra tenant başına).
             await svc.CreateAsync(Teklif("B'nin teklifi"));
-            Assert.Equal("MT-000001", Assert.Single(await svc.SearchAsync()).KayitNo);
+            BelgeNoOracle.BeklenenlerdenBiri(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
         }
 
         // HAM RLS (racar_app, NOBYPASSRLS): B GUC'uyla A'nın satırı görünmez, UPDATE/DELETE 0 satır.

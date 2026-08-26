@@ -40,6 +40,9 @@ public sealed class TenantSettingsModel
     public string? SmtpGonderenAdres { get; set; }
     public string? SmtpGonderenAd { get; set; }
 
+    /// <summary>GİB fatura numarası seri kodu (tam 3 karakter, A-Z veya 0-9).</summary>
+    public string? FaturaSeriKodu { get; set; }
+
     // WhatsApp günlük operasyon özeti
     public string? WhatsAppNumarasi { get; set; }
     public bool? WhatsAppGunlukOzet { get; set; }

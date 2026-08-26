@@ -135,8 +135,7 @@ public static class DonemFaturaUretici
             };
             // NOT: e-Fatura stub'ı job yolunda çağrılmaz (kimliksiz bağlam; stub zaten no-op) —
             // gerçek GİB entegrasyonu geldiğinde job faturaları ayrı gönderim kuyruğuna alınmalı.
-            var no = await SequenceAllocator.NextAsync(db, tenantId, "InvoiceNo", ct);
-            invoice.No = $"FT-{no:D6}";
+            invoice.No = await BelgeNoUretici.FaturaAsync(db, tenantId, ct, simdi: now);
             invoice.Lines.Add(new InvoiceLine
             {
                 TenantId = tenantId, InvoiceId = invoice.Id,
@@ -169,8 +168,8 @@ public static class DonemFaturaUretici
                     IslemAnahtari = CashService.RowKey(rentalId, donemSira),
                     Kanal = RentACar.Domain.Entities.CashKanal.Masaustu // FAZ-84: otomatik iş — kanal seçilemez
                 };
-                var cashNo = await SequenceAllocator.NextAsync(db, tenantId, "CashNo", ct);
-                ctx.No = $"TH-{cashNo:D6}";
+                // Job'un kendi "now"ı geçilir: belge günü ile job günü ayrışmasın.
+                ctx.No = await BelgeNoUretici.UretAsync(db, tenantId, BelgeNoTuru.Tahsilat, ct, simdi: now);
                 var cashEntries = CashService.Natural(ctx);
                 foreach (var e in cashEntries) e.TenantId = tenantId;
                 db.CashTransactions.Add(ctx);

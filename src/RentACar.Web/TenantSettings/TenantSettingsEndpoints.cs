@@ -86,6 +86,7 @@ public static class TenantSettingsEndpoints
                 SmtpSsl = f["smtpSsl"].ToString() is "true" or "on",
                 SmtpGonderenAdres = f["smtpGonderenAdres"].ToString(),
                 SmtpGonderenAd = f["smtpGonderenAd"].ToString(),
+                FaturaSeriKodu = f["faturaSeriKodu"].ToString(),
                 WhatsAppNumarasi = f["whatsAppNumarasi"].ToString(),
                 WhatsAppGunlukOzet = f["whatsAppGunlukOzet"].ToString() is "true" or "on"
             };

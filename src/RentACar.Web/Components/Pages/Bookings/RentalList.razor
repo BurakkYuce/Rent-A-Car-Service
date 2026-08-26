@@ -121,7 +121,10 @@
                     <a href="/kiralar/@r.Id/pdf" class="link" target="_blank" rel="noopener" title="Tarayıcıda görüntüler (indirmez)">Sözleşme (PDF)</a>
                     @if (r.Durum == RentalStatus.Kirada)
                     {
-                        <form method="post" action="/kiralar/cancel" data-confirm="İptal edilsin mi?"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                        @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
+                        <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
+                            <form method="post" action="/kiralar/cancel" data-confirm="İptal edilsin mi?"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                        </AuthorizeView>
                     }
                     @if (r.Bakiye > 0m && r.Durum != RentalStatus.Iptal)
                     {

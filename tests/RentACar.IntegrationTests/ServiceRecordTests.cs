@@ -44,7 +44,7 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
         });
 
         var rec = await svc.GetAsync(id);
-        Assert.Equal("SRV-000001", rec!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(9, 1, rec!.No);
         Assert.Equal(ServisDurum.Acik, rec.Durum);
         Assert.Equal(1000m, rec.ToplamIscilik);
         Assert.Equal(2, rec.Lines.Count);

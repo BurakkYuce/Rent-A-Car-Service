@@ -5,6 +5,8 @@ using RentACar.Application.DisHizmetler;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IDisHizmetRepository implementasyonu (FAZ 4.3) — posting CashRepository deseni.</summary>
@@ -17,7 +19,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.DisHizmetAlimlari.AsNoTracking()
             .Where(d => d.RentalId == rentalId)
-            .OrderByDescending(d => d.Tarih).ThenByDescending(d => d.No).ToListAsync(ct);
+            .OrderByDescending(d => d.Tarih).ThenByDescending(d => d.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task<DisHizmetAlimi?> FindAsync(Guid id, CancellationToken ct = default)
@@ -34,8 +36,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "DisHizmetNo", ct);
-            kayit.No = $"DH-{n:D6}";
+            kayit.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.DisHizmet, ct);
             foreach (var e in entries) e.Description = $"Dış hizmet {kayit.No} — {kayit.AlinanHizmet}";
 
             db.DisHizmetAlimlari.Add(kayit);

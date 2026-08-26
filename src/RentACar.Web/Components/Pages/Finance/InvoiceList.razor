@@ -26,8 +26,10 @@
         <option value="">Cari (tümü)</option>
         @foreach (var c in _cariler) { <option value="@c.Id" selected="@(CariId == c.Id.ToString())">@c.Ad</option> }
     </select>
-    <input name="noMin" value="@NoMin" placeholder="No ≥ (FT-000010)" />
-    <input name="noMax" value="@NoMax" placeholder="No ≤" />
+    @* No aralığı süzgeci KALDIRILDI: metin karşılaştırmasıydı ve "no'lar sabit genişlikte"
+       varsayımına dayanıyordu. Yeni fatura no'su GİB formatında (RNT2026000000001) ve eski
+       FT-000042'lerle bir arada yaşıyor — karışık kümede "aralık" tanımsız, sessizce yanlış
+       sonuç verirdi. Yerini aşağıdaki TARİH aralığı ile serbest metin araması alıyor. *@
     <select name="durum">
         <option value="">Durum (tümü)</option>
         <option value="iptalharic" selected="@(Durum == "iptalharic")">İptal hariç</option>
@@ -88,12 +90,15 @@
                     <a href="/faturalar/@i.Id/pdf" class="link" target="_blank" rel="noopener">Yazdır (PDF)</a>
                     @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
                     {
-                        <form method="post" action="/finans/fatura-iade" style="display:inline"
-                              data-confirm="@i.No faturası iade edilsin mi? (ters kayıt: gelir/KDV/cari geri alınır)">
-                            <AntiforgeryToken />
-                            <input type="hidden" name="kaynakFaturaId" value="@i.Id" />
-                            <button type="submit" class="btn-danger">İade</button>
-                        </form>
+                        @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                        <AuthorizeView Policy="izin:FinanceReverse" Context="iadeCtx">
+                            <form method="post" action="/finans/fatura-iade" style="display:inline"
+                                  data-confirm="@i.No faturası iade edilsin mi? (ters kayıt: gelir/KDV/cari geri alınır)">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="kaynakFaturaId" value="@i.Id" />
+                                <button type="submit" class="btn-danger">İade</button>
+                            </form>
+                        </AuthorizeView>
                     }
                 </td>
             </tr>
@@ -206,8 +211,6 @@
     // ---- FAZ-54 süzgeçleri ----
     [SupplyParameterFromQuery(Name = "ara")] public string? Ara { get; set; }
     [SupplyParameterFromQuery(Name = "cariId")] public string? CariId { get; set; }
-    [SupplyParameterFromQuery(Name = "noMin")] public string? NoMin { get; set; }
-    [SupplyParameterFromQuery(Name = "noMax")] public string? NoMax { get; set; }
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
     [SupplyParameterFromQuery(Name = "doviz")] public string? Doviz { get; set; }
     [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
@@ -215,7 +218,6 @@
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private bool SuzgecVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(CariId)
-        || !string.IsNullOrWhiteSpace(NoMin) || !string.IsNullOrWhiteSpace(NoMax)
         || !string.IsNullOrWhiteSpace(Durum) || !string.IsNullOrWhiteSpace(Doviz)
         || !string.IsNullOrWhiteSpace(Ofis) || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit);
 
@@ -239,8 +241,6 @@
         {
             Ara = string.IsNullOrWhiteSpace(Ara) ? null : Ara,
             CariId = Guid.TryParse(CariId, out var cid) ? cid : null,
-            NoMin = string.IsNullOrWhiteSpace(NoMin) ? null : NoMin,
-            NoMax = string.IsNullOrWhiteSpace(NoMax) ? null : NoMax,
             Iptal = Durum switch { "iptal" => true, "iptalharic" => false, _ => null },
             Doviz = string.IsNullOrWhiteSpace(Doviz) ? null : Doviz,
             Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis,

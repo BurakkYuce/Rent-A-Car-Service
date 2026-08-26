@@ -113,9 +113,12 @@
                         <form method="post" action="/filo-kiralama/tamamla" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@k.Id" /><button type="submit">Tamamla</button>
                         </form>
-                        <form method="post" action="/filo-kiralama/iptal" style="display:inline"><AntiforgeryToken />
-                            <input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button>
-                        </form>
+                        @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                        <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
+                            <form method="post" action="/filo-kiralama/iptal" style="display:inline"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button>
+                            </form>
+                        </AuthorizeView>
                         <details>
                             <summary class="link">Künye</summary>
                             @* Para/süre alanları burada YOK: taksit planı bu yoldan değiştirilemez

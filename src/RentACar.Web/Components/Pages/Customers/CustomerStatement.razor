@@ -172,11 +172,14 @@ else
                     <td>
                         @if (e.SourceType is "Tahsilat" or "Odeme")
                         {
-                            <form method="post" action="/finans/tahsilat/ters" data-confirm="Ters kayıt alınsın mı?"><AntiforgeryToken />
-                                <input type="hidden" name="id" value="@e.SourceId" />
-                                <input type="hidden" name="cariId" value="@_customer.Id" />
-                                <button type="submit" class="link danger">Ters Kayıt</button>
-                            </form>
+                            @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                            <AuthorizeView Policy="izin:FinanceReverse" Context="tersCtx">
+                                <form method="post" action="/finans/tahsilat/ters" data-confirm="Ters kayıt alınsın mı?"><AntiforgeryToken />
+                                    <input type="hidden" name="id" value="@e.SourceId" />
+                                    <input type="hidden" name="cariId" value="@_customer.Id" />
+                                    <button type="submit" class="link danger">Ters Kayıt</button>
+                                </form>
+                            </AuthorizeView>
                         }
                     </td>
                 </tr>

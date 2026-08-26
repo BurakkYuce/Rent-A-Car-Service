@@ -29,21 +29,25 @@ public sealed class SearchRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(c => new { c.Id, c.Ad, c.Unvan }).ToListAsync(ct);
         hits.AddRange(cariler.Select(c => new SearchHit("Cari", c.Ad ?? c.Unvan ?? "(isimsiz)", c.Unvan, $"/cariler/{c.Id}")));
 
+            // "En yeni" NUMARAYA göre sıralanamaz: yeni belge no'su yyyyddMM taşır (kullanıcı
+            // kararı) ve alfabetik sıra kronolojik DEĞİLDİR — 20262608 (26 Ağu) ile 20260109
+            // (1 Eyl) ters düşer. Ayrıca eski (KS-000001) ve yeni numaralar bir arada yaşıyor.
+            // CreatedAtUtc her iki formatta da doğru sonucu verir.
         var kiralar = await db.Rentals.AsNoTracking()
             .Where(r => EF.Functions.ILike(r.SozlesmeNo, like))
-            .OrderByDescending(r => r.SozlesmeNo).Take(perTypeLimit)
+            .OrderByDescending(r => r.CreatedAtUtc).Take(perTypeLimit)
             .Select(r => new { r.Id, r.SozlesmeNo }).ToListAsync(ct);
         hits.AddRange(kiralar.Select(r => new SearchHit("Kira", r.SozlesmeNo, null, $"/kiralar/{r.Id}")));
 
         var rezler = await db.Reservations.AsNoTracking()
             .Where(r => EF.Functions.ILike(r.ReservationNo, like))
-            .OrderByDescending(r => r.ReservationNo).Take(perTypeLimit)
+            .OrderByDescending(r => r.CreatedAtUtc).Take(perTypeLimit)
             .Select(r => new { r.ReservationNo }).ToListAsync(ct);
         hits.AddRange(rezler.Select(r => new SearchHit("Rezervasyon", r.ReservationNo, null, "/rezervasyonlar")));
 
         var faturalar = await db.Invoices.AsNoTracking()
             .Where(i => EF.Functions.ILike(i.No, like))
-            .OrderByDescending(i => i.No).Take(perTypeLimit)
+            .OrderByDescending(i => i.CreatedAtUtc).Take(perTypeLimit)
             .Select(i => new { i.No }).ToListAsync(ct);
         hits.AddRange(faturalar.Select(i => new SearchHit("Fatura", i.No, null, "/faturalar")));
 
