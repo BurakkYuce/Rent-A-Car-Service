@@ -259,6 +259,7 @@ builder.Services.AddScoped<PlatformAdminService>();
 builder.Services.AddScoped<TenantStatusCache>();
 builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
 builder.Services.AddScoped<PlatformIsolationMiddleware>(); // platform admin → tenant sayfası ayrımı
+builder.Services.AddScoped<RentACar.Web.Common.DogrulamaHatasiMiddleware>(); // ValidationException → 500 DEĞİL, kullanıcıya gösterilebilir hata
 builder.Services.AddScoped<RentACar.Web.Observability.RequestEnrichment.Middleware>(); // log: tenant/user/req-id
 
 // Readiness health-check'leri (tag "ready"): DB (CanConnect) + Migrator + DataProtection keyring.
@@ -387,6 +388,9 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 // Log zenginleştirme (auth SONRASI — claim'ler dolu): sonraki tüm istek-içi loglar tenant/user/req-id taşır.
+// ValidationException'ı sayfa yolunda da yakala (POST uçları kendi ?hata= yolunu kullanıyor;
+// sayfa render'ında yakalayan yoktu → kullanıcı 500 görüyordu). Aşağıdaki her şeyi sarar.
+app.UseMiddleware<RentACar.Web.Common.DogrulamaHatasiMiddleware>();
 app.UseMiddleware<RentACar.Web.Observability.RequestEnrichment.Middleware>();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
