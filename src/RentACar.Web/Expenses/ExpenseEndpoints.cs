@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 using RentACar.Application.Expenses;
 using RentACar.Domain.Enums;
@@ -39,7 +40,7 @@ public static class ExpenseEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Results.Redirect("/giderler");
+                return Sonuc.Tamam("/giderler", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -62,7 +63,7 @@ public static class ExpenseEndpoints
                     Aciklama = FormParse.Str(f, "aciklama"),
                     IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
                 });
-                return Results.Redirect("/giderler");
+                return Sonuc.Tamam("/giderler", "Ödeme kaydedildi.");
             }
             catch (ValidationException ex)
             {

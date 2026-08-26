@@ -3,6 +3,7 @@ using Microsoft.Net.Http.Headers;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Vehicles;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Vehicles;
@@ -20,29 +21,29 @@ public static class VehiclePhotoEndpoints
 
         write.MapPost("/{id:guid}/photos", async (Guid id, IFormFile? foto, VehiclePhotoService svc) =>
         {
-            if (foto is null || foto.Length == 0) return Results.Redirect($"/vehicles/{id}");
+            if (foto is null || foto.Length == 0) return Sonuc.Hata($"/vehicles/{id}", "Fotoğraf seçilmedi.");
             using var ms = new MemoryStream();
             await foto.CopyToAsync(ms);
-            try { await svc.AddAsync(id, ms.ToArray()); return Results.Redirect($"/vehicles/{id}"); }
+            try { await svc.AddAsync(id, ms.ToArray()); return Sonuc.Tamam($"/vehicles/{id}", "Fotoğraf yüklendi."); }
             catch (ValidationException ex) { return Results.Redirect($"/vehicles/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB foto cap + multipart payı; Kestrel'in ~30 MB varsayılanından çok daha sıkı
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/sil", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.DeleteAsync(id, photoId);
-            return Results.Redirect($"/vehicles/{id}");
+            return Sonuc.Tamam($"/vehicles/{id}", "Kayıt silindi.");
         });
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/yukari", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.MoveAsync(id, photoId, -1);
-            return Results.Redirect($"/vehicles/{id}");
+            return Sonuc.Tamam($"/vehicles/{id}", "Sıra güncellendi.");
         });
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/asagi", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.MoveAsync(id, photoId, 1);
-            return Results.Redirect($"/vehicles/{id}");
+            return Sonuc.Tamam($"/vehicles/{id}", "Sıra güncellendi.");
         });
 
         // Okuma — OperationsWrite DEĞİL (VehicleService.GetAsync'in servis-seviyesi guard'ıyla tutarlı).

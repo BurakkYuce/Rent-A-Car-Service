@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.FiloPlan;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.FiloPlan;
@@ -14,18 +15,18 @@ public static class FiloPlanEndpoints
         var grp = app.MapGroup("/filo-plan").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (FiloPlanService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (FiloPlanService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         // Artır/Azalt — delta SUNUCUDA sınırlanır: forma güvenilip serbest bırakılsaydı bir POST
         // hedefi tek hamlede istediği yere taşıyabilirdi (bu uç düzenleme ucu değil).
         grp.MapPost("/delta", async (FiloPlanService svc, [FromForm] Guid id, [FromForm] string? yon) =>
-            await Run(() => svc.HedefDegistirAsync(id, yon == "azalt" ? -1 : 1)));
+            await Run(() => svc.HedefDegistirAsync(id, yon == "azalt" ? -1 : 1), "İşlem tamamlandı."));
 
         grp.MapPost("/delete", async (FiloPlanService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -39,9 +40,9 @@ public static class FiloPlanEndpoints
         Aciklama = FormParse.Str(f, "aciklama")
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/filo-plan"); }
+        try { await action(); return Sonuc.Tamam("/filo-plan", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/filo-plan?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

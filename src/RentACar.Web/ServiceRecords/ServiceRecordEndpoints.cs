@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.ServiceRecords;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.ServiceRecords;
@@ -36,7 +37,7 @@ public static class ServiceRecordEndpoints
             // Tek kalem satırı (opsiyonel): açıklama doluysa eklenir.
             if (FormParse.Str(f, "kalemAciklama") is { } ka)
                 input.Lines.Add(KalemOku(f, ka));
-            return await Run(() => svc.CreateAsync(input));
+            return await Run(() => svc.CreateAsync(input), "Kayıt eklendi.");
         });
 
         // FAZ-16 — BİLGİ blokları (kaza/fatura/ödeme/yakıt/plan). Defter etkisi YOK.
@@ -46,29 +47,29 @@ public static class ServiceRecordEndpoints
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
             var input = new ServiceRecordBilgiInput();
             BilgiOku(input, f);
-            return await Run(() => svc.BilgiGuncelleAsync(id, input));
+            return await Run(() => svc.BilgiGuncelleAsync(id, input), "İşlem tamamlandı.");
         });
 
         // FAZ-16 — Rezerve → Açık ("Servise Al").
         grp.MapPost("/servise-al", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] string? girisKm)
-            => Run(() => svc.ServiseAlAsync(id, FormParse.Int(girisKm))));
+            => Run(() => svc.ServiseAlAsync(id, FormParse.Int(girisKm)), "İşlem tamamlandı."));
 
-        grp.MapPost("/baslat", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.BaslatAsync(id)));
+        grp.MapPost("/baslat", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.BaslatAsync(id), "İşlem tamamlandı."));
         grp.MapPost("/tamamla", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] string? sonrakiBakimKm)
-            => Run(() => svc.TamamlaAsync(id, cikisKm, FormParse.Int(sonrakiBakimKm))));
-        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
+            => Run(() => svc.TamamlaAsync(id, cikisKm, FormParse.Int(sonrakiBakimKm)), "Tamamlandı."));
+        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.IptalAsync(id), "İşlem iptal edildi.")).RequirePermission(Permission.OperationsDelete);
         grp.MapPost("/kalem", async (ServiceRecordService svc, HttpRequest req) =>
         {
             var f = req.Form;
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
             var kalem = KalemOku(f, FormParse.Str(f, "aciklama") ?? string.Empty);
-            return await Run(() => svc.KalemEkleAsync(id, kalem));
+            return await Run(() => svc.KalemEkleAsync(id, kalem), "İşlem tamamlandı.");
         });
 
         // Servis maliyeti rücu/yansıtma→defter (roadmap J4): FinanceWrite (mali işlem).
         var ode = app.MapGroup("/servis-yansitma").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
         ode.MapPost("/yansit", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] Guid cariId)
-            => Run(() => svc.YansitAsync(id, cariId)));
+            => Run(() => svc.YansitAsync(id, cariId), "Yansıtma yapıldı."));
 
         return app;
     }
@@ -122,12 +123,12 @@ public static class ServiceRecordEndpoints
         KdvOran = FormParse.Dec(FormParse.Str(f, "kdvOran"))
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
         try
         {
             await action();
-            return Results.Redirect("/servisler");
+            return Sonuc.Tamam("/servisler", mesaj);
         }
         catch (ValidationException ex)
         {

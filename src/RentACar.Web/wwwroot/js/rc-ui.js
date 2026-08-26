@@ -24,6 +24,14 @@
         }
     }, true);
 
+    // "Geri dön" — history.back(). <a href="#"> KULLANILAMAZ: base href yüzünden köke çözülür.
+    document.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('[data-rc-geri]')) {
+            e.preventDefault();
+            if (history.length > 1) history.back(); else location.assign('/');
+        }
+    }, true);
+
     // Tıklayınca tümünü seç (ör. takvim abonelik linki).
     document.addEventListener('click', function (e) {
         var el = e.target;

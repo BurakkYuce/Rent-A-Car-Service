@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.BrokerYasaklari;
 using RentACar.Application.Common;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.BrokerYasaklari;
@@ -15,13 +16,13 @@ public static class BrokerYasakEndpoints
         var grp = app.MapGroup("/broker-yasaklari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (BrokerYasakService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (BrokerYasakService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (BrokerYasakService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -41,9 +42,9 @@ public static class BrokerYasakEndpoints
         Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/broker-yasaklari"); }
+        try { await action(); return Sonuc.Tamam("/broker-yasaklari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/broker-yasaklari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

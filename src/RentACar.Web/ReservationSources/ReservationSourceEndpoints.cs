@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.ReservationSources;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.ReservationSources;
@@ -16,19 +17,19 @@ public static class ReservationSourceEndpoints
 
         grp.MapPost("/create", async (ReservationSourceService svc, HttpRequest req,
             [FromForm] string kod, [FromForm] string ad) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, kod, ad, aktif: true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, kod, ad, aktif: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (ReservationSourceService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, ad, aktif))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, ad, aktif)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (ReservationSourceService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // FAZ-24 "Aşağıya Yansıt" — seçili kaynağın oranlarını diğer AKTİF kaynaklara kopyalar.
         // Yalnız bu tabloya yazar; kayıtlı rezervasyon/fatura/defter DEĞİŞMEZ.
         grp.MapPost("/yansit", async (ReservationSourceService svc, [FromForm] Guid id) =>
-            await Run(() => svc.OranlariYansitAsync(id)));
+            await Run(() => svc.OranlariYansitAsync(id), "Yansıtma yapıldı."));
 
         return app;
     }
@@ -104,9 +105,9 @@ public static class ReservationSourceEndpoints
         => Enum.TryParse<RezKaynakGrubu>((s ?? "").Trim(), ignoreCase: true, out var g)
            && Enum.IsDefined(g) ? g : null;
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/rezervasyon-kaynaklari"); }
+        try { await action(); return Sonuc.Tamam("/rezervasyon-kaynaklari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/rezervasyon-kaynaklari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

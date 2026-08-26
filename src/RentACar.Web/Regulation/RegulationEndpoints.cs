@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Regulation;
@@ -26,7 +27,7 @@ public static class RegulationEndpoints
                     FormParse.Dec(FormParse.Str(req.Form, "aracDegeri")),
                     FormParse.Dec(FormParse.Str(req.Form, "immDegeri")),
                     FormParse.Dec(FormParse.Str(req.Form, "aksesuarDegeri")));
-                return Results.Redirect("/regulasyon");
+                return Sonuc.Tamam("/regulasyon", "Sigorta kaydedildi.");
             }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
@@ -50,21 +51,21 @@ public static class RegulationEndpoints
                     Tipi = FormParse.Str(req.Form, "tipi"),
                     Neden = FormParse.Str(req.Form, "neden")
                 });
-                return Results.Redirect("/regulasyon#zeyil");
+                return Sonuc.Tamam("/regulasyon#zeyil", "Zeyilname kaydedildi.");
             }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}#zeyil"); }
         });
 
         grp.MapPost("/zeyil/sil", async (RegulationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.DeleteZeyilAsync(id); return Results.Redirect("/regulasyon#zeyil"); }
+            try { await svc.DeleteZeyilAsync(id); return Sonuc.Tamam("/regulasyon#zeyil", "Kayıt silindi."); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}#zeyil"); }
         });
 
         grp.MapPost("/mtv", async (RegulationService svc, HttpRequest req,
             [FromForm] Guid vehicleId, [FromForm] string donem, [FromForm] decimal tutar, [FromForm] DateTimeOffset vade) =>
         {
-            try { await svc.AddMtvAsync(vehicleId, donem, tutar, vade, FormParse.Str(req.Form, "aciklama")); return Results.Redirect("/regulasyon"); }
+            try { await svc.AddMtvAsync(vehicleId, donem, tutar, vade, FormParse.Str(req.Form, "aciklama")); return Sonuc.Tamam("/regulasyon", "MTV kaydedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -75,7 +76,7 @@ public static class RegulationEndpoints
             {
                 await svc.AddInspectionAsync(vehicleId, muayeneTarihi, bitis, ucret,
                     FormParse.Int(FormParse.Str(req.Form, "islemKm")), FormParse.Str(req.Form, "aciklama"));
-                return Results.Redirect("/regulasyon");
+                return Sonuc.Tamam("/regulasyon", "Muayene kaydedildi.");
             }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });

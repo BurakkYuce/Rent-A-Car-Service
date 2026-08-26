@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.GelenEFaturalar;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.GelenEFaturalar;
@@ -16,22 +17,22 @@ public static class GelenEFaturaEndpoints
         var grp = app.MapGroup("/gelen-efatura").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (GelenEFaturaService svc, HttpRequest req) =>
-            await Run(() => svc.CreateManualAsync(Build(req.Form))));
+            await Run(() => svc.CreateManualAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/onayla", async (GelenEFaturaService svc, [FromForm] Guid id) =>
-            await Run(() => svc.OnaylaAsync(id)));
+            await Run(() => svc.OnaylaAsync(id), "İşlem tamamlandı."));
 
         grp.MapPost("/reddet", async (GelenEFaturaService svc, [FromForm] Guid id, [FromForm] string? neden) =>
-            await Run(() => svc.ReddetAsync(id, neden)));
+            await Run(() => svc.ReddetAsync(id, neden), "Reddedildi."));
 
         grp.MapPost("/isle", async (GelenEFaturaService svc, [FromForm] Guid id) =>
-            await Run(() => svc.IsleAsync(id)));
+            await Run(() => svc.IsleAsync(id), "İşlem tamamlandı."));
 
         grp.MapPost("/sync", async (GelenEFaturaService svc, HttpRequest req) =>
         {
             var from = FormParse.Date(FormParse.Str(req.Form, "from")) ?? DateTimeOffset.Now.Date.AddMonths(-1);
             var to = FormParse.Date(FormParse.Str(req.Form, "to")) ?? DateTimeOffset.Now.Date;
-            return await Run(() => svc.SyncFromGibAsync(from, to));
+            return await Run(() => svc.SyncFromGibAsync(from, to), "İşlem tamamlandı.");
         });
 
         // FAZ-55 (a): KDV oran kırılımı + araç/kategori/cari bağlama. Tüm sayısal alanlar OPSİYONEL →
@@ -53,7 +54,7 @@ public static class GelenEFaturaEndpoints
                 ExpenseCategoryId = FormParse.Id(FormParse.Str(f, "expenseCategoryId")),
                 CariId = FormParse.Id(FormParse.Str(f, "cariId")),
                 GiderTipi = Enum.TryParse<ExpenseType>(FormParse.Str(f, "giderTipi"), out var gt) ? gt : null
-            }));
+            }), "İşlem tamamlandı.");
         });
 
         // FAZ-55 (b): giderleştirme — TEK para yolu. Deftere yazılan küme mevcut gider kümesidir.
@@ -67,7 +68,7 @@ public static class GelenEFaturaEndpoints
                     ? oy : OdemeYontemi.AcikHesap,
                 CariId = FormParse.Id(FormParse.Str(f, "cariId")),
                 Sube = FormParse.Str(f, "sube")
-            }));
+            }), "Gidere dönüştürüldü.");
         });
 
         return app;
@@ -86,9 +87,9 @@ public static class GelenEFaturaEndpoints
         Aciklama = FormParse.Str(f, "aciklama")
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/gelen-efatura"); }
+        try { await action(); return Sonuc.Tamam("/gelen-efatura", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/gelen-efatura?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }
