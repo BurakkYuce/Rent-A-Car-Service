@@ -56,6 +56,17 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// <summary>Giden e-postalarda görünecek gönderen adı (boşsa firma unvanı kullanılır).</summary>
     public string? SmtpGonderenAd { get; set; }
 
+    // ---- Fatura numaralandırma (GİB) ----
+    /// <summary>
+    /// e-Fatura/e-Arşiv fatura numarasının 3 karakterlik SERİ kodu (ör. "RNT"). Mevzuat: numara
+    /// 16 hane = seri(3) + yıl(4) + sıra(9), sıra her yıl 1'den başlar. Seri yalnız büyük harf
+    /// (A-Z) veya rakam olabilir; Türkçe karakter kabul edilmez.
+    ///
+    /// <para>Boşsa fatura numarası ÜRETİLMEZ (gürültülü red) — sessiz bir varsayılan uydurmak,
+    /// değiştirilemez bir mali kayda yanlış seri yazardı.</para>
+    /// </summary>
+    public string? FaturaSeriKodu { get; set; }
+
     // ---- WhatsApp günlük operasyon özeti (additive) ----
     /// <summary>Günlük özetin gideceği WhatsApp no (E.164; boşsa gönderilmez).</summary>
     public string? WhatsAppNumarasi { get; set; }

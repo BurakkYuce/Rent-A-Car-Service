@@ -208,6 +208,18 @@
     </fieldset>
 
     <fieldset>
+        <legend>Fatura Numaralandırma</legend>
+        <label>Fatura Seri Kodu<input name="faturaSeriKodu" value="@_m.FaturaSeriKodu" maxlength="3"
+                                      pattern="[A-Z0-9]{3}" placeholder="RNT" style="text-transform:uppercase" /></label>
+        <p class="muted small u-col-full">e-Fatura/e-Arşiv fatura numarası <strong>16 hanedir</strong>:
+            seri (3) + yıl (4) + sıra (9) — örnek <code>RNT2026000000001</code>. Seri kodu yalnız büyük
+            harf (A-Z) veya rakam olabilir; Türkçe karakter kabul edilmez. Sıra numarası her yıl 1'den
+            başlar. <strong>Seri kodu girilmeden fatura kesilemez</strong> — sistemin kendi başına bir seri
+            uydurması, sonradan değiştirilemeyen mali kayda yanlış seri yazmak olurdu. Diğer belgeler
+            (kira sözleşmesi, rezervasyon, tahsilat…) bu alandan etkilenmez.</p>
+    </fieldset>
+
+    <fieldset>
         <legend>WhatsApp Günlük Özet</legend>
         <p class="muted small">Firma sahibine her sabah (yerel 08:00 sonrası) günlük operasyon özeti gönderilir: beklenen çıkış/dönüş, açık rezervasyon, tahsilat, filo. Twilio yapılandırması yoksa gönderim yapılmaz (test modu).</p>
         <label>WhatsApp No (E.164)<input name="whatsAppNumarasi" value="@_m.WhatsAppNumarasi" placeholder="+90 5xx xxx xx xx" /></label>
