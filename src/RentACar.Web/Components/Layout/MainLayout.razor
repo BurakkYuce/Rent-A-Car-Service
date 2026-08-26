@@ -321,6 +321,16 @@
     </NotAuthorized>
 </AuthorizeView>
 
+@* İŞLEM SONUCU ŞERİDİ — `?bilgi=` ile gelen başarı mesajı (bkz. Common/Sonuc.cs).
+   AuthorizeView'in DIŞINDA: hem girişli hem girişsiz akışlarda görünür.
+   `position: fixed` (app.css) → sayfa akışına yükseklik EKLEMEZ; aksi halde her POST sonrası
+   içerik bir şerit kadar aşağı kayardı. rc-bildirim.js 5 sn sonra kapatır ve `bilgi`
+   parametresini URL'den düşürür (F5'te mesaj tekrar çıkmasın). *@
+@if (_bilgi is not null)
+{
+    <div id="rc-bildirim" class="ok" role="status" aria-live="polite" data-rc-bildirim>@_bilgi</div>
+}
+
 <div id="blazor-error-ui" data-nosnippet>
     Beklenmeyen bir hata oluştu.
     @* Göreli nokta-href DEĞİL: `<base href="/">` yüzünden köke çözülüyordu → "Yenile"
@@ -335,12 +345,27 @@
 
     private int _okunmamis;
     private string _path = "";
+    /// <summary>`?bilgi=` ile taşınan işlem-sonucu mesajı (yoksa şerit hiç render edilmez).</summary>
+    private string? _bilgi;
     private bool _webSitesiModulu; // PR-12
     private int _yeniTalep;        // PR-17 cevaplanmamış site talebi sayacı
 
     protected override async Task OnInitializedAsync()
     {
         _path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
+
+        // TUZAK: Layout routable DEĞİL → [SupplyParameterFromQuery] burada ÇALIŞMAZ.
+        // Query, NavigationManager'ın URI'sinden okunur. try/catch: layout hiçbir koşulda düşmemeli.
+        try
+        {
+            var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+            if (q.TryGetValue("bilgi", out var v))
+            {
+                var m = v.ToString();
+                if (!string.IsNullOrWhiteSpace(m)) _bilgi = m.Length > 300 ? m[..300] : m;
+            }
+        }
+        catch { _bilgi = null; }
         try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
         catch { _okunmamis = 0; }
         // 60 sn cache'li tek okuma; platformdan açılınca en geç o kadar sonra menüde belirir.

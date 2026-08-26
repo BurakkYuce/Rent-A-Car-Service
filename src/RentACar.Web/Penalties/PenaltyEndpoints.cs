@@ -5,6 +5,8 @@ using RentACar.Application.Penalties;
 using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
+using RentACar.Web.Common;
+
 namespace RentACar.Web.Penalties;
 
 /// <summary>Ceza form post uçları (kayıt + yansıt/öde/iptal). Tenant HttpContext claim'inden (RLS).</summary>
@@ -58,7 +60,7 @@ public static class PenaltyEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Results.Redirect("/cezalar");
+                return Sonuc.Tamam("/cezalar", "Ceza kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -92,7 +94,7 @@ public static class PenaltyEndpoints
                     KasaKodu = kasaKodu, HesapNo = hesapNo, Aciklama = aciklama,
                     IslemAnahtari = FormParse.Id(islemAnahtari)
                 });
-                return Results.Redirect("/cezalar");
+                return Sonuc.Tamam("/cezalar", "Ceza tahsilatı kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -100,7 +102,7 @@ public static class PenaltyEndpoints
             }
         });
 
-        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
+        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id), "Ceza iptal edildi.")).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }
@@ -111,12 +113,12 @@ public static class PenaltyEndpoints
             ? LedgerAccountType.Banka
             : LedgerAccountType.Kasa;
 
-    private static async Task<IResult> Act(Func<Task<bool>> action)
+    private static async Task<IResult> Act(Func<Task<bool>> action, string mesaj = "İşlem tamamlandı.")
     {
         try
         {
             await action();
-            return Results.Redirect("/cezalar");
+            return Sonuc.Tamam("/cezalar", mesaj);
         }
         catch (ValidationException ex)
         {
