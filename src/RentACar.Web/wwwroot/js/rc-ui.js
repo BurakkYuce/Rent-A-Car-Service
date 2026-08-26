@@ -15,6 +15,15 @@
         }
     }, true);
 
+    // Hata bandındaki "Yenile". Eskiden `<a href=".">` idi; `<base href="/">` yüzünden "."
+    // köke çözülüp kullanıcıyı bulunduğu sayfadan ana ekrana atıyordu.
+    document.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('[data-rc-reload]')) {
+            e.preventDefault();
+            location.reload();
+        }
+    }, true);
+
     // Tıklayınca tümünü seç (ör. takvim abonelik linki).
     document.addEventListener('click', function (e) {
         var el = e.target;
