@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Bookings;
@@ -34,7 +35,7 @@ public static class BookingEndpoints
                 ApplyOdemeDerinlik(input, req.Form);
                 ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.CreateAsync(input);
-                return Results.Redirect("/rezervasyonlar");
+                return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon oluşturuldu.");
             }
             catch (ValidationException ex)
             {
@@ -60,7 +61,7 @@ public static class BookingEndpoints
                 ApplyOdemeDerinlik(input, req.Form);
                 ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.UpdateAsync(id, input);
-                return Results.Redirect("/rezervasyonlar?ok=1");
+                return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon güncellendi.");
             }
             catch (AvailabilityConflictException) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString("Seçilen tarihte araç müsait değil.")}"); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -68,13 +69,13 @@ public static class BookingEndpoints
 
         rez.MapPost("/confirm", async (ReservationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ConfirmAsync(id); return Results.Redirect("/rezervasyonlar"); }
+            try { await svc.ConfirmAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon onaylandı."); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         rez.MapPost("/cancel", async (ReservationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.CancelAsync(id); return Results.Redirect("/rezervasyonlar"); }
+            try { await svc.CancelAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
@@ -83,7 +84,7 @@ public static class BookingEndpoints
             try
             {
                 await svc.ConvertToRentalAsync(id);
-                return Results.Redirect("/kiralar");
+                return Sonuc.Tamam("/kiralar", "Rezervasyon kiraya çevrildi.");
             }
             catch (ValidationException ex)
             {
@@ -148,7 +149,7 @@ public static class BookingEndpoints
                 return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString($"Kira açıldı ancak ek hizmet eklenemedi: {ex.Message}")}");
             }
             // Kira açılınca DETAY ekranına git → tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
-            return Results.Redirect($"/kiralar/{id}");
+            return Sonuc.Tamam($"/kiralar/{id}", "Kira sözleşmesi oluşturuldu.");
         });
 
         // ANINDA YENİ MÜŞTERİ (kira formu "Müşteriyi Kaydet" — JS fetch, sayfa yenilenmez → formdaki diğer
@@ -312,9 +313,9 @@ public static class BookingEndpoints
                     IkinciSurucuSerbestEhliyetSinifi = FormParse.Str(f, "ikinciSurucuSerbestEhliyetSinifi")
                 };
                 var ok = await svc.UpdateOpenAsync(id, input);
-                return Results.Redirect(ok
-                    ? $"/kiralar/{id}?ok=1{sekme}"
-                    : $"/kiralar?hata={Uri.EscapeDataString("Kira bulunamadı.")}");
+                return ok
+                    ? Sonuc.Tamam($"/kiralar/{id}", "Kira kaydedildi.", sekme)
+                    : Sonuc.Hata("/kiralar", "Kira bulunamadı.");
             }
             catch (ValidationException ex)
             {
@@ -324,7 +325,7 @@ public static class BookingEndpoints
 
         kira.MapPost("/cancel", async (RentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.CancelAsync(id); return Results.Redirect("/kiralar"); }
+            try { await svc.CancelAsync(id); return Sonuc.Tamam("/kiralar", "Kira iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
@@ -332,7 +333,7 @@ public static class BookingEndpoints
             [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] int cikisYakit) =>
         {
             // #sekme fragment'i: mega-formda işlem sonrası aynı sekme açık kalır (kira = Kira Bilgisi/Teslimat)
-            try { await svc.DeliverAsync(id, cikisKm, cikisYakit); return Results.Redirect($"/kiralar/{id}#sekme=kira"); }
+            try { await svc.DeliverAsync(id, cikisKm, cikisYakit); return Sonuc.Tamam($"/kiralar/{id}", "Araç teslim edildi.", "#sekme=kira"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=kira"); }
         });
 
@@ -344,7 +345,7 @@ public static class BookingEndpoints
             {
                 await svc.ReturnAsync(id, donusKm, donusYakit, gercekDonus,
                     FormParse.Int(kmHediye) ?? 0, bitisSebebi, FormParse.Id(teslimAlanPersonelId)); // servis boş→null normalize eder
-                return Results.Redirect($"/kiralar/{id}#sekme=donus");
+                return Sonuc.Tamam($"/kiralar/{id}", "Araç dönüşü kaydedildi.", "#sekme=donus");
             }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=donus"); }
         });
@@ -366,7 +367,7 @@ public static class BookingEndpoints
 
         kira.MapPost("/uzat", async (RentalService svc, [FromForm] Guid id, [FromForm] DateTimeOffset yeniBitTar) =>
         {
-            try { await svc.ExtendAsync(id, yeniBitTar); return Results.Redirect($"/kiralar/{id}#sekme=donus"); }
+            try { await svc.ExtendAsync(id, yeniBitTar); return Sonuc.Tamam($"/kiralar/{id}", "Kira uzatıldı.", "#sekme=donus"); }
             catch (RentACar.Application.Bookings.AvailabilityConflictException) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString("Uzatılan tarihte araç müsait değil.")}#sekme=donus"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=donus"); }
         });
@@ -375,7 +376,7 @@ public static class BookingEndpoints
         // sisteme girmez); deftere yazmaz. Yok→Alindi→(Kapandi|IadeEdildi) guard'ları serviste.
         kira.MapPost("/provizyon-al", async (RentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ProvizyonAlAsync(id); return Results.Redirect($"/kiralar/{id}?ok=1#sekme=ayrintilar"); }
+            try { await svc.ProvizyonAlAsync(id); return Sonuc.Tamam($"/kiralar/{id}", "Provizyon alındı.", "#sekme=ayrintilar"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
         });
 
@@ -385,7 +386,7 @@ public static class BookingEndpoints
             try
             {
                 await svc.ProvizyonKapatAsync(id, FormParse.Dec(kapamaTutar), iade is "true" or "on");
-                return Results.Redirect($"/kiralar/{id}?ok=1#sekme=ayrintilar");
+                return Sonuc.Tamam($"/kiralar/{id}", "Provizyon güncellendi.", "#sekme=ayrintilar");
             }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
         });

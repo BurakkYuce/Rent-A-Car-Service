@@ -583,6 +583,15 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
 .platform-body { max-width: 1000px; margin: 1.5rem auto; padding: 0 1.4rem; }
 .ok { color: #14532d; background: #dcfce7; border: 1px solid #86efac; padding: .5rem .75rem; border-radius: .4rem; }
 
+/* İşlem sonucu şeridi (MainLayout + Common/Sonuc.cs + rc-bildirim.js).
+   position:fixed ZORUNLU: akışa girseydi her POST sonrası içerik bir şerit kadar aşağı kayar ve
+   yeni düzeltilen app-shell scroll'unu bozardı. z-index #blazor-error-ui'nin (1000) altında. */
+#rc-bildirim { position: fixed; top: 4.2rem; right: 1rem; z-index: 900; cursor: pointer;
+    max-width: min(90vw, 26rem); box-shadow: 0 6px 20px rgb(0 0 0 / 18%); }
+@media (max-width: 900px) {
+    #rc-bildirim { top: .75rem; left: .75rem; right: .75rem; max-width: none; }
+}
+
 /* RLS-in-circuit teşhis şeridi (kanıt sayfası — sahte-yeşil'e karşı görünür kanıt) */
 .rls-diag { border-radius: .5rem; padding: .6rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
 .rls-diag.ok { background: #dcfce7; border: 1px solid #86efac; color: #14532d; }
