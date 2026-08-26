@@ -149,7 +149,10 @@
                             <input name="donusSaat" type="time" title="Dönüş saati (opsiyonel)" style="width:7rem" />
                             <button type="submit">Teslim Al</button>
                         </form>
-                        <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                        @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                        <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
+                            <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                        </AuthorizeView>
                     }
                 </td>
             </tr>

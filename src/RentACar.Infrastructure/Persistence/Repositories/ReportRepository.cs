@@ -183,7 +183,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var limit = Math.Clamp(filter?.EnFazla ?? 2000, 1, 20000);
         var rows = await q
             // Vadesi olanlar önce ve en erken vade üstte; vadesizler sona.
-            .OrderBy(x => x.i.VadeTarihi == null).ThenBy(x => x.i.VadeTarihi).ThenBy(x => x.i.No)
+            .OrderBy(x => x.i.VadeTarihi == null).ThenBy(x => x.i.VadeTarihi).ThenBy(x => x.i.CreatedAtUtc)
             .Take(limit)
             .Select(x => new
             {

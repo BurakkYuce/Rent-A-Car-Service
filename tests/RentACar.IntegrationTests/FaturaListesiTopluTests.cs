@@ -123,7 +123,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         var atlanan = Assert.Single(sonuc.Atlananlar);
         Assert.Contains("İptal", atlanan);
         // Atlanan mesajı SÖZLEŞME NO taşır — çok seçimli kesimde hangisi olduğu ayırt edilebilmeli.
-        Assert.Contains("KS-", atlanan);
+        Assert.Matches(@"\d{13,}", atlanan);   // atlanan kiranın numarası mesajda geçmeli
 
         var (_, borc, alacak) = await DefterAsync(host, tenant);
         Assert.Equal(600m, borc);   // elle: 2 × 300
@@ -258,7 +258,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         Assert.Equal("Kadıköy", satir.VergiDairesi);
         Assert.Equal("1234567890", satir.VergiNo);
         Assert.Equal("34KN01", satir.Plaka?.Replace(" ", ""));
-        Assert.StartsWith("KS-", satir.SozlesmeNo);
+        Assert.Matches(@"^\d{13,}$", satir.SozlesmeNo);   // yeni desen: tamamı rakam
         Assert.Equal("Merkez", satir.Ofis);
 
         // İptal hariç → 1; yalnız iptal → 0 (henüz iptal edilmiş fatura yok).
@@ -266,8 +266,17 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Iptal = true }));
     }
 
+    /// <summary>
+    /// Eski <c>Fatura_no_araligi_suzgeci</c>'nin yerini alır.
+    ///
+    /// <para>NoMin/NoMax aralık süzgeci KALDIRILDI: metin karşılaştırmasıydı ve "no'lar sabit
+    /// genişlikte" varsayımına dayanıyordu. Fatura no'su artık GİB formatında
+    /// (RNT2026000000001) ve eski FT-000042'lerle bir arada yaşıyor — karışık kümede "aralık"
+    /// tanımsızdır, süzgeç sessizce yanlış sonuç verirdi. Yerini TAM/parça no araması
+    /// (<c>Ara</c>) ve tarih aralığı aldı; bu test onların çalıştığını kilitler.</para>
+    /// </summary>
     [Fact]
-    public async Task Fatura_no_araligi_suzgeci()
+    public async Task Fatura_no_ARAMASI_ve_tarih_araligi_calisir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
@@ -277,11 +286,16 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         for (var i = 1; i <= 3; i++) kiralar.Add(await KiraAsync(scope, cari, $"34 NA 0{i}"));
         await invoices.BatchCreateFromRentalsAsync(kiralar);
 
-        var hepsi = (await invoices.SearchAsync()).OrderBy(x => x.Fatura.No).ToList();
+        var hepsi = await invoices.SearchAsync();
         Assert.Equal(3, hepsi.Count);
-        // Ortadaki no'dan itibaren → 2 kayıt (no'lar sabit genişlikte, metin karşılaştırması güvenli).
-        var ortanca = hepsi[1].Fatura.No;
-        Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { NoMin = ortanca })).Count);
-        Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { NoMax = ortanca })).Count);
+
+        // Tam numarayla arama → yalnız o fatura.
+        var ortanca = hepsi.Select(x => x.Fatura.No).Order(StringComparer.Ordinal).ElementAt(1);
+        Assert.Equal(ortanca, Assert.Single(await invoices.SearchAsync(new InvoiceFilter { Ara = ortanca })).Fatura.No);
+
+        // Tarih aralığı: hepsi bugün kesildi → bugünü kapsayan aralık 3, dünle biten aralık 0.
+        var bugun = DateTimeOffset.UtcNow;
+        Assert.Equal(3, (await invoices.SearchAsync(new InvoiceFilter { Bas = bugun.AddDays(-1) })).Count);
+        Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Bit = bugun.AddDays(-1) }));
     }
 }

@@ -64,50 +64,56 @@
 
 <details>
     <summary>Yeni Kredi</summary>
-    <form method="post" action="/arac-kredi/create" class="grid-form"><AntiforgeryToken />
-        @Gizli
-        <label>Banka<input name="bankaAdi" required /></label>
-        @* Cari OPSİYONEL ve BİLGİ: kredi veren kurum / ilgili müşteri ilişkisi. Cari bakiyesine
-           ya da deftere HİÇBİR kayıt yazmaz (KARARLAR.md genel politikası). *@
-        <label>Cari (opsiyonel — yalnız ilişki, cari bakiyesini değiştirmez)
-            <select name="cariId">
-                <option value="">— bağlı cari yok —</option>
-                @foreach (var c in _cariler)
-                {
-                    <option value="@c.Id">@c.Ad</option>
-                }
-            </select>
-        </label>
-        <label>Dosya No<input name="dosyaNo" maxlength="64" /></label>
-        @* Araç OPSİYONEL: filo geneli krediler araçsız kalır. Seçilirse taksit gideri o araca
-           atfedilir (AracKrediService → AccountLedgerEntry.AccountRef = VehicleId) ve araç
-           karnesinde görünür. Uç bu alanı ZATEN okuyordu; eksik olan yalnız formdu. *@
-        <label>Araç (opsiyonel — taksit gideri bu araca yazılır)
-            <select name="vehicleId">
-                <option value="">— filo geneli —</option>
-                @foreach (var v in _vehicles)
-                {
-                    <option value="@v.Id">@v.Plaka</option>
-                }
-            </select>
-        </label>
-        <label>Kredi Tutarı<input name="krediTutari" type="number" step="0.01" min="0" required /></label>
-        <label>Yıllık Faiz<input name="faizOran" type="number" step="0.0001" min="0" value="0" /></label>
-        <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="360" required /></label>
-        <label>Başlangıç<input name="baslangicTarihi" type="date" /></label>
-        <label>Açıklama<input name="aciklama" /></label>
-        <button type="submit">Kaydet</button>
-    </form>
+    @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+    <AuthorizeView Policy="izin:FinanceWrite" Context="krediCtx">
+        <form method="post" action="/arac-kredi/create" class="grid-form"><AntiforgeryToken />
+            @Gizli
+            <label>Banka<input name="bankaAdi" required /></label>
+            @* Cari OPSİYONEL ve BİLGİ: kredi veren kurum / ilgili müşteri ilişkisi. Cari bakiyesine
+               ya da deftere HİÇBİR kayıt yazmaz (KARARLAR.md genel politikası). *@
+            <label>Cari (opsiyonel — yalnız ilişki, cari bakiyesini değiştirmez)
+                <select name="cariId">
+                    <option value="">— bağlı cari yok —</option>
+                    @foreach (var c in _cariler)
+                    {
+                        <option value="@c.Id">@c.Ad</option>
+                    }
+                </select>
+            </label>
+            <label>Dosya No<input name="dosyaNo" maxlength="64" /></label>
+            @* Araç OPSİYONEL: filo geneli krediler araçsız kalır. Seçilirse taksit gideri o araca
+               atfedilir (AracKrediService → AccountLedgerEntry.AccountRef = VehicleId) ve araç
+               karnesinde görünür. Uç bu alanı ZATEN okuyordu; eksik olan yalnız formdu. *@
+            <label>Araç (opsiyonel — taksit gideri bu araca yazılır)
+                <select name="vehicleId">
+                    <option value="">— filo geneli —</option>
+                    @foreach (var v in _vehicles)
+                    {
+                        <option value="@v.Id">@v.Plaka</option>
+                    }
+                </select>
+            </label>
+            <label>Kredi Tutarı<input name="krediTutari" type="number" step="0.01" min="0" required /></label>
+            <label>Yıllık Faiz<input name="faizOran" type="number" step="0.0001" min="0" value="0" /></label>
+            <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="360" required /></label>
+            <label>Başlangıç<input name="baslangicTarihi" type="date" /></label>
+            <label>Açıklama<input name="aciklama" /></label>
+            <button type="submit">Kaydet</button>
+        </form>
+    </AuthorizeView>
 </details>
 
 @* Toplu iptal formu tablonun DIŞINDA: satırlarda zaten form var, iç içe form HTML'de yasak.
    Satırlardaki checkbox'lar form="topluIptal" ile bu forma bağlanır. *@
-<form id="topluIptal" method="post" action="/arac-kredi/taksit-iptal" class="filter-bar"
-      data-confirm="Seçili kredilerin KALAN taksitleri iptal edilsin mi? Ödenmiş taksitlerin gider/defter kayıtları AYNEN kalır."><AntiforgeryToken />
-    @Gizli
-    <button type="submit" class="btn-secondary">Taksitleri İptal Et (seçili)</button>
-    <span class="muted small">Yalnız <strong>aktif</strong> krediler etkilenir; ödenmiş taksitler geri alınmaz.</span>
-</form>
+@* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+<AuthorizeView Policy="izin:OperationsDelete" Context="toplu2Ctx">
+    <form id="topluIptal" method="post" action="/arac-kredi/taksit-iptal" class="filter-bar"
+          data-confirm="Seçili kredilerin KALAN taksitleri iptal edilsin mi? Ödenmiş taksitlerin gider/defter kayıtları AYNEN kalır."><AntiforgeryToken />
+        @Gizli
+        <button type="submit" class="btn-secondary">Taksitleri İptal Et (seçili)</button>
+        <span class="muted small">Yalnız <strong>aktif</strong> krediler etkilenir; ödenmiş taksitler geri alınmaz.</span>
+    </form>
+</AuthorizeView>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -151,7 +157,10 @@
                                 <button type="submit" title="Gider(Finansman) + defter kaydı — araç karnesine düşer">Taksit Öde</button>
                             </form>
                         </AuthorizeView>
-                        <form method="post" action="/arac-kredi/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                        @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                        <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
+                            <form method="post" action="/arac-kredi/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                        </AuthorizeView>
                     }
                 </td>
             </tr>

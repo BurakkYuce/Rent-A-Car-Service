@@ -40,7 +40,7 @@ public sealed class VehicleSaleTests(PostgresFixture fx)
         });
 
         var sale = await sales.GetAsync(id);
-        Assert.Equal("ST-000001", sale!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(14, 1, sale!.No);
         Assert.Equal(20000m, sale.KdvTutar);
         Assert.Equal(120000m, sale.GenelToplam);
         Assert.Equal(SatisDurum.Tamamlandi, sale.Durum);

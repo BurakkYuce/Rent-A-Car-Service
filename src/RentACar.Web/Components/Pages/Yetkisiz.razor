@@ -1,0 +1,25 @@
+@page "/yetkisiz"
+@attribute [Authorize]
+@layout MainLayout
+
+@* 403 (kimlik var, yetki yok) buraya düşer. Eskiden /login'e düşüyordu; kullanıcı zaten girişli
+   olduğu için Login.razor onu /'a yönlendiriyor ve kullanıcı hiçbir açıklama görmeden ana ekranda
+   buluyordu kendini. Bkz. Identity/YetkiYonlendirme.cs.
+
+   Dönüş adresi parametresi BİLİNÇLİ olarak yok: 403 çoğunlukla bir POST ucunda (ör. /kiralar/cancel)
+   tetikleniyor, o yolu "geri dön" hedefi yapmak anlamsız olurdu; ayrıca açık yönlendirme yüzeyi açardı. *@
+
+<PageTitle>Yetkiniz Yok — RentPro</PageTitle>
+
+<div class="page-head"><h1>Yetkiniz Yok</h1></div>
+
+<p class="error">Bu işlem için hesabınızda gerekli yetki bulunmuyor. İşlem yapılmadı.</p>
+
+<p class="muted">
+    Silme ve iptal işlemleri <strong>Operasyon Silme</strong>, tahsilat/fatura ters kayıtları ise
+    <strong>Finans Ters Kayıt</strong> yetkisi ister. Bu yetkiler varsayılan olarak Operatör rolünde
+    yoktur. İhtiyacınız varsa yöneticinizden hesabınıza ek yetki tanımlamasını isteyin
+    (Kullanıcılar ekranı → kullanıcı bazlı izin istisnası).
+</p>
+
+<p><a href="/">Panele dön</a></p>

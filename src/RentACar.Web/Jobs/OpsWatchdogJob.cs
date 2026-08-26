@@ -17,20 +17,15 @@ namespace RentACar.Web.Jobs;
 public sealed class OpsWatchdogJob(
     IConfiguration config, IWhatsAppService whatsapp, ILogger<OpsWatchdogJob> log) : BackgroundService
 {
-    private static readonly TimeZoneInfo Tz = ResolveTz();
+    // Saat dilimi TEK kaynaktan: aynı çözüm mantığı üç ayrı yerde kopyalanmıştı (iki job +
+    // belge numarası). Numaradaki gün ile job'un günü ayrışmasın diye ortaklaştırıldı.
+    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantGun.Dilim;
 
     // MeterListener'ın biriktirdiği kümülatif job-hata sayıları (job → toplam) ve en son alarm verilen sayı.
     private readonly ConcurrentDictionary<string, long> _jobFail = new();
     private readonly Dictionary<string, long> _jobFailAlarm = new();
     private DateOnly? _kurAlarmGun;   // kur bayat uyarısının en son verildiği İstanbul günü (bayatlık geçince sıfırlanır)
     private MeterListener? _listener;
-
-    private static TimeZoneInfo ResolveTz()
-    {
-        foreach (var id in new[] { "Europe/Istanbul", "Turkey Standard Time" })
-            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { /* diğerini dene */ }
-        return TimeZoneInfo.Utc;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

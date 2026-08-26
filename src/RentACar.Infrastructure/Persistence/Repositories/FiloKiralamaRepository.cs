@@ -3,6 +3,8 @@ using RentACar.Application.FiloKiralamalar;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Filo kiralama kalıcılığı (roadmap L1). CreateAsync boşluksuz No (FK-000001) tahsis eder.</summary>
@@ -66,8 +68,7 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "FiloKiralamaNo", ct);
-            row.No = $"FK-{n:D6}";
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.FiloKiralama, ct);
             db.FiloKiralamalar.Add(row);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

@@ -318,10 +318,13 @@ else
                         <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="karneCtx">
                             <a href="/raporlar/arac-karne/@v.Id" class="link" title="Ön muhasebe 360°">Karne</a>
                         </AuthorizeView>
-                        <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
-                            <input type="hidden" name="id" value="@v.Id" />
-                            <button type="submit" class="link danger">Sil</button>
-                        </form>
+                        @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
+                        <AuthorizeView Policy="izin:OperationsDelete" Context="silCtx">
+                            <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                                <input type="hidden" name="id" value="@v.Id" />
+                                <button type="submit" class="link danger">Sil</button>
+                            </form>
+                        </AuthorizeView>
                     </td>
                 </tr>
             }

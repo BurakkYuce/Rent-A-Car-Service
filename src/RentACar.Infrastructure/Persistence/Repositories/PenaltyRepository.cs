@@ -7,6 +7,8 @@ using RentACar.Application.Penalties;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Ceza kalıcılığı. Yansıtma satır kilidiyle (FOR UPDATE) idempotenttir.</summary>
@@ -146,8 +148,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "PenaltyNo", ct);
-            penalty.No = $"CZ-{n:D6}";
+            penalty.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Ceza, ct);
             db.Penalties.Add(penalty);
             foreach (var s in satirlar) { s.PenaltyId = penalty.Id; db.PenaltySatirlari.Add(s); }
             await db.SaveChangesAsync(ct);

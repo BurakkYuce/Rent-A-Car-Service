@@ -65,8 +65,6 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
     font-weight: 500; text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .link.danger { color: #b91c1c; }
-.content { max-width: 1000px; margin: 1.5rem auto; padding: 0 1.2rem; }
-
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; text-align: center; }
 .card-num { font-size: 1.8rem; font-weight: 700; color: var(--brand); }
@@ -108,6 +106,9 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .print-terms .en { font-style: italic; color: #555; }
 @media print {
     .no-print, .topbar, .nav { display: none !important; }
+    /* App-shell (.app/.main height+overflow) yazdırmada ÇÖZÜLMELİ: aksi halde tarayıcı yalnız
+       görünür alanı basar ve çok sayfalı sözleşme/fatura tek sayfaya kırpılır. */
+    .app, .main { height: auto !important; overflow: visible !important; }
     .print-page { margin: 0; max-width: 100%; }
     .print-doc { border: none; padding: 0; }
 }
@@ -280,10 +281,10 @@ body {
 h1, h2, h3 { letter-spacing: -0.012em; }
 
 /* ---- Uygulama iskeleti: sabit sol sidebar + ana kolon ---- */
-.app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+.app { display: grid; grid-template-columns: 250px 1fr; height: 100svh; overflow: hidden; }
 .sidebar { background: linear-gradient(180deg, #3b4a5f 0%, var(--tr-sidebar) 22%, var(--tr-sidebar-2) 100%);
     color: var(--tr-sidebar-tx); display: flex; flex-direction: column;
-    position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    height: 100%; overflow-y: auto; }
 .sidebar::-webkit-scrollbar { width: 8px; } .sidebar::-webkit-scrollbar-thumb { background: #4b535b; border-radius: 4px; }
 
 .sb-brand { display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem;
@@ -329,7 +330,7 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .nav-group .sub a.badge-line { display: flex; align-items: center; gap: .4rem; }
 
 /* ---- Ana kolon + üst bar ---- */
-.main { display: flex; flex-direction: column; min-width: 0; }
+.main { display: flex; flex-direction: column; min-width: 0; height: 100%; overflow-y: auto; }
 .topbar { display: flex; align-items: center; gap: .9rem; padding: .55rem 1.2rem; background: var(--surface);
     border-bottom: 1px solid var(--tr-line); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: sticky; top: 0; z-index: 10; }
 .topbar .brand { display: none; }
@@ -343,7 +344,7 @@ h1, h2, h3 { letter-spacing: -0.012em; }
 .topbar .user { color: var(--tr-muted); font-size: .88rem; display: flex; align-items: center; gap: .4rem; }
 .topbar .user .muted { padding: .1rem .4rem; background: #efe9ff; border-radius: .4rem; color: var(--tr-primary); font-weight: 600; }
 
-.content { max-width: none; margin: 0; padding: 1.25rem 1.4rem; }
+.content { max-width: none; margin: 0; padding: 1.25rem 1.4rem; flex: 1 1 auto; }
 
 /* ---- Sayfa başlığı (mor gradient şerit + sağ aksiyonlar) ---- */
 .page-head { display: flex; align-items: center; gap: 1rem; background: var(--tr-grad); color: #fff;
@@ -581,6 +582,15 @@ input[type=file]::file-selector-button:hover { border-color: var(--color-primary
 .platform-top .link { color: #cbd5e1; }
 .platform-body { max-width: 1000px; margin: 1.5rem auto; padding: 0 1.4rem; }
 .ok { color: #14532d; background: #dcfce7; border: 1px solid #86efac; padding: .5rem .75rem; border-radius: .4rem; }
+
+/* İşlem sonucu şeridi (MainLayout + Common/Sonuc.cs + rc-bildirim.js).
+   position:fixed ZORUNLU: akışa girseydi her POST sonrası içerik bir şerit kadar aşağı kayar ve
+   yeni düzeltilen app-shell scroll'unu bozardı. z-index #blazor-error-ui'nin (1000) altında. */
+#rc-bildirim { position: fixed; top: 4.2rem; right: 1rem; z-index: 900; cursor: pointer;
+    max-width: min(90vw, 26rem); box-shadow: 0 6px 20px rgb(0 0 0 / 18%); }
+@media (max-width: 900px) {
+    #rc-bildirim { top: .75rem; left: .75rem; right: .75rem; max-width: none; }
+}
 
 /* RLS-in-circuit teşhis şeridi (kanıt sayfası — sahte-yeşil'e karşı görünür kanıt) */
 .rls-diag { border-radius: .5rem; padding: .6rem .9rem; margin-bottom: 1rem; font-size: .9rem; }

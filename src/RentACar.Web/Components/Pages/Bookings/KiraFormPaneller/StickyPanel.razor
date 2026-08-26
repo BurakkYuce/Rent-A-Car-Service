@@ -9,7 +9,8 @@
         <button type="submit" form="kira-form" class="kf-kaydet" disabled="@(!Vm.OperasyonYetkisi || (Vm.Edit && Vm.Rental!.Durum == RentACar.Domain.Enums.RentalStatus.Iptal))" title="@(Vm.OperasyonYetkisi ? "" : "Operasyon (OperationsWrite) yetkisi gerekir")">Kaydet</button>
         @if (Vm.Kirada)
         {
-            <button type="submit" form="kira-iptal" class="kf-btn-danger" disabled="@(!Vm.OperasyonYetkisi)">Kira İptal</button>
+            <button type="submit" form="kira-iptal" class="kf-btn-danger" disabled="@(!Vm.SilmeYetkisi)"
+                    title="@(Vm.SilmeYetkisi ? "" : "Kira iptali için Operasyon Silme (OperationsDelete) yetkisi gerekir")">Kira İptal</button>
         }
         <button type="button" class="kf-btn-ghost" disabled title="TODO: tablet imza/araç değişim akışı">Tablet Araç Değişim</button>
         @if (Vm.Edit && Vm.FaturaDonemleri.Count > 0)
@@ -76,11 +77,14 @@
                                     <td>
                                         @if (d.Durum == RentACar.Domain.Entities.DisHizmetDurum.Kayitli)
                                         {
-                                            <form method="post" action="/finans/dis-hizmet-iptal" style="display:inline"><AntiforgeryToken />
-                                                <input type="hidden" name="id" value="@d.Id" />
-                                                <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
-                                                <button type="submit" class="link danger" disabled="@(!Vm.FinansYetkisi)">İptal (ters kayıt)</button>
-                                            </form>
+                                            @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
+                                            <AuthorizeView Policy="izin:FinanceReverse" Context="dhIptalCtx">
+                                                <form method="post" action="/finans/dis-hizmet-iptal" style="display:inline"><AntiforgeryToken />
+                                                    <input type="hidden" name="id" value="@d.Id" />
+                                                    <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
+                                                    <button type="submit" class="link danger" disabled="@(!Vm.FinansYetkisi)">İptal (ters kayıt)</button>
+                                                </form>
+                                            </AuthorizeView>
                                         }
                                     </td>
                                 </tr>

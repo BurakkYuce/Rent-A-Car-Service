@@ -41,7 +41,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         { Tedarikci = "ABC Otomotiv", Marka = "Toyota", Adet = 2, BirimFiyat = 500_000m });
 
         var s = await svc.GetAsync(id);
-        Assert.StartsWith("SP-", s!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(13, 1, s!.No);   // 13 = AracSiparis
         Assert.Equal(SiparisDurum.Bekliyor, s.Durum);
         Assert.Equal(2, s.Adet);
 

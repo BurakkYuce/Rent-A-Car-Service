@@ -5,6 +5,8 @@ using RentACar.Application.Customers;
 using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
+using RentACar.Web.Common;
+
 namespace RentACar.Web.Customers;
 
 /// <summary>
@@ -21,7 +23,7 @@ public static class CustomerEndpoints
 
         group.MapPost("/create", async (CustomerService svc, HttpRequest req) =>
         {
-            try { await svc.CreateAsync(Build(req.Form)); return Results.Redirect("/cariler"); }
+            try { await svc.CreateAsync(Build(req.Form)); return Sonuc.Tamam("/cariler", "Cari kaydedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/cariler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -30,7 +32,7 @@ public static class CustomerEndpoints
             try
             {
                 var ok = await svc.UpdateAsync(id, Build(req.Form));
-                return ok ? Results.Redirect("/cariler") : Results.NotFound();
+                return ok ? Sonuc.Tamam("/cariler", "Cari güncellendi.") : Results.NotFound();
             }
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
@@ -38,7 +40,7 @@ public static class CustomerEndpoints
         group.MapPost("/delete", async (CustomerService svc, [FromForm] Guid id) =>
         {
             await svc.DeleteAsync(id);
-            return Results.Redirect("/cariler");
+            return Sonuc.Tamam("/cariler", "Cari silindi.");
         }).RequirePermission(Permission.OperationsDelete);
 
         return app;

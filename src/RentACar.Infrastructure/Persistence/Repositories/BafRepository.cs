@@ -3,6 +3,8 @@ using RentACar.Application.Baflar;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>BAF kalıcılığı (roadmap L5). CreateAsync boşluksuz No (BAF-000001) tahsis eder.</summary>
@@ -74,8 +76,7 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "BafNo", ct);
-            row.No = $"BAF-{n:D6}";
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Baf, ct);
             db.Baflar.Add(row);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

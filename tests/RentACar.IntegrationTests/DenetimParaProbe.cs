@@ -364,7 +364,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
 
         var t1 = await cash.CollectAsync(Ci(cariNo, null, 10m, "TRY", 1m)); // No tabanı
         var no1 = (await cash.GetAsync(t1))!.No;
-        Assert.Equal("TH-000001", no1);
+        BelgeNoOracle.BeklenenlerdenBiri(5, 1, no1);
 
         // Satır 1 geçerli (TRY kira), satır 2 FX kiraya TRY tahsilat → repo K2 guard'ı satır 2'de patlar.
         await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(
@@ -378,7 +378,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
             Assert.Equal(1, await db.CashTransactions.CountAsync()); // yalnız t1
 
         var t2 = await cash.CollectAsync(Ci(cariNo, null, 10m, "TRY", 1m));
-        Assert.Equal("TH-000002", (await cash.GetAsync(t2))!.No); // sıra boşluksuz (rollback no'yu iade etti)
+        BelgeNoOracle.BeklenenlerdenBiri(5, 2, (await cash.GetAsync(t2))!.No); // sıra boşluksuz (rollback no'yu iade etti)
     }
 
     // =====================================================================================

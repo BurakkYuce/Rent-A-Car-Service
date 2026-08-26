@@ -27,7 +27,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
         });
 
         var exp = await expenses.GetAsync(id);
-        Assert.Equal("GD-000001", exp!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(7, 1, exp!.No);
         Assert.Equal(20m, exp.KdvTutar);
         Assert.Equal(120m, exp.GenelToplam);
 

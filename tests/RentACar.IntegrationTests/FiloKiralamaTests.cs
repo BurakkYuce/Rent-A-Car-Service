@@ -36,7 +36,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         { MusteriId = cust, VehicleId = veh, SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m });
 
         var k = await svc.GetAsync(id);
-        Assert.StartsWith("FK-", k!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(16, 1, k!.No);   // 16 = FiloKiralama
         Assert.Equal(12, k.SureAy);
 
         var ozet = FiloKiralamaService.TaksitPlani(k);

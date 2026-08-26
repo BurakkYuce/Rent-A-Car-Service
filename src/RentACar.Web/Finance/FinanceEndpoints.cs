@@ -7,6 +7,8 @@ using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.Web.Identity;
 
+using RentACar.Web.Common;
+
 namespace RentACar.Web.Finance;
 
 /// <summary>Nakit tahsilat/ödeme + virman + ters kayıt form post uçları.</summary>
@@ -26,8 +28,7 @@ public static class FinanceEndpoints
 
     /// <summary>Hata mesajını dönüş URL'ine doğru ayırıcıyla ekler: donus zaten querystring içeriyorsa
     /// (ör. pano "/?df=gec") '?hata=' İKİNCİ '?' üretip mesajı önceki parametreye yutturuyordu → '&'.</summary>
-    internal static string HataUrl(string url, string mesaj)
-        => $"{url}{(url.Contains('?') ? '&' : '?')}hata={Uri.EscapeDataString(mesaj)}";
+    internal static string HataUrl(string url, string mesaj) => Sonuc.Url(url, "hata", mesaj, null);
 
     public static IEndpointRouteBuilder MapFinanceEndpoints(this IEndpointRouteBuilder app)
     {
@@ -54,7 +55,7 @@ public static class FinanceEndpoints
                     Doviz = doviz, Kur = FormParse.Dec(kur), Aciklama = aciklama,
                     IslemAnahtari = islemAnahtari
                 });
-                return Results.Redirect($"{geri}?ok=1");
+                return Sonuc.Tamam(geri, "Dış hizmet alımı kaydedildi.");
             }
             catch (ValidationException ex)
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -64,7 +65,7 @@ public static class FinanceEndpoints
             [FromForm] Guid id, [FromForm] string? donus) =>
         {
             var geri = SafeDonus(donus, "/kiralar");
-            try { await svc.IptalEtAsync(id); return Results.Redirect($"{geri}?ok=1"); }
+            try { await svc.IptalEtAsync(id); return Sonuc.Tamam(geri, "Dış hizmet alımı iptal edildi (ters kayıt)."); }
             catch (ValidationException ex)
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.FinanceReverse);
@@ -82,7 +83,7 @@ public static class FinanceEndpoints
                     tahsilat is "true" or "on",
                     string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase)
                         ? LedgerAccountType.Banka : LedgerAccountType.Kasa);
-                return Results.Redirect($"{geri}?ok=1");
+                return Sonuc.Tamam(geri, "Dönem faturası kesildi.");
             }
             catch (ValidationException ex)
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -106,7 +107,7 @@ public static class FinanceEndpoints
                     Kanal = kanal, // FAZ-84: boş → CashService "Masaüstü" varsayılanı
                     Tarih = FormParse.Date(tarih)  // FAZ-67: boş → sunucu "şimdi" (eski davranış)
                 });
-                return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
+                return Sonuc.Tamam(SafeDonus(donus, $"/cariler/{cariId}/ekstre"), "Tahsilat kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -134,7 +135,7 @@ public static class FinanceEndpoints
                     Kanal = kanal, // FAZ-84
                     Tarih = FormParse.Date(tarih)  // FAZ-67
                 });
-                return Results.Redirect(SafeDonus(donus, $"/cariler/{cariId}/ekstre"));
+                return Sonuc.Tamam(SafeDonus(donus, $"/cariler/{cariId}/ekstre"), "Ödeme kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -159,7 +160,7 @@ public static class FinanceEndpoints
                     islemAnahtari: FormParse.Id(islemAnahtari), // M5-takip: çift-submit idempotency
                     kaynakHesapId: FormParse.Id(kaynakHesapId), hedefHesapId: FormParse.Id(hedefHesapId),
                     makbuzNo: makbuzNo, sube: sube);
-                return Results.Redirect("/kasa");
+                return Sonuc.Tamam("/kasa", "Virman kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -188,8 +189,7 @@ public static class FinanceEndpoints
                     Aciklama = FormParse.Str(f, "aciklama"),
                     IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
                 });
-                var hedef = SafeDonus(donus, "/finans/bakiye-duzeltme");
-                return Results.Redirect($"{hedef}{(hedef.Contains('?') ? '&' : '?')}ok=1");
+                return Sonuc.Tamam(SafeDonus(donus, "/finans/bakiye-duzeltme"), "Bakiye düzeltmesi kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -227,7 +227,7 @@ public static class FinanceEndpoints
 
         grp.MapPost("/tahsilat/ters", async (CashService svc, [FromForm] Guid id, [FromForm] Guid cariId) =>
         {
-            try { await svc.ReverseAsync(id); return Results.Redirect($"/cariler/{cariId}/ekstre"); }
+            try { await svc.ReverseAsync(id); return Sonuc.Tamam($"/cariler/{cariId}/ekstre", "Tahsilat ters kayıtla iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{cariId}/ekstre?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.FinanceReverse);
 
@@ -245,7 +245,7 @@ public static class FinanceEndpoints
                 DamgaVergisi: FormParse.Dec(S("damgaVergisi")),
                 IadeMi: B("iadeMi"),
                 ManuelMi: B("manuelMi"));
-            try { await svc.CreateFromRentalAsync(rentalId, vergi: vergi); return Results.Redirect($"/kiralar/{rentalId}"); }
+            try { await svc.CreateFromRentalAsync(rentalId, vergi: vergi); return Sonuc.Tamam($"/kiralar/{rentalId}", "Fatura kesildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -256,7 +256,7 @@ public static class FinanceEndpoints
         grp.MapPost("/fatura-iade", async (InvoiceService svc, HttpRequest req) =>
         {
             var kaynak = FormParse.Id(req.Form["kaynakFaturaId"].ToString()) ?? Guid.Empty;
-            try { await svc.CreateIadeAsync(kaynak); return Results.Redirect("/faturalar?ok=1"); }
+            try { await svc.CreateIadeAsync(kaynak); return Sonuc.Tamam("/faturalar", "İade faturası kesildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.FinanceReverse);
 
@@ -280,7 +280,7 @@ public static class FinanceEndpoints
                     vade: FormParse.Date(f["vade"].ToString()),
                     makbuzNo: f["makbuzNo"].ToString(),
                     sube: f["sube"].ToString());
-                return Results.Redirect("/cari-virman?ok=1");
+                return Sonuc.Tamam("/cari-virman", "Cari virman kaydedildi.");
             }
             catch (ValidationException ex) { return Results.Redirect($"/cari-virman?hata={Uri.EscapeDataString(ex.Message)}"); }
         });

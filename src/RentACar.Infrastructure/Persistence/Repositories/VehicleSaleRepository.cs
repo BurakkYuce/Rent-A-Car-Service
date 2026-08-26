@@ -5,6 +5,8 @@ using RentACar.Application.VehicleSales;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -72,8 +74,7 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "VehicleSaleNo", ct);
-            sale.No = $"ST-{n:D6}";
+            sale.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracSatis, ct);
             foreach (var entry in entries)
                 entry.Description = $"Araç satış {sale.No}";
 

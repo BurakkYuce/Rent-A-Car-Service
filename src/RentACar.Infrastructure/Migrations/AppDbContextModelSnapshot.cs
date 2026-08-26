@@ -7278,6 +7278,10 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
+                    b.Property<string>("FaturaSeriKodu")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
                     b.Property<string>("FirmaAdres")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
