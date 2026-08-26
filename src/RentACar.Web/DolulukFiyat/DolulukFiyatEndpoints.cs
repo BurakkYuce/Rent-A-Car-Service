@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.DolulukFiyat;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.DolulukFiyat;
@@ -14,17 +15,17 @@ public static class DolulukFiyatEndpoints
         var grp = app.MapGroup("/doluluk-kurallari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (DolulukFiyatKuralService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (DolulukFiyatKuralService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (DolulukFiyatKuralService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // FAZ-73 — toplu kademe girişi (canlı doluluk_algoritma.aspx): ortak kapsam + 10 satır.
         grp.MapPost("/toplu", async (DolulukFiyatKuralService svc, HttpRequest req) =>
-            await Run(() => svc.TopluCreateAsync(BuildToplu(req.Form))));
+            await Run(() => svc.TopluCreateAsync(BuildToplu(req.Form)), "Toplu işlem uygulandı."));
 
         return app;
     }
@@ -79,9 +80,9 @@ public static class DolulukFiyatEndpoints
     private static bool Isaretli(IFormCollection f, string ad)
         => FormParse.Str(f, ad) is "true" or "True" or "on";
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/doluluk-kurallari"); }
+        try { await action(); return Sonuc.Tamam("/doluluk-kurallari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/doluluk-kurallari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

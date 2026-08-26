@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Bookings;
@@ -27,7 +28,7 @@ public static class QuotationEndpoints
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi,
                     GecerlilikTarihi = FormParse.Date(gecerlilik), Aciklama = aciklama, FiyatTuru = fiyatTuru
                 });
-                return Results.Redirect("/teklifler");
+                return Sonuc.Tamam("/teklifler", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -37,19 +38,19 @@ public static class QuotationEndpoints
 
         grp.MapPost("/gonder", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.SendAsync(id); return Results.Redirect("/teklifler"); }
+            try { await svc.SendAsync(id); return Sonuc.Tamam("/teklifler", "Gönderildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/reddet", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.RejectAsync(id); return Results.Redirect("/teklifler"); }
+            try { await svc.RejectAsync(id); return Sonuc.Tamam("/teklifler", "Reddedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/kabul", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.AcceptAsync(id); return Results.Redirect("/rezervasyonlar"); }
+            try { await svc.AcceptAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Kabul edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

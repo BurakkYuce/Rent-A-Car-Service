@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Personnel;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Personnel;
@@ -15,13 +16,13 @@ public static class PersonelEndpoints
         var grp = app.MapGroup("/personel").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (PersonelService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (PersonelService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (PersonelService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -65,9 +66,9 @@ public static class PersonelEndpoints
     };
 
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/personel"); }
+        try { await action(); return Sonuc.Tamam("/personel", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/personel?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

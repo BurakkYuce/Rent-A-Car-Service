@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Pricing;
@@ -36,10 +37,10 @@ public static class MaliyetTeklifiEndpoints
         });
 
         grp.MapPost("/update", async (MaliyetTeklifiService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (MaliyetTeklifiService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -70,9 +71,9 @@ public static class MaliyetTeklifiEndpoints
         return "/maliyet-hesapla" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/maliyet-teklifleri"); }
+        try { await action(); return Sonuc.Tamam("/maliyet-teklifleri", mesaj); }
         catch (ValidationException ex)
         {
             return Results.Redirect("/maliyet-teklifleri?hata=" + Uri.EscapeDataString(ex.Message));

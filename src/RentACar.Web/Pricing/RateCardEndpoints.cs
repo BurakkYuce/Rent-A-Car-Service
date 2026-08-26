@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Pricing;
@@ -16,13 +17,13 @@ public static class RateCardEndpoints
         // FAZ-72: alan sayısı 15'e çıktı → pozisyonel imza yerine form koleksiyonu (diğer
         // uçlardaki desen). Opsiyonel sayısal/tarih alanları FormParse ile çevrilir.
         grp.MapPost("/create", async (RateCardService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (RateCardService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (RateCardService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -51,9 +52,9 @@ public static class RateCardEndpoints
     private static bool Bayrak(IFormCollection f, string ad)
         => FormParse.Str(f, ad) is "true" or "on" or "True";
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/tarifeler"); }
+        try { await action(); return Sonuc.Tamam("/tarifeler", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/tarifeler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

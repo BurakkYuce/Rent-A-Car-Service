@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.CustomCodes;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.CustomCodes;
@@ -15,21 +16,21 @@ public static class CustomCodeEndpoints
 
         grp.MapPost("/create", async (CustomCodeService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] string? turu) =>
-            await Run(() => svc.CreateAsync(new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = true })));
+            await Run(() => svc.CreateAsync(new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = true }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (CustomCodeService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] string? turu, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = aktif })));
+            await Run(() => svc.UpdateAsync(id, new CustomCodeInput { Kod = kod, Ad = ad, Aciklama = aciklama, Turu = turu, Aktif = aktif }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (CustomCodeService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/ozel-kodlar"); }
+        try { await action(); return Sonuc.Tamam("/ozel-kodlar", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/ozel-kodlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

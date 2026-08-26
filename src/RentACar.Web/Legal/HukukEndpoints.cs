@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Legal;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Legal;
@@ -16,13 +17,13 @@ public static class HukukEndpoints
         var grp = app.MapGroup("/hukuk").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (HukukDosyaService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (HukukDosyaService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (HukukDosyaService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -52,9 +53,9 @@ public static class HukukEndpoints
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/hukuk"); }
+        try { await action(); return Sonuc.Tamam("/hukuk", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/hukuk?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

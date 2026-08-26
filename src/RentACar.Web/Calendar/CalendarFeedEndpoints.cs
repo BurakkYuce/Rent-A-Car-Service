@@ -1,3 +1,4 @@
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Calendar;
@@ -20,7 +21,7 @@ public static class CalendarFeedEndpoints
             var uid = http.User.FindFirst(IdentityClaims.UserId)?.Value;
             if (!Guid.TryParse(uid, out var userId)) return Results.Unauthorized();
             await svc.RegenerateAsync(userId, ct);
-            return Results.Redirect("/takvim-abonelik?yeni=1");
+            return Sonuc.Tamam("/takvim-abonelik?yeni=1", "Yenilendi.");
         }).RequireAuthorization().AntiforgeryByEnv();
 
         return app;

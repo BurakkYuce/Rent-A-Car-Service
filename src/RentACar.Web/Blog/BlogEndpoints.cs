@@ -4,6 +4,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Blog;
 using RentACar.Application.Common;
 using RentACar.Domain.Entities;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Blog;
@@ -30,7 +31,7 @@ public static class BlogEndpoints
         // Kapak yükle (multipart). PNG/JPEG/WebP + ≤2 MB serviste doğrulanır (paylaşılan ImageValidation).
         write.MapPost("/{id:guid}/kapak", async (Guid id, IFormFile? kapak, BlogService svc) =>
         {
-            if (kapak is null || kapak.Length == 0) return Results.Redirect("/blog-yonetim");
+            if (kapak is null || kapak.Length == 0) return Sonuc.Hata("/blog-yonetim", "Kapak görseli seçilmedi.");
             using var ms = new MemoryStream();
             await kapak.CopyToAsync(ms);
             return await Run(() => svc.SetKapakAsync(id, ms.ToArray()));

@@ -3,9 +3,8 @@ using RentACar.Application.Common;
 using RentACar.Application.Authorization;
 using RentACar.Application.Penalties;
 using RentACar.Domain.Enums;
-using RentACar.Web.Identity;
-
 using RentACar.Web.Common;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Penalties;
 
