@@ -4,6 +4,8 @@ using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -41,8 +43,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "QuotationNo", ct);
-            quotation.No = $"TK-{n:D6}";
+            quotation.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Teklif, ct);
             db.Quotations.Add(quotation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -73,8 +74,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
                 throw new ValidationException("Teklif zaten rezervasyona çevrilmiş.");
 
             var reservation = buildReservation(quotation);
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "ReservationNo", ct);
-            reservation.ReservationNo = $"RZ-{n:D6}";
+            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Rezervasyon, ct);
             db.Reservations.Add(reservation);
 
             quotation.Durum = QuotationStatus.Kabul;

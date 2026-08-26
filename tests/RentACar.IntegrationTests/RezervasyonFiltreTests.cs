@@ -170,8 +170,10 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         // Müşteri adı: kurumsal ünvan parçası 1 kayıt; bireysel soyad 2 kayıt.
         Assert.Single(await svc.SearchAsync(new ReservationFilter { Query = "Lojistik" }));
         Assert.Equal(2, (await svc.SearchAsync(new ReservationFilter { Query = "yılmaz" })).Count);
-        // Rez No: boşluksuz sıra RZ-000001 → ilk kayıt.
-        Assert.Single(await svc.SearchAsync(new ReservationFilter { Query = "RZ-000001" }));
+        // Rez No araması: numara ÜRETİLEN değerden alınır (format sabit dize olarak yazılamaz —
+        // artık {yyyy}{dd}{MM}{TT}{sss} deseninde ve güne göre değişir).
+        var ilkNo = (await svc.SearchAsync(new ReservationFilter())).OrderBy(r => r.Rez.ReservationNo).First().Rez.ReservationNo;
+        Assert.Single(await svc.SearchAsync(new ReservationFilter { Query = ilkNo }));
         // Plaka DB'de boşluksuz ("34AA11"); kullanıcı BOŞLUKLU yazınca da bulunmalı.
         Assert.Equal(2, (await svc.SearchAsync(new ReservationFilter { Query = "34 AA 11" })).Count);
         // Hiçbir şeye uymayan terim → 0 (sessizce tümünü döndürmez).

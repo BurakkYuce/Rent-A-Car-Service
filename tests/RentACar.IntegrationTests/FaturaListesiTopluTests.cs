@@ -123,7 +123,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         var atlanan = Assert.Single(sonuc.Atlananlar);
         Assert.Contains("İptal", atlanan);
         // Atlanan mesajı SÖZLEŞME NO taşır — çok seçimli kesimde hangisi olduğu ayırt edilebilmeli.
-        Assert.Contains("KS-", atlanan);
+        Assert.Matches(@"\d{13,}", atlanan);   // atlanan kiranın numarası mesajda geçmeli
 
         var (_, borc, alacak) = await DefterAsync(host, tenant);
         Assert.Equal(600m, borc);   // elle: 2 × 300
@@ -258,7 +258,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         Assert.Equal("Kadıköy", satir.VergiDairesi);
         Assert.Equal("1234567890", satir.VergiNo);
         Assert.Equal("34KN01", satir.Plaka?.Replace(" ", ""));
-        Assert.StartsWith("KS-", satir.SozlesmeNo);
+        Assert.Matches(@"^\d{13,}$", satir.SozlesmeNo);   // yeni desen: tamamı rakam
         Assert.Equal("Merkez", satir.Ofis);
 
         // İptal hariç → 1; yalnız iptal → 0 (henüz iptal edilmiş fatura yok).

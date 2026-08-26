@@ -50,7 +50,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         Assert.NotNull(q);
         Assert.Equal(3, q!.Gun);            // 72h / 24 = 3
         Assert.Equal(300m, q.Tutar);        // 3 × 100 (oracle, elle)
-        Assert.Equal("TK-000001", q.No);
+        BelgeNoOracle.BeklenenlerdenBiri(3, 1, q.No);
         Assert.Equal(QuotationStatus.Taslak, q.Durum);
         Assert.Null(q.ReservationId);
     }
@@ -91,7 +91,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         var res = await reservations.GetAsync(resId);
         Assert.NotNull(res);
         Assert.Equal(ReservationStatus.Rezerv, res!.Durum);
-        Assert.Equal("RZ-000001", res.ReservationNo);
+        BelgeNoOracle.BeklenenlerdenBiri(2, 1, res.ReservationNo);
         Assert.Equal(m, res.MusteriId);
         Assert.Equal(v, res.VehicleId);
         Assert.Equal(3, res.Gun);

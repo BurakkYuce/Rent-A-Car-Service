@@ -20,11 +20,11 @@ public sealed class DamageFileTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid(), TahminiTutar = 1500m });
         var f = await svc.GetAsync(id);
-        Assert.Equal("BAF-000001", f!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(11, 1, f!.No);   // 11 = HasarDosyasi
         Assert.Equal(HasarDurum.Acik, f.Durum);
 
         var id2 = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid() });
-        Assert.Equal("BAF-000002", (await svc.GetAsync(id2))!.No);
+        BelgeNoOracle.BeklenenlerdenBiri(11, 2, (await svc.GetAsync(id2))!.No);
     }
 
     [Fact]

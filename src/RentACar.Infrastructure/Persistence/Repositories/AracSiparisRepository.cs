@@ -5,6 +5,8 @@ using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
+using RentACar.Domain.Common;
+
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Araç sipariş kalıcılığı (roadmap L3). CreateAsync boşluksuz No (SP-000001) tahsis eder.</summary>
@@ -76,8 +78,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            var n = await SequenceAllocator.NextAsync(db, db.TenantId, "AracSiparisNo", ct);
-            row.No = $"SP-{n:D6}";
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracSiparis, ct);
             db.AracSiparisleri.Add(row);
             try
             {

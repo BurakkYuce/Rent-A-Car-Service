@@ -30,8 +30,8 @@ public sealed class BookingTests(PostgresFixture fx)
 
         var r1 = await svc.GetAsync(id1);
         var r2 = await svc.GetAsync(id2);
-        Assert.Equal("RZ-000001", r1!.ReservationNo);
-        Assert.Equal("RZ-000002", r2!.ReservationNo);
+        BelgeNoOracle.BeklenenlerdenBiri(2, 1, r1!.ReservationNo);
+        BelgeNoOracle.BeklenenlerdenBiri(2, 2, r2!.ReservationNo);
         Assert.Equal(ReservationStatus.Rezerv, r1.Durum);
         Assert.Equal(4, r1.Gun);          // 4 gün
         Assert.Equal(400m, r1.Tutar);     // 4 * 100
@@ -71,7 +71,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var rental = await rentSvc.GetAsync(rentalId);
         Assert.NotNull(rental);
         Assert.Equal(RentalStatus.Kirada, rental!.Durum);
-        Assert.Equal("KS-000001", rental.SozlesmeNo);
+        BelgeNoOracle.BeklenenlerdenBiri(1, 1, rental.SozlesmeNo);
         Assert.Equal(resId, rental.ReservationId);
         Assert.Equal(400m, rental.Bakiye);
     }
@@ -123,7 +123,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var rentSvc = scope.ServiceProvider.GetRequiredService<RentalService>();
         var rentals = await rentSvc.ListAsync();
         var single = Assert.Single(rentals);
-        Assert.Equal("KS-000001", single.SozlesmeNo);
+        BelgeNoOracle.BeklenenlerdenBiri(1, 1, single.SozlesmeNo);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var log = Assert.Single(await db.AuditLogs.Where(a => a.EntityName == "Rentals").ToListAsync());
         Assert.Equal(AuditAction.Create, log.Action);
         Assert.Equal("auditor", log.UserName);
-        Assert.Contains("KS-000001", log.NewValues);
+        Assert.Contains(BelgeNoOracle.Bekle(1, 1), log.NewValues);   // audit log numarayı taşımalı
     }
 
     [Fact]

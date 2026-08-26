@@ -56,7 +56,7 @@ public sealed class DisHizmetTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(Girdi(kira, tedarikci));
         var kayit = (await svc.ListForRentalAsync(kira)).Single();
-        Assert.StartsWith("DH-", kayit.No);
+        BelgeNoOracle.BeklenenlerdenBiri(10, 1, kayit.No);   // 10 = DisHizmet
         Assert.Equal(DisHizmetDurum.Kayitli, kayit.Durum);
 
         // Tedarikçi bakiyesi: alacak 1000 − borç 100 = −900 (elle; pozitif = müşteri borçlu konvansiyonu).
