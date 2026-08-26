@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.WebSite;
 using RentACar.Domain.Entities;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.WebSite;
@@ -40,7 +41,7 @@ public static class WebSiteEndpoints
                         [.. req.Form["aracId"].Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty)],
                         beraber: false)
                     : await svc.AdimBirImzaAsync([.. req.Form["imza"].Select(s => s ?? "").Where(s => s.Length > 0)]);
-                return Results.Redirect($"/web-sitesi/ilan/{ilanId}/fiyat");
+                return Sonuc.Tamam($"/web-sitesi/ilan/{ilanId}/fiyat", "Kayıt oluşturuldu.");
             }
             catch (ValidationException ex)
             {
@@ -59,7 +60,7 @@ public static class WebSiteEndpoints
                     FormParse.Dec(FormParse.Str(f, "haftalikToplam")),
                     FormParse.Dec(FormParse.Str(f, "aylikToplam")),
                     f["kdvDahil"].ToString() != "false");
-                return Results.Redirect($"/web-sitesi/ilan/{id}/ozellikler");
+                return Sonuc.Tamam($"/web-sitesi/ilan/{id}/ozellikler", "Kaydedildi.");
             }
             catch (ValidationException ex) { return Geri($"/web-sitesi/ilan/{id}/fiyat", ex); }
         });

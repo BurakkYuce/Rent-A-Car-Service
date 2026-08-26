@@ -3,6 +3,7 @@ using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Domain.Enums;
 
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Branches;
@@ -19,13 +20,13 @@ public static class BranchEndpoints
         // FAZ-23: alan sayısı 30'a çıktı → pozisyonel imza yerine form koleksiyonu (diğer
         // uçlardaki desen). Opsiyonel sayısal/tarih alanları FormParse ile çevrilir.
         grp.MapPost("/create", async (BranchService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (BranchService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (BranchService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
         grp.MapPost("/hizmet-ekle", async (BranchService svc, HttpRequest req) =>
@@ -34,10 +35,10 @@ public static class BranchEndpoints
                 SubeId = FormParse.Id(FormParse.Str(req.Form, "subeId")) ?? Guid.Empty,
                 HizmetAdi = req.Form["hizmetAdi"].ToString(),
                 Aciklama = FormParse.Str(req.Form, "aciklama")
-            })));
+            }), "İşlem tamamlandı."));
 
         grp.MapPost("/hizmet-sil", async (BranchService svc, [FromForm] Guid id) =>
-            await Run(() => svc.RemoveHizmetAsync(id)));
+            await Run(() => svc.RemoveHizmetAsync(id), "İşlem tamamlandı."));
 
         // ---- FAZ-23: şube birleştirme ----
         // Onay kutusu ZORUNLU: geri alınamayan toplu bir işlem, kazara tıklamayla çalışmamalı.
@@ -95,12 +96,12 @@ public static class BranchEndpoints
         Aktif = varsayilanAktif ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
         try
         {
             await action();
-            return Results.Redirect("/subeler");
+            return Sonuc.Tamam("/subeler", mesaj);
         }
         catch (ValidationException ex)
         {

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.PenaltyTypes;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.PenaltyTypes;
@@ -18,22 +19,22 @@ public static class PenaltyTypeEndpoints
         grp.MapPost("/create", async (PenaltyTypeService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? varsayilanTutar) =>
             await Run(() => svc.CreateAsync(new PenaltyTypeInput
-            { Kod = kod, Ad = ad, VarsayilanTutar = FormParse.Dec(varsayilanTutar), Aktif = true })));
+            { Kod = kod, Ad = ad, VarsayilanTutar = FormParse.Dec(varsayilanTutar), Aktif = true }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (PenaltyTypeService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? varsayilanTutar, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new PenaltyTypeInput
-            { Kod = kod, Ad = ad, VarsayilanTutar = FormParse.Dec(varsayilanTutar), Aktif = aktif })));
+            { Kod = kod, Ad = ad, VarsayilanTutar = FormParse.Dec(varsayilanTutar), Aktif = aktif }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (PenaltyTypeService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/ceza-turleri"); }
+        try { await action(); return Sonuc.Tamam("/ceza-turleri", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/ceza-turleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

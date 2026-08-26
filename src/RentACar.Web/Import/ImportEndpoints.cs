@@ -2,6 +2,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.RateMatrices;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Import;
@@ -20,7 +21,7 @@ public static class ImportEndpoints
             await using var s = dosya.OpenReadStream();
             var rows = ImportService.Parse(s, dosya.FileName);
             var r = await imp.ImportAraclarAsync(rows, ct);
-            return Results.Redirect($"/ice-aktar?tur=arac&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}");
+            return Sonuc.Tamam($"/ice-aktar?tur=arac&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Araçlar içe aktarıldı.");
         });
 
         grp.MapPost("/cari", async (IFormFile? dosya, ImportService imp, CancellationToken ct) =>
@@ -29,7 +30,7 @@ public static class ImportEndpoints
             await using var s = dosya.OpenReadStream();
             var rows = ImportService.Parse(s, dosya.FileName);
             var r = await imp.ImportCarilerAsync(rows, ct);
-            return Results.Redirect($"/ice-aktar?tur=cari&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}");
+            return Sonuc.Tamam($"/ice-aktar?tur=cari&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Cariler içe aktarıldı.");
         });
 
         // FAZ 6.1 — toplu tarife aktarımı (xml_fiyat_aktar karşılığı). Aynı gate (Admin/ManageUsers):
@@ -45,7 +46,7 @@ public static class ImportEndpoints
             var hatalar = r.Hatalar.Count == 0
                 ? ""
                 : "&hatalar=" + Uri.EscapeDataString(string.Join("|", r.Hatalar.Take(5)));
-            return Results.Redirect($"/tarife-aktar?eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}{hatalar}");
+            return Sonuc.Tamam($"/tarife-aktar?eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}{hatalar}", "Dosya yüklendi.");
         });
 
         // FAZ-31 — bir rezervasyon kaynağının BEKLEYEN tarife satırlarını toplu sil. Onaylı

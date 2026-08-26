@@ -16,11 +16,8 @@
     <p class="error">@Hata</p>
 }
 
-@if (!string.IsNullOrEmpty(Bilgi))
-{
-    <p class="success">@Bilgi</p>
-}
-
+@* `?bilgi=` ARTIK LAYOUT'UN: MainLayout global şerit basıyor. Burada da basmak mesajı İKİ KEZ
+   gösterirdi (UcBilgiTekKaynakTests bunu kilitler). *@
 @if (_unmatched.Count > 0)
 {
     <details class="unmatched-grup" open>
@@ -220,7 +217,6 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
-    [SupplyParameterFromQuery(Name = "bilgi")] public string? Bilgi { get; set; } // PR-10 atama sonucu
 
     private IReadOnlyList<VehicleGroup> _list = [];
     private List<string> _markaOpts = [], _segmentOpts = [];

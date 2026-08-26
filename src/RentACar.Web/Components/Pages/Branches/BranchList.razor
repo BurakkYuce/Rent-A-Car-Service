@@ -8,10 +8,7 @@
 <p class="muted small">Yönetilen şube sözlüğü. Şube adları araç/gider/kullanıcı formlarında
     açılır liste kaynağı olarak kullanılır. (Mevcut serbest-metin şube alanları korunur.)</p>
 
-@if (!string.IsNullOrEmpty(Bilgi))
-{
-    <p class="ok">@Bilgi</p>
-}
+@* `?bilgi=` ARTIK LAYOUT'UN: MainLayout global şerit basıyor (bkz. UcBilgiTekKaynakTests). *@
 @if (!string.IsNullOrEmpty(Hata))
 {
     <p class="error">@Hata</p>
@@ -222,7 +219,6 @@
 @code {
     [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
     [SupplyParameterFromQuery(Name = "hedef")] public string? Hedef { get; set; }
-    [SupplyParameterFromQuery(Name = "bilgi")] public string? Bilgi { get; set; }
 
     private IReadOnlyList<SubeUcretsizHizmet> _hizmetler = [];
     private SubeBirlestirOnizleme? _onizleme;

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.DamageFiles;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.DamageFiles;
@@ -27,7 +28,7 @@ public static class DamageFileEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Results.Redirect("/hasar");
+                return Sonuc.Tamam("/hasar", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -35,20 +36,20 @@ public static class DamageFileEndpoints
             }
         });
 
-        grp.MapPost("/onaya-gonder", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.OnayaGonderAsync(id)));
-        grp.MapPost("/onayla", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.OnaylaAsync(id, not)));
-        grp.MapPost("/reddet", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.ReddetAsync(id, not)));
-        grp.MapPost("/kapat", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.KapatAsync(id)));
+        grp.MapPost("/onaya-gonder", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.OnayaGonderAsync(id), "İşlem tamamlandı."));
+        grp.MapPost("/onayla", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.OnaylaAsync(id, not), "İşlem tamamlandı."));
+        grp.MapPost("/reddet", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.ReddetAsync(id, not), "Reddedildi."));
+        grp.MapPost("/kapat", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.KapatAsync(id), "Kapatıldı."));
 
         return app;
     }
 
-    private static async Task<IResult> Act(Func<Task<bool>> action)
+    private static async Task<IResult> Act(Func<Task<bool>> action, string mesaj)
     {
         try
         {
             await action();
-            return Results.Redirect("/hasar");
+            return Sonuc.Tamam("/hasar", mesaj);
         }
         catch (ValidationException ex)
         {

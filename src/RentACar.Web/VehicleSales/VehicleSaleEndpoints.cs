@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 using RentACar.Application.VehicleSales;
 
@@ -52,7 +53,7 @@ public static class VehicleSaleEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Results.Redirect("/satislar");
+                return Sonuc.Tamam("/satislar", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {

@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Locations;
 using RentACar.Domain.Entities;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Locations;
@@ -17,13 +18,13 @@ public static class LocationEndpoints
         // FAZ-22: alan sayısı 20'yi geçtiği için tek tek [FromForm] parametre yerine IFormCollection
         // okunuyor — opsiyonel sayısal alanlar "" ile 400 vermesin diye zaten FormParse gerekiyordu.
         grp.MapPost("/create", async (LocationService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (LocationService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif")))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif"))), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (LocationService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -80,9 +81,9 @@ public static class LocationEndpoints
         return liste;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/lokasyonlar"); }
+        try { await action(); return Sonuc.Tamam("/lokasyonlar", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/lokasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

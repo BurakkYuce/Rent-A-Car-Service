@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.ServisTanimlari;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.ServisTanimlari;
@@ -15,13 +16,13 @@ public static class ServisTanimEndpoints
 
         grp.MapPost("/create", async (ServisTanimService svc, HttpRequest req,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, kod, aracTipi, bakimKm, aciklama, true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, kod, aracTipi, bakimKm, aciklama, true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (ServisTanimService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, aracTipi, bakimKm, aciklama, aktif))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, aracTipi, bakimKm, aciklama, aktif)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (ServisTanimService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id)));
+        grp.MapPost("/delete", async (ServisTanimService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // FAZ-14 C: öneriyi KABUL et — öneri sayfası hiçbir şey yazmaz, kayıt bu uçta doğar.
         // Kod/KM kullanıcı tarafından düzenlenebilir olduğu için formdan gelir (önerinin
@@ -32,7 +33,7 @@ public static class ServisTanimEndpoints
                 req.Form["kod"].ToString(),
                 req.Form["aracTipi"].ToString(),
                 FormParse.Int(FormParse.Str(req.Form, "bakimKm")) ?? 0,
-                FormParse.Str(req.Form, "aciklama"), true))));
+                FormParse.Str(req.Form, "aciklama"), true)), "Öneri kabul edildi."));
 
         return app;
     }
@@ -44,9 +45,9 @@ public static class ServisTanimEndpoints
         Yakit = FormParse.Str(f, "yakit"), Vites = FormParse.Str(f, "vites")
     };
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/servis-tanimlari"); }
+        try { await action(); return Sonuc.Tamam("/servis-tanimlari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/servis-tanimlari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

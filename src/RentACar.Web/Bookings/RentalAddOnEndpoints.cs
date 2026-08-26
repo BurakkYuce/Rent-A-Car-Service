@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.RentalAddOns;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Bookings;
@@ -20,7 +21,7 @@ public static class RentalAddOnEndpoints
             try
             {
                 await svc.AddAsync(rentalId, ekHizmetTanimId, FormParse.Dec(miktar) ?? 0m);
-                return Results.Redirect($"/kiralar/{rentalId}");
+                return Sonuc.Tamam($"/kiralar/{rentalId}", "Ek hizmet eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -34,7 +35,7 @@ public static class RentalAddOnEndpoints
             try
             {
                 await svc.RemoveAsync(addOnId);
-                return Results.Redirect($"/kiralar/{rentalId}");
+                return Sonuc.Tamam($"/kiralar/{rentalId}", "Ek hizmet silindi.");
             }
             catch (ValidationException ex)
             {
