@@ -323,7 +323,9 @@
 
 <div id="blazor-error-ui" data-nosnippet>
     Beklenmeyen bir hata oluştu.
-    <a href="." class="reload">Yenile</a>
+    @* Göreli nokta-href DEĞİL: `<base href="/">` yüzünden köke çözülüyordu → "Yenile"
+       kullanıcıyı bulunduğu sayfadan ana ekrana atıyordu. Buton + rc-ui.js reload(). *@
+    <button type="button" class="reload" data-rc-reload>Yenile</button>
     <span class="dismiss"></span>
 </div>
 

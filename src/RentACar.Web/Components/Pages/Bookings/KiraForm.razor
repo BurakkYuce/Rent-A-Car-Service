@@ -50,7 +50,10 @@ else
         {
             @* PDF: varsayılan GÖRÜNTÜLE (indirme klasörü dolmaz); Yazdır gizli-iframe print; İndir isteğe bağlı *@
             <a href="/kiralar/@Id/pdf" target="_blank">Sözleşme: Görüntüle</a><span> · </span>
-            <a href="#" data-pdf-yazdir="/kiralar/@Id/pdf">Yazdır</a><span> · </span>
+            @* href GERÇEK pdf yolu: çıplak "#" `<base href="/">` ile köke çözülüyor ve JS
+               yüklenmeden / orta-tık / Ctrl+tık durumlarında kullanıcıyı ana ekrana atıyordu.
+               rc-kira-tabs.js preventDefault ettiği için normal tıkta davranış değişmez. *@
+            <a href="/kiralar/@Id/pdf" target="_blank" data-pdf-yazdir="/kiralar/@Id/pdf">Yazdır</a><span> · </span>
             <a href="/kiralar/@Id/pdf?indir=1">İndir</a><span> · </span>
             <a href="/cariler/@_vm.Rental!.MusteriId/ekstre">Cari Ekstre</a><span> · </span>
             <a href="/kiralar/yeni"><strong>+ Yeni Kira</strong></a><span> · </span>

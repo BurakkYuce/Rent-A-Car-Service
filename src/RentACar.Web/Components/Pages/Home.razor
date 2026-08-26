@@ -14,10 +14,11 @@
 @inject RentACar.Domain.Common.ITenantContext TenantCtx
 
 <PageTitle>Panel — RentPro</PageTitle>
-@* Statik SSR panosu: sayfa 120 sn'de bir otomatik yenilenir → boştaki araç/rezervasyon sayaçları güncel kalır. *@
-<HeadContent><meta http-equiv="refresh" content="120" /></HeadContent>
-
-<div class="page-head">
+@* Statik SSR panosu: sayfa 120 sn'de bir otomatik yenilenir → boştaki araç/rezervasyon sayaçları
+   güncel kalır. meta-refresh KULLANILMAZ: enhanced navigation ile başka sayfaya
+   geçilince tarayıcının bekleyen refresh'i iptal olmuyor ve kullanıcıyı formun ortasında buraya
+   fırlatıyordu (veri kaybı). rc-tazele.js zamanlayıcıyı sayfadan çıkışta iptal eder. *@
+<div class="page-head" data-rc-tazele="120">
     <h1>Panel</h1>
     <div class="actions">
         <a href="/rezervasyonlar">+ Rezervasyon</a>
