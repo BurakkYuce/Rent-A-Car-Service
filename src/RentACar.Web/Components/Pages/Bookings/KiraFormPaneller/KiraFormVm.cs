@@ -46,6 +46,13 @@ public sealed class KiraFormVm
     public bool FinansYetkisi { get; set; }
     /// <summary>OperationsWrite var mı (Kaydet/teslim/dönüş/uzat/ek hizmet/iptal — Muhasebe'de disabled + not).</summary>
     public bool OperasyonYetkisi { get; set; } = true;
+
+    /// <summary>
+    /// <c>OperationsDelete</c> — kira İPTALİ için gerekir. <see cref="OperasyonYetkisi"/> (OperationsWrite)
+    /// ile karıştırılmamalı: Operatör yazabilir ama SİLEMEZ (RolePermissions). Bu ayrım olmadan iptal
+    /// düğmesi operatöre açık görünüyor, basınca 403 alınıyordu.
+    /// </summary>
+    public bool SilmeYetkisi { get; set; } = true;
     public bool Kirada => Edit && Rental!.Durum == RentACar.Domain.Enums.RentalStatus.Kirada;
     public bool TeslimEdildi => Edit && Rental!.CikisKm is not null;
 

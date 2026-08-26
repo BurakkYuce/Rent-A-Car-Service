@@ -36,12 +36,14 @@ public static class AuthExtensions
     }
 
     public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder group, Permission permission)
-        => group.RequireAuthorization(p => p.RequireAssertion(ctx => HasPermission(ctx.User, permission)));
+        => group.RequireAuthorization(p => p.RequireAssertion(ctx => HasPermission(ctx.User, permission)))
+                .WithMetadata(new IzinMetadata(permission));
 
     /// <summary>Tekil uç için etkin-izin kapısı (grup kapısından daha dar bir izin gerektiğinde —
     /// ör. OperationsWrite grubundaki /sil ucu OperationsDelete ister).</summary>
     public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder endpoint, Permission permission)
-        => endpoint.RequireAuthorization(p => p.RequireAssertion(ctx => HasPermission(ctx.User, permission)));
+        => endpoint.RequireAuthorization(p => p.RequireAssertion(ctx => HasPermission(ctx.User, permission)))
+                   .WithMetadata(new IzinMetadata(permission));
 
     /// <summary>
     /// PR-12: "Web Sitesi" modülü satın alınmamışsa uç grubunu 404'e çevirir (403 değil — modülün
@@ -68,6 +70,17 @@ public static class AuthExtensions
     public static TBuilder AntiforgeryByEnv<TBuilder>(this TBuilder builder) where TBuilder : IEndpointConventionBuilder
         => FormSecurity.EnforceAntiforgery ? builder : builder.DisableAntiforgery();
 }
+
+/// <summary>
+/// Bir ucun hangi izni istediğini ÇALIŞMA ZAMANINDA okunabilir kılar.
+///
+/// <para>Yetkilendirme kararı hâlâ <c>RequireAuthorization</c> assertion'ından gelir — bu kayıt
+/// yalnızca iç gözlem içindir. Gerekçe: izin bir lambda'nın içine gömülüydü ve dışarıdan
+/// görünmüyordu; "bu ucu tetikleyen düğme doğru izinle kapılanmış mı?" sorusunu soran yapısal
+/// test bunu okuyamıyordu. Grup mirası nedeniyle bir uçta birden çok kayıt olabilir: SONUNCUSU
+/// etkin (en dar) izindir, İLKİ grup iznidir.</para>
+/// </summary>
+public sealed record IzinMetadata(Permission Izin);
 
 /// <summary>Antiforgery zorunluluğu anahtarı — Program startup'ta ortamdan (IsProduction) set edilir.</summary>
 public static class FormSecurity
