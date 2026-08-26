@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.FinancialAccounts;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.FinancialAccounts;
@@ -20,7 +21,7 @@ public static class FinancialAccountEndpoints
             await Run(() => svc.CreateAsync(new FinancialAccountInput
             { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube,
               HediyeCek = hediyeCek is "true" or "on" or "True", OzelKod = ozelKod, UyariMailListesi = uyariMailListesi,
-              Aktif = true })));
+              Aktif = true }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (FinancialAccountService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? tur, [FromForm] string? doviz,
@@ -29,17 +30,17 @@ public static class FinancialAccountEndpoints
             await Run(() => svc.UpdateAsync(id, new FinancialAccountInput
             { Kod = kod, Ad = ad, Tur = tur, Doviz = doviz, Iban = iban, HesapNo = hesapNo, Banka = banka, Sube = sube,
               HediyeCek = hediyeCek is "true" or "on" or "True", OzelKod = ozelKod, UyariMailListesi = uyariMailListesi,
-              Aktif = aktif })));
+              Aktif = aktif }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (FinancialAccountService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/hesaplar"); }
+        try { await action(); return Sonuc.Tamam("/hesaplar", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/hesaplar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

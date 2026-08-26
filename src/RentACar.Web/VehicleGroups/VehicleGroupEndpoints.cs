@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.VehicleGroups;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.VehicleGroups;
@@ -16,13 +17,13 @@ public static class VehicleGroupEndpoints
         var grp = app.MapGroup("/arac-gruplari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleGroupService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true))));
+            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (VehicleGroupService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif") ?? true))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif") ?? true)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (VehicleGroupService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // PR-10 eşleme aracı: tanımsız bir Grup serbest-metin değerini tanımlı gruba taşır.
         // "(boş)" satırı string yerine `bos=true` bayrağıyla gelir (gerçekten "(boş)" yazan bir
@@ -97,9 +98,9 @@ public static class VehicleGroupEndpoints
         return v is "true" or "True" or "evet" or "Evet" or "on";
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/arac-gruplari"); }
+        try { await action(); return Sonuc.Tamam("/arac-gruplari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/arac-gruplari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

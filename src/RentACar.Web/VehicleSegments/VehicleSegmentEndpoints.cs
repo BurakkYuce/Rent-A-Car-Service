@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.VehicleSegments;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.VehicleSegments;
@@ -15,21 +16,21 @@ public static class VehicleSegmentEndpoints
 
         grp.MapPost("/create", async (VehicleSegmentService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama) =>
-            await Run(() => svc.CreateAsync(new VehicleSegmentInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = true })));
+            await Run(() => svc.CreateAsync(new VehicleSegmentInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = true }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (VehicleSegmentService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? aciklama, [FromForm] bool aktif) =>
-            await Run(() => svc.UpdateAsync(id, new VehicleSegmentInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = aktif })));
+            await Run(() => svc.UpdateAsync(id, new VehicleSegmentInput { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = aktif }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (VehicleSegmentService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/segmentler"); }
+        try { await action(); return Sonuc.Tamam("/segmentler", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/segmentler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.KdvRates;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.KdvRates;
@@ -23,7 +24,7 @@ public static class KdvRateEndpoints
                 Ad = ad,
                 Oran = FormParse.Dec(oran) ?? 0m,
                 Aktif = true
-            })));
+            }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (KdvRateService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? oran, [FromForm] bool aktif) =>
@@ -33,17 +34,17 @@ public static class KdvRateEndpoints
                 Ad = ad,
                 Oran = FormParse.Dec(oran) ?? 0m,
                 Aktif = aktif
-            })));
+            }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (KdvRateService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/kdv-oranlari"); }
+        try { await action(); return Sonuc.Tamam("/kdv-oranlari", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/kdv-oranlari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.FiloKiralamalar;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.FiloKiralamalar;
@@ -77,13 +78,13 @@ public static class FiloKiralamaEndpoints
 
         grp.MapPost("/iptal", async (FiloKiralamaService svc, [FromForm] Guid id) =>
         {
-            try { await svc.IptalAsync(id); return Results.Redirect("/filo-kiralama"); }
+            try { await svc.IptalAsync(id); return Sonuc.Tamam("/filo-kiralama", "İşlem iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
         grp.MapPost("/tamamla", async (FiloKiralamaService svc, [FromForm] Guid id) =>
         {
-            try { await svc.TamamlaAsync(id); return Results.Redirect("/filo-kiralama"); }
+            try { await svc.TamamlaAsync(id); return Sonuc.Tamam("/filo-kiralama", "Tamamlandı."); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

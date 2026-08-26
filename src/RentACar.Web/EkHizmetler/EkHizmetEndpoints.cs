@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.EkHizmetler;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.EkHizmetler;
@@ -28,7 +29,7 @@ public static class EkHizmetEndpoints
                 Aciklama = aciklama,
                 MaxGun = FormParse.Int(maxGun),
                 Aktif = true
-            })));
+            }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (EkHizmetTanimService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad,
@@ -43,17 +44,17 @@ public static class EkHizmetEndpoints
                 Aciklama = aciklama,
                 MaxGun = FormParse.Int(maxGun),
                 Aktif = aktif
-            })));
+            }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (EkHizmetTanimService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/ek-hizmetler"); }
+        try { await action(); return Sonuc.Tamam("/ek-hizmetler", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/ek-hizmetler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

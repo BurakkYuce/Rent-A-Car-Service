@@ -3,6 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.RateMatrices;
 using RentACar.Domain.Enums;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.RateMatrices;
@@ -17,13 +18,13 @@ public static class RateMatrixEndpoints
         var grp = app.MapGroup("/tarife-matris").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (RateMatrixService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form))));
+            await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (RateMatrixService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form))));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (RateMatrixService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
@@ -82,9 +83,9 @@ public static class RateMatrixEndpoints
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/tarife-matris"); }
+        try { await action(); return Sonuc.Tamam("/tarife-matris", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/tarife-matris?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

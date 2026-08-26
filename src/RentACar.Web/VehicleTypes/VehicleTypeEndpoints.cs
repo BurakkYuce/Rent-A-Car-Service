@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.VehicleTypes;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.VehicleTypes;
@@ -17,23 +18,23 @@ public static class VehicleTypeEndpoints
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka,
             [FromForm] string? vites, [FromForm] string? yakit, [FromForm] string? grup) =>
             await Run(() => svc.CreateAsync(new VehicleTypeInput
-            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = true })));
+            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = true }), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (VehicleTypeService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? marka,
             [FromForm] string? vites, [FromForm] string? yakit, [FromForm] string? grup, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new VehicleTypeInput
-            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = aktif })));
+            { Kod = kod, Ad = ad, Marka = marka, Vites = vites, Yakit = yakit, Grup = grup, Aktif = aktif }), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (VehicleTypeService svc, [FromForm] Guid id) =>
-            await Run(() => svc.DeleteAsync(id)));
+            await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
-        try { await action(); return Results.Redirect("/arac-tipleri"); }
+        try { await action(); return Sonuc.Tamam("/arac-tipleri", mesaj); }
         catch (ValidationException ex) { return Results.Redirect($"/arac-tipleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

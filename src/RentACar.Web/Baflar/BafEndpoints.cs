@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Authorization;
 using RentACar.Application.Baflar;
 using RentACar.Application.Common;
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Baflar;
@@ -49,13 +50,13 @@ public static class BafEndpoints
             // FAZ-18: dönüş şubesi/saati BİLGİdir — şube KAPSAMI hâlâ çıkış şubesinden işler.
             var donusSube = FormParse.Str(f, "donusSube");
             var donusSaat = FormParse.Saat(FormParse.Str(f, "donusSaat"));
-            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Results.Redirect("/baf"); }
+            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Sonuc.Tamam("/baf", "Teslim alındı."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/iptal", async (BafService svc, [FromForm] Guid id) =>
         {
-            try { await svc.IptalAsync(id); return Results.Redirect("/baf"); }
+            try { await svc.IptalAsync(id); return Sonuc.Tamam("/baf", "İşlem iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 

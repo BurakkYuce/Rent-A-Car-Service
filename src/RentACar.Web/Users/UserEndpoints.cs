@@ -4,6 +4,7 @@ using RentACar.Application.Common;
 using RentACar.Application.Users;
 using RentACar.Domain.Enums;
 
+using RentACar.Web.Common;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Users;
@@ -23,32 +24,32 @@ public static class UserEndpoints
             [FromForm] string userName, [FromForm] string? displayName,
             [FromForm] UserRole rol, [FromForm] string password, [FromForm] string? atanmisSube) =>
             await Run(() => svc.CreateAsync(new UserInput
-            { UserName = userName, DisplayName = displayName ?? "", Rol = rol, Password = password, AtanmisSube = atanmisSube })));
+            { UserName = userName, DisplayName = displayName ?? "", Rol = rol, Password = password, AtanmisSube = atanmisSube }), "Kayıt eklendi."));
 
         grp.MapPost("/aktif", async (UserService svc, [FromForm] Guid id, [FromForm] bool active) =>
-            await Run(() => svc.SetActiveAsync(id, active)));
+            await Run(() => svc.SetActiveAsync(id, active), "Durum güncellendi."));
 
         grp.MapPost("/sifre", async (UserService svc, [FromForm] Guid id, [FromForm] string password) =>
-            await Run(() => svc.ResetPasswordAsync(id, password)));
+            await Run(() => svc.ResetPasswordAsync(id, password), "İşlem tamamlandı."));
 
         // ---- Kullanıcı-bazlı izin istisnaları (2026-08-17) ----
         grp.MapPost("/istisna/set", async (KullaniciIzinService svc,
             [FromForm] Guid userId, [FromForm] string izin, [FromForm] string tur) =>
-            await Run(() => svc.SetAsync(userId, izin, ver: tur == "ver")));
+            await Run(() => svc.SetAsync(userId, izin, ver: tur == "ver"), "İşlem tamamlandı."));
 
         grp.MapPost("/istisna/sil", async (KullaniciIzinService svc,
             [FromForm] Guid userId, [FromForm] string izin) =>
-            await Run(() => svc.RemoveAsync(userId, izin)));
+            await Run(() => svc.RemoveAsync(userId, izin), "Kayıt silindi."));
 
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action)
+    private static async Task<IResult> Run(Func<Task> action, string mesaj)
     {
         try
         {
             await action();
-            return Results.Redirect("/kullanicilar");
+            return Sonuc.Tamam("/kullanicilar", mesaj);
         }
         catch (ValidationException ex)
         {
