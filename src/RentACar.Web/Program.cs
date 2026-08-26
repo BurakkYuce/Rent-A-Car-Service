@@ -176,17 +176,19 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
         options.LoginPath = "/login";
-        options.AccessDeniedPath = "/login";
+        // 403 → /login DEĞİL: kullanıcı zaten girişli olduğu için Login.razor onu /'a atıyor ve
+        // "durduk yere ana ekrana düştüm" oluyordu. Bkz. Identity/YetkiYonlendirme.cs.
+        options.AccessDeniedPath = "/yetkisiz";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         // TEK şema; /platform alanı için login/access-denied AYRI sayfaya yönlendirilir (alan-bazlı).
         options.Events.OnRedirectToLogin = ctx =>
         {
-            ctx.Response.Redirect(ctx.Request.Path.StartsWithSegments("/platform") ? "/platform/login" : "/login");
+            ctx.Response.Redirect(YetkiYonlendirme.GirisHedefi(ctx.Request.Path));
             return Task.CompletedTask;
         };
         options.Events.OnRedirectToAccessDenied = ctx =>
         {
-            ctx.Response.Redirect(ctx.Request.Path.StartsWithSegments("/platform") ? "/platform/login" : "/login");
+            ctx.Response.Redirect(YetkiYonlendirme.YetkisizHedefi(ctx.Request.Path));
             return Task.CompletedTask;
         };
     });
