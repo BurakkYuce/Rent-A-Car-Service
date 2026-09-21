@@ -256,6 +256,36 @@ public sealed class AracSiparisTests(PostgresFixture fx)
             new AracSiparisInput { Tedarikci = "Yeni", Adet = 2, BirimFiyat = 20m }));
     }
 
+    /// <summary>
+    /// İptal TERMİNAL (adversarial bulgu): ekranın iptal onayı "bir daha onaylanamaz, teslim
+    /// alınamaz" diyor. İki sekme senaryosu — A iptal eder, B eski listeden Onayla/Teslim Al'a basar
+    /// — eskiden İptal → Onaylandı/TeslimAlındı geçişiyle sonuçlanıyordu. Beklenen: red + durum İptal kalır.
+    /// </summary>
+    [Fact]
+    public async Task Iptal_siparis_onaylanamaz_ve_teslim_alinamaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<AracSiparisService>();
+
+        // Bekliyor → İptal, sonra Onayla / Teslim Al.
+        var a = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        await svc.IptalAsync(a);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.OnaylaAsync(a));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlAsync(a));
+        Assert.Equal(SiparisDurum.Iptal, (await svc.GetAsync(a))!.Durum);
+
+        // Onaylandı → İptal, sonra Teslim Al.
+        var b = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        Assert.True(await svc.OnaylaAsync(b));
+        await svc.IptalAsync(b);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlAsync(b));
+        Assert.Equal(SiparisDurum.Iptal, (await svc.GetAsync(b))!.Durum);
+
+        // İptal'i tekrarlamak zararsız (idempotent) — çift tık hata vermez.
+        Assert.True(await svc.IptalAsync(b));
+    }
+
     // ------------------------------------------------------------------ FK bağları
 
     /// <summary>

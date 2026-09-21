@@ -1,3 +1,9 @@
+@charset "UTF-8";
+/* @charset dosyanın İLK baytı olmak ZORUNDA (üstüne yorum bile konamaz, yoksa yok sayılır).
+   Neden var: statik dosya "text/css" olarak charset'siz sunuluyor ve bu dosyada Türkçe `content:`
+   metni var (.blazor-error-boundary). Charset'siz CSS'te tarayıcı kodlamayı onu çağıran HTML
+   belgesinden DEVRALIR — bugün App.razor UTF-8 olduğu için doğru çıkıyor, ama bu dolaylı bir
+   bağımlılık: charset bildirmeyen bir belgeden bağlanırsa metin "oluÅŸtu" gibi bozulur. */
 /* Inter (self-hosted, variable — 100..900 tek dosya). Modern SaaS tipografisi; system-ui fallback. */
 @font-face {
     font-family: "InterVar";
@@ -31,8 +37,11 @@ h1:focus {
     color: white;
 }
 
+    /* Varsayılan <ErrorBoundary> metni CSS'ten gelir (bileşen boş div basar); şablonun İngilizcesi
+       Türkçe arayüzde tek yabancı cümle olarak kalırdı. Bugün hiçbir sayfa <ErrorBoundary>
+       kullanmıyor — kural, biri eklendiği gün İngilizce metin sızmasın diye şimdiden Türkçe. */
     .blazor-error-boundary::after {
-        content: "An error has occurred."
+        content: "Bu bölüm görüntülenirken bir hata oluştu. Sayfayı yenileyip tekrar deneyin."
     }
 
 .darker-border-checkbox.form-check-input {
@@ -116,6 +125,33 @@ body { margin: 0; font-family: system-ui, Segoe UI, Roboto, sans-serif; color: v
 .grid { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; }
 .grid th, .grid td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--line); font-size: .92rem; }
 .grid th { background: var(--surface-2); color: var(--text); font-weight: 600; } /* kontrast AA (eski gri-üstüne-gri) */
+
+/* ---- Sayı / para kolonları (.num) ----
+   Razor'da 855 öğede (433 td, 375 th, 47 span; 89 dosya) kullanılıyordu ama HİÇBİR CSS'te tanımlı
+   değildi: tutar kolonları sola yaslanıyordu (canlıda ölçüldü: text-align:left) ve basamaklar alt
+   alta gelmiyordu. Sağa yaslama + eşit genişlikli rakam (tabular-nums) → "1.250,00" ile "980,00"un
+   virgülü aynı hizaya düşer, kolon gözle toplanabilir. Başlık (th.num) aynı kuralla hizalanır.
+
+   Seçici BİLEREK `table td.num` (özgüllük 0,1,2): `.grid`, `.print-table`, `.kv`, `.dc-table`,
+   `.yardim-tablo` hücreleri text-align:left, `.cal` hücreleri center veriyor — hepsi (0,1,1).
+   Yalın `td.num` (0,1,1) onlarla yalnız KAYNAK SIRASIYLA yarışırdı; ileride dosyanın altına
+   eklenen bir tablo kuralı hizayı sessizce geri sola çekerdi. SayiHizaVeHataSayfaTests bu yarışı
+   kilitler: td/th'ye text-align veren ve (0,1,2)'yi yenebilen her kural gerekçeli istisna olmalı.
+   Bilinçli istisnalar: mobil kart görünümündeki `.kart-mobil td { text-align:left !important }`
+   (orada değer zaten flex ile sağda, etiket solda) ve takvimin araç kolonu `.cal td.veh` (0,2,1 —
+   plaka hücresi, asla sayı değil).
+   DİKKAT: başlığın hizası kendiliğinden gelmez — sayı kolonunun <th>'sine de class="num" yazılmalı
+   (yazılmazsa başlık solda, rakamlar sağda kalır).
+
+   Sağa yaslama YALNIZ tablo hücresinde. span.num iki yerde: `.kf-hesap .row` içinde (flex
+   space-between ile zaten sağda — text-align etkisiz) ve `.kf-robox` form aynası kutularında
+   (yanındaki <input>'lar sola yaslı; sağa yaslamak kutuyu komşularından koparırdı). Eşit rakam
+   genişliği ise her bağlamda uygulanır. */
+.num { font-variant-numeric: tabular-nums; }
+table td.num, table th.num { text-align: right; }
+/* Hücre içi satır formu (Servis Tanımları "Bakım KM") flex olduğu için text-align'ı dinlemez;
+   başlığıyla aynı kenara çekilir. */
+table td.num > .inline-form { justify-content: flex-end; }
 
 .grid-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; margin: 1rem 0; }
 .grid-form label { display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); gap: .25rem; }
@@ -214,6 +250,23 @@ summary.link { list-style: none; display: inline-flex; align-items: center; }
 .muted { color: var(--muted); }
 .small { font-size: .8rem; }
 .error { color: var(--danger); background: #fdecea; border: 1px solid #f5c6cb; padding: .5rem .75rem; border-radius: .4rem; }
+/* Koyu tema: sabit açık-pembe zemin üzerinde koyu temanın açık kırmızı --danger'ı (#f87171) ~2,4:1
+   kontrastla okunmuyordu (Error/NotFound'un ana cümlesi .error'da). Zemin yüzeyden türetilir; açık tema
+   birebir aynı kalır. */
+:root[data-theme="dark"] .error {
+    background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .error {
+        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        border-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
+    }
+}
+/* /Error sayfasındaki destek kodu (trace id, 32 karakter, boşluksuz): tek tıkla tamamı seçilir
+   (kullanıcı yöneticiye eksiksiz iletsin; Safari hâlâ önekli sürümü istiyor). Boşluksuz dize
+   kırılamadığı için çok dar ekranda sayfayı yatay taşırmasın diye her yerden kırılabilir. */
+.destek-kodu { -webkit-user-select: all; user-select: all; overflow-wrap: anywhere; }
 .badge { display: inline-block; padding: .1rem .45rem; border-radius: .4rem; background: var(--color-data-soft); color: var(--brand); font-size: .75rem; margin-right: .25rem; }
 /* FAZ-81: tenant renk kodu varsa onu kullan, YOKSA eski sabit renk (fallback zinciri kırılmaz →
    renk seçmemiş tenant'ta görünüm birebir aynı kalır). --tr-renk-* MainLayout tarafından basılır. */
@@ -1094,3 +1147,36 @@ span.flatpickr-weekday { font-weight: 600; }
         background: var(--surface-2, #eef2f7);
     }
 }
+
+/* =====================================================================
+   F0.2 — PANEL "GECİKMİŞ" ÇİPİ ACİL GÖRÜNÜMÜ (A-panel isteği)
+   ===================================================================== */
+/* Panel Dönüşler/Çıkışlar: gecikmiş kayıt varsa "Gecikmiş" çipi, hangi sekme açık olursa olsun ACİL
+   görünür. Canlıda 9 gecikmiş dönüş, gri "Yarın 0" çipiyle ayırt edilemiyordu. Renk tenant'ın
+   "Gecikmiş" renk kodundan gelir (FAZ-81), seçilmediyse kırmızıdır. Etkin+acil çipte kırmızı zemin
+   korunur (amber'e dönse acil vurgu kaybolurdu); etkinlik amber DIŞ ÇİZGİ ile gösterilir.
+   box-shadow KULLANILMAZ: .dc-head a:focus-visible klavye halkası box-shadow ile çiziliyor, onu ezerdi.
+   --tr-accent de gradient olduğu için çizgi rengi olarak kullanılamaz. Sınıfı PanelSekme.CipSinifi basar. */
+/* Metin rengi zeminden türetilir (--tr-renk-gecikenler-on, MainLayout → RenkKontrast): tenant serbest
+   renk seçer; sabit beyaz, açık renk (ör. sarı #fde047) seçen tenant'ta ~1,3:1 kontrastla okunmuyordu. */
+.dc-tabs a.acil, .dc-tabs a.acil.on { background: var(--tr-renk-gecikenler, #dc2626); color: var(--tr-renk-gecikenler-on, #fff); font-weight: 700; }
+.dc-tabs a.acil b, .dc-tabs a.acil.on b { color: var(--tr-renk-gecikenler-on, #fff); }
+.dc-tabs a.acil.on { outline: 2px solid var(--color-primary, #d97706); outline-offset: 1px; }
+
+/* =====================================================================
+   F0.2 — ÇİFT-GÖNDERİM KİLİDİ GÖRSEL DURUMU (B-js isteği)
+   ===================================================================== */
+/* ---- Çift-gönderim kilidi görsel durumu (rc-ui.js) ----
+   rc-ui.js bir POST gönderimi yola çıkınca formun gönder butonlarını kapatır ve [data-rc-kilitledi]
+   yazar; gönderen butona .rc-gonderiliyor, forma aria-busy="true" ekler. Kapalı butonlar çoğu yerde
+   "not-allowed" görünüyor; burada kullanıcı butonu YASAK değil MEŞGUL görmeli (progress).
+   Özgüllük (0,2,1): .kf-btn:disabled (0,2,0) gibi genel kuralları geçer, bileşene özgü daha güçlü
+   kurallara (.kf-panel .grid-form button:disabled) bilerek yenilir. */
+button[data-rc-kilitledi]:disabled, input[data-rc-kilitledi]:disabled { cursor: progress; opacity: .65; }
+/* Gönderen butonda dönen halka — metin rengini (currentColor) izler, .link butonlarında da çalışır.
+   Azaltılmış-hareket tercihinde app.css'in genel kuralı animasyonu tek kareye indirir: halka statik kalır. */
+.rc-gonderiliyor::after {
+    content: ""; display: inline-block; width: .8em; height: .8em; margin-left: .4em;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    vertical-align: -.1em; animation: rc-gonderiliyor-don .7s linear infinite; }
+@keyframes rc-gonderiliyor-don { to { transform: rotate(360deg); } }

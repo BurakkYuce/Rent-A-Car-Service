@@ -24,7 +24,8 @@
         {
             <tr>
                 <td>@h.Kod</td><td>@h.Ad</td><td>@h.Aciklama</td><td>@(h.Aktif ? "Evet" : "Hayır")</td>
-                <td><form method="post" action="/hesap-kodlari/delete" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@h.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+                <td><form method="post" action="/hesap-kodlari/delete" style="display:inline"
+                          data-confirm="'@h.Kod' hesap kodu KALICI olarak silinsin mi? Geri alınamaz; aynı kodu yeniden eklemek gerekir."><AntiforgeryToken /><input type="hidden" name="id" value="@h.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
             </tr>
         }
     </tbody>

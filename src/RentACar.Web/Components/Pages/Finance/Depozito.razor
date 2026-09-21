@@ -29,8 +29,11 @@
     <button type="submit" formaction="/depozito/al">Al</button>
     <button type="submit" formaction="/depozito/iade" class="btn-secondary">İade</button>
     <button type="submit" formaction="/depozito/mahsup" class="btn-secondary">Mahsup</button>
+    @* Onay FORMDA değil BUTONDA: aynı form Al/İade/Mahsup'u da gönderir, onlar sormamalı.
+       İrat için ters-kayıt ucu yok — yazıldığı an kalıcıdır. *@
     <button type="submit" formaction="/depozito/irat" class="btn-secondary"
-        title="İade edilmeyen depozito GELİR yazılır (Borç Depozito / Alacak Gelir)">İrat (Gelire Al)</button>
+        title="İade edilmeyen depozito GELİR yazılır (Borç Depozito / Alacak Gelir)"
+        data-confirm="Seçili carinin depozitosundan girilen tutar GELİR yazılsın mı? Borç Depozito / Alacak Gelir kaydı değiştirilemez ve geri alınamaz; kesilen tutar müşteriye artık iade edilemez. (Bu ekrandan yapılan irat bir kiraya/araca atfedilmez.)">İrat (Gelire Al)</button>
 </form></div>
 
 <h2>Tutulan Depozitolar</h2>

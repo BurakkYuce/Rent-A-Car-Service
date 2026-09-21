@@ -82,10 +82,16 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
     public Task<bool> TeslimAlAsync(Guid id, CancellationToken ct = default) => SetDurum(id, SiparisDurum.TeslimAlindi, ct);
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default) => SetDurum(id, SiparisDurum.Iptal, ct);
 
-    private Task<bool> SetDurum(Guid id, SiparisDurum durum, CancellationToken ct)
+    private async Task<bool> SetDurum(Guid id, SiparisDurum durum, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.SetDurumAsync(id, durum, ct);
+        // İptal TERMİNALDİR: ekranın iptal onayı "bir daha onaylanamaz, teslim alınamaz" diyor; iki
+        // sekmede eski listeden "Onayla"/"Teslim Al"a basan kullanıcı İptal → Onaylandı/TeslimAlındı
+        // geçişi yapabiliyordu (adversarial bulgu). Düzenleme guard'ıyla (UpdateAsync) aynı kural.
+        if (durum != SiparisDurum.Iptal
+            && (await _repository.FindAsync(id, ct))?.Durum == SiparisDurum.Iptal)
+            throw new ValidationException("İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz.");
+        return await _repository.SetDurumAsync(id, durum, ct);
     }
 
     /// <summary>Ortak doğrulama — create ve update AYNI kuralları uygular (biri gevşek kalırsa

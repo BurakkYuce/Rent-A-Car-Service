@@ -18,11 +18,15 @@ public static class AuthEndpoints
             LoginService loginService,
             [Microsoft.AspNetCore.Mvc.FromForm] string firma,
             [Microsoft.AspNetCore.Mvc.FromForm] string kullanici,
-            [Microsoft.AspNetCore.Mvc.FromForm] string sifre) =>
+            [Microsoft.AspNetCore.Mvc.FromForm] string sifre,
+            // Login.razor'daki gizli alan. Opsiyonel (string? → alan yoksa null, 400 değil); tarayıcıdan
+            // geldiği için GÜVENİLMEZ — yalnız YetkiYonlendirme.GuvenliDonus'tan geçmiş hali kullanılır.
+            [Microsoft.AspNetCore.Mvc.FromForm(Name = YetkiYonlendirme.DonusParametresi)] string? donus) =>
         {
             var result = await loginService.ValidateAsync(firma, kullanici, sifre);
             if (result is null)
-                return Results.Redirect("/login?hata=1");
+                // Dönüş korunur: şifreyi bir kez yanlış yazan kullanıcı derin bağlantıyı kaybetmesin.
+                return Results.Redirect(YetkiYonlendirme.HataliGirisHedefi(donus));
 
             var claims = new List<Claim>
             {
@@ -43,7 +47,11 @@ public static class AuthEndpoints
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));
 
-            return Results.Redirect("/vehicles");
+            // Varsayılan iniş Panel ("/"); güvenli bir dönüş adresi varsa oraya (bildirim/WhatsApp
+            // derin bağlantısı). Eskiden sabit "/vehicles" idi: hem Panel atlanıyor hem derin bağlantı
+            // kayboluyordu. LocalRedirect İKİNCİ çittir: GuvenliDonus bir gün gerilese bile yerel
+            // olmayan adrese yönlendirmek yerine istisna atar (açık yönlendirme yerine görünür hata).
+            return Results.LocalRedirect(YetkiYonlendirme.GuvenliDonus(donus));
         }).AntiforgeryByEnv().RequireRateLimiting("login"); // P0: brute-force koruması
 
         app.MapPost("/auth/logout", async (HttpContext http) =>

@@ -181,9 +181,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/yetkisiz";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         // TEK şema; /platform alanı için login/access-denied AYRI sayfaya yönlendirilir (alan-bazlı).
+        // 401: GET isteğinin asıl hedefi ?ReturnUrl= olarak taşınır (bildirim/WhatsApp derin bağlantısı
+        // girişten sonra kaybolmasın); POST vb.'de taşınmaz. ctx.RedirectUri KULLANILMAZ — çerçevenin
+        // hazırladığı adres yöntem ayrımı yapmaz. Karar saf fonksiyonda (test edilebilir):
+        // YetkiYonlendirme.GirisYonlendirmesi.
+        // Referer: asıl hedef bir İNDİRME ucuysa (Excel/CSV/PDF indir) dönüş o uç olamaz — dosya iner,
+        // ekranda giriş formu kalır. Bu durumda kullanıcı indirmeyi başlattığı sayfaya döner
+        // (YetkiYonlendirme.IndirmeAdresiMi); yalnız aynı kökenli Referer kullanılır.
         options.Events.OnRedirectToLogin = ctx =>
         {
-            ctx.Response.Redirect(YetkiYonlendirme.GirisHedefi(ctx.Request.Path));
+            ctx.Response.Redirect(YetkiYonlendirme.GirisYonlendirmesi(
+                ctx.Request.Method, ctx.Request.Path, ctx.Request.QueryString,
+                YetkiYonlendirme.AyniKokenYolu(ctx.Request.Headers.Referer, ctx.Request.Host)));
             return Task.CompletedTask;
         };
         options.Events.OnRedirectToAccessDenied = ctx =>
@@ -216,13 +225,28 @@ builder.Services.AddRateLimiter(o =>
         }));
     // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
     // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
-    o.OnRejected = (ctx, _) =>
+    // Tenant girişinde formdaki dönüş adresi (ReturnUrl) korunur: sınıra takılan kullanıcı bir dakika
+    // sonraki doğru girişte derin bağlantısını kaybetmesin (HataliGirisHedefi ile aynı gerekçe). Form
+    // YALNIZ küçükse okunur — giriş formu birkaç yüz bayttır; reddedilen isteğin büyük gövdesini
+    // belleğe almak brute-force'u bellek saldırısına çevirirdi. Değer GüvenliDonus'tan geçer.
+    o.OnRejected = async (ctx, ct) =>
     {
         RentACar.Application.Observability.RacarMetrics.RateLimitRejected("login"); // metrik: rate-limit reddi
-        var target = ctx.HttpContext.Request.Path.StartsWithSegments("/platform")
-            ? "/platform/login?hata=limit" : "/login?hata=limit";
-        ctx.HttpContext.Response.Redirect(target);
-        return ValueTask.CompletedTask;
+        var req = ctx.HttpContext.Request;
+        if (req.Path.StartsWithSegments("/platform"))
+        {
+            ctx.HttpContext.Response.Redirect("/platform/login?hata=limit");
+            return;
+        }
+        string? donus = null;
+        if (req.HasFormContentType && req.ContentLength is > 0 and <= 8 * 1024)
+        {
+            try { donus = (await req.ReadFormAsync(ct))[YetkiYonlendirme.DonusParametresi]; }
+            catch (Exception ex) when (ex is InvalidDataException or IOException
+                                          or BadHttpRequestException or OperationCanceledException)
+            { donus = null; } // bozuk/yarım gövde: dönüşsüz limit sayfası yeter
+        }
+        ctx.HttpContext.Response.Redirect(YetkiYonlendirme.LimitHedefi(donus));
     };
 });
 

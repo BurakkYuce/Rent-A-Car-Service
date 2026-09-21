@@ -100,7 +100,8 @@
                         @if (p.KapakVar)
                         {
                             <img src="/blog-yonetim/@p.Id/kapak" alt="Kapak" style="max-width:200px" />
-                            <form method="post" action="/blog-yonetim/@p.Id/kapak-sil"><AntiforgeryToken />
+                            <form method="post" action="/blog-yonetim/@p.Id/kapak-sil"
+                                  data-confirm="'@p.Baslik' yazısının kapak görseli kaldırılsın mı? Görsel dosyası silinir (geri getirmek için yeniden yüklemek gerekir); yazı sitede kapaksız görünür."><AntiforgeryToken />
                                 <button type="submit" class="link">Kapağı Kaldır</button>
                             </form>
                         }

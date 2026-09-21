@@ -406,6 +406,10 @@
             sb.Append("--tr-renk-").Append(ad).Append(':').Append(renk).Append(';');
             sb.Append("--tr-renk-").Append(ad).Append("-soft:color-mix(in srgb,")
               .Append(renk).Append(" 12%, var(--surface));");
+            // Rengin ZEMİN olarak kullanıldığı yerde (acil "Gecikmiş" çipi) üstüne yazılacak metin:
+            // sabit beyaz, açık renk seçen tenant'ta okunmuyordu (RenkKontrast).
+            if (RenkKontrast.UzerindekiMetin(renk) is { } uzerinde)
+                sb.Append("--tr-renk-").Append(ad).Append("-on:").Append(uzerinde).Append(';');
         }
         Ekle("gecikenler", a.RenkGecikenler);
         Ekle("bugun-donecekler", a.RenkBugunDonecekler);

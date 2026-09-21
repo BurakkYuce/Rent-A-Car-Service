@@ -159,7 +159,8 @@
                         </AuthorizeView>
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/arac-kredi/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                            <form method="post" action="/arac-kredi/iptal" style="display:inline"
+                                  data-confirm="@k.No numaralı kredi iptal edilsin mi? Kalan taksitler bir daha ödenemez ve iptal geri alınamaz (ödenmiş taksitlerin gider/defter kayıtları değişmez)."><AntiforgeryToken /><input type="hidden" name="id" value="@k.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
                         </AuthorizeView>
                     }
                 </td>

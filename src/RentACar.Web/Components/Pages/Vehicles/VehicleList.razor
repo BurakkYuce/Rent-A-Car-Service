@@ -201,7 +201,7 @@
                         <thead>
                             <tr>
                                 <th>Plaka</th><th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th>
-                                <th>KM</th><th>Şube</th><th>Durum</th><th>SIPP</th><th></th>
+                                <th class="num">KM</th><th>Şube</th><th>Durum</th><th>SIPP</th><th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -242,9 +242,9 @@ else
         <thead>
             <tr>
                 <th>Plaka</th><th>Marka</th><th>Tip</th><th>Detay Tipi</th><th>Grup</th><th>Segment</th><th>SIPP</th>
-                <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th>KM</th><th>Şube</th><th>Durum</th>
-                <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th>Motor Gücü</th><th>Araç Sahibi</th>
-                <th>HGS No</th><th>OGS No</th><th>Kasa Tipi</th><th>Son Bakım KM</th>
+                <th>Model Yılı</th><th>Renk</th><th>Vites</th><th>Yakıt</th><th class="num">KM</th><th>Şube</th><th>Durum</th>
+                <th>Filo Durumu</th><th>Şasi No</th><th>Motor No</th><th class="num">Motor Gücü</th><th>Araç Sahibi</th>
+                <th>HGS No</th><th>OGS No</th><th>Kasa Tipi</th><th class="num">Son Bakım KM</th>
                 @* --- FAZ-11: canlı arac_listesi kolonları (hepsi araç kartının kendi alanları) --- *@
                 <th class="num">Alış Bedeli</th><th>Filo Giriş</th><th>Filo Çıkış</th><th>İlk Tescil</th>
                 <th>Alınan Firma</th><th>Ruhsat No</th><th class="num">2.El Değeri</th>
@@ -320,7 +320,7 @@ else
                         </AuthorizeView>
                         @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="silCtx">
-                            <form method="post" action="/vehicles/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                            <form method="post" action="/vehicles/delete" data-confirm="@v.Plaka plakalı araç kalıcı olarak silinsin mi? Kayıt geri getirilemez."><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@v.Id" />
                                 <button type="submit" class="link danger">Sil</button>
                             </form>

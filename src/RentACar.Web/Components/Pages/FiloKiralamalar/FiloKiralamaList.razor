@@ -115,7 +115,8 @@
                         </form>
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/filo-kiralama/iptal" style="display:inline"><AntiforgeryToken />
+                            <form method="post" action="/filo-kiralama/iptal" style="display:inline"
+                                  data-confirm="@k.No numaralı filo kiralama sözleşmesi iptal edilsin mi? Sözleşme İptal durumuna geçer, araç filo durumunda artık bu sözleşmeyle görünmez ve iptal geri alınamaz."><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@k.Id" /><button type="submit" class="btn-secondary">İptal</button>
                             </form>
                         </AuthorizeView>

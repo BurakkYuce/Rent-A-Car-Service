@@ -70,7 +70,8 @@ else
                         <td class="row-actions kart-aksiyon">
                             <a class="link" href="/dokumanlar/@d.Id/indir">İndir</a>
                             <AuthorizeView Policy="izin:OperationsWrite" Context="silCtx">
-                                <form method="post" action="/dokumanlar/sil" style="display:inline">
+                                <form method="post" action="/dokumanlar/sil" style="display:inline"
+                                      data-confirm="'@d.Baslik' dokümanı KALICI olarak silinsin mi? Dosya içeriğiyle birlikte silinir ve geri alınamaz; gerekirse önce İndir ile bir kopyasını alın.">
                                     <AntiforgeryToken />
                                     <input type="hidden" name="id" value="@d.Id" />
                                     <button type="submit" class="btn-secondary">Sil</button>
