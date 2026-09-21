@@ -12,7 +12,7 @@ namespace RentACar.Application.ReservationSources;
 ///
 /// <para><b>Yalnız KURAL bayrakları burada.</b> Kaynağın oran/tutar alanları (komisyon, önödeme,
 /// indirim, puan, ek hizmet varsayılanları) bu sınıfa hiç girmez — onlar bilgi alanıdır ve hiçbir
-/// hesabı etkilemez (docs/roadmap/KARARLAR.md FAZ-49 + genel politika).</para>
+/// hesabı etkilemez (docs/KARARLAR.md FAZ-49 + genel politika).</para>
 ///
 /// <para><b>Guard GİRİŞ NOKTASINDA:</b> tüm metotlar servisin başında, kabul/dönüştürme
 /// yapılmadan önce çağrılır. Guard'ı akışın ortasına koymak, geçmişte tüm yaşlanmış-kayıt

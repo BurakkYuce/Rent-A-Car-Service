@@ -14,7 +14,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RezDuzenlemeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+    // Göreli: rezervasyon başlangıcı geçmişe kapalı (TarihPolitikasi) — sabit tarih takvimle kırmızıya döner.
+    private static readonly DateTimeOffset Bas = TestZaman.GunSonra(10);
 
     [Fact]
     public async Task Duzenle_yeniden_fiyatla()

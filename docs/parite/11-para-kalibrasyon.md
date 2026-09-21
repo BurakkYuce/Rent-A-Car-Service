@@ -88,8 +88,9 @@ hiçbir tarife varlığında kademe-başına km yok.
 >    Birincil motor `RentalQuoteEngine` → **`RateMatrix`**, ve `RateMatrix`'te km alanı **hiç yok**.
 >    Km kademesi işi `RateMatrix`'e yapılmalı; deprecated varlığa alan eklemek ölü kod üretirdi.
 
-**Sonuç:** "1-3 gün 200 km/gün, 4-10 gün 300 km/gün" gibi kademeye bağlı km politikası bizde
-kurulamıyor. **Durum:** açık iş — `docs/roadmap/FAZ-71-*` (hedef: `RateMatrix`).
+**Sonuç (tespit anında):** "1-3 gün 200 km/gün, 4-10 gün 300 km/gün" gibi kademeye bağlı km politikası
+bizde kurulamıyordu. **Durum: KAPANDI** — FAZ-71 (#188) `RateMatrix`'e gün-kademesi bazlı km limiti +
+aşım ücreti ekledi (`RateMatrix.cs`, `Km1…`); karar `docs/KARARLAR.md` "FAZ-71".
 
 ---
 

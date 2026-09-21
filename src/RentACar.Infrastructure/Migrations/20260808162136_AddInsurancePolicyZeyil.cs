@@ -95,7 +95,7 @@ namespace RentACar.Infrastructure.Migrations
 
             // ---- RLS bloğu ELLE eklendi (EF üretmez) — CLAUDE.md §5 adım 4 ----
             // Zeyil MALİ BELGE DEĞİLDİR: hiçbir AccountLedgerEntry üretmez, tutarları yalnız
-            // bilgi/geçmiştir (docs/roadmap/KARARLAR.md "yeni tutar alanları deftere yazmaz").
+            // bilgi/geçmiştir (docs/KARARLAR.md "yeni tutar alanları deftere yazmaz").
             // → rc_prevent_mutation() değişmezlik trigger'ı GEREKMEZ; yanlış girilen zeyil
             //   düzeltilebilmeli/silinebilmeli, bu yüzden TAM CRUD grant verilir.
             migrationBuilder.Sql("""
