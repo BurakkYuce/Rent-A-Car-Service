@@ -539,8 +539,8 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using (var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe))
         {
             var svc = muhasebe.ServiceProvider.GetRequiredService<ServiceRecordService>();
-            await Assert.ThrowsAsync<ValidationException>(() => svc.ServiseAlAsync(id));
-            await Assert.ThrowsAsync<ValidationException>(() =>
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.ServiseAlAsync(id));
+            await Assert.ThrowsAsync<YetkiYokException>(() =>
                 svc.BilgiGuncelleAsync(id, new ServiceRecordBilgiInput { FaturaNo = "X" }));
         }
 

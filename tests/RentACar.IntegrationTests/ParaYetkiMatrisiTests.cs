@@ -31,7 +31,7 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => islem(scope));
+        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => islem(scope));
         // Mesaj kanıtı: red YETKİDEN geliyor (PermissionGuard), girdi/veri hatasından değil.
         Assert.Contains("yetkiniz yok", ex.Message);
     }
@@ -184,7 +184,7 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
             sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
         var cari = Guid.NewGuid();
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(
+        var ex = await Assert.ThrowsAsync<YetkiYokException>(
             () => hgs.ReflectAsync(cari, "34 OP 01", t, t.AddDays(1)));
         Assert.Contains("yetkiniz yok", ex.Message);
         Assert.Equal(0m, await Svc<CashService>(scope).GetCariBalanceAsync(cari)); // defter BOŞ kaldı

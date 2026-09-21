@@ -616,7 +616,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<ReservationSourceService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new ReservationSourceInput
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new ReservationSourceInput
         { Kod = "X", Ad = "Yetkisiz", Uzatamaz = true }));
     }
 }

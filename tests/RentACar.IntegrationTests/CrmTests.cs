@@ -76,9 +76,9 @@ public sealed class CrmTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), role: UserRole.Muhasebe); // OperationsWrite yok
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => scope.ServiceProvider.GetRequiredService<AnketService>().CreateAsync(new AnketInput { Puan = 5 }));
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => scope.ServiceProvider.GetRequiredService<SikayetService>().CreateAsync(new SikayetInput { Konu = "X" }));
     }
 }

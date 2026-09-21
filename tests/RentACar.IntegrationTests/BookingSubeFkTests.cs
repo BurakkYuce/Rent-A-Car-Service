@@ -92,7 +92,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         Assert.Equal(2, liste.Count);                                       // Merkez + Havalimanı (önce 1)
         Assert.All(liste, r => Assert.Equal(b1, r.CikisSubeId));
 
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.GetAsync(kiraA)); // çapraz-şube probe red
+        await Assert.ThrowsAsync<YetkiYokException>(() => rentals.GetAsync(kiraA)); // çapraz-şube probe red
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         Assert.Equal("Havalimanı", (await rentals.GetAsync(kiraM))!.CikisOfisi);
 
         // Kapsam DIŞI şubenin ofisine taşıma: hedef "Ankara Ofis" → B2 → RED.
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             rentals.UpdateOpenAsync(kiraM, new RentalUpdateInput { CikisOfisi = "Ankara Ofis" }));
     }
 
@@ -168,8 +168,8 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             assignedBranch: "Merkez", assignedBranchId: b1);
         var kalemler = op.ServiceProvider.GetRequiredService<RentalAddOnService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => kalemler.AddAsync(kiraA, tanim, 1m));    // çapraz-şube ekleme RED
-        await Assert.ThrowsAsync<ValidationException>(() => kalemler.RemoveAsync(yabanciKalem));     // çapraz-şube silme RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => kalemler.AddAsync(kiraA, tanim, 1m));    // çapraz-şube ekleme RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => kalemler.RemoveAsync(yabanciKalem));     // çapraz-şube silme RED
 
         var kalem = await kalemler.AddAsync(kiraH, tanim, 2m);             // B1'in diğer ofisi → GEÇER
         Assert.True(await kalemler.RemoveAsync(kalem));
@@ -205,9 +205,9 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             assignedBranch: "Merkez", assignedBranchId: b1);
         var svc = op.ServiceProvider.GetRequiredService<QuotationService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GetAsync(tekA));     // Id-probe RED
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SendAsync(tekA));    // durum geçişi RED
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AcceptAsync(tekA));  // kabul RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(tekA));     // Id-probe RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SendAsync(tekA));    // durum geçişi RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.AcceptAsync(tekA));  // kabul RED
 
         // Kendi şubesinin diğer ofisi ("Havalimanı"→B1): kabul GEÇER, doğan rezervasyon kapsamda.
         var rezId = await svc.AcceptAsync(tekH);

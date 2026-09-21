@@ -22,7 +22,7 @@ public sealed class OperasyonelYetkiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muhasebe", UserRole.Muhasebe);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => islem(scope));
+        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => islem(scope));
         Assert.Contains("yetkiniz yok", ex.Message); // red YETKİDEN (OperationsWrite), girdi/veri hatasından değil
     }
 

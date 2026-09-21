@@ -232,8 +232,8 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
 
         var muhasebe = Svc(host, tenantId, out var s2, UserRole.Muhasebe); using (s2)
         {
-            await Assert.ThrowsAsync<ValidationException>(() => muhasebe.KaydetAsync(Girdi("Yeni")));
-            await Assert.ThrowsAsync<ValidationException>(() => muhasebe.ListeleAsync());
+            await Assert.ThrowsAsync<YetkiYokException>(() => muhasebe.KaydetAsync(Girdi("Yeni")));
+            await Assert.ThrowsAsync<YetkiYokException>(() => muhasebe.ListeleAsync());
 
             // OKUMA yolu guard'sız: halka açık siteyi anonim ziyaretçi çağırıyor, orada rol yok.
             Assert.NotNull(await muhasebe.SayfaAsync("hakkimizda"));

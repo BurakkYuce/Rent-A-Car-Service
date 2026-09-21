@@ -52,7 +52,7 @@ public sealed class AuditViewTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var audit = scope.ServiceProvider.GetRequiredService<AuditService>();
-        await Assert.ThrowsAsync<ValidationException>(() => audit.SearchAsync(new AuditFilter()));
+        await Assert.ThrowsAsync<YetkiYokException>(() => audit.SearchAsync(new AuditFilter()));
     }
 
     [Fact]

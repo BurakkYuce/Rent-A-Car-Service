@@ -152,7 +152,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
 
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => cash.PayAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa }));
     }
 }

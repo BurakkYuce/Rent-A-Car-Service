@@ -413,7 +413,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         {
             var svc = muhasebe.ServiceProvider.GetRequiredService<AracSiparisService>();
             Assert.Single(await svc.SearchAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(
                 new AracSiparisInput { Tedarikci = "X", Adet = 1, BirimFiyat = 1m }));
         }
 

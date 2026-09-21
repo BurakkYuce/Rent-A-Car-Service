@@ -216,7 +216,7 @@ public sealed class NakitIslemTests(PostgresFixture fx)
 
         // Operatör listeyi göremez (ViewReports yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<CashService>().SearchIslemlerAsync());
     }
 }

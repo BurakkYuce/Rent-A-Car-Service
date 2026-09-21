@@ -9,7 +9,8 @@ public sealed record ApiError(string Error, string Message);
 
 /// <summary>
 /// Domain/uygulama istisnalarını tutarlı HTTP durum + JSON zarfına çevirir:
-///   ValidationException → 400, çakışma (Availability/Duplicate) → 409, diğer → 500.
+///   ValidationException → 400, çakışma (Availability/Duplicate) → 409, YetkiYok → 403,
+///   MukerrerIslem → 409 (duplicate_submission), diğer → 500.
 /// İş kuralı hataları log'a WARNING, beklenmeyenler ERROR olarak yazılır.
 /// </summary>
 public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
@@ -28,6 +29,16 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         catch (DuplicateCariException ex)
         {
             await WriteAsync(ctx, StatusCodes.Status409Conflict, "duplicate", ex.Message);
+        }
+        // F1.1: yetki reddi (PermissionGuard/BranchScope/ekran yetkisi) artık 400 değil 403; idempotency
+        // kısıtı ihlali (aynı işlemin ikinci gönderimi) 409. İkisi de ValidationException alt tipi → önce.
+        catch (YetkiYokException ex)
+        {
+            await WriteAsync(ctx, StatusCodes.Status403Forbidden, "forbidden", ex.Message);
+        }
+        catch (MukerrerIslemException ex)
+        {
+            await WriteAsync(ctx, StatusCodes.Status409Conflict, "duplicate_submission", ex.Message);
         }
         catch (ValidationException ex)
         {

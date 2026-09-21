@@ -168,8 +168,8 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         {
             var svc = muh.ServiceProvider.GetRequiredService<FiloPlanService>();
             Assert.Single(await svc.ListWithSayimAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.HedefDegistirAsync(id, 1));
-            await Assert.ThrowsAsync<ValidationException>(() =>
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.HedefDegistirAsync(id, 1));
+            await Assert.ThrowsAsync<YetkiYokException>(() =>
                 svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "X", HedefAdet = 1 }));
         }
 

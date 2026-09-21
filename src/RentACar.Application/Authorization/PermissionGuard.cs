@@ -4,7 +4,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Application.Authorization;
 
 /// <summary>
-/// Servis-katmanı yetki guard'ı. İzin yoksa ValidationException (web bunu kullanıcıya hata
+/// Servis-katmanı yetki guard'ı. İzin yoksa YetkiYokException (ValidationException alt tipi; web bunu kullanıcıya hata
 /// olarak gösterir; web ayrıca RequireRole ile erişimi keser → çift savunma).
 /// </summary>
 public static class PermissionGuard
@@ -14,7 +14,7 @@ public static class PermissionGuard
         // 2026-08-17: karar artık EffectivePermission'dan — rol matrisi + kullanıcı-bazlı
         // ek izin/yasak bileşimi. İstisnası olmayan kullanıcıda davranış birebir eski matris.
         if (!EffectivePermission.Has(user, permission))
-            throw new ValidationException($"Bu işlem için yetkiniz yok ({permission}).");
+            throw new YetkiYokException($"Bu işlem için yetkiniz yok ({permission}).");
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ public static class PermissionGuard
     public static void RequireAny(ICurrentUser user, params Permission[] permissions)
     {
         if (!permissions.Any(p => EffectivePermission.Has(user, p)))
-            throw new ValidationException(
+            throw new YetkiYokException(
                 $"Bu işlem için yetkiniz yok ({string.Join(" veya ", permissions)}).");
     }
 }

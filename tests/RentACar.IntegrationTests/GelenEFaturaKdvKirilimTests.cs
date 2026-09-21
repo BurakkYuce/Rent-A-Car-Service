@@ -281,7 +281,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
             svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
 
         Assert.Single(await expenses.ListAsync()); // hâlâ TEK gider
@@ -516,9 +516,9 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var svc = op.ServiceProvider.GetRequiredService<GelenEFaturaService>();
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             svc.BaglaAsync(new GelenEFaturaBaglamaInput { Id = id, Kdv20Matrah = 100m, Kdv20 = 20m }));
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
     }
 

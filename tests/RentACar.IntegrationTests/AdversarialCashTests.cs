@@ -268,7 +268,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m));
     }
 
@@ -286,7 +286,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         }
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(id));
+        await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(id));
     }
 
     // ---- 5b. Cross-tenant reversal: tenant B must NOT be able to reverse tenant A's tx ----

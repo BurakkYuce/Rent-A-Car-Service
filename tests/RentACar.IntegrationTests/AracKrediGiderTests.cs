@@ -233,7 +233,7 @@ public sealed class AracKrediGiderTests(PostgresFixture fx)
             krediId = await KrediAsync(admin.ServiceProvider, null);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<AracKrediService>().TaksitOdeAsync(krediId));
     }
 }

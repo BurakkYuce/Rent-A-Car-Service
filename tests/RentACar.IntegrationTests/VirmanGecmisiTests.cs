@@ -200,7 +200,7 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
 
         // Operatör raporu göremez (ViewReports yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+        await Assert.ThrowsAsync<RentACar.Application.Common.YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<CashService>().ListKasaVirmanlarAsync());
     }
 }

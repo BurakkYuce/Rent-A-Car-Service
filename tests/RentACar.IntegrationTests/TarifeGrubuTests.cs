@@ -114,7 +114,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = s.ServiceProvider.GetRequiredService<TarifeGrubuService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(
             new TarifeGrubuInput { Kod = "K", Ad = "Yetkisiz" }));
     }
 
