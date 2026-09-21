@@ -1,7 +1,25 @@
 <main class="yer-tutucu">
-  <h1>Yeni arayüz yapım aşamasında</h1>
-  <p>
-    RentACar'ın yeni arayüzü hazırlanıyor. Bu sırada mevcut ekranları kullanmaya devam
-    edebilirsiniz.
-  </p>
+  <div class="kart">
+    <header class="ust">
+      <h1>{{ 'yerTutucu.baslik' | transloco }}</h1>
+      <span class="rc-rozet rc-rozet--uyari">{{ 'yerTutucu.durumYapimda' | transloco }}</span>
+    </header>
+    <p class="aciklama">{{ 'yerTutucu.aciklama' | transloco }}</p>
+    <div class="tema">
+      <span class="tema-etiket" id="tema-etiket">{{ 'tema.etiket' | transloco }}</span>
+      <div class="rc-dugme-grubu" role="group" aria-labelledby="tema-etiket">
+        @for (secenek of temaSecenekleri; track secenek.mod) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [attr.aria-pressed]="tema.mod() === secenek.mod"
+            (click)="tema.modAyarla(secenek.mod)"
+          >
+            <rc-ikon [ad]="secenek.ikon" [boyut]="14" />
+            {{ secenek.etiket | transloco }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
 </main>

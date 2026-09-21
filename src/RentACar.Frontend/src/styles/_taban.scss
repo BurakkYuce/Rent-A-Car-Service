@@ -1,0 +1,101 @@
+// Taban: token'ları belge geneline uygular. Bileşen stilleri yalnız --rc-* token'larını kullanır.
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px; // rem tabanı; yoğunluk token'larla (gövde 13 px)
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--rc-font);
+  font-size: var(--rc-yazi-sm);
+  line-height: var(--rc-satir);
+  color: var(--rc-metin);
+  background-color: var(--rc-zemin);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: var(--rc-agirlik-kalin);
+  line-height: var(--rc-satir-sik);
+}
+
+h1 {
+  font-size: var(--rc-yazi-xl);
+}
+
+h2 {
+  font-size: var(--rc-yazi-lg);
+}
+
+h3 {
+  font-size: var(--rc-yazi-md);
+}
+
+h4 {
+  font-size: var(--rc-yazi-sm);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--rc-vurgu-metin);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background-color: var(--rc-secim);
+  color: var(--rc-metin);
+}
+
+// Tek odak görünümü: halka dışarıda (offset), arkasında yüzey var → kontrast ≥ 3 denetimli.
+:focus-visible {
+  outline: var(--rc-odak-kalinlik) solid var(--rc-odak);
+  outline-offset: var(--rc-odak-bosluk);
+}
+
+// Tema değişimi anında geçiş yok (TemaServisi ekler/kaldırır): ara karede kontrast düşmesin.
+.rc-gecis-yok,
+.rc-gecis-yok *,
+.rc-gecis-yok *::before,
+.rc-gecis-yok *::after {
+  transition: none !important;
+}
+
+// Para/sayı sütunları: eşit genişlikte rakam, sağa yaslı hizalama için.
+.rc-sayi {
+  font-variant-numeric: tabular-nums;
+}
+
+// Görsel olarak gizli, ekran okuyucuda var.
+.rc-gorunmez {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,28 @@
+{
+  "uygulama": {
+    "ad": "RentACar"
+  },
+  "yerTutucu": {
+    "baslik": "Yeni arayüz yapım aşamasında",
+    "aciklama": "RentACar'ın yeni arayüzü hazırlanıyor. Bu sırada mevcut ekranları kullanmaya devam edebilirsiniz.",
+    "ornekBaslik": "Biçim örnekleri",
+    "ornekTutar": "Tutar",
+    "ornekTarih": "Tarih",
+    "ornekDurum": "Durum",
+    "durumHazir": "Hazır",
+    "durumYapimda": "Yapımda"
+  },
+  "tema": {
+    "etiket": "Tema",
+    "sistem": "Sistem",
+    "acik": "Açık",
+    "koyu": "Koyu"
+  },
+  "ortak": {
+    "yukleniyor": "Yükleniyor…",
+    "bosDurum": {
+      "baslik": "Kayıt yok",
+      "aciklama": "Gösterilecek kayıt bulunamadı."
+    }
+  }
+}
