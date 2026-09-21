@@ -260,8 +260,8 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var svc = op.ServiceProvider.GetRequiredService<MusteriTaksitService>();
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SearchAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.SearchAsync());
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new MusteriTaksitInput
             { CariId = cari, Vade = DateTimeOffset.UtcNow, TaksitTutari = 100m }));
         }
 

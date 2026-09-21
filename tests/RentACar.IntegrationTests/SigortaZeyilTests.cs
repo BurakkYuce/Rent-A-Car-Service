@@ -308,8 +308,8 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → zeyil yazamaz/silemez (okuma serbest).
         using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
         var reg = muhasebe.ServiceProvider.GetRequiredService<RegulationService>();
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddZeyilAsync(Girdi(pol, "Z-2", 100m)));
-        await Assert.ThrowsAsync<ValidationException>(() => reg.DeleteZeyilAsync(zeyil));
+        await Assert.ThrowsAsync<YetkiYokException>(() => reg.AddZeyilAsync(Girdi(pol, "Z-2", 100m)));
+        await Assert.ThrowsAsync<YetkiYokException>(() => reg.DeleteZeyilAsync(zeyil));
         Assert.Single(await reg.ListZeyilAsync(pol));
 
         // Operatör: OperationsWrite var → yazabilir.

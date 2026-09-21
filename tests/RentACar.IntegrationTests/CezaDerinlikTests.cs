@@ -322,7 +322,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
 
         await svc.KismiOdeAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 200m, IslemAnahtari = anahtar });
         // Kullanıcı "geri"ye basıp AYNI formu tekrar gönderdi.
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
             svc.KismiOdeAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 200m, IslemAnahtari = anahtar }));
 
         Assert.Equal(300m, (await svc.GetAsync(id))!.Kalan);   // ELLE: 500 − 200 (tek kez)
@@ -581,9 +581,9 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         // Operatör OperationsWrite taşır, FinanceWrite TAŞIMAZ → para yolu kapalı.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "operator", UserRole.Operator);
         var opSvc = op.ServiceProvider.GetRequiredService<PenaltyService>();
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             opSvc.KismiOdeAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 100m }));
-        await Assert.ThrowsAsync<ValidationException>(() => opSvc.OdeAsync(id));
+        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.OdeAsync(id));
         Assert.Empty(await DefterAsync(op.ServiceProvider, "CezaOdeme"));
     }
 

@@ -176,7 +176,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
             ekoId = await admin.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Grup("EKO", "Ekonomi"));
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => muhasebe.ServiceProvider.GetRequiredService<VehicleGroupService>()
                 .GrupDegeriAtaAsync("FİAT-EGEA", false, ekoId));
     }

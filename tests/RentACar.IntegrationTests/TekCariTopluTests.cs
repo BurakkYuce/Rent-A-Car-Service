@@ -426,7 +426,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
 
         // Operatör FinanceWrite taşımaz.
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
-            await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+            await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
                 .GetRequiredService<CashService>().TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa));
 
         // BAŞKA tenant: cari de kalemler de görünmez → "bulunamadı" (RLS + query filter).

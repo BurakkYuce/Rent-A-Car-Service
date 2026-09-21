@@ -50,7 +50,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
             {
                 // IslemAnahtari kısmi-unique: çift-submit → idempotent red (No sayacı TX ile geri alınır).
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Bu dış hizmet kaydı zaten girilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, "Bu dış hizmet kaydı zaten girilmiş (çift gönderim).");
             }
         }, ct);
     }

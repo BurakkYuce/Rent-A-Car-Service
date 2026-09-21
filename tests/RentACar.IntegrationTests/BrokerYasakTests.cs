@@ -113,7 +113,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new BrokerYasakInput { Kod = "X", Ad = "Yetkisiz", TumSatisKapali = true }));
     }
 

@@ -152,7 +152,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → teklif oluşturamaz.
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<QuotationService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Input(m, v)));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(Input(m, v)));
     }
 
     [Fact]

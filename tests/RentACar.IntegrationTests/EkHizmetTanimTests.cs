@@ -78,7 +78,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(In("X", "Yetkisiz")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(In("X", "Yetkisiz")));
     }
 
     [Fact]

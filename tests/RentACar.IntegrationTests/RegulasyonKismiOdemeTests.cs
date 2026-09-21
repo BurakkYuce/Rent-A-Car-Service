@@ -168,7 +168,7 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         Assert.Equal(700m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
 
         // AYNI anahtarla ikinci gönderim → kısmi unique index → tüm transaction geri alınır.
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
             odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = anahtar }));
 
         // ELLE: kalan hâlâ 700, tek ödeme, 2 defter satırı — çift ödeme YAZILMADI.

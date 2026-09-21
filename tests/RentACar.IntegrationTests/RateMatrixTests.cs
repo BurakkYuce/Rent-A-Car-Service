@@ -120,7 +120,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new RateMatrixInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 
@@ -240,7 +240,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         // Yönetici tek-satır silebilir (OperationsWrite) ama TOPLU silemez — etki alanı farklı.
         using var yon = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici);
         var svc = yon.ServiceProvider.GetRequiredService<RateMatrixService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.DeleteByKanalAsync("ACENTA", TarifeOnayDurumu.Bekliyor));
         Assert.Equal(5, (await svc.ListAsync()).Count);
     }

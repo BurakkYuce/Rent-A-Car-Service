@@ -94,7 +94,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
 
         await cash.CollectAsync(Input());
         // İkinci gönderim: DB kısmi-unique-index → ValidationException (zarif; endpoint ?hata= redirect'ler).
-        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(Input()));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.CollectAsync(Input()));
 
         await using var db = await Factory(scope).CreateDbContextAsync();
         Assert.Equal(1, await db.CashTransactions.AsNoTracking().CountAsync(t => t.RentalId == rentalId));
@@ -142,7 +142,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         });
 
         // K2'nin çift-submit'i hâlâ bloklanır.
-        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(new CashInput
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.CollectAsync(new CashInput
         {
             CariId = cari, RentalId = rentalId, Tutar = 5000m,
             Hesap = LedgerAccountType.Kasa, IslemAnahtari = k2
@@ -229,7 +229,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
         var cash = op.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(new CashInput
+        await Assert.ThrowsAsync<YetkiYokException>(() => cash.CollectAsync(new CashInput
         {
             CariId = cari, RentalId = rentalId, Tutar = 100m,
             Hesap = LedgerAccountType.Kasa, IslemAnahtari = TahsilatAnahtar.Uret(rentalId, 100m, 0)

@@ -143,7 +143,7 @@ public sealed class RateCardTests(PostgresFixture fx)
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → tarife yönetemez.
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<RateCardService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Rc("B1", "B", 1, 3, 100m)));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(Rc("B1", "B", 1, 3, 100m)));
     }
 
     [Fact]

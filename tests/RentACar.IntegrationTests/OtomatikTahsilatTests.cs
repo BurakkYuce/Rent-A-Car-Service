@@ -196,8 +196,8 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var svc = op.ServiceProvider.GetRequiredService<OtomatikTahsilatService>();
-            await Assert.ThrowsAsync<ValidationException>(() => svc.AdaylarAsync());
-            await Assert.ThrowsAsync<ValidationException>(
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.AdaylarAsync());
+            await Assert.ThrowsAsync<YetkiYokException>(
                 () => svc.CalistirAsync([(Guid.NewGuid(), 1)], true, LedgerAccountType.Kasa));
         }
 

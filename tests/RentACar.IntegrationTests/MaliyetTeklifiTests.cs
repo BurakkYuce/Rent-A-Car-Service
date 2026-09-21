@@ -277,8 +277,8 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var svc = op.ServiceProvider.GetRequiredService<MaliyetTeklifiService>();
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SearchAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Teklif("Operatör")));
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.SearchAsync());
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(Teklif("Operatör")));
         }
 
         // Muhasebe: FinanceWrite → yazar VE okur.

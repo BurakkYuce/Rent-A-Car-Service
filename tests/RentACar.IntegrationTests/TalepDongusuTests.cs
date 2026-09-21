@@ -335,11 +335,11 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
 
         using var m = host.ScopeFor(tenantId, role: UserRole.Muhasebe);
         var svc = Svc(m);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListeleAsync(new TalepFiltre()));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OzetAsync());
-        await Assert.ThrowsAsync<ValidationException>(() => svc.NotEkleAsync(id, "x"));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UstlenAsync(id, true));
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListeleAsync(new TalepFiltre()));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.OzetAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.NotEkleAsync(id, "x"));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.UstlenAsync(id, true));
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.DurumAtaAsync(id, PublicBookingRequestDurum.Iletisimde));
     }
 
