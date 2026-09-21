@@ -39,6 +39,18 @@ const MUTLAK_URL = [
   },
 ];
 
+/**
+ * Veri katmanı (F3.4): özellik store'ları veriyi yalnız `TemelStore` ile yükler. Ham `subscribe`
+ * iptal edilmeyen/yarışan istek, sızan abonelik ve hatanın boş listeye dönüşmesi demektir.
+ */
+const STORE_SUBSCRIBE = [
+  {
+    selector: "CallExpression[callee.property.name='subscribe']",
+    message:
+      "Özellik store'unda ham subscribe yasak. Veriyi '@core/veri/temel-store' TemelStore ile yükleyin (dört durum + switchMap iptali).",
+  },
+];
+
 export default defineConfig(
   {
     ignores: [
@@ -102,6 +114,33 @@ export default defineConfig(
             {
               group: ['@features', '@features/*', '**/features', '**/features/*'],
               message: 'core/ ve shared/ features/ içe aktaramaz (katman sınırı, bkz. AGENTS.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Özellik store'ları: ham subscribe yasak (TemelStore zorunlu).
+    files: ['src/app/features/**/store/**/*.ts', 'src/app/features/**/*.store.ts'],
+    ignores: ['**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...TR_METIN, ...MUTLAK_URL, ...STORE_SUBSCRIBE],
+    },
+  },
+  {
+    // Özellikler HTTP'ye yalnız ApiIstemcisi ile çıkar (göreli URL, withCredentials, tipli ApiHatasi).
+    files: ['src/app/features/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@angular/common/http',
+              importNames: ['HttpClient'],
+              message:
+                "HttpClient'ı doğrudan kullanmayın; '@core/api/api-istemcisi' ApiIstemcisi kullanın.",
             },
           ],
         },

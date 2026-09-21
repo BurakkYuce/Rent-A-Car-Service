@@ -287,10 +287,15 @@ builder.Services.AddScoped<RentACar.Web.Components.Layout.ShellState>();
 // Kimlik config'ten; ÜRETİMDE ZORUNLU (Pii:HmacKey deseni — yoksa açılış reddeder, arka kapı yok).
 var platformUser = builder.Configuration["Platform:AdminUser"];
 var platformHash = builder.Configuration["Platform:AdminPasswordHash"];
+string? platformDevParola = null; // Development'ta hash yoksa bu açılışa özel üretilir (repoda sabit parola YOK)
 if (builder.Environment.IsDevelopment())
 {
     platformUser ??= "admin";
-    platformHash ??= PlatformCredentials.HashPassword("***REMOVED***"); // dev varsayılan (config'te yoksa)
+    if (string.IsNullOrWhiteSpace(platformHash))
+    {
+        platformDevParola = GelistirmeParolasi.Uret();
+        platformHash = PlatformCredentials.HashPassword(platformDevParola);
+    }
 }
 else if (string.IsNullOrWhiteSpace(platformUser) || string.IsNullOrWhiteSpace(platformHash))
     throw new InvalidOperationException(
@@ -364,6 +369,11 @@ if (builder.Configuration.GetSection("TutSat").Exists())
         builder.Configuration.GetValue("TutSat:SinifKati", 1.5m)));
 
 var app = builder.Build();
+
+if (platformDevParola is not null)
+    app.Logger.LogWarning(
+        "Platform operatörü parolası (Development, yalnız bu açılış): {Kullanici:l} / {Parola:l} — sabitlemek için "
+        + "Platform:AdminPasswordHash (bkz. --platform-hash)", platformUser, platformDevParola);
 
 // ---- Şema + seed (owner bağlantısı) ----
 await DbInitializer.MigrateAndSeedAsync(app.Services, migratorConn);

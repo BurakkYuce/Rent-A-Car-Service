@@ -56,14 +56,20 @@ if (bayrak('--tum') && !SITE) {
     .filter((x) => x && !x.startsWith('#'));
 }
 
-/** ERP giriş gerektirir; seed kimliği (CLAUDE.md §7). */
+/** ERP giriş gerektirir; seed kimliği (CLAUDE.md §7). Parola ORTAMDAN — repoda sabit parola yok:
+ *  RACAR_GIRIS_SIFRE (CI her koşuda rastgele üretip uygulamaya Seed__Parola olarak da verir).
+ *  Firma/kullanıcı varsayılanı seed: RACAR_GIRIS_FIRMA=yucerent, RACAR_GIRIS_KULLANICI=umit. */
 async function girisYap(page) {
+  const sifre = process.env.RACAR_GIRIS_SIFRE;
+  if (!sifre) {
+    throw new Error('RACAR_GIRIS_SIFRE yok — ERP giriş parolasını ortamdan ver (seed: Seed:Parola ya da açılış logu).');
+  }
   await page.goto(`${KOK}/login`, { waitUntil: 'domcontentloaded' });
-  // Form seed değerleriyle ön-dolu geliyor; yine de açıkça doldur (seed değişirse sessizce
-  // giriş yapamamış olmayalım — o durumda tüm sayfalar /login'e düşer ve koşum YALAN yeşil verir).
-  await page.fill('input[name="firma"]', 'yucerent').catch(() => {});
-  await page.fill('input[name="kullanici"]', 'umit').catch(() => {});
-  await page.fill('input[name="sifre"]', '***REMOVED***').catch(() => {});
+  // Açıkça doldur (form ön-dolu olsa bile — seed değişirse sessizce giriş yapamamış olmayalım;
+  // o durumda tüm sayfalar /login'e düşer ve koşum YALAN yeşil verir).
+  await page.fill('input[name="firma"]', process.env.RACAR_GIRIS_FIRMA || 'yucerent').catch(() => {});
+  await page.fill('input[name="kullanici"]', process.env.RACAR_GIRIS_KULLANICI || 'umit').catch(() => {});
+  await page.fill('input[name="sifre"]', sifre).catch(() => {});
   await Promise.all([
     page.waitForLoadState('domcontentloaded'),
     page.click('button[type="submit"]'),

@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- Geliştirme sırları (Seed:Parola, Platform:AdminPasswordHash…) repoda değil user-secrets'ta
+         (dotnet user-secrets set Seed:Parola …; bkz. CLAUDE.md §7). -->
+    <UserSecretsId>rentacar-web-7f447107-3b01-43af-bc1a-d1b6cf1b4000</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
