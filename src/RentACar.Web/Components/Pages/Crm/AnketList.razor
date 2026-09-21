@@ -78,7 +78,7 @@
                 <td>@a.Kaynak</td>
                 <td>
                     <a href="@Geri(a.Id)" class="link">Düzenle</a>
-                    <form method="post" action="/anketler/delete" class="inline" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                    <form method="post" action="/anketler/delete" class="inline" data-confirm="Bu anket kaydı kalıcı olarak silinsin mi? Kayıt geri getirilemez."><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" /><button type="submit" class="link danger">Sil</button>
                     </form>
                 </td>

@@ -93,9 +93,13 @@
         <div class="dc-head">
             <span class="dc-title">Dönüşler</span>
             <span class="dc-tabs">
-                <a class="@(Df == "gec" ? "on" : "")" href="/?df=gec&cf=@Cf">Gecikmiş <b>@_donusGec.Count</b></a>
-                <a class="@(Df is null or "bugun" ? "on" : "")" href="/?df=bugun&cf=@Cf">Bugün <b>@_donusBugun.Count</b></a>
-                <a class="@(Df == "yarin" ? "on" : "")" href="/?df=yarin&cf=@Cf">Yarın <b>@_donusYarin.Count</b></a>
+                @* Sekme kararı PanelSekme'de (saf, test-kilitli): seçim yoksa gecikmiş varken "gec" açılır
+                   (YALNIZ Dönüşler; Çıkışlar'ın varsayılanı daima Bugün — PanelSekme.CikisEtkin).
+                   Linkler DİĞER kartın ham seçimini taşır (etkinini değil) — o kart seçimsizse seçimsiz
+                   kalsın, varsayılan kural her yüklemede (120 sn tazeleme dahil) yeniden işlesin. *@
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Gecikmis, DfEtkin, _donusGec.Count)" href="/?df=gec&cf=@CfSecilen">Gecikmiş <b>@_donusGec.Count</b></a>
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Bugun, DfEtkin, _donusGec.Count)" href="/?df=bugun&cf=@CfSecilen">Bugün <b>@_donusBugun.Count</b></a>
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Yarin, DfEtkin, _donusGec.Count)" href="/?df=yarin&cf=@CfSecilen">Yarın <b>@_donusYarin.Count</b></a>
             </span>
         </div>
         @if (_finansYetkili)
@@ -114,7 +118,11 @@
                             <input type="hidden" name="rentalId" value="@context.RentalId" />
                             <input type="hidden" name="doviz" value="@RentACar.Application.Kur.KurService.NormalizeKod(context.Doviz)" />
                             <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(context.RentalId.Value, context.Bakiye, context.IslemSayisi)" />
-                            <input type="hidden" name="donus" value="/?df=@Df&cf=@Cf" />
+                            @* HAM seçim (etkin değil): varsayılanla "gec"te açılmış pano seçimsiz kalır ve
+                               aynı kuralla yine "gec"te açılır (tahsilat kira durumunu değiştirmez). Etkin
+                               "gec" yazılsaydı açık seçime dönüşür, gecikmişler kapanınca 120 sn tazeleme
+                               kartı "Gecikmiş 0 — Kayıt yok."ta tutardı (adversarial bulgu). *@
+                            <input type="hidden" name="donus" value="/?df=@DfSecilen&cf=@CfSecilen" />
                             <input type="hidden" name="aciklama" value="Hızlı tahsilat (pano) — @context.Plaka" />
                             @* FAZ-84: tek-tık hızlı tahsilat — seçici yok, masaüstü panosundan yapılan işlem. *@
                             <input type="hidden" name="kanal" value="Masaüstü" />
@@ -137,9 +145,9 @@
         <div class="dc-head">
             <span class="dc-title">Çıkışlar</span>
             <span class="dc-tabs">
-                <a class="@(Cf == "gec" ? "on" : "")" href="/?cf=gec&df=@Df">Gecikmiş <b>@_cikisGec.Count</b></a>
-                <a class="@(Cf is null or "bugun" ? "on" : "")" href="/?cf=bugun&df=@Df">Bugün <b>@_cikisBugun.Count</b></a>
-                <a class="@(Cf == "yarin" ? "on" : "")" href="/?cf=yarin&df=@Df">Yarın <b>@_cikisYarin.Count</b></a>
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Gecikmis, CfEtkin, _cikisGec.Count)" href="/?cf=gec&df=@DfSecilen">Gecikmiş <b>@_cikisGec.Count</b></a>
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Bugun, CfEtkin, _cikisGec.Count)" href="/?cf=bugun&df=@DfSecilen">Bugün <b>@_cikisBugun.Count</b></a>
+                <a class="@PanelSekme.CipSinifi(PanelSekme.Yarin, CfEtkin, _cikisGec.Count)" href="/?cf=yarin&df=@DfSecilen">Yarın <b>@_cikisYarin.Count</b></a>
             </span>
         </div>
         <DcTable Rows="CikisList" Empty="Kayıt yok." RowStyle="@CikisStil" />
@@ -214,8 +222,18 @@
     private List<DcRow> _cikisGec = [], _cikisBugun = [], _cikisYarin = [];
     private bool _finansYetkili; // Dönüşler satırında hızlı-tahsilat formu görünürlüğü (FinanceWrite rolleri)
 
-    private List<DcRow> DonusList => Df switch { "gec" => _donusGec, "yarin" => _donusYarin, _ => _donusBugun };
-    private List<DcRow> CikisList => Cf switch { "gec" => _cikisGec, "yarin" => _cikisYarin, _ => _cikisBugun };
+    // Ham df/cf DOĞRUDAN kullanılmaz: çip vurgusu, liste ve Tahsil Et dönüş adresi aynı ETKİN değeri
+    // okur. Eskiden null üçünde ayrı yorumlanıyor ve 9 gecikmiş dönüş varken pano "Bugün 0 — Kayıt
+    // yok." ile açılıyordu (canlı kanıt). Gecikmiş sayıları OnInitializedAsync'te dolar; bu özellikler
+    // render sırasında okunduğu için daima dolu listeye göre karar verir.
+    private string DfEtkin => PanelSekme.Etkin(Df, _donusGec.Count);
+    // Çıkışlar varsayılanı gecikmişe BAKMAZ: gecikmiş çıkış = kapanmayan bayat no-show (bkz. CikisEtkin).
+    private string CfEtkin => PanelSekme.CikisEtkin(Cf);
+    private string? DfSecilen => PanelSekme.Secilen(Df);
+    private string? CfSecilen => PanelSekme.Secilen(Cf);
+
+    private List<DcRow> DonusList => DfEtkin switch { PanelSekme.Gecikmis => _donusGec, PanelSekme.Yarin => _donusYarin, _ => _donusBugun };
+    private List<DcRow> CikisList => CfEtkin switch { PanelSekme.Gecikmis => _cikisGec, PanelSekme.Yarin => _cikisYarin, _ => _cikisBugun };
 
     private int Yuzde(int n) => _fleet.Toplam == 0 ? 0 : (int)Math.Round(100.0 * n / _fleet.Toplam);
 

@@ -53,7 +53,8 @@
                     </form>
                 </td>
                 <td>@s.Aciklama</td><td>@(s.Aktif ? "Evet" : "Hayır")</td>
-                <td><form method="post" action="/servis-tanimlari/delete" class="inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
+                <td><form method="post" action="/servis-tanimlari/delete" class="inline"
+                          data-confirm="'@s.Kod' servis tanımı KALICI olarak silinsin mi? Geri alınamaz; bu tanımın bakım-km aralığı periyodik bakım takibinde ve Bakım-Km bildiriminde artık kullanılmaz."><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" /><button type="submit" class="btn-secondary">Sil</button></form></td>
             </tr>
         }
     </tbody>
@@ -69,7 +70,9 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kombinasyon</th><th class="num">Araç</th><th>Kod</th><th class="num">Bakım KM</th><th></th></tr></thead>
+    @* "Bakım KM" başlığı BİLEREK num DEĞİL: altındaki alan colspan=3'lük SOLA yaslı satır içi formun
+       içinde; başlık sağa yaslanınca alanla hizası kopuyordu (adversarial bulgu). *@
+    <thead><tr><th>Kombinasyon</th><th class="num">Araç</th><th>Kod</th><th>Bakım KM</th><th></th></tr></thead>
     <tbody>
         @if (_oneri.Count == 0)
         {

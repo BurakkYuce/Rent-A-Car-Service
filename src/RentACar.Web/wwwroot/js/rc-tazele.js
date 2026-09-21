@@ -49,7 +49,11 @@
 
         timer = setTimeout(function () {
             timer = null;
-            if (yaziyorMu()) { kur(); return; }   // yazıyorsa bir tur daha bekle
+            // Yazıyorsa ya da bir POST gönderimi sürüyorsa (rc-ui.js çift-gönderim kilidi
+            // form[data-rc-kilitli] yazar) bir tur daha bekle: reload, yola çıkmış gönderimin
+            // navigasyonunu iptal eder — sunucu yazmış olabilir ama kullanıcı sonucu görmez
+            // ve tekrar dener. Gönderimden sonra odak butonda olduğu için yaziyorMu() yakalamaz.
+            if (yaziyorMu() || document.querySelector('form[data-rc-kilitli]')) { kur(); return; }
             location.reload();
         }, sn * 1000);
     }

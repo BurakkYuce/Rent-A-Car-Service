@@ -113,10 +113,15 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         return _repository.SetDurumAsync(id, FiloKiraDurum.Iptal, ct);
     }
 
-    public Task<bool> TamamlaAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> TamamlaAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.SetDurumAsync(id, FiloKiraDurum.Tamamlandi, ct);
+        // İptal TERMİNALDİR: ekranın iptal onayı "iptal geri alınamaz" diyor; eski listeden "Tamamla"ya
+        // basan kullanıcı İptal → Tamamlandı geçişi yapabiliyordu (adversarial bulgu). UpdateMetaAsync'in
+        // "İptal edilmiş sözleşme düzenlenemez" kuralıyla aynı.
+        if ((await _repository.FindAsync(id, ct))?.Durum == FiloKiraDurum.Iptal)
+            throw new ValidationException("İptal edilmiş sözleşme tamamlanamaz.");
+        return await _repository.SetDurumAsync(id, FiloKiraDurum.Tamamlandi, ct);
     }
 
     /// <summary>Taksit planı + mali özet (salt-hesap). Her ay: net = aylık ücret, kdv = net × oran;

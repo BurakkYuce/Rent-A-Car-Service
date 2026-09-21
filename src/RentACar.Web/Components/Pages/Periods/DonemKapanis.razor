@@ -62,12 +62,18 @@ else
         (@(o.DonemSonucu >= 0 ? "kâr" : "zarar")).</p>
 }
 
-<form method="post" action="/donem-kapanis/kilitle" class="grid-form"><AntiforgeryToken />
+@* Yolunda silme/iptal fiili yok ama geri alınamaz: kapanış fişi değişmez deftere yazılır.
+   YikiciFormOnayTests bu iki ucu adıyla listeler. *@
+<form method="post" action="/donem-kapanis/kilitle" class="grid-form"
+      data-confirm="Dönem seçilen kapanış tarihine kadar kapatılsın mı? Gelir/Gider bakiyeleri kapanış fişiyle Dönem Sonucu hesabına aktarılır (defter kaydı silinemez) ve bu tarih ile öncesine artık tahsilat, fatura, gider veya ters kayıt girilemez. Kilidi kaldırmak kapanış fişini geri almaz."><AntiforgeryToken />
     <label>Kapanış Tarihi<input name="kapanisTarihi" type="date" required /></label>
     <button type="submit">Dönemi Kapat (fiş + kilit)</button>
 </form>
 
-<form method="post" action="/donem-kapanis/ac"><AntiforgeryToken />
+@* Kilit TAMAMEN kalkar (tarih null — DonemKilidiService.UnlockAsync); fiş ters kaydedilmez. Kullanıcı
+   "kapanışı geri aldım" sanmasın diye mesaj bunu açıkça söyler. *@
+<form method="post" action="/donem-kapanis/ac"
+      data-confirm="Dönem kilidi TAMAMEN kaldırılsın mı? Kapalı tüm geçmiş dönemler yeniden kayda açılır. Kesilmiş kapanış fişi GERİ ALINMAZ; dönemi yeniden kapatmak yalnız aradaki farkı yeni bir fişle kapatır."><AntiforgeryToken />
     <button type="submit" class="btn-secondary">Kilidi Kaldır</button>
 </form>
 
