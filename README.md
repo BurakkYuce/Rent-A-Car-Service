@@ -51,9 +51,13 @@ hazırlar (idempotent).
 # 1) Ortam (dotnet kur + restore + postgres başlat)
 bash scripts/setup.sh
 
-# 2) Uygulama (migration + seed otomatik; firma=yucerent/demo, kullanıcı=umit, şifre=***REMOVED***)
+# 2) Uygulama (migration + seed otomatik; firma=yucerent/demo, kullanıcı=umit/operator)
 dotnet run --project src/RentACar.Web
 ```
+
+Seed parolası repoda yoktur: `dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`
+ile verin; verilmezse ilk kurulumda rastgele üretilir ve açılış logunda `Seed kullanıcı parolası: …`
+WARNING satırı olarak bir kez basılır (seed yalnız boş veritabanında koşar).
 
 Bağlantılar `src/RentACar.Web/appsettings.json` içinde: `Default` = racar_app (runtime, RLS),
 `Migrator` = racar_owner (DDL/seed).

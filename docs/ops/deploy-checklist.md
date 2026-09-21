@@ -32,6 +32,8 @@ sudo -u postgres psql -f scripts/db-init-roles.sql   # racar_owner/racar_app + d
 - Rol şifrelerini **güçlü** yap (script'teki dev şifrelerini DEĞİŞTİR: `racar_owner_pw`/`racar_app_pw`).
 - `racar_app`'in `NOBYPASSRLS` olduğunu DOĞRULA: `\du racar_app` → "Bypass RLS" YOK olmalı. (Tenant izolasyonunun temeli.)
 - Migration + seed **açılışta otomatik** çalışır (Migrator bağlantısıyla); elle migration gerekmez.
+  Üretimde `Seed__Parola` verilmezse demo firmalar (yucerent/demo) ve kullanıcıları **oluşturulmaz**
+  (tahmin edilebilir parolalı kullanıcı = arka kapı); gerçek firmalar platform konsolundan (`/platform`) açılır.
 
 ## 3. ZORUNLU config / secrets (guard'lı — eksikse açılış reddeder)
 Secret'ları **appsettings.json'a KOYMA** (repo'ya sızar). Env değişkeni veya `appsettings.Production.json`

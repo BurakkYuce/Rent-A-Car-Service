@@ -130,7 +130,7 @@ brew services start postgresql@15
 ASPNETCORE_URLS=http://localhost:5220 dotnet run --project src/RentACar.Web
 ```
 **Bağlantı (appsettings.json):** runtime = `racar_app`, migrator = `racar_owner`, db `racar`, port 5432.
-**Giriş (seed):** firma `yucerent` / kullanıcı `umit` / şifre `***REMOVED***` (Admin); `operator`/`***REMOVED***` (Operatör); firma `demo` / `umit` / `***REMOVED***`.
+**Giriş (seed):** firma `yucerent` / kullanıcı `umit` (Admin) ve `operator` (Operatör); firma `demo` / `umit` (Admin). **Parola repoda YOK** (eski sabit parola gerçek bir dış sistemle çakışıyordu; `SabitParolaYokTests` çiti): `Seed:Parola` user-secret'ı (`dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`, ya da ortamda `Seed__Parola`) verilirse o; verilmezse Development'ta ilk kurulumda rastgele üretilir ve açılış logunda `Seed kullanıcı parolası: …` WARNING satırı olarak BİR KEZ basılır. Seed yalnız BOŞ DB'de koşar → mevcut kullanıcıların parolası hiçbir açılışta değişmez. Development dışında `Seed:Parola` yoksa demo firma/kullanıcı hiç oluşturulmaz. Platform konsolu (`/platform`): kullanıcı `admin`; `Platform:AdminPasswordHash` yoksa parola her açılışta üretilip `Platform operatörü parolası` WARNING satırında basılır.
 
 ## 8. Test
 ```bash
