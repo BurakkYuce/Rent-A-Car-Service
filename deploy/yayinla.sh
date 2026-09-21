@@ -275,7 +275,7 @@ bilgi "Servisler yeniden başlatılıyor"
 # Web ÖNCE: açılışta migration'ı o çalıştırır (DbInitializer.MigrateAndSeedAsync).
 systemctl restart racar-web
 systemctl restart racar-publicsite
-[[ "$API_DAHIL" == "1" ]] && systemctl restart racar-api || true
+if [[ "$API_DAHIL" == "1" ]]; then systemctl restart racar-api; fi
 
 # ---------------------------------------------------------------- sağlık kapısı
 saglik() {
