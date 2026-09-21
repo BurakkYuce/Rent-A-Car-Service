@@ -21,6 +21,13 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             && ctx.User.HasClaim(PlatformClaims.PlatformAdmin, "true")
             && !ShouldSkip(ctx.Request.Path))
         {
+            // F1.2: yeni arayüz API'si konsola yönlendirilmez (JSON istemcisi 302 izlemez) → 403 ProblemDetails.
+            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
+            {
+                await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx, RentACar.Web.Api.UiHata.YetkiYok,
+                    "Platform operatörü firma arayüzünü kullanamaz.");
+                return;
+            }
             ctx.Response.Redirect("/platform/tenants");
             return;
         }
@@ -37,6 +44,8 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/_content", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            // F1.2: yeni arayüzün oturum uçları (giriş/çıkış çalışmalı; ben → 401 "firma oturumu yok").
+            || RentACar.Web.Api.UiApiExtensions.OturumYolu(path)
             || Path.HasExtension(p); // statik varlıklar (.css/.js/.woff2 …) — sayfa değil
     }
 }

@@ -27,6 +27,8 @@
     <PackageReference Include="QuestPDF" />
     <!-- Back-office interaktif grid (Radzen DataGrid) — ağır liste ekranları için. -->
     <PackageReference Include="Radzen.Blazor" />
+    <!-- F1.2: /api/ui/v1 OpenAPI belgesi (yalnız Development; anlık görüntü docs/api/ui-v1.json) -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
   </ItemGroup>
 
   <ItemGroup>

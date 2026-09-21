@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using RentACar.Infrastructure.Identity;
@@ -28,24 +27,9 @@ public static class AuthEndpoints
                 // Dönüş korunur: şifreyi bir kez yanlış yazan kullanıcı derin bağlantıyı kaybetmesin.
                 return Results.Redirect(YetkiYonlendirme.HataliGirisHedefi(donus));
 
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name, result.User.UserName),
-                new(ClaimTypes.Role, result.User.Rol.ToString()),
-                new(IdentityClaims.AssignedBranch, result.User.AtanmisSube ?? ""),
-                new(IdentityClaims.AssignedBranchId, result.User.AtanmisSubeId?.ToString() ?? ""), // FAZ 5-C1
-                new(IdentityClaims.UserId, result.User.Id.ToString()),
-                new(IdentityClaims.TenantId, result.Tenant.Id.ToString()),
-                new(IdentityClaims.TenantCode, result.Tenant.Code),
-            };
-            // Kullanıcı-bazlı istisnalar: izin adı başına BİR claim (CSV değil — FindAll ile
-            // ayrıştırmasız okunur). Değişiklik sonraki girişte etkinleşir (claim login'de donar).
-            claims.AddRange(result.EkIzinler.Select(i => new Claim(IdentityClaims.IzinEk, i)));
-            claims.AddRange(result.YasakIzinler.Select(i => new Claim(IdentityClaims.IzinYasak, i)));
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await http.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(identity));
+                OturumPrincipal.Olustur(result)); // claim seti /api/ui girişiyle ORTAK
 
             // Varsayılan iniş Panel ("/"); güvenli bir dönüş adresi varsa oraya (bildirim/WhatsApp
             // derin bağlantısı). Eskiden sabit "/vehicles" idi: hem Panel atlanıyor hem derin bağlantı

@@ -1,0 +1,248 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "RentACar.Web | ui-v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost/"
+    }
+  ],
+  "paths": {
+    "/api/ui/v1/oturum/xsrf": {
+      "get": {
+        "tags": [
+          "OturumApi"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/oturum/giris": {
+      "post": {
+        "tags": [
+          "OturumApi"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GirisIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/oturum/cikis": {
+      "post": {
+        "tags": [
+          "OturumApi"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/oturum/ben": {
+      "get": {
+        "tags": [
+          "OturumApi"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BenKiraci": {
+        "required": [
+          "id",
+          "kod",
+          "ad"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          }
+        }
+      },
+      "BenKullanici": {
+        "required": [
+          "id",
+          "kullaniciAdi",
+          "adSoyad"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kullaniciAdi": {
+            "type": "string"
+          },
+          "adSoyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BenModuller": {
+        "required": [
+          "webSitesi"
+        ],
+        "type": "object",
+        "properties": {
+          "webSitesi": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BenSubeKapsami": {
+        "required": [
+          "tumSubeler",
+          "subeId",
+          "subeAd"
+        ],
+        "type": "object",
+        "properties": {
+          "tumSubeler": {
+            "type": "boolean"
+          },
+          "subeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "subeAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BenYaniti": {
+        "required": [
+          "kullanici",
+          "kiraci",
+          "rol",
+          "izinler",
+          "subeKapsami",
+          "moduller",
+          "renkler",
+          "pilot"
+        ],
+        "type": "object",
+        "properties": {
+          "kullanici": {
+            "$ref": "#/components/schemas/BenKullanici"
+          },
+          "kiraci": {
+            "$ref": "#/components/schemas/BenKiraci"
+          },
+          "rol": {
+            "type": "string"
+          },
+          "izinler": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subeKapsami": {
+            "$ref": "#/components/schemas/BenSubeKapsami"
+          },
+          "moduller": {
+            "$ref": "#/components/schemas/BenModuller"
+          },
+          "renkler": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pilot": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GirisIstegi": {
+        "required": [
+          "firma",
+          "kullanici",
+          "sifre"
+        ],
+        "type": "object",
+        "properties": {
+          "firma": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "OturumApi"
+    }
+  ]
+}

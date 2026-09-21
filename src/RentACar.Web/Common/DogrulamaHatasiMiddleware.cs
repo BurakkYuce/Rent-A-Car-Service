@@ -32,7 +32,9 @@ public sealed class DogrulamaHatasiMiddleware(ILogger<DogrulamaHatasiMiddleware>
         {
             await next(ctx);
         }
-        catch (ValidationException ex)
+        // F1.2: /api/ui kendi sözleşmesini (ProblemDetails, UiApiExtensions) uygular — burada
+        // yönlendirme ya da {ok,hata} gövdesi üretilmez, istisna dıştaki /api/ui çitine bırakılır.
+        catch (ValidationException ex) when (!RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
         {
             // Gövde yazılmaya başladıysa müdahale edemeyiz (yarım HTML'e yönlendirme eklenemez).
             // Döngü koruması: /hata sayfasının kendisi hata verirse tekrar oraya yönlendirmeyelim.

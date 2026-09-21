@@ -52,7 +52,7 @@ public static class AuthExtensions
     /// noktasında + doğrulama SUNUCUDA".
     /// </summary>
     public static RouteGroupBuilder RequireWebSitesiModulu(this RouteGroupBuilder group)
-        => group.AddEndpointFilter(async (ctx, next) =>
+        => group.WithMetadata(new ModulMetadata(ModulMetadata.WebSitesi)).AddEndpointFilter(async (ctx, next) =>
         {
             var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId;
             if (tenant is not { } id) return Results.NotFound();
@@ -61,6 +61,14 @@ public static class AuthExtensions
                 return Results.NotFound();
             return await next(ctx);
         });
+
+    /// <summary>
+    /// F1.2: izin kapısı BİLİNÇLİ olarak yok (ör. <c>/api/ui/v1/oturum/*</c> — giriş anonim olmak
+    /// zorunda). Gerekçe metni zorunlu: yapısal test (<c>UiApiYapisalTests</c>) her <c>/api/ui</c> ucunda
+    /// <see cref="IzinMetadata"/> ya da bu kaydı arar; "unutulmuş izin" ile "bilinçli muafiyet" ayrışır.
+    /// </summary>
+    public static TBuilder IzinMuaf<TBuilder>(this TBuilder builder, string gerekce) where TBuilder : IEndpointConventionBuilder
+        => builder.WithMetadata(new IzinMuafMetadata(gerekce));
 
     /// <summary>
     /// Antiforgery'yi ORTAMA göre uygular (roadmap E2, review #7): PROD'da token ZORUNLU (CSRF koruması),
@@ -81,6 +89,19 @@ public static class AuthExtensions
 /// etkin (en dar) izindir, İLKİ grup iznidir.</para>
 /// </summary>
 public sealed record IzinMetadata(Permission Izin);
+
+/// <summary>F1.2: ucun izin kapısı taşımadığı BİLİNÇLİ karar (bkz. <see cref="AuthExtensions.IzinMuaf{TBuilder}"/>).</summary>
+public sealed record IzinMuafMetadata(string Gerekce);
+
+/// <summary>
+/// F1.2: uç bir satın alınabilir MODÜLE ait (ör. Web Sitesi) ve modül filtresi takılı. Metadata filtreyi
+/// takan yöntemle AYNI çağrıda eklenir (<see cref="AuthExtensions.RequireWebSitesiModulu"/>) — varlığı
+/// filtrenin varlığını kanıtlar; yapısal test modül yolundaki her <c>/api/ui</c> ucunda bunu arar.
+/// </summary>
+public sealed record ModulMetadata(string Modul)
+{
+    public const string WebSitesi = "WebSitesi";
+}
 
 /// <summary>Antiforgery zorunluluğu anahtarı — Program startup'ta ortamdan (IsProduction) set edilir.</summary>
 public static class FormSecurity
