@@ -316,6 +316,9 @@ public sealed class GuvenliDonusTests
             "Reports/ListExportEndpoints.cs",
             "Reports/PdfEndpoints.cs",
             "Reports/ReportExportEndpoints.cs",
+            // F1.5 — /app SPA kabuğu: ANONİM (challenge yok → 401 dönüş kuralı hiç devreye girmez) ve
+            // indirme değil (dosyalar satır içi sunulur). IndirmeAdresiMi kapsamı gerekmez.
+            "Spa/SpaBarindirma.cs",
         }, bulunan);
     }
 
