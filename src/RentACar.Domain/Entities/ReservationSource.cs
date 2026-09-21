@@ -23,7 +23,7 @@ public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
 
     // FAZ-24 — ORAN ALANLARI YÜZDEDİR (12,5 = %12,5), oransal katsayı DEĞİL. Bu faz alanları
     // yalnız KAYDEDER: hiçbir fiyat/komisyon/karlılık hesabı bunları OKUMAZ. "Hangi hesaba,
-    // ne zaman girecek" ayrı bir para incelemesidir (bkz. docs/roadmap/FAZ-24…). Bir tüketici
+    // ne zaman girecek" ayrı bir para incelemesidir (bkz. docs/KARARLAR.md "Açık işler" → FAZ-24). Bir tüketici
     // eklenmeden önce yüzde/katsayı birimi ve geçmişe etki sorusu cevaplanmalıdır.
 
     /// <summary>Kira bedeli üzerinden tedarikçi oranı — YÜZDE (12,5 = %12,5). Hesaba girmez.</summary>
@@ -41,7 +41,7 @@ public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
     //   (1) KURAL BAYRAKLARI  — rezervasyon/kira akışında GERÇEKTEN uygulanır (guard).
     //   (2) BİLGİ ALANLARI    — yalnız saklanır; hiçbir fiyat/komisyon/defter hesabına GİRMEZ.
     //
-    // (2)'nin gerekçesi docs/roadmap/KARARLAR.md "GENEL POLİTİKA — yeni tutar alanları deftere
+    // (2)'nin gerekçesi docs/KARARLAR.md "GENEL POLİTİKA — yeni tutar alanları deftere
     // yazmaz" + "FAZ-49" kararıdır: gerçek para hareketi Kasa/Banka akışından geçer; ikinci bir
     // yol açmak çift-sayım üretir. Bir gün bu oranlar bir hesaba bağlanacaksa AYRI bir para fazı
     // (zorunlu adversarial inceleme) açılır — sessizce bağlamak, alanı "not" sanıp dolduran
