@@ -6,7 +6,7 @@ namespace RentACar.Domain.Enums;
 /// <para><b>Rotatif BİLEREK UYGULANMADI.</b> Rotatif (bakiye-azalan / döner) kredinin faiz ve
 /// amortisman formülü — hangi dönemde hangi bakiye üzerinden faiz işlediği, ödeme planının nasıl
 /// kurulduğu — Eşit Taksitli'nin klonu DEĞİLDİR; ayrı bir finansal-model kararı gerektirir
-/// (<c>docs/roadmap/KARARLAR.md</c> → FAZ-74). Karar gelene kadar bu seçim
+/// (<c>docs/KARARLAR.md</c> "Açık işler" → FAZ-74). Karar gelene kadar bu seçim
 /// <see cref="RentACar.Domain.Enums"/> düzeyinde TANIMLI ama hesap katmanında <b>güvenli-red</b>
 /// ile karşılanır: sessizce Eşit Taksitli formülüyle hesaplamak, kullanıcıya yanlış bir maliyet
 /// rakamını doğruymuş gibi göstermek olurdu.</para>
