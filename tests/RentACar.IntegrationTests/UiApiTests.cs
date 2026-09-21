@@ -468,10 +468,14 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     public void Muafiyet_yalniz_oturum_uclarinda()
     {
         // F1.6: /menu da muaf — her oturumun bir menüsü var, kapı ÖĞE düzeyinde (MenuApi.Gorunur).
+        // F3.5: /tablo-duzenleri/* muaf — kişisel arayüz tercihi; kullanıcı oturumdan gelir (uçta kullanıcı
+        // parametresi yok), iş verisi taşımaz. Kullanıcı/firma izolasyonu TabloDuzeniTests'te kilitli.
         var muaf = UiUclari().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
                                          && e.Metadata.GetMetadata<IzinMetadata>() is null)
             .Select(Rota).ToList();
-        Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal) || r == "/api/ui/v1/menu", r));
+        Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
+                                          || r == "/api/ui/v1/menu"
+                                          || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
     }
 
     [Fact]

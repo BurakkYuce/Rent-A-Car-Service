@@ -1,19 +1,19 @@
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
-import { appConfig } from './app.config';
+import { YerTutucu } from './yer-tutucu';
+import { appConfig } from '../../app.config';
 
-describe('App', () => {
+describe('YerTutucu', () => {
   beforeEach(async () => {
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [YerTutucu],
       providers: appConfig.providers,
     }).compileComponents();
   });
 
   it('Türkçe yapım aşaması başlığını tr.json’dan gösterir', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(YerTutucu);
     await fixture.whenStable();
     const kok = fixture.nativeElement as HTMLElement;
 
@@ -23,7 +23,7 @@ describe('App', () => {
   });
 
   it('tema düğmeleri data-theme yazar ve seçili olanı işaretler', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(YerTutucu);
     await fixture.whenStable();
     const kok = fixture.nativeElement as HTMLElement;
     const dugme = (ad: string) =>
