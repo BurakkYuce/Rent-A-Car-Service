@@ -1,0 +1,90 @@
+// Yazdırma (F3.6): form ve belgeler temiz basılır. Tema ne olursa olsun açık renkler; etkileşim
+// öğeleri gizlenir; sekmeli formun GİZLİ panelleri de basılır (her panel başlığıyla); sabit yan
+// panel akışa döner. Kabuk (F3.2) kendi menü/üst çubuğunu `rc-yazdirma-gizle` ile işaretler.
+@use 'tokenlar';
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  :root,
+  :root[data-theme='dark'] {
+    @include tokenlar.acik-renkler;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: var(--rc-yuzey);
+    color: var(--rc-metin);
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .rc-yazdirma-gizle,
+  button,
+  [role='tablist'],
+  .cdk-overlay-container {
+    display: none !important;
+  }
+
+  // Sekmeli form: tüm paneller alt alta, her biri başlığıyla.
+  .rc-sekme-paneli[hidden] {
+    display: block !important;
+  }
+
+  .rc-sekme-paneli::before {
+    display: block;
+    margin: var(--rc-bosluk-4) 0 var(--rc-bosluk-2);
+    font-size: var(--rc-yazi-md);
+    font-weight: var(--rc-agirlik-kalin);
+    content: attr(data-baslik);
+  }
+
+  .rc-sekmeli-form {
+    display: block !important;
+  }
+
+  .rc-sekmeli-form__yan {
+    position: static !important;
+    margin-top: var(--rc-bosluk-4);
+  }
+
+  // Girdiler değer satırı gibi basılır.
+  .rc-girdi,
+  .rc-girdi-kutusu {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .rc-girdi::placeholder {
+    color: transparent;
+  }
+
+  .rc-alan,
+  tr,
+  .rc-sayfa-bolumu {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
