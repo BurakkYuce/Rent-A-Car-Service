@@ -183,6 +183,15 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// <summary>Uzun süredir kiralanmayan / boştaki araç.</summary>
     public string? RenkKiralanmayan { get; set; }
 
+    /// <summary>
+    /// Angular geçişi F1.2 — bu firma yeni arayüzün (<c>/app</c> + <c>/api/ui/v1</c>) PİLOTUNDA mı.
+    /// Varsayılan <c>false</c>: <c>/api/ui/v1</c>'in <c>oturum/*</c> ve <c>istemci-hata</c> dışındaki
+    /// HER ucu pilot olmayan firmaya 403 <c>pilot_degil</c> döner (sunucu filtresi, UI gizlemesi değil).
+    /// Gerekçe: F4 öncesinde üretime çıkan para uçları hiçbir firmaya kendiliğinden açılmamalı.
+    /// Ayar satırı LAZY oluştuğu için satırı olmayan firma da pilot DEĞİLDİR.
+    /// </summary>
+    public bool YeniArayuzPilot { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

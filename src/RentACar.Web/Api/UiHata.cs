@@ -15,7 +15,7 @@ namespace RentACar.Web.Api;
 /// <item><c>mukerrer</c> (409): aynı işlemin ikinci gönderimi → kayıt yeniden YÜKLENİR.</item>
 /// <item><c>yetki_yok</c> (403): uyarı bandı; <c>pilot_degil</c> (403): kiracı yeni arayüzde değil.</item>
 /// </list>
-/// Boru hattına bağlanması F1.2'de (<c>UiApiExtensions</c>); burada yalnız saf eşleme + yazıcı.
+/// Boru hattına bağlantı: <c>UiApiExtensions</c> (F1.2); burada yalnız saf eşleme + yazıcı.
 /// </summary>
 public static class UiHata
 {
@@ -27,6 +27,10 @@ public static class UiHata
     public const string OturumYok = "oturum_yok";
     public const string KiraciKapali = "kiraci_kapali";
     public const string CokIstek = "cok_istek";
+    /// <summary>F1.2: CSRF başlığı (<c>X-XSRF-TOKEN</c>) yok ya da geçersiz (ör. girişten ÖNCE alınmış
+    /// token). SPA davranışı: <c>GET /api/ui/v1/oturum/xsrf</c> ile token yenile, isteği BİR kez tekrarla.
+    /// Ayrı kod çünkü <c>dogrulama</c> form hatası gösterir, <c>yetki_yok</c> uyarı bandı açar — ikisi de yanlış.</summary>
+    public const string XsrfGecersiz = "xsrf_gecersiz";
 
     /// <summary>Kod tablosu: her <c>kod</c>'un HTTP durumu ve kısa Türkçe başlığı.</summary>
     public static readonly IReadOnlyDictionary<string, (int Status, string Baslik)> Tablo =
@@ -40,6 +44,7 @@ public static class UiHata
             [OturumYok] = (StatusCodes.Status401Unauthorized, "Oturum yok"),
             [KiraciKapali] = (StatusCodes.Status401Unauthorized, "Firma hesabı kapalı"),
             [CokIstek] = (StatusCodes.Status429TooManyRequests, "Çok fazla istek"),
+            [XsrfGecersiz] = (StatusCodes.Status400BadRequest, "Güvenlik belirteci geçersiz"),
         };
 
     /// <summary>
