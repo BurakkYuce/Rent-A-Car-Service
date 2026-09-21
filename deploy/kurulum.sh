@@ -47,11 +47,24 @@ if ! command -v caddy >/dev/null; then
 fi
 tamam "Caddy $(caddy version | head -1)"
 
-if ! command -v dotnet >/dev/null; then
-    apt-get install -y -qq aspnetcore-runtime-10.0 \
-        || hata "aspnetcore-runtime-10.0 bulunamadı — Microsoft paket deposunu ekleyip tekrar dene (checklist §1)."
+# SDK (runtime DEĞİL): yayinla.sh .NET'i sunucuda `dotnet publish` ile derler. `command -v dotnet`
+# yetmezdi — yalnız runtime kurulu bir makinede geçer, publish ise ilk yayında patlar.
+if ! dotnet --list-sdks 2>/dev/null | grep -q '^10\.'; then
+    apt-get install -y -qq dotnet-sdk-10.0 \
+        || hata "dotnet-sdk-10.0 bulunamadı — Microsoft paket deposunu ekleyip tekrar dene (checklist §1)."
 fi
-tamam "dotnet runtime $(dotnet --list-runtimes | grep -c AspNetCore) ASP.NET sürümü kurulu"
+dotnet --list-sdks | grep -q '^10\.' || hata ".NET SDK 10 kurulamadı (dotnet --list-sdks)."
+tamam ".NET SDK $(dotnet --list-sdks | grep '^10\.' | tail -n 1 | awk '{print $1}')"
+
+# yayinla.sh: SPA artifact'ını GitHub'dan indirir (curl) ve release JSON'unu okur (jq).
+# Node/npm KURULMAZ (bilinçli): SPA sunucuda derlenmez, CI artifact'ı kullanılır.
+for paket in curl jq; do
+    command -v "$paket" >/dev/null || apt-get install -y -qq "$paket"
+done
+tamam "curl + jq (SPA artifact indirme)"
+if command -v node >/dev/null || command -v npm >/dev/null; then
+    uyari "Sunucuda Node/npm var — yayın için GEREKMEZ ve kullanılmaz (SPA CI'da derlenir)."
+fi
 
 # ---------------------------------------------------------------- 2. kullanıcı + dizinler
 bilgi "Kullanıcı ve dizinler"
@@ -92,6 +105,9 @@ else
     uyari "$ENV_FILE üretildi; Platform__AdminUser/AdminPasswordHash HÂLÂ 'DEGISTIR' — doldurmadan ERP açılmaz."
 fi
 chown root:"$APP_USER" "$ENV_FILE"; chmod 0640 "$ENV_FILE"
+# Var olan dosya ezilmediği için F2.2'den önce kurulmuş sunucularda bu satır elle eklenir.
+grep -q '^RACAR_GH_TOKEN=' "$ENV_FILE" \
+    || uyari "$ENV_FILE içinde RACAR_GH_TOKEN yok — yayinla.sh SPA artifact'ını indiremez (docs/ops/f2-2-sunucu-adimlari.md)."
 tamam "$ENV_FILE (0640 root:$APP_USER)"
 
 # ---------------------------------------------------------------- 5. systemd
@@ -133,6 +149,7 @@ cat <<SON
 
   1) $ENV_FILE içindeki 'DEGISTIR' kalanları doldur:
        Platform__AdminUser / Platform__AdminPasswordHash
+       RACAR_GH_TOKEN  (SPA artifact'ı için SALT-OKUR GitHub token'ı — docs/ops/f2-2-sunucu-adimlari.md)
      grep DEGISTIR $ENV_FILE
 
   2) Caddyfile: deploy/Caddyfile.ornek → /etc/caddy/Caddyfile (domainleri kendi domaininle değiştir)

@@ -23,6 +23,15 @@ Pii__HmacKey=DEGISTIR_openssl_rand_base64_48
 # /opt/racar ALTINDA OLMAMALI — deploy dizini değiştiğinde ring ile birlikte PII gider.
 RACAR_DP_KEYS=/var/lib/racar/dp-keys
 
+# --- Yeni arayüz (SPA) artifact'ı — yayinla.sh ---------------------------------
+# CI, main'deki her yeşil commit için spa-<sha>.tar.gz'yi GitHub release asset'i olarak yükler;
+# yayinla.sh checkout edilen SHA'nınkini bu token ile indirir. SALT-OKUR fine-grained token:
+# Repository access = yalnız bu repo, Permissions = Contents: Read-only (başka hiçbir şey).
+# Adımlar: docs/ops/f2-2-sunucu-adimlari.md. Değer hiçbir çıktıya yazdırılmaz.
+RACAR_GH_TOKEN=DEGISTIR_salt_okur_github_token
+# Repo farklıysa (fork/taşıma): sahip/repo
+# RACAR_GH_REPO=BurakkYuce/Rent-A-Car-Service
+
 # --- Platform süper-admin konsolu (/platform) --------------------------------
 Platform__AdminUser=DEGISTIR
 # Düz şifre DEĞİL, hash (PlatformCredentials.HashPassword ile üretilir).
