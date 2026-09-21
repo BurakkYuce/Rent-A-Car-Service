@@ -473,8 +473,10 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         var muaf = UiUclari().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
                                          && e.Metadata.GetMetadata<IzinMetadata>() is null)
             .Select(Rota).ToList();
+        // F3.3: /istemci-hata da muaf — her oturum yalnız KENDİ tarayıcı hatasını raporlar (veri yok, yalnız log).
         Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
                                           || r == "/api/ui/v1/menu"
+                                          || r == "/api/ui/v1/istemci-hata"
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
     }
 

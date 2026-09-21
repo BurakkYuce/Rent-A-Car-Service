@@ -18,6 +18,8 @@ export type GirisIstegi =
   paths['/api/ui/v1/oturum/giris']['post']['requestBody']['content']['application/json'];
 
 export type MenuYaniti = Semalar['MenuYaniti'];
+/** `POST /api/ui/v1/istemci-hata` gövdesi (F3.3). */
+export type IstemciHataIstegi = Semalar['IstemciHataIstegi'];
 export type SecimOgesi = Semalar['SecimOgesi'];
 
 type SecimYolu = Extract<keyof paths, `/api/ui/v1/secim/${string}`>;

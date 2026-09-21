@@ -25,6 +25,99 @@
       "aciklama": "Gösterilecek kayıt bulunamadı."
     }
   },
+  "oturum": {
+    "giris": {
+      "baslik": "Giriş yap",
+      "aciklama": "Firma kodunuz, kullanıcı adınız ve parolanızla oturum açın.",
+      "firma": "Firma kodu",
+      "kullanici": "Kullanıcı adı",
+      "sifre": "Parola",
+      "gonder": "Giriş yap",
+      "gonderiliyor": "Giriş yapılıyor…",
+      "zorunlu": "Bu alan zorunludur.",
+      "cikisYapildi": "Oturumunuz kapatıldı.",
+      "hata": {
+        "hatali": "Firma, kullanıcı veya parola hatalı.",
+        "cokIstek": "Çok fazla deneme yapıldı. Lütfen biraz bekleyip yeniden deneyin.",
+        "kiraciKapali": "Firma hesabı kapalı. Yöneticinizle iletişime geçin.",
+        "ag": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
+        "genel": "Giriş yapılamadı. Lütfen yeniden deneyin."
+      }
+    },
+    "yenidenGiris": {
+      "baslik": "Oturumunuz sona erdi",
+      "aciklama": "Girdiğiniz bilgiler korunuyor. Parolanızla yeniden giriş yaptığınızda işleminiz kaldığı yerden devam eder.",
+      "gonder": "Giriş yap ve devam et",
+      "vazgec": "Vazgeç"
+    },
+    "cikis": "Çıkış yap",
+    "pilotDegil": "Yeni arayüz bu firmada henüz açık değil. Mevcut ekranları kullanmaya devam edebilirsiniz.",
+    "yetkisizSayfa": "Bu sayfayı görüntüleme yetkiniz yok."
+  },
+  "geriBildirim": {
+    "bildirimler": "Bildirimler",
+    "kapat": "Kapat",
+    "sunucuHatasi": "Beklenmeyen bir sunucu hatası oluştu. İşlem kaydedilmemiş olabilir; kontrol edip yeniden deneyin.",
+    "agHatasi": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
+    "mukerrerBaslik": "Mükerrer işlem",
+    "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
+    "durum": {
+      "basari": "Başarılı",
+      "bilgi": "Bilgi",
+      "uyari": "Uyarı",
+      "hata": "Hata",
+      "notr": "Bildirim",
+      "bekleme": "İşleniyor"
+    },
+    "onay": {
+      "onayla": "Onayla",
+      "vazgec": "Vazgeç"
+    },
+    "kaydedilmemis": {
+      "baslik": "Sayfadan ayrılınsın mı?",
+      "ayril": "Sayfadan ayrıl",
+      "kal": "Sayfada kal"
+    }
+  },
+  "surum": {
+    "yeniSurum": "Yeni sürüm var. Açık işinizi kaydettikten sonra sayfayı yenileyin.",
+    "yenile": "Yenile",
+    "yenilemeBasarisiz": "Uygulamanın yeni sürümü yüklenemedi. Sayfayı yenileyin."
+  },
+  "vitrin": {
+    "baglanti": "Geri bildirim vitrini",
+    "baslik": "Geri bildirim vitrini",
+    "anaSayfa": "Ana sayfa",
+    "formBaslik": "Deneme formu",
+    "formAciklama": "Sunucu hatalarında formun korunduğunu gösterir. Bu uç yalnız testlerde yanıt verir.",
+    "plaka": "Plaka",
+    "aciklama": "Açıklama",
+    "kaydet": "Kaydet",
+    "kaydedildi": "Kayıt kaydedildi.",
+    "sonuc": "Kayıt no: {{id}}",
+    "yenilendi": "Kayıt yeniden yüklendi ({{sayi}}).",
+    "toastBaslik": "Bildirimler ve onay",
+    "ornekToast": "Örnek bildirim metni.",
+    "onayIste": "Onay iste",
+    "onayBaslik": "Kayıt silinsin mi?",
+    "onayMesaj": "Bu işlem geri alınamaz.",
+    "onaylandi": "Onaylandı.",
+    "vazgecildi": "Vazgeçildi.",
+    "tablo": {
+      "baslik": "Tablo vitrini",
+      "aciklama": "49 sütun × 5.000 araç: sunucu sayfalama ve sıralama, sabit plaka sütunu, klavye gezinmesi, kullanıcıya kayıtlı sütun düzeni.",
+      "etiket": "Araç listesi",
+      "senaryo": "Senaryo",
+      "senaryolar": {
+        "normal": "Normal",
+        "bos": "Boş",
+        "hata": "Hata",
+        "yavas": "Yavaş"
+      },
+      "secili": "{{adet}} satır seçili",
+      "acilan": "Açılan: {{plaka}}"
+    }
+  },
   "form": {
     "zorunlu": "zorunlu",
     "genelHata": "Kayıt yapılamadı. Aşağıdaki hataları düzeltip yeniden deneyin.",
@@ -138,22 +231,6 @@
       "siralamaYok": "Sıralama varsayılana döndü",
       "genislik": "{{baslik}} genişliği {{px}} piksel",
       "tasindi": "{{baslik}} {{sira}}. sıraya taşındı"
-    }
-  },
-  "vitrin": {
-    "tablo": {
-      "baslik": "Tablo vitrini",
-      "aciklama": "49 sütun × 5.000 araç: sunucu sayfalama ve sıralama, sabit plaka sütunu, klavye gezinmesi, kullanıcıya kayıtlı sütun düzeni.",
-      "etiket": "Araç listesi",
-      "senaryo": "Senaryo",
-      "senaryolar": {
-        "normal": "Normal",
-        "bos": "Boş",
-        "hata": "Hata",
-        "yavas": "Yavaş"
-      },
-      "secili": "{{adet}} satır seçili",
-      "acilan": "Açılan: {{plaka}}"
     }
   }
 }

@@ -221,6 +221,7 @@ builder.Services.AddAuthorization(o =>
 // ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız /auth/login) ----
 var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
 var loginWindowSec = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
+var istemciHataPermit = builder.Configuration.GetValue("RateLimit:IstemciHataPermit", 30);
 builder.Services.AddRateLimiter(o =>
 {
     o.AddPolicy("login", http => RateLimitPartition.GetFixedWindowLimiter(
@@ -231,6 +232,16 @@ builder.Services.AddRateLimiter(o =>
             Window = TimeSpan.FromSeconds(loginWindowSec),
             QueueLimit = 0,
         }));
+    // F3.3: yeni arayüzün istemci hata raporu (POST /api/ui/v1/istemci-hata) — IP başına; limiter kimlik
+    // doğrulamadan ÖNCE koştuğu için kullanıcıya göre bölünemez. İstemci de sayfa başına 10 raporla sınırlı.
+    o.AddPolicy(RentACar.Web.Api.IstemciHata.IstemciHataApi.HizPolitikasi, http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = istemciHataPermit,
+            Window = TimeSpan.FromSeconds(60),
+            QueueLimit = 0,
+        }));
     // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
     // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
     // Tenant girişinde formdaki dönüş adresi (ReturnUrl) korunur: sınıra takılan kullanıcı bir dakika
@@ -239,13 +250,14 @@ builder.Services.AddRateLimiter(o =>
     // belleğe almak brute-force'u bellek saldırısına çevirirdi. Değer GüvenliDonus'tan geçer.
     o.OnRejected = async (ctx, ct) =>
     {
-        RentACar.Application.Observability.RacarMetrics.RateLimitRejected("login"); // metrik: rate-limit reddi
+        var politika = ctx.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "login";
+        RentACar.Application.Observability.RacarMetrics.RateLimitRejected(politika); // metrik: rate-limit reddi
         var req = ctx.HttpContext.Request;
         // F1.2: yeni arayüz API'si yönlendirme değil 429 ProblemDetails alır (SPA formu korur, bekletir).
         if (RentACar.Web.Api.UiApiExtensions.UiYolu(req.Path))
         {
-            await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
-                RentACar.Web.Api.UiHata.CokIstek, "Çok fazla deneme; biraz sonra tekrar deneyin.");
+            await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext, RentACar.Web.Api.UiHata.CokIstek,
+                politika == "login" ? "Çok fazla deneme; biraz sonra tekrar deneyin." : "Çok fazla istek; biraz sonra tekrar deneyin.");
             return;
         }
         if (req.Path.StartsWithSegments("/platform"))

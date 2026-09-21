@@ -1,0 +1,91 @@
+// Geri bildirim ve oturum yüzeyleri (F3.3): diyalog kabı, tehlike düğmesi, form üstü mesaj.
+// Bileşen stili değil GLOBAL: CDK paneli uygulama kökünün dışına (overlay kabına) çizilir. CDK overlay
+// yapısal stilleri angular.json'daki `overlay-prebuilt.css`'ten; alan/girdi sınıfları `_form.scss`'te (F3.6).
+
+// Katman sırası token'lardan: toast bildirimleri diyaloğun üstünde.
+.cdk-overlay-container {
+  z-index: var(--rc-z-modal);
+}
+
+.rc-diyalog-perdesi {
+  background-color: var(--rc-perde);
+}
+
+.rc-diyalog-paneli {
+  width: min(28rem, calc(100vw - var(--rc-bosluk-8)));
+  max-height: calc(100vh - var(--rc-bosluk-8));
+  overflow: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-xl);
+  background-color: var(--rc-yuzey);
+  box-shadow: var(--rc-golge-3);
+}
+
+// CDK diyalog kabının kendi odak halkası yok; açılışta kaba odaklanırsa görünür olsun.
+.cdk-dialog-container:focus-visible {
+  outline: var(--rc-odak-kalinlik) solid var(--rc-odak);
+  outline-offset: calc(-1 * var(--rc-odak-kalinlik));
+}
+
+.rc-diyalog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-5);
+}
+
+.rc-diyalog__ust {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+}
+
+.rc-diyalog__govde {
+  color: var(--rc-metin-ikincil);
+}
+
+.rc-diyalog__alt {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--rc-bosluk-2);
+}
+
+// Tehlikeli eylem düğmesi (silme, iptal onayı).
+.rc-dugme--tehlike {
+  border-color: var(--rc-hata-kenar);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+
+  &:hover {
+    border-color: var(--rc-hata-metin);
+    background-color: var(--rc-hata-zemin);
+  }
+}
+
+// Form üstü mesaj (genel hata ya da bilgi).
+.rc-form-mesaji {
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  border: 1px solid var(--rc-bilgi-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-bilgi-zemin);
+  color: var(--rc-bilgi-metin);
+}
+
+.rc-form-mesaji--hata {
+  border-color: var(--rc-hata-kenar);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+}
+
+.rc-form-mesaji--uyari {
+  border-color: var(--rc-uyari-kenar);
+  background-color: var(--rc-uyari-zemin);
+  color: var(--rc-uyari-metin);
+}
+
+// Kilitli (salt-okunur) girdi: yeniden giriş diyaloğunda firma/kullanıcı.
+.rc-girdi[readonly] {
+  background-color: var(--rc-yuzey-alt);
+  color: var(--rc-metin-ikincil);
+}

@@ -1,7 +1,8 @@
-// Genel stiller: token'lar → font → taban → sınıf tabanlı primitifler → form seti → yazdırma. Sıra önemli.
+// Genel stiller: token'lar → font → taban → sınıf tabanlı primitifler → form seti → geri bildirim → yazdırma. Sıra önemli.
 @use 'styles/tokenlar';
 @use 'styles/fontlar';
 @use 'styles/taban';
 @use 'styles/primitifler';
 @use 'styles/form';
+@use 'styles/geri-bildirim';
 @use 'styles/yazdir';
