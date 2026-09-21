@@ -50,12 +50,13 @@ public sealed class UiHataTests
     }
 
     [Fact]
-    public void Kod_tablosu_sozlesmedeki_sekiz_kodu_ve_durumlarini_tasir()
+    public void Kod_tablosu_sozlesmedeki_kodlari_ve_durumlarini_tasir()
     {
         var beklenen = new Dictionary<string, int>
         {
             ["dogrulama"] = 400, ["yetki_yok"] = 403, ["pilot_degil"] = 403, ["cakisma"] = 409,
             ["mukerrer"] = 409, ["oturum_yok"] = 401, ["kiraci_kapali"] = 401, ["cok_istek"] = 429,
+            ["xsrf_gecersiz"] = 400, // F1.2 eki: CSRF reddi (SPA token yenileyip tekrarlar)
         };
         Assert.Equal(beklenen.Count, UiHata.Tablo.Count);
         foreach (var (kod, durum) in beklenen)
