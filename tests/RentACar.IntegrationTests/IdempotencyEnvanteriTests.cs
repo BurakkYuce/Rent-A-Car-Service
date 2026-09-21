@@ -1252,9 +1252,12 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
     [Fact]
     public async Task A3_Ayni_baslik_farkli_islem_para_kaybi_yok()
     {
-        // Sözleşme: istemci anahtarı her 2xx'ten sonra yeniler. Buna uymayan istemcide bile sonuç ya
-        // görünür red (aynı tablo: tahsilat→ödeme 409) ya da bağımsız işlem (farklı tablo) olur —
-        // SESSİZ para kaybı ya da çift yazım yok.
+        // Sözleşme: istemci anahtarı her 2xx'ten sonra yeniler. Buna uymayan istemcide sonuç:
+        //   * aynı tabloda/aynı kaynak türünde (tahsilat→ödeme aynı CashTransactions index'i) → 409;
+        //   * farklı tablo/kaynak türünde (tahsilat → depozito al) → iki BAĞIMSIZ işlem, ikisi de yazılır;
+        //   * AYNI işlem türünde FARKLI içerik (başka cari/tutar) → 409 "farklı içerikle" — sessiz başarı
+        //     yalnız içerik birebir aynıysa verilir (M1-M7 testleri; adversarial MEDIUM-1 düzeltmesi).
+        // Hiçbir durumda istek sessizce yutulup kullanıcıya "başarılı" denmez.
         var tenant = Guid.NewGuid();
         var user = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
@@ -1331,5 +1334,277 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         Assert.Equal(100m, await kasa.TekCariTopluKapatAsync(baska, [kalem], LedgerAccountType.Kasa, islemAnahtari: k2));
         Assert.Equal(0m, await Cari(sp, baska));
         await DengeAsync(sp);
+    }
+
+    // =====================================================================================
+    // Adversarial MEDIUM-1 — AYNI anahtar, FARKLI içerik → 409 (asla sessiz başarı değil)
+    // =====================================================================================
+
+    [Fact]
+    public async Task M1_Manuel_fatura_ayni_anahtar_baska_cari_ya_da_tutar_409_hic_bir_sey_yazilmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var fat = sp.GetRequiredService<InvoiceService>();
+        var a = await CariOlustur(sp, "A");
+        var b = await CariOlustur(sp, "B");
+        var k = Guid.NewGuid();
+
+        Assert.Equal(k, await fat.CreateManualAsync(new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }));
+        // P1: aynı anahtar, başka cari + başka tutar → önce A'nın id'si SESSİZCE dönüyordu, B 0 kalıyordu.
+        var ex = await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+            fat.CreateManualAsync(new ManualInvoiceInput { CariId = b, NetTutar = 5000m, KdvOrani = 0m, IslemAnahtari = k }));
+        Assert.Equal(MukerrerIslemException.FarkliIcerikMesaji, ex.Message);
+        // Aynı cari, başka tutar → 409.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+            fat.CreateManualAsync(new ManualInvoiceInput { CariId = a, NetTutar = 2000m, KdvOrani = 0m, IslemAnahtari = k }));
+        // Birebir aynı tekrar → sessiz, aynı id.
+        Assert.Equal(k, await fat.CreateManualAsync(new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }));
+
+        Assert.Equal(1000m, await Cari(sp, a));                             // ELLE: tek fatura 1000 (KDV 0)
+        Assert.Equal(0m, await Cari(sp, b));                                // B'ye hiçbir şey yazılmadı
+        Assert.Equal(1, await Say(sp, db => db.Invoices));
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task M1_Manuel_fatura_ayni_anahtar_farkli_cari_ESZAMANLI_biri_yazilir_digeri_409()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(tenant);
+        var sp = scope.ServiceProvider;
+        var a = await CariOlustur(sp, "A");
+        var b = await CariOlustur(sp, "B");
+        var k = Guid.NewGuid();
+        var sira = 0;
+
+        // Yarış yolu (PK_Invoices dalı) da içerik karşılaştırır.
+        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<InvoiceService>().CreateManualAsync(
+            Interlocked.Increment(ref sira) == 1
+                ? new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }
+                : new ManualInvoiceInput { CariId = b, NetTutar = 5000m, KdvOrani = 0m, IslemAnahtari = k }));
+
+        Assert.Single(sonuc, r => r.Hata is null);
+        var hata = Assert.IsType<MukerrerIslemException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        Assert.Equal(MukerrerIslemException.FarkliIcerikMesaji, hata.Message);
+        Assert.Equal(1, await Say(sp, db => db.Invoices));
+        // ELLE: kazanan hangisiyse yalnız onun tutarı yazıldı (A 1000 ya da B 5000), diğeri 0.
+        var (ba, bb) = (await Cari(sp, a), await Cari(sp, b));
+        Assert.True((ba == 1000m && bb == 0m) || (ba == 0m && bb == 5000m), $"A={ba} B={bb}");
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task M2_Depozito_iade_ayni_anahtar_baska_cari_ve_tutar_409_hic_bir_sey_yazilmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var dep = sp.GetRequiredService<DepozitoService>();
+        var a = await CariOlustur(sp, "A");
+        var b = await CariOlustur(sp, "B");
+        await dep.AlAsync(a, 500m, LedgerAccountType.Kasa);
+        await dep.AlAsync(b, 100m, LedgerAccountType.Kasa);
+        var k = Guid.NewGuid();
+
+        await dep.IadeAsync(a, 200m, LedgerAccountType.Kasa, islemAnahtari: k);
+        // P3: önce k döndürüp HİÇBİR ŞEY yazmıyordu (F1.4 öncesi bakiye çitinden 400'dü).
+        var ex = await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.IadeAsync(b, 900m, LedgerAccountType.Kasa, islemAnahtari: k));
+        Assert.Equal(MukerrerIslemException.FarkliIcerikMesaji, ex.Message);
+        // Aynı cari, başka tutar / başka hesap → 409.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.IadeAsync(a, 250m, LedgerAccountType.Kasa, islemAnahtari: k));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.IadeAsync(a, 200m, LedgerAccountType.Banka, islemAnahtari: k));
+        // Birebir aynı tekrar → sessiz.
+        Assert.Equal(k, await dep.IadeAsync(a, 200m, LedgerAccountType.Kasa, islemAnahtari: k));
+
+        Assert.Equal(300m, await dep.GetBakiyeAsync(a));                    // ELLE: 500 − 200 (tek)
+        Assert.Equal(100m, await dep.GetBakiyeAsync(b));                    // ELLE: dokunulmadı
+        Assert.Equal(400m, await Bakiye(sp, LedgerAccountType.Kasa));       // ELLE: 500 + 100 − 200
+        Assert.Equal(0m, await Bakiye(sp, LedgerAccountType.Banka));
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task M2_Depozito_ayni_anahtar_farkli_cari_ESZAMANLI_biri_yazilir_digeri_409()
+    {
+        // Kilit cari başına: farklı carilerin istekleri serileşmez → catch yolu da içerik karşılaştırmalı.
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(tenant);
+        var sp = scope.ServiceProvider;
+        var dep = sp.GetRequiredService<DepozitoService>();
+        var a = await CariOlustur(sp, "A");
+        var b = await CariOlustur(sp, "B");
+        await dep.AlAsync(a, 500m, LedgerAccountType.Kasa);
+        await dep.AlAsync(b, 100m, LedgerAccountType.Kasa);
+        var k = Guid.NewGuid();
+        var sira = 0;
+
+        var sonuc = await IkiEsZamanli(host, tenant, s => Interlocked.Increment(ref sira) == 1
+            ? s.GetRequiredService<DepozitoService>().IadeAsync(a, 200m, LedgerAccountType.Kasa, islemAnahtari: k)
+            : s.GetRequiredService<DepozitoService>().IadeAsync(b, 50m, LedgerAccountType.Kasa, islemAnahtari: k));
+
+        Assert.Single(sonuc, r => r.Hata is null);
+        Assert.IsType<MukerrerIslemException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        // ELLE: ya A 500→300 (B 100) ya B 100→50 (A 500).
+        var (da, db2) = (await dep.GetBakiyeAsync(a), await dep.GetBakiyeAsync(b));
+        Assert.True((da == 300m && db2 == 100m) || (da == 500m && db2 == 50m), $"A={da} B={db2}");
+        Assert.Equal(2, await DefterSatir(sp, "DepozitoIade"));
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task M3_Gider_odemesi_ayni_anahtar_baska_gider_ya_da_tutar_409_hic_bir_sey_yazilmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var gid = sp.GetRequiredService<ExpenseService>();
+        var ted = await CariOlustur(sp, "Tedarikci");
+        var x = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.AcikHesap, CariId = ted });
+        var y = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.AcikHesap, CariId = ted });
+        var k = Guid.NewGuid();
+
+        Assert.NotNull(await gid.OdemeEkleAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 400m, IslemAnahtari = k }));
+        // P4: başka gider + başka tutar → önce sessiz null (hiçbir şey yazılmıyordu).
+        var ex = await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+            gid.OdemeEkleAsync(new GiderOdemeInput { ExpenseId = y, Tutar = 999m, IslemAnahtari = k }));
+        Assert.Equal(MukerrerIslemException.FarkliIcerikMesaji, ex.Message);
+        // Aynı gider, başka tutar → 409; "kalanın tamamı" (null) ama ilk ödeme kapatmamıştı → 409.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => gid.OdemeEkleAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 500m, IslemAnahtari = k }));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => gid.OdemeEkleAsync(new GiderOdemeInput { ExpenseId = x, IslemAnahtari = k }));
+        // Birebir aynı tekrar → sessiz null.
+        Assert.Null(await gid.OdemeEkleAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 400m, IslemAnahtari = k }));
+
+        var durum = await gid.OdemeDurumlariAsync(await gid.ListAsync());
+        Assert.Equal(800m, durum[x].Kalan);                                 // ELLE: 1200 − 400 (tek)
+        Assert.Equal(300m, durum[y].Kalan);                                 // ELLE: dokunulmadı
+        Assert.Equal(1, await Say(sp, db => db.Set<GiderOdeme>()));
+    }
+
+    [Fact]
+    public async Task M3_Gider_odemesi_ayni_anahtar_farkli_gider_ESZAMANLI_biri_yazilir_digeri_409()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(tenant);
+        var sp = scope.ServiceProvider;
+        var gid = sp.GetRequiredService<ExpenseService>();
+        var ted = await CariOlustur(sp, "Tedarikci");
+        var x = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.AcikHesap, CariId = ted });
+        var y = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.AcikHesap, CariId = ted });
+        var k = Guid.NewGuid();
+        var sira = 0;
+
+        var sonuc = await IkiEsZamanli(host, tenant, s => Interlocked.Increment(ref sira) == 1
+            ? s.GetRequiredService<ExpenseService>().OdemeEkleAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 400m, IslemAnahtari = k })
+            : s.GetRequiredService<ExpenseService>().OdemeEkleAsync(new GiderOdemeInput { ExpenseId = y, Tutar = 100m, IslemAnahtari = k }));
+
+        Assert.Single(sonuc, r => r.Hata is null && r.Deger is not null);
+        Assert.IsType<MukerrerIslemException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        Assert.Equal(1, await Say(sp, db => db.Set<GiderOdeme>()));
+    }
+
+    [Fact]
+    public async Task M4_Virman_cari_virman_bakiye_duzeltme_ayni_anahtar_farkli_icerik_409()
+    {
+        // LedgerPoster eskiden HER unique ihlalini sessizce yutuyordu.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var kasa = sp.GetRequiredService<CashService>();
+        var duz = sp.GetRequiredService<BakiyeDuzeltmeService>();
+        var a = await CariOlustur(sp, "A");
+        var b = await CariOlustur(sp, "B");
+        var c = await CariOlustur(sp, "C");
+
+        var kv = Guid.NewGuid();
+        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, islemAnahtari: kv);
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 700m, islemAnahtari: kv));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => kasa.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Kasa, 500m, islemAnahtari: kv));
+        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, islemAnahtari: kv); // aynı → sessiz
+
+        var kc = Guid.NewGuid();
+        await kasa.TransferBetweenCariAsync(a, b, 300m, islemAnahtari: kc);
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => kasa.TransferBetweenCariAsync(a, c, 300m, islemAnahtari: kc));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => kasa.TransferBetweenCariAsync(a, b, 301m, islemAnahtari: kc));
+
+        var kd = Guid.NewGuid();
+        await duz.AdjustAsync(new BakiyeDuzeltmeInput { CariId = c, Tutar = 150m, Yon = BakiyeDuzeltmeYonu.Borclandir, IslemAnahtari = kd });
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+            duz.AdjustAsync(new BakiyeDuzeltmeInput { CariId = a, Tutar = 150m, Yon = BakiyeDuzeltmeYonu.Borclandir, IslemAnahtari = kd }));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+            duz.AdjustAsync(new BakiyeDuzeltmeInput { CariId = c, Tutar = 150m, Yon = BakiyeDuzeltmeYonu.Alacaklandir, IslemAnahtari = kd }));
+
+        Assert.Equal(-500m, await Bakiye(sp, LedgerAccountType.Kasa));      // ELLE: tek virman 500
+        Assert.Equal(500m, await Bakiye(sp, LedgerAccountType.Banka));
+        Assert.Equal(-300m, await Cari(sp, a));                              // ELLE: yalnız a→b 300
+        Assert.Equal(300m, await Cari(sp, b));
+        Assert.Equal(150m, await Cari(sp, c));                               // ELLE: yalnız düzeltme 150
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task M5_Hgs_ayni_donem_farkli_tutar_409_sessiz_degil()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var cari = Guid.NewGuid();
+        var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
+        HgsReflectionService Hgs(decimal tutar) => new(new SahteHgs([new TollCrossing(t, "Köprü", tutar)]),
+            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<ICurrentUser>());
+
+        await Hgs(100m).ReflectAsync(cari, "34ID50", t, t.AddDays(1));
+        // Aynı (cari, plaka, dönem) → aynı deterministik anahtar; geçiş tutarı değişmişse eskiden sessizce
+        // yutuluyordu (fark hiç borçlandırılmıyordu, sonuç "yansıtıldı 206" diyordu).
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => Hgs(200m).ReflectAsync(cari, "34ID50", t, t.AddDays(1)));
+        await Hgs(100m).ReflectAsync(cari, "34ID50", t, t.AddDays(1));   // aynı → sessiz
+
+        Assert.Equal(103m, await Cari(sp, cari));                          // ELLE: 100 × 1,03 (tek)
+    }
+
+    [Fact]
+    public async Task M6_Depozito_irat_ayni_anahtar_baska_kira_atfi_409()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var dep = sp.GetRequiredService<DepozitoService>();
+        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 51", KiraBas, 3);
+        await dep.AlAsync(musteri, 400m, LedgerAccountType.Kasa);
+        var k = Guid.NewGuid();
+
+        await dep.IratAsync(musteri, 100m, islemAnahtari: k);
+        // Aynı cari/tutar ama gelir başka araca (kiraya) atfediliyor → farklı işlem → 409.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.IratAsync(musteri, 100m, rentalId: kira, islemAnahtari: k));
+        Assert.Equal(k, await dep.IratAsync(musteri, 100m, islemAnahtari: k));   // aynı → sessiz
+
+        Assert.Equal(300m, await dep.GetBakiyeAsync(musteri));               // ELLE: 400 − 100
+        Assert.Equal(1, await Say(sp, db => db.DepozitoIratlar));
+    }
+
+    [Fact]
+    public async Task M7_Donem_faturasi_acik_farkli_KDV_orani_ile_tekrar_409()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var fat = sp.GetRequiredService<InvoiceService>();
+        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 52", KiraBas, 90);
+
+        var f1 = await fat.CreateDonemFaturasiAsync(kira, 1, kdvRate: 0.20m);
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => fat.CreateDonemFaturasiAsync(kira, 1, kdvRate: 0.10m));
+        Assert.Equal(f1, await fat.CreateDonemFaturasiAsync(kira, 1, kdvRate: 0.20m));   // aynı oran → sessiz
+        Assert.Equal(f1, await fat.CreateDonemFaturasiAsync(kira, 1));                    // oran verilmedi → sessiz
+
+        Assert.Equal(3100m, await Cari(sp, musteri));                        // ELLE: D1 31 × 100 (tek)
+        Assert.Equal(1, await Say(sp, db => db.Invoices));
     }
 }

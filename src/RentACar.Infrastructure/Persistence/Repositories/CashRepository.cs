@@ -339,10 +339,10 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // ÖNCE bakılır; yoksa tutulanın TAMAMINI iade eden bir gönderimin tekrarı "tutulanı aşamaz"
             // (400) alıyor, kısmi iadenin tekrarı sessiz geçiyordu — sonuç tutara bağlıydı. Anahtarsız
             // çağrıda SourceId taze Guid'dir, bu sorgu hiçbir şey bulmaz.
-            var kumeSid = entries[0].SourceId;
-            var kumeSt = entries[0].SourceType;
-            if (await db.AccountLedgerEntries.AsNoTracking()
-                    .AnyAsync(e => e.SourceType == kumeSt && e.SourceId == kumeSid, ct))
+            // Adversarial MEDIUM-1: sessiz başarı YALNIZ içerik birebir aynıysa (cari, hesap, tutar, döviz,
+            // kur; irat'ta ayrıca kira atfı). Aynı anahtar başka cari/tutarla → 409 (önceden sessizce hiçbir
+            // şey yazmadan "tamam" dönüyordu).
+            if (await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
             {
                 await dbTx.RollbackAsync(ct);
                 return;
@@ -386,17 +386,32 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 await dbTx.RollbackAsync(ct);
                 // TENANT-GÖRÜNÜR teyit (adversarial 1.2 Low): aynı kayıt bu tenant'ta varsa gerçek
                 // çift-submit → sessiz idempotent no-op (I3). Görünmüyorsa (çapraz-tenant PK çakışması)
-                // sessiz yutmak geliri kaybettirir → net red.
-                var sid = entries[0].SourceId;
-                var st = entries[0].SourceType;
-                var gorunur = izKaydi is not null
-                    ? await db.DepozitoIratlar.AsNoTracking().AnyAsync(d => d.Id == izKaydi.Id, ct)
-                    : await db.AccountLedgerEntries.AsNoTracking()
-                        .AnyAsync(e => e.SourceType == st && e.SourceId == sid, ct);
-                if (!gorunur)
+                // sessiz yutmak geliri kaybettirir → net red. F1.4 MEDIUM-1: görünse de içerik farklıysa
+                // (farklı cari kilitleri aynı anahtarla yarıştı) → 409 (DepozitoMevcutMuAsync fırlatır).
+                if (!await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
                     throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
             }
         }, ct);
+    }
+
+    /// <summary>
+    /// F1.4 — bu (SourceType, SourceId) kümesi bu kiracıda yazılmış mı? Yazılmamışsa false. Yazılmış ve
+    /// içerik gelenle BİREBİR aynıysa true (çağıran sessiz no-op yapar). Yazılmış ama içerik farklıysa
+    /// (başka cari/hesap/tutar ya da irat'ta başka kira) <see cref="MukerrerIslemException"/>.
+    /// </summary>
+    private static async Task<bool> DepozitoMevcutMuAsync(
+        AppDbContext db, IReadOnlyList<AccountLedgerEntry> entries, DepozitoIrat? izKaydi, CancellationToken ct)
+    {
+        var mevcut = await DefterKumesi.OkuAsync(db, [entries[0].SourceType], [entries[0].SourceId], ct);
+        if (mevcut.Count == 0) return false;
+        if (!DefterKumesi.Ayni(mevcut, entries)) throw MukerrerIslemException.FarkliIcerik();
+        if (izKaydi is not null)
+        {
+            var kayitliKira = await db.DepozitoIratlar.AsNoTracking()
+                .Where(d => d.Id == izKaydi.Id).Select(d => d.RentalId).FirstOrDefaultAsync(ct);
+            if (kayitliKira != izKaydi.RentalId) throw MukerrerIslemException.FarkliIcerik();
+        }
+        return true;
     }
 
     /// <summary>(tenant, cari) kapsamlı pg_advisory_xact_lock — tx bitince otomatik bırakılır.</summary>

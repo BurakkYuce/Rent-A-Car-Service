@@ -303,8 +303,16 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 if (invoice.ManuelMi && !invoice.IadeMi && invoice.RentalId is null && invoice.KaynakKiraId is null
                     && (ex.InnerException as PostgresException)?.ConstraintName == "PK_Invoices")
                 {
-                    if (await db.Invoices.AsNoTracking().AnyAsync(i => i.Id == invoice.Id, ct)) return;
-                    throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
+                    var mevcut = await db.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.Id == invoice.Id, ct)
+                        ?? throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
+                    // Adversarial MEDIUM-1: sessiz başarı YALNIZ aynı cari + aynı tutarlar için (servis
+                    // ön-kontrolüyle aynı kural); farklıysa ikinci fatura kesilmedi → 409.
+                    if (mevcut.ManuelMi && !mevcut.IadeMi && mevcut.RentalId is null && mevcut.KaynakKiraId is null
+                        && mevcut.CariId == invoice.CariId && mevcut.NetTutar == invoice.NetTutar
+                        && mevcut.KdvTutar == invoice.KdvTutar
+                        && string.Equals(mevcut.Currency, invoice.Currency, StringComparison.OrdinalIgnoreCase))
+                        return;
+                    throw MukerrerIslemException.FarkliIcerik();
                 }
                 // Fark faturası (KaynakKiraId): eşzamanlı/çift istek aynı hedefe çarptı → idempotent reddet.
                 throw new ValidationException(
