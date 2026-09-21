@@ -1,0 +1,15 @@
+<button
+  type="button"
+  [id]="dugmeId"
+  [attr.aria-expanded]="acik()"
+  [attr.aria-controls]="panelId"
+  (click)="degistir()"
+>
+  {{ baslik() }}
+  @if (etkinSayisi() > 0) {
+    <span> ({{ etkinSayisi() }} etkin)</span>
+  }
+</button>
+<div role="region" [id]="panelId" [attr.aria-labelledby]="dugmeId" [hidden]="!acik()">
+  <ng-content />
+</div>
