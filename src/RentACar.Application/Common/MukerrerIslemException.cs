@@ -17,8 +17,12 @@ public sealed class MukerrerIslemException(string mesaj) : ValidationException(m
     /// kayıtlı satırın hedefi ve tutarı gelen istekle BİREBİR eşleşirse verilir; eşleşmezse bu metinle
     /// 409 — aksi halde ikinci isteğin parası yazılmadığı hâlde kullanıcı "başarılı" görürdü.
     /// </summary>
+    // "Sayfayı yenileyip yeniden deneyin" DENMEZ (adversarial LOW-A, 2026-09-21): kur boş bırakılıp çağrı anında
+    // çözüldüğünde, ilk yazım BAŞARILI olmuşken kur değişince birebir tekrar da "farklı içerik" sayılır. Yenile +
+    // yeni form anahtarıyla gönderen kullanıcı ÇİFT kayıt (ör. çift virman) üretirdi. Mesaj önce kontrole yönlendirir;
+    // SPA da bu kodda yeni anahtarla OTOMATİK yeniden gönderim yapmaz.
     public const string FarkliIcerikMesaji =
-        "Bu işlem anahtarı farklı içerikle zaten kullanılmış; sayfayı yenileyip yeniden deneyin.";
+        "Bu işlem anahtarı farklı içerikle zaten kullanılmış; işlem daha önce kaydedilmiş olabilir. Yeniden göndermeden önce kayıtları kontrol edin.";
 
     /// <summary>Anahtar farklı içerikle kullanılmış → 409.</summary>
     public static MukerrerIslemException FarkliIcerik() => new(FarkliIcerikMesaji);

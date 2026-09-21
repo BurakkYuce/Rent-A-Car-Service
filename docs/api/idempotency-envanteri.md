@@ -23,7 +23,7 @@ Tabloyu değiştiren PR testi de değiştirmek zorunda.
 Adversarial MEDIUM-1 düzeltmesi: sessiz başarı veren her satırda kayıtlı işlemin **hedefi ve tutarı** gelen istekle karşılaştırılır.
 
 - **Aynıysa:** sessiz başarı.
-- **Farklıysa:** **409** `MukerrerIslemException.FarkliIcerikMesaji` = "Bu işlem anahtarı farklı içerikle zaten kullanılmış; sayfayı yenileyip yeniden deneyin." Hiçbir şey yazılmaz.
+- **Farklıysa:** **409** `MukerrerIslemException.FarkliIcerikMesaji` = "Bu işlem anahtarı farklı içerikle zaten kullanılmış; işlem daha önce kaydedilmiş olabilir. Yeniden göndermeden önce kayıtları kontrol edin." Hiçbir şey yazılmaz.
 
 Önceden aynı anahtar başka cari/tutarla gelince ikinci isteğin parası yazılmıyordu ama kullanıcıya "başarılı" dönüyordu.
 
@@ -134,3 +134,4 @@ Düzeltme iki yoldan yapıldı:
 2. Anahtar varsa **ilk** kontrol edilir. Kontrol kilidin arkasında, bakiye/durum çitlerinden önce yapılır.
 
 Operasyonlar arası tek tip sonuç hedeflenmedi. Her satır bugünkü türünü korur: 409 mükerrer, 400 iş kuralı ya da sessiz. Tek hedef, bir satırın sonucunun zamanlamadan ve tutardan bağımsız olmasıdır.
+- **LOW-A (açık, SPA sözleşmesi):** kur/hesap istekte açık verilmediyse çağrı anında çözülür; ilk yazım başarılıyken kur değişirse birebir tekrar `farklı içerik` (409) alır. Para kaybı/çift yazım yok. Mesaj bu yüzden "yeniden göndermeden önce kontrol edin" der. **SPA kuralı:** 409 `mukerrer` + farklı içerikte yeni anahtarla OTOMATİK yeniden gönderim YAPILMAZ; kayıt yeniden yüklenir (F3.3 interceptor).
