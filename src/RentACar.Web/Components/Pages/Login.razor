@@ -22,7 +22,7 @@
         <p class="error">Firmanızın erişimi kapatıldı. Lütfen yöneticinizle iletişime geçin.</p>
     }
 
-    @* Seed kimlik ön-doldurma YALNIZ Development'ta — üretimde kimlik bilgisi sızdırılmaz. *@
+    @* Seed firma/kullanıcı ön-doldurma YALNIZ Development'ta. Parola ASLA ön-doldurulmaz (repoda sabit parola yok). *@
     <form method="post" action="/auth/login"><AntiforgeryToken />
         @* Oturum düşmüşken açılan derin bağlantı (?ReturnUrl=) girişten sonra geri açılsın diye forma
            taşınır. Yalnız GuvenliDonus'tan geçmiş değer basılır; uç yine de kendisi doğrular. *@
@@ -37,13 +37,15 @@
             <input name="kullanici" value="@(Env.IsDevelopment() ? "umit" : "")" autocomplete="off" />
         </label>
         <label>Şifre
-            <input name="sifre" type="password" value="@(Env.IsDevelopment() ? "umit1376" : "")" />
+            <input name="sifre" type="password" />
         </label>
         <button type="submit">Giriş</button>
     </form>
     @if (Env.IsDevelopment())
     {
-        <p class="muted small">Seed: firma <code>yucerent</code> / <code>demo</code>, kullanıcı <code>umit</code>, şifre <code>umit1376</code>.</p>
+        <p class="muted small">Seed: firma <code>yucerent</code> / <code>demo</code>, kullanıcı <code>umit</code> / <code>operator</code>.
+            Parola: <code>Seed:Parola</code> (user-secret) ya da ilk kurulumun açılış logundaki
+            <code>Seed kullanıcı parolası</code> WARNING satırı.</p>
     }
 </div>
 

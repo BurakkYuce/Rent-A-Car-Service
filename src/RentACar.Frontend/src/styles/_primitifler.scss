@@ -1,0 +1,163 @@
+// Sınıf tabanlı primitifler: yerel <button>/<a>/<span> üstünde çalışır (anlam ve erişilebilirlik
+// tarayıcıdan). Revlo'daki renk girdili bileşenler yerine yalnız token'lar; kiracı vurgusu otomatik.
+
+// Düğme ------------------------------------------------------------------------------------------
+.rc-dugme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rc-bosluk-1-5);
+  height: var(--rc-kontrol-yukseklik);
+  padding: 0 var(--rc-kontrol-ic-bosluk);
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin);
+  font-size: var(--rc-yazi-sm);
+  font-weight: var(--rc-agirlik-orta);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--rc-sure-hizli) var(--rc-egri),
+    border-color var(--rc-sure-hizli) var(--rc-egri);
+
+  &:hover {
+    background-color: var(--rc-yuzey-vurgu);
+  }
+
+  &[aria-pressed='true'] {
+    background-color: var(--rc-vurgu-zemin);
+    border-color: var(--rc-vurgu-metin);
+    color: var(--rc-vurgu-metin);
+  }
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    border-color: var(--rc-kenar);
+    color: var(--rc-metin-pasif);
+    background-color: var(--rc-yuzey-alt);
+    cursor: not-allowed;
+  }
+}
+
+.rc-dugme--birincil {
+  border-color: var(--rc-vurgu);
+  background-color: var(--rc-vurgu);
+  color: var(--rc-vurgu-uzeri);
+
+  &:hover {
+    border-color: var(--rc-vurgu-hover);
+    background-color: var(--rc-vurgu-hover);
+  }
+}
+
+.rc-dugme--hayalet {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.rc-dugme--kucuk {
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding: 0 var(--rc-bosluk-2);
+  font-size: var(--rc-yazi-xs);
+}
+
+.rc-dugme--buyuk {
+  height: var(--rc-kontrol-yukseklik-buyuk);
+  padding: 0 var(--rc-bosluk-4);
+}
+
+.rc-dugme--ikon {
+  width: var(--rc-kontrol-yukseklik);
+  padding: 0;
+}
+
+// Bitişik düğme grubu (segment seçici).
+.rc-dugme-grubu {
+  display: inline-flex;
+
+  > .rc-dugme {
+    border-radius: 0;
+
+    &:first-child {
+      border-start-start-radius: var(--rc-yaricap-md);
+      border-end-start-radius: var(--rc-yaricap-md);
+    }
+
+    &:last-child {
+      border-start-end-radius: var(--rc-yaricap-md);
+      border-end-end-radius: var(--rc-yaricap-md);
+    }
+
+    & + .rc-dugme {
+      margin-inline-start: -1px;
+    }
+
+    &[aria-pressed='true'],
+    &:focus-visible {
+      position: relative;
+    }
+  }
+}
+
+// Durum rozeti -----------------------------------------------------------------------------------
+.rc-rozet {
+  --_metin: var(--rc-notr-metin);
+  --_zemin: var(--rc-notr-zemin);
+  --_kenar: var(--rc-notr-kenar);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rc-bosluk-1);
+  height: 1.25rem; // 20
+  padding: 0 var(--rc-bosluk-2);
+  border: 1px solid var(--_kenar);
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--_zemin);
+  color: var(--_metin);
+  font-size: var(--rc-yazi-xs);
+  font-weight: var(--rc-agirlik-orta);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@each $durum in basari, uyari, hata, bilgi {
+  .rc-rozet--#{$durum} {
+    --_metin: var(--rc-#{$durum}-metin);
+    --_zemin: var(--rc-#{$durum}-zemin);
+    --_kenar: var(--rc-#{$durum}-kenar);
+  }
+}
+
+// İskelet (yükleniyor yer tutucusu) --------------------------------------------------------------
+.rc-iskelet {
+  display: block;
+  height: var(--rc-yazi-sm);
+  border-radius: var(--rc-yaricap-sm);
+  background: linear-gradient(
+      90deg,
+      var(--rc-iskelet) 0%,
+      var(--rc-iskelet-parlama) 50%,
+      var(--rc-iskelet) 100%
+    )
+    0 0 / 200% 100%;
+  animation: rc-iskelet-parilti 1.4s ease-in-out infinite;
+}
+
+@keyframes rc-iskelet-parilti {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-iskelet {
+    animation: none;
+  }
+}
