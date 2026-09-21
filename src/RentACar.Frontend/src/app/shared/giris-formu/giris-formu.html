@@ -1,0 +1,85 @@
+<form [formGroup]="form" (ngSubmit)="gonder()" novalidate>
+  @if (hata(); as hataAnahtari) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ hataAnahtari | transloco }}</p>
+  } @else if (bilgi(); as bilgiAnahtari) {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+      {{ bilgiAnahtari | transloco }}
+    </p>
+  }
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-firma'">{{
+      'oturum.giris.firma' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      [id]="onek() + '-firma'"
+      formControlName="firma"
+      autocomplete="organization"
+      autocapitalize="none"
+      spellcheck="false"
+      [readOnly]="kilitli()"
+      [attr.aria-invalid]="gecersiz('firma')"
+      [attr.aria-describedby]="gecersiz('firma') ? onek() + '-firma-hata' : null"
+    />
+    @if (gecersiz('firma')) {
+      <p class="rc-alan__hata" [id]="onek() + '-firma-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-kullanici'">{{
+      'oturum.giris.kullanici' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      [id]="onek() + '-kullanici'"
+      formControlName="kullanici"
+      autocomplete="username"
+      autocapitalize="none"
+      spellcheck="false"
+      [readOnly]="kilitli()"
+      [attr.aria-invalid]="gecersiz('kullanici')"
+      [attr.aria-describedby]="gecersiz('kullanici') ? onek() + '-kullanici-hata' : null"
+    />
+    @if (gecersiz('kullanici')) {
+      <p class="rc-alan__hata" [id]="onek() + '-kullanici-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-sifre'">{{
+      'oturum.giris.sifre' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      type="password"
+      [id]="onek() + '-sifre'"
+      formControlName="sifre"
+      autocomplete="current-password"
+      [attr.aria-invalid]="gecersiz('sifre')"
+      [attr.aria-describedby]="gecersiz('sifre') ? onek() + '-sifre-hata' : null"
+    />
+    @if (gecersiz('sifre')) {
+      <p class="rc-alan__hata" [id]="onek() + '-sifre-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="eylemler">
+    <ng-content />
+    <button
+      type="submit"
+      class="rc-dugme rc-dugme--birincil"
+      [attr.aria-disabled]="gonderiliyor()"
+      [attr.aria-busy]="gonderiliyor()"
+    >
+      {{ (gonderiliyor() ? 'oturum.giris.gonderiliyor' : gonderEtiketi()) | transloco }}
+    </button>
+  </div>
+</form>

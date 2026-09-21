@@ -1,26 +1,9 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-/** Konsol hatalarını (CSP ihlali dahil) ve çalışma zamanı hatalarını toplar. */
-function hatalariTopla(page: Page): string[] {
-  const hatalar: string[] = [];
-  page.on('console', (mesaj) => {
-    if (mesaj.type() === 'error') hatalar.push(mesaj.text());
-  });
-  page.on('pageerror', (hata) => hatalar.push(hata.message));
-  return hatalar;
-}
+import { ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
 
-async function ciddiIhlaller(page: Page): Promise<string[]> {
-  const sonuc = await new AxeBuilder({ page }).analyze();
-  return sonuc.violations
-    .filter((ihlal) => ihlal.impact === 'serious' || ihlal.impact === 'critical')
-    .map(
-      (ihlal) =>
-        `${ihlal.id}: ${ihlal.help} → ` +
-        ihlal.nodes.map((n) => `${n.target.join(' ')} (${n.any[0]?.message ?? ''})`).join('; '),
-    );
-}
+// Ana sayfa oturum ister (oturumGuard): `ben` sahte API'den gelir.
+test.beforeEach(async ({ page }) => oturumAc(page));
 
 const zeminRengi = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);

@@ -1,12 +1,33 @@
 import type { Routes } from '@angular/router';
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 
-/** Sayfalar tembel yüklenir: form seti (forms + CDK) ilk pakete girmez. */
+import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { misafirGuard, oturumGuard } from '@core/oturum/oturum-guard';
+
+/**
+ * Uygulama rotaları (`/app/` altında), sayfalar tembel (form seti ve CDK ilk pakete girmez). Kabuk anonim
+ * yüklenir; oturum isteyen rota `canMatch: [oturumGuard]`, izin isteyen ek olarak `izinGuard('FinanceWrite')`
+ * alır (`@core/oturum/oturum-guard`). F3.2 kabuğu bu listeyi menü kaydıyla genişletir.
+ */
 export const routes: Routes = [
+  {
+    path: 'giris',
+    canMatch: [misafirGuard],
+    title: 'Giriş — RentACar',
+    loadComponent: () => import('@features/giris/giris-sayfasi').then((m) => m.GirisSayfasi),
+  },
   {
     path: '',
     pathMatch: 'full',
+    canMatch: [oturumGuard],
     loadComponent: () => import('@features/yer-tutucu/yer-tutucu').then((m) => m.YerTutucu),
+  },
+  {
+    // F3.3 oturum/geri bildirim vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.
+    path: 'vitrin/geri-bildirim',
+    canMatch: [oturumGuard],
+    title: 'Geri bildirim vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/geri-bildirim-vitrini').then((m) => m.GeriBildirimVitrini),
   },
   {
     // F3.6 form seti vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.

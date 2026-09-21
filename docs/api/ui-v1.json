@@ -101,6 +101,28 @@
         }
       }
     },
+    "/api/ui/v1/istemci-hata": {
+      "post": {
+        "tags": [
+          "Kabuk"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IstemciHataIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/ui/v1/secim/musteri": {
       "get": {
         "tags": [
@@ -807,6 +829,41 @@
             ]
           },
           "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IstemciHataIstegi": {
+        "required": [
+          "mesaj",
+          "yigin",
+          "url",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "mesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yigin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
             "type": [
               "null",
               "string"

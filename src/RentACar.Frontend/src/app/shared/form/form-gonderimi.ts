@@ -5,6 +5,7 @@ import type { Observable } from 'rxjs';
 import { apiHatasinaCevir, type ApiHatasi } from '@core/api/api-hatasi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
+import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 
 export interface GonderimSecenekleri<T> {
   /** Sunucunun deterministik anahtarı (ör. DTO'daki `tahsilatAnahtar`) — istemci anahtarından önce. */
@@ -84,7 +85,9 @@ export function formGonderimi(kilit: GonderimKilidi = new GonderimKilidi()): For
           error: (ham: unknown) => {
             const hata = apiHatasinaCevir(ham);
             const eslesmeyen = sunucuHatalariniUygula(form, hata.alanlar, secenek.esleme);
-            if (hata.alanlar === undefined) genelHatalar.set([hata.detay]);
+            // Bant/toast'ta gösterilen (yetki_yok, alansız cakisma, 5xx…) forma ikinci kez yazılmaz (F3.3).
+            if (hata.alanlar === undefined && !genelGosterilir(hata))
+              genelHatalar.set([hata.detay]);
             else if (eslesmeyen.length > 0) genelHatalar.set(eslesmeyen);
             if (hata.alanlar !== undefined) secenek.gecersiz?.();
             secenek.hata?.(hata);

@@ -41,3 +41,26 @@
   font-size: var(--rc-yazi-xs);
   font-weight: var(--rc-agirlik-orta);
 }
+
+.oturum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+
+  p {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 10rem;
+  }
+}
+
+.kullanici {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.firma {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
