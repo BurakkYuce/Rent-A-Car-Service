@@ -285,7 +285,7 @@ public sealed class InvoiceService(
             .OrderBy(d => d.DonemSira).ToList();
         var donem = donemler.FirstOrDefault(d => d.DonemSira == donemSira)
             ?? throw new ValidationException($"Dönem {donemSira} bulunamadı (kira periyodik faturalamaya uygun olmayabilir).");
-        if (donem.Durum == FaturaDonemDurum.Kesildi) return donem.InvoiceId!.Value; // idempotent
+        if (donem.Durum == FaturaDonemDurum.Kesildi) return await MevcutDonemFaturasiAsync(donem.InvoiceId!.Value, kdvRate, ct); // idempotent
         if (donem.Durum == FaturaDonemDurum.Atlandi)
             throw new ValidationException($"Dönem {donemSira} atlanmış (kesilecek tahakkuk kalmamıştı).");
         if (donemler.Any(d => d.DonemSira < donemSira && d.Durum == FaturaDonemDurum.Planlandi))
@@ -313,7 +313,16 @@ public sealed class InvoiceService(
         var kesilecek = KdvMath.RoundGross(Math.Min(kumulatif, donemBaseGross) - faturalanan);
         if (kesilecek <= 0m)
         {
-            await faturaDonemleri.AtlandiIsaretleAsync(donem.Id, ct); // kalıcı iz (cap; idempotent red)
+            if (!await faturaDonemleri.AtlandiIsaretleAsync(donem.Id, ct)) // kalıcı iz (cap; idempotent red)
+            {
+                // F1.4: işaretlenemediyse dönem artık Planlandi değil. Eşzamanlı ikinci gönderim, dönem
+                // listesini ilk gönderim commit etmeden ÖNCE, faturalananı SONRA okuduysa buraya düşer —
+                // dönem Kesildi ise sıralı ikinci istekle AYNI sessiz başarı (mevcut fatura id'si).
+                var guncel = (await faturaDonemleri.ListForRentalAsync(rentalId, ct))
+                    .FirstOrDefault(d => d.DonemSira == donemSira);
+                if (guncel is { Durum: FaturaDonemDurum.Kesildi, InvoiceId: Guid mevcut })
+                    return await MevcutDonemFaturasiAsync(mevcut, kdvRate, ct);
+            }
             throw new ValidationException($"Dönem {donemSira} için kesilecek tahakkuk kalmadı — dönem ATLANDI işaretlendi.");
         }
 
@@ -344,8 +353,26 @@ public sealed class InvoiceService(
         var eResult = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, kdv, invoice.Currency), ct);
         if (eResult.Success) { invoice.EFaturaEttn = eResult.Ettn; invoice.EFaturaGonderildi = true; }
 
-        await repository.PostDonemAsync(invoice, BuildEntries(invoice), donem.Id, kesilecek, faturalanan, ct);
-        return invoice.Id;
+        var kesilen = await repository.PostDonemAsync(invoice, BuildEntries(invoice), donem.Id, kesilecek, faturalanan, ct);
+        // Yarışı kaybeden istek kilit içinde Kesildi dönemi gördü → mevcut fatura (aynı içerik kuralı).
+        return kesilen == invoice.Id ? kesilen : await MevcutDonemFaturasiAsync(kesilen, kdvRate, ct);
+    }
+
+    /// <summary>
+    /// F1.4 — dönem zaten kesilmiş: aynı istek → mevcut fatura id'si (sessiz). Dönemin hedefi (kira, sıra)
+    /// anahtarın kendisidir; farklı olabilecek tek girdi AÇIK verilmiş KDV oranıdır. Açık oran mevcut
+    /// faturanınkinden farklıysa ikinci istek o oranla KESİLMEZ → sessiz başarı yerine 409.
+    /// </summary>
+    private async Task<Guid> MevcutDonemFaturasiAsync(Guid mevcutId, decimal? kdvRate, CancellationToken ct)
+    {
+        if (kdvRate is { } oran)
+        {
+            var mevcut = await repository.FindAsync(mevcutId, ct);
+            var saklanan = decimal.Round(oran, 4, MidpointRounding.AwayFromZero); // KdvOrani numeric(9,4)
+            if (mevcut is null || mevcut.Lines.Any(l => l.KdvOrani != saklanan))
+                throw MukerrerIslemException.FarkliIcerik();
+        }
+        return mevcutId;
     }
 
     private async Task<Guid> PostFarkFaturasiAsync(
@@ -422,12 +449,21 @@ public sealed class InvoiceService(
         if (input.NetTutar <= 0) throw new ValidationException("Net tutar pozitif olmalıdır.");
         if (input.KdvOrani is < 0m or > 1m) throw new ValidationException("KDV oranı kesir olmalı (0.20 = %20); 0-1 arası."); // adversarial Low: %500 footgun
 
-        // İdempotency: anahtar verilmiş + zaten kesilmişse aynı faturayı döndür (çift-submit güvenli).
-        if (input.IslemAnahtari is { } key && key != Guid.Empty && await repository.FindAsync(key, ct) is not null)
-            return key;
-
         var (kdv, gross) = KdvMath.FromNet(input.NetTutar, input.KdvOrani);
         var net = KdvMath.RoundGross(input.NetTutar);
+
+        // İdempotency: anahtar verilmiş + zaten kesilmişse aynı faturayı döndür (çift-submit güvenli).
+        // F1.4 (adversarial MEDIUM-1): YALNIZ aynı cari + aynı tutarlar için. Aynı anahtar başka cari/tutarla
+        // gelirse ikinci fatura KESİLMEZ ama eskiden ilkinin id'si sessizce dönüyordu (kullanıcı "kesildi"
+        // görüyordu) → artık 409.
+        if (input.IslemAnahtari is { } key && key != Guid.Empty && await repository.FindAsync(key, ct) is { } mevcut)
+        {
+            if (mevcut.ManuelMi && !mevcut.IadeMi && mevcut.RentalId is null && mevcut.KaynakKiraId is null
+                && mevcut.CariId == input.CariId && mevcut.NetTutar == net && mevcut.KdvTutar == kdv
+                && string.Equals(mevcut.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
+                return key;
+            throw MukerrerIslemException.FarkliIcerik();
+        }
         var invoice = new Invoice
         {
             Id = input.IslemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid(),

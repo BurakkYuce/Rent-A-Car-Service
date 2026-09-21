@@ -44,7 +44,8 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         TarihPolitikasi.ParaTarihi(input.Tarih, "Gider"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct); // 1.1b
         var cozulenHesap = await CozHesapAsync(input, ct);                                   // FAZ-50
-        var posting = BuildPosting(input, islemAnahtari: null, cozulenKur, cozulenHesap);
+        // F1.4: tekil giderin çift-gönderim anahtarı (önceden mekanizma YOKTU — her çağrı yeni gider).
+        var posting = BuildPosting(input, input.IslemAnahtari is { } k && k != Guid.Empty ? k : null, cozulenKur, cozulenHesap);
         await _lock.EnsureOpenAsync(posting.Expense.Tarih, ct); // dönem kilidi: kapalı tarihe gider YOK
         await _repository.PostAsync(posting.Expense, posting.Entries, ct);
         return posting.Expense.Id;

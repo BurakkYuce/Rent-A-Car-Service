@@ -247,7 +247,8 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         await svc.OnaylaAsync(id);
         await svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit });
 
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        // F1.4: ikinci giderleştirme mükerrer gönderimdir (yarıştaki DB kısıtıyla aynı tip) → 409.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
             svc.GiderlestirAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = OdemeYontemi.Nakit }));
 
         Assert.Single(await expenses.ListAsync());

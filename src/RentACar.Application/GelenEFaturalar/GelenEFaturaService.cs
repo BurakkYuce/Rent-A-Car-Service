@@ -202,8 +202,10 @@ public sealed class GelenEFaturaService(
         var row = await _repository.FindAsync(input.Id, ct)
             ?? throw new ValidationException("Gelen fatura bulunamadı.");
 
+        // F1.4: ikinci giderleştirme MÜKERRER gönderimdir — yarışta DB kısıtı (Expenses IslemAnahtari,
+        // RowKey(Id, i)) zaten MukerrerIslemException (409) veriyor; sıralı ikinci istek de AYNI tipi alır.
         if (row.GiderlestirilmeUtc is not null)
-            throw new ValidationException($"'{row.Ettn}' ETTN'li fatura zaten giderleştirilmiş.");
+            throw new MukerrerIslemException($"'{row.Ettn}' ETTN'li fatura zaten giderleştirilmiş.");
         // Triage kapısı: yalnız ONAYLANMIŞ fatura deftere girer. "İşlendi" = dışarıda ele alınmış
         // (elle muhasebeleştirilmiş) demektir → tekrar giderleştirmek çift kayıt üretirdi.
         if (row.Durum != GelenEFaturaDurum.Onaylandi)

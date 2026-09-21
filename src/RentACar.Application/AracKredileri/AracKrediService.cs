@@ -122,7 +122,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc }
             ];
             return (expense, entries);
-        }, ct);
+        }, ct, anahtar);
     }
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)

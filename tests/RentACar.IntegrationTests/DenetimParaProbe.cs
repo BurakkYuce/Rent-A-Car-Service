@@ -541,8 +541,8 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         Assert.Equal(200m, c!.Tahsilat);
         Assert.Equal(100m, c.Bakiye);
 
-        // Servis seviyesinde ikinci ters kayıt ön-kontrolle reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(payId));
+        // Servis seviyesinde ikinci ters kayıt ön-kontrolle reddedilir (F1.4: mükerrer tipi).
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.ReverseAsync(payId));
         Assert.Equal(200m, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tahsilat);
     }
 
