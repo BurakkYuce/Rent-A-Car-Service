@@ -69,16 +69,55 @@ Node **22** zorunlu (`.nvmrc`, `engines`). Başka sürümde: `npx -y -p node@22 
 
 ```bash
 npm ci
+npm run tipler:kontrol # API tiplerini yeniden üret; commit'lenenden farklıysa hata (kayma)
 npm run format:check   # Prettier
 npm run lint           # ESLint (uyarı da hata) + üretilen dosyalar güncel mi + kontrast tablosu
 npm run typecheck      # ngc (strictTemplates) + spec + e2e tsc
 npm test               # Vitest, @angular/build:unit-test, tek koşu
-npm run build          # production, dist/rentacar-frontend/browser, bütçeler 300kB uyarı / 600kB hata
+npm run build          # (önce tipler) production, dist/rentacar-frontend/browser, bütçeler 300kB / 600kB
 npm run e2e            # build + Playwright duman testi /app/ altında, üretim CSP'siyle + axe
 ```
 
-CI (`.github/workflows/ci.yml` → `frontend` işi) format:check → lint → typecheck → test → build koşar.
-e2e yalnız yerelde (ilk seferde `npx playwright install chromium`); CI e2e işi F2.2'de.
+CI (`.github/workflows/ci.yml`): `frontend` işi tipler:kontrol → format:check → lint → typecheck → test →
+build; `e2e` işi Playwright duman testini koşar (Chromium önbellekli). Yerelde ilk seferde
+`npx playwright install --only-shell chromium`.
+
+## API tipleri (`/api/ui/v1`)
+
+- Kaynak: `docs/api/ui-v1.json` (.NET testi `UiApiOpenApiTests` canlı OpenAPI ile birebir kilitler).
+- `npm run tipler` → `src/app/core/api/uretilen/ui-v1.ts` (openapi-typescript, sabit sürüm; Prettier'dan
+  geçer). **Üretilen dosya commit'lenir ve elle düzenlenmez**; ESLint onu yok sayar. `prebuild`/`prewatch`
+  her derlemede yeniden üretir.
+- Kod tipleri **doğrudan üretilen dosyadan değil** `@core/api/ui-tipleri`'nden alır (`BenYaniti`,
+  `MenuYaniti`…). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
+  kullanan kod `typecheck`'te kırılır. JSON değişip tipler üretilmezse CI `tipler:kontrol` kırmızı.
+- API değiştiğinde akış: `RACAR_OPENAPI_GUNCELLE=1 dotnet test --filter UiApiOpenApiTests` →
+  `npm run tipler` → ikisini birlikte commit'le.
+
+## Geliştirme akışı (Web uygulaması içinde, `:5220`)
+
+```bash
+# 1. terminal (src/RentACar.Frontend): development derlemesi, değişiklikte yeniden yazar
+npm run watch
+# 2. terminal (repo kökü): Development ortamı Spa:Dizin'i bu derlemeye çevirir
+ASPNETCORE_URLS=http://localhost:5220 dotnet run --project src/RentACar.Web
+# → http://localhost:5220/app/  (gerçek CSP, gerçek cookie/XSRF, /api/ui aynı origin)
+```
+
+- Dizin ayarı `src/RentACar.Web/appsettings.Development.json` içinde (content root'a göreli):
+  `"Spa": { "Dizin": "../RentACar.Frontend/dist/rentacar-frontend/browser" }`. Üretimde bu ayar yok;
+  varsayılan `../app/browser` (release'in kendi SPA'sı).
+- Değişiklikten sonra tarayıcıyı yenile (canlı yeniden yükleme yok; kabuk `no-cache`, dev çıktısı
+  hash'siz). `npm start` (`:4200`) yalnız saf arayüz işi içindir: `/api/ui` orada yok.
+- Web açılışta `Yeni arayüz /app altında sunuluyor: …` loglar; dizin yoksa `/app` 404 döner (önce
+  `npm run watch`).
+
+## Dağıtım
+
+Sunucuda Node yok. `main`'e her push'ta (tüm CI kapıları yeşilse) `spa-surum` işi production derlemesini
+`spa-<sha>.tar.gz` + `.sha256` + `chunks.txt` olarak `spa-<sha>` GitHub release'ine yükler;
+`deploy/yayinla.sh` checkout edilen SHA'nınkini salt-okur token ile indirip doğrular. Ayrıntı:
+`docs/ops/deploy-checklist.md` §10, sunucu adımları `docs/ops/f2-2-sunucu-adimlari.md`.
 
 ## Bilinçli kararlar
 
