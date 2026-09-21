@@ -27,8 +27,9 @@ public sealed class AcceptanceTests(PostgresFixture fx)
 
         var cari = Guid.NewGuid();
         var vehicle = Guid.NewGuid();
-        var bas = new DateTimeOffset(2026, 11, 1, 9, 0, 0, TimeSpan.Zero);
-        var bit = new DateTimeOffset(2026, 11, 5, 9, 0, 0, TimeSpan.Zero); // 4 gün
+        // Göreli: rezervasyon geçmişe kapalı (TarihPolitikasi); sabit 2026-11-01 Kasım'da kırmızıya dönecekti.
+        var bas = TestZaman.GunSonra(40);
+        var bit = bas.AddDays(4); // 4 gün
 
         BookingInput Input() => new()
         {

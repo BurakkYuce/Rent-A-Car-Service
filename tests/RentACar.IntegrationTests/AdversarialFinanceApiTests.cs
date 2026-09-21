@@ -60,7 +60,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         var vehicleId = await CreateIdAsync(c, "/api/v1/vehicles",
             new { plaka, grup = "B", durum = "Musait", km = 0, yakit = "Benzin" });
         var custId = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Rent", soyad = "Er" });
-        var bas = new DateTimeOffset(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+        var bas = TestZaman.GunSonra(10); // göreli: rezervasyon geçmişe kapalı (sabit 2026-09-01 kırıldı)
         var bit = bas.AddDays(3); // 3 × gunluk = GenelToplam
         var resvId = await CreateIdAsync(c, "/api/v1/reservations",
             new { musteriId = custId, vehicleId, basTar = bas, bitTar = bit, gunlukUcret = gunluk });
