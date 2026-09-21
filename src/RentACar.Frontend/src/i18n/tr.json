@@ -25,6 +25,81 @@
       "aciklama": "Gösterilecek kayıt bulunamadı."
     }
   },
+  "form": {
+    "zorunlu": "zorunlu",
+    "genelHata": "Kayıt yapılamadı. Aşağıdaki hataları düzeltip yeniden deneyin.",
+    "gonderiliyor": "Gönderiliyor…",
+    "hata": {
+      "zorunlu": "Bu alan zorunlu.",
+      "isaretZorunlu": "Devam etmek için işaretleyin.",
+      "enAzUzunluk": "En az {{sayi}} karakter girin.",
+      "enCokUzunluk": "En çok {{sayi}} karakter girilebilir.",
+      "enAz": "En az {{sayi}} olmalı.",
+      "enCok": "En çok {{sayi}} olabilir.",
+      "eposta": "Geçerli bir e-posta adresi girin.",
+      "desen": "Biçim geçersiz.",
+      "sayi": "Geçerli bir sayı girin.",
+      "para": "Geçerli bir tutar girin (ör. 1.234,56).",
+      "tarih": "Geçerli bir tarih girin (gg.aa.yyyy).",
+      "saat": "Geçerli bir saat girin (ss:dd).",
+      "tarihAralikDisi": "Tarih izin verilen aralığın dışında.",
+      "tarihSirasi": "Bitiş tarihi başlangıçtan önce olamaz.",
+      "gecersiz": "Değer geçersiz."
+    },
+    "kaydedilmemis": {
+      "onay": "Kaydedilmemiş değişiklikler var. Sayfadan çıkarsanız kaybolacak. Çıkılsın mı?"
+    },
+    "secim": {
+      "seciniz": "Seçiniz",
+      "ara": "Aramak için yazın",
+      "sonucYok": "Sonuç bulunamadı.",
+      "yukleniyor": "Yükleniyor…",
+      "hata": "Liste alınamadı. Yeniden deneyin.",
+      "temizle": "Seçimi temizle",
+      "enAzHarf": "Aramak için en az {{sayi}} harf yazın.",
+      "liste": "Seçenekler"
+    },
+    "tarih": {
+      "takvimiAc": "Takvimi aç",
+      "takvim": "Takvim",
+      "oncekiAy": "Önceki ay",
+      "sonrakiAy": "Sonraki ay",
+      "saat": "Saat",
+      "bicim": "gg.aa.yyyy",
+      "aralikBicim": "gg.aa.yyyy – gg.aa.yyyy",
+      "hazirBaslik": "Hazır aralıklar",
+      "hazir": {
+        "bugun": "Bugün",
+        "dun": "Dün",
+        "buHafta": "Bu hafta",
+        "gecenHafta": "Geçen hafta",
+        "buAy": "Bu ay",
+        "gecenAy": "Geçen ay",
+        "son7": "Son 7 gün",
+        "son30": "Son 30 gün",
+        "buYil": "Bu yıl"
+      }
+    },
+    "sekme": {
+      "hataVar": "hatalı alan var"
+    },
+    "tanim": {
+      "yeni": "Yeni kayıt",
+      "duzenle": "Düzenle",
+      "sil": "Sil",
+      "kaydet": "Kaydet",
+      "vazgec": "Vazgeç",
+      "silOnay": "Bu kayıt silinsin mi?",
+      "evetSil": "Evet, sil",
+      "islemler": "İşlemler",
+      "yukleniyor": "Kayıtlar yükleniyor…",
+      "hata": "Kayıtlar yüklenemedi.",
+      "yenidenDene": "Yeniden dene",
+      "bos": "Henüz kayıt yok.",
+      "evet": "Evet",
+      "hayir": "Hayır"
+    }
+  },
   "tablo": {
     "sutunlar": "Sütunlar",
     "sutunlariDuzenle": "Sütunları düzenle",
