@@ -72,7 +72,7 @@ public sealed class PersonelService(
         PermissionGuard.RequireAny(_currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
         var rows = await _repository.ListAsync(ct);
         return rows.Where(p => p.Aktif)
-            .Select(p => new PersonelSecim(p.Id, p.Ad, p.Soyad, p.Sube))
+            .Select(p => new PersonelSecim(p.Id, p.Ad, p.Soyad, p.Sube, p.SubeId))
             .ToList();
     }
 

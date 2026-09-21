@@ -104,6 +104,7 @@ public static class DependencyInjection
         services.AddScoped<MusteriTaksitleri.MusteriTaksitService>();   // FAZ-66
         services.AddScoped<Pricing.MaliyetTeklifiService>();   // FAZ-74 — kayıtlı maliyet teklifi
         services.AddScoped<Search.SearchService>();
+        services.AddScoped<Secim.SecimService>(); // F1.6 — yeni arayüz seçim/typeahead kaynakları
         services.AddScoped<Periods.DonemKilidiService>();
         services.AddScoped<Periods.IPeriodLockGuard>(sp => sp.GetRequiredService<Periods.DonemKilidiService>());
         services.AddScoped<Periods.DonemKapanisFisiService>(); // PR-A close-lite kapanış fişi

@@ -21,6 +21,14 @@ public static class TurkishText
         ('İ', 'i'), ('I', 'i'), ('ı', 'i'),
     ];
 
+    /// <summary>
+    /// Çevrim tablosu — F1.6: SQL karşılığı (<c>Infrastructure/Persistence/TrSql</c>, seçim uçlarının
+    /// DB'de sınırlı Türkçe araması) bu tablodan üretilir; C# ve SQL kuralı ayrışamaz. Neden SQL'de
+    /// <c>lower()</c>/ILIKE yetmez: sonucu DB'nin LC_CTYPE'ına bağlı — <c>en_US</c>'de <c>lower('I')='i'</c>
+    /// olduğundan "IŞIK" ile "ışık" eşleşmez. Önce ASCII'ye çevrim, sonra küçültme her yerelde aynıdır.
+    /// </summary>
+    public static IReadOnlyList<(char From, char To)> Esleme => Map;
+
     /// <summary>Türkçe harfleri (büyük+küçük) ASCII hedefe eşler, sonra kalan A-Z'yi invariant küçültür.</summary>
     public static string Normalize(string s)
     {
