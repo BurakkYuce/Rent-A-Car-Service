@@ -188,7 +188,7 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
             new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Masaüstü" });
 
         using var s2 = host.ScopeFor(tenant);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
             s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(
                 new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Mobil" }));
 

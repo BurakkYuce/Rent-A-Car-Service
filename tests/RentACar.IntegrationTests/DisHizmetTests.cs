@@ -73,7 +73,7 @@ public sealed class DisHizmetTests(PostgresFixture fx)
         var g1 = Girdi(kira, tedarikci, bedel: 500m, oran: 0m); g1.IslemAnahtari = anahtar;
         var g2 = Girdi(kira, tedarikci, bedel: 500m, oran: 0m); g2.IslemAnahtari = anahtar;
         await svc.CreateAsync(g1);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(g2));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => svc.CreateAsync(g2));
         Assert.Equal(2, (await svc.ListForRentalAsync(kira)).Count);
     }
 
@@ -136,7 +136,7 @@ public sealed class DisHizmetTests(PostgresFixture fx)
 
         // Operatör (FinanceWrite yok) dış hizmet kaydı giremez.
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<DisHizmetService>().CreateAsync(Girdi(kira, tedarikci)));
 
         // Doğrulamalar: bedel ≤ 0; oran > 100.

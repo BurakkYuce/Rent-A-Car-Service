@@ -61,10 +61,10 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         var t = Guid.NewGuid();
         using var op = host.ScopeFor(t, role: UserRole.Operator); // ManageUsers YOK
         var svc = Svc(op);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListGruplarAsync());
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SnapshotGrupAsync("x"));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UygulaGrupAsync("x"));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SilGrupAsync("x"));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListGruplarAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SnapshotGrupAsync("x"));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.UygulaGrupAsync("x"));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SilGrupAsync("x"));
     }
 
     [Fact]

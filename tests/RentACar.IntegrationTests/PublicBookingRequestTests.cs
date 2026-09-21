@@ -283,9 +283,9 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
         var svc = muhasebe.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ReddetAsync(talep.Id));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.DonusturAsync(talep.Id, Guid.NewGuid()));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ReddetAsync(talep.Id));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.DonusturAsync(talep.Id, Guid.NewGuid()));
     }
 
     [Fact]

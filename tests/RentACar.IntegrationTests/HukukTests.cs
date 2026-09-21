@@ -81,7 +81,7 @@ public sealed class HukukTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         // Muhasebe: FinanceWrite/ViewReports var, OperationsWrite YOK → yazma reddedilir.
         using var scope = host.ScopeFor(Guid.NewGuid(), role: UserRole.Muhasebe);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => scope.ServiceProvider.GetRequiredService<HukukDosyaService>().CreateAsync(Input("2026/1")));
     }
 

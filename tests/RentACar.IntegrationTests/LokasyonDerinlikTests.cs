@@ -183,7 +183,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         }
 
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             muh.ServiceProvider.GetRequiredService<LocationService>().CreateAsync(Dolu("YENI", "Yetkisiz")));
     }
 }

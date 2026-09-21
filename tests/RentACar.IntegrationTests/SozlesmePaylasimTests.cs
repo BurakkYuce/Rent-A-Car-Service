@@ -320,9 +320,9 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         // Muhasebe rolü OperationsWrite taşımaz → hem paylaşamaz hem iptal edemez.
         using var scope = host.ScopeFor(tenantId, role: UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<SozlesmePaylasimService>();
-        await Assert.ThrowsAsync<Application.Common.ValidationException>(
+        await Assert.ThrowsAsync<Application.Common.YetkiYokException>(
             () => svc.PaylasAsync(rental, "RZ-PC-10", Pdf()));
-        await Assert.ThrowsAsync<Application.Common.ValidationException>(
+        await Assert.ThrowsAsync<Application.Common.YetkiYokException>(
             () => svc.IptalEtAsync(rental));
     }
 

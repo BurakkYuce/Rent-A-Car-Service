@@ -266,14 +266,14 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var rentals = op.ServiceProvider.GetRequiredService<RentalService>();
-            await Assert.ThrowsAsync<ValidationException>(
+            await Assert.ThrowsAsync<YetkiYokException>(
                 () => rentals.UpdateOpenAsync(id, new RentalUpdateInput { CikisOfisi = "Ankara", Aciklama = "x" }));
         }
         // Operatör (Ankara): kendi kirası ama kapsam DIŞINA (Merkez'e) taşıyamaz
         using (var op2 = host.ScopeFor(tenant, Guid.NewGuid(), "op2", UserRole.Operator, assignedBranch: "Ankara"))
         {
             var rentals = op2.ServiceProvider.GetRequiredService<RentalService>();
-            await Assert.ThrowsAsync<ValidationException>(
+            await Assert.ThrowsAsync<YetkiYokException>(
                 () => rentals.UpdateOpenAsync(id, new RentalUpdateInput { CikisOfisi = "Merkez" }));
             // Kendi kapsamı içinde güncelleme serbest
             Assert.True(await rentals.UpdateOpenAsync(id,
@@ -396,6 +396,6 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.Equal("Aktif", secim[0].Ad);
 
         // Tam liste (PII'lı satır nesnesi) hâlâ Admin'e kilitli
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
     }
 }

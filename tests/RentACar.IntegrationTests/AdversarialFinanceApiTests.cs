@@ -375,7 +375,9 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         var results = await Task.WhenAll(tasks);
 
         var created = results.Count(r => r.StatusCode == HttpStatusCode.Created);
-        var rejected = results.Count(r => r.StatusCode == HttpStatusCode.BadRequest);
+        // Kaybedenler: ilk ters kayıt commit'lendikten SONRA gelen servis ön-kontrolüne takılır (400) ya da
+        // yarışta TersAlinanId kısmi unique index'ine çarpar → F1.1'den beri 409 duplicate_submission.
+        var rejected = results.Count(r => r.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict);
         Assert.Equal(1, created);                 // exactly one reversal posted
         Assert.Equal(results.Length - 1, rejected); // all others rejected (idempotent guard)
 

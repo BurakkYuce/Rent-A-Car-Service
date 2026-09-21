@@ -244,7 +244,7 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
 
         // Operatör: ViewReports yok → göremez.
         using var op = host.ScopeFor(t1, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<CashService>().ListCariVirmanlarAsync());
     }
 }

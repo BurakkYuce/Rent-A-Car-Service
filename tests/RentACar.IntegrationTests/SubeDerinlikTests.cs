@@ -238,8 +238,8 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var svc = op.ServiceProvider.GetRequiredService<BranchService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.BirlestirAsync(a, b));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.BirlestirOnizleAsync(a, b));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.BirlestirAsync(a, b));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.BirlestirOnizleAsync(a, b));
     }
 
     [Fact]

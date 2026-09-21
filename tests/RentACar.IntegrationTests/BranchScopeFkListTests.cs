@@ -57,7 +57,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         Assert.NotNull(await svc.GetAsync(merkezArac));
         var ankara = (await host.ScopeFor(tenant).ServiceProvider
             .GetRequiredService<VehicleService>().ListAsync()).Single(v => v.Sube == "Ankara").Id;
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GetAsync(ankara));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(ankara));
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         var liste = await svc.ListAsync();
         var tek = Assert.Single(liste);                            // C5 öncesi 2 dönerdi (B2 aracı sızardı)
         Assert.Equal("34RC01", tek.Plaka);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
     }
 
     [Fact]

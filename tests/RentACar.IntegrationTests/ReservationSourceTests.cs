@@ -73,7 +73,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<ReservationSourceService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new ReservationSourceInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 
@@ -230,7 +230,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
 
         // Yetkisiz rol yansıtamaz (OperationsWrite).
         using (var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
-            await Assert.ThrowsAsync<ValidationException>(
+            await Assert.ThrowsAsync<YetkiYokException>(
                 () => muh.ServiceProvider.GetRequiredService<ReservationSourceService>().OranlariYansitAsync(kaynak));
 
         // BAŞKA tenant'ın kaynağı GÖRÜNMEZ → "bulunamadı" (çapraz-tenant yansıtma imkânsız).

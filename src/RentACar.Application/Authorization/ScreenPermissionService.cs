@@ -134,11 +134,11 @@ public sealed class ScreenPermissionService(
         return PermissionResolver.IsAllowed(_currentUser.Role, permission, roller);
     }
 
-    /// <summary>Erişim yoksa ValidationException (PermissionGuard deseni). Opt-in ekranlar çağırır.</summary>
+    /// <summary>Erişim yoksa YetkiYokException (PermissionGuard deseni). Opt-in ekranlar çağırır.</summary>
     public async Task EnsureScreenAccessAsync(string ekranKodu, Permission permission, CancellationToken ct = default)
     {
         if (!await IsScreenAllowedAsync(ekranKodu, permission, ct))
-            throw new ValidationException($"Bu ekran için yetkiniz yok ({Normalize(ekranKodu)}).");
+            throw new YetkiYokException($"Bu ekran için yetkiniz yok ({Normalize(ekranKodu)}).");
     }
 
     private static string Normalize(string? s) => (s ?? string.Empty).Trim().ToLowerInvariant();

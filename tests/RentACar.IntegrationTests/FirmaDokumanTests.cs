@@ -169,8 +169,8 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
         var svc = Svc(muhasebe);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.YukleAsync(Girdi("Muhasebenin belgesi")));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SilAsync(id));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.YukleAsync(Girdi("Muhasebenin belgesi")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SilAsync(id));
 
         // Ama OKUMA/İNDİRME serbest: sahada çıktı alması gereken her personel erişebilmeli.
         Assert.Single(await svc.ListeleAsync());
@@ -178,7 +178,7 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
 
         // Rolsüz (oturumsuz) bağlam yazamaz — guard "izin yok"ta kapanır.
         using var anonim = host.ScopeFor(tenant, role: null);
-        await Assert.ThrowsAsync<ValidationException>(() => Svc(anonim).YukleAsync(Girdi("Anonim")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => Svc(anonim).YukleAsync(Girdi("Anonim")));
     }
 
     [Fact]

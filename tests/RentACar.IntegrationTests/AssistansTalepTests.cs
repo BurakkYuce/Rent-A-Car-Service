@@ -203,7 +203,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
 
         // Muhasebe rolünde OperationsWrite yok → yazma kapalı.
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             muh.ServiceProvider.GetRequiredService<AssistansTalepService>()
                 .CreateAsync(new AssistansInput { Mesaj = "Yetkisiz" }));
 

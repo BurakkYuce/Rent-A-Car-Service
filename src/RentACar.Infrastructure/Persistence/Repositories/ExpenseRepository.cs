@@ -215,7 +215,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Bu toplu gider zaten kaydedilmiş.");
+                throw IdempotencyKisiti.Red(ex, "Bu toplu gider zaten kaydedilmiş.");
             }
             // FAZ-29 adversarial M1: geçersiz/silinmiş hesap ya da araç referansı FK ihlali üretiyor
             // ve uç yalnız ValidationException yakaladığı için 500 dönüyordu — 500 satırlık parti

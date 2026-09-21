@@ -98,12 +98,12 @@ public sealed class PersonelTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
 
         using (var op = host.ScopeFor(Guid.NewGuid(), role: UserRole.Operator))
-            await Assert.ThrowsAsync<ValidationException>(
+            await Assert.ThrowsAsync<YetkiYokException>(
                 () => op.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(Input("P001")));
 
         // Yönetici de ManageUsers'a sahip değil → liste bile reddedilir.
         using var yon = host.ScopeFor(Guid.NewGuid(), role: UserRole.Yonetici);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => yon.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
     }
 }

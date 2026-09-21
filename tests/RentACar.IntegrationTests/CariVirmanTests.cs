@@ -172,7 +172,7 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => cash.TransferBetweenCariAsync(Guid.NewGuid(), Guid.NewGuid(), 100m));
     }
 

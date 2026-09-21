@@ -204,7 +204,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
 
         // Operatör toplu fatura kesemez (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+        await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
             .GetRequiredService<InvoiceService>().BatchCreateFromRentalsAsync([kira]));
     }
 

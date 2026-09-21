@@ -449,7 +449,7 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant)) await EkleAsync(admin, Arac("34 YTK 001"));
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => muhasebe.ServiceProvider.GetRequiredService<WebIlanService>().HavuzAsync());
     }
 

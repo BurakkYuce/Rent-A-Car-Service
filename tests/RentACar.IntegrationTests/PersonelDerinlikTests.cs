@@ -111,9 +111,9 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         // Operatör rolü personel listesini HÂLÂ göremez (ManageUsers gerekiyor) — kayıttaki
         // "Yönetici" etiketi hiçbir kapı açmaz.
         using var op = host.ScopeFor(t1, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             op.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             op.ServiceProvider.GetRequiredService<PersonelService>().SearchAsync());
     }
 
