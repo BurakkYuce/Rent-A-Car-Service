@@ -1,0 +1,192 @@
+// Tasarım token'ları (--rc-*). Revlo `_tokens.scss` yapısından türetildi; ERP için YOĞUN varsayılan.
+//
+// Kurallar:
+// - Yazı boyutu yalnız ölçek adımlarıyla (--rc-yazi-*). Ara değer yok.
+// - Boşluk 4 px ızgarası: --rc-bosluk-N = N × 4 px (0-5 = 2 px, 1-5 = 6 px).
+// - Renk yalnız anlamsal token'larla. Ham hex bileşen stilinde yazılmaz.
+// - Açık ve koyu tema aynı token adlarını taşır. Kontrast `scripts/kontrast-denetimi.mjs` ile
+//   denetlenir (metin ≥ 4.5, kontrol kenarı ve odak ≥ 3); `npm run lint` bunu da koşar.
+// - Kiracı vurgusu çalışma zamanında `--rc-kiraci-*` ile gelir (TemaServisi). Yoksa varsayılan.
+
+// Yapısal ölçekler temadan bağımsız.
+@mixin olcekler {
+  // Yazı tipi
+  --rc-font:
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --rc-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  // Tip ölçeği (kök 16 px). Gövde 13 px.
+  --rc-yazi-2xs: 0.6875rem; // 11 px: tablo alt bilgisi, dipnot
+  --rc-yazi-xs: 0.75rem; // 12 px: etiket, rozet, tablo başlığı
+  --rc-yazi-sm: 0.8125rem; // 13 px: gövde, tablo hücresi, kontrol
+  --rc-yazi-md: 0.875rem; // 14 px: vurgulu gövde
+  --rc-yazi-lg: 1rem; // 16 px: bölüm başlığı
+  --rc-yazi-xl: 1.125rem; // 18 px: sayfa başlığı
+  --rc-yazi-2xl: 1.375rem; // 22 px: KPI / büyük sayı
+  --rc-satir-sik: 1.25;
+  --rc-satir: 1.45;
+  --rc-agirlik-normal: 400;
+  --rc-agirlik-orta: 500;
+  --rc-agirlik-kalin: 600;
+  --rc-agirlik-cok-kalin: 700;
+
+  // Boşluk (4 px ızgarası)
+  --rc-bosluk-0-5: 0.125rem; // 2
+  --rc-bosluk-1: 0.25rem; // 4
+  --rc-bosluk-1-5: 0.375rem; // 6
+  --rc-bosluk-2: 0.5rem; // 8
+  --rc-bosluk-3: 0.75rem; // 12
+  --rc-bosluk-4: 1rem; // 16
+  --rc-bosluk-5: 1.25rem; // 20
+  --rc-bosluk-6: 1.5rem; // 24
+  --rc-bosluk-8: 2rem; // 32
+  --rc-bosluk-12: 3rem; // 48
+
+  // Yoğun kontrol ve tablo ölçüleri
+  --rc-kontrol-yukseklik-kucuk: 1.75rem; // 28
+  --rc-kontrol-yukseklik: 2rem; // 32 (varsayılan)
+  --rc-kontrol-yukseklik-buyuk: 2.25rem; // 36
+  --rc-kontrol-ic-bosluk: var(--rc-bosluk-3);
+  --rc-tablo-satir: 2rem; // 32
+  --rc-tablo-hucre-bosluk: var(--rc-bosluk-2);
+
+  // Köşe yarıçapı
+  --rc-yaricap-sm: 0.1875rem; // 3
+  --rc-yaricap-md: 0.25rem; // 4
+  --rc-yaricap-lg: 0.375rem; // 6
+  --rc-yaricap-xl: 0.5rem; // 8
+  --rc-yaricap-tam: 999px;
+
+  // Katman sırası
+  --rc-z-yapiskan: 10;
+  --rc-z-ust-bar: 100;
+  --rc-z-cekmece: 200;
+  --rc-z-modal: 300;
+  --rc-z-bildirim: 400;
+
+  // Hareket
+  --rc-sure-hizli: 120ms;
+  --rc-sure: 180ms;
+  --rc-egri: cubic-bezier(0.2, 0, 0, 1);
+
+  // Odak halkası (renk temadan)
+  --rc-odak-kalinlik: 2px;
+  --rc-odak-bosluk: 2px;
+}
+
+// Açık tema renkleri. Kiracı değişkenleri tanımsızsa virgül sonrası varsayılan kullanılır.
+@mixin acik-renkler {
+  color-scheme: light;
+
+  --rc-zemin: #f5f7fa;
+  --rc-yuzey: #ffffff;
+  --rc-yuzey-alt: #eef2f6;
+  --rc-yuzey-vurgu: #e4eaf2;
+  --rc-metin: #0f172a;
+  --rc-metin-ikincil: #475569;
+  --rc-metin-soluk: #5b6778;
+  --rc-metin-pasif: #94a3b8; // devre dışı; WCAG kontrast şartı dışında
+  --rc-kenar: #dde3eb; // süs çizgisi (ayraç, kart)
+  --rc-kenar-kontrol: #7b8595; // girdi/kontrol sınırı (≥ 3:1)
+  --rc-odak: #1d5fd6;
+  --rc-secim: #cfe0ff;
+
+  --rc-vurgu: var(--rc-kiraci-vurgu, #1d4ed8);
+  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #1e40af);
+  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, #ffffff);
+  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-acik, #1d4ed8);
+  --rc-vurgu-zemin: #e3ebfd;
+
+  --rc-basari-metin: #166534;
+  --rc-basari-zemin: #dcfce7;
+  --rc-basari-kenar: #86efac;
+  --rc-uyari-metin: #854d0e;
+  --rc-uyari-zemin: #fef3c7;
+  --rc-uyari-kenar: #fcd34d;
+  --rc-hata-metin: #b91c1c;
+  --rc-hata-zemin: #fee2e2;
+  --rc-hata-kenar: #fca5a5;
+  --rc-bilgi-metin: #1e40af;
+  --rc-bilgi-zemin: #dbeafe;
+  --rc-bilgi-kenar: #93c5fd;
+  --rc-notr-metin: #334155;
+  --rc-notr-zemin: #e2e8f0;
+  --rc-notr-kenar: #cbd5e1;
+
+  --rc-iskelet: #e2e8f0;
+  --rc-iskelet-parlama: #f1f5f9;
+  --rc-perde: rgb(15 23 42 / 0.45);
+  --rc-golge-1: 0 1px 2px rgb(15 23 42 / 0.06);
+  --rc-golge-2: 0 1px 3px rgb(15 23 42 / 0.1), 0 1px 2px rgb(15 23 42 / 0.06);
+  --rc-golge-3: 0 10px 28px rgb(15 23 42 / 0.16), 0 2px 6px rgb(15 23 42 / 0.08);
+}
+
+@mixin koyu-renkler {
+  color-scheme: dark;
+
+  --rc-zemin: #0d131c;
+  --rc-yuzey: #151d29;
+  --rc-yuzey-alt: #1b2533;
+  --rc-yuzey-vurgu: #233044;
+  --rc-metin: #e5eaf1;
+  --rc-metin-ikincil: #a9b5c6;
+  --rc-metin-soluk: #93a1b5;
+  --rc-metin-pasif: #5d6b7f;
+  --rc-kenar: #2a3546;
+  --rc-kenar-kontrol: #6f7e93;
+  --rc-odak: #6aa5ff;
+  --rc-secim: #1e3a6e;
+
+  --rc-vurgu: var(--rc-kiraci-vurgu, #2f66d9);
+  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #2657c2);
+  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, #ffffff);
+  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-koyu, #8ab4ff);
+  --rc-vurgu-zemin: #1a2a4a;
+
+  --rc-basari-metin: #6ee7a0;
+  --rc-basari-zemin: #0f2e1f;
+  --rc-basari-kenar: #1f6b43;
+  --rc-uyari-metin: #fcd34d;
+  --rc-uyari-zemin: #33260a;
+  --rc-uyari-kenar: #7a5a12;
+  --rc-hata-metin: #fca5a5;
+  --rc-hata-zemin: #3a1618;
+  --rc-hata-kenar: #8a2c2c;
+  --rc-bilgi-metin: #93c5fd;
+  --rc-bilgi-zemin: #13284a;
+  --rc-bilgi-kenar: #2c5594;
+  --rc-notr-metin: #cbd5e1;
+  --rc-notr-zemin: #263243;
+  --rc-notr-kenar: #3a485d;
+
+  --rc-iskelet: #223044;
+  --rc-iskelet-parlama: #2c3b52;
+  --rc-perde: rgb(0 0 0 / 0.6);
+  --rc-golge-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --rc-golge-2: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.35);
+  --rc-golge-3: 0 10px 28px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+// Blazor uygulamasıyla aynı desen: :root açık; sistem koyuysa ve kullanıcı "açık" seçmediyse koyu;
+// kullanıcı "koyu" seçtiyse her durumda koyu.
+:root {
+  @include olcekler;
+  @include acik-renkler;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include koyu-renkler;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include koyu-renkler;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --rc-sure-hizli: 0ms;
+    --rc-sure: 0ms;
+  }
+}
