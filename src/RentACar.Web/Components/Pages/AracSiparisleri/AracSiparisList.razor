@@ -105,12 +105,14 @@
                     @if (s.Durum == SiparisDurum.Bekliyor)
                     {
                         <form method="post" action="/arac-siparis/onayla" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit">Onayla</button></form>
-                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                        <form method="post" action="/arac-siparis/iptal" style="display:inline"
+                              data-confirm="@s.No numaralı (bekleyen) araç siparişi iptal edilsin mi? Sipariş İptal durumuna geçer; bir daha onaylanamaz, teslim alınamaz ve düzenlenemez."><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
                     }
                     else if (s.Durum == SiparisDurum.Onaylandi)
                     {
                         <form method="post" action="/arac-siparis/teslim-al" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit">Teslim Al</button></form>
-                        <form method="post" action="/arac-siparis/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
+                        <form method="post" action="/arac-siparis/iptal" style="display:inline"
+                              data-confirm="@s.No numaralı ONAYLANMIŞ araç siparişi iptal edilsin mi? Sipariş İptal durumuna geçer; teslim alınamaz, düzenlenemez ve iptal geri alınamaz."><AntiforgeryToken /><input type="hidden" name="id" value="@s.Id" />@Gizli<button type="submit" class="btn-secondary">İptal</button></form>
                     }
                     @if (s.Durum != SiparisDurum.Iptal)
                     {

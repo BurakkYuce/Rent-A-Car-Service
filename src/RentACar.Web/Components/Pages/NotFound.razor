@@ -1,5 +1,30 @@
 ﻿@page "/not-found"
 @layout MainLayout
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+@* 404'ler buraya düşer: Router'ın NotFoundPage'i (eşleşmeyen sayfa adresi) ve
+   UseStatusCodePagesWithReExecute("/not-found") (gövdesiz 404 dönen uçlar). Şablonun tek satırlık
+   İngilizce özrü yerine NE olduğunu ve NE yapılacağını söyler.
+   [Authorize] BİLEREK yok: girişsiz kullanıcı da yanlış adrese düşebilir; "/" onu zaten girişe
+   yönlendirir. *@
+
+<PageTitle>Sayfa Bulunamadı — RentPro</PageTitle>
+
+<div class="page-head"><h1>Sayfa Bulunamadı</h1></div>
+
+<p class="error">Aradığınız sayfa ya da kayıt bulunamadı.</p>
+
+<p class="muted">
+    Adres yanlış yazılmış, kayıt silinmiş ya da eski bir bağlantı kullanılmış olabilir. Bir listeden
+    geldiyseniz listeyi yenileyip kaydı yeniden açın.
+    @* Arama kutusu YALNIZ girişli kabuğun üst çubuğunda var (MainLayout'un NotAuthorized dalı yalnız
+       @Body basar); girişsiz kullanıcıya görmediği bir kutuyu önermeyiz. Mobilde de üst çubukta durur. *@
+    <AuthorizeView>
+        <Authorized>Belge numarası ya da plakayla üstteki <b>Hızlı Arama</b> kutusundan da bulabilirsiniz.</Authorized>
+    </AuthorizeView>
+</p>
+
+<p>
+    <button type="button" class="link" data-rc-geri>← Geri dön</button>
+    <span> · </span>
+    <a href="/">Panele dön</a>
+</p>

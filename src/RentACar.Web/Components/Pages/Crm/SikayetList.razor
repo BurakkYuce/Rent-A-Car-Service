@@ -164,7 +164,7 @@
 
 @if (_edit is not null)
 {
-    <form method="post" action="/sikayetler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+    <form method="post" action="/sikayetler/delete" data-confirm="Bu şikâyet kaydı kalıcı olarak silinsin mi? Kayıt geri getirilemez."><AntiforgeryToken />
         <input type="hidden" name="id" value="@_edit.Id" /><button type="submit" class="link danger">Sil</button>
     </form>
 }

@@ -101,7 +101,8 @@
                             <label class="chk"><input type="checkbox" name="imzaAlaniGoster" value="true" checked="@s.ImzaAlaniGoster" /> Sözleşmede fiziksel imza alanı bassın</label>
                             <button type="submit">Kaydet</button>
                         </form>
-                        <form method="post" action="/belge-sablonlari/delete" style="display:inline"><AntiforgeryToken />
+                        <form method="post" action="/belge-sablonlari/delete" style="display:inline"
+                              data-confirm="'@s.Ad' belge şablonu KALICI olarak silinsin mi? Geri alınamaz; bu şablonla basılan belgeler artık tür varsayılanıyla (o da yoksa sistemin standart metniyle) basılır."><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" /><button type="submit" class="link danger">Sil</button>
                         </form>
                     </details>

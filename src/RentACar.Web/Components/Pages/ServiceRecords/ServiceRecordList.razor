@@ -140,7 +140,7 @@
     <thead>
         <tr>
             <th>No</th><th>Araç</th><th>Tür</th><th>Giriş</th><th>Plan</th><th>KM</th>
-            <th>İşçilik (net)</th><th>KDV</th><th>Genel Toplam</th><th>Fatura</th><th>Durum</th><th>İşlem</th>
+            <th class="num">İşçilik (net)</th><th class="num">KDV</th><th class="num">Genel Toplam</th><th>Fatura</th><th>Durum</th><th>İşlem</th>
         </tr>
     </thead>
     <tbody>
@@ -205,7 +205,8 @@
                         </AuthorizeView>
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="silCtx">
-                            <form method="post" action="/servisler/iptal" class="inline"><AntiforgeryToken />
+                            <form method="post" action="/servisler/iptal" class="inline"
+                                  data-confirm="@s.No servis kaydı iptal edilsin mi? Kayıt İptal durumuna geçer (bakım geçmişinde sayılmaz), araç serviste ise Müsait'e döner; iptal geri alınamaz."><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@s.Id" /><button type="submit">İptal</button>
                             </form>
                         </AuthorizeView>
@@ -237,8 +238,8 @@
                                tamamen kaybolurdu. *@
                             <table class="grid kart-mobil">
                                 <thead>
-                                    <tr><th>Açıklama</th><th>Birim Fiyat</th><th>Miktar</th><th>Toplam Fiyat</th>
-                                        <th>İndirim</th><th>Tutar (net)</th><th>KDV</th><th>Genel Toplam</th></tr>
+                                    <tr><th>Açıklama</th><th class="num">Birim Fiyat</th><th class="num">Miktar</th><th class="num">Toplam Fiyat</th>
+                                        <th class="num">İndirim</th><th class="num">Tutar (net)</th><th class="num">KDV</th><th class="num">Genel Toplam</th></tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var l in s.Lines)

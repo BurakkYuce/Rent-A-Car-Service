@@ -148,7 +148,10 @@
                     {
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/cezalar/iptal" class="inline"><AntiforgeryToken />
+                            @* Bu dalda ceza henüz yansıtılmamış ve ödenmemiş (servis de bunu şart koşar) →
+                               iptal ters kayıt DEĞİL, yalnız durum değişikliği; mesaj bunu doğru söyler. *@
+                            <form method="post" action="/cezalar/iptal" class="inline"
+                                  data-confirm="@p.No numaralı ceza iptal edilsin mi? Ceza İptal durumuna geçer ve müşteriye bir daha yansıtılamaz; iptal geri alınamaz. (Henüz yansıtılmadığı ve ödenmediği için defter kaydı oluşmaz.)"><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@p.Id" />
                                 <button type="submit">İptal</button>
                             </form>

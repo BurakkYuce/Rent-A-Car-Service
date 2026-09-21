@@ -267,7 +267,10 @@ else
                         <form method="post" action="/vehicles/@Id/photos/@p.Id/asagi"><AntiforgeryToken />
                             <button type="submit" disabled="@(i == _photos.Count - 1)">↓</button>
                         </form>
-                        <form method="post" action="/vehicles/@Id/photos/@p.Id/sil"><AntiforgeryToken />
+                        @* Vitrin kapağı her istekte "fotoğrafı OLAN ilk araç"tan hesaplanır (FleetShowcaseService):
+                           ilanın son fotoğraflı aracının son fotoğrafı silinirse ilan vitrinden düşer. *@
+                        <form method="post" action="/vehicles/@Id/photos/@p.Id/sil"
+                              data-confirm="@_vehicle.Plaka aracının bu fotoğrafı KALICI olarak silinsin mi? Geri alınamaz. Fotoğraf web sitesi ilanlarından da kalkar; ilanda fotoğraflı başka araç kalmazsa ilan vitrinde görünmez olur."><AntiforgeryToken />
                             <button type="submit" class="btn-secondary">Sil</button>
                         </form>
                     </div>

@@ -96,7 +96,7 @@
             <th>Tür</th><th>Ad / Ünvan</th><th>TC / Vergi No</th><th>Telefon</th>
             <th>GSM 2</th><th>İlçe</th><th>Temsilci</th><th>Entegrasyon</th><th>Özel Kod</th>
             <th>Sınıf</th><th class="num">Vade (gün)</th>
-            <th>Kaynak</th><th>Kira</th><th>Ciro</th><th>Son Kira</th><th>Durum</th><th></th>
+            <th>Kaynak</th><th class="num">Kira</th><th class="num">Ciro</th><th>Son Kira</th><th>Durum</th><th></th>
         </tr>
     </thead>
     <tbody>
@@ -136,7 +136,7 @@
                     <a href="/cariler/@c.Id/ekstre" class="link">Ekstre</a>
                     @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
                     <AuthorizeView Policy="izin:OperationsDelete" Context="silCtx">
-                        <form method="post" action="/cariler/delete" data-confirm="Silinsin mi?"><AntiforgeryToken />
+                        <form method="post" action="/cariler/delete" data-confirm="@c.DisplayName carisi kalıcı olarak silinsin mi? Kayıt geri getirilemez."><AntiforgeryToken />
                             <input type="hidden" name="id" value="@c.Id" />
                             <button type="submit" class="link danger">Sil</button>
                         </form>

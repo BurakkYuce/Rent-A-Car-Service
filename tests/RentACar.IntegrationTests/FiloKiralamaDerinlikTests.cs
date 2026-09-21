@@ -147,6 +147,34 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         Assert.Contains("İptal edilmiş", ex2.Message);
     }
 
+    /// <summary>
+    /// İptal TERMİNAL (adversarial bulgu): ekranın iptal onayı "iptal geri alınamaz" diyor ama eski
+    /// listeden "Tamamla"ya basan kullanıcı İptal → Tamamlandı geçişi yapabiliyordu.
+    /// </summary>
+    [Fact]
+    public async Task Iptal_edilmis_sozlesme_tamamlanamaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var sp = s.ServiceProvider;
+        var (m, v) = await TemelAsync(sp, "Delta", "34 FK 04");
+        var svc = sp.GetRequiredService<FiloKiralamaService>();
+        var id = await svc.CreateAsync(new FiloKiralamaInput
+        { MusteriId = m, VehicleId = v, SureAy = 3, AylikUcret = 1000m });
+
+        await svc.IptalAsync(id);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.TamamlaAsync(id));
+        Assert.Contains("İptal edilmiş", ex.Message);
+        Assert.Equal(FiloKiraDurum.Iptal, (await svc.GetAsync(id))!.Durum);
+
+        // Aktif sözleşme hâlâ tamamlanabilir (guard yalnız İptal'i kapatır).
+        var (m2, v2) = await TemelAsync(sp, "Epsilon", "34 FK 05");
+        var aktif = await svc.CreateAsync(new FiloKiralamaInput
+        { MusteriId = m2, VehicleId = v2, SureAy = 3, AylikUcret = 1000m });
+        Assert.True(await svc.TamamlaAsync(aktif));
+        Assert.Equal(FiloKiraDurum.Tamamlandi, (await svc.GetAsync(aktif))!.Durum);
+    }
+
     [Fact]
     public async Task Filtreler_ELLE_BEKLENEN_alt_kumeyi_dondurur()
     {

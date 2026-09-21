@@ -151,7 +151,8 @@
                         </form>
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/baf/iptal" style="display:inline"><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
+                            <form method="post" action="/baf/iptal" style="display:inline"
+                                  data-confirm="@b.No numaralı araç tahsisi (BAF) iptal edilsin mi? Kayıt silinmez, İptal durumuna geçer; bir daha teslim alınamaz ve iptal geri alınamaz."><AntiforgeryToken /><input type="hidden" name="id" value="@b.Id" /><button type="submit" class="btn-secondary">İptal</button></form>
                         </AuthorizeView>
                     }
                 </td>

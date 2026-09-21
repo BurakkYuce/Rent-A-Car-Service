@@ -49,7 +49,11 @@
     }
     else
     {
-        <form method="post" action="/finans/tek-cari-kapat"><AntiforgeryToken />
+        @* Tahsis (KapatmaTahsis) tahsilatın ters kaydında SERBEST BIRAKILMAZ — ters kayıt yolu o tabloya
+           dokunmuyor. Kapatma bu yüzden fiilen geri alınamaz; mesaj bunu söyler. Kalem başına KISMİ tutar
+           girilebildiği için mesaj "kalem kapanır" DEMEZ: yalnız girilen tutar tahsis edilir (CashService). *@
+        <form method="post" action="/finans/tek-cari-kapat"
+              data-confirm="@_cari.DisplayName carisinin seçili borç kalemleri tek tahsilatla kapatılsın mı? Tahsilat seçilen tutarların toplamı kadar deftere yazılır ve bu tutarlar kalemlere KALICI olarak tahsis edilir (kısmi tutar girdiyseniz kalemin kalanı açık kalır); tahsilat sonradan ters kayıtla iptal edilse bile tahsis kalkmaz."><AntiforgeryToken />
             <input type="hidden" name="islemAnahtari" value="@_token" />
             <input type="hidden" name="cariId" value="@_cari.Id" />
             <div class="table-scroll">
