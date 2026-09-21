@@ -216,6 +216,7 @@ public static class DependencyInjection
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IKullaniciIzinRepository, KullaniciIzinRepository>(); // izin istisnaları
+        services.AddScoped<RentACar.Application.TabloDuzenleri.ITabloDuzeniRepository, Persistence.Repositories.TabloDuzeniRepository>(); // F3.5 kişisel tablo düzeni
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
         services.AddScoped<IDetailRepository, DetailRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
