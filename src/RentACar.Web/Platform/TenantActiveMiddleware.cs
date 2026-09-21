@@ -22,6 +22,13 @@ public sealed class TenantActiveMiddleware(TenantStatusCache status) : IMiddlewa
             if (Guid.TryParse(tid, out var tenantId) && !await status.IsActiveAsync(tenantId, ctx.RequestAborted))
             {
                 await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                // F1.2: yeni arayüz API'si yönlendirme izlemez → 401 kiraci_kapali ProblemDetails.
+                if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
+                {
+                    await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx, RentACar.Web.Api.UiHata.KiraciKapali,
+                        "Firma hesabı kapalı; oturum sonlandırıldı.");
+                    return;
+                }
                 ctx.Response.Redirect("/login?hata=kapali");
                 return;
             }
@@ -39,6 +46,8 @@ public sealed class TenantActiveMiddleware(TenantStatusCache status) : IMiddlewa
             || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/_content", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            // F1.2: yeni arayüzün giriş/çıkışı (/auth'un karşılığı). ben ve veri uçları ATLANMAZ.
+            || RentACar.Web.Api.UiApiExtensions.GirisCikisYolu(path)
             || Path.HasExtension(p); // statik varlıklar (.css/.js/.woff2 …) — sayfa değil
     }
 }
