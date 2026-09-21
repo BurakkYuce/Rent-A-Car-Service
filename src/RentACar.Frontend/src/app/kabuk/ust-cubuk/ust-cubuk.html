@@ -1,0 +1,55 @@
+<header class="ust">
+  <button
+    #menuDugmesi
+    type="button"
+    class="rc-dugme rc-dugme--hayalet rc-dugme--ikon menu-dugmesi"
+    aria-controls="rc-yan-menu"
+    [attr.aria-expanded]="cekmeceAcik()"
+    [attr.aria-label]="'kabuk.menuyuAc' | transloco"
+    (click)="menuAc.emit()"
+  >
+    <rc-ikon ad="menu-2" [boyut]="18" />
+  </button>
+
+  <button
+    type="button"
+    class="rc-dugme palet"
+    aria-haspopup="dialog"
+    aria-keyshortcuts="Control+K Meta+K"
+    [attr.aria-label]="('kabuk.palet.ac' | transloco) + ' (' + kisayol + ')'"
+    (click)="paletAc.emit()"
+  >
+    <rc-ikon ad="search" [boyut]="14" />
+    <span class="palet__metin">{{ 'kabuk.palet.ac' | transloco }}</span>
+    <kbd class="palet__tus" aria-hidden="true">{{ kisayol }}</kbd>
+  </button>
+
+  <span class="bosluk"></span>
+
+  <div class="rc-dugme-grubu" role="group" [attr.aria-label]="'tema.etiket' | transloco">
+    @for (secenek of temaSecenekleri; track secenek.mod) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk rc-dugme--ikon"
+        [attr.aria-pressed]="tema.mod() === secenek.mod"
+        [attr.aria-label]="secenek.etiket | transloco"
+        [title]="secenek.etiket | transloco"
+        (click)="tema.modAyarla(secenek.mod)"
+      >
+        <rc-ikon [ad]="secenek.ikon" [boyut]="14" />
+      </button>
+    }
+  </div>
+
+  @if (kimlik(); as k) {
+    <div class="kimlik">
+      <span class="kimlik__ad">{{ k.ad }}</span>
+      <span class="kimlik__firma">{{ k.firma }} · {{ k.sube }}</span>
+    </div>
+  }
+
+  <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="cikis.emit()">
+    <rc-ikon ad="logout" [boyut]="14" />
+    {{ 'oturum.cikis' | transloco }}
+  </button>
+</header>

@@ -21,3 +21,12 @@ export function trBuyukHarf(metin: string): string {
 export function trNormalize(metin: string): string {
   return trKucukHarf(metin.normalize('NFC').trim());
 }
+
+/**
+ * Gevşek arama anahtarı (komut paleti, menü araması): `trNormalize` + Türkçe harflerin aksansız
+ * karşılığı ("İş" → "is", "Işık" → "isik", "Güneş" → "gunes"). Kullanıcı Türkçe klavye olmadan da
+ * yazabilsin diye; ASCII sorgu Türkçe metni, Türkçe sorgu aynı metni bulur. Görüntüleme için değil.
+ */
+export function trAramaAnahtari(metin: string): string {
+  return trNormalize(metin).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
+}

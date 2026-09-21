@@ -136,6 +136,41 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   seçer; başlıkta Enter sıralar, Alt+←/→ genişlik, Alt+Shift+←/→ sıra. Roving tabindex.
 - Dışa aktarma yalnız sunucu uçlarıyla (`/listeler/export/*`, `/raporlar/export/*`); istemcide dosya üretilmez.
 
+## Kabuk ve sekmeli çalışma alanı (F3.2)
+
+- **Rotalar:** `/giris` kabuk DIŞINDA; geri kalan her şey `canMatch: [oturumGuard]` olan kabuk rotasının
+  (`kabuk/kabuk.routes.ts`, tembel) çocuğu. **Sayfa eklemek = `src/app/sayfalar.ts`'e satır:** `title`
+  zorunlu (`'<Ad> — RentACar'` → belge başlığı + sekme etiketi), `loadComponent`, kirli form varsa
+  `canDeactivate: [kaydedilmemisDegisiklikGuard]`, izin varsa `canMatch: [izinGuard(...)]`. Kayıt sayfası
+  yol parametresi olarak YALNIZ `:id` kullanır (`kiralar/:id`); başka parametreli sayfa yenilemede geri gelmez.
+- **Menü:** `GET /api/ui/v1/menu`'den (`MenuStore` + `FetchPolicy`, 5 dk'da bir ve bağlam değişince tazelenir).
+  İstemci SÜZMEZ (izin/modül sunucuda). `sahip: 'spa'` → router (`rota` router yolu; `/app` öneki de kabul),
+  diğer her sahip → **tam sayfa** (`/app` dışı Blazor adresi). Blazor'a geçmeden önce TÜM sekmelerdeki
+  kaydedilmemiş değişiklik tek soruyla sorulur (`SekmeServisi.ayrilmaOnayi`), onaydan sonra `beforeunload`
+  ikinci kez sormaz (`SayfaTerki`). Faz kesişinde (F5+) menü kaydında `sahip` `spa` olunca öğe kendiliğinden
+  SPA'ya döner — kabukta kod değişmez. Etkin sayfa: en uzun `/`-sınırlı önek, `aria-current="page"`, grubu açılır.
+- **Ctrl+K / ⌘K:** komut paleti (tembel parça, CDK diyaloğu). Arama `trAramaAnahtari` (`@core/metin/tr-normalize`:
+  `İş` = `iş` = `is`, `Işık` = `isik`). **CDK'yı dinamik `import('@angular/cdk/overlay')` ile ALMAYIN**: dinamik
+  içe aktarılan modülün tüm dışa aktarımları canlı sayılır, `core.mjs` ve rxjs'in paylaşılan kısmı ilk pakete
+  şişer (+12 kB ölçüldü). CDK tembel modülün içinde STATİK içe aktarılır, kabuk o modülü dinamik yükler.
+- **Mobil (≤ 900 px):** yan menü çekmece; açıkken içerik sütunu `inert`, Esc/perde kapatır, odak menü düğmesine döner.
+- **Sekmeler** (`@core/sekme` ilk pakette küçük çekirdek + `kabuk/sekmeler` tembel): her kabuk sayfası (desen +
+  yol parametreleri; sorgu/fragment HARİÇ) bir sekme. Başka sekmeye geçince bileşen YOK EDİLMEZ
+  (`SekmeRotaStratejisi`, `RouteReuseStrategy`): form, kaydırma, sayfa store'u yaşar. Bu yüzden
+  `kaydedilmemisDegisiklikGuard` sekme DEĞİŞİMİNDE sormaz, sekme KAPATILIRKEN sorar (arka plandaki kirli sekme
+  için de). En fazla 10 sekme: doluyken en uzun süredir kullanılmayan TEMİZ sekme kapanır (bilgi toast'u),
+  hepsi kirliyse gezinme durur (uyarı). Tek seferlik akış `data: { sekme: false }` ile sekme dışı kalır.
+- **KVKK:** `localStorage['rc.sekmeler']` = yalnız `[{ rota: '/kiralar/:id', id: '…' }]`. Sorgu, filtre, form
+  değeri, müşteri adı ASLA yazılmaz; sayfanın verdiği etiket (`sekmeBaglami().etiketAyarla('Kira 2026…')`)
+  yalnız bellekte. Çıkışta `OturumServisi.temizlikKaydet` ile sekmeler + arka plandaki bileşenler silinir.
+- **FetchPolicy + sekme:** `aktif` verilmezse sayfanın sekmesi görünür mü (`sekmeBaglami().aktif`); arka plandaki
+  sekme yüklemez, değişiklik biriktirir, öne gelince tek yükleme. `sekmeyeDonunce: 'yenile'` her dönüşte
+  yeniden yükler (canlı pano, rozetli liste); form sayfası varsayılanda (`degisirse`) kalır.
+- Sayfa kendi `<main>`'ini açmaz (kabukta var); sayfa başlığı `h1`. Sayfa yüksekliği `100vh` değil (kabuk üst
+  çubuğu + sekme çubuğu ≈ 5 rem).
+- e2e: `oturumAc` menüyü de sahteler (`e2e/ortak.ts` `MENU`); Blazor ekranı `page.route('**/<yol>')` ile sahte
+  HTML. `e2e/kabuk.spec.ts` menü/etkin sayfa/Ctrl+K/390 px çekmece/sekmeler.
+
 ## Kapılar
 
 Node **22** zorunlu (`.nvmrc`, `engines`). Başka sürümde: `npx -y -p node@22 npm run <betik>`.

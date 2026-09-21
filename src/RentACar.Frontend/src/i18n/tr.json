@@ -10,7 +10,11 @@
     "ornekTarih": "Tarih",
     "ornekDurum": "Durum",
     "durumHazir": "Hazır",
-    "durumYapimda": "Yapımda"
+    "durumYapimda": "Yapımda",
+    "vitrinler": "Vitrinler",
+    "formVitrini": "Form vitrini",
+    "tanimVitrini": "Tanım vitrini",
+    "tabloVitrini": "Tablo vitrini"
   },
   "tema": {
     "etiket": "Tema",
@@ -231,6 +235,41 @@
       "siralamaYok": "Sıralama varsayılana döndü",
       "genislik": "{{baslik}} genişliği {{px}} piksel",
       "tasindi": "{{baslik}} {{sira}}. sıraya taşındı"
+    }
+  },
+  "kabuk": {
+    "icerigeGec": "İçeriğe geç",
+    "anaMenu": "Ana menü",
+    "menuyuAc": "Menüyü aç",
+    "menuyuKapat": "Menüyü kapat",
+    "menu": {
+      "kisaYollar": "Kısa yollar",
+      "yukleniyor": "Menü yükleniyor…",
+      "hata": "Menü yüklenemedi.",
+      "guncellenemedi": "Menü güncellenemedi; son yüklenen gösteriliyor.",
+      "yenidenDene": "Yeniden dene",
+      "eskiEkran": "Mevcut (eski) ekranda, tam sayfa açılır.",
+      "yeni": "yeni"
+    },
+    "tema": {
+      "sistem": "Sistem teması",
+      "acik": "Açık tema",
+      "koyu": "Koyu tema"
+    },
+    "palet": {
+      "ac": "Ekran ara",
+      "baslik": "Komut paleti",
+      "ara": "Ekran adı",
+      "yerTutucu": "Ekran adı yazın (ör. kira, fatura)",
+      "sonuclar": "Ekranlar",
+      "sonucYok": "Eşleşen ekran yok.",
+      "ipucu": "↑ ↓ seç · Enter aç · Esc kapat"
+    },
+    "sekme": {
+      "liste": "Açık sekmeler",
+      "kapat": "{{etiket}} sekmesini kapat",
+      "sinir": "En fazla {{sayi}} sekme açık tutulabilir ve hepsinde kaydedilmemiş değişiklik var. Yeni sayfa açmak için bir sekmeyi kaydedip kapatın.",
+      "eskiKapatildi": "Sekme sınırı ({{sayi}}): en uzun süredir kullanılmayan “{{etiket}}” sekmesi kapatıldı."
     }
   }
 }

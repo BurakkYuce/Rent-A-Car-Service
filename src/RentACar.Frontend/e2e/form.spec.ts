@@ -128,14 +128,23 @@ test('sunucu 400 + alanlar: yazılan her değer korunur, hatalar doğru alanın 
   expect(hatalar).toEqual([]);
 });
 
-test('kaydedilmemiş değişiklik: uygulama içi gezinme sorar, sekme kapatma beforeunload', async ({
+test('kaydedilmemiş değişiklik: başka sekmeye geçiş korur, sekmeyi kapatmak sorar, sayfa kapatma beforeunload', async ({
   page,
 }) => {
   await page.goto(FORM);
   await page.getByRole('textbox', { name: 'Plaka', exact: true }).fill('06 XYZ 1');
+  const sekmeler = page.getByRole('navigation', { name: 'Açık sekmeler' });
 
-  // Uygulama içi gezinme: F3.3 CDK onay diyaloğu (ONAY_ISTEMI), ilk odak "Sayfada kal".
+  // Uygulama içi gezinme (F3.2 sekmeli çalışma alanı): form sekmesi açık kalır → sorulmaz, değer korunur.
   await page.getByRole('link', { name: 'Ana sayfa' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await sekmeler.getByRole('link', { name: 'Form vitrini' }).click();
+  await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('06 XYZ 1');
+
+  // Sekmeyi kapatmak veriyi atar: F3.3 CDK onay diyaloğu (ONAY_ISTEMI), ilk odak "Sayfada kal".
+  const kapat = sekmeler.getByRole('button', { name: 'Form vitrini sekmesini kapat' });
+  await kapat.click();
   const soru = page.getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' });
   await expect(soru).toContainText('Kaydedilmemiş değişiklikler var');
   await expect(soru.getByRole('button', { name: 'Sayfada kal' })).toBeFocused();
@@ -143,10 +152,12 @@ test('kaydedilmemiş değişiklik: uygulama içi gezinme sorar, sekme kapatma be
   await expect(soru).toHaveCount(0);
   await expect(page).toHaveURL(/\/app\/vitrin\/form/);
   await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('06 XYZ 1');
+  await expect(sekmeler.getByRole('link', { name: 'Form vitrini' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Ana sayfa' }).click();
+  await kapat.click();
   await soru.getByRole('button', { name: 'Sayfadan ayrıl' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(sekmeler.getByRole('link', { name: 'Form vitrini' })).toHaveCount(0);
 
   // Tam sayfa terk (sekme kapatma / Blazor ekranına geçiş): beforeunload.
   await page.goto(FORM);

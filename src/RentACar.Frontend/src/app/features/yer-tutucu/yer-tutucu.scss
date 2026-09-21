@@ -1,6 +1,5 @@
 .yer-tutucu {
-  min-height: 100vh;
-  padding: var(--rc-bosluk-12) var(--rc-bosluk-4);
+  padding: var(--rc-bosluk-8) var(--rc-bosluk-4);
 }
 
 .kart {
@@ -27,33 +26,9 @@
   color: var(--rc-metin-ikincil);
 }
 
-.tema {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--rc-bosluk-2);
-  padding-top: var(--rc-bosluk-3);
-  border-top: 1px solid var(--rc-kenar);
-}
-
-.tema-etiket {
-  color: var(--rc-metin-ikincil);
-  font-size: var(--rc-yazi-xs);
-  font-weight: var(--rc-agirlik-orta);
-}
-
 .oturum {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--rc-bosluk-2);
-
-  p {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 10rem;
-  }
+  flex-direction: column;
 }
 
 .kullanici {
@@ -63,4 +38,12 @@
 .firma {
   color: var(--rc-metin-ikincil);
   font-size: var(--rc-yazi-xs);
+}
+
+.vitrinler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  padding-top: var(--rc-bosluk-3);
+  border-top: 1px solid var(--rc-kenar);
 }
