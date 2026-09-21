@@ -1,9 +1,13 @@
 using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
 
 namespace RentACar.Application.Customers;
 
 /// <summary>Dropdown/seçim satırı — PII TAŞIMAZ (yalnız Id + görünen ad).</summary>
 public sealed record CariSecim(Guid Id, string Ad);
+
+/// <summary>F1.6 typeahead satırı — PII TAŞIMAZ (Id + görünen ad + tip). TC/telefon/e-posta/adres YOK.</summary>
+public sealed record CariSecimSatiri(Guid Id, string Ad, CariType Tip);
 
 public interface ICustomerRepository
 {
@@ -17,6 +21,13 @@ public interface ICustomerRepository
     /// duman testinde ölçüldü). Personel tarafındaki ListForSelectAsync ile aynı gerekçe.</para>
     /// </summary>
     Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// F1.6 SINIRLI seçim araması (typeahead): <paramref name="katlanmisTerim"/> (bkz. <c>TurkishText.Normalize</c>)
+    /// ad/soyad/ünvanda aranır, en çok <paramref name="limit"/> satır döner. PII kolonlarına dokunmaz.
+    /// <see cref="ListSecimAsync"/>'ten farkı: tüm cari listesini DEĞİL, sorguya uyan ilk N'i döner.
+    /// </summary>
+    Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string katlanmisTerim, int limit, CancellationToken ct = default);
 
     /// <summary>Arama (ad/ünvan/TC/vergi) + sayfalama (liste ekranı).</summary>
     Task<Common.PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default);

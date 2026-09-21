@@ -56,6 +56,26 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             .ToList();
     }
 
+    /// <summary>F1.6 sınırlı seçim araması — PII kolonlarına HİÇ dokunmaz; Türkçe katlamalı
+    /// (<see cref="TrSql"/>) ad+soyad+ünvan araması; en çok <paramref name="limit"/> satır.</summary>
+    public async Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string katlanmisTerim, int limit, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var q = db.Customers.AsNoTracking();
+        if (katlanmisTerim.Length > 0)
+            q = q.Where(TrSql.Icerir<Customer>(
+                c => (c.Ad ?? "") + " " + (c.Soyad ?? "") + " " + (c.Unvan ?? ""), katlanmisTerim));
+        var rows = await q
+            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad).ThenBy(c => c.Soyad).ThenBy(c => c.Id)
+            .Take(limit)
+            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad })
+            .ToListAsync(ct);
+        return rows
+            .Select(r => new CariSecimSatiri(r.Id,
+                new Customer { Tip = r.Tip, Unvan = r.Unvan, Ad = r.Ad, Soyad = r.Soyad }.DisplayName, r.Tip))
+            .ToList();
+    }
+
     /// <summary>Ortak filtre (arama + Tip + İYS/uyarı/kara-liste) — SearchAsync ve SearchRowsAsync paylaşır.
     /// TC araması yalnız TAM eşleşme (blind-index, filter.TcHash) — şifreli kolonda ILike anlamsız.</summary>
     private static IQueryable<Customer> ApplyFilter(IQueryable<Customer> q, CustomerFilter filter)

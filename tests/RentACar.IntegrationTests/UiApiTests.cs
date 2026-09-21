@@ -467,10 +467,11 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     [Fact]
     public void Muafiyet_yalniz_oturum_uclarinda()
     {
+        // F1.6: /menu da muaf — her oturumun bir menüsü var, kapı ÖĞE düzeyinde (MenuApi.Gorunur).
         var muaf = UiUclari().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
                                          && e.Metadata.GetMetadata<IzinMetadata>() is null)
             .Select(Rota).ToList();
-        Assert.All(muaf, r => Assert.StartsWith("/api/ui/v1/oturum/", r));
+        Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal) || r == "/api/ui/v1/menu", r));
     }
 
     [Fact]
