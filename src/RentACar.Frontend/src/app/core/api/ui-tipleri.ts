@@ -20,6 +20,13 @@ export type GirisIstegi =
 export type MenuYaniti = Semalar['MenuYaniti'];
 export type SecimOgesi = Semalar['SecimOgesi'];
 
+type SecimYolu = Extract<keyof paths, `/api/ui/v1/secim/${string}`>;
+/** F1.6 typeahead uçları: `musteri`, `arac`, `lokasyon`, … (sözleşmeden türetilir). */
+export type SecimUcu = SecimYolu extends `/api/ui/v1/secim/${infer U}` ? U : never;
+/** Bir seçim ucunun döndürdüğü öğe (`MusteriSecimOgesi`, `AracSecimOgesi`, `SecimOgesi`…). */
+export type SecimUcuOgesi<U extends SecimUcu> =
+  paths[`/api/ui/v1/secim/${U}`]['get']['responses'][200]['content']['application/json'][number];
+
 /** Sunucunun verdiği izin listesinde birebir eşleşme (izin adları sabit İngilizce enum adlarıdır). */
 export function izinVar(ben: BenYaniti, izin: string): boolean {
   return ben.izinler.includes(izin);

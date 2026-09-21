@@ -1,0 +1,238 @@
+// Form seti (F3.6): alan, girdi, seçenek ve yerleşim sınıfları. CVA bileşenleri bu sınıfları
+// kullanır; özellik ekranları da yerel öğede kullanabilir. Yalnız --rc-* token'ları.
+
+// Alan (rc-alan) -----------------------------------------------------------------------------------
+.rc-alan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+}
+
+.rc-alan__etiket {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  font-weight: var(--rc-agirlik-orta);
+  line-height: var(--rc-satir-sik);
+}
+
+.rc-alan__zorunlu {
+  margin-inline-start: var(--rc-bosluk-0-5);
+  color: var(--rc-hata-metin);
+}
+
+.rc-alan__ipucu {
+  color: var(--rc-metin-soluk);
+  font-size: var(--rc-yazi-xs);
+}
+
+.rc-alan__hata {
+  color: var(--rc-hata-metin);
+  font-size: var(--rc-yazi-xs);
+
+  &:empty {
+    display: none;
+  }
+
+  > p {
+    display: flex;
+    gap: var(--rc-bosluk-1);
+    align-items: flex-start;
+  }
+}
+
+// Girdi --------------------------------------------------------------------------------------------
+.rc-girdi,
+.rc-girdi-kutusu {
+  width: 100%;
+  min-height: var(--rc-kontrol-yukseklik);
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin);
+  font-size: var(--rc-yazi-sm);
+}
+
+.rc-girdi {
+  padding: 0 var(--rc-kontrol-ic-bosluk);
+
+  &::placeholder {
+    color: var(--rc-metin-soluk);
+  }
+
+  &:disabled {
+    border-color: var(--rc-kenar);
+    background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin-pasif);
+    cursor: not-allowed;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--rc-hata-metin);
+  }
+}
+
+textarea.rc-girdi {
+  min-height: calc(var(--rc-kontrol-yukseklik) * 3);
+  padding-block: var(--rc-bosluk-1-5);
+  line-height: var(--rc-satir);
+  resize: vertical;
+}
+
+.rc-girdi--sayi {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+// Girdi + ek (para birimi, takvim düğmesi): çerçeve kutuda, iç girdi çerçevesiz.
+.rc-girdi-kutusu {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+
+  &:focus-within {
+    outline: var(--rc-odak-kalinlik) solid var(--rc-odak);
+    outline-offset: var(--rc-odak-bosluk);
+  }
+
+  &:has([aria-invalid='true']) {
+    border-color: var(--rc-hata-metin);
+  }
+
+  &:has(:disabled) {
+    border-color: var(--rc-kenar);
+    background-color: var(--rc-yuzey-alt);
+  }
+
+  > .rc-girdi {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+}
+
+.rc-girdi-eki {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--rc-bosluk-2);
+  border-inline-start: 1px solid var(--rc-kenar);
+  background-color: var(--rc-yuzey-alt);
+  color: var(--rc-metin-ikincil);
+  white-space: nowrap;
+}
+
+button.rc-girdi-eki {
+  border-block: 0;
+  border-inline-end: 0;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--rc-yuzey-vurgu);
+  }
+
+  &:focus-visible {
+    outline-offset: calc(var(--rc-odak-kalinlik) * -1);
+  }
+}
+
+// Onay kutusu, radyo, anahtar ----------------------------------------------------------------------
+.rc-secenek {
+  display: inline-flex;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  min-height: var(--rc-kontrol-yukseklik-kucuk);
+  cursor: pointer;
+
+  > input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--rc-vurgu);
+    cursor: inherit;
+  }
+
+  &:has(:disabled) {
+    color: var(--rc-metin-pasif);
+    cursor: not-allowed;
+  }
+}
+
+.rc-secenek-grubu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-1) var(--rc-bosluk-4);
+}
+
+.rc-secenek > input.rc-anahtar {
+  position: relative;
+  width: 2rem;
+  height: 1.125rem;
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-yuzey-alt);
+  appearance: none;
+  transition: background-color var(--rc-sure-hizli) var(--rc-egri);
+
+  &::after {
+    position: absolute;
+    inset-block-start: 1px;
+    inset-inline-start: 1px;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: var(--rc-kenar-kontrol);
+    content: '';
+    transition: transform var(--rc-sure-hizli) var(--rc-egri);
+  }
+
+  &:checked {
+    border-color: var(--rc-vurgu);
+    background-color: var(--rc-vurgu);
+
+    &::after {
+      background-color: var(--rc-vurgu-uzeri);
+      transform: translateX(0.875rem);
+    }
+  }
+}
+
+// Yerleşim -----------------------------------------------------------------------------------------
+.rc-form-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--rc-bosluk-3) var(--rc-bosluk-4);
+  align-items: start;
+}
+
+.rc-form-izgara__genis {
+  grid-column: 1 / -1;
+}
+
+.rc-form-hatalari {
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  border: 1px solid var(--rc-hata-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+
+  > ul {
+    margin: var(--rc-bosluk-1) 0 0;
+    padding-inline-start: var(--rc-bosluk-4);
+  }
+}
+
+// Açılır panel (takvim, arama listesi): CDK overlay içinde.
+.rc-acilir-panel {
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background-color: var(--rc-yuzey);
+  box-shadow: var(--rc-golge-3);
+  color: var(--rc-metin);
+  font-size: var(--rc-yazi-sm);
+}
