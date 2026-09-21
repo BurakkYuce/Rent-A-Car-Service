@@ -166,3 +166,23 @@ internal sealed class YetkiGrupConfig : IEntityTypeConfiguration<YetkiGrup>
         e.HasIndex(x => new { x.TenantId, x.Ad }).IsUnique();
     }
 }
+
+// ---- TabloDuzeni (tenant-owned; yeni arayüzün kişisel tablo düzeni — kullanıcı × tablo başına tek, F3.5) ----
+internal sealed class TabloDuzeniConfig : IEntityTypeConfiguration<TabloDuzeni>
+{
+    public void Configure(EntityTypeBuilder<TabloDuzeni> e)
+    {
+        e.ToTable("TabloDuzenleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.TabloKodu).IsRequired().HasMaxLength(64);
+        // Doğrulanmış DTO'nun serileştirilmiş hâli (servis yazar; ham istemci JSON'u değil).
+        e.Property(x => x.Duzen).IsRequired().HasColumnType("jsonb");
+        // Kullanıcı silinmez (pasifleştirilir) ama bütünlük için FK; satır bir gün silinirse
+        // düzenleri de gitsin (yetim tercih, aynı Id'yi alamayacak olsa da tabloyu kirletmesin).
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        // Kullanıcı × tablo başına TEK düzen: upsert, son yazan kazanır; eşzamanlı ilk yazımda
+        // ikinci INSERT bu index'e çarpar ve repo güncellemeye döner.
+        e.HasIndex(x => new { x.TenantId, x.UserId, x.TabloKodu }).IsUnique();
+    }
+}
