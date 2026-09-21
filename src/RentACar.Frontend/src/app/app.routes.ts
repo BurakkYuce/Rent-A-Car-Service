@@ -47,6 +47,7 @@ export const routes: Routes = [
   {
     // F3.5 tablo motoru vitrini: TanStack table-core + virtual-core yalnız bu parçaya girer.
     path: 'vitrin/tablo',
+    canMatch: [oturumGuard], // FetchPolicy oturum bağlamı (OTURUM_BAGLAMI) yokken yüklemez
     title: 'Tablo vitrini — RentACar',
     loadComponent: () =>
       import('@features/vitrin/tablo-vitrini/tablo-vitrini').then((m) => m.TabloVitrini),

@@ -475,7 +475,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
             .Select(Rota).ToList();
         // F3.3: /istemci-hata da muaf — her oturum yalnız KENDİ tarayıcı hatasını raporlar (veri yok, yalnız log).
         Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
-                                          || r == "/api/ui/v1/menu" || r == "/api/ui/v1/istemci-hata"
+                                          || r == "/api/ui/v1/menu"
+                                          || r == "/api/ui/v1/istemci-hata"
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
     }
 
