@@ -68,7 +68,7 @@ public class ServiceRecord : ITenantOwned, IAuditable
     public decimal? DegerKaybi { get; set; }
 
     // ==================== FAZ-16 — FATURA BLOĞU (BİLGİ, DEFTERE YAZMAZ) ====================
-    // KİLİTLİ KARAR (docs/roadmap/KARARLAR.md "FAZ-16 — Servis faturası/ödemesi defter bağı"):
+    // KİLİTLİ KARAR (docs/KARARLAR.md "FAZ-16 — Servis faturası/ödemesi defter bağı"):
     // BAĞLANMAZ. Servis kaydı bilgi olarak zenginleşir; GERÇEK maliyet Giderler ekranından girilir.
     // Gerekçe: aynı masrafı hem servisten hem giderden yazmak ÇİFT-SAYIM olurdu (Araç Karnesi /
     // Karlılık / Filo Analiz P&L'i YALNIZ AccountLedgerEntry'den okur). Bu alanlar bir

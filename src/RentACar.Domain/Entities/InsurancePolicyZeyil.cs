@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// Tenant-owned + auditable; güncellenebilir/silinebilir (mali belge DEĞİL → değişmezlik
 /// trigger'ı yok, tam CRUD).
 ///
-/// <para><b>DEFTERE YAZMAZ (kilitli karar — <c>docs/roadmap/KARARLAR.md</c> "GENEL POLİTİKA —
+/// <para><b>DEFTERE YAZMAZ (kilitli karar — <c>docs/KARARLAR.md</c> "GENEL POLİTİKA —
 /// yeni tutar alanları deftere yazmaz").</b> <see cref="Brut"/>/<see cref="Net"/>/
 /// <see cref="FonVergi"/>/<see cref="Deger"/> yalnız BİLGİ/GEÇMİŞ alanlarıdır; hiçbir
 /// <c>AccountLedgerEntry</c> üretmezler, cari bakiyeye ve gelir-gider raporlarına GİRMEZLER.

@@ -7,6 +7,7 @@
 
 ## 2. Yığın (locked — değiştirmeyin)
 - **.NET 10 (LTS)**, ASP.NET Core, **Blazor Server *statik* SSR** (interaktif circuit DEĞİL — formlar `method="post"` minimal-API uçlarına gider).
+- **ARAYÜZ GEÇİŞİ SÜRÜYOR (2026-09-21):** Blazor arayüzü **dondurulmuştur** — yeni özellik girmez, yalnız kritik düzeltme. Arayüz modül modül **Angular 21 SPA**'ya taşınıyor: `src/RentACar.Frontend/` (bu repo), veri `/api/ui/v1` (Web sunucusu, aynı `racar.session` çerezi). Faz sırası KİLİTLİ; plan ve her fazın sayfa/uç envanteri `docs/roadmap/` (README + `F0`–`F13.md`). Sıra değişikliği yalnız kullanıcı kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla. Backend (Domain/Application/Infrastructure) bu geçişte yalnız eklemeli değişir.
 - **EF Core 10 + PostgreSQL (Npgsql)**. Para = `decimal`/`numeric`.
 - **Temiz mimari**, katmanlar: `RentACar.Domain` → `Application` → `Infrastructure` → `Web` (+ `tests/RentACar.IntegrationTests`). Bağımlılık yönü içe doğru; Domain hiçbir şeye bağımlı değil.
 - Central Package Management (`Directory.Packages.props`), `.slnx` çözüm dosyası.
@@ -108,6 +109,8 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
   - **BETİKLE TOPLU DÖNÜŞÜM ÜÇ SINIF HATA ÜRETTİ** (hepsi düzeltildi + çitlendi): (1) guard/catch dalına başarı mesajı — "dosya seçilmedi"yken "Araçlar içe aktarıldı." diyordu → `BasariMesajiDogruDaldaTests`; (2) son `MapPost` penceresi EOF'a taşıp paylaşımlı yardımcıyı yuttu → aksesuar EKLERKEN "Kayıt silindi." (canlıda görüldü), yardımcılara `mesaj` parametresi eklendi; (3) **PR-4'ten kalan çift render** — `VehicleGroupList`/`BranchList` zaten `?bilgi=` okuyup yerel basıyordu, global şeritle mesaj iki kez görünüyordu → `BilgiTekKaynakTests` (hem "sayfa okumaz" hem ters yönde "layout okur").
   - **DERS**: merkezî mekanizma eklerken "bu anahtarı kim OKUYOR" sorusu "kim YAZIYOR"dan önemli. Betikle toplu dönüşümde başarı/başarısızlık dalları makine tarafından ayırt edilemez — çıktı mutlaka gözden geçirilmeli.
 
+- **ANGULAR GEÇİŞİ BAŞLADI (2026-09-21):** canlıda iki kök sorun ölçüldü — (1) 148 Blazor sayfasının hiçbiri Blazor form mekanizmasını kullanmıyor; 334 POST ucu hata olunca `Redirect("?hata=…")` yapıp yazılanları siliyor (kira formunda 172 alan); (2) statik SSR'de tarayıcıda durum tutulamadığı için tasarım tavanı. Karar: Angular 21, kullanıcının kendi Revlo projesinden (`~/Desktop/revlo-market-ai/revlo-angular`) yalnız sağlam parçalar yapraktan köke seçilerek taşınır (kopyala-buda DEĞİL: kalite kapıları kırık, çekirdek otel/ses/Firebase'e bağlı). Plan ve kilitli kararlar `docs/roadmap/README.md`; iki adversarial turda doğrulanan tuzaklar orada (`IslemAnahtari` uuid, deterministik `TahsilatAnahtar` önceliği, `/app` anonim kabuk, sunucuda npm yok, `cakisma` ≠ `mukerrer`).
+
 **Bilerek ertelendi (kullanıcı kararıyla):**
 - **Gerçek entegrasyonlar** (e-Fatura/GİB, gerçek HGS/banka/POS) — **stub**; kimlik/credential gerektirir, açmadan önce kullanıcıya sor. (SMS ve e-posta 2026-08-17'de kapandı.)
 - **Canlı TürevRent kuruş-kalibrasyonu** (fiyat motoru oranlarının canlıyla birebir doğrulanması).
@@ -137,8 +140,7 @@ RACAR_TEST_PG_ADMIN="Host=localhost;Port=5432;Username=burak;Database=postgres" 
 - İzolasyon testleri MUTLAKA `racar_app` ile bağlanır (fixture öyle ayarlı).
 - `RACAR_TEST_PG_ADMIN` superuser admin bağlantısı (Mac'te kullanıcı adın superuser, ör. `burak`, trust auth).
 
-## 9. Sıradaki iş (öneri sırası)
-Kimliksiz (credential'sız) backlog 2026-07-15 itibarıyla TÜKENDİ ("hepsi" serisi §6). Kalanlar:
-1. **Gerçek entegrasyonlar** (e-Fatura/GİB, SMS, HGS, banka/POS) — kimlik/credential gerekir; port'lar/stub'lar hazır. Açmadan önce kullanıcıya sor.
-2. **Canlı TürevRent kuruş-kalibrasyonu** — fiyat motoru oranlarının canlı sistemle birebir doğrulanması (çerez erişimi mevcut, bkz. memory).
-3. Kullanıcının yeni istekleri / canlı kullanım geri bildirimi.
+## 9. Sıradaki iş
+**Ana hat: Angular geçiş roadmap'i** — `docs/roadmap/README.md`. G0 ✔; F0 (hazırlık) → F1 (API temeli) → F2 (frontend iskeleti; F2.1 F1'le paralel) → F3 (çekirdek) → F4 (pilot: Panel + Kira) → F5–F12 (modüller) → F13 (Blazor söküm). 60 PR. Her işte önce ilgili `docs/roadmap/F*.md` dosyasını oku; Exit kriterleri dışına çıkma. Faz sayfa listeleri `scripts/roadmap-envanteri.py` ile üretildi (taban 2026-09-21; yeniden üretilmez).
+
+Geçişten bağımsız açık işler: `docs/KARARLAR.md` "Açık işler" — gerçek entegrasyonlar (kimlik gerekir; açmadan önce kullanıcıya sor), canlı TürevRent kuruş-kalibrasyonu, FAZ-24/50/51/74 kararları.

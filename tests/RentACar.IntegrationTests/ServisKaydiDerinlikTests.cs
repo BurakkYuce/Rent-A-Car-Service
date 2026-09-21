@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 /// 1.000 + 180 = 1.180; 33,33 × %20 = 6,67 (satır) → 3 satırda 20,01; rücu 1.000 × 0,5 = 500.
 /// Hiçbir beklenen değer servis/rapor kodundan türetilmedi.</para>
 ///
-/// <para><b>KİLİTLİ KARAR (docs/roadmap/KARARLAR.md "FAZ-16"): fatura/ödeme DEFTERE BAĞLANMAZ.</b>
+/// <para><b>KİLİTLİ KARAR (docs/KARARLAR.md "FAZ-16"): fatura/ödeme DEFTERE BAĞLANMAZ.</b>
 /// <c>Fatura_ve_odeme_bilgisi_*</c> testleri kasıtlı olarak KIRILGANDIR: bu alanlardan herhangi bir
 /// <c>AccountLedgerEntry</c> ya da gider doğarsa defter satır sayısı / gelir-gider toplamı / araç
 /// karnesi rakamları değişir ve test patlar. Çift-sayıma karşı kalıcı kilittir.</para>

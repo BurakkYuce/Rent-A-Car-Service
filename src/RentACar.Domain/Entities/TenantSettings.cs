@@ -91,7 +91,7 @@ public class TenantSettings : ITenantOwned, IAuditable
     public Guid? VarsayilanGrupId { get; set; }
 
     // ---- FAZ-82: fiyat/muhasebe varsayılanları + iş kuralı anahtarı (canlı ayarlar.aspx) ----
-    // GENEL POLİTİKA (docs/roadmap/KARARLAR.md): buradaki hiçbir alan DEFTERE YAZMAZ; en fazla bir
+    // GENEL POLİTİKA (docs/KARARLAR.md): buradaki hiçbir alan DEFTERE YAZMAZ; en fazla bir
     // FORMUN ön-seçili değerini belirler ya da bir girişi REDDEDER. Hepsi nullable/false-varsayılan →
     // ayar boşken davranış bugünküyle BAYT-ÖZDEŞ kalır (regresyon testleri: AyarFiyatKuralTests).
 
