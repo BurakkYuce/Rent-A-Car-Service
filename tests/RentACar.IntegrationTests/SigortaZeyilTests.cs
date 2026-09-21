@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 /// 1 silinir → 2; prim 1200 ödenince gider 1200; tahsilat 2000 → cari bakiye −2000). Hiçbir
 /// beklenen değer servis/rapor kodundan türetilmez.</para>
 ///
-/// <para><b>KİLİTLİ KARAR (docs/roadmap/KARARLAR.md): zeyil DEFTERE YAZMAZ.</b>
+/// <para><b>KİLİTLİ KARAR (docs/KARARLAR.md): zeyil DEFTERE YAZMAZ.</b>
 /// <c>Zeyil_deftere_yazmaz_*</c> testleri kasıtlı olarak KIRILGANDIR: zeyile herhangi bir
 /// <c>AccountLedgerEntry</c> eklenirse defter satır sayısı ve/veya cari bakiye değişir ve test
 /// patlar. Bu, çift-sayıma karşı kalıcı kilittir.</para>
