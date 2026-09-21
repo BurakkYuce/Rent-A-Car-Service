@@ -169,6 +169,8 @@ public sealed class AppDbContext : DbContext
     // Firmanın KENDİ yüklediği PDF'ler. PlatformBelgeler ile karıştırma: o platform→tenant dağıtımı
     // (RLS yok), bu tenant'ın kendi dosyası (ITenantOwned + RLS).
     public DbSet<FirmaDokuman> FirmaDokumanlari => Set<FirmaDokuman>();
+    /// <summary>Yeni arayüzün kişisel tablo düzenleri (kullanıcı × tablo, F3.5).</summary>
+    public DbSet<TabloDuzeni> TabloDuzenleri => Set<TabloDuzeni>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

@@ -1,0 +1,28 @@
+.vitrin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  height: 100vh;
+  padding: var(--rc-bosluk-4);
+}
+
+.aciklama {
+  color: var(--rc-metin-ikincil);
+}
+
+.tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 12rem);
+}
+
+.araclar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+}
+
+.etiket,
+.bilgi {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
