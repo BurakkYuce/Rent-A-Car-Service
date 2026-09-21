@@ -57,11 +57,39 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   ("Kayıt bulunamadı" için `kayitYok(durum)`). `features/**/store/**` ve `*.store.ts` içinde ham
   `.subscribe(` lint'le yasak.
 - **Ne zaman yüklenir:** sayfanın `providers`'ında `FetchPolicy` (`ilk | sorgu | baglam | elle`);
-  bağlam `OTURUM_BAGLAMI` (F3.3'e kadar yer tutucu).
+  bağlam `OTURUM_BAGLAMI` (F3.3: `OturumServisi.baglam`).
 - **Liste sorgusu:** `listeTanimi({ filtreler, siralanabilir, varsayilanSirala })` + sayfada
   `listeSorgusuUrlSenkronu(tanim)`. URL tek doğruluk kaynağı; bozuk parametre varsayılana düşer,
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
 - Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`), stilsiz.
+
+## Oturum ve geri bildirim (F3.3)
+
+- **Oturum:** `OturumServisi` (`@core/oturum/oturum-servisi`) — `ben()` (üretilen `BenYaniti`), `girisYapildi()`,
+  `izinVar('FinanceWrite')`, `baglam()` (= `OTURUM_BAGLAMI`), `girisYap`, `cikisYap` (tam temizlik: kayıtlı
+  temizleyiciler + `rc.*` localStorage/sessionStorage, `rc.tema` hariç), `temizlikKaydet(fn)` (sekmeler, önbellekler
+  çıkışta silinsin diye buraya kaydolur). Rotalar: `canMatch: [oturumGuard]` ya da `[izinGuard('FinanceWrite')]`
+  (`@core/oturum/oturum-guard`); `/giris` `misafirGuard`. Dönüş adresi yalnız uygulama içi (`guvenliDonusAdresi`).
+- **Hatalar `kod`'a göre** (`oturumInterceptor`, `provideApiIstemcisi(oturumInterceptor)`): `oturum_yok` → yerinde
+  yeniden giriş diyaloğu + AYNI isteğin taze XSRF ile tekrarı (sayfadan gidilmez); `xsrf_gecersiz` → belirteç
+  yenilenip BİR kez tekrar; `yetki_yok`/`pilot_degil`/alansız `cakisma` → uyarı bandı; `mukerrer` → tekrar YOK,
+  `MUKERRERDE_YENILE` çağrılır + bilgi toast'u; `cok_istek` → uyarı toast'u; 5xx/ağ → hata toast'u;
+  `kiraci_kapali` → giriş sayfası. İstek bayrakları: `istekBaglami({ sessiz, yenidenGirisYok, mukerrerdeYenile })`
+  (`@core/oturum/istek-baglami`) → `ApiIstemcisi` `context`.
+- **Form hatası:** F3.6 `formGonderimi` alanları kontrollere yazar; interceptor'ın sayfa düzeyinde gösterdiği
+  kodlar (`genelGosterilir`: `yetki_yok`, `pilot_degil`, `mukerrer`, `cok_istek`, 5xx, ağ, `kiraci_kapali`) forma ikinci kez yazılmaz. `ONAY_ISTEMI` (kaydedilmemiş değişiklik) = CDK onay diyaloğu
+  (`cdkOnayIstemi`). Form değerlerine hiçbir dalda dokunulmaz.
+- **Geri bildirim:** `ToastServisi` (6 durum: `basari|bilgi|uyari|hata|notr|bekleme`; hata/uyarı `role="alert"`,
+  diğerleri `role="status"`; `bekleme` → `bitir`), `UyariBandiServisi.goster({ tur, mesaj, kod?, kalici? })`,
+  `await OnayServisi.sor({ baslik, mesaj, tehlikeli? })` → `boolean` (CDK, odak kilidi, Esc = vazgeç).
+  CDK diyalog tembel yüklenir. Genel sınıflar (`src/styles/_geri-bildirim.scss`): `rc-diyalog*`,
+  `rc-dugme--tehlike`, `rc-form-mesaji(--hata|--uyari)`; alan/girdi sınıfları F3.6 `_form.scss`'te.
+- `?bilgi=` → başarı toast'u, `?hata=` → hata bandı; bir kez gösterilip URL'den silinir. Yeni sürüm: `index.html`'deki
+  ana paket adı 5 dk'da bir (ve sekme görünür olunca) karşılaştırılır → "Yenile" bildirimi; ChunkLoadError → hedef
+  adrese tek kontrollü yenileme (`rc.parcaYenileme`, 60 sn döngü koruması). Yakalanmamış hata oturum açıkken
+  `POST /api/ui/v1/istemci-hata`'ya raporlanır (yalnız yol, sorgu dizesi yok; sayfa başına 10).
+- e2e: `e2e/oturum.spec.ts` `/api/ui/v1`'i Playwright ile sahteler (`e2e/ortak.ts`); vitrin formu
+  `/app/vitrin/geri-bildirim` bu sözleşmeyi gösterir (canlıda uç yok).
 
 ## Form seti (F3.6)
 

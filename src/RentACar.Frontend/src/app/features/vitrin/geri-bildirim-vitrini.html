@@ -1,0 +1,90 @@
+<main class="sayfa">
+  <header class="ust">
+    <h1>{{ 'vitrin.baslik' | transloco }}</h1>
+    <a class="rc-dugme rc-dugme--kucuk" routerLink="/">{{ 'vitrin.anaSayfa' | transloco }}</a>
+  </header>
+
+  <section class="kart" aria-labelledby="vitrin-form-baslik">
+    <h2 id="vitrin-form-baslik">{{ 'vitrin.formBaslik' | transloco }}</h2>
+    <p class="aciklama">{{ 'vitrin.formAciklama' | transloco }}</p>
+
+    <form [formGroup]="form" (ngSubmit)="gonder()" novalidate>
+      <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
+
+      <div class="rc-alan">
+        <label class="rc-alan__etiket" for="vitrin-plaka">{{ 'vitrin.plaka' | transloco }}</label>
+        <input
+          class="rc-girdi"
+          id="vitrin-plaka"
+          formControlName="plaka"
+          [attr.aria-invalid]="alanHatalari('plaka').length > 0"
+          [attr.aria-describedby]="alanHatalari('plaka').length > 0 ? 'vitrin-plaka-hata' : null"
+        />
+        @if (alanHatalari('plaka').length > 0) {
+          <p class="rc-alan__hata" id="vitrin-plaka-hata">{{ alanHatalari('plaka').join(' ') }}</p>
+        }
+      </div>
+
+      <div class="rc-alan">
+        <label class="rc-alan__etiket" for="vitrin-aciklama">{{
+          'vitrin.aciklama' | transloco
+        }}</label>
+        <textarea
+          class="rc-girdi"
+          id="vitrin-aciklama"
+          rows="3"
+          formControlName="aciklama"
+          [attr.aria-invalid]="alanHatalari('aciklama').length > 0"
+          [attr.aria-describedby]="
+            alanHatalari('aciklama').length > 0 ? 'vitrin-aciklama-hata' : null
+          "
+        ></textarea>
+        @if (alanHatalari('aciklama').length > 0) {
+          <p class="rc-alan__hata" id="vitrin-aciklama-hata">
+            {{ alanHatalari('aciklama').join(' ') }}
+          </p>
+        }
+      </div>
+
+      <div class="eylemler">
+        @if (sonuc(); as id) {
+          <p class="sonuc" role="status">{{ 'vitrin.sonuc' | transloco: { id } }}</p>
+        }
+        @if (yenilemeSayisi() > 0) {
+          <p class="sonuc" role="status">
+            {{ 'vitrin.yenilendi' | transloco: { sayi: yenilemeSayisi() } }}
+          </p>
+        }
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil"
+          [attr.aria-disabled]="gonderim.gonderiliyor()"
+          [attr.aria-busy]="gonderim.gonderiliyor()"
+        >
+          {{ 'vitrin.kaydet' | transloco }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="kart" aria-labelledby="vitrin-toast-baslik">
+    <h2 id="vitrin-toast-baslik">{{ 'vitrin.toastBaslik' | transloco }}</h2>
+    <div class="dugmeler">
+      @for (durum of durumlar; track durum) {
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="toastGoster(durum)">
+          {{ 'geriBildirim.durum.' + durum | transloco }}
+        </button>
+      }
+    </div>
+    <div class="dugmeler">
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="onayIste()">
+        {{ 'vitrin.onayIste' | transloco }}
+      </button>
+      @if (onaySonucu() !== null) {
+        <p class="sonuc" role="status">
+          {{ (onaySonucu() ? 'vitrin.onaylandi' : 'vitrin.vazgecildi') | transloco }}
+        </p>
+      }
+    </div>
+  </section>
+</main>

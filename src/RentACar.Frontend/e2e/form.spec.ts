@@ -1,11 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type Request } from '@playwright/test';
 
+import { oturumAc } from './ortak';
+
 /**
  * F3.6 form seti — sahte arka uçla (route mock) üretim derlemesi üstünde:
  * doğrulama hatasında form korunur, kaydedilmemiş değişiklik sorulur, çift tık tek istek.
  */
 const FORM = '/app/vitrin/form';
+
+// Ana sayfa oturum ister (F3.3 oturumGuard): `ben` sahte API'den.
+test.beforeEach(async ({ page }) => oturumAc(page));
 const GONDER = '**/api/ui/v1/vitrin/form';
 
 const MUSTERILER = [
@@ -129,19 +134,18 @@ test('kaydedilmemiş değişiklik: uygulama içi gezinme sorar, sekme kapatma be
   await page.goto(FORM);
   await page.getByRole('textbox', { name: 'Plaka', exact: true }).fill('06 XYZ 1');
 
-  const sorular: string[] = [];
-  page.once('dialog', (d) => {
-    sorular.push(`${d.type()}: ${d.message()}`);
-    void d.dismiss();
-  });
+  // Uygulama içi gezinme: F3.3 CDK onay diyaloğu (ONAY_ISTEMI), ilk odak "Sayfada kal".
   await page.getByRole('link', { name: 'Ana sayfa' }).click();
-  await expect.poll(() => sorular.length).toBe(1);
-  expect(sorular[0]).toContain('confirm: Kaydedilmemiş değişiklikler var');
+  const soru = page.getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' });
+  await expect(soru).toContainText('Kaydedilmemiş değişiklikler var');
+  await expect(soru.getByRole('button', { name: 'Sayfada kal' })).toBeFocused();
+  await soru.getByRole('button', { name: 'Sayfada kal' }).click();
+  await expect(soru).toHaveCount(0);
   await expect(page).toHaveURL(/\/app\/vitrin\/form/);
   await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('06 XYZ 1');
 
-  page.once('dialog', (d) => void d.accept());
   await page.getByRole('link', { name: 'Ana sayfa' }).click();
+  await soru.getByRole('button', { name: 'Sayfadan ayrıl' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
 
   // Tam sayfa terk (sekme kapatma / Blazor ekranına geçiş): beforeunload.

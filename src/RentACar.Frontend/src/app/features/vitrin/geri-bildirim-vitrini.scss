@@ -1,0 +1,52 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-4);
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--rc-bosluk-6) var(--rc-bosluk-4);
+}
+
+.ust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rc-bosluk-2);
+}
+
+.kart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-xl);
+  background-color: var(--rc-yuzey);
+}
+
+.aciklama {
+  color: var(--rc-metin-ikincil);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.eylemler,
+.dugmeler {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+}
+
+.eylemler {
+  justify-content: flex-end;
+}
+
+.sonuc {
+  color: var(--rc-metin-ikincil);
+}

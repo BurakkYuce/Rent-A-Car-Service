@@ -60,6 +60,24 @@ const KIRACI_DEGISKENLERI: readonly (keyof KiraciVurgusu)[] = [
   '--rc-kiraci-vurgu-metin-koyu',
 ];
 
+/**
+ * Firma durum renkleri (`GET oturum/ben` → `renkler`; Blazor MainLayout'taki adlarla aynı). Her biri
+ * `--rc-kiraci-renk-<ad>` değişkenine yazılır; tablo satır renklendirmesi (F4+) bunu
+ * `var(--rc-kiraci-renk-gecikenler, <varsayılan>)` ile okur. Listede olmayan ad yok sayılır.
+ */
+export const KIRACI_DURUM_RENKLERI = [
+  'gecikenler',
+  'bugun-donecekler',
+  'bugun-cikacaklar',
+  'opsiyonlu',
+  'limit-bakiye',
+  'alacakli',
+  'rez-atanan-plaka',
+  'kiralanmayan',
+] as const;
+
+export type KiraciDurumRengi = (typeof KIRACI_DURUM_RENKLERI)[number];
+
 function temaModuMu(deger: unknown): deger is TemaModu {
   return deger === 'sistem' || deger === 'acik' || deger === 'koyu';
 }
@@ -109,6 +127,19 @@ export class TemaServisi {
     const vurgu = kiraciVurgusuTuret(renk);
     for (const degisken of KIRACI_DEGISKENLERI) {
       if (vurgu) this.kok.style.setProperty(degisken, vurgu[degisken]);
+      else this.kok.style.removeProperty(degisken);
+    }
+  }
+
+  /**
+   * Firma durum renklerini uygular; geçerli `#rrggbb` olmayan ya da bilinmeyen ad atlanır, verilmeyen
+   * renk kaldırılır (varsayılana döner). `null` → hepsi kaldırılır (çıkış/firma değişimi).
+   */
+  kiraciRenkleriUygula(renkler: Readonly<Record<string, string>> | null): void {
+    for (const ad of KIRACI_DURUM_RENKLERI) {
+      const renk = hexNormalize(renkler?.[ad]);
+      const degisken = `--rc-kiraci-renk-${ad}`;
+      if (renk) this.kok.style.setProperty(degisken, renk);
       else this.kok.style.removeProperty(degisken);
     }
   }
