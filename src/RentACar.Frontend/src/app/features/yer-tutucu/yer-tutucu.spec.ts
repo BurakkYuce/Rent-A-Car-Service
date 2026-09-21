@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { YerTutucu } from './yer-tutucu';
 import { appConfig } from '../../app.config';
+import { YerTutucu } from './yer-tutucu';
 
 describe('YerTutucu', () => {
   beforeEach(async () => {

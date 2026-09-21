@@ -12,8 +12,8 @@ interface TemaSecenegi {
 }
 
 /**
- * Yer tutucu sayfa (kabuk F3.2'de gelene kadar kök rota). Tasarım token'larını ve tema seçimini
- * açık/koyu kullanır ki e2e ve axe ikisini de denetlesin.
+ * Yer tutucu ana sayfa (kabuk F3.2'de); tasarım token'larını ve tema seçimini açık/koyu kullanır ki
+ * e2e ve axe ikisini de denetlesin.
  */
 @Component({
   selector: 'rc-yer-tutucu',

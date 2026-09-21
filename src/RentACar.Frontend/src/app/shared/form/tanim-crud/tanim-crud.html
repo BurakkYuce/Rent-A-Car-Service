@@ -1,0 +1,161 @@
+<section class="tanim" [attr.aria-labelledby]="baslikKimligi">
+  <header class="ust">
+    <h2 [id]="baslikKimligi">{{ baslik() }}</h2>
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--birincil rc-dugme--kucuk rc-yazdirma-gizle"
+      [disabled]="duzenleme() !== null"
+      (click)="yeni()"
+    >
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'form.tanim.yeni' | transloco }}
+    </button>
+  </header>
+
+  <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
+
+  @switch (liste.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'form.tanim.hata' | transloco }} {{ liste.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="liste.yenile()">
+          {{ 'form.tanim.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      <div class="kaydirma">
+        <table class="tablo" [attr.aria-busy]="liste.yukleniyor()">
+          <thead>
+            <tr>
+              @for (alan of alanlar(); track alan.ad) {
+                <th scope="col">{{ alan.etiket }}</th>
+              }
+              <th scope="col" class="islemler rc-yazdirma-gizle">
+                {{ 'form.tanim.islemler' | transloco }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (duzenleme()?.tur === 'yeni') {
+              <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
+            }
+            @for (satir of satirlar(); track satir.id) {
+              @if (duzenleniyor(satir)) {
+                <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
+              } @else {
+                <tr>
+                  @for (alan of alanlar(); track alan.ad) {
+                    <td [class.sayi]="alan.tur === 'sayi' || alan.tur === 'para'">
+                      {{ goster(alan, satir[alan.ad]) }}
+                    </td>
+                  }
+                  <td class="islemler rc-yazdirma-gizle">
+                    @if (silinecek() === satir.id) {
+                      <span
+                        class="onay"
+                        role="group"
+                        [attr.aria-label]="'form.tanim.silOnay' | transloco"
+                      >
+                        <span>{{ 'form.tanim.silOnay' | transloco }}</span>
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--kucuk rc-dugme--birincil"
+                          [disabled]="siliniyor()"
+                          (click)="sil(satir.id)"
+                        >
+                          {{ 'form.tanim.evetSil' | transloco }}
+                        </button>
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--kucuk"
+                          (click)="silinecek.set(null)"
+                        >
+                          {{ 'form.tanim.vazgec' | transloco }}
+                        </button>
+                        @if (silmeHatasi()) {
+                          <span class="hata" role="alert">{{ silmeHatasi() }}</span>
+                        }
+                      </span>
+                    } @else {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="duzenleme() !== null"
+                        (click)="duzenle(satir)"
+                      >
+                        <rc-ikon ad="edit" [boyut]="14" />
+                        {{ 'form.tanim.duzenle' | transloco }}
+                      </button>
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="duzenleme() !== null"
+                        (click)="silmeyiSor(satir.id)"
+                      >
+                        <rc-ikon ad="trash" [boyut]="14" />
+                        {{ 'form.tanim.sil' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            } @empty {
+              @if (liste.tur() === 'hazir' && duzenleme() === null) {
+                <tr>
+                  <td class="bos" [attr.colspan]="alanlar().length + 1">
+                    {{ 'form.tanim.bos' | transloco }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (liste.yukleniyor()) {
+        <p class="durum" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</section>
+
+<ng-template #duzenlemeSatiri>
+  <tr class="duzenleme" [formGroup]="form">
+    @for (alan of alanlar(); track alan.ad) {
+      <td>
+        <rc-alan [etiket]="alan.etiket" etiketGizli>
+          @switch (alan.tur) {
+            @case ('sayi') {
+              <rc-sayi-girdisi [formControlName]="alan.ad" />
+            }
+            @case ('para') {
+              <rc-para-girdisi [formControlName]="alan.ad" />
+            }
+            @case ('onay') {
+              <rc-onay-kutusu [formControlName]="alan.ad" />
+            }
+            @case ('secim') {
+              <rc-secim [formControlName]="alan.ad" [secenekler]="alan.secenekler ?? []" />
+            }
+            @default {
+              <rc-metin-girdisi [formControlName]="alan.ad" [azamiUzunluk]="alan.azamiUzunluk" />
+            }
+          }
+        </rc-alan>
+      </td>
+    }
+    <td class="islemler">
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="gonderim.gonderiliyor()"
+        (click)="kaydet()"
+      >
+        {{ 'form.tanim.kaydet' | transloco }}
+      </button>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="vazgec()">
+        {{ 'form.tanim.vazgec' | transloco }}
+      </button>
+    </td>
+  </tr>
+</ng-template>

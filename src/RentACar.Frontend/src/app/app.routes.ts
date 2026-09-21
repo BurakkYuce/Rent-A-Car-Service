@@ -1,17 +1,34 @@
 import type { Routes } from '@angular/router';
+import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 
-import { YerTutucu } from '@features/yer-tutucu/yer-tutucu';
-
-/**
- * Rotalar. Her özellik sayfası `loadComponent` ile TEMBEL yüklenir (ilk paket bütçesi 300 kB);
- * tablo motoru (TanStack table-core + virtual-core) yalnız tabloyu kullanan sayfanın parçasına girer.
- */
-export const rotalar: Routes = [
+/** Sayfalar tembel yüklenir: form seti (forms + CDK) ilk pakete girmez. */
+export const routes: Routes = [
   {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () => import('@features/yer-tutucu/yer-tutucu').then((m) => m.YerTutucu),
+  },
+  {
+    // F3.6 form seti vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.
+    path: 'vitrin/form',
+    title: 'Form vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/form-vitrini/form-vitrini').then((m) => m.FormVitrini),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
+  {
+    path: 'vitrin/tanim',
+    title: 'Tanım vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/tanim-vitrini/tanim-vitrini').then((m) => m.TanimVitrini),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
+  {
+    // F3.5 tablo motoru vitrini: TanStack table-core + virtual-core yalnız bu parçaya girer.
     path: 'vitrin/tablo',
-    title: 'Tablo vitrini · RentACar',
+    title: 'Tablo vitrini — RentACar',
     loadComponent: () =>
       import('@features/vitrin/tablo-vitrini/tablo-vitrini').then((m) => m.TabloVitrini),
   },
-  { path: '**', component: YerTutucu },
+  { path: '**', redirectTo: '' },
 ];
