@@ -26,9 +26,11 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@angular/cdk": "21.2.14",
     "@angular/common": "21.2.23",
     "@angular/compiler": "21.2.23",
     "@angular/core": "21.2.23",
+    "@angular/forms": "21.2.23",
     "@angular/platform-browser": "21.2.23",
     "@angular/router": "21.2.23",
     "@jsverse/transloco": "8.4.0",
