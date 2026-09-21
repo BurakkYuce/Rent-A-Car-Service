@@ -10,4 +10,20 @@ namespace RentACar.Application.Common;
 /// Ayrım <c>PostgresException.ConstraintName</c> ile yapılır (<c>IdempotencyKisiti</c>).
 /// <see cref="ValidationException"/>'dan türediği için mevcut Blazor yakalayıcıları aynen çalışır.</para>
 /// </summary>
-public sealed class MukerrerIslemException(string mesaj) : ValidationException(mesaj);
+public sealed class MukerrerIslemException(string mesaj) : ValidationException(mesaj)
+{
+    /// <summary>
+    /// F1.4 — AYNI anahtar FARKLI içerikle geldi (başka hedef/tutar). Sessiz idempotent başarı yalnız
+    /// kayıtlı satırın hedefi ve tutarı gelen istekle BİREBİR eşleşirse verilir; eşleşmezse bu metinle
+    /// 409 — aksi halde ikinci isteğin parası yazılmadığı hâlde kullanıcı "başarılı" görürdü.
+    /// </summary>
+    // "Sayfayı yenileyip yeniden deneyin" DENMEZ (adversarial LOW-A, 2026-09-21): kur boş bırakılıp çağrı anında
+    // çözüldüğünde, ilk yazım BAŞARILI olmuşken kur değişince birebir tekrar da "farklı içerik" sayılır. Yenile +
+    // yeni form anahtarıyla gönderen kullanıcı ÇİFT kayıt (ör. çift virman) üretirdi. Mesaj önce kontrole yönlendirir;
+    // SPA da bu kodda yeni anahtarla OTOMATİK yeniden gönderim yapmaz.
+    public const string FarkliIcerikMesaji =
+        "Bu işlem anahtarı farklı içerikle zaten kullanılmış; işlem daha önce kaydedilmiş olabilir. Yeniden göndermeden önce kayıtları kontrol edin.";
+
+    /// <summary>Anahtar farklı içerikle kullanılmış → 409.</summary>
+    public static MukerrerIslemException FarkliIcerik() => new(FarkliIcerikMesaji);
+}

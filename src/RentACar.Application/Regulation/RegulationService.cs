@@ -154,7 +154,10 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var paraBirimi = ParaBirimiKontrol(doviz, "MTV");
 
         var rec = await _repository.FindMtvAsync(mtvId, ct) ?? throw new ValidationException("MTV kaydı bulunamadı.");
-        if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
+        // F1.4: anahtarlı gönderimde "zaten ödendi" kararı repo'ya (kilidin arkasına) bırakılır — orada
+        // ÖNCE anahtar aranır. Yoksa anahtarlı çift gönderim, ilk ödeme kaydı kapattıysa 400, kısmi
+        // bıraktıysa 409 alıyordu.
+        if (rec.Odendi && Anahtar(odeme?.IslemAnahtari) is null) throw new ValidationException("MTV zaten ödendi.");
         if (rec.Tutar <= 0m) throw new ValidationException("MTV tutarı pozitif olmalıdır.");
 
         // Adversarial H1: ödeme tarihi artık FORMDAN geliyor → gelecek tarih reddi ŞART. Dönem
@@ -191,7 +194,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = satir.Id, Description = desc }
             ];
             return (satir, entries);
-        }, ct);
+        }, ct, Anahtar(g.IslemAnahtari));
     }
 
     /// <summary>Bir MTV kaydının ödeme geçmişi (sıraya göre).</summary>
@@ -219,7 +222,8 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         var paraBirimi = ParaBirimiKontrol(doviz, "Muayene");
 
         var rec = await _repository.FindInspectionAsync(inspectionId, ct) ?? throw new ValidationException("Muayene kaydı bulunamadı.");
-        if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
+        // F1.4: bkz. MtvOdeAsync — anahtarlıysa "zaten ödendi" kararı kilidin arkasında, anahtardan SONRA.
+        if (rec.Odendi && Anahtar(odeme?.IslemAnahtari) is null) throw new ValidationException("Muayene zaten ödendi.");
 
         TarihPolitikasi.ParaTarihi(odemeTarih, "Muayene ödeme");   // adversarial H1
         var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
@@ -253,7 +257,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = satir.Id, Description = desc }
             ];
             return (satir, entries);
-        }, ct);
+        }, ct, Anahtar(g.IslemAnahtari));
     }
 
     /// <summary>Bir muayene kaydının ödeme geçmişi (sıraya göre).</summary>

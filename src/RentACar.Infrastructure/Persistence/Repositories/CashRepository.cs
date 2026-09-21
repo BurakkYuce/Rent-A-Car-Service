@@ -93,6 +93,15 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.TersAlinanId == originalId, ct);
     }
 
+    public async Task<bool> IslemAnahtariVarMiAsync(Guid islemAnahtari, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == islemAnahtari, ct);
+    }
+
+    /// <summary>F1.4 mükerrer mesajı — servis ön-kontrolü, kilit-içi kontrol ve kısıt yolu AYNI metni verir.</summary>
+    internal const string MukerrerMesaji = "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).";
+
     /// <summary>
     /// Kira tahsilat deltası — KİRA DÖVİZİNDE (K2 fix). Yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−).
     /// TRY kira → TL-baz (AmountInBase, mevcut davranış). FX kira → tahsilat AYNI dövizde zorunlu (ham Amount);
@@ -162,7 +171,12 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 // çift-submit (adversarial M5) → her iki halde idempotent reddet.
                 await dbTx.RollbackAsync(ct);
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected(); // metrik: idempotent red
-                throw IdempotencyKisiti.Red(ex, "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+                // F1.4: ters kayıt yarışında mesaj servis ön-kontrolüyle BİREBİR aynı (tip de aynı: Mukerrer)
+                // → sonuç sıralı/eşzamanlı ayrımına bağlı değil.
+                var ikinciTers = (ex.InnerException as PostgresException)?.ConstraintName == IdempotencyKisiti.IkinciTersKayit;
+                throw IdempotencyKisiti.Red(ex, ikinciTers
+                    ? "Bu işlem zaten ters kaydedilmiş."
+                    : MukerrerMesaji);
             }
         }, ct);
     }
@@ -211,6 +225,13 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // işlemleri tx sonuna dek SIRALANIR. Kontroller kilidin ARKASINDA yapılır; kilitsiz
             // sürümde 8 eşzamanlı kapatma çiti geçip bakiyeyi −7000'e düşürmüştü.
             await KapatmaKilitAsync(db, cariId, ct);
+
+            // F1.4 — ANAHTAR ÖNCE: aynı anahtarlı ikinci gönderim, tahsis/bakiye çitlerinden ÖNCE mükerrer
+            // sayılır. Aksi halde ilk gönderim kalemi TAMAMEN kapattıysa ikinci "zaten kapatılmış" (400),
+            // kısmen kapattıysa kısıt (409) alıyordu — sonuç tutara bağlıydı.
+            if (tx.IslemAnahtari is Guid anahtar &&
+                await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == anahtar, ct))
+                throw new MukerrerIslemException(MukerrerMesaji);
 
             // 1) TAHSİS ÇİTİ (asıl çit): bir borç satırına tahsis edilen toplam, o satırın baz
             //    tutarını AŞAMAZ. Aynı kalemi ikinci kez kapatmayı engelleyen budur — bakiye çiti
@@ -274,7 +295,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             {
                 await dbTx.RollbackAsync(ct);
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected();
-                throw IdempotencyKisiti.Red(ex, "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+                throw IdempotencyKisiti.Red(ex, MukerrerMesaji);
             }
         }, ct);
     }
@@ -312,6 +333,20 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // işlemleri tx sonuna dek sıralanır; bakiye kontrolü kilidin ARKASINDA yapılır → eşzamanlı
             // iki iade/irat toplamı tutulanı aşamaz.
             await DepozitoKilitAsync(db, cariId, ct);
+
+            // F1.4 — ANAHTAR ÖNCE (kilidin arkasında): bu (SourceType, SourceId) kümesi bu kiracıda zaten
+            // yazılmışsa çift gönderimdir → I3 sözleşmesiyle AYNI sessiz idempotent no-op. Bakiye çitinden
+            // ÖNCE bakılır; yoksa tutulanın TAMAMINI iade eden bir gönderimin tekrarı "tutulanı aşamaz"
+            // (400) alıyor, kısmi iadenin tekrarı sessiz geçiyordu — sonuç tutara bağlıydı. Anahtarsız
+            // çağrıda SourceId taze Guid'dir, bu sorgu hiçbir şey bulmaz.
+            // Adversarial MEDIUM-1: sessiz başarı YALNIZ içerik birebir aynıysa (cari, hesap, tutar, döviz,
+            // kur; irat'ta ayrıca kira atfı). Aynı anahtar başka cari/tutarla → 409 (önceden sessizce hiçbir
+            // şey yazmadan "tamam" dönüyordu).
+            if (await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
+            {
+                await dbTx.RollbackAsync(ct);
+                return;
+            }
 
             if (kontrolEt)
             {
@@ -351,17 +386,32 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 await dbTx.RollbackAsync(ct);
                 // TENANT-GÖRÜNÜR teyit (adversarial 1.2 Low): aynı kayıt bu tenant'ta varsa gerçek
                 // çift-submit → sessiz idempotent no-op (I3). Görünmüyorsa (çapraz-tenant PK çakışması)
-                // sessiz yutmak geliri kaybettirir → net red.
-                var sid = entries[0].SourceId;
-                var st = entries[0].SourceType;
-                var gorunur = izKaydi is not null
-                    ? await db.DepozitoIratlar.AsNoTracking().AnyAsync(d => d.Id == izKaydi.Id, ct)
-                    : await db.AccountLedgerEntries.AsNoTracking()
-                        .AnyAsync(e => e.SourceType == st && e.SourceId == sid, ct);
-                if (!gorunur)
+                // sessiz yutmak geliri kaybettirir → net red. F1.4 MEDIUM-1: görünse de içerik farklıysa
+                // (farklı cari kilitleri aynı anahtarla yarıştı) → 409 (DepozitoMevcutMuAsync fırlatır).
+                if (!await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
                     throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
             }
         }, ct);
+    }
+
+    /// <summary>
+    /// F1.4 — bu (SourceType, SourceId) kümesi bu kiracıda yazılmış mı? Yazılmamışsa false. Yazılmış ve
+    /// içerik gelenle BİREBİR aynıysa true (çağıran sessiz no-op yapar). Yazılmış ama içerik farklıysa
+    /// (başka cari/hesap/tutar ya da irat'ta başka kira) <see cref="MukerrerIslemException"/>.
+    /// </summary>
+    private static async Task<bool> DepozitoMevcutMuAsync(
+        AppDbContext db, IReadOnlyList<AccountLedgerEntry> entries, DepozitoIrat? izKaydi, CancellationToken ct)
+    {
+        var mevcut = await DefterKumesi.OkuAsync(db, [entries[0].SourceType], [entries[0].SourceId], ct);
+        if (mevcut.Count == 0) return false;
+        if (!DefterKumesi.Ayni(mevcut, entries)) throw MukerrerIslemException.FarkliIcerik();
+        if (izKaydi is not null)
+        {
+            var kayitliKira = await db.DepozitoIratlar.AsNoTracking()
+                .Where(d => d.Id == izKaydi.Id).Select(d => d.RentalId).FirstOrDefaultAsync(ct);
+            if (kayitliKira != izKaydi.RentalId) throw MukerrerIslemException.FarkliIcerik();
+        }
+        return true;
     }
 
     /// <summary>(tenant, cari) kapsamlı pg_advisory_xact_lock — tx bitince otomatik bırakılır.</summary>

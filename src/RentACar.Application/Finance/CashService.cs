@@ -272,6 +272,13 @@ public sealed class CashService(
         if (secim.Count == 0) throw new ValidationException("En az bir kalem seçilmelidir.");
         EnsureKasaBanka(hesap);
 
+        // F1.4 — ANAHTAR ÖNCE: aynı anahtarla ikinci gönderim, tahsis/bakiye ön-kontrollerinden ÖNCE
+        // mükerrer sayılır (repo aynı kontrolü kilidin arkasında tekrarlar). Yoksa sonuç ilk gönderimin
+        // kalemi tam mı kısmi mi kapattığına göre 400 ↔ 409 değişiyordu.
+        if (islemAnahtari is { } oncekiAnahtar && oncekiAnahtar != Guid.Empty
+            && await _repository.IslemAnahtariVarMiAsync(oncekiAnahtar, ct))
+            throw new MukerrerIslemException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+
         // Ekstre O CARİ için okunur → başka carinin satırı burada zaten bulunamaz; tenant sınırı
         // ayrıca RLS + query filter ile korunur.
         var ekstre = await _repository.GetCariStatementAsync(cariId, null, ct);
@@ -527,8 +534,11 @@ public sealed class CashService(
             ?? throw new ValidationException("İşlem bulunamadı.");
         if (original.TersKayitMi)
             throw new ValidationException("Ters kayıt tekrar ters alınamaz.");
+        // F1.4: ikinci ters kayıt MÜKERRER gönderimdir — yarışta DB kısıtı (TersAlinanId kısmi unique)
+        // zaten MukerrerIslemException (409) veriyor; sıralı ikinci istek de AYNI tipi almalı, yoksa
+        // sonuç zamanlamaya bağlı olurdu (400 ↔ 409).
         if (await _repository.HasReversalAsync(cashTransactionId, ct))
-            throw new ValidationException("Bu işlem zaten ters kaydedilmiş.");
+            throw new MukerrerIslemException("Bu işlem zaten ters kaydedilmiş.");
 
         var reversal = new CashTransaction
         {

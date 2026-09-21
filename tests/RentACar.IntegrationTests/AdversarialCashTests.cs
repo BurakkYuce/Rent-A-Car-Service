@@ -93,7 +93,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
         await cash.ReverseAsync(id);
-        await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(id));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.ReverseAsync(id)); // F1.4: mükerrer tipi
 
         // Net cari must still be exactly zero, not double-zeroed.
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));

@@ -48,6 +48,18 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
                 // İDEMPOTENT: Bu kayıt kümesi (deterministik SourceId) zaten yazılmış (kısmi
                 // unique index). Çift borçlanmayı DB engelledi → sessiz no-op (retry güvenli).
                 await tx.RollbackAsync(ct);
+
+                // F1.4 (adversarial MEDIUM-1): sessiz başarı YALNIZ mevcut küme gelenle BİREBİR aynıysa
+                // (hesap, referans, yön, tutar, döviz, kur). Aynı anahtar başka cari/tutarla geldiyse ikinci
+                // isteğin parası yazılmadı → 409, asla sessiz değil. Kiracıda hiç görünmüyorsa çakışma başka
+                // kiracının künye PK'sıyla (kiracı-global) olmuştur → sessiz yutmak parayı kaybettirirdi → red.
+                var mevcut = await DefterKumesi.OkuAsync(db,
+                    [.. entries.Select(e => e.SourceType).Distinct()],
+                    [.. entries.Select(e => e.SourceId).Distinct()], ct);
+                if (mevcut.Count == 0)
+                    throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
+                if (!DefterKumesi.Ayni(mevcut, entries))
+                    throw MukerrerIslemException.FarkliIcerik();
             }
         }, ct);
     }

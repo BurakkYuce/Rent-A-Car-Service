@@ -42,6 +42,8 @@ public interface IInvoiceRepository
     /// (beklenenFaturalanan sapmışsa red — base/fark bu arada commit etmiş olabilir; adversarial
     /// B2-Kritik-1) ve dönem yalnız Planlandi ise kesilir (Kesildi/Atlandi yarış çiti;
     /// KaynakKiraFarkSira unique index ikinci savunma).</summary>
-    Task PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
+    /// <returns>Kesilen faturanın id'si; dönem kilidin arkasında zaten Kesildi ise (çift gönderim)
+    /// MEVCUT faturanın id'si (F1.4 — sıralı ve eşzamanlı ikinci istek aynı sessiz başarıyı alır).</returns>
+    Task<Guid> PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
         Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default);
 }
