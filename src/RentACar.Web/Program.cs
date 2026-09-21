@@ -95,6 +95,7 @@ using RentACar.Web.MusteriTaksitleri;
 using RentACar.Web.DolulukFiyat;
 using RentACar.Web.BelgeSablon;
 using RentACar.Web.Vehicles;
+using RentACar.Web.Api;
 
 // Bootstrap yardımcısı: `dotnet run --project src/RentACar.Web -- --platform-hash '<parola>'` →
 // Platform:AdminPasswordHash değerini (üretimde zorunlu) üretir ve çıkar (bkz. docs/ops/yedekleme.md §5.1).
@@ -190,6 +191,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         // (YetkiYonlendirme.IndirmeAdresiMi); yalnız aynı kökenli Referer kullanılır.
         options.Events.OnRedirectToLogin = ctx =>
         {
+            // F1.2: yeni arayüz API'si 302 İZLEMEZ (izlerse /login HTML'ini JSON diye okur) → 401 ProblemDetails.
+            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
+                return RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
+                    RentACar.Web.Api.UiHata.OturumYok, "Oturum açık değil ya da süresi doldu.");
             ctx.Response.Redirect(YetkiYonlendirme.GirisYonlendirmesi(
                 ctx.Request.Method, ctx.Request.Path, ctx.Request.QueryString,
                 YetkiYonlendirme.AyniKokenYolu(ctx.Request.Headers.Referer, ctx.Request.Host)));
@@ -197,6 +202,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
         options.Events.OnRedirectToAccessDenied = ctx =>
         {
+            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path)) // F1.2: /yetkisiz HTML'i değil
+                return RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
+                    RentACar.Web.Api.UiHata.YetkiYok, "Bu işlem için yetkiniz yok.");
             ctx.Response.Redirect(YetkiYonlendirme.YetkisizHedefi(ctx.Request.Path));
             return Task.CompletedTask;
         };
@@ -233,6 +241,13 @@ builder.Services.AddRateLimiter(o =>
     {
         RentACar.Application.Observability.RacarMetrics.RateLimitRejected("login"); // metrik: rate-limit reddi
         var req = ctx.HttpContext.Request;
+        // F1.2: yeni arayüz API'si yönlendirme değil 429 ProblemDetails alır (SPA formu korur, bekletir).
+        if (RentACar.Web.Api.UiApiExtensions.UiYolu(req.Path))
+        {
+            await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
+                RentACar.Web.Api.UiHata.CokIstek, "Çok fazla deneme; biraz sonra tekrar deneyin.");
+            return;
+        }
         if (req.Path.StartsWithSegments("/platform"))
         {
             ctx.HttpContext.Response.Redirect("/platform/login?hata=limit");
@@ -249,6 +264,9 @@ builder.Services.AddRateLimiter(o =>
         ctx.HttpContext.Response.Redirect(YetkiYonlendirme.LimitHedefi(donus));
     };
 });
+
+// F1.2: /api/ui/v1 — antiforgery başlık adı (X-XSRF-TOKEN) + OpenAPI (yalnız Development).
+builder.Services.AddUiApi(builder.Environment);
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, SsrAuthenticationStateProvider>();
@@ -357,6 +375,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// F1.2: /api/ui için no-store + StatusCodePages/istisna HTML'i yerine ProblemDetails (ikisinin İÇİNDE durmalı).
+app.UseUiApiBoruHatti();
 
 app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — Radzen tarih/sayı formatı tutarlı
 
@@ -481,6 +501,7 @@ app.MapStaticAssets();
 // content root'a göreli (varsayılan ../app/browser). Güvenlik başlıkları/CSP yukarıdaki genel middleware'den.
 RentACar.Web.Spa.SpaBarindirma.MapSpaBarindirma(app);
 app.MapAuthEndpoints();
+app.MapUiApi();                   // F1.2 — /api/ui/v1 (yeni arayüz JSON katmanı: CSRF + pilot kapısı + ProblemDetails)
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
 app.MapPlatformBelgeEndpoints();  // PR-B — Belge Merkezi (PlatformAdmin policy)
