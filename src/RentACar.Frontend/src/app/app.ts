@@ -18,7 +18,8 @@ import { UyariBandi } from '@shared/uyari-bandi/uyari-bandi';
 
 /**
  * Uygulama kökü: uyarı bandı + sayfa + toast yığını. Gezinme olaylarını banda bildirir, `?bilgi=`/`?hata=`
- * mesajlarını işler ve yeni sürüm denetimini başlatır. Kabuk (menü, üst çubuk) F3.2'de buraya eklenir.
+ * mesajlarını işler ve yeni sürüm denetimini başlatır. Kabuk (menü, üst çubuk, sekmeler) bir rota
+ * bileşenidir (`kabuk/kabuk.routes.ts`, tembel): giriş sayfası onun dışında çizilir.
  */
 @Component({
   selector: 'rc-root',

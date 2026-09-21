@@ -1,0 +1,52 @@
+<a class="atla" href="#icerik" (click)="icerigeGec($event)">{{ 'kabuk.icerigeGec' | transloco }}</a>
+<div class="kabuk" [class.kabuk--cekmece-acik]="cekmeceAcik()">
+  <nav
+    #yanMenu
+    id="rc-yan-menu"
+    class="yan"
+    [attr.aria-label]="'kabuk.anaMenu' | transloco"
+    [attr.inert]="mobil() && !cekmeceAcik() ? '' : null"
+  >
+    <div class="yan__ust">
+      <span class="yan__marka">{{ 'uygulama.ad' | transloco }}</span>
+      @if (mobil()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--ikon rc-dugme--kucuk"
+          [attr.aria-label]="'kabuk.menuyuKapat' | transloco"
+          (click)="cekmeceyiKapat(true)"
+        >
+          <rc-ikon ad="x" [boyut]="16" />
+        </button>
+      }
+    </div>
+    <rc-yan-menu
+      [model]="model()"
+      [durum]="menuDurumu()"
+      [guncellenemedi]="guncellenemedi()"
+      [etkin]="etkin()"
+      (sec)="ogeAc($event)"
+      (yenile)="menuyuYenile()"
+    />
+  </nav>
+  @if (cekmeceAcik()) {
+    <div class="perde" aria-hidden="true" (click)="cekmeceyiKapat(true)"></div>
+  }
+  <div class="ana" [attr.inert]="cekmeceAcik() ? '' : null">
+    <rc-ust-cubuk
+      [cekmeceAcik]="cekmeceAcik()"
+      (menuAc)="cekmeceyiAc()"
+      (paletAc)="paletiAc()"
+      (cikis)="cikisYap()"
+    />
+    <rc-sekme-cubugu />
+    <main #icerik id="icerik" class="icerik" tabindex="-1">
+      <router-outlet
+        (activate)="bilesenEtkin($event)"
+        (attach)="bilesenEtkin($event)"
+        (deactivate)="bilesenEtkin(null)"
+        (detach)="bilesenEtkin(null)"
+      />
+    </main>
+  </div>
+</div>

@@ -1,0 +1,104 @@
+<ng-template #baglanti let-kayit>
+  <a
+    class="oge"
+    [class.oge--etkin]="kayit.kimlik === etkinKimlik()"
+    [href]="href(kayit)"
+    [attr.aria-current]="kayit.kimlik === etkinKimlik() ? 'page' : null"
+    [attr.aria-describedby]="kayit.hedef.tur === 'blazor' ? 'rc-menu-eski-ekran' : null"
+    (click)="tikla($event, kayit)"
+  >
+    <span class="oge__etiket">{{ kayit.etiket }}</span>
+    @if (rozet(kayit); as sayi) {
+      <span class="oge__rozet"
+        >{{ sayi }}<span class="rc-gorunmez"> {{ 'kabuk.menu.yeni' | transloco }}</span></span
+      >
+    }
+    @if (kayit.hedef.tur === 'blazor') {
+      <rc-ikon class="oge__dis" ad="external-link" [boyut]="12" />
+    }
+  </a>
+</ng-template>
+
+@switch (durum()) {
+  @case ('yukleniyor') {
+    @if (!model()) {
+      <p class="durum" role="status">{{ 'kabuk.menu.yukleniyor' | transloco }}</p>
+    }
+  }
+  @case ('hata') {
+    @if (!model()) {
+      <div class="durum durum--hata" role="alert">
+        <p>{{ 'kabuk.menu.hata' | transloco }}</p>
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenile.emit()">
+          <rc-ikon ad="refresh" [boyut]="14" />
+          {{ 'kabuk.menu.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+  }
+}
+
+@if (model(); as m) {
+  @if (guncellenemedi()) {
+    <div class="durum durum--uyari">
+      <p>{{ 'kabuk.menu.guncellenemedi' | transloco }}</p>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenile.emit()">
+        {{ 'kabuk.menu.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+
+  @if (m.hizli.length) {
+    <p class="bolum" id="rc-menu-hizli">{{ 'kabuk.menu.kisaYollar' | transloco }}</p>
+    <ul class="liste liste--hizli" aria-labelledby="rc-menu-hizli">
+      @for (kayit of m.hizli; track kayit.kimlik) {
+        <li>
+          <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: kayit }" />
+        </li>
+      }
+    </ul>
+  }
+
+  <ul class="liste">
+    @for (blok of m.bloklar; track $index; let i = $index) {
+      @if (blok.tur === 'oge') {
+        <li>
+          <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: blok.kayit }" />
+        </li>
+      } @else {
+        <li class="grup">
+          <button
+            type="button"
+            class="grup__baslik"
+            [attr.aria-expanded]="acikMi(blok.ad)"
+            [attr.aria-controls]="'rc-menu-grup-' + i"
+            (click)="grubuDegistir(blok.ad)"
+          >
+            <rc-ikon
+              class="grup__ok"
+              [ad]="acikMi(blok.ad) ? 'chevron-down' : 'chevron-right'"
+              [boyut]="14"
+            />
+            <span class="oge__etiket">{{ blok.ad }}</span>
+            @if (!acikMi(blok.ad)) {
+              @if (grupRozeti(blok.kayitlar); as sayi) {
+                <span class="oge__rozet"
+                  >{{ sayi
+                  }}<span class="rc-gorunmez"> {{ 'kabuk.menu.yeni' | transloco }}</span></span
+                >
+              }
+            }
+          </button>
+          <ul class="liste liste--grup" [id]="'rc-menu-grup-' + i" [hidden]="!acikMi(blok.ad)">
+            @for (kayit of blok.kayitlar; track kayit.kimlik) {
+              <li>
+                <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: kayit }" />
+              </li>
+            }
+          </ul>
+        </li>
+      }
+    }
+  </ul>
+  <span id="rc-menu-eski-ekran" hidden>{{ 'kabuk.menu.eskiEkran' | transloco }}</span>
+}

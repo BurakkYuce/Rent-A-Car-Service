@@ -6,7 +6,7 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
-import { provideRouter, withNavigationErrorHandler } from '@angular/router';
+import { provideRouter, RouteReuseStrategy, withNavigationErrorHandler } from '@angular/router';
 
 import { provideApiIstemcisi } from '@core/api/api-istemcisi';
 import { ONAY_ISTEMI } from '@core/form/kaydedilmemis-degisiklik';
@@ -17,6 +17,7 @@ import { OTURUM_BAGLAMI } from '@core/oturum/oturum-baglami';
 import { oturumInterceptor } from '@core/oturum/oturum-interceptor';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { ParcaHatasiServisi, parcaYuklemeHatasiMi } from '@core/surum/parca-hatasi';
+import { SekmeRotaStratejisi } from '@core/sekme/sekme-stratejisi';
 import { provideTema } from '@core/tema/tema';
 import { provideTurkceYerel } from '@core/yerel/tr-yerel';
 
@@ -35,6 +36,8 @@ export const appConfig: ApplicationConfig = {
         }
       }),
     ),
+    // Sekmeli çalışma alanı (F3.2): açık sekmenin sayfası başka sekmeye geçince yaşamaya devam eder.
+    { provide: RouteReuseStrategy, useExisting: SekmeRotaStratejisi },
     provideTurkceYerel(),
     ...provideCeviri(),
     provideTema(),

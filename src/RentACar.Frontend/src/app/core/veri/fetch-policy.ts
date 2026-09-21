@@ -1,9 +1,13 @@
 import { Injectable, Injector, Signal, effect, inject, signal, untracked } from '@angular/core';
 
 import { OTURUM_BAGLAMI } from '@core/oturum/oturum-baglami';
+import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 
-/** Neden yüklendi: ilk açılış, sorgu (URL/parametre) değişti, oturum bağlamı değişti, elle yenileme. */
-export type GetirmeNedeni = 'ilk' | 'sorgu' | 'baglam' | 'elle';
+/**
+ * Neden yüklendi: ilk açılış, sorgu (URL/parametre) değişti, oturum bağlamı değişti, elle yenileme,
+ * arka plandaki sekmeye dönüldü (`sekmeyeDonunce: 'yenile'`).
+ */
+export type GetirmeNedeni = 'ilk' | 'sorgu' | 'baglam' | 'elle' | 'sekme';
 
 export interface FetchPolicyAyari<P> {
   /**
@@ -17,11 +21,17 @@ export interface FetchPolicyAyari<P> {
   /** Oturum bağlamı düşünce (`null`) çağrılır — genellikle `store.sifirla()`. */
   readonly sifirla?: () => void;
   /**
-   * Sayfa şu an görünür mü (F3.2 sekmeli çalışma alanı arka plandaki sekmeyi `false` yapar).
-   * `false` iken değişiklikler biriktirilir; sayfa görünür olunca TEK yükleme yapılır — değişip eski
-   * değerine dönen parametre yükleme üretmez. Verilmezse her zaman görünür.
+   * Sayfa şu an görünür mü. Verilmezse sayfanın SEKMESİ görünür mü (F3.2 `sekmeBaglami().aktif`;
+   * kabuk dışında ve testte her zaman görünür). `false` iken değişiklikler biriktirilir; sayfa görünür
+   * olunca TEK yükleme yapılır — değişip eski değerine dönen parametre yükleme üretmez.
    */
   readonly aktif?: Signal<boolean>;
+  /**
+   * Arka plandaki sekmeye dönülünce: `degisirse` (varsayılan) yalnız bu arada parametre/bağlam
+   * değiştiyse ya da `yenile` istendiyse yükler; `yenile` her dönüşte yeniden yükler (canlı pano,
+   * rozetli liste gibi başka sekmede değişebilen veri). Form sayfası `degisirse` kalmalı.
+   */
+  readonly sekmeyeDonunce?: 'degisirse' | 'yenile';
   /** Parametre eşitliği; varsayılan `Object.is`. */
   readonly esit?: (a: P, b: P) => boolean;
 }
@@ -53,6 +63,7 @@ export interface FetchPolicyAyari<P> {
 export class FetchPolicy {
   private readonly baglam = inject(OTURUM_BAGLAMI);
   private readonly injector = inject(Injector);
+  private readonly sekme = sekmeBaglami();
   private readonly elleSayaci = signal(0);
   private readonly _sonNeden = signal<GetirmeNedeni | null>(null);
 
@@ -62,15 +73,24 @@ export class FetchPolicy {
   /** Bir parametre–yükleme çiftini politikaya bağlar. Aynı sayfada birden çok kez çağrılabilir. */
   baglan<P>(ayar: FetchPolicyAyari<P>): void {
     const esit = ayar.esit ?? Object.is;
-    let son: { readonly parametre: P; readonly baglam: string; readonly elle: number } | null =
-      null;
+    const aktifSinyali = ayar.aktif ?? this.sekme.aktif;
+    // Arka plandaki sekmenin effect'i çalışmaz (görünüm ayrık); dönüş, sayfanın sekmesinin kaç kez
+    // öne geldiğini sayan sinyalle anlaşılır — takılınca effect bu değişiklikle koşar.
+    const donusSayaci = ayar.sekmeyeDonunce === 'yenile' ? this.sekme.onaGelme : null;
+    let son: {
+      readonly parametre: P;
+      readonly baglam: string;
+      readonly elle: number;
+      readonly donus: number;
+    } | null = null;
 
     effect(
       () => {
         const baglam = this.baglam();
-        const aktif = ayar.aktif?.() ?? true;
+        const aktif = aktifSinyali();
         const parametre = ayar.parametre();
         const elle = this.elleSayaci();
+        const donus = donusSayaci?.() ?? 0;
 
         if (baglam === null) {
           if (son !== null) {
@@ -90,10 +110,12 @@ export class FetchPolicy {
                 ? 'sorgu'
                 : son.elle !== elle
                   ? 'elle'
-                  : null;
+                  : son.donus !== donus
+                    ? 'sekme'
+                    : null;
         if (neden === null) return;
 
-        son = { parametre, baglam: baglam.anahtar, elle };
+        son = { parametre, baglam: baglam.anahtar, elle, donus };
         untracked(() => {
           this._sonNeden.set(neden);
           ayar.yukle(parametre, neden);

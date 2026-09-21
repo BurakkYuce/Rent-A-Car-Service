@@ -6,6 +6,7 @@ import {
   hatalariTopla,
   kaydet,
   type KayitliIstek,
+  menuyuSahtele,
   oturumAc,
   problem,
   xsrfYaz,
@@ -199,6 +200,7 @@ test('giriş: oturumsuz adres girişe döner; 400 genel mesaj + alanlar korunur;
   page,
 }) => {
   const hatalar = hatalariTopla(page, AG_HATASI);
+  await menuyuSahtele(page);
   let oturumVar = false;
   await page.route('**/api/ui/v1/oturum/ben', (route) =>
     oturumVar ? route.fulfill({ json: BEN }) : problem(route, 401, 'oturum_yok', 'Oturum yok.'),
