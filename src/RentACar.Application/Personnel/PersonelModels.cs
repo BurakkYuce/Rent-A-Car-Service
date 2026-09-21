@@ -53,7 +53,8 @@ public sealed record PersonelDetail(
     RentACar.Domain.Entities.Personel? Ham = null);
 
 /// <summary>Personel seçim satırı (dropdown projeksiyonu) — PII İÇERMEZ (operasyon ekranları için).</summary>
-public sealed record PersonelSecim(Guid Id, string Ad, string Soyad, string? Sube);
+/// <remarks>F1.6: <c>SubeId</c> eklendi (varsayılan null — eklemeli) → seçim ucu şube kapsamını FK öncelikli uygular.</remarks>
+public sealed record PersonelSecim(Guid Id, string Ad, string Soyad, string? Sube, Guid? SubeId = null);
 
 /// <summary>Personel liste filtresi (FAZ-40). Boş alan = kısıt yok.</summary>
 public sealed class PersonelFilter

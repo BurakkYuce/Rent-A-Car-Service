@@ -37,6 +37,21 @@ public sealed class CustomerService(
     public Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default)
         => _repository.ListSecimAsync(ct);
 
+    /// <summary>
+    /// F1.6 SINIRLI + YETKİLİ seçim araması (yeni arayüz typeahead'i). <see cref="ListSecimAsync"/>'in
+    /// KVKK açığını (yetkisiz, sınırsız → tüm müşteri adları; ad kişisel veridir) yeni yüzeyde taşımaz:
+    /// OperationsWrite ister, en çok <paramref name="limit"/> (1–20) satır döner, PII kolonu okumaz.
+    /// Blazor çağıranları davranış değişmesin diye <see cref="ListSecimAsync"/>'i kullanmaya devam eder.
+    /// Arama Türkçe katlamalıdır (<see cref="TurkishText.Normalize"/>): "ışık" = "IŞIK" = "isik".
+    /// </summary>
+    public Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string? q, int limit, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var t = q?.Trim() ?? string.Empty;
+        if (t.Length > 100) t = t[..100];
+        return _repository.SecimAraAsync(TurkishText.Normalize(t), Math.Clamp(limit, 1, 20), ct);
+    }
+
     /// <summary>Liste ekranı: arama + sayfalama.</summary>
     public Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
     {

@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Common;
+using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
+using RentACar.Web.Api.Secim;
 
 namespace RentACar.Web.Api;
 
@@ -159,6 +161,8 @@ public static class UiApiExtensions
             .AddEndpointFilter(PilotFiltresi);
 
         v1.MapOturumApi();
+        v1.MapMenuApi();    // F1.6
+        v1.MapSecimApi();   // F1.6
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 
