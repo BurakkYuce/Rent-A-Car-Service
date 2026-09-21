@@ -1,0 +1,96 @@
+:host {
+  position: sticky;
+  top: 0;
+  z-index: var(--rc-z-ust-bar);
+  display: block;
+}
+
+.ust {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+  min-height: 2.75rem;
+  padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
+  border-block-end: 1px solid var(--rc-kenar);
+  background-color: var(--rc-yuzey);
+}
+
+.menu-dugmesi {
+  display: none;
+}
+
+.palet {
+  gap: var(--rc-bosluk-2);
+  min-width: 14rem;
+  justify-content: flex-start;
+  color: var(--rc-metin-ikincil);
+}
+
+.palet__metin {
+  flex: 1;
+  text-align: start;
+}
+
+.palet__tus {
+  padding: 0 var(--rc-bosluk-1);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-sm);
+  background-color: var(--rc-yuzey-alt);
+  color: var(--rc-metin-ikincil);
+  font-family: var(--rc-font);
+  font-size: var(--rc-yazi-2xs);
+}
+
+.bosluk {
+  flex: 1;
+}
+
+.kimlik {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 16rem;
+  line-height: var(--rc-satir-sik);
+  text-align: end;
+}
+
+.kimlik__ad {
+  overflow: hidden;
+  font-weight: var(--rc-agirlik-kalin);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kimlik__firma {
+  overflow: hidden;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .menu-dugmesi {
+    display: inline-flex;
+  }
+
+  .palet {
+    min-width: 0;
+  }
+
+  .palet__metin,
+  .palet__tus {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .ust {
+    gap: var(--rc-bosluk-1);
+    padding-inline: var(--rc-bosluk-2);
+  }
+
+  .kimlik {
+    display: none;
+  }
+}

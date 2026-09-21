@@ -7,9 +7,13 @@ import {
 import { TestBed } from '@angular/core/testing';
 import type { ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
 import { provideCeviri } from '../i18n/ceviri';
+import { SekmeRotaStratejisi } from '../sekme/sekme-stratejisi';
 import {
   ONAY_ISTEMI,
+  SayfaTerki,
+  TAM_SAYFA_GEZINMESI,
   kaydedilmemisDegisiklikGuard,
+  kirliBilesenMi,
   sayfaTerkKorumasi,
 } from './kaydedilmemis-degisiklik';
 
@@ -42,6 +46,39 @@ describe('kaydedilmemisDegisiklikGuard', () => {
   it('temiz formda sormadan geçer', () => {
     expect(calistir(false)).toBe(true);
     expect(sorulan).toEqual([]);
+  });
+
+  it('sekmesi açık kalan sayfa (başka sekmeye geçiş) sorulmaz: bileşen arka planda yaşar', () => {
+    const rota = {} as ActivatedRouteSnapshot;
+    vi.spyOn(TestBed.inject(SekmeRotaStratejisi), 'saklanacakMi').mockReturnValue(true);
+    expect(
+      runInInjectionContext(TestBed.inject(EnvironmentInjector), () =>
+        kaydedilmemisDegisiklikGuard(
+          { kaydedilmemisDegisiklikVar: () => true },
+          rota,
+          {} as RouterStateSnapshot,
+          {} as RouterStateSnapshot,
+        ),
+      ),
+    ).toBe(true);
+    expect(sorulan).toEqual([]);
+  });
+
+  it('toplu onaylanmış işlem (çıkış) süresince sorulmaz, bitince yine sorar', async () => {
+    const terk = TestBed.inject(SayfaTerki);
+    await terk.onayliCalistir(async () => {
+      expect(calistir(true)).toBe(true);
+    });
+    expect(sorulan).toEqual([]);
+    expect(calistir(true)).toBe(false);
+    expect(sorulan).toHaveLength(1);
+  });
+
+  it('kirliBilesenMi: yalnız kaydedilmemisDegisiklikVar() === true olan bileşen', () => {
+    expect(kirliBilesenMi(null)).toBe(false);
+    expect(kirliBilesenMi({})).toBe(false);
+    expect(kirliBilesenMi({ kaydedilmemisDegisiklikVar: () => false })).toBe(false);
+    expect(kirliBilesenMi({ kaydedilmemisDegisiklikVar: () => true })).toBe(true);
   });
 
   it('kirli formda sorar; cevap belirleyicidir', () => {
@@ -79,5 +116,19 @@ describe('sayfaTerkKorumasi (beforeunload)', () => {
     expect(beforeunload().defaultPrevented).toBe(true);
     fixture.destroy();
     expect(beforeunload().defaultPrevented).toBe(false);
+  });
+
+  it('onaylanmış tam sayfa terkte (Blazor ekranı) beforeunload ikinci kez sormaz', () => {
+    const gezilen: string[] = [];
+    TestBed.overrideProvider(TAM_SAYFA_GEZINMESI, { useValue: (a: string) => gezilen.push(a) });
+    const fixture = TestBed.createComponent(DenemeTerk);
+    fixture.componentInstance.kirli = true;
+    TestBed.inject(SayfaTerki).tamSayfayaGit('/kiralar');
+    expect(gezilen).toEqual(['/kiralar']);
+    expect(beforeunload().defaultPrevented).toBe(false);
+    // Geri/ileri önbelleğinden dönüş: koruma yeniden devrede.
+    window.dispatchEvent(new Event('pageshow'));
+    expect(beforeunload().defaultPrevented).toBe(true);
+    fixture.destroy();
   });
 });

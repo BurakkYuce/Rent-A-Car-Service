@@ -43,7 +43,7 @@ test('tema: sistem izlenir, açık/koyu seçimi uygulanır ve saklanır; iki tem
 
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/app/');
-  await expect(page.getByRole('button', { name: 'Sistem' })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Sistem teması' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -56,21 +56,27 @@ test('tema: sistem izlenir, açık/koyu seçimi uygulanır ve saklanır; iki tem
   expect(await ciddiIhlaller(page)).toEqual([]);
 
   // "Açık" seçilirse sistem koyu olsa da açık kalır.
-  await page.getByRole('button', { name: 'Açık' }).click();
+  await page.getByRole('button', { name: 'Açık tema' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await expect(page.getByRole('button', { name: 'Açık' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Açık tema' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   expect(await zeminRengi(page)).toBe(ACIK_ZEMIN);
 
   // "Koyu" sistem açık olsa da koyu; yeniden yüklemede korunur.
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.getByRole('button', { name: 'Koyu' }).click();
+  await page.getByRole('button', { name: 'Koyu tema' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await zeminRengi(page)).toBe(KOYU_ZEMIN);
   expect(await ciddiIhlaller(page)).toEqual([]);
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.getByRole('button', { name: 'Koyu' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Koyu tema' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   expect(await zeminRengi(page)).toBe(KOYU_ZEMIN);
 
   expect(hatalar).toEqual([]);

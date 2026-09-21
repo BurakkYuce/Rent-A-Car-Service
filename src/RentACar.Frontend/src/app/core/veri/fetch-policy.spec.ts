@@ -1,7 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
+import { ActivatedRoute } from '@angular/router';
+
 import { OTURUM_BAGLAMI, OturumBaglami } from '@core/oturum/oturum-baglami';
+import { SekmeDurumu } from '@core/sekme/sekme-durumu';
 import { FetchPolicy, GetirmeNedeni } from './fetch-policy';
 
 describe('FetchPolicy', () => {
@@ -154,5 +157,92 @@ describe('FetchPolicy', () => {
     parametre.set({ arama: '' });
     TestBed.tick();
     expect(nedenler()).toEqual(['ilk']);
+  });
+});
+
+describe('FetchPolicy + sekmeli çalışma alanı (F3.2)', () => {
+  const kabukRotasi = { path: '', data: { kabuk: true }, children: [] };
+  const sayfaRotasi = { path: 'kayit/:id', component: class {} };
+  const snapshot = {
+    routeConfig: sayfaRotasi,
+    params: { id: '5' },
+    pathFromRoot: [
+      { routeConfig: null },
+      { routeConfig: kabukRotasi },
+      { routeConfig: sayfaRotasi },
+    ],
+  };
+  const BU_SEKME = '/kayit/:id?id=5';
+  const parametre = signal(1);
+  let nedenler: GetirmeNedeni[];
+  let durum: SekmeDurumu;
+  let politika: FetchPolicy;
+
+  beforeEach(() => {
+    parametre.set(1);
+    nedenler = [];
+    TestBed.configureTestingModule({
+      providers: [
+        FetchPolicy,
+        { provide: OTURUM_BAGLAMI, useValue: signal({ anahtar: 'k|u|*' }).asReadonly() },
+        { provide: ActivatedRoute, useValue: { snapshot } },
+      ],
+    });
+    durum = TestBed.inject(SekmeDurumu);
+    politika = TestBed.inject(FetchPolicy);
+  });
+
+  function bagla(sekmeyeDonunce?: 'yenile'): void {
+    politika.baglan({
+      parametre,
+      yukle: (_p, neden) => nedenler.push(neden),
+      ...(sekmeyeDonunce ? { sekmeyeDonunce } : {}),
+    });
+    TestBed.tick();
+  }
+
+  it('aktif verilmezse sayfanın SEKMESİ belirler: arkadayken biriktirir, öne gelince tek yükleme', () => {
+    durum.etkinlestir(BU_SEKME);
+    bagla();
+    expect(nedenler).toEqual(['ilk']);
+
+    durum.etkinlestir('/diger');
+    parametre.set(2);
+    TestBed.tick();
+    parametre.set(3);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk']);
+
+    durum.etkinlestir(BU_SEKME);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk', 'sorgu']);
+
+    // Değişiklik yoksa dönüşte yükleme yok (varsayılan: degisirse).
+    durum.etkinlestir('/diger');
+    TestBed.tick();
+    durum.etkinlestir(BU_SEKME);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk', 'sorgu']);
+  });
+
+  it("sekmeyeDonunce: 'yenile' her dönüşte yükler (sekme nedeni); aynı sekmede kalınca yüklemez", () => {
+    durum.etkinlestir(BU_SEKME);
+    bagla('yenile');
+    durum.etkinlestir(BU_SEKME);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk']);
+
+    durum.etkinlestir('/diger');
+    TestBed.tick();
+    durum.etkinlestir(BU_SEKME);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk', 'sekme']);
+  });
+
+  it('kabuk yokken (etkin sekme null) sayfa her zaman görünür sayılır', () => {
+    bagla();
+    parametre.set(2);
+    TestBed.tick();
+    expect(nedenler).toEqual(['ilk', 'sorgu']);
   });
 });
