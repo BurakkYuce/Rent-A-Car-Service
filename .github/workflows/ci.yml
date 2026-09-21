@@ -103,6 +103,15 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      # Seed parolası repoda YOK: her koşuda rastgele; uygulama Seed__Parola ile tohumlar,
+      # koşum RACAR_GIRIS_SIFRE ile girer (maskeli — loga düşmez).
+      - name: Seed parolası (her koşuda rastgele)
+        run: |
+          P=$(openssl rand -hex 16)
+          echo "::add-mask::$P"
+          echo "Seed__Parola=$P" >> "$GITHUB_ENV"
+          echo "RACAR_GIRIS_SIFRE=$P" >> "$GITHUB_ENV"
+
       - name: Uygulamayı ayağa kaldır
         run: |
           # --no-launch-profile: launchSettings.json aksi halde ASPNETCORE_URLS'i EZİYOR
