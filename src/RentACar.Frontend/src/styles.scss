@@ -1,0 +1,17 @@
+/* Genel stiller. Tasarım sistemi F3'te gelir; burada yalnız okunabilir bir taban var. */
+:root {
+  color-scheme: light;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+  color: #1f2937;
+  background-color: #ffffff;
+}
+
+body {
+  margin: 0;
+}

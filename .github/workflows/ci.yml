@@ -129,3 +129,46 @@ jobs:
       - name: Uygulama günlüğü (yalnız hata durumunda)
         if: failure()
         run: cat /tmp/web.log
+
+  # ---------------------------------------------------------------------------
+  # Yeni arayüz (Angular, src/RentACar.Frontend) kalite kapıları.
+  #
+  # Yol filtresi YOK (bilinçli): kapılar her PR'da koşar, "frontend'e dokunmadım" varsayımı
+  # kırmızıyı gizlemez. .NET işlerinden bağımsızdır; Node 22 sabit (.nvmrc / engines).
+  # e2e işi F2.2'de eklenir.
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/RentACar.Frontend
+
+    env:
+      NG_CLI_ANALYTICS: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/RentACar.Frontend/package-lock.json
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Biçim (Prettier)
+        run: npm run format:check
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Tip denetimi (strictTemplates)
+        run: npm run typecheck
+
+      - name: Birim testleri (Vitest)
+        run: npm test
+
+      - name: Production derlemesi (bütçeler)
+        run: npm run build
