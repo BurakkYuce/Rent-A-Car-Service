@@ -645,6 +645,92 @@
           }
         }
       }
+    },
+    "/api/ui/v1/tablo-duzenleri/{tabloKodu}": {
+      "get": {
+        "tags": [
+          "Tablo"
+        ],
+        "parameters": [
+          {
+            "name": "tabloKodu",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TabloDuzeniYaniti"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tablo"
+        ],
+        "parameters": [
+          {
+            "name": "tabloKodu",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TabloDuzeniVerisi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TabloDuzeniYaniti"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tablo"
+        ],
+        "parameters": [
+          {
+            "name": "tabloKodu",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1059,6 +1145,97 @@
             ]
           }
         }
+      },
+      "TabloDuzeniVerisi": {
+        "required": [
+          "sutunlar",
+          "siralama"
+        ],
+        "type": "object",
+        "properties": {
+          "sutunlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabloSutunDuzeni"
+            }
+          },
+          "siralama": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabloSiralamaDuzeni"
+            }
+          }
+        }
+      },
+      "TabloDuzeniYaniti": {
+        "required": [
+          "tabloKodu",
+          "duzen",
+          "guncellemeUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "tabloKodu": {
+            "type": "string"
+          },
+          "duzen": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TabloDuzeniVerisi"
+              }
+            ]
+          },
+          "guncellemeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TabloSiralamaDuzeni": {
+        "required": [
+          "kod",
+          "azalan"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": "string"
+          },
+          "azalan": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TabloSutunDuzeni": {
+        "required": [
+          "kod",
+          "gorunur",
+          "genislik"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": "string"
+          },
+          "gorunur": {
+            "type": "boolean"
+          },
+          "genislik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
       }
     }
   },
@@ -1071,6 +1248,9 @@
     },
     {
       "name": "Se\u00E7im"
+    },
+    {
+      "name": "Tablo"
     }
   ]
 }

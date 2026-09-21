@@ -44,5 +44,12 @@ export const routes: Routes = [
       import('@features/vitrin/tanim-vitrini/tanim-vitrini').then((m) => m.TanimVitrini),
     canDeactivate: [kaydedilmemisDegisiklikGuard],
   },
+  {
+    // F3.5 tablo motoru vitrini: TanStack table-core + virtual-core yalnız bu parçaya girer.
+    path: 'vitrin/tablo',
+    title: 'Tablo vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/tablo-vitrini/tablo-vitrini').then((m) => m.TabloVitrini),
+  },
   { path: '**', redirectTo: '' },
 ];

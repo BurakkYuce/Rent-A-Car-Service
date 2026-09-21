@@ -7,6 +7,7 @@ using RentACar.Web.Api.IstemciHata;
 using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
 using RentACar.Web.Api.Secim;
+using RentACar.Web.Api.TabloDuzenleri;
 
 namespace RentACar.Web.Api;
 
@@ -165,6 +166,7 @@ public static class UiApiExtensions
         v1.MapMenuApi();    // F1.6
         v1.MapSecimApi();   // F1.6
         v1.MapIstemciHataApi(); // F3.3
+        v1.MapTabloDuzeniApi(); // F3.5
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 
