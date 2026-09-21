@@ -1,0 +1,16 @@
+# Bağımlılıklar ve derleme çıktısı
+/node_modules
+/dist
+/out-tsc
+/.angular
+/coverage
+
+# Playwright çıktıları
+/test-results
+/playwright-report
+/blob-report
+
+# Günlükler / sistem
+npm-debug.log*
+.DS_Store
+Thumbs.db
