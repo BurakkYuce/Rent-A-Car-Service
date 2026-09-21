@@ -1,0 +1,74 @@
+:host {
+  display: block;
+}
+
+.ust {
+  display: flex;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--rc-bosluk-3);
+}
+
+.kaydirma {
+  overflow-x: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+.tablo {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    height: var(--rc-tablo-satir);
+    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
+    border-bottom: 1px solid var(--rc-kenar);
+    text-align: start;
+    vertical-align: middle;
+  }
+
+  th {
+    background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.sayi {
+  font-variant-numeric: tabular-nums;
+  text-align: end !important;
+}
+
+.islemler {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.onay {
+  display: inline-flex;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.hata {
+  color: var(--rc-hata-metin);
+}
+
+.bos,
+.durum {
+  padding: var(--rc-bosluk-3);
+  color: var(--rc-metin-ikincil);
+}
+
+.duzenleme td {
+  background-color: var(--rc-vurgu-zemin);
+  vertical-align: top;
+}

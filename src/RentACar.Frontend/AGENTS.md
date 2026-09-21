@@ -63,6 +63,32 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
 - Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`), stilsiz.
 
+## Form seti (F3.6)
+
+- **Typed Reactive Forms** (`FormGroup`/`FormControl<T | null>`); Signal Forms yok (deneysel).
+- **Kontroller** (`@shared/form/...`, hepsi CVA): `rc-metin-girdisi`, `rc-metin-alani`, `rc-sayi-girdisi`
+  (`number`), `rc-para-girdisi` (değer invariant METİN `"1234.56"`, görüntü `1.234,56`, yarım kuruş
+  sıfırdan uzağa; JSON sayısı da yazılabilir), `rc-secim` (yerel select), `rc-arama-secim` (CDK
+  overlay + listbox; kaynak `sunucuSecimKaynagi('musteri')` → `/api/ui/v1/secim/*`, `limit ≤ 20`,
+  gecikmeli, değer seçilen öğe `{ id, etiket, … }`), `rc-onay-kutusu`, `rc-anahtar`, `rc-radyo-grubu`,
+  `rc-tarih-secici` (değer takvim günü `"2026-09-22"`, `aralik` ile `{ baslangic, bitis }` + hazır
+  aralıklar), `rc-tarih-saat-secici` (değer UTC anı; İstanbul saatiyle gösterilir). Tarih günü `Date`
+  / `toISOString` yoluna SOKULMAZ; an yerel saate çevrilip UTC sayılmaz.
+- **Alan:** her kontrol `<rc-alan etiket="…" ipucu="…">` içinde: etiket `for`, zorunlu `*` (doğrulayıcıdan),
+  hata yuvası, `aria-invalid`/`aria-describedby`/`aria-required`. Radyo grubunda `grup`.
+- **Gönderim yalnız `formGonderimi()`** (`@shared/form/form-gonderimi`): çift tık tek istek, istemci
+  doğrulaması geçmezse istek gitmez, `Idempotency-Key` kuralı `GonderimKilidi`'nde (mantıksal gönderim
+  başına anahtar, yeniden denemede aynı, her 2xx ve `mukerrer` sonrası yeni; deterministik sunucu
+  anahtarı `deterministikAnahtar` ile dokunulmadan önce gelir), hata alanlara (`alanlar`), değerler
+  korunur, 2xx'te form `pristine`.
+- **Kaydedilmemiş değişiklik:** sayfa `KaydedilmemisDegisiklikSahibi` uygular, rotaya
+  `canDeactivate: [kaydedilmemisDegisiklikGuard]`, kurucuda `sayfaTerkKorumasi(() => form.dirty)`.
+- **Yerleşim:** `rc-sekmeli-form` + `rcSekmePaneli` (derin bağlantı `#sekme=…`, gizli sekmedeki hatalı
+  alana geçip odaklanır: `ilkGecersizeGit()`) + `rcYanPanel` (sabit yan panel); `rc-tanim-crud`
+  (`TanimAlani[]` + `TanimKaynagi`, REST için `restTanimKaynagi('/api/ui/v1/…')`); form ızgarası
+  `.rc-form-izgara`. Yazdırma: `_yazdir.scss` (gizli sekmeler başlığıyla basılır, `.rc-yazdirma-gizle`).
+- Vitrin: `/app/vitrin/form`, `/app/vitrin/tanim` (e2e bunların üstünde).
+
 ## Kapılar
 
 Node **22** zorunlu (`.nvmrc`, `engines`). Başka sürümde: `npx -y -p node@22 npm run <betik>`.
