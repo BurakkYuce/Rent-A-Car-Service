@@ -95,6 +95,14 @@ else
         KOD=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST "https://$DOMAIN/kiralar/create" -d x=1 2>/dev/null || echo 000)
         [[ "$KOD" == "400" ]] && ok "CSRF koruması aktif (token'sız POST → 400)" \
             || kotu "Token'sız POST → $KOD (400 bekleniyordu). ASPNETCORE_ENVIRONMENT=Production mu?"
+        # Yeni arayüz (F2.2): kabuk anonim 200, veri uçları oturumsuz 401 (JSON; /login'e 302 DEĞİL).
+        # -w çıktısı hata olsa da basılır; `|| true` "000" üstüne ikinci bir değer eklemesin diye.
+        KOD=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$DOMAIN/app/" 2>/dev/null || true)
+        if [[ "$KOD" == "200" ]]; then ok "Yeni arayüz /app/ → 200"
+        else kotu "/app/ → ${KOD:-000} (200 bekleniyordu). releases/<ts>/app/browser var mı? (yayinla.sh SPA adımı)"; fi
+        KOD=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$DOMAIN/api/ui/v1/oturum/ben" 2>/dev/null || true)
+        if [[ "$KOD" == "401" ]]; then ok "/api/ui/v1/oturum/ben oturumsuz → 401"
+        else kotu "/api/ui/v1/oturum/ben oturumsuz → ${KOD:-000} (401 bekleniyordu)"; fi
     fi
 fi
 

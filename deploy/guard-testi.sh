@@ -62,13 +62,35 @@ if icerir "$CIKTI" "dizini yok"; then
   ok "key-ring dizini yoksa durur"
 else kotu "olmayan key-ring dizini geçti"; fi
 
-# 5) Hepsi doğruyken guard'lar GEÇMELİ (yanlış-pozitif yok)
 mkdir -p "$T/dpkeys"; : > "$T/dpkeys/key.xml"
-printf 'RACAR_DP_KEYS=%s\n' "$T/dpkeys" > "$T/saglam.env"
+
+# 5) RACAR_DP_KEYS satırı HİÇ yok — eskiden pipefail yüzünden mesajsız ölüyordu
+printf 'RACAR_GH_TOKEN=deneme_token_1\n' > "$T/dpsiz.env"
+CIKTI=$(kos "$T/dpsiz.env")
+if icerir "$CIKTI" "RACAR_DP_KEYS tanımsız"; then
+  ok "RACAR_DP_KEYS satırı yoksa açık mesajla durur"
+else kotu "RACAR_DP_KEYS satırı yokken açık mesaj yok"; fi
+
+# 6) SPA artifact token'ı YOK (F2.2)
+printf 'RACAR_DP_KEYS=%s\n' "$T/dpkeys" > "$T/tokensiz.env"
+CIKTI=$(kos "$T/tokensiz.env")
+if icerir "$CIKTI" "RACAR_GH_TOKEN tanımsız"; then
+  ok "GitHub token'ı yoksa durur"
+else kotu "GitHub token'ı yokken geçti"; fi
+
+# 7) Token biçimi bozuk (curl config enjeksiyonu) — ve değer ÇIKTIYA YAZILMAZ
+printf 'RACAR_DP_KEYS=%s\nRACAR_GH_TOKEN=gizli deger"x\n' "$T/dpkeys" > "$T/bozuktoken.env"
+CIKTI=$(kos "$T/bozuktoken.env")
+if icerir "$CIKTI" "biçimi geçersiz" && ! icerir "$CIKTI" "gizli deger"; then
+  ok "bozuk token reddediliyor, değeri yazdırılmıyor"
+else kotu "bozuk token geçti ya da değeri çıktıya sızdı"; fi
+
+# 8) Hepsi doğruyken guard'lar GEÇMELİ (yanlış-pozitif yok) — token değeri çıktıda GÖRÜNMEZ
+printf 'RACAR_DP_KEYS=%s\nRACAR_GH_TOKEN=deneme_token_1\n' "$T/dpkeys" > "$T/saglam.env"
 CIKTI=$(kos "$T/saglam.env")
-if icerir "$CIKTI" "GUARDLAR_GECTI"; then
-  ok "geçerli yapılandırmada guard'lar geçiyor"
-else kotu "geçerli yapılandırma reddedildi (yanlış pozitif)"; fi
+if icerir "$CIKTI" "GUARDLAR_GECTI" && ! icerir "$CIKTI" "deneme_token_1"; then
+  ok "geçerli yapılandırmada guard'lar geçiyor (token yazdırılmadı)"
+else kotu "geçerli yapılandırma reddedildi (yanlış pozitif) ya da token sızdı"; fi
 
 printf '\n%d geçti · %d kaldı\n' "$GECTI" "$KALDI"
 [[ "$KALDI" -eq 0 ]] || exit 1

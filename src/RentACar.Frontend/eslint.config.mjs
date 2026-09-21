@@ -50,6 +50,8 @@ export default defineConfig(
       'test-results/',
       'playwright-report/',
       'blob-report/',
+      // openapi-typescript çıktısı (npm run tipler): elle düzenlenmez, CI yeniden üretip farkı yakalar.
+      'src/app/core/api/uretilen/',
     ],
   },
   {
