@@ -16,12 +16,15 @@ Tek makinede (uygulama + PostgreSQL + reverse-proxy) başlangıç için yeterli:
 
 ## 1. Önkoşul paketler
 ```bash
-sudo apt update && sudo apt install -y postgresql postgresql-contrib caddy
-# .NET 10 ASP.NET Core runtime (SDK gerekmez — publish edilmiş çıktı çalışır):
+sudo apt update && sudo apt install -y postgresql postgresql-contrib caddy curl jq
+# .NET 10 SDK (runtime YETMEZ — deploy/yayinla.sh .NET'i sunucuda `dotnet publish` ile derler).
 # Microsoft paket deposunu ekle, sonra:
-sudo apt install -y aspnetcore-runtime-10.0
+sudo apt install -y dotnet-sdk-10.0
+dotnet --list-sdks | grep '^10\.'      # kontrol (kurulum.sh da aynısını yapar)
 ```
 PostgreSQL 15+ olmalı (Ubuntu 24.04 → 16 gelir, uygun).
+**Node/npm KURULMAZ** (bilinçli): yeni arayüz (SPA) sunucuda derlenmez — CI'ın ürettiği artifact indirilir
+(§10). Sunucuda `npm ci` = root olarak rastgele lifecycle betikleri + derleme OOM'unun Postgres'i öldürmesi.
 
 ## 2. PostgreSQL — roller + veritabanı (TEK SEFERLİK, kritik)
 İki rol modeli (CLAUDE.md §4): `racar_owner` (DDL/migration, RLS bypass edebilir — uygulama KULLANMAZ),
@@ -46,6 +49,7 @@ Secret'ları **appsettings.json'a KOYMA** (repo'ya sızar). Env değişkeni veya
 | `Jwt:Key` | **yalnız Api** | `openssl rand -base64 48` (≥32 bayt, özgün) | API token imzalama. Dev/zayıf anahtar prod'da reddedilir. |
 | `Platform:AdminUser` | Web | — | Platform süper-admin (/platform konsolu) kullanıcı adı. |
 | `Platform:AdminPasswordHash` | Web | app'in hasher'ı (`PlatformCredentials.HashPassword`) | Düz şifre DEĞİL, hash. Üretmek için yardım iste (ya da geçici snippet). |
+| `RACAR_GH_TOKEN` (env var) | **yalnız `yayinla.sh`** | GitHub → fine-grained token, **yalnız bu repo, Contents: Read-only** | Yeni arayüz artifact'ını (`spa-<sha>`) indirmek için. Uygulama OKUMAZ. Yoksa/geçersizse yayın reddedilir. Adımlar: [f2-2-sunucu-adimlari.md](f2-2-sunucu-adimlari.md). Süresi dolunca yenile. |
 
 Örnek `/etc/racar/racar-web.env` (systemd `EnvironmentFile`):
 ```
@@ -327,21 +331,47 @@ Yedekleri şifreli + sunucu-dışı sakla. Restore tatbikatı yap (yedeğin ger�
 
 ## 10. SÜRÜM GÜNCELLEME (mevcut kurulumu yenileme)
 
-Yukarıdaki bölümler **sıfırdan kurulum** içindir. Zaten çalışan bir sunucuyu güncellerken sıra şudur:
+Yukarıdaki bölümler **sıfırdan kurulum** içindir. Zaten çalışan bir sunucuyu güncellerken sıra şudur
+(repo checkout'u sunucuda, ör. `/opt/racar/src`; aşağıda `<repo>`):
 
 ```bash
 # 1) YEDEK — migration'dan ÖNCE, her seferinde (geri dönüşü olmayan göç olabilir, bkz. aşağıdaki tablo)
 sudo -u postgres pg_dump racar | gzip > /var/backups/racar-$(date +%F-%H%M).sql.gz
 
-# 2) Kodu al + yayınla
-git -C /opt/racar/src pull
-dotnet publish /opt/racar/src/src/RentACar.Web        -c Release -o /opt/racar/web
-dotnet publish /opt/racar/src/src/RentACar.PublicSite -c Release -o /opt/racar/publicsite
+# 2) Kodu al — YALNIZ main'deki ve CI'ı YEŞİL bir commit (yeni arayüz artifact'ı yalnız onlar için var)
+git -C <repo> fetch origin && git -C <repo> checkout --detach origin/main
 
-# 3) Yeniden başlat — MIGRATION AÇILIŞTA OTOMATİK KOŞAR (elle `dotnet ef` GEREKMEZ)
-sudo systemctl restart racar-web racar-publicsite
-sudo systemctl status racar-web --no-pager | head -5
+# 3) Yayınla: .NET derlenir + o SHA'nın SPA artifact'ı indirilir/doğrulanır + symlink çevrilir +
+#    servisler yeniden başlar (MIGRATION AÇILIŞTA OTOMATİK) + sağlık kapısı (geçmezse otomatik geri alma)
+sudo <repo>/deploy/yayinla.sh
+
+# 4) Doğrula (başlıklar, CSRF, /app/ 200, /api/ui/v1/oturum/ben 401 …)
+<repo>/deploy/dogrula.sh <domain>
 ```
+
+### 10.0 Yeni arayüz (SPA) artifact'ı — `yayinla.sh` ne yapar, neyi REDDEDER
+
+CI (`.github/workflows/ci.yml` → `spa-surum`), `main`'e her push'ta **tüm kapılar yeşilse** SPA'yı derler ve
+`spa-<sha>` adlı (ön-sürüm) GitHub release'ine üç asset yükler: `spa-<sha>.tar.gz`, `spa-<sha>.tar.gz.sha256`,
+`chunks.txt` (hash'li dosya listesi). `yayinla.sh`:
+
+1. Checkout edilen commit'in SHA'sını alır (`git rev-parse HEAD`); commit'lenmemiş değişiklik varsa uyarır.
+2. `RACAR_GH_TOKEN`'ı `/etc/racar/racar.env`'den okur (**değeri hiçbir çıktıya yazılmaz**; curl'e stdin'den
+   verilir, `ps`'te görünmez; depolama sunucusuna yönlendirmede taşınmaz) ve `spa-<sha>` asset'lerini indirir.
+3. `sha256` doğrular; arşiv içeriğini kilitler (yalnız `browser/`, `chunks.txt`, `SURUM`) ve arşivin içindeki
+   `SURUM` = checkout SHA'sı olmalı.
+4. `releases/<zaman>/app/`'e açar (Web `Spa:Dizin` varsayılanı `../app/browser` → her release KENDİ SPA'sını
+   servis eder; symlink swap ile eski/yeni karışmaz).
+5. Önceki release'in **kendi** `chunks.txt`'indeki dosyaları `cp -n` ile yeni release'e kopyalar (**chown'dan
+   önce**): yayın sırasında açık sekmeler eski chunk'ları bulmaya devam eder. Kopyalananlar yeni `chunks.txt`'e
+   girmez → bir sonraki yayında taşınmaz, birikmez.
+6. .NET publish → `chown` → symlink swap → sağlık kapısı (`/health/ready`, `/health/live`, **`/app/`**); geçmezse
+   önceki release'e geri döner.
+
+**Reddedilen durumlar** (çıkış ≠ 0, yarım release silinir, `current` DEĞİŞMEZ): `RACAR_GH_TOKEN` yok/biçimsiz;
+token geçersiz (401/403); o SHA için release yok (main'e push edilmemiş ya da CI bitmemiş/kırmızı); `.sha256`
+asset'i eksik; checksum uyuşmuyor; `.sha256` ya da arşivdeki `SURUM` başka bir SHA'yı gösteriyor.
+Hepsi `deploy/spa-testi.sh` ile sahte bir GitHub API'sine karşı sınanır (CI `deploy-betikleri` işi).
 
 ### 10.1 Geri dönüşü OLMAYAN göçler (yükseltmeden önce oku)
 
@@ -399,11 +429,17 @@ Genel kontroller §9'da. Bu sürümde değişen ve **canlıda ayrıca bakılmas�
 
 ### 10.4 Geri alma (rollback)
 
+`yayinla.sh` sağlık kapısı geçmezse **kendisi** geri alır. Elle geri alma (ya da prova):
+
 ```bash
-# Kod: bir önceki yayına dön
-sudo systemctl stop racar-web racar-publicsite
-# (önceki publish çıktısını sakladıysan geri kopyala; saklamıyorsan git'te bir önceki etikete dönüp yeniden publish et)
-sudo systemctl start racar-web racar-publicsite
+ls -1t /opt/racar/releases                  # en yeni üstte; son 3 release tutulur
+readlink -f /opt/racar/current              # şu anki
+sudo ln -sfn /opt/racar/releases/<önceki-zaman> /opt/racar/current
+sudo systemctl restart racar-web racar-publicsite
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5220/health/ready   # 200
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5220/app/           # 200 (eski release'in SPA'sı)
 ```
+SPA release'in içinde olduğu için symlink ile birlikte geri döner (ayrı işlem yok). İleri dönmek için aynı
+komutu yeni release ile çalıştır ya da `yayinla.sh`'ı yeniden koş.
 **Şema geri alınmaz.** Yeni migration'lar eski kodla uyumsuzsa (kolon tipi değiştiyse) tek güvenli
 yol §8'deki yedekten geri yüklemektir — bu yüzden 10. adımın 1. maddesi (yedek) atlanamaz.

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# En az yetki: işler yalnız okur. Yazma (release) yalnız spa-surum işinde, iş düzeyinde açılır.
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -109,7 +113,7 @@ jobs:
           # (uygulama 5220'de açılıyor, sağlık yoklaması başka portu dinliyordu).
           ASPNETCORE_URLS=http://localhost:5220 \
             dotnet run --project src/RentACar.Web --no-launch-profile > /tmp/web.log 2>&1 &
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5220/health/live)" = "200" ]; then
               echo "hazır"; exit 0
             fi
@@ -135,7 +139,6 @@ jobs:
   #
   # Yol filtresi YOK (bilinçli): kapılar her PR'da koşar, "frontend'e dokunmadım" varsayımı
   # kırmızıyı gizlemez. .NET işlerinden bağımsızdır; Node 22 sabit (.nvmrc / engines).
-  # e2e işi F2.2'de eklenir.
   frontend:
     runs-on: ubuntu-latest
 
@@ -158,6 +161,11 @@ jobs:
       - name: Bağımlılıklar
         run: npm ci
 
+      # docs/api/ui-v1.json (.NET testi canlı OpenAPI'yle kilitler) → src/app/core/api/uretilen/ui-v1.ts.
+      # Yeniden üretilen dosya commit'lenenden farklıysa KIRMIZI: API değişti ama tipler güncellenmedi.
+      - name: API tip kayması (openapi-typescript)
+        run: npm run tipler:kontrol
+
       - name: Biçim (Prettier)
         run: npm run format:check
 
@@ -172,3 +180,141 @@ jobs:
 
       - name: Production derlemesi (bütçeler)
         run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Yeni arayüz duman testi: production derlemesi /app/ altında, üretim CSP'siyle + axe.
+  # Chromium önbellekten gelir (anahtar: package-lock → Playwright sürümü değişince yenilenir).
+  e2e:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/RentACar.Frontend
+
+    env:
+      NG_CLI_ANALYTICS: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/RentACar.Frontend/package-lock.json
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Playwright tarayıcı önbelleği
+        id: pw-onbellek
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('src/RentACar.Frontend/package-lock.json') }}
+
+      - name: Chromium (önbellek yoksa indir)
+        if: steps.pw-onbellek.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Chromium sistem kütüphaneleri (önbellek varsa)
+        if: steps.pw-onbellek.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: e2e (derleme + Playwright + axe)
+        run: npm run e2e
+
+      - name: Playwright izleri (yalnız hata durumunda)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-izleri
+          path: src/RentACar.Frontend/test-results/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Dağıtım betikleri: shellcheck + yayinla.sh'ın guard'ları ve SPA artifact adımı (sahte GitHub
+  # API'sine karşı: checksum/yanlış SHA/eksik artifact reddi, chunk taşıma sınırı, token sızmazlığı).
+  # Sunucuya hiçbir şey gitmez; Linux araçlarıyla (GNU tar/cp) koşması asıl değeri.
+  deploy-betikleri:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck deploy/yayinla.sh deploy/kurulum.sh deploy/guard-testi.sh deploy/spa-testi.sh
+
+      - name: yayinla.sh guard testleri
+        run: bash deploy/guard-testi.sh
+
+      - name: yayinla.sh SPA artifact testleri
+        run: bash deploy/spa-testi.sh
+
+  # ---------------------------------------------------------------------------
+  # SPA sürüm artifact'ı: main'e her push'ta, TÜM kapılar yeşilse. Sunucu (deploy/yayinla.sh)
+  # checkout ettiği SHA'nın `spa-<sha>` release'ini salt-okur token'la indirir → "artifact var" ==
+  # "o commit'in CI'ı yeşil". PR'larda koşmaz; yazma yetkisi yalnız bu işte.
+  spa-surum:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-test, mobil-tasma, frontend, e2e, deploy-betikleri]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        working-directory: src/RentACar.Frontend
+
+    env:
+      NG_CLI_ANALYTICS: "false"
+      SHA: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/RentACar.Frontend/package-lock.json
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Production derlemesi
+        run: npm run build
+
+      - name: Paketle (spa-<sha>.tar.gz + .sha256 + chunks.txt)
+        working-directory: src/RentACar.Frontend/dist/rentacar-frontend
+        run: |
+          set -euo pipefail
+          test -f browser/index.html
+          # Hash'li dosyalar (SpaBarindirma'daki desen: ad-HASH.uzantı, HASH ≥ 8 büyük harf/rakam).
+          # yayinla.sh bir sonraki yayında YALNIZ bu listeyi taşır → açık sekmeler eski chunk'ları bulur, birikmez.
+          (cd browser && find . -type f | sed 's|^\./||' \
+            | grep -E '(^|/)[^/]+-[A-Z0-9]{8,}\.[A-Za-z0-9]+$' | LC_ALL=C sort) > chunks.txt
+          test -s chunks.txt
+          printf '%s\n' "$SHA" > SURUM
+          tar --owner=0 --group=0 --numeric-owner -czf "spa-$SHA.tar.gz" browser chunks.txt SURUM
+          sha256sum "spa-$SHA.tar.gz" > "spa-$SHA.tar.gz.sha256"
+          cat "spa-$SHA.tar.gz.sha256"
+          echo "$(wc -l < chunks.txt) hash'li dosya"
+
+      - name: GitHub release (spa-<sha>)
+        working-directory: src/RentACar.Frontend/dist/rentacar-frontend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          DOSYALAR=("spa-$SHA.tar.gz" "spa-$SHA.tar.gz.sha256" chunks.txt)
+          # Yeniden koşum (yarım kalmış yükleme) güvenli: release varsa asset'ler değiştirilir.
+          if gh release view "spa-$SHA" >/dev/null 2>&1; then
+            gh release upload "spa-$SHA" "${DOSYALAR[@]}" --clobber
+          else
+            gh release create "spa-$SHA" "${DOSYALAR[@]}" --target "$SHA" --prerelease \
+              --title "SPA $SHA" \
+              --notes "main@$SHA yeni arayüz derlemesi. Sunucuda deploy/yayinla.sh bu commit checkout edilince indirir ve sha256 doğrular."
+          fi
