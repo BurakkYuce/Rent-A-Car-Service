@@ -19,6 +19,11 @@ public interface ICashRepository
     /// <summary>Verilen işlemin zaten bir ters kaydı var mı? (idempotency).</summary>
     Task<bool> HasReversalAsync(Guid originalId, CancellationToken ct = default);
 
+    /// <summary>F1.4 — bu kiracıda verilen <c>IslemAnahtari</c> ile yazılmış bir kasa/banka işlemi var mı?
+    /// Anahtarlı çift gönderimin sonucunu tutara/zamanlamaya bağlı olmaktan çıkarmak için servis ön-kontrolü
+    /// (tahsis/bakiye çitlerinden ÖNCE) kullanır.</summary>
+    Task<bool> IslemAnahtariVarMiAsync(Guid islemAnahtari, CancellationToken ct = default);
+
     /// <summary>
     /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da işler. Kira
     /// tahsilat deltası tx'ten türetilir: yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−); birim = kira dövizi

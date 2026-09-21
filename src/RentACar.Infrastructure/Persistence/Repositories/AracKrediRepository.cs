@@ -82,9 +82,11 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
         }, ct);
     }
 
+    private const string TaksitMukerrer = "Bu taksit ödemesi zaten kaydedilmiş (çift gönderim).";
+
     public async Task<bool> TaksitOdeAsync(Guid id,
         Func<int, (Expense Expense, IReadOnlyList<AccountLedgerEntry> Entries)>? posting = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Guid? islemAnahtari = null)
     {
         return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + sayaç yarışı koruması
         {
@@ -97,6 +99,12 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 .FromSqlRaw("SELECT * FROM \"AracKredileri\" WHERE \"Id\" = {0} FOR UPDATE", id)
                 .FirstOrDefaultAsync(ct);
             if (row is null) return false;
+            // F1.4 — ANAHTAR ÖNCE (satır kilidinin arkasında): aynı anahtarla ikinci gönderim, "tüm taksitler
+            // ödendi" (sessiz false) çitinden ÖNCE mükerrer sayılır. Yoksa son taksidin tekrarı sessiz false,
+            // ara taksidin tekrarı kısıt reddi alıyordu — sonuç taksidin sırasına bağlıydı.
+            if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
+                await db.Expenses.AsNoTracking().AnyAsync(e => e.IslemAnahtari == anahtar, ct))
+                throw new RentACar.Application.Common.MukerrerIslemException(TaksitMukerrer);
             // Adversarial 1.3 M1: Durum çiti KİLİDİN ARKASINDA — iptal-yarışında iptal krediye para
             // yazılıp İptal'in Kapandi ile ezilmesi imkânsızlaşır (servis ön-kontrolü yarışa açıktı).
             if (row.Durum == KrediDurum.Iptal)
@@ -128,8 +136,10 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
             {
                 // IslemAnahtari kısmi unique index: çift-submit → sayaç DA geri alınır (tek tx) → net red.
+                // F1.4: kısıt adına göre sınıflandırılır (F1.1 deseni) — idempotency kısıtı → Mukerrer (409),
+                // belge no çakışması gibi diğerleri eskisi gibi düz ValidationException.
                 await tx.RollbackAsync(ct);
-                throw new RentACar.Application.Common.ValidationException("Bu taksit ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, TaksitMukerrer);
             }
             return true;
         }, ct);

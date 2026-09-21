@@ -294,6 +294,18 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 // Kısmi unique index (eşzamanlı çift fatura/iade) → idempotent reddet. İade yarışında
                 // (TenantId,KaynakFaturaId) index'i tetiklenir → doğru ifadeyle reddet.
                 await tx.RollbackAsync(ct);
+
+                // F1.4 — MANUEL FATURA (IslemAnahtari = Id): sıralı ikinci gönderim servis ön-kontrolünde
+                // SESSİZ başarı alıyor (mevcut id döner). Yarışı kaybeden ikinci gönderim ise PK'ye çarpıp
+                // "Kira zaten faturalanmış." (yanlış metin, 400) alıyordu → sonuç zamanlamaya bağlıydı.
+                // Aynı Id'li fatura BU kiracıda görünüyorsa aynı sessiz başarı; görünmüyorsa (başka kiracının
+                // Id'si — PK kiracı-global) sessiz yutmak geliri kaybettirirdi → net red (depozito deseni).
+                if (invoice.ManuelMi && !invoice.IadeMi && invoice.RentalId is null && invoice.KaynakKiraId is null
+                    && (ex.InnerException as PostgresException)?.ConstraintName == "PK_Invoices")
+                {
+                    if (await db.Invoices.AsNoTracking().AnyAsync(i => i.Id == invoice.Id, ct)) return;
+                    throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
+                }
                 // Fark faturası (KaynakKiraId): eşzamanlı/çift istek aynı hedefe çarptı → idempotent reddet.
                 throw new ValidationException(
                     invoice.KaynakKiraId is not null ? "Kira farkı zaten faturalanmış (eşzamanlı istek)." :
@@ -302,7 +314,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
+    public async Task<Guid> PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
         Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -310,7 +322,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         if (debit != credit)
             throw new ValidationException($"Dönem faturası defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-        await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
+        return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -319,6 +331,19 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // servis kesileceği kilit DIŞINDA hesapladı; bu arada base/fark/dönem faturası commit
             // ettiyse tutar bayattır → temiz red (çağıran güncel durumla yeniden dener).
             await KiraFaturaKilidiAsync(db, invoice.KaynakKiraId!.Value, ct);
+
+            // F1.4 — AYNI dönemin çift gönderimi: sıralı ikinci istek serviste "Kesildi → mevcut
+            // InvoiceId" sessiz başarısı alıyor. Yarışı kaybeden ikinci istek ise aşağıdaki faturalanan
+            // kontrolüne takılıp 400 alıyordu → sonuç zamanlamaya bağlıydı. Dönem kilidin arkasında
+            // Kesildi ise AYNI sessiz başarı: mevcut fatura id'si döner, hiçbir şey yazılmaz.
+            var donemDurum = await db.FaturaDonemleri.AsNoTracking()
+                .Where(d => d.Id == donemId).Select(d => new { d.Durum, d.InvoiceId }).FirstOrDefaultAsync(ct);
+            if (donemDurum is { Durum: FaturaDonemDurum.Kesildi, InvoiceId: Guid mevcutFatura })
+            {
+                await tx.RollbackAsync(ct);
+                return mevcutFatura;
+            }
+
             var (guncelFaturalanan, _) = await FarkStateHesaplaAsync(db, invoice.KaynakKiraId.Value, ct);
             if (guncelFaturalanan != beklenenFaturalanan)
                 throw new ValidationException("Kira faturaları bu sırada değişti (eşzamanlı istek) — dönem kesimini yeniden deneyin.");
@@ -352,6 +377,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 await tx.RollbackAsync(ct);
                 throw new ValidationException("Dönem faturası zaten kesilmiş (eşzamanlı istek).");
             }
+            return invoice.Id;
         }, ct);
     }
 }

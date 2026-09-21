@@ -43,8 +43,10 @@ public interface IPenaltyRepository
     /// sırası) alır ve (ödeme satırı, defter kümesi) döndürür. Kalan, önbellek kolonundan
     /// DEĞİL, ödeme satırları toplanarak hesaplanır — önbellek bozulsa bile aşım imkânsız.</para>
     /// </summary>
+    /// <remarks>F1.4: <paramref name="islemAnahtari"/> verilirse kilidin arkasında, kalan kontrolünden
+    /// ÖNCE aranır; varsa <c>MukerrerIslemException</c> (sonuç ilk ödemenin tam/kısmi olmasına bağlı değil).</remarks>
     Task<CezaOdemeSonuc> PostOdemeAsync(
         Guid penaltyId, Guid satirId,
         Func<Penalty, PenaltySatir, decimal, int, (PenaltyOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default);
+        CancellationToken ct = default, Guid? islemAnahtari = null);
 }

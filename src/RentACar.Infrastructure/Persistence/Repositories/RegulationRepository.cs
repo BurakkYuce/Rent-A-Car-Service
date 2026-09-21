@@ -57,10 +57,13 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         return await db.MtvRecords.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
+    private const string MtvMukerrer = "Bu MTV ödemesi zaten kaydedilmiş (çift gönderim).";
+    private const string MuayeneMukerrer = "Bu muayene ödemesi zaten kaydedilmiş (çift gönderim).";
+
     public async Task<RegulasyonOdemeSonuc> PostMtvOdemeAsync(
         Guid mtvId,
         Func<decimal, int, (MtvOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Guid? islemAnahtari = null)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -74,6 +77,11 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
                 .FromSqlRaw("SELECT * FROM \"MtvRecords\" WHERE \"Id\" = {0} FOR UPDATE", mtvId)
                 .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("MTV kaydı bulunamadı.");
+            // F1.4 — ANAHTAR ÖNCE (satır kilidinin arkasında): aynı anahtarlı ikinci gönderim, "zaten
+            // ödendi"/"bakiye yok" çitlerinden ÖNCE mükerrer sayılır → sonuç ilk ödemenin tutarına bağlı değil.
+            if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
+                await db.MtvOdemeleri.AsNoTracking().AnyAsync(x => x.IslemAnahtari == anahtar, ct))
+                throw new MukerrerIslemException(MtvMukerrer);
             if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
             if (rec.Kalan <= 0m) throw new ValidationException("MTV kaydında ödenecek bakiye yok.");
 
@@ -99,7 +107,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
                 // (MtvId, Sira) veya IslemAnahtari kısmi unique index: çift gönderim → HER ŞEY geri
                 // alınır (tek tx), bakiye DEĞİŞMEZ.
                 await tx.RollbackAsync(ct);
-                throw IdempotencyKisiti.Red(ex, "Bu MTV ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, MtvMukerrer);
             }
 
             return new RegulasyonOdemeSonuc(odeme.Id, odeme.Sira, odeme.Tutar, rec.Kalan, rec.Odendi);
@@ -149,7 +157,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
     public async Task<RegulasyonOdemeSonuc> PostMuayeneOdemeAsync(
         Guid inspectionId,
         Func<decimal, int, (MuayeneOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Guid? islemAnahtari = null)
     {
         return await PgRetry.RunAsync(async () =>
         {
@@ -160,6 +168,10 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
                 .FromSqlRaw("SELECT * FROM \"InspectionRecords\" WHERE \"Id\" = {0} FOR UPDATE", inspectionId)
                 .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Muayene kaydı bulunamadı.");
+            // F1.4 — ANAHTAR ÖNCE (bkz. PostMtvOdemeAsync).
+            if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
+                await db.MuayeneOdemeleri.AsNoTracking().AnyAsync(x => x.IslemAnahtari == anahtar, ct))
+                throw new MukerrerIslemException(MuayeneMukerrer);
             if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
 
             var sira = await db.MuayeneOdemeleri.CountAsync(x => x.InspectionId == inspectionId, ct) + 1;
@@ -184,7 +196,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
                 await tx.RollbackAsync(ct);
-                throw IdempotencyKisiti.Red(ex, "Bu muayene ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, MuayeneMukerrer);
             }
 
             return new RegulasyonOdemeSonuc(odeme.Id, odeme.Sira, odeme.Tutar, rec.Kalan, rec.Odendi);
