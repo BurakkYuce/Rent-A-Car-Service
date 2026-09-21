@@ -30,7 +30,8 @@ namespace RentACar.IntegrationTests.Infrastructure;
 /// dar limitli host'unu kurar. <paramref name="testUclari"/>: hata sözleşmesini GERÇEK grup filtrelerinden
 /// geçirmek için test-only uçlar (<see cref="TestUiUclari"/>) eklenir.
 /// </summary>
-public sealed class WebFactory(PostgresFixture pg, string logYolu, TestKimlik platform, int girisLimiti = 10_000, bool testUclari = true)
+public sealed class WebFactory(PostgresFixture pg, string logYolu, TestKimlik platform, int girisLimiti = 10_000, bool testUclari = true,
+    int istemciHataLimiti = 10_000)
     : WebApplicationFactory<RentACar.Web.Common.DogrulamaHatasiMiddleware>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -40,6 +41,7 @@ public sealed class WebFactory(PostgresFixture pg, string logYolu, TestKimlik pl
         builder.UseSetting("ConnectionStrings:Migrator", pg.OwnerConnectionString);
         builder.UseSetting("Logging:FilePath", logYolu);
         builder.UseSetting("RateLimit:LoginPermit", girisLimiti.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.UseSetting("RateLimit:IstemciHataPermit", istemciHataLimiti.ToString(System.Globalization.CultureInfo.InvariantCulture));
         // Platform operatörü: dev varsayılanı yerine çalışma anında üretilen kimlik (config'e yalnız hash).
         builder.UseSetting("Platform:AdminUser", platform.Kullanici);
         builder.UseSetting("Platform:AdminPasswordHash", RentACar.Web.Platform.PlatformCredentials.HashPassword(platform.Sifre));
@@ -104,8 +106,12 @@ public sealed class WebFixture : IAsyncLifetime
     /// <summary>Platform operatörü kimliği (config'e hash'i yazılır; düz parola yalnız bellekte).</summary>
     public TestKimlik Platform { get; } = new("", "p" + Kisa(), RastgeleParola(), "");
 
-    /// <summary>Giriş limiti 2 olan ikinci host (429 testi) — ilk erişimde kurulur.</summary>
-    public WebFactory DarLimitli => _darLimitli ??= new WebFactory(_pg, Path.Combine(_gecici, "log-dar-.log"), Platform, girisLimiti: 2);
+    /// <summary>Giriş ve istemci hata raporu limiti 2 olan ikinci host (429 testleri) — ilk erişimde kurulur.</summary>
+    public WebFactory DarLimitli => _darLimitli ??= new WebFactory(_pg, Path.Combine(_gecici, "log-dar-.log"), Platform,
+        girisLimiti: 2, istemciHataLimiti: 2);
+
+    /// <summary>Ana host'un log dosyaları (Serilog CompactJson, <c>log-web-*.log</c>) bu dizinde.</summary>
+    public string LogDizini => _gecici;
 
     public static string RastgeleParola() => Guid.NewGuid().ToString("N") + "Aa1!";
     private static string Kisa() => Guid.NewGuid().ToString("N")[..10];

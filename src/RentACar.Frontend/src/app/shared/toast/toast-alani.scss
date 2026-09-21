@@ -1,0 +1,85 @@
+.alan {
+  position: fixed;
+  inset-inline-end: var(--rc-bosluk-4);
+  inset-block-end: var(--rc-bosluk-4);
+  z-index: var(--rc-z-bildirim);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  width: min(24rem, calc(100vw - var(--rc-bosluk-8)));
+  pointer-events: none;
+}
+
+.bolge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.toast {
+  --_metin: var(--rc-notr-metin);
+  --_zemin: var(--rc-yuzey);
+  --_kenar: var(--rc-kenar);
+
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rc-bosluk-2);
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-2) var(--rc-bosluk-2) var(--rc-bosluk-3);
+  border: 1px solid var(--_kenar);
+  border-inline-start-width: var(--rc-bosluk-1);
+  border-radius: var(--rc-yaricap-lg);
+  background-color: var(--rc-yuzey);
+  box-shadow: var(--rc-golge-3);
+  pointer-events: auto;
+}
+
+@each $durum in basari, bilgi, uyari, hata {
+  .toast--#{$durum} {
+    --_metin: var(--rc-#{$durum}-metin);
+    --_kenar: var(--rc-#{$durum}-kenar);
+  }
+}
+
+.toast--bekleme {
+  --_metin: var(--rc-vurgu-metin);
+  --_kenar: var(--rc-vurgu);
+}
+
+.ikon {
+  margin-top: var(--rc-bosluk-0-5);
+  color: var(--_metin);
+}
+
+.icerik {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+  padding-block: var(--rc-bosluk-0-5);
+}
+
+.baslik {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.mesaj {
+  overflow-wrap: anywhere;
+}
+
+.eylem {
+  margin-top: var(--rc-bosluk-1);
+}
+
+@media (max-width: 30rem) {
+  .alan {
+    inset-inline: var(--rc-bosluk-2);
+    inset-block-end: var(--rc-bosluk-2);
+    width: auto;
+  }
+}

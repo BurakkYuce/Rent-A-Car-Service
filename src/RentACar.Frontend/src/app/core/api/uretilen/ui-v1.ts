@@ -179,6 +179,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/istemci-hata': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['IstemciHataIstegi'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/secim/musteri': {
     parameters: {
       query?: never;
@@ -767,6 +804,12 @@ export interface components {
       firma: null | string;
       kullanici: null | string;
       sifre: null | string;
+    };
+    IstemciHataIstegi: {
+      mesaj: null | string;
+      yigin: null | string;
+      url: null | string;
+      surum: null | string;
     };
     KurSecimOgesi: {
       id: string;

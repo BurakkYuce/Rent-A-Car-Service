@@ -5,6 +5,21 @@
       <span class="rc-rozet rc-rozet--uyari">{{ 'yerTutucu.durumYapimda' | transloco }}</span>
     </header>
     <p class="aciklama">{{ 'yerTutucu.aciklama' | transloco }}</p>
+    @if (oturum.ben(); as ben) {
+      <div class="oturum">
+        <p>
+          <span class="kullanici">{{ ben.kullanici.adSoyad || ben.kullanici.kullaniciAdi }}</span>
+          <span class="firma">{{ ben.kiraci.ad }}</span>
+        </p>
+        <a class="rc-dugme rc-dugme--kucuk" routerLink="/vitrin/geri-bildirim">
+          {{ 'vitrin.baglanti' | transloco }}
+        </a>
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="oturum.cikisYap()">
+          <rc-ikon ad="logout" [boyut]="14" />
+          {{ 'oturum.cikis' | transloco }}
+        </button>
+      </div>
+    }
     <div class="tema">
       <span class="tema-etiket" id="tema-etiket">{{ 'tema.etiket' | transloco }}</span>
       <div class="rc-dugme-grubu" role="group" aria-labelledby="tema-etiket">

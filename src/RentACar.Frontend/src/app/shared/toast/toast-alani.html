@@ -1,0 +1,52 @@
+<section class="alan" [attr.aria-label]="'geriBildirim.bildirimler' | transloco">
+  <div class="bolge" role="alert">
+    @for (toast of acil(); track toast.id) {
+      <ng-container *ngTemplateOutlet="oge; context: { $implicit: toast }" />
+    }
+  </div>
+  <div class="bolge" role="status">
+    @for (toast of kibar(); track toast.id) {
+      <ng-container *ngTemplateOutlet="oge; context: { $implicit: toast }" />
+    }
+  </div>
+</section>
+
+<ng-template #oge let-toast>
+  <div
+    class="toast"
+    [class]="'toast--' + toast.durum"
+    [attr.data-durum]="toast.durum"
+    (mouseenter)="servis.duraklat(toast.id)"
+    (mouseleave)="servis.devamEt(toast.id)"
+    (focusin)="servis.duraklat(toast.id)"
+    (focusout)="servis.devamEt(toast.id)"
+  >
+    <rc-ikon class="ikon" [class.don]="toast.durum === 'bekleme'" [ad]="ikon(toast)" [boyut]="16" />
+    <div class="icerik">
+      <span class="rc-gorunmez">{{ 'geriBildirim.durum.' + toast.durum | transloco }}:</span>
+      @if (toast.baslik) {
+        <p class="baslik">{{ toast.baslik }}</p>
+      }
+      <p class="mesaj">{{ toast.mesaj }}</p>
+      @if (toast.eylem) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk eylem"
+          (click)="servis.eylemCalistir(toast.id)"
+        >
+          {{ toast.eylem.etiket }}
+        </button>
+      }
+    </div>
+    @if (toast.durum !== 'bekleme') {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--hayalet rc-dugme--ikon rc-dugme--kucuk kapat"
+        [attr.aria-label]="'geriBildirim.kapat' | transloco"
+        (click)="servis.kapat(toast.id)"
+      >
+        <rc-ikon ad="x" [boyut]="14" />
+      </button>
+    }
+  </div>
+</ng-template>
