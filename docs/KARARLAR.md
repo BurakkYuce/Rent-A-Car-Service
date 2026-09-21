@@ -24,6 +24,7 @@ bloklamaz; her biri ayrı iş olarak ele alınır.
 | **FAZ-50** — eski defter satırlarını hesaba atama | (a) null-toleranslı okuma uygulandı: legacy satırlar "hesap belirtilmemiş" kovasında. (b) "Varsayılan Kasa/Banka"ya backfill yapılmadı | (b) istenirse ayrı backfill migration'ı; o hesabın raporlanan bakiyesi aniden yükselir, kullanıcı onayı şart |
 | **FAZ-51** — ÖTV / tevkifat / damga vergisinin tam defter paritesi | Karar: yalnız faturada kalır (aşağıda) | Tam defter paritesi istenirse ayrı para fazı, zorunlu adversarial |
 | **FAZ-47/48** — çok taraflı bakiye (müşteri / firma / rez. kaynağı) | Karar: eklenmez (aşağıda) | İhtiyaç doğarsa yeni para fazı |
+| **e-Fatura hayalet gönderim (F1.4 LOW-2)** | Dönem/kira/fark faturası yarışını kaybeden istek `eInvoice.SendAsync`'i mevcut id'yi dönmeden önce çağırıyor (`InvoiceService.cs:~353`). Bugün stub `false` → etkisiz | Gerçek GİB entegrasyonu açılmadan ÖNCE düzeltilmeli (gönderim yalnız kazanan transaction'dan) |
 | **Kimlik bekleyen entegrasyonlar** | e-Fatura/GİB XML aktarımı, XML broker/acente, gerçek HGS, banka/POS. Stub ve portlar hazır; iyzico adaptörü var ama para yoluna bağlı değil. SMS ve e-posta 2026-08-17'de gerçek | Açmadan önce kullanıcıya sorulur; credential sohbete yazılmaz |
 
 ---

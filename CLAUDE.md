@@ -113,6 +113,8 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 
 - **F0.2 — Blazor son kritik düzeltmeler (2026-09-21; Blazor F13'e kadar canlı, bu kurallar geçerli):** `data-confirm` artık GÖNDEREN DÜĞMEDE de çalışır (eskiden yalnız `<form>`'daydı — 6 geri alınamaz işlem onaysız geçiyordu); yıkıcı POST formu onaysız olamaz (`YikiciFormOnayTests` etiket etiket tarar + gerekçeli `OnayZorunluYollar`). POST formlarında global gönderim kilidi (`rc-ui.js`): kilit ERTELENİR (gönderen düğmenin name/value'su düşmesin), `target=_blank` atlanır, sayfa değiştirmeyen yanıtlar için ~10 sn emniyet çözmesi; muafiyet `data-kilit="yok"`. Giriş → `/` + güvenli `ReturnUrl` (`YetkiYonlendirme.GuvenliDonus`, yalnız GET'te taşınır, indirme ucu dönüş olamaz). `td/th.num` sağa yaslı. 404/500 Türkçe. Panel: gecikmiş dönüş varsa varsayılan sekme Gecikmiş (`PanelSekme`).
 
+- **F1 — `/api/ui/v1` temeli TAMAM (2026-09-21, PR #238–#245):** hata sözleşmesi `ValidationException` alt tipleri — `YetkiYokException` (403 `yetki_yok`), `MukerrerIslemException` (409 `mukerrer`), çakışma istisnaları (409 `cakisma`); `Web/Api/UiHata.cs` kod tablosu (+`xsrf_gecersiz`). **xUnit `Assert.ThrowsAsync<T>` birebir tip eşler** — yetki reddini `ThrowsAsync<YetkiYokException>` ile bekle. Mükerrer sınıflandırması KISIT ADIYLA (`IdempotencyKisiti`: `_IslemAnahtari`/`_Anahtar`/`_Idem` + iki açık ad). `/api/ui`: JSON ProblemDetails, CSRF her ortamda (`X-XSRF-TOKEN`), `no-store`, pilot kapısı (`TenantSettings.YeniArayuzPilot`), her uçta `IzinMetadata`/`IzinMuaf` (yapısal test). Idempotency envanteri `docs/api/idempotency-envanteri.md`: sessiz başarı YALNIZ hedef+tutar birebir aynıysa, farklı içerik → 409. Testlerde SABİT KİMLİK BİLGİSİ YOK (GitGuardian; seed parolası canlı bir hesapla aynı) — kullanıcıyı çalışma anında rastgele parolayla üret (`WebFixture`).
+
 **Bilerek ertelendi (kullanıcı kararıyla):**
 - **Gerçek entegrasyonlar** (e-Fatura/GİB, gerçek HGS/banka/POS) — **stub**; kimlik/credential gerektirir, açmadan önce kullanıcıya sor. (SMS ve e-posta 2026-08-17'de kapandı.)
 - **Canlı TürevRent kuruş-kalibrasyonu** (fiyat motoru oranlarının canlıyla birebir doğrulanması).
@@ -130,7 +132,7 @@ brew services start postgresql@15
 ASPNETCORE_URLS=http://localhost:5220 dotnet run --project src/RentACar.Web
 ```
 **Bağlantı (appsettings.json):** runtime = `racar_app`, migrator = `racar_owner`, db `racar`, port 5432.
-**Giriş (seed):** firma `yucerent` / kullanıcı `umit` / şifre `umit1376` (Admin); `operator`/`umit1376` (Operatör); firma `demo` / `umit` / `umit1376`.
+**Giriş (seed):** firma `yucerent` / kullanıcı `umit` (Admin) ve `operator` (Operatör); firma `demo` / `umit` (Admin). **Parola repoda YOK** (eski sabit parola gerçek bir dış sistemle çakışıyordu; `SabitParolaYokTests` çiti): `Seed:Parola` user-secret'ı (`dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`, ya da ortamda `Seed__Parola`) verilirse o; verilmezse Development'ta ilk kurulumda rastgele üretilir ve açılış logunda `Seed kullanıcı parolası: …` WARNING satırı olarak BİR KEZ basılır. Seed yalnız BOŞ DB'de koşar → mevcut kullanıcıların parolası hiçbir açılışta değişmez. Development dışında `Seed:Parola` yoksa demo firma/kullanıcı hiç oluşturulmaz. Platform konsolu (`/platform`): kullanıcı `admin`; `Platform:AdminPasswordHash` yoksa parola her açılışta üretilip `Platform operatörü parolası` WARNING satırında basılır.
 
 ## 8. Test
 ```bash

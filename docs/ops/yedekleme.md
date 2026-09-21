@@ -91,7 +91,8 @@ Parola hash'ini üret (tek seferlik, SDK ile — çıktıyı `Platform__AdminPas
 ```bash
 dotnet run --project src/RentACar.Web -- --platform-hash '<güçlü-parola>'
 ```
-- Development'ta config verilmezse otomatik `admin` / `platform1376` kullanılır (prod'a sızmaz).
+- Development'ta config verilmezse kullanıcı `admin` olur ve parola **her açılışta rastgele** üretilip açılış logunda
+  `Platform operatörü parolası` WARNING satırıyla basılır (repoda sabit parola yok; prod'a sızmaz).
 - Kimlik DB'de User değildir → parola değişimi = yeni hash üretip env'i güncellemek + web'i yeniden başlatmak.
 
 ## 6. Neler yedeklenir / yedeklenMEZ
