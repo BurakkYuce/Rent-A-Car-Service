@@ -477,6 +477,9 @@ app.MapPost("/internal/alert", async (HttpContext ctx, IConfiguration cfg, IServ
 }).AllowAnonymous().DisableAntiforgery();
 
 app.MapStaticAssets();
+// F1.5 — yeni arayüz kabuğu /app altında ANONİM (cookie challenge yok → /login döngüsü yok); Spa:Dizin
+// content root'a göreli (varsayılan ../app/browser). Güvenlik başlıkları/CSP yukarıdaki genel middleware'den.
+RentACar.Web.Spa.SpaBarindirma.MapSpaBarindirma(app);
 app.MapAuthEndpoints();
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
