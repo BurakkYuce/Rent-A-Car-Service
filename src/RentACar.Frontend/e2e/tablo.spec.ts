@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { oturumAc } from './ortak';
+
 /**
  * Tablo motoru vitrini (`/app/vitrin/tablo`): 49 sütun, sabit plaka sütunu + sabit başlık, yatay
  * kaydırma, sağa yaslı tr para, klavye gezinmesi, kullanıcı düzeninin sunucuya yazılması. Veri
@@ -8,6 +10,9 @@ import { expect, test, type Page } from '@playwright/test';
  */
 
 const DUZEN_UCU = '**/api/ui/v1/tablo-duzenleri/vitrin.araclar';
+
+// Vitrin oturum ister (F3.3 oturumGuard; FetchPolicy oturum bağlamı yokken yüklemez): `ben` sahte.
+test.beforeEach(async ({ page }) => oturumAc(page));
 
 interface DuzenKaydi {
   sutunlar: { kod: string; gorunur: boolean; genislik: number | null }[];
@@ -194,10 +199,10 @@ test('hata ≠ boş: hata senaryosunda hata bandı, boş senaryoda "Kayıt bulun
 }) => {
   await duzenUcunuTaklitEt(page);
   await page.goto('/app/vitrin/tablo?senaryo=hata');
-  await expect(page.getByRole('alert')).toContainText('Liste yüklenemedi');
+  await expect(page.locator('rc-tablo').getByRole('alert')).toContainText('Liste yüklenemedi');
   await expect(page.getByText('Kayıt bulunamadı')).toHaveCount(0);
 
   await page.goto('/app/vitrin/tablo?senaryo=bos');
   await expect(page.getByText('Kayıt bulunamadı')).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('rc-tablo').getByRole('alert')).toHaveCount(0);
 });
