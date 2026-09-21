@@ -115,7 +115,8 @@ else
         <td>@(z.Neden ?? "—")</td>
         <td>
             @* Zeyil mali belge değil (defter kaydı üretmez) → doğrudan silinebilir, ters kayıt gerekmez. *@
-            <form method="post" action="/regulasyon/zeyil/sil" class="inline-form"><AntiforgeryToken />
+            <form method="post" action="/regulasyon/zeyil/sil" class="inline-form"
+                  data-confirm="@z.ZeyilNo numaralı zeyil kaydı KALICI olarak silinsin mi? Geri alınamaz; zeyil defter kaydı üretmediği için muhasebeye etkisi olmaz, yalnız poliçenin zeyil listesinden çıkar."><AntiforgeryToken />
                 <input type="hidden" name="id" value="@z.Id" />
                 <button type="submit" class="danger">Sil</button>
             </form>

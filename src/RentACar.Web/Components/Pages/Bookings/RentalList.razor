@@ -82,7 +82,7 @@
         @* FAZ-46 — canlı kira_listesi.aspx kolonları. Provizyon/Depozito/Komisyon BİLGİDİR:
            bakiyeye ve deftere girmez, bu yüzden sayfa altındaki özet satırında da TOPLANMAZ. *@
         <tr><th>Sözleşme No</th><th>Müşteri</th><th>Araç</th><th>Tarih</th><th>Vade</th><th>Gün</th>
-            <th>Hediye/Fat. Gün</th><th>Tutar</th><th>Bakiye</th><th>Kaynak</th><th>Çıkış Ofisi</th>
+            <th>Hediye/Fat. Gün</th><th class="num">Tutar</th><th class="num">Bakiye</th><th>Kaynak</th><th>Çıkış Ofisi</th>
             <th>Dönüş Ofisi</th><th class="num">Provizyon</th><th class="num">Depozito</th>
             <th class="num">Kom. %</th><th class="num">Kom. Tutar</th><th>Onay Kodu</th><th>Proje</th>
             <th>Assist</th><th>Özel Şoför</th><th>Durum</th><th>Fatura</th><th></th></tr>
@@ -123,7 +123,7 @@
                     {
                         @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/kiralar/cancel" data-confirm="İptal edilsin mi?"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                            <form method="post" action="/kiralar/cancel" data-confirm="@r.SozlesmeNo numaralı kira sözleşmesi iptal edilsin mi? Sözleşme İptal durumuna geçer ve araç Müsait olur; fatura ve tahsilat kayıtlarına dokunulmaz."><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
                         </AuthorizeView>
                     }
                     @if (r.Bakiye > 0m && r.Durum != RentalStatus.Iptal)

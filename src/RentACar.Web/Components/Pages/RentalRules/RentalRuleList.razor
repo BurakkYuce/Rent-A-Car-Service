@@ -116,13 +116,12 @@
 
 <div class="table-scroll">
 <table class="grid tr-grid">
-    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Şube</th><th>Araç Grubu</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th><th>Durum</th><th>İşlem</th></tr></thead>
-    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Min/Max</th><th>İskonto</th><th>Kampanya</th>
+    <thead><tr><th>Kod</th><th>Ad</th><th>Kanal</th><th>Şube</th><th>Araç Grubu</th><th class="num">Min/Max</th><th class="num">İskonto</th><th>Kampanya</th>
         <th>Tarih Tipi</th><th>Geçerlilik</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="10" class="muted">@(_filtreli ? "Süzgece uyan kural yok." : "Kiralama kuralı tanımlı değil.")</td></tr>
+            <tr><td colspan="12" class="muted">@(_filtreli ? "Süzgece uyan kural yok." : "Kiralama kuralı tanımlı değil.")</td></tr>
         }
         @foreach (var r in _list)
         {

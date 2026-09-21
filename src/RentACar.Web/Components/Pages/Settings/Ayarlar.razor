@@ -341,7 +341,8 @@
     <p class="muted small">Yalnız <strong>PNG</strong> (şeffaf zemin gerekiyor). En az
         <strong>@LogoKurallari.OnerilenGenislik px</strong> genişlik önerilir;
         <strong>@LogoKurallari.YokSayilanGenislik px altı yok sayılır</strong> ve yerine firma adı basılır.</p>
-    <form method="post" action="/ayarlar/logo-sil"><AntiforgeryToken />
+    <form method="post" action="/ayarlar/logo-sil"
+          data-confirm="Firma logosu kaldırılsın mı? Kayıtlı logo dosyası silinir (geri getirmek için yeniden yüklemek gerekir); fatura, makbuz ve kira sözleşmesi logosuz, yalnız firma adıyla basılır."><AntiforgeryToken />
         <button type="submit" class="btn-secondary">Logoyu Kaldır</button>
     </form>
 </fieldset>

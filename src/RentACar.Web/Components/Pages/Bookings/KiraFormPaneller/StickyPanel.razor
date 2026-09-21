@@ -79,7 +79,8 @@
                                         {
                                             @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                                             <AuthorizeView Policy="izin:FinanceReverse" Context="dhIptalCtx">
-                                                <form method="post" action="/finans/dis-hizmet-iptal" style="display:inline"><AntiforgeryToken />
+                                                <form method="post" action="/finans/dis-hizmet-iptal" style="display:inline"
+                                                      data-confirm="@d.No dış hizmet alımı iptal edilsin mi? Araç gideri, tedarikçi cari ve komisyon geliri BUGÜN tarihli ters kayıtla geri alınır; kayıt silinmez ve iptal geri alınamaz."><AntiforgeryToken />
                                                     <input type="hidden" name="id" value="@d.Id" />
                                                     <input type="hidden" name="donus" value="/kiralar/@Vm.Rental!.Id" />
                                                     <button type="submit" class="link danger" disabled="@(!Vm.FinansYetkisi)">İptal (ters kayıt)</button>
@@ -209,7 +210,9 @@
                                             <HesapSecici Etiket="" /></label>
                     <label class="u-self-end"><button type="submit" disabled="@(!Vm.FinansYetkisi)">Depozito Al</button></label>
                 </form>
-                <form method="post" action="/depozito/irat" class="grid-form"><AntiforgeryToken />
+                @* İrat için ters-kayıt ucu YOK (DepozitoService): yazıldığı an kalıcıdır. *@
+                <form method="post" action="/depozito/irat" class="grid-form"
+                      data-confirm="Girilen tutar müşterinin depozitosundan kesilip GELİR yazılsın mı? Borç Depozito / Alacak Gelir kaydı bu kiranın aracına atfedilir, değiştirilemez ve geri alınamaz; kesilen tutar müşteriye artık iade edilemez."><AntiforgeryToken />
                     <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
                     <input type="hidden" name="cariId" value="@Vm.Rental!.MusteriId" />
                     <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />

@@ -122,11 +122,15 @@ else
                    müşterinin elindeki belge sessizce değişmemeli — kararı personel verir. *@
                 <span class="badge warn" title="Sözleşme bu linkten sonra güncellendi; müşteri ESKİ nüshayı görüyor">Güncel değil</span>
             }
-            <form method="post" action="/kiralar/@Id/paylas-yeni" style="margin:0"><AntiforgeryToken />
+            @* paylas-iptal ile AYNI sonuç (eski adres ölür) → aynı onay. Uç: SozlesmePaylasimEndpoints
+               "ESKİ token ölür, YENİ token doğar". Çit: YikiciFormOnayTests.OnayZorunluYollar. *@
+            <form method="post" action="/kiralar/@Id/paylas-yeni" style="margin:0"
+                  data-confirm="Sözleşmenin yeni sürümü paylaşılsın mı? Müşteriye gönderilmiş ESKİ link kalıcı olarak çalışmaz hale gelir; yeni adresi müşteriye tekrar göndermeniz gerekir."><AntiforgeryToken />
                 <button type="submit" class="kf-btn-ghost"
                         title="Yeni bir anlık görüntü alır ve YENİ adres verir; eski adres çalışmaz">Yeni Sürüm</button>
             </form>
-            <form method="post" action="/kiralar/@Id/paylas-iptal" style="margin:0"><AntiforgeryToken />
+            <form method="post" action="/kiralar/@Id/paylas-iptal" style="margin:0"
+                  data-confirm="Müşteriyle paylaşılan sözleşme linki iptal edilsin mi? Bu adres kalıcı olarak çalışmaz hale gelir; yeniden paylaşırsanız YENİ bir adres üretilir ve müşteriye tekrar gönderilmesi gerekir."><AntiforgeryToken />
                 <button type="submit" class="kf-btn-ghost" title="Adres bundan sonra 404 döner">İptal Et</button>
             </form>
         }

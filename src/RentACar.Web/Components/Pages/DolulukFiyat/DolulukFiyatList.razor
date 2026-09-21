@@ -109,7 +109,8 @@
                             </label>
                             <button type="submit">Kaydet</button>
                         </form>
-                        <form method="post" action="/doluluk-kurallari/delete" style="display:inline"><AntiforgeryToken />
+                        <form method="post" action="/doluluk-kurallari/delete" style="display:inline"
+                              data-confirm="'@k.Kod' doluluk kuralı KALICI olarak silinsin mi? Geri alınamaz; fiyat motoru bu çarpanı yeni hesaplarda artık uygulamaz (pasife almak için Aktif=Hayır kaydedin)."><AntiforgeryToken />
                             <input type="hidden" name="id" value="@k.Id" /><button type="submit" class="link danger">Sil</button>
                         </form>
                     </details>

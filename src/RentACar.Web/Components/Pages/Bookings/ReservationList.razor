@@ -190,7 +190,7 @@
                         <form method="post" action="/rezervasyonlar/convert"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link">Kiraya Çevir</button></form>
                         @* Yetki çiti: bu uç grup kapısından DAHA DAR bir izin istiyor (UcIzinKapsamaTests). Kapılanmazsa kullanıcı düğmeyi açık görür, basar, 403 alır ve /yetkisiz'e düşer. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
-                            <form method="post" action="/rezervasyonlar/cancel" data-confirm="İptal edilsin mi?"><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
+                            <form method="post" action="/rezervasyonlar/cancel" data-confirm="@r.ReservationNo numaralı rezervasyon iptal edilsin mi? Rezervasyon İptal durumuna geçer; bir daha onaylanamaz ve kiraya çevrilemez."><AntiforgeryToken /><input type="hidden" name="id" value="@r.Id" /><button class="link danger">İptal</button></form>
                         </AuthorizeView>
                         <details>
                             <summary>Düzenle</summary>
