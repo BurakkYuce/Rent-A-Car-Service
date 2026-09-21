@@ -86,8 +86,9 @@ public sealed class AracKrediGiderTests(PostgresFixture fx)
 
         var anahtar = Guid.NewGuid();
         Assert.True(await svc.TaksitOdeAsync(krediId, islemAnahtari: anahtar));
-        // Aynı anahtar tekrar → Expense kısmi unique index çakışır → TÜM tx (sayaç dahil) geri alınır.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TaksitOdeAsync(krediId, islemAnahtari: anahtar));
+        // Aynı anahtar tekrar → F1.4: kilit içinde anahtar önce aranır (yarışta Expense kısmi unique
+        // index'i) → mükerrer; TÜM tx (sayaç dahil) geri alınır.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => svc.TaksitOdeAsync(krediId, islemAnahtari: anahtar));
 
         Assert.Equal(1, (await svc.GetAsync(krediId))!.OdenenTaksit);   // 2 DEĞİL
         Assert.Equal(1200m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);

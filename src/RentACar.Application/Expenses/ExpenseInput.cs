@@ -34,6 +34,12 @@ public sealed class ExpenseInput
     public string? HazirAciklama { get; set; }
     /// <summary>Gideri bir kira sözleşmesine bağlar. BİLGİ — kira bakiyesine girmez.</summary>
     public Guid? RentalId { get; set; }
+
+    /// <summary>F1.4 — tekil gider çift-gönderim anahtarı (ör. <c>Idempotency-Key</c> başlığından sunucuda
+    /// türetilen UUIDv5). Verilirse <c>Expenses (TenantId, IslemAnahtari)</c> kısmi unique'i ikinci yazımı
+    /// reddeder (409). Boş/null → bugünkü anahtarsız davranış. Toplu gider bu alanı KULLANMAZ (satır
+    /// anahtarı <c>RowKey(batch, i)</c>'den gelir).</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
 
 /// <summary>FAZ-64 — gider kısmi ödeme girişi.</summary>

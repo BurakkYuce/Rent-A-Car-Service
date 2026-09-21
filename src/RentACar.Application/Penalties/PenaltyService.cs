@@ -195,7 +195,7 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
                 }
             ];
             return (satirOdeme, entries);
-        }, ct);
+        }, ct, odeme.IslemAnahtari == Guid.Empty ? null : odeme.IslemAnahtari);
     }
 
     /// <summary>

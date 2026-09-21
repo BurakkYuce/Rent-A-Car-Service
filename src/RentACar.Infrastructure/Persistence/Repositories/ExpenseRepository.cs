@@ -86,6 +86,16 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
 
         await KilitleAsync(db, $"gider:{db.TenantId}:{expenseId}", ct);
 
+        // F1.4 — ANAHTAR ÖNCE (kilidin arkasında): aynı anahtarlı ikinci gönderim kalan kontrolünden ÖNCE
+        // sessizce yutulur (null) — yoksa ilk ödeme kalanın tamamını kapattıysa ikinci "kalanı yok" (400)
+        // alıyor, kısmi ödemenin tekrarı sessiz geçiyordu (sonuç tutara bağlıydı).
+        if (islemAnahtari is { } oncekiAnahtar && oncekiAnahtar != Guid.Empty &&
+            await db.GiderOdemeleri.AsNoTracking().AnyAsync(o => o.IslemAnahtari == oncekiAnahtar, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return null;
+        }
+
         var gider = await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == expenseId, ct)
             ?? throw new ValidationException("Gider bulunamadı.");
         if (gider.OdemeYontemi != OdemeYontemi.AcikHesap)
@@ -178,8 +188,18 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             db.Expenses.Add(expense);
             db.AccountLedgerEntries.AddRange(entries);
 
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // F1.4: tekil gider artık IslemAnahtari taşıyabiliyor (başlıktan türetilen anahtar) →
+                // aynı anahtarla ikinci gönderim (TenantId, IslemAnahtari) kısmi unique'ine çarpar: 409.
+                await tx.RollbackAsync(ct);
+                throw IdempotencyKisiti.Red(ex, "Bu gider zaten kaydedilmiş (çift gönderim).");
+            }
         }, ct);
     }
 

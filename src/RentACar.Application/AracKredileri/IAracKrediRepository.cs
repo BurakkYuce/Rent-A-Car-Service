@@ -17,7 +17,7 @@ public interface IAracKrediRepository
     /// (ExpenseNo tahsisli). IslemAnahtari çift-submit'i kısmi unique index yakalar → ValidationException.</summary>
     Task<bool> TaksitOdeAsync(Guid id,
         Func<int, (Expense Expense, IReadOnlyList<AccountLedgerEntry> Entries)>? posting = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default, Guid? islemAnahtari = null);
     Task<bool> SetDurumAsync(Guid id, KrediDurum durum, CancellationToken ct = default);
 
     /// <summary>FAZ-13 — toplu "Taksitleri İptal Et": yalnız <see cref="KrediDurum.Aktif"/> krediler

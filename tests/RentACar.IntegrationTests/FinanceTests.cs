@@ -130,8 +130,8 @@ public sealed class FinanceTests(PostgresFixture fx)
         await cash.ReverseAsync(txId);
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
 
-        // İkinci ters kayıt reddedilmeli (idempotency) → bakiye bozulmaz.
-        await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(txId));
+        // İkinci ters kayıt reddedilmeli (idempotency) → bakiye bozulmaz. F1.4: mükerrer (409) tipi.
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.ReverseAsync(txId));
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
     }
 

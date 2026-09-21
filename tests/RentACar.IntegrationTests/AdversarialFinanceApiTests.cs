@@ -328,7 +328,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     // ───────────────────────── 4) IDEMPOTENCY OVER HTTP ─────────────────────────
 
     [Fact]
-    public async Task Reverse_is_idempotent_double_reverse_and_reverse_of_reversal_both_400()
+    public async Task Reverse_is_idempotent_double_reverse_409_and_reverse_of_reversal_400()
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advidem"), UserRole.Admin);
@@ -344,12 +344,15 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         var reversalId = firstDoc.RootElement.GetProperty("id").GetGuid();
         Assert.Equal(0m, await BalanceAsync(c, cari));
 
-        // Second reverse of the SAME original must fail (no double-reverse).
+        // Second reverse of the SAME original must fail (no double-reverse). F1.4: mükerrer gönderim →
+        // 409 duplicate_submission (yarış yolundaki TersAlinanId kısıtıyla AYNI sonuç).
         var second = await c.PostAsync($"/api/v1/finance/cash/{cashId}/reverse", null);
-        Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         await AssertErrorEnvelopeAsync(second);
+        using (var secondDoc = JsonDocument.Parse(await second.Content.ReadAsStringAsync()))
+            Assert.Equal("duplicate_submission", secondDoc.RootElement.GetProperty("error").GetString());
 
-        // Reversing the reversal itself must also fail.
+        // Reversing the reversal itself must also fail — iş kuralı (mükerrer DEĞİL) → 400.
         var revOfRev = await c.PostAsync($"/api/v1/finance/cash/{reversalId}/reverse", null);
         Assert.Equal(HttpStatusCode.BadRequest, revOfRev.StatusCode);
         await AssertErrorEnvelopeAsync(revOfRev);
@@ -375,11 +378,12 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         var results = await Task.WhenAll(tasks);
 
         var created = results.Count(r => r.StatusCode == HttpStatusCode.Created);
-        // Kaybedenler: ilk ters kayıt commit'lendikten SONRA gelen servis ön-kontrolüne takılır (400) ya da
-        // yarışta TersAlinanId kısmi unique index'ine çarpar → F1.1'den beri 409 duplicate_submission.
-        var rejected = results.Count(r => r.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict);
+        // Kaybedenler: ilk ters kayıt commit'lendikten SONRA gelen servis ön-kontrolüne ya da yarışta
+        // TersAlinanId kısmi unique index'ine takılır. F1.4'ten beri İKİ yol da MukerrerIslemException →
+        // 409 duplicate_submission (sonuç zamanlamaya bağlı değil; F1.1'deki "400 ya da 409" gevşekliği kalktı).
+        var rejected = results.Count(r => r.StatusCode == HttpStatusCode.Conflict);
         Assert.Equal(1, created);                 // exactly one reversal posted
-        Assert.Equal(results.Length - 1, rejected); // all others rejected (idempotent guard)
+        Assert.Equal(results.Length - 1, rejected); // all others 409 (idempotent guard, timing-independent)
 
         // Money correctness oracle: balance restored exactly once → 0 (not +N×1000).
         Assert.Equal(0m, await BalanceAsync(c, cari));

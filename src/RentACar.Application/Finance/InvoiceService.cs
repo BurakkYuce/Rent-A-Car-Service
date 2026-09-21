@@ -313,7 +313,15 @@ public sealed class InvoiceService(
         var kesilecek = KdvMath.RoundGross(Math.Min(kumulatif, donemBaseGross) - faturalanan);
         if (kesilecek <= 0m)
         {
-            await faturaDonemleri.AtlandiIsaretleAsync(donem.Id, ct); // kalıcı iz (cap; idempotent red)
+            if (!await faturaDonemleri.AtlandiIsaretleAsync(donem.Id, ct)) // kalıcı iz (cap; idempotent red)
+            {
+                // F1.4: işaretlenemediyse dönem artık Planlandi değil. Eşzamanlı ikinci gönderim, dönem
+                // listesini ilk gönderim commit etmeden ÖNCE, faturalananı SONRA okuduysa buraya düşer —
+                // dönem Kesildi ise sıralı ikinci istekle AYNI sessiz başarı (mevcut fatura id'si).
+                var guncel = (await faturaDonemleri.ListForRentalAsync(rentalId, ct))
+                    .FirstOrDefault(d => d.DonemSira == donemSira);
+                if (guncel is { Durum: FaturaDonemDurum.Kesildi, InvoiceId: Guid mevcut }) return mevcut;
+            }
             throw new ValidationException($"Dönem {donemSira} için kesilecek tahakkuk kalmadı — dönem ATLANDI işaretlendi.");
         }
 
@@ -344,8 +352,7 @@ public sealed class InvoiceService(
         var eResult = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, kdv, invoice.Currency), ct);
         if (eResult.Success) { invoice.EFaturaEttn = eResult.Ettn; invoice.EFaturaGonderildi = true; }
 
-        await repository.PostDonemAsync(invoice, BuildEntries(invoice), donem.Id, kesilecek, faturalanan, ct);
-        return invoice.Id;
+        return await repository.PostDonemAsync(invoice, BuildEntries(invoice), donem.Id, kesilecek, faturalanan, ct);
     }
 
     private async Task<Guid> PostFarkFaturasiAsync(

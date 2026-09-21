@@ -32,7 +32,7 @@ public interface IRegulationRepository
     Task<RegulasyonOdemeSonuc> PostMtvOdemeAsync(
         Guid mtvId,
         Func<decimal, int, (MtvOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default);
+        CancellationToken ct = default, Guid? islemAnahtari = null);
 
     Task<InspectionRecord?> FindInspectionAsync(Guid id, CancellationToken ct = default);
 
@@ -43,7 +43,7 @@ public interface IRegulationRepository
     Task<RegulasyonOdemeSonuc> PostMuayeneOdemeAsync(
         Guid inspectionId,
         Func<decimal, int, (MuayeneOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default);
+        CancellationToken ct = default, Guid? islemAnahtari = null);
 
     /// <summary>Bir MTV kaydının ödeme geçmişi (sıraya göre).</summary>
     Task<IReadOnlyList<MtvOdeme>> ListMtvOdemeAsync(Guid mtvId, CancellationToken ct = default);

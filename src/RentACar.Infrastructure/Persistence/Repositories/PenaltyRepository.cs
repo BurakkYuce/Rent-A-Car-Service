@@ -179,7 +179,10 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
                 .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", id)
                 .FirstOrDefaultAsync(ct);
             if (penalty is null) return false;
-            if (penalty.Durum != CezaDurum.Yeni) return false; // zaten yansıtılmış/işlenmiş
+            // F1.4: servis ön-kontrolüyle AYNI istisna — eskiden yarışı kaybeden ikinci yansıtma burada
+            // sessizce false dönüyor (uç "başarılı" gösteriyordu), sıralı ikinci ise 400 alıyordu.
+            if (penalty.Durum != CezaDurum.Yeni)
+                throw new ValidationException("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.");
 
             var entries = buildEntries(penalty);
             var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -199,10 +202,12 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---------------- FAZ-60 kısmi ödeme (PARA) ----------------
 
+    private const string OdemeMukerrerMesaji = "Bu ceza ödemesi zaten kaydedilmiş (çift gönderim).";
+
     public async Task<CezaOdemeSonuc> PostOdemeAsync(
         Guid penaltyId, Guid satirId,
         Func<Penalty, PenaltySatir, decimal, int, (PenaltyOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Guid? islemAnahtari = null)
     {
         return await PgRetry.RunAsync(async () =>
         {
@@ -212,6 +217,13 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             // (1) DANIŞMA KİLİDİ — cezanın TAMAMI (tüm kalemleri) için tek kilit. Kalem başına
             // kilitleseydik "başlık toplamı" iki kalemin eşzamanlı ödemesinde yarışırdı.
             await KilitAsync(db, penaltyId, ct);
+
+            // F1.4 — ANAHTAR ÖNCE (kilidin arkasında): aynı anahtarlı ikinci gönderim, kalan kontrolünden
+            // ÖNCE mükerrer sayılır. Yoksa ilk ödeme kalemi TAMAMEN kapattıysa ikinci "ödenecek bakiye yok"
+            // (400), kısmen kapattıysa kısıt (409) alıyordu — sonuç tutara bağlıydı.
+            if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
+                await db.PenaltyOdemeleri.AsNoTracking().AnyAsync(o => o.IslemAnahtari == anahtar, ct))
+                throw new MukerrerIslemException(OdemeMukerrerMesaji);
 
             var ceza = await db.Penalties.FirstOrDefaultAsync(p => p.Id == penaltyId, ct)
                 ?? throw new ValidationException("Ceza bulunamadı.");
@@ -283,7 +295,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
                 // Deterministik anahtar / IslemAnahtari / defter kısmi index'i: çift gönderim →
                 // HER ŞEY geri alınır (tek tx), bakiye DEĞİŞMEZ.
                 await tx.RollbackAsync(ct);
-                throw IdempotencyKisiti.Red(ex, "Bu ceza ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, OdemeMukerrerMesaji);
             }
 
             return new CezaOdemeSonuc(odeme.Id, satirId, sira, odeme.Tutar, satir.Kalan, ceza.Kalan, ceza.Durum);
