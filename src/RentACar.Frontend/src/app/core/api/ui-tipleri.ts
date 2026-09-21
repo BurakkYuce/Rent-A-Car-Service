@@ -20,6 +20,11 @@ export type GirisIstegi =
 export type MenuYaniti = Semalar['MenuYaniti'];
 export type SecimOgesi = Semalar['SecimOgesi'];
 
+/** `GET/PUT /api/ui/v1/tablo-duzenleri/{tabloKodu}` yanıtı (kullanıcının kayıtlı tablo düzeni; yoksa `duzen: null`). */
+export type TabloDuzeniYaniti = Semalar['TabloDuzeniYaniti'];
+/** `PUT /api/ui/v1/tablo-duzenleri/{tabloKodu}` gövdesi. */
+export type TabloDuzeniVerisi = Semalar['TabloDuzeniVerisi'];
+
 /** Sunucunun verdiği izin listesinde birebir eşleşme (izin adları sabit İngilizce enum adlarıdır). */
 export function izinVar(ben: BenYaniti, izin: string): boolean {
   return ben.izinler.includes(izin);

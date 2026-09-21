@@ -24,5 +24,61 @@
       "baslik": "Kayıt yok",
       "aciklama": "Gösterilecek kayıt bulunamadı."
     }
+  },
+  "tablo": {
+    "sutunlar": "Sütunlar",
+    "sutunlariDuzenle": "Sütunları düzenle",
+    "varsayilanaDon": "Varsayılana dön",
+    "solaTasi": "{{baslik}} sütununu öne taşı",
+    "sagaTasi": "{{baslik}} sütununu arkaya taşı",
+    "kisayollar": "Başlıkta Alt+←/→ genişliği, Alt+Shift+←/→ sırayı değiştirir. Satırda Enter açar, Boşluk seçer.",
+    "tumunuSec": "Sayfadaki tüm satırları seç",
+    "satiriSec": "Satırı seç",
+    "hataBaslik": "Liste yüklenemedi",
+    "hataAciklama": "Kayıtlar alınırken bir hata oluştu.",
+    "yenidenDene": "Yeniden dene",
+    "bosBaslik": "Kayıt bulunamadı",
+    "bosAciklama": "Seçili filtrelere uyan kayıt yok.",
+    "duzenKaydedilemedi": "Sütun düzeni kaydedilemedi",
+    "disaAktar": {
+      "etiket": "Dışa aktar",
+      "excel": "Excel",
+      "csv": "CSV",
+      "pdf": "PDF"
+    },
+    "sayfalama": {
+      "etiket": "Sayfalama",
+      "aralik": "{{bas}}–{{bit}} / {{toplam}} kayıt",
+      "kayitYok": "0 kayıt",
+      "sayfa": "Sayfa {{sayfa}} / {{toplamSayfa}}",
+      "boyut": "Sayfa başına",
+      "ilk": "İlk sayfa",
+      "onceki": "Önceki sayfa",
+      "sonraki": "Sonraki sayfa",
+      "son": "Son sayfa"
+    },
+    "duyuru": {
+      "artan": "{{baslik}} artan sıralandı",
+      "azalan": "{{baslik}} azalan sıralandı",
+      "siralamaYok": "Sıralama varsayılana döndü",
+      "genislik": "{{baslik}} genişliği {{px}} piksel",
+      "tasindi": "{{baslik}} {{sira}}. sıraya taşındı"
+    }
+  },
+  "vitrin": {
+    "tablo": {
+      "baslik": "Tablo vitrini",
+      "aciklama": "49 sütun × 5.000 araç: sunucu sayfalama ve sıralama, sabit plaka sütunu, klavye gezinmesi, kullanıcıya kayıtlı sütun düzeni.",
+      "etiket": "Araç listesi",
+      "senaryo": "Senaryo",
+      "senaryolar": {
+        "normal": "Normal",
+        "bos": "Boş",
+        "hata": "Hata",
+        "yavas": "Yavaş"
+      },
+      "secili": "{{adet}} satır seçili",
+      "acilan": "Açılan: {{plaka}}"
+    }
   }
 }
