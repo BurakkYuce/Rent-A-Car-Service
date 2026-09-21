@@ -64,7 +64,7 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(tenant, role: UserRole.Operator);
 
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => s.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
     }
 }

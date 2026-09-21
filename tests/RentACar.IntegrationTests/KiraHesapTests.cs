@@ -225,7 +225,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
             { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m, CikisOfisi = "Ankara" });
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             op.ServiceProvider.GetRequiredService<KiraHesapService>()
               .HesaplaAsync(Istek(vehicleId: veh, ucret: 120m, rentalId: kira)));
     }

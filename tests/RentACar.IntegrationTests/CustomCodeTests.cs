@@ -74,7 +74,7 @@ public sealed class CustomCodeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<CustomCodeService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new CustomCodeInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 

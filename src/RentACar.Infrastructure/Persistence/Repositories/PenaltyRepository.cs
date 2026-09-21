@@ -283,7 +283,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
                 // Deterministik anahtar / IslemAnahtari / defter kısmi index'i: çift gönderim →
                 // HER ŞEY geri alınır (tek tx), bakiye DEĞİŞMEZ.
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Bu ceza ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, "Bu ceza ödemesi zaten kaydedilmiş (çift gönderim).");
             }
 
             return new CezaOdemeSonuc(odeme.Id, satirId, sira, odeme.Tutar, satir.Kalan, ceza.Kalan, ceza.Durum);

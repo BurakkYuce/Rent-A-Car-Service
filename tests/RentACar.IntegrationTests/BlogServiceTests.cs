@@ -156,9 +156,9 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
         var svc = muhasebe.ServiceProvider.GetRequiredService<BlogService>();
 
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new BlogInput { Baslik = "Olmaz", Icerik = "x" }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListAllAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAllAsync());
 
         Assert.Single(await svc.ListPublishedAsync()); // public okuma GUARD'SIZ
     }

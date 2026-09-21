@@ -453,7 +453,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<DolulukFiyatKuralService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TopluCreateAsync(new DolulukTopluInput
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.TopluCreateAsync(new DolulukTopluInput
         { KodOnEk = "X", AdOnEk = "X", Kademeler = [new(80, 10m)] }));
     }
 

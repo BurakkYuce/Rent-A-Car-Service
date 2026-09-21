@@ -187,6 +187,6 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         // Aynı tenant'ta çalışması için aynı tenant id ile seed gerekir; burada yetki reddi yeterli:
         var svc = muh.ServiceProvider.GetRequiredService<RentalAddOnService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AddAsync(rentalId, gpsId, miktar: 1m));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.AddAsync(rentalId, gpsId, miktar: 1m));
     }
 }

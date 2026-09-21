@@ -84,7 +84,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
 
         await cash.BatchCollectAsync([Row(a, 1000m)], key);
         // Aynı anahtarla çift-submit → ikinci tüm batch'i geri alır (çift sayım yok).
-        await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync([Row(a, 1000m)], key));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.BatchCollectAsync([Row(a, 1000m)], key));
 
         Assert.Equal(-1000m, await cash.GetCariBalanceAsync(a)); // tek virman
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -107,7 +107,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync([Row(Guid.NewGuid(), 100m)]));
+        await Assert.ThrowsAsync<YetkiYokException>(() => cash.BatchCollectAsync([Row(Guid.NewGuid(), 100m)]));
     }
 
     // ---- Toplu gider ----
@@ -157,7 +157,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         var key = Guid.NewGuid();
 
         await exp.BatchCreateAsync([Gider(1000m)], key);
-        await Assert.ThrowsAsync<ValidationException>(() => exp.BatchCreateAsync([Gider(1000m)], key));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => exp.BatchCreateAsync([Gider(1000m)], key));
         Assert.Single(await exp.ListAsync());
     }
 

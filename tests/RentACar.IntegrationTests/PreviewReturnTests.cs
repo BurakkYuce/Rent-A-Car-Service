@@ -126,7 +126,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
             await rentals.DeliverAsync(rental, 10000, 8);
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
-        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+        await Assert.ThrowsAsync<RentACar.Application.Common.YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<RentalService>()
                 .PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(3)));
     }

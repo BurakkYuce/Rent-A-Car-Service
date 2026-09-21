@@ -379,7 +379,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var girdi = Girdi(cari, arac);
         girdi.TalepTuru = "Kurumsal";
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             muhasebe.ServiceProvider.GetRequiredService<ReservationService>().CreateAsync(girdi));
     }
 }

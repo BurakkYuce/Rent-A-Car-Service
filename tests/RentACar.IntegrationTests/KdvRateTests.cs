@@ -99,7 +99,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new KdvRateInput { Kod = "X", Ad = "Yetkisiz", Oran = 0.20m }));
     }
 

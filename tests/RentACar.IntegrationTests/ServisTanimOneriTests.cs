@@ -193,7 +193,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
 
         // Muhasebe rolünde OperationsWrite yok → öneri de kapalı (yazma yolunun ön adımı).
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             muh.ServiceProvider.GetRequiredService<ServisTanimService>().OneriAsync());
     }
 }

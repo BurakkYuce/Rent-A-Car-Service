@@ -314,7 +314,7 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
 
         // Operatör ödeme yapamaz (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+        await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
             .GetRequiredService<ExpenseService>()
             .OdemeEkleAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m }));
     }

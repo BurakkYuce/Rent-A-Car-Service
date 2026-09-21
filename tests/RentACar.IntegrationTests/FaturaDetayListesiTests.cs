@@ -212,7 +212,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
             await ManuelAsync(admin.ServiceProvider, await CariAsync(admin.ServiceProvider, "Zeta"), "X", 10m);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<InvoiceService>().ListLinesAsync());
     }
 

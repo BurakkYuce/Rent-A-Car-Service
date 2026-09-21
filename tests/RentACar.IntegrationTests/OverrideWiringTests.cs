@@ -38,7 +38,7 @@ public sealed class OverrideWiringTests(PostgresFixture fx)
         // Admin override'ı yalnız Yönetici'ye verir (kendini hariç tutar).
         await sp.GetRequiredService<ScreenPermissionService>().SetAsync("personel", new[] { UserRole.Yonetici });
         // Admin floor'a (ManageUsers) sahip AMA override'da değil → personel ekranı artık RED.
-        await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<PersonelService>().ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<PersonelService>().ListAsync());
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class OverrideWiringTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         await sp.GetRequiredService<ScreenPermissionService>().SetAsync("ayarlar", new[] { UserRole.Yonetici });
-        await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<TenantSettingsService>().GetAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<TenantSettingsService>().GetAsync());
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class OverrideWiringTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         await sp.GetRequiredService<ScreenPermissionService>().SetAsync("donem-kapanis", new[] { UserRole.Operator });
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => sp.GetRequiredService<DonemKilidiService>().LockAsync(Bas));
     }
 }

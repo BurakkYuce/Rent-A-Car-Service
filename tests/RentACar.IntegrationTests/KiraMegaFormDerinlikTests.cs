@@ -377,7 +377,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         Assert.Contains(secim, p => p.Id == personel);
 
         // Eski yol (ManageUsers'lı tam liste) Operatör'de PATLAR — dropdown asla buna bağlanmamalı.
-        await Assert.ThrowsAsync<ValidationException>(() => personeller.ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => personeller.ListAsync());
 
         // Operatör teslim-eden personeli atayabilir (OperationsWrite yeter).
         var rentals = sp.GetRequiredService<RentalService>();
@@ -408,7 +408,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         using var muh = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "muhasebe", role: UserRole.Muhasebe);
         var form = FormDurumu(mevcut);
         form.OdemeSekli = "Nakit";
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<YetkiYokException>(() =>
             muh.ServiceProvider.GetRequiredService<RentalService>().UpdateOpenAsync(kira, form));
     }
 

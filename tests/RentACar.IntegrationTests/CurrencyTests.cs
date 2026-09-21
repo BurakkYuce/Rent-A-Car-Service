@@ -73,7 +73,7 @@ public sealed class CurrencyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<CurrencyService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CurrencyInput { Kod = "XXX", Ad = "Yetkisiz" }));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new CurrencyInput { Kod = "XXX", Ad = "Yetkisiz" }));
     }
 
     [Fact]

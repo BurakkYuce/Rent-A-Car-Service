@@ -235,14 +235,14 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         {
             var svc = muhasebe.ServiceProvider.GetRequiredService<AracKrediService>();
             Assert.Single(await svc.SearchAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.TaksitleriIptalEtAsync([id]));
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.TaksitleriIptalEtAsync([id]));
         }
 
         // İnceltme (2026-08-17): taksit İPTALİ artık OperationsDelete ister — operatör
         // (OperationsWrite'ı olsa da) REDDEDİLİR; Yönetici geçer.
         using (var op = host.ScopeFor(tenant, role: UserRole.Operator))
         {
-            await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+            await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
                 .GetRequiredService<AracKrediService>().TaksitleriIptalEtAsync([id]));
         }
 

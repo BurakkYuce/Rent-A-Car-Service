@@ -184,7 +184,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
 
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var svc = s.ServiceProvider.GetRequiredService<JobCalismaLogService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SonKosularAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SonKosularAsync());
     }
 }

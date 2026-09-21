@@ -109,7 +109,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "Yetkisiz")));
     }
 

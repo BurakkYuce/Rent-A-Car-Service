@@ -267,7 +267,7 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
 
         // Operatör düzeltme yapamaz (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(() => op.ServiceProvider
+        await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
             .GetRequiredService<BakiyeDuzeltmeService>()
             .AdjustAsync(new BakiyeDuzeltmeInput { CariId = cari, Tutar = 100m }));
     }

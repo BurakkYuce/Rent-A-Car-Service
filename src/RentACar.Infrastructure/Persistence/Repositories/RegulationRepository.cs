@@ -99,7 +99,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
                 // (MtvId, Sira) veya IslemAnahtari kısmi unique index: çift gönderim → HER ŞEY geri
                 // alınır (tek tx), bakiye DEĞİŞMEZ.
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Bu MTV ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, "Bu MTV ödemesi zaten kaydedilmiş (çift gönderim).");
             }
 
             return new RegulasyonOdemeSonuc(odeme.Id, odeme.Sira, odeme.Tutar, rec.Kalan, rec.Odendi);
@@ -184,7 +184,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
                 await tx.RollbackAsync(ct);
-                throw new ValidationException("Bu muayene ödemesi zaten kaydedilmiş (çift gönderim).");
+                throw IdempotencyKisiti.Red(ex, "Bu muayene ödemesi zaten kaydedilmiş (çift gönderim).");
             }
 
             return new RegulasyonOdemeSonuc(odeme.Id, odeme.Sira, odeme.Tutar, rec.Kalan, rec.Odendi);

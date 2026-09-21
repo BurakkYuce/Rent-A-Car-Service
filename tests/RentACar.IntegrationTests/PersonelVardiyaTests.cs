@@ -222,7 +222,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         Assert.All(rows, r => Assert.Equal("Sube A", r.Vardiya.Sube));
 
         // Operatör başka şubeye vardiya YAZAMAZ.
-        await Assert.ThrowsAsync<ValidationException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
         // Kendi şubesine yazabilir.
         await opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A"));
     }
@@ -261,7 +261,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = muh.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
         Assert.Single(await svc.ListAsync(new VardiyaFilter { Bas = Gun, Bit = Gun }));   // ViewReports
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(V(p, Gun.AddDays(1), "08:00", "16:00")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(V(p, Gun.AddDays(1), "08:00", "16:00")));
     }
 
     [Fact]

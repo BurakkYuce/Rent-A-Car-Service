@@ -44,10 +44,10 @@ public sealed class UserManagementTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var svc = scope.ServiceProvider.GetRequiredService<UserService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new UserInput
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new UserInput
         { UserName = "x", Password = "gizli123", Rol = UserRole.Operator }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SetActiveAsync(Guid.NewGuid(), false));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetActiveAsync(Guid.NewGuid(), false));
     }
 
     [Fact]

@@ -39,7 +39,7 @@ public static class BranchScope
     public static void RequireInScope(ICurrentUser user, Guid? kayitSubeId, string? kayitSubeOfis)
     {
         if (!InScope(EffectiveFilter(user), kayitSubeId, kayitSubeOfis))
-            throw new ValidationException("Bu kayıt şube kapsamınız dışında.");
+            throw new YetkiYokException("Bu kayıt şube kapsamınız dışında.");
     }
 
     /// <summary>TEK kural (C3): guard, bellek-içi liste filtresi ve SQL şablonu hep bundan türetilir.

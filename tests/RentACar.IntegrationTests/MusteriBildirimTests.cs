@@ -240,7 +240,7 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
 
         // Operatör şablon YAZAMAZ...
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SablonKaydetAsync(
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SablonKaydetAsync(
             new MesajSablonInput { Tur = MesajTuru.RezervasyonOnay, Kanal = MesajKanal.Sms, Govde = "x" }));
 
         // ...ama bildirim GÖNDEREBİLİR (gönderim bir operasyon yan etkisidir, ayrı izin kapısı yok).

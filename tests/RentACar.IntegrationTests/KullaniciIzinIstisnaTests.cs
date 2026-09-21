@@ -93,7 +93,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         var islem = await cash.CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 100m });
         // FinanceReverse yasak: aynı işlemin tersini ATAMAZ — tam da istenen "tek kişiden yalnız
         // ters-kayıt yetkisi alınabilsin" senaryosu.
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(islem));
+        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(islem));
         Assert.Contains("FinanceReverse", ex.Message);
     }
 
@@ -110,8 +110,8 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using (var yon = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici))
         {
             var svc = yon.ServiceProvider.GetRequiredService<KullaniciIzinService>();
-            await Assert.ThrowsAsync<ValidationException>(() => svc.ListAsync());
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SetAsync(Guid.NewGuid(), "ViewReports", true));
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
+            await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetAsync(Guid.NewGuid(), "ViewReports", true));
         }
 
         // Admin KENDİ istisnasını değiştiremez (yetki yükseltme + kendini kilitleme aynı kapıda).

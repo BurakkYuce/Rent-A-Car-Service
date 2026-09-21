@@ -197,7 +197,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         // Muhasebe: FinanceWrite var, OperationsWrite YOK.
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = s.ServiceProvider.GetRequiredService<RezSartService>();
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Yetkisiz" }));
     }
 

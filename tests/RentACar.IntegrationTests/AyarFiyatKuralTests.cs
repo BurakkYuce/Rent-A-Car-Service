@@ -240,7 +240,7 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
         Assert.Equal(3, await op.ServiceProvider.GetRequiredService<FormVarsayilanCozucu>().CikisYakitAsync());
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<TenantSettingsService>().GetAsync());
     }
 
@@ -457,12 +457,12 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => muhasebe.ServiceProvider.GetRequiredService<TenantSettingsService>()
                 .SaveAsync(new TenantSettingsModel { KurElleGirisKilitli = true }));
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => op.ServiceProvider.GetRequiredService<TenantSettingsService>()
                 .SaveAsync(new TenantSettingsModel { VarsayilanYakitSeviyesi = 2 }));
     }

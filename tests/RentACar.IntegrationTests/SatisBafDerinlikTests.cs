@@ -358,7 +358,7 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
         // Muhasebe rolünde OperationsWrite YOK → BAF araması reddedilir (ekran da bu role kapalı).
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<YetkiYokException>(
             () => muhasebe.ServiceProvider.GetRequiredService<BafService>().SearchAsync(new BafFilter()));
     }
 

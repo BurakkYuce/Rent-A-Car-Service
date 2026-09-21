@@ -119,7 +119,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         // Operatör: OperationsWrite var, FinanceWrite YOK → reddedilmeli.
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(Sample("YETKI-1")));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateManualAsync(Sample("YETKI-1")));
     }
 
     [Fact]

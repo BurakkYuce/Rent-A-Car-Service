@@ -162,7 +162,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 // çift-submit (adversarial M5) → her iki halde idempotent reddet.
                 await dbTx.RollbackAsync(ct);
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected(); // metrik: idempotent red
-                throw new ValidationException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+                throw IdempotencyKisiti.Red(ex, "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
             }
         }, ct);
     }
@@ -274,7 +274,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             {
                 await dbTx.RollbackAsync(ct);
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected();
-                throw new ValidationException("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
+                throw IdempotencyKisiti.Red(ex, "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).");
             }
         }, ct);
     }
@@ -414,7 +414,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             {
                 // İşlem anahtarı çakışması (aynı toplu işlem yeniden gönderildi) → TÜM batch geri alınır (idempotent).
                 await dbTx.RollbackAsync(ct);
-                throw new ValidationException("Bu toplu işlem zaten kaydedilmiş.");
+                throw IdempotencyKisiti.Red(ex, "Bu toplu işlem zaten kaydedilmiş.");
             }
         }, ct);
     }
