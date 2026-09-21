@@ -89,6 +89,25 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   `.rc-form-izgara`. Yazdırma: `_yazdir.scss` (gizli sekmeler başlığıyla basılır, `.rc-yazdirma-gizle`).
 - Vitrin: `/app/vitrin/form`, `/app/vitrin/tanim` (e2e bunların üstünde).
 
+## Tablo motoru (F3.5)
+
+- **`<rc-tablo>`** (`@shared/tablo/tablo`), TanStack `table-core` + `virtual-core` doğrudan (bağdaştırıcı
+  yok, sürümler sabit). Rota ile TEMBEL yüklenen sayfada kullanılır (ilk pakete girmez). Örnek kablolama:
+  `features/vitrin/tablo-vitrini` (`/app/vitrin/tablo`, 49 sütun × 5.000 kayıt).
+- Girdiler: `etiket`, `sutunlar: TabloSutunu<T>[]` (`kod` kalıcı; `tur: para|sayi|tarih|tarihSaat|metin`,
+  `sirala: true | 'apiAlani'`, `sabit`, `gizli`, `gizlenemez`, `genislik`), `kaynak` = `store.liste.durum()`
+  (TemelStore; `Sayfa<T>` → sunucu sayfalaması), `satirKimligi`, `tabloKodu` (kullanıcı düzeni),
+  `sirala`/`varsayilanSirala` (F3.4 sorgusu), `secilebilir` + `[(secim)]`, `disaAktarma`.
+  Çıktılar: `siralaDegisti`/`sayfaDegisti`/`boyutDegisti` → `liste.degistir({...})`, `satirAc`, `yenidenDene`.
+- Özel hücre: `<ng-template rcTabloHucre="kod" [rcTabloHucreSutunlar]="sutunlar" let-satir>`.
+- Dört durum ayrı: `bos` mesajsız, `yukleniyor` iskelet/soluk önceki veri + `aria-busy`, `hata` bandı +
+  yeniden dene (ASLA "kayıt yok" değil), "Kayıt bulunamadı" yalnız başarılı sıfır kayıtta.
+- Kullanıcı düzeni (sıra/görünürlük/genişlik/sıralama) `GET/PUT/DELETE /api/ui/v1/tablo-duzenleri/{kod}`;
+  bayat/bozuk kayıt tanımla uzlaşır (bilinmeyen kod düşer, yeni sütun tanımdaki yerine girer).
+- Klavye (APG Data Grid): oklar, Home/End, Ctrl+Home/End, PageUp/Down; satırda Enter açar, Boşluk
+  seçer; başlıkta Enter sıralar, Alt+←/→ genişlik, Alt+Shift+←/→ sıra. Roving tabindex.
+- Dışa aktarma yalnız sunucu uçlarıyla (`/listeler/export/*`, `/raporlar/export/*`); istemcide dosya üretilmez.
+
 ## Kapılar
 
 Node **22** zorunlu (`.nvmrc`, `engines`). Başka sürümde: `npx -y -p node@22 npm run <betik>`.
