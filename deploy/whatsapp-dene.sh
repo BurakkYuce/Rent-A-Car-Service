@@ -16,6 +16,11 @@ ok()   { printf '\033[1;32m  ✓\033[0m %s\n' "$*"; }
 
 [[ -n "$HEDEF" ]] || hata "Hedef numara ver: ./deploy/whatsapp-dene.sh +905321112233"
 [[ -f "$ENVF" ]]  || hata "$ENVF yok."
+# ERP giriş kimliği ortamdan (repoda sabit parola YOK): RACAR_GIRIS_SIFRE zorunlu,
+# firma/kullanıcı varsayılanı seed (yucerent/umit).
+GIRIS_FIRMA="${RACAR_GIRIS_FIRMA:-yucerent}"
+GIRIS_KULLANICI="${RACAR_GIRIS_KULLANICI:-umit}"
+[[ -n "${RACAR_GIRIS_SIFRE:-}" ]] || hata "RACAR_GIRIS_SIFRE ver (ERP giriş parolası; seed için Seed:Parola / açılış logu)."
 
 # --- kimlik DOĞRULAMA (değer basmadan) ---
 sid_len=$(awk -F= '/^Twilio__AccountSid=/{print length($2)}' "$ENVF")
@@ -56,7 +61,8 @@ J=/tmp/wa-cookies.txt; rm -f $J
 tok() { curl -s -c $J -b $J "$1" | grep -oE 'name="__RequestVerificationToken"[^>]*value="[^"]+"' | head -1 | sed 's/.*value="//;s/"//'; }
 T=$(tok "http://localhost:$PORT/login")
 curl -s -c $J -b $J -o /dev/null -X POST "http://localhost:$PORT/auth/login" \
-  -d "__RequestVerificationToken=$T" -d "firma=yucerent" -d "kullanici=umit" -d "sifre=***REMOVED***"
+  -d "__RequestVerificationToken=$T" -d "firma=$GIRIS_FIRMA" -d "kullanici=$GIRIS_KULLANICI" \
+  --data-urlencode "sifre=$RACAR_GIRIS_SIFRE"
 T2=$(tok "http://localhost:$PORT/ayarlar")
 LOC=$(curl -s -c $J -b $J -o /dev/null -D - -X POST "http://localhost:$PORT/ayarlar/whatsapp-test" \
   -d "__RequestVerificationToken=$T2" -d "testNo=$HEDEF" | grep -i '^location:' | tr -d '\r' | sed 's/^[Ll]ocation: *//')

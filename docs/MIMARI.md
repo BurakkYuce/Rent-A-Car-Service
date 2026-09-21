@@ -324,11 +324,15 @@ ASPNETCORE_URLS=http://localhost:5220 dotnet run --project src/RentACar.Web
 
 **Giriş** (`http://localhost:5220/login`) — iki aşamalı: önce firma, sonra kullanıcı.
 
-| Firma | Kullanıcı | Şifre | Rol |
-|---|---|---|---|
-| `yucerent` | `umit` | `***REMOVED***` | Admin |
-| `yucerent` | `operator` | `***REMOVED***` | Operatör |
-| `demo` | `umit` | `***REMOVED***` | Admin |
+| Firma | Kullanıcı | Rol |
+|---|---|---|
+| `yucerent` | `umit` | Admin |
+| `yucerent` | `operator` | Operatör |
+| `demo` | `umit` | Admin |
+
+Parola repoda **yoktur**: `Seed:Parola` user-secret'ı (`dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`)
+ya da — verilmemişse — ilk kurulumun açılış logundaki `Seed kullanıcı parolası: …` WARNING satırı (Development'ta
+rastgele üretilir, bir kez basılır). Seed yalnız boş veritabanında koşar; mevcut kullanıcıların parolası değişmez.
 
 **Testler:**
 
