@@ -2,7 +2,8 @@
 
 > Bu belge projeyi ilk kez görecek biri için yazıldı: **ne olduğu, nasıl kurulduğu, hangi
 > kararların neden verildiği.** Kod okumadan sistemin bütününü anlamayı hedefler.
-> Günlük çalışma kuralları için `CLAUDE.md`, yol haritası için `docs/roadmap/` klasörüne bakın.
+> Günlük çalışma kuralları için `CLAUDE.md`, kalıcı kararlar için `docs/KARARLAR.md`, yol haritası
+> (Blazor → Angular geçişi) için `docs/roadmap/` klasörüne bakın.
 
 ---
 
@@ -397,8 +398,8 @@ korumaya dönüştü.
 | Soru | Dosya |
 |---|---|
 | Günlük çalışma kuralları, kilitli kararlar | `CLAUDE.md` |
-| Yol haritası, faz sırası | `docs/roadmap/SIRA.md` |
-| Verilmiş kararlar ve gerekçeleri | `docs/roadmap/KARARLAR.md` |
+| Yol haritası, faz sırası (Angular geçişi) | `docs/roadmap/README.md` |
+| Verilmiş kararlar, bilinçli "yapılmaz"lar, açık işler | `docs/KARARLAR.md` |
 | Kaynak sistemle ekran karşılaştırması | `docs/parite/YONETICI-OZETI.md` |
 | Yedekleme / operasyon | `docs/ops/` |
 | Defterin kalbi | `src/RentACar.Application/Finance/CashService.cs` |

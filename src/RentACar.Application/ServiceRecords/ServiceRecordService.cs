@@ -13,7 +13,7 @@ namespace RentACar.Application.ServiceRecords;
 /// Mali belge değildir (maliyet bilgilendirme); gerçek gider Gider dilimine bağlanır (follow-up).
 /// Hasar rücu: tamamlanmış servis maliyeti kusur-oranıyla cari'ye yansıtılır (J4).
 ///
-/// <para><b>FAZ-16 KİLİTLİ KARAR (docs/roadmap/KARARLAR.md "FAZ-16"):</b> kaza/fatura/ödeme
+/// <para><b>FAZ-16 KİLİTLİ KARAR (docs/KARARLAR.md "FAZ-16"):</b> kaza/fatura/ödeme
 /// blokları BİLGİDİR — <b>defterle BAĞLANMAZ</b>. Bu servis, o alanlar için hiçbir
 /// <c>AccountLedgerEntry</c> üretmez, dönem kilidine ve <c>KurCozucu</c>'ya uğramaz. Gerçek
 /// maliyet Giderler ekranından girilmeye devam eder; iki yazma yolu açmak ÇİFT-SAYIM olurdu
