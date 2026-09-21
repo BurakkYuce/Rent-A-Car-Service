@@ -1,0 +1,104 @@
+:host {
+  display: block;
+}
+
+.atla {
+  position: absolute;
+  z-index: var(--rc-z-bildirim);
+  inset-block-start: var(--rc-bosluk-2);
+  inset-inline-start: var(--rc-bosluk-2);
+  padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  transform: translateY(-300%);
+
+  &:focus {
+    box-shadow: var(--rc-golge-3);
+    transform: none;
+  }
+}
+
+.kabuk {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.yan {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--rc-kenar);
+  background-color: var(--rc-yuzey);
+  overscroll-behavior: contain;
+}
+
+.yan__ust {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
+  border-block-end: 1px solid var(--rc-kenar);
+}
+
+.yan__marka {
+  color: var(--rc-vurgu-metin);
+  font-size: var(--rc-yazi-md);
+  font-weight: var(--rc-agirlik-cok-kalin);
+}
+
+.ana {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.icerik {
+  flex: 1;
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.perde {
+  position: fixed;
+  z-index: calc(var(--rc-z-cekmece) - 1);
+  inset: 0;
+  background-color: var(--rc-perde);
+}
+
+@media (max-width: 900px) {
+  .kabuk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .yan {
+    position: fixed;
+    z-index: var(--rc-z-cekmece);
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: min(18rem, 85vw);
+    height: auto;
+    box-shadow: var(--rc-golge-3);
+    visibility: hidden;
+    transform: translateX(-100%);
+    // Kapanırken görünürlük kayma bitince düşer; açılırken ANINDA görünür (odak hemen içeri girebilsin).
+    transition:
+      transform var(--rc-sure) var(--rc-egri),
+      visibility 0s linear var(--rc-sure);
+  }
+
+  .kabuk--cekmece-acik .yan {
+    visibility: visible;
+    transform: none;
+    transition:
+      transform var(--rc-sure) var(--rc-egri),
+      visibility 0s;
+  }
+}

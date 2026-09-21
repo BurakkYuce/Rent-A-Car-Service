@@ -67,10 +67,97 @@ export async function xsrfYaz(page: Page, deger: string): Promise<void> {
     .addCookies([{ name: 'XSRF-TOKEN', value: deger, domain: url.hostname, path: '/' }]);
 }
 
-/** Oturum açık: `ben` 200 döner, XSRF çerezi yazılı. */
+/**
+ * Sahte `GET /api/ui/v1/menu` (sunucu izne göre süzmüş biçimde; Finans yok). Vitrin öğeleri `spa`,
+ * diğerleri Blazor (tam sayfa). Etiketler sekme başlıklarından farklı: e2e seçicileri karışmasın.
+ */
+export const MENU = {
+  ogeler: [
+    {
+      rota: '/rezervasyonlar',
+      etiket: 'Yeni Rezervasyon',
+      grup: 'Kısa Yollar',
+      sira: 10,
+      sahip: 'blazor',
+      rozetKodu: null,
+      hizliBaglanti: true,
+    },
+    {
+      rota: '/',
+      etiket: 'Panel',
+      grup: '',
+      sira: 20,
+      sahip: 'blazor',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/vitrin/geri-bildirim',
+      etiket: 'Geri bildirim',
+      grup: 'Vitrin',
+      sira: 30,
+      sahip: 'spa',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/vitrin/form',
+      etiket: 'Form seti',
+      grup: 'Vitrin',
+      sira: 40,
+      sahip: 'spa',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/vitrin/tanim',
+      etiket: 'Tanım CRUD',
+      grup: 'Vitrin',
+      sira: 50,
+      sahip: 'spa',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/kiralar',
+      etiket: 'Kiralar',
+      grup: 'Kira',
+      sira: 60,
+      sahip: 'blazor',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/is-emirleri',
+      etiket: 'İş Emirleri',
+      grup: 'Servis',
+      sira: 70,
+      sahip: 'blazor',
+      rozetKodu: null,
+      hizliBaglanti: false,
+    },
+    {
+      rota: '/bildirimler',
+      etiket: 'Bildirimler',
+      grup: '',
+      sira: 80,
+      sahip: 'blazor',
+      rozetKodu: 'okunmamis-bildirim',
+      hizliBaglanti: false,
+    },
+  ],
+  rozetler: { 'okunmamis-bildirim': 4 },
+};
+
+export async function menuyuSahtele(page: Page, menu: object = MENU): Promise<void> {
+  await page.route('**/api/ui/v1/menu', (route) => route.fulfill({ json: menu }));
+}
+
+/** Oturum açık: `ben` 200 döner, XSRF çerezi yazılı, kabuk menüsü sahte. */
 export async function oturumAc(page: Page, ben: object = BEN): Promise<void> {
   await xsrfYaz(page, 'eski-belirtec');
   await page.route('**/api/ui/v1/oturum/ben', (route) => route.fulfill({ json: ben }));
+  await menuyuSahtele(page);
 }
 
 export interface KayitliIstek {

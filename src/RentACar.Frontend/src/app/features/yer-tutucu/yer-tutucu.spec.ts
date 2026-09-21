@@ -20,18 +20,13 @@ const BEN: Ben = {
 };
 
 describe('YerTutucu', () => {
-  const cikisYap = vi.fn(() => Promise.resolve());
-
   beforeEach(async () => {
-    localStorage.clear();
-    document.documentElement.removeAttribute('data-theme');
-    cikisYap.mockClear();
     await TestBed.configureTestingModule({
       imports: [YerTutucu],
       providers: [
         ...appConfig.providers,
         provideRouter([]),
-        { provide: OturumServisi, useValue: { ben: signal(BEN).asReadonly(), cikisYap } },
+        { provide: OturumServisi, useValue: { ben: signal(BEN).asReadonly() } },
       ],
     }).compileComponents();
   });
@@ -48,29 +43,16 @@ describe('YerTutucu', () => {
     expect(kok.textContent).toContain('Pilot Firma');
   });
 
-  it('çıkış düğmesi oturum servisinin tam temizlikli çıkışını çağırır', async () => {
+  it('vitrin bağlantılarını gösterir (tema ve çıkış F3.2 kabuğunda)', async () => {
     const fixture = TestBed.createComponent(YerTutucu);
     await fixture.whenStable();
     const kok = fixture.nativeElement as HTMLElement;
-    [...kok.querySelectorAll('button')].find((b) => b.textContent?.includes('Çıkış yap'))?.click();
-    expect(cikisYap).toHaveBeenCalledTimes(1);
-  });
-
-  it('tema düğmeleri data-theme yazar ve seçili olanı işaretler', async () => {
-    const fixture = TestBed.createComponent(YerTutucu);
-    await fixture.whenStable();
-    const kok = fixture.nativeElement as HTMLElement;
-    const dugme = (ad: string) =>
-      [...kok.querySelectorAll('button')].find((b) => b.textContent?.trim() === ad);
-
-    dugme('Koyu')?.click();
-    await fixture.whenStable();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(dugme('Koyu')?.getAttribute('aria-pressed')).toBe('true');
-    expect(dugme('Sistem')?.getAttribute('aria-pressed')).toBe('false');
-
-    dugme('Sistem')?.click();
-    await fixture.whenStable();
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect([...kok.querySelectorAll('nav a')].map((a) => a.getAttribute('href'))).toEqual([
+      '/vitrin/geri-bildirim',
+      '/vitrin/form',
+      '/vitrin/tanim',
+      '/vitrin/tablo',
+    ]);
+    expect(kok.querySelector('button')).toBeNull();
   });
 });

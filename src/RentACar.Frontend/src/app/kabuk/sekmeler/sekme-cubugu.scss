@@ -1,0 +1,92 @@
+:host {
+  display: block;
+}
+
+.cubuk {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rc-bosluk-2);
+  padding: var(--rc-bosluk-1) var(--rc-bosluk-3) 0;
+  border-block-end: 1px solid var(--rc-kenar);
+  background-color: var(--rc-yuzey-alt);
+}
+
+.liste {
+  display: flex;
+  flex: 1;
+  gap: var(--rc-bosluk-0-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.sekme {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  max-width: 14rem;
+  margin-block-end: -1px;
+  border: 1px solid transparent;
+  border-block-end: 0;
+  border-start-start-radius: var(--rc-yaricap-md);
+  border-start-end-radius: var(--rc-yaricap-md);
+
+  &:hover {
+    background-color: var(--rc-yuzey-vurgu);
+  }
+}
+
+.sekme--etkin {
+  border-color: var(--rc-kenar);
+  background-color: var(--rc-zemin);
+
+  &:hover {
+    background-color: var(--rc-zemin);
+  }
+
+  .sekme__baglanti {
+    color: var(--rc-metin);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+}
+
+.sekme__baglanti {
+  min-width: 0;
+  padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
+  overflow: hidden;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sekme__kapat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-end: var(--rc-bosluk-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--rc-yaricap-sm);
+  background: none;
+  color: var(--rc-metin-ikincil);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--rc-notr-zemin);
+    color: var(--rc-metin);
+  }
+}
+
+.sayac {
+  flex-shrink: 0;
+  padding-block-end: var(--rc-bosluk-1);
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-2xs);
+}
