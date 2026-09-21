@@ -18,13 +18,14 @@
             <input name="kullanici" value="@(Env.IsDevelopment() ? "admin" : "")" autocomplete="off" />
         </label>
         <label>Şifre
-            <input name="sifre" type="password" value="@(Env.IsDevelopment() ? "***REMOVED***" : "")" />
+            <input name="sifre" type="password" />
         </label>
         <button type="submit">Giriş</button>
     </form>
     @if (Env.IsDevelopment())
     {
-        <p class="muted small">Dev: <code>admin</code> / <code>***REMOVED***</code> (config: <code>Platform:AdminUser/AdminPasswordHash</code>).</p>
+        <p class="muted small">Dev: kullanıcı <code>admin</code>; parola açılış logundaki <code>Platform operatörü parolası</code>
+            WARNING satırında (her açılışta yenilenir — sabitlemek için <code>Platform:AdminPasswordHash</code>).</p>
     }
 </div>
 
