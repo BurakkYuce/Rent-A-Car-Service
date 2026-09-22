@@ -233,6 +233,40 @@ describe('oturumInterceptor (kod bazlı)', () => {
     ]);
   });
 
+  it('mukerrer + mukerrerBasligi → sunucu detayı UYARI toast’u o başlıkla (“mükerrer kaydedildi” izlenimi yok); tekrar yok', async () => {
+    const yenile = vi.fn();
+    const sonuc = firstValueFrom(
+      api.post(
+        KAYIT,
+        { tutar: 100 },
+        {
+          islemAnahtari: 'anahtar-0123456789abcdef',
+          context: istekBaglami({
+            mukerrerdeYenile: yenile,
+            mukerrerBasligi: 'Kira kaydı değişmiş',
+          }),
+        },
+      ),
+    );
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail:
+        'Kiranın bakiyesi bu ekran açıldıktan sonra değişti; kaydı yeniden yükleyip tekrar deneyin.',
+    });
+    http.expectOne(KAYIT).flush(govde, secenek);
+
+    await expect(sonuc).rejects.toMatchObject({ kod: 'mukerrer', status: 409 });
+    http.expectNone(KAYIT);
+    expect(yenile).toHaveBeenCalledTimes(1);
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'uyari',
+        baslik: 'Kira kaydı değişmiş',
+        mesaj:
+          'Kiranın bakiyesi bu ekran açıldıktan sonra değişti; kaydı yeniden yükleyip tekrar deneyin. Kayıt yeniden yüklendi.',
+      }),
+    ]);
+  });
+
   it('dogrulama → yalnız çağırana, alan hatalarıyla; bant/toast yok', async () => {
     const sonuc = firstValueFrom(api.post(KAYIT, {}));
     const { govde, secenek } = problem('dogrulama', 400, {
