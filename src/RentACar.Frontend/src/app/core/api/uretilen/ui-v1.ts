@@ -2489,6 +2489,7 @@ export interface components {
       doviz: null | components['schemas']['KiraDovizBilgisi'];
       paylasim: null | components['schemas']['KiraPaylasimBari'];
       yetkiler: components['schemas']['KiraYetkileri'];
+      tahsilat: null | components['schemas']['TahsilatBilgisi'];
     };
     KiraDisHizmetDto: {
       /** Format: uuid */
