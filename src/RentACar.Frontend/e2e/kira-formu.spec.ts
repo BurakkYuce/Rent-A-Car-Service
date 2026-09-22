@@ -6,7 +6,8 @@ import { tasmaOlc } from './vitrin-sayfalari';
 /**
  * F4.3 kira formu (sahte `/api/ui/v1`, üretim derlemesi + CSP). Faz çıkışı e2e'leri: "doğrulama
  * hatasında form korunur", "oturum düşünce form kaybolmaz", "müsaitlik `cakisma` formu silmez",
- * "`?varac=` dolu form açar", "`#sekme=` doğru sekmeyi açar" + ek hizmet çift tık + PUT 58 alan.
+ * "`?varac=` dolu form açar", "`#sekme=` doğru sekmeyi açar" + ek hizmet çift tık + PUT 58 alan + sürüm;
+ * adversarial kalıcılaştırma: R2 bayat sekme (409 → birleştir → yeniden kaydet), P261-10, F4, F7.
  * Beklenen değerler sahte yanıtlardan ELLE kurulur (formül yok).
  */
 const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
@@ -162,6 +163,7 @@ const KIRA = {
   damgaVergisi: null,
   createdAtUtc: '2026-09-22T06:00:00+00:00',
   updatedAtUtc: null,
+  surum: 'v1',
 };
 
 const DETAY = {
@@ -413,7 +415,7 @@ test('müsaitlik `cakisma` formu silmez: uyarı bandı + form üstü mesaj, değ
   await formKorunduMu(page);
 });
 
-test('kayıtlı kira: PUT 58 alanın hepsini taşır; ek hizmet çift tık TEK kalem yazar', async ({
+test('kayıtlı kira: PUT 58 alanın hepsini + sürümü taşır; ek hizmet çift tık TEK kalem yazar', async ({
   page,
 }) => {
   const putlar: Record<string, unknown>[] = [];
@@ -440,7 +442,8 @@ test('kayıtlı kira: PUT 58 alanın hepsini taşır; ek hizmet çift tık TEK k
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
   expect(putlar).toHaveLength(1);
-  expect(Object.keys(putlar[0] ?? {})).toHaveLength(58);
+  expect(Object.keys(putlar[0] ?? {})).toHaveLength(59);
+  expect(putlar[0]?.['surum']).toBe('v1');
   expect(putlar[0]).toMatchObject({
     aciklama: 'Müşteri erken gelecek',
     kmLimit: 300,
@@ -544,6 +547,164 @@ test('faturalı kirada ek hizmet ekle/sil 400: mesaj gösterilir, seçim silinme
     'Bebek koltuğu',
   );
   expect(hatalar).toEqual([]);
+});
+
+/** Kayıtlı kira için değişebilir sunucu durumu: detay GET'i ve yazmalar aynı nesneyi görür. */
+async function durumluKira(
+  page: Page,
+  baslangic: Record<string, unknown>,
+  yazma: (route: Route, istek: Request, sunucu: { kira: Record<string, unknown> }) => unknown,
+  detayEk: Record<string, unknown> = {},
+): Promise<{ kira: Record<string, unknown> }> {
+  const sunucu = { kira: { ...KIRA, ...baslangic } as Record<string, unknown> };
+  await sahteKiraApi(page, { yazma: (route, istek) => yazma(route, istek, sunucu) });
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ json: { ...DETAY, ...detayEk, kira: sunucu.kira } })
+      : (yazma(route, route.request(), sunucu) as Promise<void>),
+  );
+  return sunucu;
+}
+
+const ayrintiAciklama = (page: Page) =>
+  page
+    .getByRole('tabpanel', { name: 'Ayrıntılar' })
+    .getByRole('textbox', { name: 'Açıklama', exact: true });
+
+test('F2/R2 bayat sekme: başka oturumun drop ücreti geri ALINMAZ — 409 → güncel hâl birleşir, açıklama korunur', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /status of 409/]);
+  const putlar: Record<string, unknown>[] = [];
+  const sunucu = await durumluKira(page, { surum: 'v1', dropUcreti: null }, (route, istek, s) => {
+    if (istek.method() !== 'PUT') return route.fulfill({ status: 500 });
+    const g = istek.postDataJSON() as Record<string, unknown>;
+    putlar.push(g);
+    if (g['surum'] !== s.kira['surum']) {
+      return problem(
+        route,
+        409,
+        'cakisma',
+        'Kira başka bir oturumda değişti; güncel hâli yüklendi.',
+      );
+    }
+    s.kira = { ...s.kira, aciklama: g['aciklama'], dropUcreti: g['dropUcreti'], surum: 'v3' };
+    return route.fulfill({ json: s.kira });
+  });
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=ayrintilar`);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Kira 2026220901001');
+
+  // Başka oturum drop ücretini 300 yaptı (sunucu sürümü v2); bu sekme yeniden okumadı.
+  sunucu.kira = { ...sunucu.kira, dropUcreti: 300, genelToplam: 3960, surum: 'v2' };
+  await ayrintiAciklama(page).fill('bayat sekme');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+
+  await expect(page.locator('rc-uyari-bandi')).toContainText('başka bir oturumda değişti');
+  expect(putlar[0]).toMatchObject({ surum: 'v1', dropUcreti: null }); // reddedildi, hiçbir şey yazılmadı
+  // Güncel hâl birleşti: dokunulmayan drop ücreti 300, dokunulan açıklama yerinde.
+  await page.getByRole('tab', { name: 'Fiyat/Toplam' }).click();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Fiyat/Toplam' }).getByLabel('Drop ücreti'),
+  ).toHaveValue('300,00');
+  await page.getByRole('tab', { name: 'Ayrıntılar' }).click();
+  await expect(ayrintiAciklama(page)).toHaveValue('bayat sekme');
+
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
+  expect(putlar).toHaveLength(2);
+  expect(putlar[1]).toMatchObject({ surum: 'v2', dropUcreti: 300, aciklama: 'bayat sekme' });
+  expect(sunucu.kira['dropUcreti']).toBe(300);
+  expect(hatalar).toEqual([]);
+});
+
+test('P261-10 form kirliyken "Provizyon al": sunucunun yazdığı provizyon tarihi Kaydet\'te SİLİNMEZ', async ({
+  page,
+}) => {
+  const putlar: Record<string, unknown>[] = [];
+  await durumluKira(
+    page,
+    { provizyon: 500, provizyonTarih: null, provizyonDurum: 'Yok' },
+    (route, istek, s) => {
+      if (new URL(istek.url()).pathname.endsWith('/provizyon/al')) {
+        s.kira = {
+          ...s.kira,
+          provizyonTarih: '2026-09-22T22:30:00+00:00', // İstanbul 23.09 01:30
+          provizyonDurum: 'Alindi',
+          surum: 'v2',
+        };
+        return route.fulfill({ json: s.kira });
+      }
+      if (istek.method() === 'PUT') {
+        const g = istek.postDataJSON() as Record<string, unknown>;
+        putlar.push(g);
+        if (g['surum'] !== s.kira['surum']) return problem(route, 409, 'cakisma', 'Bayat.');
+        return route.fulfill({ json: s.kira });
+      }
+      return route.fulfill({ status: 500 });
+    },
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=ayrintilar`);
+  await ayrintiAciklama(page).fill('not');
+  await page.getByRole('tab', { name: 'Finans/Uçuş' }).click();
+  await page.getByRole('button', { name: 'Provizyon al (manuel)' }).click();
+  await expect(page.getByTestId('provizyon-durum')).toHaveText('Alındı');
+  await expect(
+    page.getByRole('tabpanel', { name: 'Finans/Uçuş' }).getByLabel('Provizyon tarihi'),
+  ).toHaveValue('23.09.2026');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
+  expect(putlar).toHaveLength(1);
+  expect(putlar[0]).toMatchObject({
+    surum: 'v2',
+    aciklama: 'not',
+    provizyonTarih: '2026-09-22T22:30:00+00:00', // orijinal an, gün yuvarlaması yok (F6)
+  });
+});
+
+test('F4 2. sürücü carisi silinmiş: kimlik korunur, PUT null göndermez', async ({ page }) => {
+  const IKINCI = '0b0e7c1a-9999-4aaa-8bbb-000000000009';
+  const putlar: Record<string, unknown>[] = [];
+  await durumluKira(
+    page,
+    { ikinciSurucuId: IKINCI },
+    (route, istek, s) => {
+      putlar.push(istek.postDataJSON() as Record<string, unknown>);
+      return route.fulfill({ json: s.kira });
+    },
+    { ikinciSurucu: null },
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
+  await expect(
+    page.getByRole('tabpanel', { name: 'Müşteri' }).getByLabel('2. sürücü (kayıtlı cari)'),
+  ).toHaveValue('(kayıt bulunamadı)');
+  await page.getByRole('tab', { name: 'Ayrıntılar' }).click();
+  await ayrintiAciklama(page).fill('yalnız açıklama');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect.poll(() => putlar.length).toBe(1);
+  expect(putlar[0]).toMatchObject({ ikinciSurucuId: IKINCI, aciklama: 'yalnız açıklama' });
+});
+
+test('F7 hızlı müşteri: ana form geçersizken (araç yok) cari AÇILMAZ', async ({ page }) => {
+  const musteriPostlari: string[] = [];
+  await sahteKiraApi(page, {
+    yazma: (route, istek) => {
+      musteriPostlari.push(new URL(istek.url()).pathname);
+      return route.fulfill({ status: 201, json: { id: MUSTERI_ID, etiket: 'Yetim' } });
+    },
+  });
+  await page.goto('/app/kiralar/yeni');
+  await page.locator('#kf-yeni-musteri summary').click();
+  await page.locator('#kf-yeni-musteri').getByLabel('Ad', { exact: true }).fill('Yetim');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(hizli(page).getByLabel('Araç', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await page.waitForTimeout(300);
+  expect(musteriPostlari).toEqual([]);
+  await expect(page.locator('#kf-yeni-musteri').getByLabel('Ad', { exact: true })).toHaveValue(
+    'Yetim',
+  );
 });
 
 test("yazdırma rotası sunucunun PDF ucuna gider (SPA'ya yönlenmez)", async ({ page }) => {

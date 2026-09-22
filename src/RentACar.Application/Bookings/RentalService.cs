@@ -320,7 +320,9 @@ public sealed class RentalService(
         // pre-A6 kira = gross-up KESİNLİKLE 0.20 idi → fallback FATURA ÇİTİYLE AYNI (0.20) — tenant-güncel
         // orana düşmek, çitin kabul ettiği tek değerin faturayı kilitlemesine yol açıyordu.
         var guncelKdvVarsayilan = mevcut.KdvOranSnapshot ?? RentACar.Application.Finance.KdvMath.VarsayilanOran;
-        var ok = await _repository.UpdateRentalAsync(id, c =>
+        // F4.3 adversarial F2: BeklenenSurum doluysa (yeni arayüz) sürüm kilit ALTINDA denetlenir — bayat tam
+        // değiştirme başka oturumun değişikliğini geri alamaz. Blazor null gönderir (davranış aynı).
+        var ok = await _repository.UpdateRentalAsync(id, input.BeklenenSurum, c =>
         {
             // TX içinde yeniden doğrula (ön-kontrol ile arasında durum değişmiş olabilir).
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);

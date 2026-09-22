@@ -42,7 +42,9 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
  * - Girdi `detay`: kayıtlı kiranın `GET /kiralar/{id}` yanıtı (`yetkiler.finans` düğme durumları; asıl kapı
  *   sunucuda; `tahsilat` deterministik anahtar satırı). Yeni kirada `null` → "önce kaydedin".
  * - Çıktı `degisti`: finans işlemi 2xx döndü (ya da `mukerrer` → kayıt değişmiş) → sayfa kaydı yeniden
- *   yükler. Ana formun alanlarına dokunulmaz.
+ *   yükler. Ana formun alanlarına dokunulmaz. ZORUNLU: para işlemleri kiranın sürümünü (`kira.surum`,
+ *   Tahsilat/Bakiye…) değiştirir; tazelenmezse ana formun sonraki Kaydet'i bayat sürümle 409 `cakisma` alırdı
+ *   (e2e `kira-finans.spec.ts` "panel işlemi sonrası kira sürümü tazelenir" kilitler).
  * - Panel ana kira formunun İÇİNDE çizilir ama `<form>` AÇMAZ (`[formGroup]` + `type="button"`).
  * - Durum ve eylemler `KiraFinansDurumu`'nda (panelin `providers`'ı): sekme değişince yazılanlar kaybolmaz.
  */

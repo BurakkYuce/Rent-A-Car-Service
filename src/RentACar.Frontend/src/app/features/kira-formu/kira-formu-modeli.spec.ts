@@ -19,6 +19,7 @@ import {
   secenekListesi,
   sekmeMi,
   sistemKalemiMi,
+  sunucuDegerleriniBirlestir,
 } from './kira-formu-modeli';
 import type { KiraDetayYaniti, KiraSozlesmesi } from './kira-tipleri';
 import { sozlesmePdfAdresi } from './kira-yazdir';
@@ -29,8 +30,9 @@ const ARAC_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
 const SURUCU_ID = '0b0e7c1a-4444-4aaa-8bbb-000000000004';
 const PERSONEL_ID = '0b0e7c1a-5555-4aaa-8bbb-000000000005';
 
-/** Sunucunun `KiraGuncelleIstegi` alanları — C# sınıfından elle kopyalandı (bağımsız oracle; 58 alan). */
+/** Sunucunun `KiraGuncelleIstegi` alanları — C# sınıfından elle kopyalandı (bağımsız oracle; 58 alan + sürüm). */
 const PUT_ALANLARI = [
+  'surum',
   'cikisOfisi',
   'donusOfisi',
   'ikinciSurucuId',
@@ -196,6 +198,7 @@ function kira(ek: Partial<KiraSozlesmesi> = {}): KiraSozlesmesi {
     damgaVergisi: null,
     createdAtUtc: '2026-09-22T06:00:00+00:00',
     updatedAtUtc: null,
+    surum: '4711',
     ...ek,
   };
 }
@@ -328,16 +331,24 @@ describe('form durumu', () => {
     expect(form.controls.gunlukUcret.dirty).toBe(true);
   });
 
-  it('düzenleme ön doldurması + PUT gövdesi: 58 alanın HEPSİ, kayıtlı değerlerle (tur-döngüsü sabit)', () => {
+  /** Sayfanın PUT bağlamı: okunan sürüm + dokunulmadıysa sunucunun orijinal provizyon anı. */
+  const baglam = (form: ReturnType<typeof kiraFormuOlustur>, k: KiraSozlesmesi = kira()) => ({
+    surum: k.surum ?? '',
+    provizyonTarihAni: k.provizyonTarih,
+    provizyonTarihDegisti: form.controls.provizyonTarih.dirty,
+  });
+
+  it('düzenleme ön doldurması + PUT gövdesi: 58 alanın HEPSİ + sürüm, kayıtlı değerlerle (tur-döngüsü sabit)', () => {
     const form = kiraFormuOlustur('duzenle');
     aynalariBagla(form); // sayfadaki gibi bağlı: ayna sıfırlaması kanoniği SİLMEMELİ
     formuSifirla(form, detaydanDegerler(detay()));
     expect(form.pristine).toBe(true);
     expect(form.controls.ayna.controls.cikisOfisi.value?.etiket).toBe('Merkez');
 
-    const govde = guncelleGovdesi(form.getRawValue());
+    const govde = guncelleGovdesi(form.getRawValue(), baglam(form));
     expect(Object.keys(govde).sort()).toEqual([...PUT_ALANLARI].sort());
     expect(govde).toMatchObject({
+      surum: '4711',
       cikisOfisi: 'Merkez',
       donusOfisi: 'Havalimanı',
       kaynak: 'Web',
@@ -351,7 +362,7 @@ describe('form durumu', () => {
       dropUcreti: 250.5,
       komisyonOran: 10,
       ozelKdvOran: 0.1,
-      provizyonTarih: '2026-09-10T00:00:00Z',
+      provizyonTarih: '2026-09-10T00:00:00+00:00', // dokunulmadı → sunucunun anı AYNEN
       kabisCikis: true,
       kabisDonus: false,
       faturaListesindeGizle: false,
@@ -362,19 +373,82 @@ describe('form durumu', () => {
     });
 
     // Kaydet → aç → kaydet: gün kayması / değer kayması yok.
+    const k2 = kira({ provizyonTarih: govde.provizyonTarih ?? null });
     const ikinci = kiraFormuOlustur('duzenle');
-    formuSifirla(ikinci, detaydanDegerler(detay({ provizyonTarih: govde.provizyonTarih ?? null })));
-    expect(guncelleGovdesi(ikinci.getRawValue())).toEqual(govde);
+    formuSifirla(ikinci, detaydanDegerler({ ...detay(), kira: k2 }));
+    expect(guncelleGovdesi(ikinci.getRawValue(), baglam(ikinci, k2))).toEqual(govde);
+  });
+
+  it('F6: gece yarısından sonraki provizyon anı İstanbul gününde görünür, dokunulmadan kayıtta KAYMAZ', () => {
+    // Provizyon al 01:30 İstanbul'da (sunucu UtcNow yazar): 22.09 22:30Z = 23.09 01:30 +03.
+    const k = kira({ provizyonTarih: '2026-09-22T22:30:00+00:00' });
+    const form = kiraFormuOlustur('duzenle');
+    formuSifirla(form, detaydanDegerler({ ...detay(), kira: k }));
+    expect(form.controls.provizyonTarih.value).toBe('2026-09-23');
+    expect(guncelleGovdesi(form.getRawValue(), baglam(form, k)).provizyonTarih).toBe(
+      '2026-09-22T22:30:00+00:00',
+    );
+    // Kullanıcı günü seçerse: seçilen günün UTC gece yarısı (İstanbul'da aynı gün okunur).
+    form.controls.provizyonTarih.setValue('2026-09-25');
+    form.controls.provizyonTarih.markAsDirty();
+    const yazilan = guncelleGovdesi(form.getRawValue(), baglam(form, k)).provizyonTarih;
+    expect(yazilan).toBe('2026-09-25T00:00:00Z');
+    const geri = kiraFormuOlustur('duzenle');
+    formuSifirla(
+      geri,
+      detaydanDegerler({ ...detay(), kira: kira({ provizyonTarih: yazilan ?? null }) }),
+    );
+    expect(geri.controls.provizyonTarih.value).toBe('2026-09-25');
+  });
+
+  it('F4: 2. sürücü carisi silinmişse kimlik KORUNUR (PUT null göndermez; ücret satırı düşmez)', () => {
+    const form = kiraFormuOlustur('duzenle');
+    formuSifirla(form, detaydanDegerler({ ...detay(), ikinciSurucu: null }, '(kayıt bulunamadı)'));
+    expect(form.controls.ikinciSurucu.value).toEqual({
+      id: SURUCU_ID,
+      etiket: '(kayıt bulunamadı)',
+    });
+    expect(guncelleGovdesi(form.getRawValue(), baglam(form)).ikinciSurucuId).toBe(SURUCU_ID);
+  });
+
+  it('F2: kirli forma sunucu değerleri birleşir — dokunulmayan güncellenir, dokunulan korunur, çakışan döner', () => {
+    const form = kiraFormuOlustur('duzenle');
+    aynalariBagla(form);
+    const ilk = detaydanDegerler(detay());
+    formuSifirla(form, ilk);
+    // Kullanıcı açıklamayı ve komisyon oranını değiştirir.
+    form.controls.aciklama.setValue('benim notum');
+    form.controls.aciklama.markAsDirty();
+    form.controls.ayna.controls.kaynak.setValue('Telefon'); // ayna → kanonik kirlenir
+    // Başka oturum: drop 300, kaynak 'Acente', provizyon tarihi yazıldı.
+    const sunucu = detaydanDegerler({
+      ...detay(),
+      kira: kira({
+        dropUcreti: 300,
+        kaynak: 'Acente',
+        provizyonTarih: '2026-09-22T08:15:00+00:00',
+      }),
+    });
+    const cakisan = sunucuDegerleriniBirlestir(form, sunucu, ilk);
+    expect(cakisan).toEqual(['kaynak']);
+    expect(form.controls.dropUcreti.value).toBe(300);
+    expect(form.controls.dropUcreti.dirty).toBe(false);
+    expect(form.controls.provizyonTarih.value).toBe('2026-09-22');
+    expect(form.controls.aciklama.value).toBe('benim notum');
+    expect(form.controls.kaynak.value).toBe('Telefon');
+    expect(form.controls.ayna.controls.kaynak.value).toBe('Telefon');
+    const govde = guncelleGovdesi(form.getRawValue(), baglam(form));
+    expect(govde).toMatchObject({ dropUcreti: 300, aciklama: 'benim notum', kaynak: 'Telefon' });
   });
 
   it('boş metin null gider; zorunlu PUT alanı boşsa gövde KURULMAZ (sessiz 0 yok)', () => {
     const form = kiraFormuOlustur('duzenle');
     formuSifirla(form, detaydanDegerler(detay({ aciklama: '   ' })));
-    expect(guncelleGovdesi(form.getRawValue()).aciklama).toBeNull();
+    expect(guncelleGovdesi(form.getRawValue(), baglam(form)).aciklama).toBeNull();
 
     form.controls.kmLimit.setValue(null);
     expect(form.invalid).toBe(true);
-    expect(() => guncelleGovdesi(form.getRawValue())).toThrow(/kmLimit/);
+    expect(() => guncelleGovdesi(form.getRawValue(), baglam(form))).toThrow(/kmLimit/);
   });
 
   it('oluşturma gövdesi: kimlikler, ofis adı, ek hizmet seçimi; müşteri PII taşımaz', () => {

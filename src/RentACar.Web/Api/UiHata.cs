@@ -56,6 +56,7 @@ public static class UiHata
         YetkiYokException => (StatusCodes.Status403Forbidden, YetkiYok),
         MukerrerIslemException => (StatusCodes.Status409Conflict, Mukerrer),
         AvailabilityConflictException or DuplicateCariException or DuplicatePlakaException
+            or EszamanliDegisiklikException // F4.3 adversarial F2: bayat sürüm — form korunur, kayıt yeniden okunur
             => (StatusCodes.Status409Conflict, Cakisma),
         ValidationException => (StatusCodes.Status400BadRequest, Dogrulama),
         _ when VeriTasmasi(ex) => (StatusCodes.Status400BadRequest, Dogrulama),

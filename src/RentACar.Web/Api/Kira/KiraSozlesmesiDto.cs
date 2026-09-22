@@ -115,8 +115,18 @@ public sealed class KiraSozlesmesiDto
     public DateTimeOffset CreatedAtUtc { get; init; }
     public DateTimeOffset? UpdatedAtUtc { get; init; }
 
-    public static KiraSozlesmesiDto From(RentalContract c) => new()
+    /// <summary>
+    /// F4.3 adversarial F2 — kayıt sürümü (opak; Postgres <c>xmin</c>). <c>PUT /kiralar/{id}</c> bunu ZORUNLU geri
+    /// gönderir; satır kilidi altında güncel sürümle eşleşmezse 409 <c>cakisma</c> (başka oturumun değişikliği bayat
+    /// tam değiştirmeyle geri alınmaz). Teslim/dönüş/uzat/iptal/provizyon/ek hizmet/tahsilat da sürümü değiştirir
+    /// → SPA işlem sonrası detayı yeniden okur. Alanlardan ÖNCE okunur (yarışta güvenli taraf: yanlış 409, asla
+    /// sessiz geri alma).
+    /// </summary>
+    public string? Surum { get; init; }
+
+    public static KiraSozlesmesiDto From(RentalContract c, string? surum = null) => new()
     {
+        Surum = surum,
         Id = c.Id,
         SozlesmeNo = c.SozlesmeNo,
         Durum = c.Durum.ToString(),
@@ -234,6 +244,9 @@ public sealed class KiraSozlesmesiDto
 /// </summary>
 public sealed class KiraGuncelleIstegi
 {
+    /// <summary>F4.3 adversarial F2: okunan kayıt sürümü (detaydaki <c>kira.surum</c>). ZORUNLU; eşleşmezse 409
+    /// <c>cakisma</c>, hiçbir şey yazılmaz.</summary>
+    public required string? Surum { get; init; }
     public required string? CikisOfisi { get; init; }
     public required string? DonusOfisi { get; init; }
     public required Guid? IkinciSurucuId { get; init; }
@@ -295,6 +308,7 @@ public sealed class KiraGuncelleIstegi
 
     public RentalUpdateInput ToInput() => new()
     {
+        BeklenenSurum = Surum,
         CikisOfisi = CikisOfisi,
         DonusOfisi = DonusOfisi,
         IkinciSurucuId = IkinciSurucuId,
