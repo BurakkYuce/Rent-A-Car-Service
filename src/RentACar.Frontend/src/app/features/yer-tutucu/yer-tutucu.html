@@ -12,6 +12,9 @@
       </p>
     }
     <nav class="vitrinler" [attr.aria-label]="'yerTutucu.vitrinler' | transloco">
+      <a class="rc-dugme rc-dugme--kucuk rc-dugme--birincil" routerLink="/vitrin">{{
+        'yerTutucu.vitrinDizini' | transloco
+      }}</a>
       <a class="rc-dugme rc-dugme--kucuk" routerLink="/vitrin/geri-bildirim">
         {{ 'vitrin.baglanti' | transloco }}
       </a>

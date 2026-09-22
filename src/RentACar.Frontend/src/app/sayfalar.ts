@@ -22,6 +22,31 @@ export const SAYFALAR: Routes = [
     loadComponent: () => import('@features/yer-tutucu/yer-tutucu').then((m) => m.YerTutucu),
   },
   {
+    // F3.7 vitrin dizini: çekirdeğin her parçasına bağlantı (e2e: axe iki tema, 320–1440 taşma, görsel).
+    path: 'vitrin',
+    title: 'Vitrin — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/vitrin-dizini/vitrin-dizini').then((m) => m.VitrinDizini),
+  },
+  {
+    path: 'vitrin/tokenlar',
+    title: 'Token vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/tokenlar-vitrini/tokenlar-vitrini').then((m) => m.TokenlarVitrini),
+  },
+  {
+    path: 'vitrin/primitifler',
+    title: 'Primitif vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/primitif-vitrini/primitif-vitrini').then((m) => m.PrimitifVitrini),
+  },
+  {
+    path: 'vitrin/kabuk',
+    title: 'Kabuk vitrini — RentACar',
+    loadComponent: () =>
+      import('@features/vitrin/kabuk-vitrini/kabuk-vitrini').then((m) => m.KabukVitrini),
+  },
+  {
     // F3.3 oturum/geri bildirim vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.
     path: 'vitrin/geri-bildirim',
     title: 'Geri bildirim vitrini — RentACar',

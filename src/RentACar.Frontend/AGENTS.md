@@ -171,6 +171,37 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - e2e: `oturumAc` menüyü de sahteler (`e2e/ortak.ts` `MENU`); Blazor ekranı `page.route('**/<yol>')` ile sahte
   HTML. `e2e/kabuk.spec.ts` menü/etkin sayfa/Ctrl+K/390 px çekmece/sekmeler.
 
+## Vitrin ve kontroller (F3.7)
+
+- **Vitrin** `/app/vitrin` (dizin) → `tokenlar`, `primitifler`, `form`, `tanim`, `tablo`, `geri-bildirim`, `kabuk`.
+  Yeni çekirdek parçası = vitrinde sayfa + `sayfalar.ts` satırı + dizine bağlantı + `e2e/vitrin-sayfalari.ts`
+  satırı. Liste uygulamadan türetilmez; `e2e/vitrin.spec.ts` dizinin bu listeyle birebir olduğunu denetler.
+- **Her vitrin sayfası (CI `e2e` işi):** açık + koyu temada axe ciddi/kritik 0 ve konsol hatası yok; 320/390/768
+  (dokunmatik öykünme) ve 1440 px'te gövde yatay taşması 0 (`scripts/mobil-tasma.mjs`'in SPA karşılığı, suçlu
+  elemanı raporlar); görsel regresyon açık/koyu × 320/390/768/1440, tam sayfa (`e2e/gorsel.spec.ts`).
+- **Görsel tabanlar** `e2e/gorsel-tabanlari/` YALNIZ `mcr.microsoft.com/playwright:v<@playwright/test>-noble`
+  imajında, linux/amd64 üretilir (macOS çizimi farklı; `gorsel` projesi Linux dışında atlanır). CI `e2e` işi
+  bu imajın içinde koşar. Doğrula `npm run e2e:gorsel`, güncelle `npm run e2e:gorsel:guncelle` (ikisi de
+  Docker; önce derler) → PNG farkını gözle incele → commit'le. Docker yoksa: Actions → "Görsel tabanlar"
+  (elle) → artifact. Eşik `maxDiffPixelRatio` 0,005; animasyon kapalı, imleç gizli, fontlar self-host.
+  Kasıtlı görünüm değişikliği yapan PR tabanları AYNI PR'da günceller. `@playwright/test` yükseltmesi =
+  `ci.yml` + `gorsel-taban.yml` imaj etiketi + tabanların yeniden üretimi (etiket uyuşmazsa CI tarayıcıyı
+  bulamayıp kırılır).
+- **Faz çıkışı e2e:** "doğrulama hatasında form korunur" (`form.spec.ts`, `oturum.spec.ts` (a)), "oturum
+  düşünce form kaybolmaz" (`oturum.spec.ts` (b)/(b2)), "`cakisma` formu silmez" (`oturum.spec.ts` (c)) —
+  hepsi `npm run e2e` ile CI'da.
+
+## Paket bütçesi
+
+- İlk paket (production) ≈ 372 kB ham / 109 kB aktarım: Angular çatısı ~302 kB (core 138, router 73,
+  common+http 42, rxjs 22, transloco 14, platform-browser 13) + uygulama çekirdeği ~50 kB + CSS 19 kB.
+  Bütçe `angular.json`'da uyarı **380 kB**, hata **450 kB** (gerekçe dosyada yorum olarak).
+- İlk pakete yalnız her ekranda gereken çekirdek girer. Sayfa/özellik, CDK, diyaloglar, komut paleti,
+  sekme makinesi, tablo motoru tembel. **İkon kaydı** (`ikon-kaydi.ts`, ~10 kB) de tembel: `<rc-ikon>` ilk
+  çizimde yükler (kutu boyutu korunur), `PendingTasks`'e kayıtlı. `tr.json` bilinçli gömülü (ilk çizimde
+  anahtar yanıp sönmez, ek istek yok; ~8,6 kB).
+- Ölçüm: `npx ng build --stats-json` → `dist/rentacar-frontend/stats.json` (esbuild metafile).
+
 ## Kapılar
 
 Node **22** zorunlu (`.nvmrc`, `engines`). Başka sürümde: `npx -y -p node@22 npm run <betik>`.
@@ -183,11 +214,13 @@ npm run lint           # ESLint (uyarı da hata) + üretilen dosyalar güncel mi
 npm run typecheck      # ngc (strictTemplates) + spec + e2e tsc
 npm test               # Vitest, @angular/build:unit-test, tek koşu
 npm run build          # (önce tipler) production, dist/rentacar-frontend/browser, bütçeler 300kB / 600kB
-npm run e2e            # build + Playwright duman testi /app/ altında, üretim CSP'siyle + axe
+npm run e2e            # build + Playwright (chromium projesi) /app/ altında, üretim CSP'siyle + axe + taşma
+npm run e2e:gorsel     # build + görsel regresyon Docker'da (CI imajı); güncelleme: e2e:gorsel:guncelle
 ```
 
 CI (`.github/workflows/ci.yml`): `frontend` işi tipler:kontrol → format:check → lint → typecheck → test →
-build; `e2e` işi Playwright duman testini koşar (Chromium önbellekli). Yerelde ilk seferde
+build; `e2e` işi Playwright Linux imajının İÇİNDE `npm run e2e` + `npm run e2e:gorsel:ci` koşar (hata
+durumunda `test-results/` — iz, gerçek/fark PNG'leri — artifact). Yerelde ilk seferde
 `npx playwright install --only-shell chromium`.
 
 ## API tipleri (`/api/ui/v1`)

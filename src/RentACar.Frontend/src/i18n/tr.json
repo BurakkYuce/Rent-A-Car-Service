@@ -12,6 +12,7 @@
     "durumHazir": "Hazır",
     "durumYapimda": "Yapımda",
     "vitrinler": "Vitrinler",
+    "vitrinDizini": "Tüm vitrin",
     "formVitrini": "Form vitrini",
     "tanimVitrini": "Tanım vitrini",
     "tabloVitrini": "Tablo vitrini"
@@ -107,6 +108,8 @@
     "onayMesaj": "Bu işlem geri alınamaz.",
     "onaylandi": "Onaylandı.",
     "vazgecildi": "Vazgeçildi.",
+    "bantBaslik": "Uyarı bandı",
+    "bantOrnek": "Örnek bant metni: bu işlem için yetkiniz yok.",
     "tablo": {
       "baslik": "Tablo vitrini",
       "aciklama": "49 sütun × 5.000 araç: sunucu sayfalama ve sıralama, sabit plaka sütunu, klavye gezinmesi, kullanıcıya kayıtlı sütun düzeni.",

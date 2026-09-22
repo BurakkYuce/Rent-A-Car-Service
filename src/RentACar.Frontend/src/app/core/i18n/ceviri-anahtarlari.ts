@@ -168,6 +168,8 @@ export type CeviriAnahtari =
   | 'vitrin.aciklama'
   | 'vitrin.anaSayfa'
   | 'vitrin.baglanti'
+  | 'vitrin.bantBaslik'
+  | 'vitrin.bantOrnek'
   | 'vitrin.baslik'
   | 'vitrin.formAciklama'
   | 'vitrin.formBaslik'
@@ -204,4 +206,5 @@ export type CeviriAnahtari =
   | 'yerTutucu.ornekTutar'
   | 'yerTutucu.tabloVitrini'
   | 'yerTutucu.tanimVitrini'
+  | 'yerTutucu.vitrinDizini'
   | 'yerTutucu.vitrinler';
