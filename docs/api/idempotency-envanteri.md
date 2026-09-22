@@ -167,11 +167,14 @@ Servis düzeyinde (Blazor da kapsanır):
 - **Deterministik anahtar varken başlık TÜKETİLMEZ.** `tahsilatAnahtar` gönderilen istekte başlık yalnız biçim
   denetiminden geçer; aynı başlıkla `tahsilatAnahtar`'SIZ yeniden deneme YENİ tahsilat yazar. İstemci bir
   tahsilatı hangi anahtar kümesiyle gönderdiyse yeniden denemeyi de BİREBİR aynı gövdeyle yapar.
-- **Deterministik tahsilat 409'unun sınıfı istemcide (F4.4 M-C, `core/form/tahsilat-denemesi.ts`).** Sunucu `mevcut`
-  (+ `ayniIcerik`: tutar, döviz, hesap türü, hesap, kur, açıklama, kanal) döner; istemci gönderimden ÖNCE bu anahtarla
-  sonucu bilinmeyen (ağ/5xx) bir deneme olup olmadığını yakalar. `ayniIcerik=false` + tekrar → "önceki denemeniz
-  kaydedilmiş; girdiğiniz tutar YAZILMADI" ve tutar TEMİZLENİR (form korunursa ikinci basış yeni anahtarla ikinci
-  tahsilatı yazar). Tekrar değilse (iki sekme) form korunur; yalnız dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir.
+- **Deterministik tahsilat 409'unun sınıfı istemcide (F4.4 M-C + 5. tur, `core/form/tahsilat-denemesi.ts`).** Sunucu
+  `mevcut` (+ `ayniIcerik`: tutar, döviz, hesap türü, hesap, kur, açıklama, kanal, açık tarih) döner. İstemci sonucu
+  bilinmeyen (ağ/5xx) denemeleri İÇERİKLERİYLE, formdan bağımsız ve ANAHTARA bağlı uygulama geneli kayıtta tutar
+  (`TahsilatDenemeKaydi`, root; Nakit ↔ Kart, kira listesi ↔ Panel ortak; çıkışta silinir). Anahtar tek kayıt taşıdığı
+  için: `mevcut` belirsiz bir denemeyle (tutar + döviz) eşleşirse "önceki denemeniz kaydedilmiş", eşleşmezse "başka
+  işlem yazıldı, önceki denemeniz de kaydedilmedi" — iki durumda da tutar TEMİZLENİR (ikinci basış bilinçli yeniden
+  giriş ister; çift yazım yok). Belirsiz deneme yoksa (iki sekme) form korunur, yalnız dokunulmamış ön-dolu tutar yeni
+  bakiyeyle yenilenir. 409 kaydı silmez (`mevcut`suz 409 eşzamanlı yarış olabilir); yalnız o anahtarın 2xx'i siler.
 
 **SPA uygulaması — kira formu sabit paneli (F4.4, `features/kira-formu/finans-paneli/`):**
 - `tahsilatAnahtar`'ın kaynağı kira detayıdır: `GET kiralar/{id}` → `tahsilat` (`TahsilatBilgisi`; liste/pano ile

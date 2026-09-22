@@ -14,7 +14,13 @@ import { EMPTY, type Observable, startWith } from 'rxjs';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
-import { TahsilatDenemesi, tahsilatMukerrerBildir } from '@core/form/tahsilat-denemesi';
+import {
+  TahsilatDenemeKaydi,
+  TahsilatDenemesi,
+  type TahsilatGonderimi,
+  tahsilatMukerrerBildir,
+  tutarTemizlenir,
+} from '@core/form/tahsilat-denemesi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -113,6 +119,8 @@ export class KiraFinansDurumu {
   private readonly oturum = inject(OturumServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
+  /** Belirsiz tahsilat denemeleri ANAHTARA bağlı, uygulama geneli (Nakit ↔ Kart, liste ↔ Panel ortak). */
+  private readonly denemeKaydi = inject(TahsilatDenemeKaydi);
 
   /** Sayfaya "kayıt değişti" bildirimi (panelin `degisti` çıktısı); panel kurucuda bağlar. */
   degisti: () => void = () => undefined;
@@ -323,26 +331,27 @@ export class KiraFinansDurumu {
    * - `oncekiDenemeKaydedilmis` (4. tur M-C): sonucu bilinmeyen bir denemenin (ör. 500, yanıt kayboldu) tutarı
    *   değiştirilmiş (600) tekrarı — 500 yazılmış, 600 YAZILMADI. Tutar TEMİZLENİR: form korunursa ikinci basış yeni
    *   anahtarla 600'ü de yazıyordu (niyet 600, kayıt 1100). "Tekrar mı" bilgisi gönderimden ÖNCE yakalanır.
+   * - `baskaIslemDenemeYazilmadi` (5. tur LOW-1): belirsiz deneme var ama kayıt onun değil — tutar TEMİZLENİR.
+   * - Belirsiz deneme kaydı forma değil ANAHTARA bağlıdır (5. tur MEDIUM-1: Nakit'te kaybolan 500 → Kart'ta 600).
    * - `baskaIslemYazildi` (3. tur M-A, iki sekme/iki kullanıcı): form SİLİNMEZ; tutar elle yazılmadıysa (ön-dolu)
    *   yeni bakiyeyle yenilenir (L-2), yazıldıysa korunur.
    * - `bayatAnahtar` (ekran açıldıktan sonra kirada işlem oldu): tutar temizlenir, kullanıcı güncel bakiyeyle girer.
    */
   tahsilatYap(tf: TahsilatFormu): void {
     if (!tf.kopya.gonderilebilir()) return;
-    let tekrar = false;
-    let anahtar = '';
-    let girilen: Para = null;
-    let doviz = 'TRY';
+    let g: TahsilatGonderimi | null = null;
     tf.gonderim.gonder(
       tf.form,
       () => {
         const kopya = tf.kopya.gonderiliyor();
         if (kopya === null) return EMPTY; // düğme zaten kapalı; kilit finalize'la bırakılır
         const deger = tf.form.getRawValue();
-        anahtar = kopya.anahtar;
-        tekrar = tf.deneme.tekrarMi(anahtar); // M-C: gönderimden ÖNCE
-        girilen = deger.tutar;
-        doviz = dovizKodu(deger.doviz);
+        // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (Nakit ↔ Kart ortak kayıt).
+        g = tf.deneme.basla(kopya.anahtar, {
+          tutar: deger.tutar,
+          doviz: dovizKodu(deger.doviz),
+          hesap: tf.hesap,
+        });
         return this.api.post<FinansIslemYaniti>(
           `${FINANS}/tahsilat`,
           tahsilatGovdesi(kopya, tf.hesap, deger),
@@ -357,33 +366,25 @@ export class KiraFinansDurumu {
       {
         deterministikAnahtar: tf.kopya.kopya()?.anahtar ?? null,
         basarili: () => {
-          tf.deneme.basarili();
+          if (g) tf.deneme.basarili(g);
           tf.kopya.sonuclandi();
           this.tamam('kiraFinans.bildirim.tahsilat');
         },
         hata: (h) => {
-          const tur = tf.deneme.hataGeldi(anahtar, h, tekrar);
+          if (!g) return;
+          const tur = tf.deneme.hataGeldi(g, h);
           if (tur === null) return;
           tf.kopya.sonuclandi(false);
           tahsilatMukerrerBildir(this.toast, this.t, tur, h, {
-            girilenTutar: girilen,
-            doviz,
+            gonderim: g,
             bayatBaslik: this.t('kiraFinans.kayitDegismis'),
             ek: this.t('geriBildirim.mukerrerYenilendi'),
           });
           const tutar = tf.form.controls.tutar;
-          switch (tur) {
-            case 'zatenKaydedildi':
-              tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
-              break;
-            case 'baskaIslemYazildi':
-              if (tutar.pristine && tutar.value !== null) tf.deneme.tutarYenilemesiIste(anahtar);
-              break;
-            case 'oncekiDenemeKaydedilmis':
-            case 'bayatAnahtar':
-              tutar.setValue(null);
-              break;
-          }
+          if (tur === 'zatenKaydedildi')
+            tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
+          else if (tutarTemizlenir(tur)) tutar.setValue(null);
+          else if (tutar.pristine && tutar.value !== null) tf.deneme.tutarYenilemesiIste(g.anahtar);
         },
       },
     );
@@ -664,7 +665,7 @@ export class KiraFinansDurumu {
       hesap,
       form,
       kopya: new TahsilatKopyasi(),
-      deneme: new TahsilatDenemesi(),
+      deneme: new TahsilatDenemesi(this.denemeKaydi),
       gonderim: formGonderimi(),
       doviz: this.dovizSinyali(form.controls.doviz),
       tutar: this.degerSinyali(form.controls.tutar),

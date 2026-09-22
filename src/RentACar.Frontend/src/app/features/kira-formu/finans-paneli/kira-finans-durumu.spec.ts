@@ -88,7 +88,10 @@ async function kur(yazma: (c: Cagri) => Observable<unknown>) {
       { provide: ApiIstemcisi, useValue: api },
       { provide: ToastServisi, useValue: toast },
       { provide: OnayServisi, useValue: onay },
-      { provide: OturumServisi, useValue: { izinVar: () => true } },
+      {
+        provide: OturumServisi,
+        useValue: { izinVar: () => true, temizlikKaydet: () => () => undefined },
+      },
     ],
   });
   await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
@@ -457,6 +460,35 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     expect(tahsilatlar(cagrilar)).toHaveLength(2);
   });
 
+  it('5. tur MEDIUM-1: Nakit\'te kaybolan 500 → Kart/Havale\'de AYNI anahtarla 600 → "önceki denemeniz kaydedilmiş", Kart tutarı TEMİZLENİR, ikinci basış istek göndermez', async () => {
+    let n = 0;
+    const { f, cagrilar, detayVer, toast } = await kur(() =>
+      ++n === 1 ? throwError(() => agHatasi()) : throwError(() => oncekiDenemeKaydedilmis()),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.nakit.form.controls.tutar.setValue('500.00');
+    f.nakit.form.controls.tutar.markAsDirty();
+    f.tahsilatYap(f.nakit); // yazıldı, yanıt kayboldu
+    f.kart.form.controls.tutar.setValue('600.00');
+    f.kart.form.controls.tutar.markAsDirty();
+    f.tahsilatYap(f.kart);
+    const t = tahsilatlar(cagrilar);
+    expect(t.map((c) => [govdesi(c)['tahsilatAnahtar'], govdesi(c)['hesap']])).toEqual([
+      [K1, 'Kasa'],
+      [K1, 'Banka'],
+    ]);
+    expect(toast.uyari).toHaveBeenCalledWith(
+      expect.stringContaining('Önceki denemeniz kaydedilmiş'),
+      {
+        baslik: 'Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı',
+      },
+    );
+    expect(f.kart.form.getRawValue().tutar).toBeNull();
+    detayVer(detay(tahsilat(K2, 2100)));
+    f.tahsilatYap(f.kart); // boş tutar → istek YOK
+    expect(tahsilatlar(cagrilar)).toHaveLength(2);
+  });
+
   it('M-C: aradaki kesin red (400) önceki bilinmeyen denemeyi KAPATMAZ; bilinmeyen deneme yoksa aynı 409 "başka tahsilat" (M-A) kalır', async () => {
     let n = 0;
     const { f, cagrilar, detayVer, toast } = await kur(() => {
@@ -466,6 +498,7 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
       return throwError(() => oncekiDenemeKaydedilmis());
     });
     detayVer(detay(tahsilat(K1)));
+    f.nakit.form.controls.tutar.setValue('500.00');
     f.tahsilatYap(f.nakit); // 5xx: sonucu bilinmiyor
     f.tahsilatYap(f.nakit); // 400: bu istek yazılmadı ama 1. deneme hâlâ belirsiz
     f.nakit.form.controls.tutar.setValue('600.00');

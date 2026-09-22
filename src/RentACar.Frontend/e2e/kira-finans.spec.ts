@@ -886,6 +886,65 @@ test('M-C (4. tur): 500 yazıldı ama yanıt düştü → tutar 600\'e düzeltil
   expect(hatalar).toEqual([]);
 });
 
+test('5. tur MEDIUM-1: Nakit 500 yazıldı ama yanıt düştü → Kart/Havale\'de AYNI anahtarla 600 → "Önceki denemeniz kaydedilmiş", Kart tutarı TEMİZLENİR; tekrar basış çift yazım ÜRETMEZ', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /ERR_CONNECTION_RESET|net::/]);
+  await oturumAc(page);
+  let yazildi = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    // Sunucu (elle): Nakit'in 500'ü yazıldı; anahtar K1 artık bu kayda ait.
+    detay: () => (yazildi ? detay(K2, 2100, 1500, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route, istek) => {
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      if (!yazildi) {
+        yazildi = true;
+        return route.abort('connectionreset');
+      }
+      if (g['tahsilatAnahtar'] === K1) {
+        return problem(
+          route,
+          409,
+          'mukerrer',
+          'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-000042, 500,00 TRY); girdiğiniz 600,00 TRY YAZILMADI. Güncel bakiyeyi kontrol edin.',
+          {
+            mevcut: { id: 'c1', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY', ayniIcerik: false },
+          },
+        );
+      }
+      return route.fulfill({ json: { id: 'c2' } });
+    },
+  });
+  await page.goto(SAYFA);
+  const nakitTutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(nakitTutar).toHaveValue('2.600,00');
+  await nakitTutar.fill('500');
+  await panel(page).getByTestId('tahsilat-Kasa').click();
+  await expect(toastlar(page)).toContainText('Sunucuya ulaşılamadı');
+
+  await sekme(page, 'Kart/Havale');
+  const kart = panel(page).locator('rc-kf-finans-tahsilat');
+  const kartTutar = kart.getByRole('textbox', { name: 'Tutar', exact: true });
+  await kartTutar.fill('600');
+  const kartDugme = panel(page).getByTestId('tahsilat-Banka');
+  await kartDugme.click();
+
+  const toast = toastlar(page);
+  await expect(toast).toContainText('Önceki denemeniz kaydedilmiş (No T-000042, 500,00 ₺)');
+  await expect(toast).toContainText('girdiğiniz 600,00 ₺ YAZILMADI');
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.100,00');
+  await expect(kartTutar).toHaveValue('');
+
+  await kartDugme.click(); // boş tutar → istemci doğrulaması, İSTEK YOK
+  await page.waitForTimeout(300);
+  const t = tahsilatlar(finansIstekleri);
+  expect(t.map((k) => [k.govde['tahsilatAnahtar'], k.govde['hesap'], k.govde['tutar']])).toEqual([
+    [K1, 'Kasa', '500.00'],
+    [K1, 'Banka', '600.00'],
+  ]);
+  expect(hatalar).toEqual([]);
+});
+
 test('L3 metni: sonucu bilinmeyen tahsilat varken sekmeyi kapatmak özel uyarıyla sorulur', async ({
   page,
 }) => {

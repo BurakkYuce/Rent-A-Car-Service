@@ -151,6 +151,10 @@ public static class FinansApi
 
         var (girdi, kira) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: true, kiralar, ct);
+        // 5. tur LOW-3: açık kurun kuralları (elle giriş kilidi, pozitiflik, TRY'de kur=1) anahtar/mükerrer
+        // kontrolünden ÖNCE: TRY'de kur≠1 tekrarı "farklı içerik" 409'u değil, yazılabilir olmayan istek olarak 400.
+        if (istek.Kur is not null)
+            await kurCozucu.CozAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
         if (istek.TahsilatAnahtar is { } gelen)
         {
             // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
@@ -368,7 +372,7 @@ public static class FinansApi
 
     /// <summary>
     /// Aynı anahtarla BU KİRAYA yazılmış tahsilat varsa 409. <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı
-    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap, kur, açıklama, kanal) — aynıysa kaybolan
+    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap, kur, açıklama, kanal, açık tarih) — aynıysa kaybolan
     /// yanıttan sonraki kendi tekrarı ("zaten kaydedildi"); farklıysa başkasının (ya da içeriği değiştirilmiş) işlemi
     /// ("… YAZILMADI").
     /// <para>F4.4 L-1: kur/açıklama/kanal da karşılaştırılır — yalnız tutar/hesap aynı diye kurunu ya da açıklamasını
@@ -390,6 +394,7 @@ public static class FinansApi
                    && t.HesapId == (gelen.HesapId is { } h && h != Guid.Empty ? h : null)
                    && string.Equals(AciklamaNorm(t.Aciklama), AciklamaNorm(gelen.Aciklama), StringComparison.Ordinal)
                    && string.Equals(t.Kanal ?? CashKanal.Masaustu, CashKanal.TryNormalize(gelen.Kanal), StringComparison.Ordinal)
+                   && AyniTarih(t.Tarih, gelen.Tarih)
                    && await AyniKurAsync(t.Amount.Rate, gelenDoviz, gelen, kurCozucu, ct);
         var mevcutTutar = t.Amount.Amount.ToString("N2", Tr);
         var mesaj = ayni
@@ -398,6 +403,13 @@ public static class FinansApi
                 gelen.Tutar.ToString("N2", Tr), gelenDoviz);
         throw new MukerrerIslemException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
     }
+
+    /// <summary>5. tur LOW-3: açık işlem tarihi kayıttakiyle aynı mı. Boş tarih = "şimdi" (servis yazım anını koyar) —
+    /// tekrarın kendisinden bilinemez, içerik farkı sayılmaz. PG <c>timestamptz</c> mikrosaniye tutar (.NET 100 ns):
+    /// karşılaştırma mikrosaniyeye kırpılmış değerle.</summary>
+    private static bool AyniTarih(DateTimeOffset kayit, DateTimeOffset? gelen)
+        => gelen is not { } g
+           || kayit.UtcTicks / TimeSpan.TicksPerMicrosecond == g.UtcTicks / TimeSpan.TicksPerMicrosecond;
 
     private static string? AciklamaNorm(string? a) => string.IsNullOrWhiteSpace(a) ? null : a.Trim();
 

@@ -215,11 +215,11 @@ public sealed class UiFinansApiTests(WebFixture fx)
 
     private static object Tahsilat(Ortam o, decimal tutar, string hesap = "Kasa", Guid? kira = null, bool kirasiz = false,
         string? doviz = null, decimal? kur = null, Guid? tahsilatAnahtar = null, Guid? cari = null, Guid? hesapId = null,
-        string? aciklama = "F4.4 test", string? kanal = "Masaüstü")
+        string? aciklama = "F4.4 test", string? kanal = "Masaüstü", DateTimeOffset? tarih = null)
         => new
         {
             cariId = cari ?? o.Musteri, kiraId = kirasiz ? (Guid?)null : kira ?? o.Kira, tutar, hesap,
-            doviz, kur, tahsilatAnahtar, hesapId, kanal, aciklama,
+            doviz, kur, tahsilatAnahtar, hesapId, kanal, aciklama, tarih,
         };
 
     private Task<int> TahsilatSayisiAsync(Ortam o, Guid kira)
@@ -515,6 +515,34 @@ public sealed class UiFinansApiTests(WebFixture fx)
         Assert.True(await AyniIcerik(Tahsilat(o, 10m, doviz: "USD", kur: 30m, tahsilatAnahtar: k2)));
         Assert.False(await AyniIcerik(Tahsilat(o, 10m, doviz: "USD", kur: 31m, tahsilatAnahtar: k2)));
         Assert.Equal(2, await TahsilatSayisiAsync(o, o.Kira));
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>
+    /// 5. tur LOW-3: açık işlem tarihi de "aynı içerik"in parçası (boş tarih = "şimdi", karşılaştırılamaz → farksız);
+    /// TRY'de açık kur ≠ 1 olan tekrar mükerrer 409'u DEĞİL, 400 dogrulama (kur) alır — kural anahtardan önce.
+    /// Beklenenler elle: 2 gün önce 10:00 UTC'li 250 TRY yazıldı; tekrarlar 409/400, kayıt sayısı hep 1.
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_ayni_icerik_tarihi_karsilastirir_try_kur_hatasi_dogrulama_doner()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var tarih = new DateTimeOffset(DateTimeOffset.UtcNow.UtcDateTime.Date.AddDays(-2).AddHours(10), TimeSpan.Zero);
+
+        async Task<bool> AyniIcerik(object govde)
+            => (await Problem(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null), HttpStatusCode.Conflict, "mukerrer"))
+                .GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean();
+
+        var k = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih), anahtar: null));
+        Assert.True(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih)));
+        Assert.True(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k)));
+        Assert.False(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih.AddDays(1))));
+        await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih, kur: 5m), anahtar: null),
+            HttpStatusCode.BadRequest, "dogrulama", "kur");
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(250m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);
         await TumDefterDengeliAsync(o);
     }
 

@@ -68,6 +68,7 @@
     "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
     "zatenKaydedildi": "İşlem zaten kaydedildi",
     "baskaIslemYazildi": "Başka bir tahsilat yazıldı — tutarınız kaydedilmedi",
+    "denemeKaydedilmedi": "Sonucu bilinmeyen önceki denemeniz ({{onceki}}) de kaydedilmedi. Tutar alanı temizlendi: güncel bakiyeyi kontrol edip gerekiyorsa yeniden girin.",
     "oncekiDenemeBaslik": "Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı",
     "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş (No {{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Tutar alanı temizlendi: güncel bakiyeyi kontrol edip gerekiyorsa yeni tutarı girin.",
     "durum": {

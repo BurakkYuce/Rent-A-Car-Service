@@ -63,6 +63,7 @@ export type CeviriAnahtari =
   | 'geriBildirim.agHatasi'
   | 'geriBildirim.baskaIslemYazildi'
   | 'geriBildirim.bildirimler'
+  | 'geriBildirim.denemeKaydedilmedi'
   | 'geriBildirim.durum.basari'
   | 'geriBildirim.durum.bekleme'
   | 'geriBildirim.durum.bilgi'
