@@ -1,0 +1,196 @@
+@let k = d.kira();
+<header class="kf-ust">
+  <h1>
+    @if (d.yeni) {
+      {{ 'kiraFormu.yeniBaslik' | transloco }}
+    } @else {
+      {{ 'kiraFormu.baslik' | transloco: { no: k?.sozlesmeNo ?? '' } }}
+      @if (k) {
+        <span
+          class="rc-rozet"
+          [class.rc-rozet--bilgi]="k.durum === 'Kirada'"
+          [class.rc-rozet--basari]="k.durum === 'Tamamlandi'"
+          [class.rc-rozet--hata]="k.durum === 'Iptal'"
+          >{{ 'kiraFormu.durum.' + k.durum | transloco }}</span
+        >
+      }
+    }
+  </h1>
+  <nav
+    class="kf-baglantilar rc-yazdirma-gizle"
+    [attr.aria-label]="'kiraFormu.baglanti.etiket' | transloco"
+  >
+    @if (pdfAdresi(); as pdf) {
+      <a [href]="pdf" target="_blank" rel="noopener">{{ 'kiraFormu.baglanti.pdf' | transloco }}</a>
+      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="yazdir()">
+        {{ 'kiraFormu.baglanti.yazdir' | transloco }}
+      </button>
+      <a [href]="pdf + '?indir=1'">{{ 'kiraFormu.baglanti.indir' | transloco }}</a>
+      @if (k) {
+        <a [href]="'/cariler/' + k.musteriId + '/ekstre'">{{
+          'kiraFormu.baglanti.ekstre' | transloco
+        }}</a>
+      }
+      <a routerLink="/kiralar/yeni">{{ 'kiraFormu.baglanti.yeni' | transloco }}</a>
+    }
+    <a href="/kiralar">{{ 'kiraFormu.baglanti.liste' | transloco }}</a>
+  </nav>
+</header>
+
+@if (!d.yeni && d.detay.tur() === 'hata') {
+  <div class="kf-kart" role="alert">
+    <p>
+      {{ (bulunamadi() ? 'kiraFormu.bulunamadi' : 'kiraFormu.yuklenemedi') | transloco }}
+      @if (!bulunamadi()) {
+        {{ d.detay.hata()?.detay }}
+      }
+    </p>
+    @if (!bulunamadi()) {
+      <button type="button" class="rc-dugme" (click)="d.yenile()">
+        {{ 'kiraFormu.yenidenDene' | transloco }}
+      </button>
+    }
+  </div>
+} @else if (!d.yeni && !k) {
+  <div class="kf-kart" aria-busy="true">
+    <p role="status">{{ 'kiraFormu.yukleniyor' | transloco }}</p>
+    <div class="rc-iskelet kf-iskelet"></div>
+  </div>
+} @else {
+  @if (k?.uyariAciklama; as uyari) {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari" role="note">
+      <strong>{{ 'kiraFormu.uyari' | transloco }}</strong> {{ uyari }}
+    </p>
+  }
+  @if (d.detay.veri()?.doviz; as dv) {
+    <p class="kf-not">
+      {{ dv.kod }} ·
+      @if (dv.genelToplamTl !== null) {
+        {{ 'kiraFormu.dovizNotu' | transloco: { tutar: para(dv.genelToplamTl, 'TRY') } }}
+      } @else {
+        {{ 'kiraFormu.kurYok' | transloco }}
+      }
+    </p>
+  }
+  @if (!d.operasyon()) {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari" role="note">
+      {{ 'kiraFormu.saltOkunur' | transloco }}
+    </p>
+  }
+
+  <div
+    class="kf-form"
+    role="form"
+    [attr.aria-label]="(d.yeni ? 'kiraFormu.yeniBaslik' : 'kiraFormu.formEtiketi') | transloco"
+  >
+    <rc-sekmeli-form [sekmeler]="sekmeler" [etiket]="'kiraFormu.bolumler' | transloco">
+      <section rcSekmePaneli="hizli" [baslik]="'kiraFormu.sekme.hizli' | transloco">
+        <rc-kf-hizli-giris />
+      </section>
+      <section rcSekmePaneli="kira" [baslik]="'kiraFormu.sekme.kira' | transloco">
+        <rc-kf-kira-bilgisi />
+      </section>
+      <section rcSekmePaneli="musteri" [baslik]="'kiraFormu.sekme.musteri' | transloco">
+        <rc-kf-musteri (yeniMusteriye)="yeniMusteriyeGit()" />
+      </section>
+      <section rcSekmePaneli="arac" [baslik]="'kiraFormu.sekme.arac' | transloco">
+        <rc-kf-arac />
+      </section>
+      <section rcSekmePaneli="fiyat" [baslik]="'kiraFormu.sekme.fiyat' | transloco">
+        <rc-kf-fiyat />
+      </section>
+      <section rcSekmePaneli="ekhizmet" [baslik]="'kiraFormu.sekme.ekhizmet' | transloco">
+        <rc-kf-ek-hizmet />
+      </section>
+      <section rcSekmePaneli="ayrintilar" [baslik]="'kiraFormu.sekme.ayrintilar' | transloco">
+        <rc-kf-ayrintilar />
+      </section>
+      <section rcSekmePaneli="donus" [baslik]="'kiraFormu.sekme.donus' | transloco">
+        <rc-kf-donus />
+      </section>
+
+      <div rcYanPanel class="kf-yan">
+        <section class="kf-kart" [attr.aria-label]="'kiraFormu.ozet.baslik' | transloco">
+          <h2 class="kf-kart__baslik">{{ 'kiraFormu.ozet.baslik' | transloco }}</h2>
+          @let h = d.hesap.veri();
+          <dl class="kf-satirlar" data-testid="yan-ozet">
+            <div>
+              <dt>{{ 'kiraFormu.alan.durum' | transloco }}</dt>
+              <dd>{{ 'kiraFormu.durum.' + (k?.durum ?? 'yeni') | transloco }}</dd>
+            </div>
+            @if (k) {
+              <div>
+                <dt>{{ 'kiraFormu.alan.sozlesmeNo' | transloco }}</dt>
+                <dd>{{ k.sozlesmeNo }}</dd>
+              </div>
+              <div class="kf-satirlar__vurgu">
+                <dt>{{ 'kiraFormu.hesap.genelToplam' | transloco }}</dt>
+                <dd>{{ para(k.genelToplam, k.doviz) }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'kiraFormu.hesap.tahsilat' | transloco }}</dt>
+                <dd>{{ para(k.tahsilat, k.doviz) }}</dd>
+              </div>
+              <div class="kf-satirlar__vurgu">
+                <dt>{{ 'kiraFormu.hesap.bakiye' | transloco }}</dt>
+                <dd>{{ para(k.bakiye, k.doviz) }}</dd>
+              </div>
+            } @else if (h?.ok) {
+              <div>
+                <dt>{{ 'kiraFormu.hesap.gun' | transloco }}</dt>
+                <dd>{{ h?.gun }}</dd>
+              </div>
+              <div class="kf-satirlar__vurgu">
+                <dt>{{ 'kiraFormu.hesap.genelToplam' | transloco }}</dt>
+                <dd>{{ para(h?.genelToplam, h?.doviz) }}</dd>
+              </div>
+            }
+          </dl>
+          <rc-form-hatalari [hatalar]="d.kayit.genelHatalar()" />
+          <div class="kf-eylemler kf-eylemler--dikey">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--birincil rc-dugme--buyuk"
+              [disabled]="!d.kaydedilebilir() || d.kayit.gonderiliyor()"
+              (click)="kaydet()"
+            >
+              {{
+                (d.kayit.gonderiliyor() ? 'form.gonderiliyor' : 'kiraFormu.eylem.kaydet')
+                  | transloco
+              }}
+            </button>
+            @if (d.kirada()) {
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--tehlike"
+                [disabled]="!d.silme() || d.iptalKilidi.gonderiliyor()"
+                [attr.title]="d.silme() ? null : ('kiraFormu.iptal.yetkiYok' | transloco)"
+                (click)="d.iptalEt()"
+              >
+                {{ 'kiraFormu.eylem.iptal' | transloco }}
+              </button>
+            }
+          </div>
+        </section>
+        <rc-kf-paylasim />
+        <rc-kira-finans-paneli [detay]="d.detay.veri() ?? null" (degisti)="d.yenile()" />
+      </div>
+    </rc-sekmeli-form>
+  </div>
+
+  <datalist id="kf-dl-kaynak">
+    @for (o of d.kaynakOnerileri.veri() ?? []; track o.id) {
+      <option [value]="o.etiket"></option>
+    }
+  </datalist>
+  <datalist id="kf-dl-ozelkod">
+    @for (o of d.ozelKodOnerileri.veri() ?? []; track o.id) {
+      <option [value]="o.etiket"></option>
+    }
+  </datalist>
+  <datalist id="kf-dl-odeme">
+    @for (o of d.odemeSekilleri(); track o) {
+      <option [value]="o"></option>
+    }
+  </datalist>
+}
