@@ -46,6 +46,24 @@ public static class AuthExtensions
                    .WithMetadata(new IzinMetadata(permission));
 
     /// <summary>
+    /// F4.1: izinlerden HERHANGİ BİRİ yeter — servis katmanındaki <see cref="PermissionGuard.RequireAny"/>'nin
+    /// uç karşılığı (FAZ-45 "yazabilen okuyabilmeli"). Kira okumaları: Operatör (OperationsWrite) sözleşmeyi
+    /// yönetir, Muhasebe (FinanceWrite) aynı sözleşmeye tahsilat/fatura keser; ikisi de okuyabilmeli
+    /// (Blazor <c>/kiralar</c> listesi bugün de öyle: <c>PersonelService.ListForSelectAsync</c> RequireAny).
+    /// Kayıt: <see cref="IzinlerdenBiriMetadata"/> (yapısal test onu da izin kapısı sayar). Üstüne eklenen
+    /// <see cref="RequirePermission(RouteHandlerBuilder, Permission)"/> VE ile birleşir (yazma uçları).
+    /// </summary>
+    public static TBuilder RequireAnyPermission<TBuilder>(this TBuilder builder, params Permission[] izinler)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        if (izinler.Length < 2)
+            throw new ArgumentException("RequireAnyPermission en az iki izin ister; tek izin için RequirePermission.", nameof(izinler));
+        var kopya = izinler.ToArray();
+        return builder.RequireAuthorization(p => p.RequireAssertion(ctx => kopya.Any(i => HasPermission(ctx.User, i))))
+                      .WithMetadata(new IzinlerdenBiriMetadata(kopya));
+    }
+
+    /// <summary>
     /// PR-12: "Web Sitesi" modülü satın alınmamışsa uç grubunu 404'e çevirir (403 değil — modülün
     /// varlığı da bilgi). Menüyü gizlemek YALNIZ görseldir; modülü almayan tenant URL'i elle yazıp
     /// ilan yazabilir ve satın aldığı gün her şey ANİDEN yayına girerdi. CLAUDE.md §6: "guard GİRİŞ
@@ -92,6 +110,9 @@ public sealed record IzinMetadata(Permission Izin);
 
 /// <summary>F1.2: ucun izin kapısı taşımadığı BİLİNÇLİ karar (bkz. <see cref="AuthExtensions.IzinMuaf{TBuilder}"/>).</summary>
 public sealed record IzinMuafMetadata(string Gerekce);
+
+/// <summary>F4.1: uç izinlerden HERHANGİ BİRİYLE açılır (bkz. <see cref="AuthExtensions.RequireAnyPermission{TBuilder}"/>).</summary>
+public sealed record IzinlerdenBiriMetadata(IReadOnlyList<Permission> Izinler);
 
 /// <summary>
 /// F1.2: uç bir satın alınabilir MODÜLE ait (ör. Web Sitesi) ve modül filtresi takılı. Metadata filtreyi

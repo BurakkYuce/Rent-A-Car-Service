@@ -54,12 +54,12 @@ public sealed class OfficeBranchInterceptor : SaveChangesInterceptor
     private static void Apply(List<EntityEntry<IOfficeScoped>> scoped, List<LocRef> locations)
     {
         var map = locations
-            .GroupBy(l => l.Ad.Trim().ToLowerInvariant())
+            .GroupBy(l => OfisAdiAnahtari.Uret(l.Ad))
             .ToDictionary(g => g.Key, g => g.OrderBy(l => l.Kod).First().SubeId);
 
         foreach (var e in scoped)
         {
-            var key = e.Entity.OfisAdi!.Trim().ToLowerInvariant();
+            var key = OfisAdiAnahtari.Uret(e.Entity.OfisAdi!);
             e.Entity.OfisSubeFk = map.TryGetValue(key, out var subeId) ? subeId : null;
         }
     }
