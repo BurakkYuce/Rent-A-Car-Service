@@ -1,6 +1,7 @@
 import type { Routes } from '@angular/router';
 
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 
 /**
  * Kabuk içindeki sayfalar (oturum şart; `canMatch: [oturumGuard]` kabuk rotasında). Hepsi tembel.
@@ -89,4 +90,6 @@ export const SAYFALAR: Routes = [
     loadComponent: () =>
       import('@features/vitrin/tablo-vitrini/tablo-vitrini').then((m) => m.TabloVitrini),
   },
+  // F4.3 kira formu: /kiralar/yeni, /kiralar/:id, /kiralar/:id/yazdir.
+  ...KIRA_FORMU_ROTALARI,
 ];

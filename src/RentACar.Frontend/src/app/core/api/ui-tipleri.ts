@@ -9,6 +9,12 @@ import type { components, paths } from './uretilen/ui-v1';
 
 type Semalar = components['schemas'];
 
+/**
+ * Üretilen şemaya ad ile erişim (`Sema<'KiraDetayYaniti'>`). Özellikler kendi takma adlarını kendi
+ * klasörlerinde bu yolla kurar; üretilen dosya doğrudan içe aktarılmaz.
+ */
+export type Sema<A extends keyof Semalar> = Semalar[A];
+
 /** `GET /api/ui/v1/oturum/ben` 200 gövdesi (oturumdaki kullanıcı, kiracı, izinler, şube kapsamı). */
 export type BenYaniti =
   paths['/api/ui/v1/oturum/ben']['get']['responses'][200]['content']['application/json'];

@@ -231,6 +231,11 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         await using var db = await _factory.CreateDbContextAsync(ct);
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (customer is null) return false;
+        // F4.3 adversarial F4: kira sözleşmesinde (müşteri ya da kayıtlı 2. sürücü) kullanılan cari silinemez.
+        // Rentals'ta FK YOK — silinen 2. sürücü kirada yetim kimlik bırakıyor, sonraki kayıt ek sürücü ücret
+        // satırını düşürüyordu. (Cari hareketleri/defter referansı ayrı açık iş: KARARLAR.)
+        if (await db.Rentals.AnyAsync(r => r.MusteriId == id || r.IkinciSurucuId == id, ct))
+            throw new ValidationException("Bu cari bir kira sözleşmesinde (müşteri ya da 2. sürücü) kullanılıyor; silinemez.");
 
         db.Customers.Remove(customer);
         await db.SaveChangesAsync(ct);

@@ -37,6 +37,25 @@ internal static class KiraKilitleri
     public static Task SatirAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
         => db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {rentalId} FOR UPDATE", ct);
 
+    /// <summary>
+    /// F4.3 adversarial F2 — kira satır sürümü: Postgres <c>xmin</c> (satırı son değiştiren işlem kimliği) opak metin
+    /// olarak. EF, ham SQL, toplam senkronu — satıra dokunan HER güncelleme değiştirir (UpdatedAtUtc'yi her yol
+    /// yazmıyor). Açık işlemde çağrılırsa aynı işlemde okunur (kilit altındaki karşılaştırma için). RLS kapsamlı.
+    /// </summary>
+    public static async Task<string?> SurumAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await db.Database.OpenConnectionAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        cmd.CommandText = "SELECT xmin::text FROM \"Rentals\" WHERE \"Id\" = @id";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "id";
+        p.Value = rentalId;
+        cmd.Parameters.Add(p);
+        return await cmd.ExecuteScalarAsync(ct) as string;
+    }
+
     /// <summary>Fatura yolu, advisory kilit ALTINDA: kira bu arada iptal edildiyse kesim reddedilir
     /// (servisin kilit dışı "iptal kiraya fatura yok" kontrolü ile iptal arasındaki yarış penceresi).</summary>
     public static async Task IptalKirayaFaturaYokAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
