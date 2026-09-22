@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Common;
+using RentACar.Web.Api.Finans;
 using RentACar.Web.Api.IstemciHata;
 using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
@@ -165,6 +166,7 @@ public static class UiApiExtensions
         v1.MapOturumApi();
         v1.MapMenuApi();    // F1.6
         v1.MapSecimApi();   // F1.6
+        v1.MapFinansApi();  // F4.4 — sabit panel para işlemleri (F8 yeniden kullanır)
         v1.MapIstemciHataApi(); // F3.3
         v1.MapTabloDuzeniApi(); // F3.5
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())

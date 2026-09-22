@@ -123,7 +123,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid()));
         await invoices.CreateFromRentalAsync(rentalId);          // Borç 400
         await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 400m }); // Alacak 400

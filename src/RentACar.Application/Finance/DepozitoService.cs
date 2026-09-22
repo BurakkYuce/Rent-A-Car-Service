@@ -16,7 +16,8 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class DepozitoService(
     ILedgerPoster ledger, ICashRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
+    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu,
+    RentACar.Application.Customers.ICustomerRepository customers)
 {
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICashRepository _repository = repository;
@@ -24,6 +25,7 @@ public sealed class DepozitoService(
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
     private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
+    private readonly RentACar.Application.Customers.ICustomerRepository _customers = customers;
 
     public Task<decimal> GetBakiyeAsync(Guid cariId, CancellationToken ct = default)
         => _repository.GetDepozitoBakiyeAsync(cariId, ct);
@@ -37,8 +39,10 @@ public sealed class DepozitoService(
         // Guard GİRİŞ noktasında: hesap çözümü PostAsync'ten önce çalışıyor, yetkisiz kullanıcı
         // hesap varlığını yoklayamamalı.
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        await CariVarAsync(cariId, ct);
+        // F4.4a adversarial L1: hesap-döviz çiti tahsilattaki gibi (FAZ-50 M4) — USD depozito TRY hesaba yazılmaz.
         return await PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoAl", "Depozito al",
-            borc: hesap, borcRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct),
+            borc: hesap, borcRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct, RentACar.Application.Kur.KurService.NormalizeKod(doviz)),
             alacak: LedgerAccountType.Depozito, alacakRef: cariId, kontrolEt: false, ct);
     }
 
@@ -49,9 +53,11 @@ public sealed class DepozitoService(
         Guid? hesapId = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite); // bkz. AlAsync notu
+        await CariVarAsync(cariId, ct);
         return await PostAsync(cariId, tutar, hesap, doviz, kur, tarih, islemAnahtari, "DepozitoIade", "Depozito iade",
             borc: LedgerAccountType.Depozito, borcRef: cariId,
-            alacak: hesap, alacakRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct), kontrolEt: true, ct);
+            alacak: hesap, alacakRef: await _hesapCozucu.CozAsync(hesapId, hesap, ct, RentACar.Application.Kur.KurService.NormalizeKod(doviz)),
+            kontrolEt: true, ct);
     }
 
     /// <summary>Depozito mahsup (cari borcuna): Borç Depozito(cari) / Alacak Cari(cari). Tutulanı aşamaz.</summary>
@@ -71,6 +77,7 @@ public sealed class DepozitoService(
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
         if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.");
+        await CariVarAsync(cariId, ct);
 
         var cozulenKur = await _kurCozucu.CozAsync(doviz, kur, tarih, ct); // 1.1 sözleşmesi
         var money = new Money(tutar, RentACar.Application.Kur.KurService.NormalizeKodStrict(doviz), cozulenKur);
@@ -95,6 +102,15 @@ public sealed class DepozitoService(
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "DepozitoIrat", SourceId = sourceId, Description = desc }
         ], ct);
         return sourceId;
+    }
+
+    /// <summary>F4.4a adversarial MEDIUM-2: cari kiracı içinde var olmalı (RLS + sorgu filtresi; yoksa/başka
+    /// kiracınınsa null) — yoksa depozito, hiçbir ekstrede görünmeyen yetim bir AccountRef'e yazılırdı.
+    /// Boş kimlik PostAsync'in "Cari seçilmelidir." mesajına bırakılır.</summary>
+    private async Task CariVarAsync(Guid cariId, CancellationToken ct)
+    {
+        if (cariId != Guid.Empty && await _customers.FindAsync(cariId, ct) is null)
+            throw new ValidationException("Cari bulunamadı.", "cariId");
     }
 
     private async Task<Guid> PostAsync(
