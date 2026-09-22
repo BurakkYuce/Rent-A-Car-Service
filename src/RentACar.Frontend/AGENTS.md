@@ -61,7 +61,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - **Liste sorgusu:** `listeTanimi({ filtreler, siralanabilir, varsayilanSirala })` + sayfada
   `listeSorgusuUrlSenkronu(tanim)`. URL tek doğruluk kaynağı; bozuk parametre varsayılana düşer,
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
-- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`), stilsiz.
+- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`); kap stilsiz, aç/kapa düğmesi `rc-dugme`.
+- İlk gerçek liste ekranı: `features/kiralar/kira-listesi` (F4.2) — `listeTanimi` + URL senkronu + üç
+  `FetchPolicy` bağı (liste, özet, öneriler) + `TahsilatAnahtar`'lı "Tahsil Et" (`tahsil-paneli.ts`). Yeni liste
+  ekranı bu kablolamayı örnek alır.
 
 ## Oturum ve geri bildirim (F3.3)
 
@@ -127,7 +130,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   (TemelStore; `Sayfa<T>` → sunucu sayfalaması), `satirKimligi`, `tabloKodu` (kullanıcı düzeni),
   `sirala`/`varsayilanSirala` (F3.4 sorgusu), `secilebilir` + `[(secim)]`, `disaAktarma`.
   Çıktılar: `siralaDegisti`/`sayfaDegisti`/`boyutDegisti` → `liste.degistir({...})`, `satirAc`, `yenidenDene`.
-- Özel hücre: `<ng-template rcTabloHucre="kod" [rcTabloHucreSutunlar]="sutunlar" let-satir>`.
+- Özel hücre: `<ng-template rcTabloHucre="kod" [rcTabloHucreSutunlar]="sutunlar" let-satir>`. Hücredeki
+  bağlantı/düğme/form denetiminde Enter ve çift tıklama satırı AÇMAZ (denetimin kendi işi; F4.2). Hücrede
+  `rc-gorunmez` (position: absolute) kullanan şablon kabına `position: relative` verir — yoksa görünmez metin
+  kaydırıcının dışına konumlanıp sayfayı yatay taşırır.
 - Dört durum ayrı: `bos` mesajsız, `yukleniyor` iskelet/soluk önceki veri + `aria-busy`, `hata` bandı +
   yeniden dene (ASLA "kayıt yok" değil), "Kayıt bulunamadı" yalnız başarılı sıfır kayıtta.
 - Kullanıcı düzeni (sıra/görünürlük/genişlik/sıralama) `GET/PUT/DELETE /api/ui/v1/tablo-duzenleri/{kod}`;
