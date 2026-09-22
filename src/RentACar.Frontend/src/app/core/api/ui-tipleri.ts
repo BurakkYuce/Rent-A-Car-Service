@@ -29,8 +29,15 @@ export type IstemciHataIstegi = Semalar['IstemciHataIstegi'];
 export type SecimOgesi = Semalar['SecimOgesi'];
 
 type SecimYolu = Extract<keyof paths, `/api/ui/v1/secim/${string}`>;
-/** F1.6 typeahead uçları: `musteri`, `arac`, `lokasyon`, … (sözleşmeden türetilir). */
-export type SecimUcu = SecimYolu extends `/api/ui/v1/secim/${infer U}` ? U : never;
+/**
+ * F1.6 typeahead uçları: `musteri`, `arac`, `lokasyon`, … (sözleşmeden türetilir). Kimlikle tek öğe uçları
+ * (`musteri/{id}`, `arac/{id}` — F4.3b) liste döndürmez; typeahead kümesine GİRMEZ.
+ */
+export type SecimUcu = SecimYolu extends `/api/ui/v1/secim/${infer U}`
+  ? U extends `${string}/${string}`
+    ? never
+    : U
+  : never;
 /** Bir seçim ucunun döndürdüğü öğe (`MusteriSecimOgesi`, `AracSecimOgesi`, `SecimOgesi`…). */
 export type SecimUcuOgesi<U extends SecimUcu> =
   paths[`/api/ui/v1/secim/${U}`]['get']['responses'][200]['content']['application/json'][number];

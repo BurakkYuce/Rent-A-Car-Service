@@ -21,6 +21,7 @@ import {
   startWith,
 } from 'rxjs';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { paraBicimle } from '@core/bicim/bicim';
 import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
@@ -64,28 +65,42 @@ import {
   musaitPencere,
   olusturGovdesi,
   penceredenTarihler,
+  sayiya,
   secenekListesi,
   sistemKalemiMi,
 } from './kira-formu-modeli';
 import type {
   AracSecenegi,
+  EkHizmetKatalogOgesi,
   EkHizmetKalemi,
   KaynakRezervasyonYaniti,
   KarneOzeti,
   KiraDetayYaniti,
   KiraDonusOnizleme,
+  KiraEkHizmetKatalogu,
   KiraEkHizmetYaniti,
   KiraFormVarsayilanlari,
   KiraHesapSonuc,
+  KiraMusteriOzeti,
   KiraOlusturYaniti,
   KiraSozlesmesi,
   MusaitArac,
   MusteriHizliYaniti,
+  SecimAraci,
+  SecimMusterisi,
 } from './kira-tipleri';
 
 const KOK = '/api/ui/v1/kiralar' as const;
 const SESSIZ = istekBaglami({ sessiz: true });
 const ONERI_LIMITI = 20;
+/** Öneri kutusuna yazarken sunucu araması gecikmesi (datalist `q` ile sunucuda süzülür). */
+const ONERI_GECIKMESI = 250;
+
+/** Kayıtlı kiraya ek hizmet eklerken seçenek etiketi (Blazor: "Ad (birim net)"). */
+function ekHizmetEtiketi(x: EkHizmetKatalogOgesi, doviz: string): string {
+  const fiyat = paraBicimle(sayiya(x.birimUcret), doviz);
+  return fiyat ? `${x.ad} (${fiyat} net)` : x.ad;
+}
 
 /** Dönüş formundaki "Bitiş sebebi" seçenekleri (Blazor `SekmeDonus` ile aynı liste). */
 export const BITIS_SEBEPLERI = [
@@ -175,8 +190,6 @@ export class KiraFormuDurumu {
     tanim: new FormControl<SecimSecenegi | null>(null, Validators.required),
     miktar: new FormControl<number | null>(1, [Validators.required, Validators.min(0.01)]),
   });
-  /** Yeni kirada ek hizmet satırı eklemek için arama kutusu (seçilince satır olur, kutu boşalır). */
-  readonly ekHizmetSecici = new FormControl<SecimSecenegi | null>(null);
 
   // ─── gönderimler (her biri kendi kilidi; çift tık tek istek) ───────────────────────────────
   readonly kayit: FormGonderimi = formGonderimi();
@@ -223,6 +236,14 @@ export class KiraFormuDurumu {
   );
   readonly kaynakOnerileri = this.oneriStore('rezervasyon-kaynagi');
   readonly ozelKodOnerileri = this.oneriStore('ozel-kod');
+  /** F4.3b: Müşteri sekmesinin salt-okunur cari özeti (kimlik/belge no YALNIZ maskeli — sunucu kuralı). */
+  readonly musteriOzeti = new TemelStore((id: string) =>
+    this.api.get<KiraMusteriOzeti>(`${KOK}/${id}/musteri-ozet`, { context: SESSIZ }),
+  );
+  /** F4.3b: ek hizmet matrisi (tanım fiyat/KDV'si — yalnız gösterim; satır tutarı `hesapla`'dan). */
+  readonly ekHizmetKatalogu = new TemelStore(() =>
+    this.api.get<KiraEkHizmetKatalogu>(`${KOK}/ek-hizmet-katalogu`, { context: SESSIZ }),
+  );
   readonly belgeSablonlari = new TemelStore(() =>
     this.api.get<readonly SecimSecenegi[]>('/api/ui/v1/secim/belge-sablonu', {
       parametreler: { tur: 0, limit: ONERI_LIMITI },
@@ -236,6 +257,7 @@ export class KiraFormuDurumu {
   readonly personelKaynagi = this.yetkiliKaynak(sunucuSecimKaynagi('personel'));
   private readonly sunucuArac = sunucuSecimKaynagi('arac');
   private readonly sunucuEkHizmet = sunucuSecimKaynagi('ek-hizmet');
+  private readonly katalogOgeleri = computed(() => this.ekHizmetKatalogu.veri()?.ogeler ?? null);
   /** Müsait liste getirildiyse araç araması O LİSTEDE (Blazor: araç listesi müsaitlerle süzülür). */
   readonly aracKaynagi: SecimKaynagi<AracSecenegi> = (arama, limit) => {
     const liste = this.musait.veri();
@@ -248,13 +270,31 @@ export class KiraFormuDurumu {
         .slice(0, limit),
     );
   };
-  /** Ek hizmet tanımları: sistem ücret kalemleri (SYS-*) manuel seçilemez (sunucu da reddeder). */
-  readonly ekHizmetKaynagi: SecimKaynagi = (arama, limit) =>
-    this.operasyon()
-      ? this.sunucuEkHizmet(arama, limit).pipe(
-          map((liste) => liste.filter((x) => !sistemKalemiMi(x.kod))),
+  /**
+   * Ek hizmet tanımları (kayıtlı kiraya ekleme): katalog yüklendiyse ondan, etiket Blazor gibi "Ad (birim net)";
+   * yüklenemediyse F1.6 arama ucu. Sistem ücret kalemleri (SYS-*) manuel seçilemez (sunucu da reddeder).
+   */
+  readonly ekHizmetKaynagi: SecimKaynagi = (arama, limit) => {
+    if (!this.operasyon()) return of([]);
+    const katalog = this.katalogOgeleri();
+    if (katalog === null) {
+      return this.sunucuEkHizmet(arama, limit).pipe(
+        map((liste) => liste.filter((x) => !sistemKalemiMi(x.kod))),
+      );
+    }
+    const anahtar = trAramaAnahtari(arama);
+    return of(
+      katalog
+        .filter(
+          (x) =>
+            anahtar === '' ||
+            trAramaAnahtari(x.ad).includes(anahtar) ||
+            trAramaAnahtari(x.kod).includes(anahtar),
         )
-      : of([]);
+        .slice(0, limit)
+        .map((x) => ({ id: x.id, etiket: ekHizmetEtiketi(x, this.kiraDovizi()) })),
+    );
+  };
 
   // ─── türetilmiş durum ──────────────────────────────────────────────────────────────────────
   readonly kira: Signal<KiraSozlesmesi | null> = computed(() => this.detay.veri()?.kira ?? null);
@@ -326,9 +366,11 @@ export class KiraFormuDurumu {
     }
     if (this.owIzni) {
       this.varsayilanlar.yukle();
-      this.kaynakOnerileri.yukle();
-      this.ozelKodOnerileri.yukle();
       this.belgeSablonlari.yukle();
+      this.ekHizmetKatalogu.yukle();
+      // Datalist önerileri YAZILANLA sunucuda süzülür (`q`; en çok 20) — ilk 20'nin dışındaki kayıt da bulunur.
+      this.oneriAramasi(this.form.controls.kaynak, this.kaynakOnerileri);
+      this.oneriAramasi(this.form.controls.ozelKod, this.ozelKodOnerileri);
     }
     if (this.id !== null) this.duzenlemeyiBaslat(this.id);
     else this.yeniyiBaslat();
@@ -338,12 +380,6 @@ export class KiraFormuDurumu {
 
   private yeniyiBaslat(): void {
     if (!this.operasyon()) this.form.disable();
-    // Ek hizmet arama kutusundan seçilen tanım satır olur; kutu seçim bittikten sonra boşalır.
-    this.ekHizmetSecici.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((tanim) => {
-        if (tanim) queueMicrotask(() => this.ekHizmetSatiriEkle(tanim));
-      });
     this.sorguyuUygula(kiraSorgusuCoz((ad) => this.rota.snapshot.queryParamMap.get(ad)));
     // Açık "yeni kira" sekmesine yeni bir bağlantıyla gelinirse (aynı bileşen yaşar) bağlantı uygulanır.
     this.rota.queryParamMap
@@ -389,6 +425,7 @@ export class KiraFormuDurumu {
         id: s.musteriId,
         etiket: this.t('kiraFormu.musteri.baglantidan'),
       });
+      this.musteriEtiketiniCoz(s.musteriId);
     }
     if (pencere) {
       const tarihler = penceredenTarihler(pencere);
@@ -401,13 +438,51 @@ export class KiraFormuDurumu {
         id: s.varac,
         etiket: this.t('kiraFormu.arac.baglantidan'),
       });
-      // Pencere yoksa (araç durumu "Kirala"): etiket + kart için bugün–yarın müsait listesine bakılır;
-      // bulunamazsa kimlik yine geçerlidir (kayıt YALNIZ kimlikle yapılır).
-      if (!pencere) this.aracEtiketiniCoz(s.varac);
+      // Pencere yoksa (araç durumu "Kirala"): etiket kimlikle sunucudan (F4.3b `secim/arac/{id}`); tam kart
+      // için bugün–yarın müsait listesine de bakılır. Bulunamazsa kimlik yine geçerlidir (kayıt YALNIZ kimlikle).
+      if (!pencere) {
+        this.aracEtiketiniCoz(s.varac);
+        this.aracKartiniCoz(s.varac);
+      }
     }
   }
 
+  /** `?musteriId=` → gerçek görünen ad (F4.3b `secim/musteri/{id}`; PII yok). Hata/yok → geçici etiket kalır. */
+  private musteriEtiketiniCoz(musteriId: string): void {
+    if (!this.operasyon()) return;
+    this.api
+      .get<SecimMusterisi>(`/api/ui/v1/secim/musteri/${musteriId}`, { context: SESSIZ })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (m) => {
+          const kontrol = this.form.controls.musteri;
+          if (m?.id === musteriId && kontrol.value?.id === musteriId) {
+            kontrol.setValue({ id: m.id, etiket: m.etiket });
+          }
+        },
+        error: () => undefined,
+      });
+  }
+
+  /** `?varac=` (pencere yok) → plaka etiketi kimlikle (şube kapsamı sunucuda; kapsam dışı → geçici etiket). */
   private aracEtiketiniCoz(aracId: string): void {
+    if (!this.operasyon()) return;
+    this.api
+      .get<SecimAraci>(`/api/ui/v1/secim/arac/${aracId}`, { context: SESSIZ })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (a) => {
+          const kontrol = this.form.controls.arac;
+          // Müsait listeden tam kart zaten geldiyse (marka dolu) ezilmez.
+          if (a?.id === aracId && kontrol.value?.id === aracId && !kontrol.value.marka) {
+            kontrol.setValue({ ...a });
+          }
+        },
+        error: () => undefined,
+      });
+  }
+
+  private aracKartiniCoz(aracId: string): void {
     const gun = bugun();
     this.api
       .get<MusaitArac[]>(`${KOK}/musait-arac`, {
@@ -484,7 +559,15 @@ export class KiraFormuDurumu {
       dizi.markAsDirty();
       this.ekSatirSurumu.update((s) => s + 1);
     }
-    this.ekHizmetSecici.setValue(null);
+  }
+
+  /** Matris onay kutusu (Blazor `ekSecim`): işaret → satır (miktar 1), kaldır → satır çıkar. */
+  ekHizmetSecimi(oge: EkHizmetKatalogOgesi, secili: boolean): void {
+    const sira = this.form.controls.ekHizmetler.controls.findIndex(
+      (s) => s.controls.tanim.value?.id === oge.id,
+    );
+    if (secili && sira < 0) this.ekHizmetSatiriEkle({ id: oge.id, etiket: oge.ad });
+    else if (!secili && sira >= 0) this.ekHizmetSatiriSil(sira);
   }
 
   ekHizmetSatiriSil(sira: number): void {
@@ -587,6 +670,7 @@ export class KiraFormuDurumu {
     if (ilk) {
       if (k.reservationId) this.kaynakRezervasyon.yukle(k.id);
       if (d.yetkiler.finans) this.karne.yukle(k.id);
+      this.musteriOzeti.yukle(k.id);
     }
   }
 
@@ -849,13 +933,33 @@ export class KiraFormuDurumu {
 
   // ─── yardımcılar ───────────────────────────────────────────────────────────────────────────
 
-  private oneriStore(uc: 'rezervasyon-kaynagi' | 'ozel-kod'): TemelStore<readonly SecimSecenegi[]> {
-    return new TemelStore(() =>
-      this.api.get<readonly SecimSecenegi[]>(`/api/ui/v1/secim/${uc}`, {
-        parametreler: { limit: ONERI_LIMITI },
-        context: SESSIZ,
-      }),
+  private oneriStore(
+    uc: 'rezervasyon-kaynagi' | 'ozel-kod',
+  ): TemelStore<readonly SecimSecenegi[], string> {
+    return new TemelStore(
+      (q: string) =>
+        this.api.get<readonly SecimSecenegi[]>(`/api/ui/v1/secim/${uc}`, {
+          parametreler: { q: q === '' ? null : q, limit: ONERI_LIMITI },
+          context: SESSIZ,
+        }),
+      { oncekiVeriyiKoru: true },
     );
+  }
+
+  /** Datalist önerisi: alanın değeri değiştikçe (gecikmeli, aynı metin tekrar sorulmaz) `q` ile sunucu araması. */
+  private oneriAramasi(
+    kontrol: AbstractControl<string | null>,
+    store: TemelStore<readonly SecimSecenegi[], string>,
+  ): void {
+    kontrol.valueChanges
+      .pipe(
+        startWith(kontrol.value),
+        map((v) => (v ?? '').trim()),
+        debounceTime(ONERI_GECIKMESI),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((q) => store.yukle(q));
   }
 
   /** Seçim uçları OperationsWrite ister; izni olmayan oturumda istek atılmaz (403 bandı çıkmasın). */

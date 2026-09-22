@@ -3,12 +3,13 @@ import { paraBicimle } from '@core/bicim/bicim';
 import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
 import { KiraFormuDurumu } from '../kira-formu-durumu';
 import { sayiya } from '../kira-formu-modeli';
-import type { SunucuSayisi } from '../kira-tipleri';
+import type { EkHizmetKatalogOgesi, SunucuSayisi } from '../kira-tipleri';
 import { KF_ORTAK } from './ortak';
 
 /**
- * EK HİZMETLER. Yeni kira: seçilen tanımlar kira KAYDIYLA eklenir (tanım fiyat anlık görüntüsü —
- * serbest fiyat yok; satır tutarları canlı hesaptan). Kayıtlı kira: kalemler + ekle/sil (F4.1 uçları).
+ * EK HİZMETLER. Yeni kira: Blazor matrisi (F4.3b) — tüm aktif tanımlar (katalog ucu; SYS-* hariç) onay kutusu +
+ * miktar + birim net + KDV; işaretlenenler kira KAYDIYLA eklenir (tanım fiyat anlık görüntüsü — serbest fiyat
+ * yok). Satır toplamı canlı hesaptan (`hesapla`), UI formül taşımaz. Kayıtlı kira: kalemler + ekle/sil (F4.1).
  * Ekleme ANAHTARSIZ: çift gönderim iki kalem yazar → düğme istek boyunca kilitli.
  */
 @Component({
@@ -19,11 +20,6 @@ import { KF_ORTAK } from './ortak';
     @if (d.yeni) {
       <section class="kf-kart" [formGroup]="d.form">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.ekHizmetSecimi' | transloco }}</h3>
-        <div class="rc-form-izgara">
-          <rc-alan [etiket]="'kiraFormu.ekHizmet.ekle' | transloco" class="rc-form-izgara__genis">
-            <rc-arama-secim [formControl]="d.ekHizmetSecici" [kaynak]="d.ekHizmetKaynagi" />
-          </rc-alan>
-        </div>
         @if (sunucuHatalari().length > 0) {
           <div class="rc-form-hatalari" role="alert" aria-invalid="true" tabindex="-1">
             @for (m of sunucuHatalari(); track $index) {
@@ -31,64 +27,112 @@ import { KF_ORTAK } from './ortak';
             }
           </div>
         }
-        <div
-          class="kf-tablo-kutusu"
-          formArrayName="ekHizmetler"
-          role="region"
-          tabindex="0"
-          [attr.aria-label]="'kiraFormu.bolum.ekHizmetSecimi' | transloco"
-        >
-          <table class="kf-tablo" [attr.aria-label]="'kiraFormu.bolum.ekHizmetler' | transloco">
-            <thead>
-              <tr>
-                <th scope="col">{{ 'kiraFormu.ekHizmet.hizmet' | transloco }}</th>
-                <th scope="col">{{ 'kiraFormu.ekHizmet.miktar' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.net' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.kdv' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.toplam' | transloco }}</th>
-                <th scope="col">
-                  <span class="rc-gorunmez">{{ 'kiraFormu.eylem.sil' | transloco }}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (satir of satirlar(); track satir.value.tanim?.id; let i = $index) {
-                @let kalem = hesapKalemi(satir.value.tanim?.id);
-                <tr [formGroupName]="i">
-                  <td>{{ satir.value.tanim?.etiket }}</td>
-                  <td class="kf-miktar">
-                    <rc-sayi-girdisi
-                      formControlName="miktar"
-                      [kesir]="2"
-                      [ariaEtiketi]="
-                        ('kiraFormu.ekHizmet.miktar' | transloco) + ' ' + satir.value.tanim?.etiket
-                      "
-                    />
-                  </td>
-                  <td class="num">{{ para(kalem?.net) }}</td>
-                  <td class="num">{{ para(kalem?.kdv) }}</td>
-                  <td class="num">{{ para(kalem?.toplam) }}</td>
-                  <td>
-                    <button
-                      type="button"
-                      class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
-                      [disabled]="!d.operasyon()"
-                      (click)="d.ekHizmetSatiriSil(i)"
-                    >
-                      {{ 'kiraFormu.eylem.cikar' | transloco }}
-                    </button>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="6" class="kf-bos">
-                    {{ 'kiraFormu.ekHizmet.secilmedi' | transloco }}
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        @if (d.ekHizmetKatalogu.veri(); as kat) {
+          @if (kat.ogeler.length === 0) {
+            <p class="kf-not">{{ 'kiraFormuParite.ekHizmet.tanimYok' | transloco }}</p>
+          } @else {
+            <div
+              class="kf-tablo-kutusu"
+              formArrayName="ekHizmetler"
+              role="region"
+              tabindex="0"
+              [attr.aria-label]="'kiraFormu.bolum.ekHizmetSecimi' | transloco"
+            >
+              <table
+                class="kf-tablo"
+                data-testid="ek-hizmet-matrisi"
+                [attr.aria-label]="'kiraFormu.bolum.ekHizmetSecimi' | transloco"
+              >
+                <thead>
+                  <tr>
+                    <th scope="col">
+                      <span class="rc-gorunmez">{{
+                        'kiraFormuParite.ekHizmet.sec' | transloco
+                      }}</span>
+                    </th>
+                    <th scope="col">{{ 'kiraFormu.ekHizmet.hizmet' | transloco }}</th>
+                    <th scope="col">{{ 'kiraFormu.ekHizmet.miktar' | transloco }}</th>
+                    <th scope="col" class="num">
+                      {{ 'kiraFormuParite.ekHizmet.birimNet' | transloco }}
+                    </th>
+                    <th scope="col" class="num">
+                      {{ 'kiraFormuParite.ekHizmet.kdv' | transloco }}
+                    </th>
+                    <th scope="col" class="num">
+                      {{ 'kiraFormuParite.ekHizmet.satirToplami' | transloco }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (oge of kat.ogeler; track oge.id) {
+                    @let sira = secililer().get(oge.id) ?? -1;
+                    <tr>
+                      <td>
+                        <input
+                          type="checkbox"
+                          class="kf-matris-secim"
+                          [checked]="sira >= 0"
+                          [disabled]="!d.operasyon()"
+                          [attr.aria-label]="
+                            ('kiraFormuParite.ekHizmet.sec' | transloco) + ' ' + oge.ad
+                          "
+                          (change)="secimDegisti(oge, $event)"
+                        />
+                      </td>
+                      <td [attr.title]="oge.aciklama">
+                        {{ oge.ad }} <span class="kf-not">({{ oge.kod }})</span>
+                      </td>
+                      <td class="kf-miktar">
+                        @if (sira >= 0) {
+                          <ng-container [formGroupName]="sira">
+                            <rc-sayi-girdisi
+                              formControlName="miktar"
+                              [kesir]="2"
+                              [ariaEtiketi]="
+                                ('kiraFormu.ekHizmet.miktar' | transloco) + ' ' + oge.ad
+                              "
+                            />
+                          </ng-container>
+                        } @else {
+                          —
+                        }
+                        @if (oge.maxGun) {
+                          <span class="kf-not">{{
+                            'kiraFormuParite.ekHizmet.maksGun' | transloco: { gun: oge.maxGun }
+                          }}</span>
+                        }
+                      </td>
+                      <td class="num">{{ para(oge.birimUcret) }}</td>
+                      <td class="num">{{ sayi(oge.kdvOrani) | percent: '1.0-2' }}</td>
+                      <td class="num">
+                        {{ sira >= 0 ? para(hesapKalemi(oge.id)?.toplam) : '—' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if ((sayi(kat.toplam) ?? 0) > kat.ogeler.length) {
+              <p class="kf-not">
+                {{
+                  'kiraFormuParite.ekHizmet.kesildi'
+                    | transloco: { sayi: kat.ogeler.length, toplam: kat.toplam }
+                }}
+              </p>
+            }
+          }
+        } @else if (d.ekHizmetKatalogu.tur() === 'hata') {
+          <p class="kf-not kf-not--uyari" role="status">
+            {{ 'kiraFormuParite.ekHizmet.katalogAlinamadi' | transloco }}
+          </p>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            (click)="d.ekHizmetKatalogu.yenile()"
+          >
+            {{ 'kiraFormuParite.ekHizmet.yenidenDene' | transloco }}
+          </button>
+        }
         <p class="kf-not">
           {{ 'kiraFormu.ekHizmet.toplamEtiket' | transloco }}:
           <strong>{{ para(d.hesap.veri()?.ekHizmetToplam) }}</strong> —
@@ -190,10 +234,18 @@ export class EkHizmet {
   protected readonly d = inject(KiraFormuDurumu);
   protected readonly sayi = sayiya;
 
-  protected readonly satirlar = computed(() => {
+  /** Seçili tanım → FormArray sırası (matris satırı ile form satırını eşler; satır ekle/çıkar'da yenilenir). */
+  protected readonly secililer = computed(() => {
     this.d.ekSatirSurumu();
-    return [...this.d.form.controls.ekHizmetler.controls];
+    return new Map(
+      this.d.form.controls.ekHizmetler.controls.map((s, i) => [s.controls.tanim.value?.id, i]),
+    );
   });
+
+  protected secimDegisti(oge: EkHizmetKatalogOgesi, olay: Event): void {
+    const kutu = olay.target;
+    if (kutu instanceof HTMLInputElement) this.d.ekHizmetSecimi(oge, kutu.checked);
+  }
 
   /** Dizi düzeyindeki sunucu hatası (`ekHizmetler` alanı) — tabloya bağlı görünür. */
   protected readonly sunucuHatalari = computed((): readonly string[] => {

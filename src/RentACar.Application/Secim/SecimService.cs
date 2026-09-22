@@ -88,6 +88,31 @@ public sealed class SecimService(
             .ToList();
     }
 
+    /// <summary>
+    /// F4.3b — kimlikle TEK müşteri etiketi (bağlantıdaki <c>?musteriId=</c>). Arama ucuyla AYNI izin ve AYNI
+    /// PII kuralı (yalnız kimlik + görünen ad + tip; repo PII kolonuna dokunmaz). Yok/başka kiracı → <c>null</c> (404).
+    /// Müşteri kiracı genelidir (şube alanı yok) — arama ucundaki kapsamla aynı.
+    /// </summary>
+    public async Task<MusteriSecimOgesi?> MusteriGetirAsync(Guid id, CancellationToken ct = default)
+    {
+        Kapi();
+        var s = await musteriler.SecimGetirAsync(id, ct);
+        return s is null ? null : new MusteriSecimOgesi(s.Id, s.Ad, s.Tip.ToString());
+    }
+
+    /// <summary>
+    /// F4.3b — kimlikle TEK araç etiketi (bağlantıdaki <c>?varac=</c>). <see cref="VehicleService.GetAsync"/> şube
+    /// kapsamını zorlar: kapsam dışı → <see cref="YetkiYokException"/> (403); yok/başka kiracı → <c>null</c> (404).
+    /// Alan kümesi arama ucuyla aynı (plaka, grup, durum — kişisel veri yok).
+    /// </summary>
+    public async Task<AracSecimOgesi?> AracGetirAsync(Guid id, CancellationToken ct = default)
+    {
+        Kapi();
+        var v = await araclar.GetAsync(id, ct);
+        return v is null ? null
+            : new AracSecimOgesi(v.Id, AracEtiketi(v.Plaka, v.Marka, v.Tip), v.Plaka, v.Grup, v.Durum.ToString());
+    }
+
     public async Task<IReadOnlyList<LokasyonSecimOgesi>> LokasyonAsync(string? q, int? limit, CancellationToken ct = default)
     {
         Kapi();

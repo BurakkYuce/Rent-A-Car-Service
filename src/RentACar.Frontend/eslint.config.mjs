@@ -40,6 +40,22 @@ const MUTLAK_URL = [
 ];
 
 /**
+ * F4.3b istisnası: harici paylaşım bağlantıları (`src/app/shared/dis-baglantilar.ts`) YALNIZ iki mutlak köke
+ * izinlidir — WhatsApp (`https://wa.me/`) ve Gmail taslak kökü. Bunlar API çağrısı değil yeni sekmede açılan
+ * gezinme bağlantısıdır; dosya HTTP katmanını içe aktaramaz (aşağıdaki blok). Başka her mutlak adres yine hata.
+ * (esquery regex'inde `/` yazılamaz → `\x2F`.)
+ */
+const IZINLI_DIS_KOK = String.raw`^https:\x2F\x2F(wa\.me\x2F|mail\.google\.com\x2Fmail\x2F\?view=cm&fs=1)$`;
+const DIS_BAGLANTI_URL = [
+  {
+    selector: `Literal[value=/^https?:/i]:not([value=/${IZINLI_DIS_KOK}/])`,
+    message:
+      'Bu dosyada yalnız WhatsApp (https://wa.me/) ve Gmail taslak kökü izinli (AGENTS.md "Harici paylaşım").',
+  },
+  MUTLAK_URL[1],
+];
+
+/**
  * Veri katmanı (F3.4): özellik store'ları veriyi yalnız `TemelStore` ile yükler. Ham `subscribe`
  * iptal edilmeyen/yarışan istek, sızan abonelik ve hatanın boş listeye dönüşmesi demektir.
  */
@@ -111,6 +127,34 @@ export default defineConfig(
         'error',
         {
           patterns: [
+            {
+              group: ['@features', '@features/*', '**/features', '**/features/*'],
+              message: 'core/ ve shared/ features/ içe aktaramaz (katman sınırı, bkz. AGENTS.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // F4.3b harici paylaşım bağlantıları: dar mutlak-URL istisnası + HTTP katmanı içe aktarılamaz.
+    files: ['src/app/shared/dis-baglantilar.ts', 'src/app/shared/dis-baglantilar.spec.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...TR_METIN, ...DIS_BAGLANTI_URL],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@angular/common/http',
+              message: 'Harici paylaşım bağlantıları HTTP ile çağrılmaz (yalnız gezinme).',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@core/api', '@core/api/*', '**/core/api/*'],
+              message: 'Harici paylaşım bağlantıları ApiIstemcisi ile çağrılmaz (yalnız gezinme).',
+            },
             {
               group: ['@features', '@features/*', '**/features', '**/features/*'],
               message: 'core/ ve shared/ features/ içe aktaramaz (katman sınırı, bkz. AGENTS.md).',
