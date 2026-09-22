@@ -42,8 +42,22 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
   `tarihBicimle` → `dd.MM.yyyy`; `tarihSaatBicimle` İstanbul saatiyle) ve pipe'ları `para`, `sayi`,
   `tarih`, `tarihSaat` (`@shared/bicim/bicim-pipe`). `LOCALE_ID = 'tr'`. Kendi `toFixed`/`Intl`
   biçimi yazılmaz.
-- **i18n:** Transloco, yalnız `src/i18n/tr.json` (pakete gömülü). Şablonda `'anahtar' | transloco`,
-  TS'te tipli `ceviriFonksiyonu()`. `tr.json` değişince `npm run i18n:tipler`.
+- **i18n:** Transloco, tek dil tr. Şablonda `'anahtar' | transloco`, TS'te tipli `ceviriFonksiyonu()`
+  (anahtar birliği TÜM dosyalardan). Sözlük ikiye bölünür (çekirdek eki "rota bazlı tembel çeviri"):
+  - **Çekirdek** `src/i18n/tr.json` — ilk pakete gömülü; YALNIZ kabuk/core/shared ya da birden çok
+    özelliğin ortak metni (`form`, `tablo`, `kabuk`, `oturum`, `geriBildirim`…).
+  - **Özellik bloğu** `src/i18n/bloklar/<blok>.json` — ayrı tembel parça, rota `canActivate`'inde bileşenden
+    ÖNCE birleşir (`@core/i18n/ceviri-blogu`; anahtar yanıp sönmez, hata → parça hatası yolu). Üst düzey
+    anahtar → blok eşlemesi TEK yerde: `scripts/i18n-tipleri.mjs` `BLOK_HARITASI`.
+  - **Yeni faz/özellik:** (1) `BLOK_HARITASI`'na `<ustAnahtar>: '<blok>'`; (2) metinleri
+    `src/i18n/bloklar/<blok>.json`'a (üst düzey anahtar altında) yaz — `tr.json`'a yazılırsa `npm run i18n:tipler`
+    taşır; (3) rotaya `canActivate: [ceviriBlogu('<blok>')]` ya da rota dizisine `ceviriBloguyla('<blok>', [...])`
+    (ör. `kira-formu.routes.ts`); başka özelliğin bloğunu kullanan sayfa onu da listeler; (4) `npm run i18n:tipler`.
+    Bloğu yüklemeyen rotada anahtar eksik anahtar gibi görünür (geliştirmede `EKSİK: …`) — e2e yakalar.
+  - Birim testleri rotadan geçmez: `src/test-saglayicilari.ts` (üretilir, `angular.json` `test.providersFile`)
+    tüm blokları önyükler. Rota yükleme davranışı `ceviri-blogu.spec.ts`'te.
+  - `npm run i18n:tipler` üretir/taşır (`ceviri-anahtarlari.ts`, `ceviri-bloklari.ts`, `test-saglayicilari.ts`, blok
+    sırası); `lint` (`--kontrol`) bayatlığı ve `tr.json`'da kalmış blok anahtarını reddeder.
 - **İkonlar:** `<rc-ikon ad="…" />`, Tabler alt kümesi. Yeni ikon: `ikon-listesi.json`'a ekle,
   `npm run ikonlar`. Üretilen `ikon-kaydi.ts` ve `ceviri-anahtarlari.ts` elle düzenlenmez; lint
   bayatlığı yakalar.
@@ -243,13 +257,14 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 
 ## Paket bütçesi
 
-- İlk paket (production) ≈ 372 kB ham / 109 kB aktarım: Angular çatısı ~302 kB (core 138, router 73,
-  common+http 42, rxjs 22, transloco 14, platform-browser 13) + uygulama çekirdeği ~50 kB + CSS 19 kB.
-  Bütçe `angular.json`'da uyarı **380 kB**, hata **450 kB** (gerekçe dosyada yorum olarak).
+- İlk paket (production) ≈ 372,5 kB ham / 110 kB aktarım (tembel çeviriden önce 395 / 117): Angular çatısı
+  ~302 kB (core 138, router 73, common+http 42, rxjs 22, transloco 14, platform-browser 13) ve uygulama çekirdeği
+  ile CSS. Bütçe `angular.json`'da uyarı **392 kB** (≈ ölçüm + 20), hata **430 kB** (gerekçe dosyada yorum
+  olarak). Uyarı aşılırsa eşiği yükseltmeden önce ilk pakete neyin girdiğini ölçün.
 - İlk pakete yalnız her ekranda gereken çekirdek girer. Sayfa/özellik, CDK, diyaloglar, komut paleti,
   sekme makinesi, tablo motoru tembel. **İkon kaydı** (`ikon-kaydi.ts`, ~10 kB) de tembel: `<rc-ikon>` ilk
-  çizimde yükler (kutu boyutu korunur), `PendingTasks`'e kayıtlı. `tr.json` bilinçli gömülü (ilk çizimde
-  anahtar yanıp sönmez, ek istek yok; ~8,6 kB).
+  çizimde yükler (kutu boyutu korunur), `PendingTasks`'e kayıtlı. Çekirdek `tr.json` bilinçli gömülü (~8 kB;
+  ilk çizimde anahtar yanıp sönmez); özellik metinleri rota parçasıyla gelen bloklarda (yukarıdaki "i18n").
 - Ölçüm: `npx ng build --stats-json` → `dist/rentacar-frontend/stats.json` (esbuild metafile).
 
 ## Kapılar
