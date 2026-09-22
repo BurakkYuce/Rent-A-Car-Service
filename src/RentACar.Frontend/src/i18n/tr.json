@@ -140,6 +140,7 @@
       "desen": "Biçim geçersiz.",
       "sayi": "Geçerli bir sayı girin.",
       "para": "Geçerli bir tutar girin (ör. 1.234,56).",
+      "paraFazlaHane": "En fazla {{sayi}} ondalık hane girilebilir.",
       "tarih": "Geçerli bir tarih girin (gg.aa.yyyy).",
       "saat": "Geçerli bir saat girin (ss:dd).",
       "tarihAralikDisi": "Tarih izin verilen aralığın dışında.",
