@@ -463,6 +463,7 @@ export type CeviriAnahtari =
   | 'kiraFormuParite.musteri.riskLimiti'
   | 'kiraFormuParite.musteri.riskLimitiIpucu'
   | 'kiraFormuParite.musteri.tcKimlik'
+  | 'kiraFormuParite.musteri.tcSifreli'
   | 'kiraFormuParite.musteri.uyariMesaji'
   | 'kiraFormuParite.paylas.baslik'
   | 'kiraFormuParite.paylas.eposta'

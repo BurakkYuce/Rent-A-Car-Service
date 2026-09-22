@@ -358,7 +358,7 @@ public static class KiraApi
     }
 
     /// <summary>
-    /// Kimlik/belge numarası maskesi — Blazor <c>SekmeMusteri.Maske</c> ile BİREBİR: yalnız son 4 karakter görünür;
+    /// Belge (ehliyet/pasaport) numarası maskesi — Blazor <c>SekmeMusteri.Maske</c> ile BİREBİR: yalnız son 4 karakter görünür;
     /// 4 ve daha kısa değer TAMAMEN yıldız; boş → null. Düz numara bu yüzeyden hiçbir koşulda dönmez.
     /// </summary>
     public static string? Maske(string? v)
@@ -369,7 +369,7 @@ public static class KiraApi
     /// <summary>
     /// F4.3b — Müşteri sekmesinin salt-okunur cari özeti. Üst kayıt kapısından geçer (kapsam dışı 403, yok/başka
     /// kiracı 404); müşteri kiranın kendi <c>MusteriId</c>'sinden okunur (istemci başka cari soramaz). PII: bkz.
-    /// <see cref="KiraMusteriOzeti"/> — kimlik/belge numaraları yalnız <see cref="Maske"/>'den geçerek çıkar.
+    /// <see cref="KiraMusteriOzeti"/> — TC hiç çıkmaz; ehliyet/pasaport numarası yalnız <see cref="Maske"/>'den geçerek.
     /// </summary>
     private static async Task<Results<Ok<KiraMusteriOzeti>, ProblemHttpResult>> MusteriOzeti(
         Guid id, RentalService kiralar, CustomerService musteriler, CancellationToken ct)
@@ -382,7 +382,7 @@ public static class KiraApi
             m.Id, m.DisplayName, m.Tip.ToString(),
             m.AnonimTelefon ? null : m.CepTel,
             m.AnonimMail ? null : m.Email,
-            m.AnonimTc ? null : Maske(m.TcKimlik),
+            // TC kimlik BİLİNÇLİ yok (ne düz ne maskeli) — Blazor paritesi + KVKK en az veri (#262 kararı).
             m.AnonimBelge ? null : Maske(m.EhliyetNo),
             m.AnonimBelge ? null : Maske(m.PasaportNo),
             m.EhliyetSinifi, m.EhliyetTarihi, m.EhliyetYeri, m.EhliyetUlke, m.PasaportYeri,

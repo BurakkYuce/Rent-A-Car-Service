@@ -2975,7 +2975,6 @@ export interface components {
       tip: string;
       cepTel: null | string;
       email: null | string;
-      tcKimlikMaskeli: null | string;
       ehliyetNoMaskeli: null | string;
       pasaportNoMaskeli: null | string;
       ehliyetSinifi: null | string;

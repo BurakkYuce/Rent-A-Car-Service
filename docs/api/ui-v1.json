@@ -5013,7 +5013,6 @@
           "tip",
           "cepTel",
           "email",
-          "tcKimlikMaskeli",
           "ehliyetNoMaskeli",
           "pasaportNoMaskeli",
           "ehliyetSinifi",
@@ -5049,12 +5048,6 @@
             ]
           },
           "email": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "tcKimlikMaskeli": {
             "type": [
               "null",
               "string"

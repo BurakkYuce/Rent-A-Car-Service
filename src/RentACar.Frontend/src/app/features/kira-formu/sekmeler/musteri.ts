@@ -6,8 +6,8 @@ import { KF_ORTAK } from './ortak';
 /**
  * MÜŞTERİ — kanonik müşteri + 2. sürücü (kayıtlı cari ya da misafir) + risk/kefil. Kayıtlı kirada cari
  * özeti SALT OKUNUR (F4.3b `GET /kiralar/{id}/musteri-ozet`): iletişim, adres, ehliyet/pasaport bilgisi, risk
- * limiti, kara liste/uyarı. Kimlik ve belge NUMARALARI yalnız maskeli gelir (son 4 hane — sunucu kuralı; SPA
- * düz numara görmez). Düzenleme cari kartında.
+ * limiti, kara liste/uyarı. TC kimlik numarası HİÇ gelmez (Blazor gibi "şifreli — cari kartında"; KVKK en az veri);
+ * ehliyet/pasaport numarası yalnız maskeli (son 4 hane — sunucu kuralı; SPA düz numara görmez). Düzenleme cari kartında.
  */
 @Component({
   selector: 'rc-kf-musteri',
@@ -81,7 +81,7 @@ import { KF_ORTAK } from './ortak';
             </div>
             <div>
               <dt>{{ 'kiraFormuParite.musteri.tcKimlik' | transloco }}</dt>
-              <dd>{{ m.tcKimlikMaskeli || '—' }}</dd>
+              <dd data-testid="tc-kimlik">{{ 'kiraFormuParite.musteri.tcSifreli' | transloco }}</dd>
             </div>
             <div>
               <dt>{{ 'kiraFormuParite.musteri.ehliyetSinifi' | transloco }}</dt>
