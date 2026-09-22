@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -27,7 +26,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
-import type { FinansHesapOgesi, PanelTahsilatBilgisi } from '@core/api/ui-tipleri';
+import type { FinansHesapOgesi, TahsilatBilgisi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
@@ -87,7 +86,8 @@ export const PANEL_TAHSILAT_KILIDI = new InjectionToken<GonderimKilidi>('PANEL_T
           [etiket]="'panel.tahsilat.tutar' | transloco"
           [ipucu]="'panel.tahsilat.tutarIpucu' | transloco"
         >
-          <rc-para-girdisi formControlName="tutar" [paraBirimi]="bilgi().doviz" />
+          <!-- odaktaSec: ön dolu öneri odakta (otomatik ya da Tab) tümüyle seçili; yazılan onun yerine geçer. -->
+          <rc-para-girdisi formControlName="tutar" [paraBirimi]="bilgi().doviz" odaktaSec />
         </rc-alan>
         <rc-alan [etiket]="'panel.tahsilat.hesap' | transloco">
           <rc-secim formControlName="hesap" [secenekler]="hesapTurleri" />
@@ -160,11 +160,10 @@ export const PANEL_TAHSILAT_KILIDI = new InjectionToken<GonderimKilidi>('PANEL_T
 export class PanelTahsilatFormu implements OnInit {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
-  private readonly belge = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
 
-  readonly bilgi = input.required<PanelTahsilatBilgisi>();
+  readonly bilgi = input.required<TahsilatBilgisi>();
   readonly plaka = input.required<string>();
   readonly belgeNo = input.required<string>();
 
@@ -215,16 +214,10 @@ export class PanelTahsilatFormu implements OnInit {
 
   constructor() {
     const kok = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-    afterNextRender(() => {
-      const girdi = kok.querySelector<HTMLInputElement>('input');
-      girdi?.focus();
-      // Adversarial F3: ön dolu tutarda imleç sonda kalınca "90" yazan kullanıcı "1250,5090" üretiyordu. Tüm metin
-      // seçilir; `rc-para-girdisi` odakta düzenleme yazımını yeniden bastığı için (imleç sona kayar) seçim o
-      // çizimden SONRA yapılır.
-      setTimeout(() => {
-        if (girdi && this.belge.activeElement === girdi) girdi.select();
-      });
-    });
+    // Adversarial F3: ön dolu tutarda imleç sonda kalınca "90" yazan kullanıcı "1250,5090" üretiyordu. Odakta tüm
+    // metni `rc-para-girdisi` `odaktaSec` seçer (otomatik odak da Tab da); fazla hane artık yuvarlanmaz, alan
+    // hatası olur (#260).
+    afterNextRender(() => kok.querySelector<HTMLInputElement>('input')?.focus());
     // Tür değişince başka türün hesabı seçili kalmasın (sunucu da reddeder; burada sessizce temizlenir).
     this.form.controls.hesap.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       this.form.controls.hesapId.setValue(null);
