@@ -756,7 +756,7 @@ test('Q1: dokunmatik basış odak üretmeden iptal edilirse sonraki Tab odağı 
   expect(tahsilatlar(finansIstekleri)[0]?.govde['tutar']).toBe('500.00');
 });
 
-test('M-A (G2/Q5): iki sekme aynı anahtar — öteki 100 yazdı → 409 mevcut FARKLI → "YAZILMADI" uyarısı, tutar KORUNUR, yeni anahtarla bilinçli gönderim', async ({
+test('M-A (G2/Q5) + L-2: iki sekme aynı anahtar — öteki 100 yazdı → 409 mevcut FARKLI → "YAZILMADI" uyarısı; dokunulmamış ön-dolu tutar YENİ bakiyeyle yenilenir, yeni anahtarla bilinçli gönderim', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page, AG_HATASI);
@@ -787,13 +787,102 @@ test('M-A (G2/Q5): iki sekme aynı anahtar — öteki 100 yazdı → 409 mevcut 
   await expect(toast).toContainText('girdiğiniz 2.600,00 TRY YAZILMADI');
   await expect(toast).not.toContainText('İşlem zaten kaydedildi');
   await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.500,00'); // yeniden yüklendi
-  await expect(tutar).toHaveValue('2.600,00'); // form SİLİNMEDİ
+  // L-2: tutar elle yazılmadı (ön-dolu 2.600) → eski bakiye yerine yeni öneri; fazla tahsilat gitmez.
+  await expect(tutar).toHaveValue('2.500,00');
 
   await panel(page).getByTestId('tahsilat-Kasa').click(); // bilinçli yeniden gönderim
   await expect(toast).toContainText('Tahsilat kaydedildi.');
   const t = tahsilatlar(finansIstekleri);
   expect(t.map((k) => k.govde['tahsilatAnahtar'])).toEqual([K1, K2]);
-  expect(t[1]?.govde['tutar']).toBe('2600.00');
+  expect(t[1]?.govde['tutar']).toBe('2500.00');
+  expect(hatalar).toEqual([]);
+});
+
+test('M-A + L-2: kullanıcının ELLE yazdığı tutar "YAZILMADI" sonrası yeni bakiyeyle EZİLMEZ', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, AG_HATASI);
+  await oturumAc(page);
+  let digerYazdi = false;
+  await sahteApi(page, {
+    detay: () => (digerYazdi ? detay(K2, 2500, 1100) : detay(K1, 2600, 1000)),
+    finans: (route) => {
+      digerYazdi = true;
+      return problem(
+        route,
+        409,
+        'mukerrer',
+        'başka bir tahsilat yazıldı; girdiğiniz 700,00 TRY YAZILMADI.',
+        {
+          mevcut: { id: 'a', belgeNo: 'T-000099', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+        },
+      );
+    },
+  });
+  await page.goto(SAYFA);
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await tutar.fill('700');
+  await panel(page).getByTestId('tahsilat-Kasa').click();
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.500,00');
+  await expect(tutar).toHaveValue(/^700(,00)?$/);
+  expect(hatalar).toEqual([]);
+});
+
+test('M-C (4. tur): 500 yazıldı ama yanıt düştü → tutar 600\'e düzeltilip AYNI anahtarla tekrar → 409 mevcut FARKLI → "Önceki denemeniz kaydedilmiş … 600 YAZILMADI", tutar TEMİZLENİR; tekrar basış çift yazım ÜRETMEZ', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /ERR_CONNECTION_RESET|net::/]);
+  await oturumAc(page);
+  let yazildi = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    // Sunucu (elle): 1. istek 500 yazdı (kalan 2.600 → 2.100, yeni anahtar K2).
+    detay: () => (yazildi ? detay(K2, 2100, 1500, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route, istek) => {
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      if (!yazildi) {
+        yazildi = true; // sunucu 500'ü yazdı…
+        return route.abort('connectionreset'); // …ama yanıt istemciye ulaşmadı
+      }
+      if (g['tahsilatAnahtar'] === K1) {
+        return problem(
+          route,
+          409,
+          'mukerrer',
+          'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-000042, 500,00 TRY); girdiğiniz 600,00 TRY YAZILMADI. Güncel bakiyeyi kontrol edin.',
+          {
+            mevcut: { id: 'c1', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY', ayniIcerik: false },
+          },
+        );
+      }
+      return route.fulfill({ json: { id: 'c2' } });
+    },
+  });
+  await page.goto(SAYFA);
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await tutar.fill('500');
+  const dugme = panel(page).getByTestId('tahsilat-Kasa');
+  await dugme.click();
+  await expect(toastlar(page)).toContainText('Sunucuya ulaşılamadı');
+  await tutar.fill('600'); // kullanıcı tutarı düzeltir
+  await dugme.click();
+
+  const toast = toastlar(page);
+  await expect(toast).toContainText('Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı');
+  await expect(toast).toContainText('Önceki denemeniz kaydedilmiş (No T-000042, 500,00 ₺)');
+  await expect(toast).toContainText('girdiğiniz 600,00 ₺ YAZILMADI');
+  await expect(toast).not.toContainText('başka bir tahsilat yazıldı');
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.100,00'); // yeniden yüklendi
+  await expect(tutar).toHaveValue(''); // TEMİZLENDİ; yeni öneri de basılmaz
+
+  // Kullanıcı tekrar basar: boş tutar → istemci doğrulaması, İSTEK YOK → 1100 yazılamaz.
+  await dugme.click();
+  await page.waitForTimeout(300);
+  const t = tahsilatlar(finansIstekleri);
+  expect(t).toHaveLength(2);
+  expect(t.map((k) => k.govde['tahsilatAnahtar'])).toEqual([K1, K1]);
+  expect(t.map((k) => k.govde['tutar'])).toEqual(['500.00', '600.00']);
   expect(hatalar).toEqual([]);
 });
 

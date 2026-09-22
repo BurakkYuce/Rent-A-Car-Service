@@ -8,7 +8,7 @@ import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { provideCeviri } from '@core/i18n/ceviri';
-import { MUKERRER_BASLIGI, MUKERRERDE_YENILE, SESSIZ } from '@core/oturum/istek-baglami';
+import { MUKERRER_CAGIRAN_GOSTERIR, MUKERRERDE_YENILE, SESSIZ } from '@core/oturum/istek-baglami';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import type { KiraDetayYaniti, KiraSozlesmesi } from '../kira-tipleri';
 import type { TahsilatBilgisi } from './finans-tipleri';
@@ -177,8 +177,8 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     expect(govdesi(tahsilatlar(cagrilar)[0])['tahsilatAnahtar']).toBe(K1);
   });
 
-  it('409 mukerrer: otomatik tekrar YOK; çekirdek "Kira kaydı değişmiş" başlığı (Mükerrer işlem değil); sonra yeni anahtar', async () => {
-    const { f, cagrilar, detayVer, degisti } = await kur(() =>
+  it('409 mukerrer: otomatik tekrar YOK; "Kira kaydı değişmiş" başlığı (Mükerrer işlem değil); sonra yeni anahtar', async () => {
+    const { f, cagrilar, detayVer, degisti, toast } = await kur(() =>
       throwError(() =>
         sunucuHatasi(409, 'mukerrer', 'Kiranın bakiyesi bu ekran açıldıktan sonra değişti.'),
       ),
@@ -189,10 +189,15 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     f.tahsilatYap(f.nakit);
     expect(tahsilatlar(cagrilar)).toHaveLength(1);
 
-    // Bildirim çekirdek interceptor'da: nötr başlık + sunucu detail'ı; istek sessiz DEĞİL (genel hatalar görünür).
+    // mukerrer toast'u çağıranda (sınıf tekrar bilgisine bağlı, M-C): nötr başlık + sunucu detail'ı; istek sessiz
+    // DEĞİL (ağ/5xx/yetki genel katmanda görünür).
     const baglam = tahsilatlar(cagrilar)[0]?.secenek?.context;
-    expect(baglam?.get(MUKERRER_BASLIGI)).toBe('Kira kaydı değişmiş');
+    expect(baglam?.get(MUKERRER_CAGIRAN_GOSTERIR)).toBe(true);
     expect(baglam?.get(SESSIZ)).toBe(false);
+    expect(toast.uyari).toHaveBeenCalledWith(
+      'Kiranın bakiyesi bu ekran açıldıktan sonra değişti. Kayıt yeniden yüklendi.',
+      { baslik: 'Kira kaydı değişmiş' },
+    );
     baglam?.get(MUKERRERDE_YENILE)?.(); // interceptor'ın yaptığı
     expect(degisti).toHaveBeenCalledTimes(1);
     expect(f.nakit.gonderim.genelHatalar()).toEqual([]); // form üstüne "mükerrer" yazılmaz
@@ -329,9 +334,9 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     expect(cagrilar[1]?.secenek?.islemAnahtari).not.toBe(cagrilar[0]?.secenek?.islemAnahtari);
   });
 
-  it('3. tur M-A: 409 + mevcut İÇERİK FARKLI (başka sekme yazdı) → form SİLİNMEZ, tutar korunur, yeni anahtarla bilinçli gönderim', async () => {
+  it('3. tur M-A + L-2: 409 + mevcut İÇERİK FARKLI (başka sekme yazdı) → form SİLİNMEZ; dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir', async () => {
     let n = 0;
-    const { f, cagrilar, detayVer, degisti } = await kur(() =>
+    const { f, cagrilar, detayVer, degisti, toast } = await kur(() =>
       ++n === 1
         ? throwError(() =>
             apiHatasinaCevir(
@@ -356,16 +361,133 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     baglam?.get(MUKERRERDE_YENILE)?.();
     expect(degisti).toHaveBeenCalledTimes(1);
     expect(f.nakit.form.getRawValue()).toMatchObject({ tutar: '2600.00', aciklama: 'B kasası' });
-    // Tazelenen kayıt (A'nın 100'ü yazıldı → yeni anahtar K2, yeni öneri 2.500) formun tutarını EZMEZ.
+    expect(toast.uyari).toHaveBeenCalledWith(
+      expect.stringContaining('girdiğiniz 2.600,00 TRY YAZILMADI'),
+      {
+        baslik: 'Başka bir tahsilat yazıldı — tutarınız kaydedilmedi',
+      },
+    );
+    // L-2: tazelenen kayıt (A'nın 100'ü yazıldı → yeni anahtar K2, yeni öneri 2.500). Tutar elle YAZILMADIĞI için
+    // eski bakiye (2.600) yerine yeni öneri gelir; diğer alanlar korunur.
     detayVer(detay(tahsilat(K2, 2500)));
-    expect(f.nakit.form.getRawValue().tutar).toBe('2600.00');
+    expect(f.nakit.form.getRawValue()).toMatchObject({ tutar: '2500.00', aciklama: 'B kasası' });
     expect(f.nakit.kopya.kopya()?.anahtar).toBe(K2);
+    // Sonraki (aynı anahtarlı) tazelemeler tutara bir daha dokunmaz.
+    detayVer(detay(tahsilat(K2, 2400)));
+    expect(f.nakit.form.getRawValue().tutar).toBe('2500.00');
     f.tahsilatYap(f.nakit); // kullanıcı bakiyeye bakıp BİLİNÇLİ gönderir
     expect(tahsilatlar(cagrilar)).toHaveLength(2);
     expect(govdesi(tahsilatlar(cagrilar)[1])).toMatchObject({
       tahsilatAnahtar: K2,
-      tutar: '2600.00',
+      tutar: '2500.00',
     });
+  });
+
+  it('L-2: M-A sonrası kullanıcının ELLE yazdığı tutar yeni bakiyeyle EZİLMEZ', async () => {
+    const { f, detayVer } = await kur(() =>
+      throwError(() =>
+        apiHatasinaCevir(
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              status: 409,
+              kod: 'mukerrer',
+              detail: 'başka bir tahsilat yazıldı; girdiğiniz 700,00 TRY YAZILMADI.',
+              mevcut: { id: 'a', belgeNo: 'T-9', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+            },
+          }),
+        ),
+      ),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.nakit.form.controls.tutar.setValue('700.00');
+    f.nakit.form.controls.tutar.markAsDirty(); // kullanıcı yazdı
+    f.tahsilatYap(f.nakit);
+    detayVer(detay(tahsilat(K2, 2500)));
+    expect(f.nakit.form.getRawValue().tutar).toBe('700.00');
+    expect(f.nakit.kopya.kopya()?.anahtar).toBe(K2);
+  });
+
+  /** M-C: sunucunun sonucu (elle): 1. istek 500 yazıldı ama yanıt kayboldu; 2. istek aynı anahtar + 600 → 409 mevcut{500, farklı}. */
+  const oncekiDenemeKaydedilmis = () =>
+    apiHatasinaCevir(
+      new HttpErrorResponse({
+        status: 409,
+        error: {
+          status: 409,
+          kod: 'mukerrer',
+          detail:
+            'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-42, 500,00 TRY); girdiğiniz 600,00 TRY YAZILMADI.',
+          mevcut: { id: 'c1', belgeNo: 'T-42', tutar: 500, doviz: 'TRY', ayniIcerik: false },
+        },
+      }),
+    );
+
+  it('4. tur M-C: kaybolan yanıt → tutar değiştirilip AYNI anahtarla tekrar → "Önceki denemeniz kaydedilmiş … 600 YAZILMADI", tutar TEMİZLENİR, ikinci basış istek göndermez', async () => {
+    let n = 0;
+    const { f, cagrilar, detayVer, toast, degisti } = await kur(() =>
+      ++n === 1 ? throwError(() => agHatasi()) : throwError(() => oncekiDenemeKaydedilmis()),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.nakit.form.controls.tutar.setValue('500.00');
+    f.nakit.form.controls.tutar.markAsDirty();
+    f.tahsilatYap(f.nakit); // yazıldı, yanıt kayboldu
+    f.nakit.form.controls.tutar.setValue('600.00'); // kullanıcı tutarı düzeltti
+    f.tahsilatYap(f.nakit);
+    const t = tahsilatlar(cagrilar);
+    expect(t.map((c) => govdesi(c)['tahsilatAnahtar'])).toEqual([K1, K1]); // donmuş anahtar
+    expect(govdesi(t[1])['tutar']).toBe('600.00');
+    t[1]?.secenek?.context?.get(MUKERRERDE_YENILE)?.();
+    expect(degisti).toHaveBeenCalledTimes(1);
+
+    expect(toast.uyari).toHaveBeenCalledTimes(1);
+    const [mesaj, secenek] = toast.uyari.mock.calls[0] as unknown as [string, { baslik: string }];
+    expect(mesaj).toContain('Önceki denemeniz kaydedilmiş (No T-42, 500,00');
+    expect(mesaj).toContain('girdiğiniz 600,00');
+    expect(mesaj).toContain('YAZILMADI');
+    expect(mesaj).not.toContain('başka bir tahsilat');
+    expect(secenek.baslik).toBe('Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı');
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
+
+    // Tazelenen detay (yeni anahtar K2): tutar önerilmez (L-2 yalnız M-A'da); boş tutar → İSTEK YOK.
+    detayVer(detay(tahsilat(K2, 2100)));
+    expect(f.nakit.kopya.kopya()?.anahtar).toBe(K2);
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
+    f.tahsilatYap(f.nakit);
+    expect(tahsilatlar(cagrilar)).toHaveLength(2);
+  });
+
+  it('M-C: aradaki kesin red (400) önceki bilinmeyen denemeyi KAPATMAZ; bilinmeyen deneme yoksa aynı 409 "başka tahsilat" (M-A) kalır', async () => {
+    let n = 0;
+    const { f, cagrilar, detayVer, toast } = await kur(() => {
+      n++;
+      if (n === 1) return throwError(() => sunucuHatasi(500, '', ''));
+      if (n === 2) return throwError(() => sunucuHatasi(400, 'dogrulama', 'Kur girilemez.'));
+      return throwError(() => oncekiDenemeKaydedilmis());
+    });
+    detayVer(detay(tahsilat(K1)));
+    f.tahsilatYap(f.nakit); // 5xx: sonucu bilinmiyor
+    f.tahsilatYap(f.nakit); // 400: bu istek yazılmadı ama 1. deneme hâlâ belirsiz
+    f.nakit.form.controls.tutar.setValue('600.00');
+    f.tahsilatYap(f.nakit);
+    expect(tahsilatlar(cagrilar)).toHaveLength(3);
+    expect(toast.uyari).toHaveBeenLastCalledWith(
+      expect.stringContaining('Önceki denemeniz kaydedilmiş'),
+      expect.anything(),
+    );
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
+
+    // Aynı yanıt, ÖNCESİNDE bilinmeyen deneme YOKKEN: başka sekmenin işlemi → form korunur (M-A).
+    TestBed.resetTestingModule();
+    const b = await kur(() => throwError(() => oncekiDenemeKaydedilmis()));
+    b.detayVer(detay(tahsilat(K1)));
+    b.f.nakit.form.controls.tutar.setValue('600.00');
+    b.f.nakit.form.controls.tutar.markAsDirty();
+    b.f.tahsilatYap(b.f.nakit);
+    expect(b.toast.uyari).toHaveBeenCalledWith(expect.stringContaining('başka bir tahsilat'), {
+      baslik: 'Başka bir tahsilat yazıldı — tutarınız kaydedilmedi',
+    });
+    expect(b.f.nakit.form.getRawValue().tutar).toBe('600.00');
   });
 
   it('L2: depozito alındıktan sonra kiranın depozitosuyla yeniden ÖN-DOLDURULMAZ (ikinci tık ikinci depozito değil)', async () => {

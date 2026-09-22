@@ -14,6 +14,7 @@ import { EMPTY, type Observable, startWith } from 'rxjs';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
+import { TahsilatDenemesi, tahsilatMukerrerBildir } from '@core/form/tahsilat-denemesi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -75,6 +76,8 @@ export interface TahsilatFormu {
     aciklama: FormControl<string | null>;
   }>;
   readonly kopya: TahsilatKopyasi;
+  /** Sonucu bilinmeyen deneme izi (M-C) + L-2 tutar yenileme isteği. */
+  readonly deneme: TahsilatDenemesi;
   readonly gonderim: FormGonderimi;
   /** Seçili döviz (ISO) — kur alanı ve para simgesi için. */
   readonly doviz: Signal<string>;
@@ -314,26 +317,39 @@ export class KiraFinansDurumu {
 
   /**
    * Kira tahsilatı (E01). Anahtar = detaydaki deterministik `tahsilatAnahtar` (satır kopyası); başlık YOK.
-   * 409 `mukerrer`: sunucu anahtarı YENİDEN hesaplar — ekran açıldıktan sonra kirada işlem olduysa (ya da
-   * çift gönderimde ilki yazıldıysa) bayat anahtar 409 alır, bu istekte HİÇBİR ŞEY yazılmaz. "Mükerrer işlem"
-   * başlığı parayı kaydedildi sandırır: çekirdek `mukerrerBasligi` ile nötr "Kira kaydı değişmiş" uyarısı +
-   * sunucu `detail`'ı gösterilir (F4.2 "Tahsil Et" ile aynı), kayıt yeniden yüklenir, yeni anahtar tazelenen
-   * detaydan alınır. Otomatik yeniden gönderim YOK; kullanıcının yazdıkları korunur.
+   * 409 `mukerrer`: otomatik yeniden gönderim YOK; kayıt yeniden yüklenir (yeni anahtar tazelenen detaydan), ön-doldurma
+   * kapanır. Toast'u interceptor değil `tahsilatMukerrerBildir` gösterir (sınıf, isteğin TEKRAR olup olmadığına bağlı):
+   * - `zatenKaydedildi` (HIGH-1, kaybolan yanıttan sonraki birebir tekrar): form temizlenir.
+   * - `oncekiDenemeKaydedilmis` (4. tur M-C): sonucu bilinmeyen bir denemenin (ör. 500, yanıt kayboldu) tutarı
+   *   değiştirilmiş (600) tekrarı — 500 yazılmış, 600 YAZILMADI. Tutar TEMİZLENİR: form korunursa ikinci basış yeni
+   *   anahtarla 600'ü de yazıyordu (niyet 600, kayıt 1100). "Tekrar mı" bilgisi gönderimden ÖNCE yakalanır.
+   * - `baskaIslemYazildi` (3. tur M-A, iki sekme/iki kullanıcı): form SİLİNMEZ; tutar elle yazılmadıysa (ön-dolu)
+   *   yeni bakiyeyle yenilenir (L-2), yazıldıysa korunur.
+   * - `bayatAnahtar` (ekran açıldıktan sonra kirada işlem oldu): tutar temizlenir, kullanıcı güncel bakiyeyle girer.
    */
   tahsilatYap(tf: TahsilatFormu): void {
     if (!tf.kopya.gonderilebilir()) return;
+    let tekrar = false;
+    let anahtar = '';
+    let girilen: Para = null;
+    let doviz = 'TRY';
     tf.gonderim.gonder(
       tf.form,
       () => {
         const kopya = tf.kopya.gonderiliyor();
         if (kopya === null) return EMPTY; // düğme zaten kapalı; kilit finalize'la bırakılır
+        const deger = tf.form.getRawValue();
+        anahtar = kopya.anahtar;
+        tekrar = tf.deneme.tekrarMi(anahtar); // M-C: gönderimden ÖNCE
+        girilen = deger.tutar;
+        doviz = dovizKodu(deger.doviz);
         return this.api.post<FinansIslemYaniti>(
           `${FINANS}/tahsilat`,
-          tahsilatGovdesi(kopya, tf.hesap, tf.form.getRawValue()),
+          tahsilatGovdesi(kopya, tf.hesap, deger),
           {
             context: istekBaglami({
               mukerrerdeYenile: () => this.yenile(),
-              mukerrerBasligi: this.t('kiraFinans.kayitDegismis'),
+              mukerrerCagiranGosterir: true,
             }),
           },
         );
@@ -341,20 +357,33 @@ export class KiraFinansDurumu {
       {
         deterministikAnahtar: tf.kopya.kopya()?.anahtar ?? null,
         basarili: () => {
+          tf.deneme.basarili();
           tf.kopya.sonuclandi();
           this.tamam('kiraFinans.bildirim.tahsilat');
         },
         hata: (h) => {
-          if (h.kod !== 'mukerrer') return;
-          // Otomatik yeniden gönderim YOK; kayıt yeniden yüklenir (yeni anahtar), ön-doldurma kapanır.
-          // - mevcut + ayniIcerik (HIGH-1, kaybolan yanıttan sonraki kendi tekrarı): "zaten kaydedildi", form temizlenir.
-          // - mevcut, içerik FARKLI (3. tur M-A: iki sekme/iki kullanıcı ya da tutarı değişmiş tekrar): bu tutar
-          //   YAZILMADI — form SİLİNMEZ (tutar dahil), uyarı interceptor'da; kullanıcı bakiyeye bakıp bilinçli gönderir.
-          // - mevcut yok (bayat anahtar): tutar temizlenir, kullanıcı güncel bakiyeye göre yeniden girer.
+          const tur = tf.deneme.hataGeldi(anahtar, h, tekrar);
+          if (tur === null) return;
           tf.kopya.sonuclandi(false);
-          if (h.mevcut?.ayniIcerik)
-            tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
-          else if (!h.mevcut) tf.form.controls.tutar.setValue(null);
+          tahsilatMukerrerBildir(this.toast, this.t, tur, h, {
+            girilenTutar: girilen,
+            doviz,
+            bayatBaslik: this.t('kiraFinans.kayitDegismis'),
+            ek: this.t('geriBildirim.mukerrerYenilendi'),
+          });
+          const tutar = tf.form.controls.tutar;
+          switch (tur) {
+            case 'zatenKaydedildi':
+              tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
+              break;
+            case 'baskaIslemYazildi':
+              if (tutar.pristine && tutar.value !== null) tf.deneme.tutarYenilemesiIste(anahtar);
+              break;
+            case 'oncekiDenemeKaydedilmis':
+            case 'bayatAnahtar':
+              tutar.setValue(null);
+              break;
+          }
         },
       },
     );
@@ -578,6 +607,13 @@ export class KiraFinansDurumu {
     for (const tf of [this.nakit, this.kart]) {
       const sonuc = tf.kopya.detayGeldi(d.tahsilat ?? null, tf.form.dirty);
       if (sonuc === 'ondoldur') tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), true));
+      // L-2: "YAZILMADI" (başka işlem) sonrası dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir (eski bakiye
+      // gönderilip fazla tahsilat yazılmasın); kullanıcının yazdığı tutar (dirty) korunur.
+      else if (
+        tf.deneme.tutarYenilensinMi(tf.kopya.kopya()?.anahtar) &&
+        tf.form.controls.tutar.pristine
+      )
+        tf.form.controls.tutar.setValue(onDoldurmaTutari(tf.kopya.kopya()?.varsayilanTutar));
     }
     // L2: kiranın depozitosu yalnız ilk açılışta önerilir; alındıktan sonra yeniden ön-doldurulmaz (ikinci tık
     // ikinci depozito yazıyordu).
@@ -628,6 +664,7 @@ export class KiraFinansDurumu {
       hesap,
       form,
       kopya: new TahsilatKopyasi(),
+      deneme: new TahsilatDenemesi(),
       gonderim: formGonderimi(),
       doviz: this.dovizSinyali(form.controls.doviz),
       tutar: this.degerSinyali(form.controls.tutar),

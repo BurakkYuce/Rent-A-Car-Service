@@ -28,6 +28,13 @@ export const MUKERRERDE_YENILE = new HttpContextToken<(() => void) | null>(() =>
  */
 export const MUKERRER_BASLIGI = new HttpContextToken<string | null>(() => null);
 
+/**
+ * `mukerrer` toast'unu interceptor GÖSTERMEZ, çağıran gösterir (`MUKERRERDE_YENILE` yine çağrılır; diğer kodlar
+ * genel katmanda kalır). Deterministik anahtarlı tahsilat (F4.4 M-C): mesaj isteğin bir TEKRAR olup olmadığına göre
+ * değişir ve bunu yalnız çağıran bilir (`TahsilatDenemesi`, `tahsilatMukerrerBildir`).
+ */
+export const MUKERRER_CAGIRAN_GOSTERIR = new HttpContextToken<boolean>(() => false);
+
 /** İç: istek yeniden girişten sonra tekrarlandı (ikinci `oturum_yok`'ta döngü olmasın). */
 export const TEKRARLANDI = new HttpContextToken<boolean>(() => false);
 
@@ -40,6 +47,8 @@ export interface IstekBaglamiSecenekleri {
   readonly mukerrerdeYenile?: () => void;
   /** Bkz. {@link MUKERRER_BASLIGI}. */
   readonly mukerrerBasligi?: string;
+  /** Bkz. {@link MUKERRER_CAGIRAN_GOSTERIR}. */
+  readonly mukerrerCagiranGosterir?: boolean;
 }
 
 /** Tipli `HttpContext` kurucusu: `api.post(yol, govde, { context: istekBaglami({ sessiz: true }) })`. */
@@ -52,5 +61,6 @@ export function istekBaglami(
   if (secenek.yenidenGirisYok) baglam = baglam.set(YENIDEN_GIRIS_YOK, true);
   if (secenek.mukerrerdeYenile) baglam = baglam.set(MUKERRERDE_YENILE, secenek.mukerrerdeYenile);
   if (secenek.mukerrerBasligi) baglam = baglam.set(MUKERRER_BASLIGI, secenek.mukerrerBasligi);
+  if (secenek.mukerrerCagiranGosterir) baglam = baglam.set(MUKERRER_CAGIRAN_GOSTERIR, true);
   return baglam;
 }

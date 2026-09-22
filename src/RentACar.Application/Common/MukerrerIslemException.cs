@@ -37,7 +37,7 @@ public sealed class MukerrerIslemException(string mesaj, MevcutIslem? mevcut = n
 
 /// <summary>
 /// 409 <c>mukerrer</c>'de istemciye bildirilen, aynı anahtarla ZATEN yazılmış işlem (belge no + tutar).
-/// <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı (tutar, döviz, hesap türü, hesap) — <c>true</c> ise
+/// <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı (tutar, döviz, hesap türü, hesap, kur, açıklama, kanal) — <c>true</c> ise
 /// kaybolan yanıttan sonraki kendi tekrarı (form temizlenir); <c>false</c> ise başka bir işlem yazılmış, gelen
 /// tutar YAZILMADI (form korunur, kullanıcı güncel bakiyeye bakıp bilinçli yeniden gönderir).
 /// </summary>
