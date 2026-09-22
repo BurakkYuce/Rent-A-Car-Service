@@ -4080,6 +4080,7 @@
       },
       "KiraGuncelleIstegi": {
         "required": [
+          "surum",
           "cikisOfisi",
           "donusOfisi",
           "ikinciSurucuId",
@@ -4141,6 +4142,12 @@
         ],
         "type": "object",
         "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "cikisOfisi": {
             "type": [
               "null",
@@ -6374,6 +6381,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

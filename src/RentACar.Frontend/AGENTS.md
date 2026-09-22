@@ -133,6 +133,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - Hızlı Giriş alanları AYNA: aynı `FormControl` iki girdiye bağlanamaz → `form.ayna` + `aynalariBagla`.
   Formu sıfırlarken YALNIZ `formuSifirla` (ayna değerleriyle birlikte; düz `reset` aynayı null'layıp
   kanoniği siler — e2e yakaladı).
+- **İyimser eşzamanlılık:** detaydaki `kira.surum` PUT'a zorunlu gider; bayatsa 409 `cakisma` → güncel kayıt
+  okunur ve KİRLİ forma birleştirilir (`sunucuDegerleriniBirlestir`: dokunulmayan alan sunucu değerine çekilir,
+  dokunulan korunur, ikisi de değiştiyse alan işaretlenir). İşlem sonrası ve sekmeye dönüşte de aynı yol.
+  Dokunulmayan provizyon tarihi sunucunun orijinal anıyla geri gider (gün yuvarlaması yok).
 - Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
 - Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
 - **F4.3b parite ekleri:**

@@ -230,6 +230,18 @@ describe('KiraFormuDurumu (yeni kira)', () => {
     expect(d.kirliMi()).toBe(true);
   });
 
+  it('F7: yeni müşteri dolu ama ana form geçersiz (araç yok) → cari AÇILMAZ (yetim PII yok)', async () => {
+    const { d, cagrilar } = await kur({ vfrom: '2026-10-01', vto: '2026-10-04' });
+    d.form.controls.arac.setValue(null);
+    d.yeniMusteriFormu.patchValue({ ad: 'Yetim', tcKimlik: '10000000146' });
+    const git = vi.fn();
+    d.kaydet(git);
+    expect(cagrilar.filter((c) => c.yontem === 'POST')).toEqual([]);
+    expect(git).toHaveBeenCalled();
+    expect(d.form.controls.arac.touched).toBe(true);
+    expect(d.yeniMusteriFormu.getRawValue().ad).toBe('Yetim'); // girilen bilgi korunur
+  });
+
   it('müşteri seçilmemiş ama yeni müşteri alanları doluysa önce cari açılır, sonra kira', async () => {
     const { d, cagrilar } = await kur(
       { varac: ARAC_ID, vfrom: '2026-10-01', vto: '2026-10-04' },
