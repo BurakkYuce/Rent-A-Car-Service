@@ -1,0 +1,38 @@
+{
+  "vitrin": {
+    "baglanti": "Geri bildirim vitrini",
+    "baslik": "Geri bildirim vitrini",
+    "anaSayfa": "Ana sayfa",
+    "formBaslik": "Deneme formu",
+    "formAciklama": "Sunucu hatalarında formun korunduğunu gösterir. Bu uç yalnız testlerde yanıt verir.",
+    "plaka": "Plaka",
+    "aciklama": "Açıklama",
+    "kaydet": "Kaydet",
+    "kaydedildi": "Kayıt kaydedildi.",
+    "sonuc": "Kayıt no: {{id}}",
+    "yenilendi": "Kayıt yeniden yüklendi ({{sayi}}).",
+    "toastBaslik": "Bildirimler ve onay",
+    "ornekToast": "Örnek bildirim metni.",
+    "onayIste": "Onay iste",
+    "onayBaslik": "Kayıt silinsin mi?",
+    "onayMesaj": "Bu işlem geri alınamaz.",
+    "onaylandi": "Onaylandı.",
+    "vazgecildi": "Vazgeçildi.",
+    "bantBaslik": "Uyarı bandı",
+    "bantOrnek": "Örnek bant metni: bu işlem için yetkiniz yok.",
+    "tablo": {
+      "baslik": "Tablo vitrini",
+      "aciklama": "49 sütun × 5.000 araç: sunucu sayfalama ve sıralama, sabit plaka sütunu, klavye gezinmesi, kullanıcıya kayıtlı sütun düzeni.",
+      "etiket": "Araç listesi",
+      "senaryo": "Senaryo",
+      "senaryolar": {
+        "normal": "Normal",
+        "bos": "Boş",
+        "hata": "Hata",
+        "yavas": "Yavaş"
+      },
+      "secili": "{{adet}} satır seçili",
+      "acilan": "Açılan: {{plaka}}"
+    }
+  }
+}
