@@ -216,6 +216,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/panel/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PanelOzetiYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/secim/musteri': {
     parameters: {
       query?: never;
@@ -754,6 +789,1085 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/kiralar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          durum?: string;
+          fatura?: boolean;
+          tarihTuru?: string;
+          basMin?: string;
+          basMax?: string;
+          ofis?: string;
+          ofisDurum?: string;
+          sahip?: string;
+          grup?: string;
+          kaynak?: string;
+          personelId?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfKiraListeSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KiraOlusturIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraOlusturYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          durum?: string;
+          fatura?: boolean;
+          tarihTuru?: string;
+          basMin?: string;
+          basMax?: string;
+          ofis?: string;
+          ofisDurum?: string;
+          sahip?: string;
+          grup?: string;
+          kaynak?: string;
+          personelId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraListeOzeti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/filtre-secenekleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraFiltreSecenekleri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraDetayYaniti'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KiraGuncelleIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/faturalar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraFaturaDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/cezalar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraCezaHgsYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/dis-hizmetler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraDisHizmetDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/kaynak-rezervasyon': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KaynakRezervasyonYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/karne-ozeti': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KarneOzetiDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/form-varsayilanlari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraFormVarsayilanlari'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/hesapla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          basTar: string;
+          bitTar: string;
+          vehicleId?: string;
+          gunlukUcret?: number | string;
+          fiyatTuru?: string;
+          doviz?: string;
+          cikisOfisi?: string;
+          donusOfisi?: string;
+          dropUcreti?: number | string;
+          ek?: string;
+          rentalId?: string;
+          musteriId?: string;
+          kampanyaKodu?: string;
+          ikinciSurucuId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraHesapSonuc'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/musait-arac': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          vfrom?: string;
+          vto?: string;
+          vgrup?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusaitAracDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/donus-hesapla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          donusKm: number | string;
+          donusYakit: number | string;
+          gercekDonus: string;
+          kmHediye?: number | string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraDonusOnizleme'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/donem-plani': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraDonemDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/paylasim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraPaylasimYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraPaylasimYaniti'];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraPaylasimIptalYaniti'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/musteri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MusteriHizliIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriHizliYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/teslim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TeslimIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/donus': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DonusIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/uzat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UzatIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/provizyon/al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/provizyon/kapat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ProvizyonKapatIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraSozlesmesiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/ek-hizmetler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['EkHizmetEkleIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraEkHizmetYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/ek-hizmetler/{kalemId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          kalemId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraEkHizmetYaniti'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/paylasim/yeni-surum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraPaylasimYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -765,6 +1879,12 @@ export interface components {
       plaka: string;
       grup: null | string;
       durum: string;
+    };
+    AylikGelir: {
+      /** Format: date-time */
+      ayBas: string;
+      /** Format: double */
+      gelir: number | string;
     };
     BelgeTuru: number;
     BenKiraci: {
@@ -800,16 +1920,738 @@ export interface components {
       };
       pilot: boolean;
     };
+    DonusIstegi: {
+      /** Format: int32 */
+      donusKm: number | string;
+      /** Format: int32 */
+      donusYakit: number | string;
+      /** Format: date-time */
+      gercekDonus: string;
+      /** Format: int32 */
+      kmHediye?: null | number | string;
+      bitisSebebi?: null | string;
+      /** Format: uuid */
+      teslimAlanPersonelId?: null | string;
+    };
+    EkHizmetEkleIstegi: {
+      /** Format: uuid */
+      ekHizmetTanimId: string;
+      /** Format: double */
+      miktar: number | string;
+    };
+    EkHizmetKalemiDto: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      ekHizmetTanimId: string;
+      ad: string;
+      /** Format: double */
+      miktar: number | string;
+      /** Format: double */
+      birimNetFiyat: number | string;
+      /** Format: double */
+      kdvOrani: number | string;
+      /** Format: double */
+      netTutar: number | string;
+      /** Format: double */
+      kdvTutar: number | string;
+      /** Format: double */
+      toplam: number | string;
+    };
     GirisIstegi: {
       firma: null | string;
       kullanici: null | string;
       sifre: null | string;
+    };
+    HgsGecisDto: {
+      /** Format: date-time */
+      zaman: string;
+      gecis: string;
+      /** Format: double */
+      tutar: number | string;
     };
     IstemciHataIstegi: {
       mesaj: null | string;
       yigin: null | string;
       url: null | string;
       surum: null | string;
+    };
+    KarneOzetiDto: {
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: double */
+      dolulukYuzde: null | number | string;
+    };
+    KaynakRezervasyonDto: {
+      /** Format: uuid */
+      id: string;
+      reservationNo: string;
+      durum: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      kaynak: null | string;
+      talepTuru: null | string;
+      /** Format: double */
+      otaKiraBedeli: null | number | string;
+      /** Format: double */
+      otaDropBedeli: null | number | string;
+      /** Format: double */
+      otaBebekKoltugu: null | number | string;
+      /** Format: double */
+      otaNavigasyon: null | number | string;
+      /** Format: double */
+      otaLcf: null | number | string;
+      /** Format: double */
+      otaCdw: null | number | string;
+      /** Format: double */
+      otaScdw: null | number | string;
+      /** Format: double */
+      otaEkSurucu: null | number | string;
+    };
+    KaynakRezervasyonYaniti: {
+      rezervasyon: null | components['schemas']['KaynakRezervasyonDto'];
+    };
+    KiraAracDto: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      marka: null | string;
+      tip: null | string;
+      /** Format: int32 */
+      modelYili: null | number | string;
+      vites: null | string;
+      yakit: null | string;
+      grup: null | string;
+      segment: null | string;
+      /** Format: int32 */
+      km: number | string;
+      sube: null | string;
+      konum: null | string;
+    };
+    KiraCezaDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      cezaTuru: string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: double */
+      kalan: number | string;
+      durum: string;
+      /** Format: date-time */
+      tebligTarihi: string;
+    };
+    KiraCezaHgsYaniti: {
+      cezalar: components['schemas']['KiraCezaDto'][];
+      hgsGecisleri: components['schemas']['HgsGecisDto'][];
+    };
+    KiraDetayYaniti: {
+      kira: components['schemas']['KiraSozlesmesiDto'];
+      musteri: components['schemas']['KiraTarafDto'];
+      ikinciSurucu: null | components['schemas']['KiraTarafDto'];
+      arac: null | components['schemas']['KiraAracDto'];
+      islemSubeAdi: null | string;
+      teslimAlanPersonelAd: null | string;
+      teslimEdenPersonelAd: null | string;
+      ekHizmetler: components['schemas']['EkHizmetKalemiDto'][];
+      doviz: null | components['schemas']['KiraDovizBilgisi'];
+      paylasim: null | components['schemas']['KiraPaylasimBari'];
+      yetkiler: components['schemas']['KiraYetkileri'];
+    };
+    KiraDisHizmetDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      alinanHizmet: string;
+      hizmetAlinanFirma: null | string;
+      /** Format: double */
+      hizmetBedeli: number | string;
+      currency: string;
+      /** Format: double */
+      tedarikciKomisyonOran: number | string;
+      durum: string;
+      /** Format: date-time */
+      tarih: string;
+    };
+    KiraDonemDto: {
+      /** Format: int32 */
+      donemSira: number | string;
+      /** Format: date-time */
+      donemBas: string;
+      /** Format: date-time */
+      donemBit: string;
+      durum: string;
+      /** Format: double */
+      tahakkuk: number | string;
+      /** Format: uuid */
+      invoiceId: null | string;
+      /** Format: double */
+      kesilenTutar: null | number | string;
+    };
+    KiraDonusOnizleme: {
+      ok: boolean;
+      hata: null | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      kullanilanKm: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      fazlaKm: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      fazlaKmBedeli: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      eksikYakit: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      yakitBedeli: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      uzatmaGun: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      uzatmaBedeli: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      ekHizmetToplam: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      yeniGenelToplam: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      kalan: number | string;
+    };
+    KiraDovizBilgisi: {
+      kod: string;
+      /** Format: double */
+      guncelKur: null | number | string;
+      /** Format: double */
+      genelToplamTl: null | number | string;
+    };
+    KiraEkHizmetSecimi: {
+      /** Format: uuid */
+      tanimId: string;
+      /** Format: double */
+      miktar: null | number | string;
+    };
+    KiraEkHizmetYaniti: {
+      kalemler: components['schemas']['EkHizmetKalemiDto'][];
+      kira: components['schemas']['KiraSozlesmesiDto'];
+    };
+    KiraFaturaDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: double */
+      netTutar: number | string;
+      /** Format: double */
+      kdvTutar: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      currency: string;
+      durum: string;
+      tur: string;
+    };
+    KiraFiltreSecenekleri: {
+      sahipler: string[];
+      gruplar: string[];
+    };
+    KiraFormVarsayilanlari: {
+      /** Format: int32 */
+      cikisYakit: number | string;
+      fiyatTuru: null | string;
+      fiyatTurleri: string[];
+      kiralamaTurleri: string[];
+      faturalamaTipleri: string[];
+      dovizler: string[];
+      odemeSekilleri: string[];
+      /** Format: date-time */
+      basTarEnGec: string;
+    };
+    KiraGuncelleIstegi: {
+      cikisOfisi: null | string;
+      donusOfisi: null | string;
+      /** Format: uuid */
+      ikinciSurucuId: null | string;
+      /** Format: uuid */
+      teslimEdenPersonelId: null | string;
+      odemeSekli: null | string;
+      ikinciSurucuSerbestAd: null | string;
+      ikinciSurucuSerbestSoyad: null | string;
+      ikinciSurucuSerbestTel: null | string;
+      ikinciSurucuSerbestEhliyetSinifi: null | string;
+      aciklama: null | string;
+      kaynak: null | string;
+      kiralamaTuru: null | string;
+      donemselFaturalama: boolean;
+      faturalamaTipi: null | string;
+      /** Format: int32 */
+      kmLimit: number | string;
+      /** Format: double */
+      fazlaKmUcret: number | string;
+      /** Format: double */
+      yakitBirimUcret: number | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      /** Format: double */
+      depozito: null | number | string;
+      /** Format: double */
+      komisyonOran: null | number | string;
+      /** Format: double */
+      komisyonTutar: null | number | string;
+      /** Format: double */
+      dropUcreti: null | number | string;
+      /** Format: double */
+      sonraOdeOran: null | number | string;
+      uyariAciklama: null | string;
+      ozelFaturaAciklama: null | string;
+      faturaListesindeGizle: null | boolean;
+      ucusNo: null | string;
+      provizyonNo: null | string;
+      /** Format: date-time */
+      provizyonTarih: null | string;
+      onayKodu: null | string;
+      firmaKodu: null | string;
+      projeAdi: null | string;
+      ozelKod: null | string;
+      /** Format: double */
+      ozelKdvOran: null | number | string;
+      /** Format: double */
+      damgaVergisi: null | number | string;
+      talepTuru: null | string;
+      geldigiBirim: null | string;
+      kefilBilgisi: null | string;
+      assistFirma: null | string;
+      ozelSoforBilgisi: null | string;
+      ekKosullar: null | string;
+      /** Format: uuid */
+      belgeSablonId: null | string;
+      /** Format: int32 */
+      manuelFindexPuan: null | number | string;
+      /** Format: double */
+      opsiyonNet: null | number | string;
+      /** Format: int32 */
+      opsiyonGun: null | number | string;
+      kabisCikis: null | boolean;
+      kabisDonus: null | boolean;
+      otomatikUzat: null | boolean;
+      aksYedekAnahtarCikis: null | boolean;
+      aksYedekAnahtarDonus: null | boolean;
+      aksStepneCikis: null | boolean;
+      aksStepneDonus: null | boolean;
+      aksZincirCikis: null | boolean;
+      aksZincirDonus: null | boolean;
+      aksIlkYardimCikis: null | boolean;
+      aksIlkYardimDonus: null | boolean;
+      aksLastikCikis: null | string;
+      aksLastikDonus: null | string;
+    };
+    KiraHesapEkKalem: {
+      /** Format: uuid */
+      tanimId: string;
+      ad: string;
+      /** Format: double */
+      miktar: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      toplam: number | string;
+    };
+    KiraHesapSonuc: {
+      ok: boolean;
+      hata: null | string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: double */
+      gunlukUcret: number | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: int32 */
+      hediyeGun: null | number | string;
+      /** Format: double */
+      iskontoTutar: null | number | string;
+      /** Format: double */
+      haftaSonuFark: null | number | string;
+      /** Format: int32 */
+      faturalananGun: null | number | string;
+      ekKalemler: components['schemas']['KiraHesapEkKalem'][];
+      /** Format: double */
+      ekHizmetToplam: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: null | number | string;
+      /** Format: double */
+      genelToplamTl: null | number | string;
+      /** Format: double */
+      tahsilat: null | number | string;
+      /** Format: double */
+      kalan: number | string;
+      notlar?: null | string[];
+    };
+    KiraListeOzeti: {
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      kirada: number | string;
+      /** Format: int32 */
+      faturasiz: number | string;
+    };
+    KiraListeSatiri: {
+      /** Format: uuid */
+      id: string;
+      sozlesmeNo: string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      plaka: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: date-time */
+      vadeTar: null | string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: int32 */
+      hediyeGun: null | number | string;
+      /** Format: int32 */
+      faturalananGun: null | number | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: double */
+      bakiye: number | string;
+      doviz: null | string;
+      kaynak: null | string;
+      cikisOfisi: null | string;
+      donusOfisi: null | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      /** Format: double */
+      depozito: null | number | string;
+      /** Format: double */
+      komisyonOran: null | number | string;
+      /** Format: double */
+      komisyonTutar: null | number | string;
+      onayKodu: null | string;
+      projeAdi: null | string;
+      assistFirma: null | string;
+      ozelSoforBilgisi: null | string;
+      durum: string;
+      faturali: boolean;
+      tahsilat: null | components['schemas']['TahsilatBilgisi'];
+    };
+    KiraOlusturIstegi: {
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: double */
+      gunlukUcret?: null | number | string;
+      /** Format: uuid */
+      ikinciSurucuId?: null | string;
+      cikisOfisi?: null | string;
+      donusOfisi?: null | string;
+      aciklama?: null | string;
+      /** Format: double */
+      provizyon?: null | number | string;
+      /** Format: double */
+      depozito?: null | number | string;
+      /** Format: double */
+      komisyonOran?: null | number | string;
+      /** Format: double */
+      komisyonTutar?: null | number | string;
+      /** Format: double */
+      dropUcreti?: null | number | string;
+      /** Format: double */
+      sonraOdeOran?: null | number | string;
+      kiralamaTuru?: null | string;
+      donemselFaturalama?: boolean;
+      faturalamaTipi?: null | string;
+      fiyatTuru?: null | string;
+      doviz?: null | string;
+      kaynak?: null | string;
+      kampanyaKodu?: null | string;
+      uyariAciklama?: null | string;
+      ozelFaturaAciklama?: null | string;
+      faturaListesindeGizle?: null | boolean;
+      ucusNo?: null | string;
+      provizyonNo?: null | string;
+      /** Format: date-time */
+      provizyonTarih?: null | string;
+      onayKodu?: null | string;
+      firmaKodu?: null | string;
+      projeAdi?: null | string;
+      ozelKod?: null | string;
+      /** Format: double */
+      ozelKdvOran?: null | number | string;
+      /** Format: double */
+      damgaVergisi?: null | number | string;
+      talepTuru?: null | string;
+      geldigiBirim?: null | string;
+      kefilBilgisi?: null | string;
+      assistFirma?: null | string;
+      ozelSoforBilgisi?: null | string;
+      ekKosullar?: null | string;
+      /** Format: uuid */
+      belgeSablonId?: null | string;
+      /** Format: int32 */
+      manuelFindexPuan?: null | number | string;
+      /** Format: double */
+      opsiyonNet?: null | number | string;
+      /** Format: int32 */
+      opsiyonGun?: null | number | string;
+      riskOnay?: boolean;
+      kabisCikis?: null | boolean;
+      kabisDonus?: null | boolean;
+      otomatikUzat?: null | boolean;
+      aksYedekAnahtarCikis?: null | boolean;
+      aksStepneCikis?: null | boolean;
+      aksZincirCikis?: null | boolean;
+      aksIlkYardimCikis?: null | boolean;
+      aksLastikCikis?: null | string;
+      odemeSekli?: null | string;
+      ikinciSurucuSerbestAd?: null | string;
+      ikinciSurucuSerbestSoyad?: null | string;
+      ikinciSurucuSerbestTel?: null | string;
+      ikinciSurucuSerbestEhliyetSinifi?: null | string;
+      ekHizmetler?: null | components['schemas']['KiraEkHizmetSecimi'][];
+    };
+    KiraOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      sozlesmeNo: null | string;
+      uyari: null | string;
+    };
+    KiraPaylasimBari: {
+      link: null | components['schemas']['KiraPaylasimLinki'];
+      musteriTel: null | string;
+      musteriEmail: null | string;
+      konu: string;
+    };
+    KiraPaylasimIptalYaniti: {
+      iptalEdildi: boolean;
+    };
+    KiraPaylasimLinki: {
+      yol: string;
+      /** Format: int32 */
+      erisimSayisi: number | string;
+      /** Format: date-time */
+      sonErisimUtc: null | string;
+      /** Format: date-time */
+      olusturmaUtc: string;
+      /** Format: date-time */
+      anlikGoruntuUtc: string;
+      bayat: boolean;
+    };
+    KiraPaylasimYaniti: {
+      link: null | components['schemas']['KiraPaylasimLinki'];
+    };
+    KiraSozlesmesiDto: {
+      /** Format: uuid */
+      id?: string;
+      sozlesmeNo?: string;
+      durum?: string;
+      /** Format: uuid */
+      reservationId?: null | string;
+      /** Format: uuid */
+      musteriId?: string;
+      /** Format: uuid */
+      vehicleId?: string;
+      /** Format: date-time */
+      basTar?: string;
+      /** Format: date-time */
+      bitTar?: string;
+      cikisOfisi?: null | string;
+      /** Format: uuid */
+      cikisSubeId?: null | string;
+      donusOfisi?: null | string;
+      /** Format: int32 */
+      kmLimit?: number | string;
+      /** Format: double */
+      fazlaKmUcret?: number | string;
+      /** Format: double */
+      yakitBirimUcret?: number | string;
+      /** Format: int32 */
+      cikisKm?: null | number | string;
+      /** Format: int32 */
+      cikisYakit?: null | number | string;
+      /** Format: int32 */
+      donusKm?: null | number | string;
+      /** Format: int32 */
+      donusYakit?: null | number | string;
+      /** Format: date-time */
+      gercekDonusTar?: null | string;
+      /** Format: int32 */
+      fazlaKm?: number | string;
+      /** Format: double */
+      fazlaKmBedeli?: number | string;
+      /** Format: int32 */
+      eksikYakit?: number | string;
+      /** Format: double */
+      yakitBedeli?: number | string;
+      /** Format: int32 */
+      uzatmaGun?: number | string;
+      /** Format: double */
+      uzatmaBedeli?: number | string;
+      /** Format: int32 */
+      kmHediye?: null | number | string;
+      bitisSebebi?: null | string;
+      /** Format: uuid */
+      teslimAlanPersonelId?: null | string;
+      /** Format: uuid */
+      teslimEdenPersonelId?: null | string;
+      odemeSekli?: null | string;
+      /** Format: uuid */
+      ikinciSurucuId?: null | string;
+      ikinciSurucuSerbestAd?: null | string;
+      ikinciSurucuSerbestSoyad?: null | string;
+      ikinciSurucuSerbestTel?: null | string;
+      ikinciSurucuSerbestEhliyetSinifi?: null | string;
+      /** Format: int32 */
+      hediyeGun?: null | number | string;
+      /** Format: int32 */
+      faturalananGun?: null | number | string;
+      /** Format: date-time */
+      vadeTar?: null | string;
+      /** Format: double */
+      iskontoTutar?: null | number | string;
+      /** Format: double */
+      haftaSonuFark?: null | number | string;
+      /** Format: int32 */
+      gun?: number | string;
+      /** Format: double */
+      gunlukUcret?: number | string;
+      /** Format: double */
+      tutar?: number | string;
+      /** Format: double */
+      genelToplam?: number | string;
+      /** Format: double */
+      tahsilat?: number | string;
+      /** Format: double */
+      bakiye?: number | string;
+      /** Format: double */
+      provizyon?: null | number | string;
+      /** Format: double */
+      depozito?: null | number | string;
+      /** Format: double */
+      komisyonOran?: null | number | string;
+      /** Format: double */
+      komisyonTutar?: null | number | string;
+      /** Format: double */
+      dropUcreti?: null | number | string;
+      /** Format: double */
+      sonraOdeOran?: null | number | string;
+      aciklama?: null | string;
+      kaynak?: null | string;
+      kampanyaKodu?: null | string;
+      uyariAciklama?: null | string;
+      ozelFaturaAciklama?: null | string;
+      faturaListesindeGizle?: null | boolean;
+      ucusNo?: null | string;
+      provizyonNo?: null | string;
+      /** Format: date-time */
+      provizyonTarih?: null | string;
+      provizyonDurum?: string;
+      /** Format: date-time */
+      provizyonKapamaTarih?: null | string;
+      /** Format: double */
+      provizyonKapamaTutar?: null | number | string;
+      onayKodu?: null | string;
+      firmaKodu?: null | string;
+      projeAdi?: null | string;
+      ozelKod?: null | string;
+      talepTuru?: null | string;
+      geldigiBirim?: null | string;
+      kefilBilgisi?: null | string;
+      assistFirma?: null | string;
+      ozelSoforBilgisi?: null | string;
+      ekKosullar?: null | string;
+      /** Format: uuid */
+      belgeSablonId?: null | string;
+      /** Format: double */
+      opsiyonNet?: null | number | string;
+      /** Format: int32 */
+      opsiyonGun?: null | number | string;
+      riskOnay?: boolean;
+      /** Format: int32 */
+      manuelFindexPuan?: null | number | string;
+      kabisCikis?: null | boolean;
+      kabisDonus?: null | boolean;
+      otomatikUzat?: null | boolean;
+      aksYedekAnahtarCikis?: null | boolean;
+      aksYedekAnahtarDonus?: null | boolean;
+      aksStepneCikis?: null | boolean;
+      aksStepneDonus?: null | boolean;
+      aksZincirCikis?: null | boolean;
+      aksZincirDonus?: null | boolean;
+      aksIlkYardimCikis?: null | boolean;
+      aksIlkYardimDonus?: null | boolean;
+      aksLastikCikis?: null | string;
+      aksLastikDonus?: null | string;
+      kiralamaTuru?: null | string;
+      faturalamaTipi?: null | string;
+      fiyatTuru?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kurSnapshot?: number | string;
+      donemselFaturalama?: boolean;
+      /** Format: double */
+      kdvOranSnapshot?: null | number | string;
+      /** Format: double */
+      ozelKdvOran?: null | number | string;
+      /** Format: double */
+      damgaVergisi?: null | number | string;
+      /** Format: date-time */
+      createdAtUtc?: string;
+      /** Format: date-time */
+      updatedAtUtc?: null | string;
+    };
+    KiraTarafDto: {
+      /** Format: uuid */
+      id: string;
+      ad: string;
+    };
+    KiraYetkileri: {
+      operasyon: boolean;
+      silme: boolean;
+      finans: boolean;
     };
     KurSecimOgesi: {
       id: string;
@@ -847,17 +2689,171 @@ export interface components {
         [key: string]: number | string;
       };
     };
+    MusaitAracDto: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      marka: null | string;
+      tip: null | string;
+      /** Format: int32 */
+      modelYili: null | number | string;
+      vites: null | string;
+      yakit: null | string;
+      grup: null | string;
+      segment: null | string;
+      /** Format: int32 */
+      km: number | string;
+      sube: null | string;
+      konum: null | string;
+    };
+    MusteriHizliIstegi: {
+      ad?: null | string;
+      soyad?: null | string;
+      unvan?: null | string;
+      tcKimlik?: null | string;
+      cepTel?: null | string;
+      email?: null | string;
+      il?: null | string;
+      ilce?: null | string;
+      /** Format: date-time */
+      dogumTarihi?: null | string;
+      ehliyetNo?: null | string;
+      ehliyetSinifi?: null | string;
+      /** Format: date-time */
+      ehliyetTarihi?: null | string;
+      ehliyetYeri?: null | string;
+    };
+    MusteriHizliYaniti: {
+      /** Format: uuid */
+      id: string;
+      etiket: string;
+    };
     MusteriSecimOgesi: {
       /** Format: uuid */
       id: string;
       etiket: string;
       tip: string;
     };
+    PanelCikisKovalari: {
+      gecikmis: components['schemas']['PanelCikisSatiri'][];
+      bugun: components['schemas']['PanelCikisSatiri'][];
+      yarin: components['schemas']['PanelCikisSatiri'][];
+      varsayilanSekme: string;
+    };
+    PanelCikisSatiri: {
+      /** Format: uuid */
+      reservationId: string;
+      reservationNo: string;
+      /** Format: date-time */
+      tarih: string;
+      musteriAd: string;
+      plaka: string;
+      ofis: null | string;
+    };
+    PanelDonusKovalari: {
+      gecikmis: components['schemas']['PanelDonusSatiri'][];
+      bugun: components['schemas']['PanelDonusSatiri'][];
+      yarin: components['schemas']['PanelDonusSatiri'][];
+      varsayilanSekme: string;
+    };
+    PanelDonusSatiri: {
+      /** Format: uuid */
+      rentalId: string;
+      sozlesmeNo: string;
+      /** Format: date-time */
+      tarih: string;
+      musteriAd: string;
+      plaka: string;
+      ofis: null | string;
+      /** Format: double */
+      bakiye: number | string;
+      doviz: null | string;
+      tahsilat: null | components['schemas']['TahsilatBilgisi'];
+    };
+    PanelFinans: {
+      /** Format: double */
+      kasaBakiye: number | string;
+      /** Format: double */
+      bankaBakiye: number | string;
+      /** Format: double */
+      acikBakiye: number | string;
+      /** Format: double */
+      bugunTahsilatTutar: number | string;
+      /** Format: int32 */
+      bugunTahsilatAdet: number | string;
+      /** Format: double */
+      filoDolulukYuzde: null | number | string;
+      /** Format: double */
+      revPacd: null | number | string;
+      /** Format: double */
+      adr: null | number | string;
+      gelirTrendi: components['schemas']['AylikGelir'][];
+    };
+    PanelKpi: {
+      /** Format: int32 */
+      toplamArac: number | string;
+      /** Format: int32 */
+      kirada: number | string;
+      /** Format: int32 */
+      musait: number | string;
+      /** Format: int32 */
+      serviste: number | string;
+      /** Format: int32 */
+      acikRezervasyon: number | string;
+      /** Format: int32 */
+      kmGecenBakim: number | string;
+      /** Format: int32 */
+      gorulmeyenRezervasyon: number | string;
+      siteTalebi: null | components['schemas']['SiteTalebiOzeti'];
+    };
+    PanelOzetiYaniti: {
+      /** Format: date */
+      bugun: string;
+      kpi: components['schemas']['PanelKpi'];
+      vade: components['schemas']['PanelVade'];
+      donusler: components['schemas']['PanelDonusKovalari'];
+      cikislar: components['schemas']['PanelCikisKovalari'];
+      finans: null | components['schemas']['PanelFinans'];
+    };
+    PanelVade: {
+      trafik: components['schemas']['VadeKademesi'];
+      kasko: components['schemas']['VadeKademesi'];
+      muayene: components['schemas']['VadeKademesi'];
+      /** Format: int32 */
+      gecmisUyari: number | string;
+      /** Format: int32 */
+      yaklasanUyari: number | string;
+      /** Format: int32 */
+      acikSikayet: number | string;
+    };
+    ProvizyonKapatIstegi: {
+      /** Format: double */
+      kapamaTutar?: null | number | string;
+      /** @default false */
+      iade: boolean;
+    };
+    SayfaOfKiraListeSatiri: {
+      kayitlar: components['schemas']['KiraListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SecimOgesi: {
       /** Format: uuid */
       id: string;
       etiket: string;
       kod: null | string;
+    };
+    SiteTalebiOzeti: {
+      /** Format: int32 */
+      yeni: number | string;
+      /** Format: int32 */
+      enEskiGun: null | number | string;
     };
     TabloDuzeniVerisi: {
       sutunlar: components['schemas']['TabloSutunDuzeni'][];
@@ -878,6 +2874,35 @@ export interface components {
       gorunur: boolean;
       /** Format: int32 */
       genislik: null | number | string;
+    };
+    TahsilatBilgisi: {
+      /** Format: uuid */
+      anahtar: string;
+      /** Format: uuid */
+      cariId: string;
+      /** Format: uuid */
+      rentalId: string;
+      doviz: string;
+      /** Format: double */
+      varsayilanTutar: number | string;
+    };
+    TeslimIstegi: {
+      /** Format: int32 */
+      cikisKm: number | string;
+      /** Format: int32 */
+      cikisYakit: number | string;
+    };
+    UzatIstegi: {
+      /** Format: date-time */
+      yeniBitTar: string;
+    };
+    VadeKademesi: {
+      /** Format: int32 */
+      yediGun: number | string;
+      /** Format: int32 */
+      otuzGun: number | string;
+      /** Format: int32 */
+      gecmis: number | string;
     };
   };
   responses: never;
