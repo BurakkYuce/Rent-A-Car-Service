@@ -160,6 +160,7 @@ function detay(anahtar: string, bakiye: number, tahsilat: number, surum = 'v1'):
     doviz: null,
     paylasim: null,
     yetkiler: { operasyon: true, silme: true, finans: true },
+    toplamlar: { ekHizmetToplam: 0, cezaToplam: 0 },
     tahsilat: {
       anahtar,
       cariId: MUSTERI_ID,
@@ -261,6 +262,34 @@ async function sahteApi(page: Page, { finans, detay: detayFn, kiraYazma }: Sahte
       detayOkuma++;
       return route.fulfill({ json: detayFn?.() ?? detay(K1, 2600, 1000) });
     }
+    // F4.3b sekme verileri (bu dosyanın testleri onlara dokunmaz; 404 konsol hatası olmasın).
+    if (yol === `/${KIRA_ID}/musteri-ozet`) {
+      return route.fulfill({
+        json: {
+          id: MUSTERI_ID,
+          ad: 'Ayşe Yılmaz',
+          tip: 'Bireysel',
+          cepTel: null,
+          email: null,
+          ehliyetNoMaskeli: null,
+          pasaportNoMaskeli: null,
+          ehliyetSinifi: null,
+          ehliyetTarihi: null,
+          ehliyetYeri: null,
+          ehliyetUlke: null,
+          pasaportYeri: null,
+          adres: null,
+          il: null,
+          ilce: null,
+          musteriTipi: null,
+          riskLimiti: 0,
+          karaListe: false,
+          uyari: false,
+          uyariNedeni: null,
+        },
+      });
+    }
+    if (yol === '/ek-hizmet-katalogu') return route.fulfill({ json: { ogeler: [], toplam: 0 } });
     if (yol === `/${KIRA_ID}/faturalar`) return route.fulfill({ json: [] });
     if (yol === `/${KIRA_ID}/cezalar`)
       return route.fulfill({ json: { cezalar: [], hgsGecisleri: [] } });

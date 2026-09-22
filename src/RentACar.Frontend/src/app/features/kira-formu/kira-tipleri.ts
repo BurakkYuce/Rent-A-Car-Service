@@ -33,6 +33,15 @@ export type DonusIstegi = Sema<'DonusIstegi'>;
 export type UzatIstegi = Sema<'UzatIstegi'>;
 export type ProvizyonKapatIstegi = Sema<'ProvizyonKapatIstegi'>;
 export type EkHizmetEkleIstegi = Sema<'EkHizmetEkleIstegi'>;
+// F4.3b parite ekleri
+export type KiraMusteriOzeti = Sema<'KiraMusteriOzeti'>;
+export type KiraToplamlari = Sema<'KiraToplamlari'>;
+export type KiraEkHizmetKatalogu = Sema<'KiraEkHizmetKatalogu'>;
+export type EkHizmetKatalogOgesi = Sema<'EkHizmetKatalogOgesi'>;
+/** `GET /secim/musteri/{id}` — arama ucunun öğesiyle aynı (kimlik + ad + tip; PII yok). */
+export type SecimMusterisi = Sema<'MusteriSecimOgesi'>;
+/** `GET /secim/arac/{id}` — arama ucunun öğesiyle aynı (plaka, grup, durum). */
+export type SecimAraci = Sema<'AracSecimOgesi'>;
 
 /** Sunucu sayıları `number | string` (NumberHandling); gösterim için sayıya çevrilir, HESAP YAPILMAZ. */
 export type SunucuSayisi = number | string | null | undefined;

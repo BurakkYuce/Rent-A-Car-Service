@@ -894,6 +894,67 @@
       "bant": "{{sayi}} alan başka bir oturumda da değişti; işaretli alanları kontrol edip yeniden kaydedin."
     }
   },
+  "kiraFormuParite": {
+    "paylas": {
+      "baslik": "Paylaş",
+      "numara": "Numara (GSM)",
+      "eposta": "E-posta",
+      "whatsapp": "WhatsApp'ta aç",
+      "gmail": "Gmail'de aç",
+      "whatsappIpucu": "Girilen numaraya hazır özet mesajla WhatsApp açar; PDF'i konuşmada eklersiniz.",
+      "gmailIpucu": "Gmail taslağını hazır konu ve metinle açar; PDF'i taslağa eklersiniz.",
+      "gsmGecersiz": "Geçerli bir GSM girin (örn. 05xx xxx xx xx).",
+      "epostaGecersiz": "Geçerli bir e-posta adresi girin.",
+      "sozlesmeniz": "Sözleşmeniz: {{adres}}",
+      "not": "Numara ve adres düzenlenebilir; sözleşme linki varsa mesaja otomatik eklenir."
+    },
+    "musteri": {
+      "iletisimBaslik": "İletişim / kimlik (müşteriden)",
+      "adresBaslik": "Adres / sürücü belgesi (cari karttan — salt okunur)",
+      "cepTel": "Cep tel",
+      "eposta": "E-posta",
+      "tcKimlik": "TC kimlik",
+      "tcSifreli": "***şifreli — cari kartında",
+      "ehliyetSinifi": "Ehliyet sınıfı",
+      "ehliyetYeri": "Ehliyet yeri",
+      "adres": "Adres",
+      "il": "İl",
+      "ilce": "İlçe",
+      "musteriTipi": "Müşteri tipi",
+      "ehliyetNo": "Ehliyet no (maskeli)",
+      "ehliyetTarihi": "Ehliyet tarihi",
+      "ehliyetUlke": "Ehliyet ülke",
+      "pasaportNo": "Pasaport no (maskeli)",
+      "pasaportYeri": "Pasaport yeri",
+      "riskLimiti": "Risk limiti (cariden)",
+      "riskLimitiIpucu": "Limit tanımlıysa (>0) ve cari borç bakiyesi limiti aşıyorsa kira açılışı Yönetici onayı ister.",
+      "maskeNotu": "Ehliyet ve pasaport numaraları maskelidir (son 4 hane); TC kimlik ve tam değerler cari kartında, şifreli saklanır (KVKK).",
+      "kayittanSonra": "Cari bilgileri kira kaydından sonra burada görünür.",
+      "karaListe": "Kara liste",
+      "dikkat": "DİKKAT:",
+      "karaListeMesaji": "KARA LİSTE.",
+      "uyariMesaji": "Uyarı: {{neden}}",
+      "alinamadi": "Cari bilgileri alınamadı."
+    },
+    "rozet": {
+      "etiket": "Tahsilat, kalan ve ceza",
+      "tahsilat": "Tahsilat: {{tutar}}",
+      "kalan": "Kalan: {{tutar}}",
+      "ceza": "Ceza: {{tutar}}"
+    },
+    "ekHizmet": {
+      "sec": "Seç",
+      "birimNet": "Birim (net)",
+      "kdv": "KDV",
+      "satirToplami": "Satır toplamı",
+      "maksGun": "maks {{gun}} gün",
+      "tanimYok": "Tanımlı ek hizmet yok. Önce Ek Hizmet Tanımları'ndan satırları oluşturun.",
+      "kesildi": "İlk {{sayi}} tanım gösteriliyor (toplam {{toplam}}).",
+      "katalogAlinamadi": "Ek hizmet tanımları alınamadı.",
+      "yenidenDene": "Yeniden dene",
+      "diger": "Listede olmayan ek hizmet ekle (ada göre ara)"
+    }
+  },
   "panel": {
     "baslik": "Panel",
     "eylemler": "Hızlı işlemler",

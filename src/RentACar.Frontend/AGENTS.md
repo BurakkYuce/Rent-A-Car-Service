@@ -15,7 +15,12 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
   `lowercase`/`uppercase`/`titlecase` pipe'ları yasak ("I/ı", "İ/i" bozulur, arama kaçar).
   `@core/metin/tr-normalize` (`trKucukHarf`, `trBuyukHarf`, `trNormalize`) kullanın.
 - **Yalnız göreli URL:** `src/` içinde `http(s)://` ile başlayan metin yasak. XSRF header'ı yalnız
-  göreli URL'lere eklenir; CSP `connect-src 'self'`.
+  göreli URL'lere eklenir; CSP `connect-src 'self'`. **Tek istisna — harici paylaşım (F4.3b):**
+  `src/app/shared/dis-baglantilar.ts` içinde YALNIZ `https://wa.me/` ve Gmail taslak kökü
+  (`https://mail.google.com/mail/?view=cm&fs=1`) yazılabilir (lint seçicisi bu iki kökü birebir tanır; başka
+  mutlak adres o dosyada da hata). Gerekçe: bunlar API çağrısı değil, kullanıcının yeni sekmede açtığı gezinme
+  bağlantısıdır (`window.open`, `noopener`) — XSRF/`connect-src` kapsamına girmez; dosya `@angular/common/http`
+  ve `@core/api/*` içe aktaramaz (lint). Yeni dış bağlantı gerekiyorsa kök bu dosyaya + lint seçicisine eklenir.
 - **CSP `script-src 'self'`:** inline script/handler yok. Bu yüzden production'da
   `inlineCritical: false` ve `fonts.inline: false`; fontlar self-host.
 - **Metinler Türkçe**, `lang="tr"`. Sınıf adları İngilizce olabilir, alan adları Türkçe.
@@ -143,6 +148,21 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - Sabit yan paneldeki finans paneli (F4.4) `finans-paneli/`: tembel parça (`rc-kira-finans-yuvasi` dinamik
   `import()`; `@defer` ilk pakete ~7 kB defer çalışma zamanı ekliyordu), durum/eylemler `KiraFinansDurumu`'nda.
   Para kuralları `docs/api/idempotency-envanteri.md` "SPA uygulaması" (tahsilat satır kopyası, 409 `mukerrerBasligi`).
+- **F4.3b parite ekleri:**
+  - Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet`. Müşteri PII'sinin TEK sunucu kuralı
+    `MusteriGorunumu` (özet + detay taraf adı + paylaşım barı + hazır mesaj): TC kimlik HİÇ dönmez (Blazor gibi
+    "şifreli — cari kartında"); ehliyet/pasaport numarası yalnız sunucuda maskeli (≥ 8 → son 4, 5–7 → son 2, ≤ 4
+    tamamen yıldız; maske istemcide YAPILMAZ); KVKK `Anonim*` bayrakları grubu boşaltır (`AnonimAd` → özette
+    `ad: null`, detayda "Anonim müşteri", mesajda "Sayın müşterimiz"; tel/e-posta paylaşım ön-doldurmasında da `null`).
+  - Hızlı Giriş "Ceza" rozeti ve kayıtlı kiradaki "Ek hizmet tutarı" detayın `toplamlar` alanından (sunucu toplar;
+    SPA toplamaz).
+  - `?musteriId=` / penceresiz `?varac=` etiketi `GET /secim/musteri/{id}` / `/secim/arac/{id}` ile çözülür (hata →
+    geçici etiket kalır; kayıt yalnız kimlikle).
+  - Ek hizmet matrisi `GET /kiralar/ek-hizmet-katalogu` (birim net + KDV yalnız gösterim; satır tutarı `hesapla`'dan).
+    Katalog kesikse (`toplam > ogeler`) listede olmayan tanım sunucu aramasıyla (`q`) eklenir.
+  - Kaynak / özel kod datalist önerileri yazılanla `q` ile sunucuda aranır (`oneriAramasi`, 250 ms).
+  - Paylaş barı (`rc-kf-paylas-bari`): hazır metin sunucudan (`paylasim.mesaj`), link varsa kendi kökünden eklenir;
+    bağlantılar `@shared/dis-baglantilar`.
 
 ## Tablo motoru (F3.5)
 

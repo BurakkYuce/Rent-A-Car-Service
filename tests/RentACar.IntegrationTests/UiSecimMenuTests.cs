@@ -222,7 +222,8 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     }
 
     /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c> ve <c>kur</c>
-    /// "OperationsWrite veya FinanceWrite"; geri kalan hepsi OperationsWrite (genişleme sessizce yayılmasın).</summary>
+    /// arama uçları "OperationsWrite veya FinanceWrite"; geri kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite
+    /// (genişleme sessizce yayılmasın).</summary>
     [Fact]
     public void Secim_uclari_izin_haritasi()
     {
@@ -230,7 +231,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
             .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(e => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith(V1 + "/secim/", StringComparison.Ordinal))
             .ToDictionary(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
-        Assert.Equal(12, uclar.Count);
+        Assert.Equal(14, uclar.Count); // 12 arama + F4.3b kimlikle etiket (musteri/{id}, arac/{id}) — ikisi OW
         foreach (var (rota, e) in uclar)
         {
             var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();

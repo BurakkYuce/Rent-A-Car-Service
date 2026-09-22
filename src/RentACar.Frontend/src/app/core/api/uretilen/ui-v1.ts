@@ -365,6 +365,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/secim/musteri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriSecimOgesi'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/secim/arac/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSecimOgesi'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/secim/lokasyon': {
     parameters: {
       query?: never;
@@ -1547,6 +1621,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/kiralar/{id}/musteri-ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraMusteriOzeti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/kiralar/form-varsayilanlari': {
     parameters: {
       query?: never;
@@ -1659,6 +1770,41 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['MusaitAracDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/ek-hizmet-katalogu': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KiraEkHizmetKatalogu'];
           };
         };
       };
@@ -2368,6 +2514,19 @@ export interface components {
       /** Format: double */
       toplam: number | string;
     };
+    EkHizmetKatalogOgesi: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      /** Format: double */
+      birimUcret: number | string;
+      /** Format: double */
+      kdvOrani: number | string;
+      aciklama: null | string;
+      /** Format: int32 */
+      maxGun: null | number | string;
+    };
     FaturaKesIstegi: {
       /** Format: uuid */
       kiraId: string;
@@ -2498,6 +2657,7 @@ export interface components {
       doviz: null | components['schemas']['KiraDovizBilgisi'];
       paylasim: null | components['schemas']['KiraPaylasimBari'];
       yetkiler: components['schemas']['KiraYetkileri'];
+      toplamlar: components['schemas']['KiraToplamlari'];
       tahsilat: null | components['schemas']['TahsilatBilgisi'];
     };
     KiraDisHizmetDto: {
@@ -2590,6 +2750,11 @@ export interface components {
       guncelKur: null | number | string;
       /** Format: double */
       genelToplamTl: null | number | string;
+    };
+    KiraEkHizmetKatalogu: {
+      ogeler: components['schemas']['EkHizmetKatalogOgesi'][];
+      /** Format: int32 */
+      toplam: number | string;
     };
     KiraEkHizmetSecimi: {
       /** Format: uuid */
@@ -2814,6 +2979,31 @@ export interface components {
       faturali: boolean;
       tahsilat: null | components['schemas']['TahsilatBilgisi'];
     };
+    KiraMusteriOzeti: {
+      /** Format: uuid */
+      id: string;
+      ad: null | string;
+      tip: string;
+      cepTel: null | string;
+      email: null | string;
+      ehliyetNoMaskeli: null | string;
+      pasaportNoMaskeli: null | string;
+      ehliyetSinifi: null | string;
+      /** Format: date-time */
+      ehliyetTarihi: null | string;
+      ehliyetYeri: null | string;
+      ehliyetUlke: null | string;
+      pasaportYeri: null | string;
+      adres: null | string;
+      il: null | string;
+      ilce: null | string;
+      musteriTipi: null | string;
+      /** Format: double */
+      riskLimiti: number | string;
+      karaListe: boolean;
+      uyari: boolean;
+      uyariNedeni: null | string;
+    };
     KiraOlusturIstegi: {
       /** Format: uuid */
       musteriId: string;
@@ -2905,6 +3095,7 @@ export interface components {
       musteriTel: null | string;
       musteriEmail: null | string;
       konu: string;
+      mesaj: string;
     };
     KiraPaylasimIptalYaniti: {
       iptalEdildi: boolean;
@@ -3089,6 +3280,12 @@ export interface components {
       /** Format: uuid */
       id: string;
       ad: string;
+    };
+    KiraToplamlari: {
+      /** Format: double */
+      ekHizmetToplam: number | string;
+      /** Format: double */
+      cezaToplam: number | string;
     };
     KiraYetkileri: {
       operasyon: boolean;

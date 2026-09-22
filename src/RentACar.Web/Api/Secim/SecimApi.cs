@@ -36,6 +36,12 @@ public static class SecimApi
         var g = kok.MapGroup("").RequirePermission(Permission.OperationsWrite);
         g.MapGet("/arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
             => TypedResults.Ok(await s.AracAsync(q, limit, ct)));
+        // F4.3b — kimlikle tek öğe (bağlantıdaki ?musteriId= / ?varac= etiketi). Aynı izin + PII kuralı;
+        // araçta şube kapsamı (kapsam dışı 403), yok/başka kiracı 404.
+        g.MapGet("/musteri/{id:guid}", async Task<Results<Ok<MusteriSecimOgesi>, ProblemHttpResult>> (Guid id, SecimService s, CancellationToken ct)
+            => await s.MusteriGetirAsync(id, ct) is { } m ? TypedResults.Ok(m) : Bulunamadi("Müşteri bulunamadı."));
+        g.MapGet("/arac/{id:guid}", async Task<Results<Ok<AracSecimOgesi>, ProblemHttpResult>> (Guid id, SecimService s, CancellationToken ct)
+            => await s.AracGetirAsync(id, ct) is { } a ? TypedResults.Ok(a) : Bulunamadi("Araç bulunamadı."));
         g.MapGet("/lokasyon", async Task<Ok<IReadOnlyList<LokasyonSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
             => TypedResults.Ok(await s.LokasyonAsync(q, limit, ct)));
         g.MapGet("/ek-hizmet", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
@@ -56,4 +62,7 @@ public static class SecimApi
             => TypedResults.Ok(await s.AracGrubuAsync(q, limit, ct)));
         return kok;
     }
+
+    private static ProblemHttpResult Bulunamadi(string detay)
+        => TypedResults.Problem(detail: detay, statusCode: StatusCodes.Status404NotFound, title: "Bulunamadı");
 }

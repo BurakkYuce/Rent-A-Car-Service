@@ -41,6 +41,7 @@ import { Fiyat } from './sekmeler/fiyat';
 import { HizliGiris } from './sekmeler/hizli-giris';
 import { KiraBilgisi } from './sekmeler/kira-bilgisi';
 import { Musteri } from './sekmeler/musteri';
+import { PaylasBari } from './sekmeler/paylas-bari';
 import { Paylasim } from './sekmeler/paylasim';
 
 /**
@@ -73,6 +74,7 @@ import { Paylasim } from './sekmeler/paylasim';
     EkHizmet,
     Ayrintilar,
     Donus,
+    PaylasBari,
     Paylasim,
   ],
   host: { class: 'rc-kira-formu' },

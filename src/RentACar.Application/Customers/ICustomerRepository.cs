@@ -29,6 +29,12 @@ public interface ICustomerRepository
     /// </summary>
     Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string katlanmisTerim, int limit, CancellationToken ct = default);
 
+    /// <summary>
+    /// F4.3b — kimlikle TEK seçim satırı (bağlantıdaki <c>?musteriId=</c> etiketi). <see cref="SecimAraAsync"/> gibi
+    /// PII kolonlarına HİÇ dokunmaz (yalnız Id/Tip/Ünvan/Ad/Soyad). Yok/başka kiracı → <c>null</c> (RLS + filtre).
+    /// </summary>
+    Task<CariSecimSatiri?> SecimGetirAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>Arama (ad/ünvan/TC/vergi) + sayfalama (liste ekranı).</summary>
     Task<Common.PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default);
 
