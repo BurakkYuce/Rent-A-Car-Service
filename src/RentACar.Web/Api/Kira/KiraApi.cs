@@ -1,0 +1,813 @@
+using System.Globalization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using RentACar.Application.Authorization;
+using RentACar.Application.Availability;
+using RentACar.Application.Bookings;
+using RentACar.Application.Branches;
+using RentACar.Application.Common;
+using RentACar.Application.Customers;
+using RentACar.Application.DisHizmetler;
+using RentACar.Application.EkHizmetler;
+using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.Finance;
+using RentACar.Application.Integrations;
+using RentACar.Application.Kur;
+using RentACar.Application.Penalties;
+using RentACar.Application.Personnel;
+using RentACar.Application.RentalAddOns;
+using RentACar.Application.Reporting;
+using RentACar.Application.TenantSettings;
+using RentACar.Application.Vehicles;
+using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Persistence;
+using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller;
+using RentACar.Web.Finance;
+using RentACar.Web.Identity;
+using RentACar.Web.Reports;
+
+namespace RentACar.Web.Api.Kira;
+
+/// <summary>
+/// <c>/api/ui/v1/kiralar/*</c> — kira sözleşmesi JSON uçları (F4.1). <b>İş mantığı YOK:</b> her uç mevcut
+/// servisi çağırır (RentalService, KiraHesapService, RentalAddOnService, SozlesmePaylasimService…); servisler
+/// tek doğruluk kaynağıdır. Blazor uçları (<c>BookingEndpoints</c>) F4.6 kesişine kadar DEĞİŞMEDEN yaşar.
+///
+/// <para><b>İzin haritası</b> (Blazor ile aynı):
+/// <list type="bullet">
+/// <item>Okumalar (liste, detay, fatura/ceza/dış hizmet/kaynak rezervasyon alt kayıtları): OperationsWrite
+/// <b>veya</b> FinanceWrite — Blazor <c>/kiralar</c> sayfası da iki rolü de açıyor (Muhasebe tahsilat için okur).</item>
+/// <item>Yazmalar + canlı hesap + müsait araç + dönem planı + paylaşım: OperationsWrite (Blazor <c>/kiralar</c> grubu).</item>
+/// <item>İptal: ayrıca OperationsDelete (Blazor <c>/kiralar/cancel</c> dar izni).</item>
+/// <item>Karne özeti: ayrıca FinanceWrite (Blazor formunda doluluk kutusu yalnız finans yetkisinde).</item>
+/// </list></para>
+///
+/// <para><b>Şube kapsamı:</b> kimlikli her uç ÖNCE <see cref="RentalService.GetAsync"/>'ten geçer (kapsam dışı →
+/// <see cref="YetkiYokException"/> → 403 <c>yetki_yok</c>; yok/başka kiracı → 404). Alt kayıt okumaları
+/// (InvoiceService/PenaltyService/DisHizmetService "by rental" yöntemleri kapsam guard'sız) bu kapıdan
+/// geçmeden ÇAĞRILMAZ. Servislerin kendi guard'ları ikinci savunma olarak aynen çalışır.</para>
+///
+/// <para><b>Çift gönderim:</b> bu fazdaki kira işlemleri defter yazmaz ve anahtar almaz; hepsi YAPISAL korunur
+/// (aynı araç/tarihe ikinci kira → 409 <c>cakisma</c> [exclusion constraint]; teslim/dönüş/iptal/provizyon
+/// durum geçişi → 400; uzatma "yeni bitiş mevcut bitişten sonra" → 400). İstisna: ek hizmet eklemede servis
+/// anahtar desteklemez — Blazor'la AYNI davranış (iki tık iki kalem); SPA düğmeyi istek boyunca kilitler.</para>
+/// </summary>
+public static class KiraApi
+{
+    private const string Kok = UiApiExtensions.V1 + "/kiralar";
+
+    public static RouteGroupBuilder MapKiraApi(this RouteGroupBuilder v1)
+    {
+        var g = v1.MapGroup("/kiralar")
+            .WithTags("Kira")
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+
+        // ---- okumalar (OW veya FW)
+        g.MapGet("", Liste).AlanlariEsle(ListeKurallari);
+        g.MapGet("/ozet", Ozet);
+        g.MapGet("/filtre-secenekleri", FiltreSecenekleri);
+        g.MapGet("/{id:guid}", Detay);
+        g.MapGet("/{id:guid}/faturalar", Faturalar);
+        g.MapGet("/{id:guid}/cezalar", CezalarVeHgs);
+        g.MapGet("/{id:guid}/dis-hizmetler", DisHizmetler);
+        g.MapGet("/{id:guid}/kaynak-rezervasyon", KaynakRezervasyon);
+        g.MapGet("/{id:guid}/karne-ozeti", KarneOzeti).RequirePermission(Permission.FinanceWrite);
+
+        // ---- OperationsWrite (Blazor /kiralar grubu)
+        var ow = g.MapGroup("").RequirePermission(Permission.OperationsWrite);
+        ow.MapGet("/form-varsayilanlari", FormVarsayilanlari);
+        ow.MapGet("/hesapla", Hesapla).AlanlariEsle(HesaplaKurallari);
+        ow.MapGet("/musait-arac", MusaitArac);
+        ow.MapGet("/{id:guid}/donus-hesapla", DonusHesapla);
+        ow.MapGet("/{id:guid}/donem-plani", DonemPlani);
+        ow.MapGet("/{id:guid}/paylasim", PaylasimDurumu);
+
+        ow.MapPost("", Olustur).AlanlariEsle(OlusturKurallari);
+        ow.MapPost("/musteri", MusteriOlustur).AlanlariEsle(MusteriKurallari);
+        ow.MapPut("/{id:guid}", Guncelle).AlanlariEsle(GuncelleKurallari);
+        ow.MapPost("/{id:guid}/teslim", Teslim).AlanlariEsle(TeslimKurallari);
+        ow.MapPost("/{id:guid}/donus", Donus).AlanlariEsle(DonusKurallari);
+        ow.MapPost("/{id:guid}/uzat", Uzat).AlanlariEsle(UzatKurallari);
+        ow.MapPost("/{id:guid}/iptal", Iptal).RequirePermission(Permission.OperationsDelete);
+        ow.MapPost("/{id:guid}/provizyon/al", ProvizyonAl).AlanlariEsle(ProvizyonKurallari);
+        ow.MapPost("/{id:guid}/provizyon/kapat", ProvizyonKapat).AlanlariEsle(ProvizyonKurallari);
+        ow.MapPost("/{id:guid}/ek-hizmetler", EkHizmetEkle).AlanlariEsle(EkHizmetKurallari);
+        ow.MapDelete("/{id:guid}/ek-hizmetler/{kalemId:guid}", EkHizmetSil);
+        ow.MapPost("/{id:guid}/paylasim", Paylas);
+        ow.MapPost("/{id:guid}/paylasim/yeni-surum", PaylasimYeniSurum);
+        ow.MapDelete("/{id:guid}/paylasim", PaylasimIptal);
+        return g;
+    }
+
+    // ================================================================== ortak
+
+    /// <summary>Üst kayıt kapısı: şube kapsamlı okuma (kapsam dışı → YetkiYokException → 403).</summary>
+    private static Task<RentalContract?> KapsamliAsync(RentalService kiralar, Guid id, CancellationToken ct)
+        => kiralar.GetAsync(id, ct);
+
+    private static ProblemHttpResult Bulunamadi(string detay = "Kira sözleşmesi bulunamadı.")
+        => TypedResults.Problem(detail: detay, statusCode: StatusCodes.Status404NotFound, title: "Bulunamadı");
+
+    /// <summary>İşlem sonrası güncel sözleşme (servisin yazdığı değerler; hesap yok).</summary>
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Guncel(
+        RentalService kiralar, Guid id, CancellationToken ct)
+        => await kiralar.GetAsync(id, ct) is { } c ? TypedResults.Ok(KiraSozlesmesiDto.From(c)) : Bulunamadi();
+
+    private static bool Izin(HttpContext http, Permission p) => AuthExtensions.HasPermission(http.User, p);
+
+    /// <summary>Hızlı tahsilat verisi — Blazor pano/liste formuyla BİREBİR: anahtar
+    /// <see cref="TahsilatAnahtar.Uret"/>(kira, bakiye, işlem sayısı), döviz kira dövizi (normalize), tutar bakiye.</summary>
+    internal static TahsilatBilgisi TahsilatVerisi(Guid rentalId, Guid cariId, decimal bakiye, string? doviz, int islemSayisi)
+        => new(TahsilatAnahtar.Uret(rentalId, bakiye, islemSayisi), cariId, rentalId, KurService.NormalizeKod(doviz),
+            Math.Round(bakiye, 2, MidpointRounding.AwayFromZero));
+
+    // ================================================================== liste
+
+    /// <summary>Sıralama beyaz listesi (RentalRow alanları). <c>sirala</c> yoksa servisin sırası korunur
+    /// (oluşturma zamanı, yeniden eskiye — Blazor listesi ile aynı).</summary>
+    private static readonly SiralamaHaritasi<RentalRow> Harita = SiralamaHaritasi<RentalRow>
+        .Olustur(r => r.Id)
+        .Alan("sozlesmeNo", r => r.SozlesmeNo)
+        .Alan("musteri", r => r.MusteriAd)
+        .Alan("plaka", r => r.Plaka)
+        .Alan("basTar", r => r.BasTar)
+        .Alan("bitTar", r => r.BitTar)
+        .Alan("vadeTar", r => r.VadeTar)
+        .Alan("gun", r => r.Gun)
+        .Alan("tutar", r => r.Tutar)
+        .Alan("bakiye", r => r.Bakiye)
+        .Alan("durum", r => r.Durum)
+        .Alan("kaynak", r => r.Kaynak)
+        .Alan("cikisOfisi", r => r.CikisOfisi)
+        .Alan("donusOfisi", r => r.DonusOfisi);
+
+    private static readonly (string, string)[] ListeKurallari = [("Geçersiz sıralama alanı", "sirala")];
+
+    /// <summary>Blazor RentalList süzgeçleri (FAZ-46 dahil). Tarihler takvim günü; aralık İstanbul gününe göre.</summary>
+    public sealed class KiraListeFiltresi
+    {
+        [FromQuery(Name = "q")] public string? Q { get; set; }
+        /// <summary>Durum adı: <c>Kirada</c> | <c>Tamamlandi</c> | <c>Iptal</c> (yanıttaki <c>durum</c> ile aynı metin).</summary>
+        [FromQuery(Name = "durum")] public string? Durum { get; set; }
+        [FromQuery(Name = "fatura")] public bool? Fatura { get; set; }
+        /// <summary>Tarih aralığının uygulandığı alan: <c>Baslangic</c> (varsayılan) | <c>Bitis</c> | <c>Islem</c> | <c>Vade</c>.</summary>
+        [FromQuery(Name = "tarihTuru")] public string? TarihTuru { get; set; }
+        [FromQuery(Name = "basMin")] public DateOnly? BasMin { get; set; }
+        [FromQuery(Name = "basMax")] public DateOnly? BasMax { get; set; }
+        [FromQuery(Name = "ofis")] public string? Ofis { get; set; }
+        /// <summary>Ofis filtresi yönü: <c>Cikis</c> | <c>Donus</c> (boş = ikisi).</summary>
+        [FromQuery(Name = "ofisDurum")] public string? OfisDurum { get; set; }
+        [FromQuery(Name = "sahip")] public string? Sahip { get; set; }
+        [FromQuery(Name = "grup")] public string? Grup { get; set; }
+        [FromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
+        [FromQuery(Name = "personelId")] public Guid? PersonelId { get; set; }
+
+        /// <summary>RentalList.razor'un filtre kurulumu (Kapsam'ı servis AYRICA zorlar — çağıran genişletemez).</summary>
+        public RentalFilter ToFilter() => new()
+        {
+            Query = KiraOlusturIstegi.Nz(Q),
+            Durum = Ad<RentalStatus>(Durum, "durum"),
+            Faturali = Fatura,
+            BaslangicMin = BasMin is { } mn ? GunBasi(mn) : null,
+            BaslangicMax = BasMax is { } mx ? GunBasi(mx.AddDays(1)).AddSeconds(-1) : null,
+            Ofis = KiraOlusturIstegi.Nz(Ofis),
+            TarihTuru = Ad<TarihListesiTuru>(TarihTuru, "tarihTuru"),
+            OfisDurum = Ad<OfisDurumu>(OfisDurum, "ofisDurum"),
+            SahipGrup = KiraOlusturIstegi.Nz(Sahip),
+            AracGrubu = KiraOlusturIstegi.Nz(Grup),
+            RezKaynak = KiraOlusturIstegi.Nz(Kaynak),
+            PersonelId = PersonelId,
+        };
+
+        /// <summary>Enum ADI (büyük/küçük harf duyarsız); sayı ya da tanımsız ad 400 (sessizce "filtre yok"a düşmez).</summary>
+        private static T? Ad<T>(string? deger, string alan) where T : struct, Enum
+        {
+            if (string.IsNullOrWhiteSpace(deger)) return null;
+            var d = deger.Trim();
+            if (!char.IsDigit(d[0]) && d[0] != '-' && Enum.TryParse<T>(d, ignoreCase: true, out var v) && Enum.IsDefined(v))
+                return v;
+            throw new ValidationException(
+                $"Geçersiz {alan} değeri. İzin verilenler: {string.Join(", ", Enum.GetNames<T>())}.", alan);
+        }
+
+        /// <summary>Takvim gününün İstanbul gece yarısı, UTC olarak (Npgsql timestamptz yalnız offset 0 kabul eder).</summary>
+        private static DateTimeOffset GunBasi(DateOnly gun)
+        {
+            var yerel = gun.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+            return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
+        }
+    }
+
+    private static async Task<Ok<Sayfa<KiraListeSatiri>>> Liste(
+        HttpContext http, RentalService kiralar, CashService kasa, [AsParameters] KiraListeFiltresi f,
+        int? sayfa, int? boyut, string? sirala, CancellationToken ct)
+    {
+        var istek = new ListeIstegi(sayfa ?? 1, boyut ?? 50, sirala);
+        var satirlar = await kiralar.SearchAsync(f.ToFilter(), ct);
+        // Beyaz liste KAYIT sayılmadan önce (bilinmeyen alan boşa sorgu olmadan 400).
+        IEnumerable<RentalRow> sirali = istek.Sirala is null ? satirlar : Harita.Uygula(satirlar.AsQueryable(), istek.Sirala);
+        var toplam = satirlar.Count;
+        var sayfaSatirlari = istek.Atla >= toplam ? [] : sirali.Skip((int)istek.Atla).Take(istek.Boyut).ToList();
+
+        // "Tahsil Et": yalnız FinanceWrite ve tahsil edilebilir satır (RentalList.razor ile aynı koşul).
+        var islemSayilari = new Dictionary<Guid, int>();
+        var finans = Izin(http, Permission.FinanceWrite);
+        var tahsilEdilebilir = finans
+            ? sayfaSatirlari.Where(r => r.Bakiye > 0m && r.Durum != RentalStatus.Iptal).Select(r => r.Id).ToList()
+            : [];
+        if (tahsilEdilebilir.Count > 0)
+            islemSayilari = await kasa.GetRentalIslemSayilariAsync(tahsilEdilebilir, ct);
+        var tahsilSet = tahsilEdilebilir.ToHashSet();
+
+        var kayitlar = sayfaSatirlari.Select(r => new KiraListeSatiri(
+            r.Id, r.SozlesmeNo, r.MusteriId, r.MusteriAd, r.Plaka, r.BasTar, r.BitTar, r.VadeTar, r.Gun,
+            r.HediyeGun, r.FaturalananGun, r.Tutar, r.Bakiye, r.Doviz, r.Kaynak, r.CikisOfisi, r.DonusOfisi,
+            r.Provizyon, r.Depozito, r.KomisyonOran, r.KomisyonTutar, r.OnayKodu, r.ProjeAdi, r.AssistFirma,
+            r.OzelSoforBilgisi, r.Durum.ToString(), r.Faturali,
+            tahsilSet.Contains(r.Id)
+                ? TahsilatVerisi(r.Id, r.MusteriId, r.Bakiye, r.Doviz, islemSayilari.GetValueOrDefault(r.Id))
+                : null)).ToList();
+        return TypedResults.Ok(new Sayfa<KiraListeSatiri>(kayitlar, toplam, istek.Sayfa, istek.Boyut));
+    }
+
+    private static async Task<Ok<KiraListeOzeti>> Ozet(
+        RentalService kiralar, [AsParameters] KiraListeFiltresi f, CancellationToken ct)
+    {
+        var satirlar = await kiralar.SearchAsync(f.ToFilter(), ct);
+        return TypedResults.Ok(new KiraListeOzeti(
+            satirlar.Count, satirlar.Count(r => r.Durum == RentalStatus.Kirada), satirlar.Count(r => !r.Faturali)));
+    }
+
+    /// <summary>Sahip/grup öneri listeleri — RentalList.razor gibi araç kartlarından TÜRETİLİR (master yok).</summary>
+    private static async Task<Ok<KiraFiltreSecenekleri>> FiltreSecenekleri(VehicleService araclar, CancellationToken ct)
+    {
+        var liste = await araclar.ListAsync(ct);
+        static List<string> Ayikla(IEnumerable<string?> degerler) => [.. degerler
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Create(new CultureInfo("tr-TR"), false))];
+        return TypedResults.Ok(new KiraFiltreSecenekleri(Ayikla(liste.Select(v => v.AracSahibi)), Ayikla(liste.Select(v => v.Grup))));
+    }
+
+    // ================================================================== detay + alt kayıtlar
+
+    private static async Task<Results<Ok<KiraDetayYaniti>, ProblemHttpResult>> Detay(
+        Guid id, HttpContext http, RentalService kiralar, CustomerService musteriler, VehicleService araclar,
+        BranchService subeler, PersonelService personeller, RentalAddOnService ekler,
+        SozlesmePaylasimService paylasim, KurService kurlar, CancellationToken ct)
+    {
+        var c = await KapsamliAsync(kiralar, id, ct);
+        if (c is null) return Bulunamadi();
+
+        var yetki = new KiraYetkileri(
+            Izin(http, Permission.OperationsWrite), Izin(http, Permission.OperationsDelete), Izin(http, Permission.FinanceWrite));
+
+        // Müşteri: yalnız görünen ad (TC/ehliyet gibi şifreli alanlar YANITA GİRMEZ).
+        var musteri = await musteriler.GetAsync(c.MusteriId, ct);
+        var ikinci = c.IkinciSurucuId is Guid ik ? await musteriler.GetAsync(ik, ct) : null;
+
+        // Araç kartı: KiraForm gibi şube kapsamlı araç listesinden (görünmeyen araçta kart boş, 403 değil).
+        var arac = (await araclar.ListAsync(ct)).FirstOrDefault(v => v.Id == c.VehicleId);
+
+        // Personel adları: PII'sız seçim listesi; yetkisiz rolde nazikçe boş (KiraForm'daki desen).
+        IReadOnlyList<PersonelSecim> personel = [];
+        try { personel = await personeller.ListForSelectAsync(ct); }
+        catch (YetkiYokException) { /* ad çözülmez */ }
+        string? PersonelAd(Guid? pid) => pid is Guid p && personel.FirstOrDefault(x => x.Id == p) is { } ps ? $"{ps.Ad} {ps.Soyad}" : null;
+
+        var islemSube = c.CikisSubeId is Guid sid ? (await subeler.GetAsync(sid, ct))?.Ad : null;
+        var kalemler = (await ekler.ListAsync(c.Id, ct)).Select(EkHizmetDto).ToList();
+
+        KiraDovizBilgisi? doviz = null;
+        var kod = KurService.NormalizeKod(c.Doviz);
+        if (kod != "TRY")
+        {
+            try
+            {
+                var kur = await kurlar.GetRateAsync(kod, ct: ct);
+                doviz = new KiraDovizBilgisi(kod, kur, c.GenelToplam * kur);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                doviz = new KiraDovizBilgisi(kod, null, null); // bilgi: güncel kur yok
+            }
+        }
+
+        KiraPaylasimBari? bar = null;
+        if (yetki.Operasyon)
+        {
+            PaylasimDurum? durum = null;
+            try { durum = await paylasim.DurumAsync(c.Id, ct); }
+            catch (ValidationException) { durum = null; }
+            bar = new KiraPaylasimBari(Link(durum), musteri?.CepTel, musteri?.Email, $"Kira Sözleşmesi {c.SozlesmeNo}");
+        }
+
+        return TypedResults.Ok(new KiraDetayYaniti(
+            KiraSozlesmesiDto.From(c),
+            new KiraTarafDto(c.MusteriId, musteri?.DisplayName ?? "—"),
+            ikinci is null ? null : new KiraTarafDto(ikinci.Id, ikinci.DisplayName),
+            arac is null ? null : new KiraAracDto(arac.Id, arac.Plaka, arac.Marka, arac.Tip, arac.ModelYili,
+                arac.Vites?.ToString(), arac.Yakit?.ToString(), arac.Grup, arac.Segment, arac.Km, arac.Sube, arac.Konum),
+            islemSube,
+            PersonelAd(c.TeslimAlanPersonelId),
+            PersonelAd(c.TeslimEdenPersonelId),
+            kalemler,
+            doviz,
+            bar,
+            yetki));
+    }
+
+    private static EkHizmetKalemiDto EkHizmetDto(RentalAddOn a)
+        => new(a.Id, a.EkHizmetTanimId, a.Ad, a.Miktar, a.BirimNetFiyat, a.KdvOrani, a.NetTutar, a.KdvTutar, a.Toplam);
+
+    private static KiraPaylasimLinki? Link(PaylasimDurum? d)
+        => d is null ? null : new KiraPaylasimLinki("/sozlesme/" + d.Token, d.ErisimSayisi, d.SonErisimUtc,
+            d.OlusturmaUtc, d.AnlikGoruntuUtc, d.Bayat);
+
+    private static async Task<Results<Ok<IReadOnlyList<KiraFaturaDto>>, ProblemHttpResult>> Faturalar(
+        Guid id, RentalService kiralar, InvoiceService faturalar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        var liste = await faturalar.ListByRentalAsync(id, ct); // kapsam kapısından SONRA (servis guard'sız)
+        return TypedResults.Ok<IReadOnlyList<KiraFaturaDto>>(liste.Select(f => new KiraFaturaDto(
+            f.Id, f.No, f.Tarih, f.NetTutar, f.KdvTutar, f.GenelToplam, f.Currency, f.Durum.ToString(),
+            f.IadeMi ? "İade" : f.KaynakKiraId is not null ? "Fark" : "Kira")).ToList());
+    }
+
+    private static async Task<Results<Ok<KiraCezaHgsYaniti>, ProblemHttpResult>> CezalarVeHgs(
+        Guid id, RentalService kiralar, PenaltyService cezalar, VehicleService araclar, IHgsService hgs, CancellationToken ct)
+    {
+        var c = await KapsamliAsync(kiralar, id, ct);
+        if (c is null) return Bulunamadi();
+        var liste = (await cezalar.ListByRentalAsync(id, ct))
+            .Select(p => new KiraCezaDto(p.Id, p.No, p.CezaTuru, p.Tutar, p.Kalan, p.Durum.ToString(), p.TebligTarihi)).ToList();
+        // HGS: kira dönemi (gerçek dönüş varsa o) — KiraForm ile aynı; plaka görünür araç listesinden.
+        var plaka = (await araclar.ListAsync(ct)).FirstOrDefault(v => v.Id == c.VehicleId)?.Plaka;
+        IReadOnlyList<HgsGecisDto> gecisler = [];
+        if (!string.IsNullOrWhiteSpace(plaka))
+            gecisler = (await hgs.GetCrossingsAsync(plaka, c.BasTar, c.GercekDonusTar ?? c.BitTar, ct))
+                .Select(g => new HgsGecisDto(g.Zaman, g.Gecis, g.Tutar)).ToList();
+        return TypedResults.Ok(new KiraCezaHgsYaniti(liste, gecisler));
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<KiraDisHizmetDto>>, ProblemHttpResult>> DisHizmetler(
+        Guid id, RentalService kiralar, DisHizmetService disHizmetler, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        var liste = await disHizmetler.ListForRentalAsync(id, ct); // kapsam kapısından SONRA (servis guard'sız)
+        return TypedResults.Ok<IReadOnlyList<KiraDisHizmetDto>>(liste.Select(KiraDisHizmetDto.From).ToList());
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<KiraDonemDto>>, ProblemHttpResult>> DonemPlani(
+        Guid id, RentalService kiralar, FaturaDonemPlanService donemPlan, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        var liste = await donemPlan.PreviewAsync(id, ct); // plansız kira → boş liste
+        return TypedResults.Ok<IReadOnlyList<KiraDonemDto>>(liste.Select(KiraDonemDto.From).ToList());
+    }
+
+    private static async Task<Results<Ok<KaynakRezervasyonYaniti>, ProblemHttpResult>> KaynakRezervasyon(
+        Guid id, RentalService kiralar, ReservationService rezervasyonlar, CancellationToken ct)
+    {
+        var c = await KapsamliAsync(kiralar, id, ct);
+        if (c is null) return Bulunamadi();
+        if (c.ReservationId is not Guid rezId) return TypedResults.Ok(new KaynakRezervasyonYaniti(null));
+        var r = await rezervasyonlar.GetAsync(rezId, ct); // rezervasyonun KENDİ kapsam guard'ı da çalışır
+        return TypedResults.Ok(new KaynakRezervasyonYaniti(r is null ? null : new KaynakRezervasyonDto(
+            r.Id, r.ReservationNo, r.Durum.ToString(), r.BasTar, r.BitTar, r.Kaynak, r.TalepTuru,
+            r.OtaKiraBedeli, r.OtaDropBedeli, r.OtaBebekKoltugu, r.OtaNavigasyon, r.OtaLcf, r.OtaCdw, r.OtaScdw, r.OtaEkSurucu)));
+    }
+
+    private static async Task<Results<Ok<KarneOzetiDto>, ProblemHttpResult>> KarneOzeti(
+        Guid id, RentalService kiralar, ReportService raporlar, CancellationToken ct)
+    {
+        var c = await KapsamliAsync(kiralar, id, ct);
+        if (c is null) return Bulunamadi();
+        var karne = await raporlar.GetAracKarneAsync(c.VehicleId, ct: ct);
+        return TypedResults.Ok(new KarneOzetiDto(c.VehicleId, karne?.Kpi.DolulukYuzde));
+    }
+
+    // ================================================================== form yardımcıları
+
+    private static async Task<Ok<KiraFormVarsayilanlari>> FormVarsayilanlari(FormVarsayilanCozucu varsayilanlar, CancellationToken ct)
+        => TypedResults.Ok(new KiraFormVarsayilanlari(
+            await varsayilanlar.CikisYakitAsync(ct),
+            await varsayilanlar.FiyatTuruAsync(ct),
+            KiraFormVm.FiyatTurleri, KiraFormVm.KiralamaTurleri, KiraFormVm.FaturalamaTipleri,
+            KiraFormVm.Dovizler, KiraFormVm.OdemeSekilleri,
+            DateTimeOffset.UtcNow.AddYears(1)));
+
+    private static readonly (string, string)[] HesaplaKurallari = [("Ek hizmet biçimi", "ek")];
+
+    /// <summary>
+    /// Canlı hesap — Blazor <c>GET /kiralar/hesapla</c> ile AYNI motor (<see cref="KiraHesapService"/> →
+    /// PricingService/RentalQuoteEngine); persist SIFIR. <c>ok:false</c> (kullanıcı yazarken nazik geri bildirim)
+    /// 200 ile döner — Blazor sözleşmesi. Servis istisnası: YetkiYok 403, doğrulama 400.
+    /// <c>ek</c> biçimi <c>tanimId:miktar,tanimId:miktar</c> (miktar nokta ondalık); bozuk çift 400 (Blazor sessiz atlar).
+    /// </summary>
+    private static async Task<Ok<KiraHesapSonuc>> Hesapla(
+        KiraHesapService hesap, RentalService kiralar, DateTimeOffset basTar, DateTimeOffset bitTar, Guid? vehicleId,
+        decimal? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi, string? donusOfisi, decimal? dropUcreti,
+        string? ek, Guid? rentalId, Guid? musteriId, string? kampanyaKodu, Guid? ikinciSurucuId, CancellationToken ct)
+    {
+        // Üst kayıt kapısı: servis rentalId kapsamını yalnız fiyatlama BAŞARILIYSA denetler; uç her durumda önce
+        // denetler (kapsam dışı → 403). Bulunamayan kira servis sözleşmesiyle aynı: tahsilatsız hesap.
+        if (rentalId is Guid rid) await KapsamliAsync(kiralar, rid, ct);
+        try
+        {
+            return TypedResults.Ok(await hesap.HesaplaAsync(new KiraHesapIstek(
+                VehicleId: vehicleId, BasTar: basTar, BitTar: bitTar, GunlukUcret: gunlukUcret,
+                FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
+                MusteriId: musteriId, KampanyaKodu: kampanyaKodu, IkinciSurucuId: ikinciSurucuId,
+                DonusOfisi: donusOfisi, DropUcreti: dropUcreti,
+                EkHizmetler: EkSecimCoz(ek), RentalId: rentalId), ct));
+        }
+        catch (OverflowException)
+        {
+            throw new ValidationException("Girilen değerler hesaplanamayacak kadar büyük.");
+        }
+    }
+
+    /// <summary>"tanimId:miktar,…" → seçim listesi. Blazor'dan farklı olarak bozuk çift SESSİZ atlanmaz (400).</summary>
+    internal static IReadOnlyList<KiraHesapEkHizmet> EkSecimCoz(string? ek)
+    {
+        if (string.IsNullOrWhiteSpace(ek)) return [];
+        var liste = new List<KiraHesapEkHizmet>();
+        foreach (var parca in ek.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var i = parca.IndexOf(':');
+            if (i <= 0 || !Guid.TryParse(parca[..i], out var id)
+                || !decimal.TryParse(parca[(i + 1)..], NumberStyles.Number, CultureInfo.InvariantCulture, out var miktar))
+                throw new ValidationException("Ek hizmet biçimi geçersiz: 'tanimId:miktar' çiftleri virgülle ayrılmalı (nokta ondalık).");
+            liste.Add(new KiraHesapEkHizmet(id, miktar));
+        }
+        return liste;
+    }
+
+    /// <summary>Dönüş canlı önizlemesi — <see cref="RentalService.PreviewReturnAsync"/> (ReturnMath; persist yok).</summary>
+    private static async Task<Results<Ok<KiraDonusOnizleme>, ProblemHttpResult>> DonusHesapla(
+        Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus, int? kmHediye,
+        RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        return TypedResults.Ok(await kiralar.PreviewReturnAsync(id, donusKm, donusYakit, gercekDonus, kmHediye ?? 0, ct));
+    }
+
+    /// <summary>Müsait araçlar (Blazor <c>/kiralar/musait-arac</c>): takvim günleri UTC gün başına çevrilir (aynı kural).</summary>
+    private static async Task<Ok<IReadOnlyList<MusaitAracDto>>> MusaitArac(
+        AvailabilityService musaitlik, DateOnly? vfrom, DateOnly? vto, string? vgrup, CancellationToken ct)
+    {
+        if (vfrom is not { } bas || vto is not { } bit || bit <= bas)
+            throw new ValidationException("Geçerli bir müsaitlik aralığı girin (bitiş > başlangıç).", "vto");
+        var araclar = await musaitlik.FindAvailableAsync(
+            new DateTimeOffset(bas.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            new DateTimeOffset(bit.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            string.IsNullOrWhiteSpace(vgrup) ? null : vgrup, ct: ct);
+        return TypedResults.Ok<IReadOnlyList<MusaitAracDto>>(araclar.Select(v => new MusaitAracDto(
+            v.Id, v.Plaka, v.Marka, v.Tip, v.ModelYili, v.Vites?.ToString(), v.Yakit?.ToString(),
+            v.Grup, v.Segment, v.Km, v.Sube, v.Konum)).ToList());
+    }
+
+    // ================================================================== yazmalar
+
+    private const int EnFazlaEkKalem = 50;
+
+    /// <summary>Lim (BookingMath.Kirp) etiketleri + giriş guard'ları → gövde alanı.</summary>
+    private static readonly (string, string)[] OrtakKiraKurallari =
+    [
+        ("2. sürücü ya kayıtlı cariden", "ikinciSurucuId"),
+        ("2. sürücü müşteriyle aynı olamaz", "ikinciSurucuId"),
+        ("2. sürücü (cari) bulunamadı", "ikinciSurucuId"),
+        ("2. sürücü adı en fazla", "ikinciSurucuSerbestAd"),
+        ("2. sürücü soyadı en fazla", "ikinciSurucuSerbestSoyad"),
+        ("2. sürücü telefonu en fazla", "ikinciSurucuSerbestTel"),
+        ("2. sürücü ehliyet sınıfı en fazla", "ikinciSurucuSerbestEhliyetSinifi"),
+        ("Drop ücreti negatif olamaz", "dropUcreti"),
+        ("Özel KDV oranı", "ozelKdvOran"),
+        ("Net fiyat modlu kirada özel KDV", "ozelKdvOran"),
+        ("Damga vergisi negatif", "damgaVergisi"),
+        ("Findeks puanı negatif", "manuelFindexPuan"),
+        ("Çıkış ofisi en fazla", "cikisOfisi"),
+        ("Dönüş ofisi en fazla", "donusOfisi"),
+        ("Açıklama en fazla", "aciklama"),
+        ("Kaynak en fazla", "kaynak"),
+        ("Uyarı açıklama en fazla", "uyariAciklama"),
+        ("Özel fatura açıklaması en fazla", "ozelFaturaAciklama"),
+        ("Uçuş no en fazla", "ucusNo"),
+        ("Provizyon no en fazla", "provizyonNo"),
+        ("Onay kodu en fazla", "onayKodu"),
+        ("Firma kodu en fazla", "firmaKodu"),
+        ("Proje adı en fazla", "projeAdi"),
+        ("Özel kod en fazla", "ozelKod"),
+        ("Talep türü en fazla", "talepTuru"),
+        ("Geldiği birim en fazla", "geldigiBirim"),
+        ("Kefil bilgisi en fazla", "kefilBilgisi"),
+        ("Assist firma en fazla", "assistFirma"),
+        ("Özel şoför bilgisi en fazla", "ozelSoforBilgisi"),
+        ("Ek koşullar en fazla", "ekKosullar"),
+        ("Lastik durumu (çıkış) en fazla", "aksLastikCikis"),
+        ("Lastik durumu (dönüş) en fazla", "aksLastikDonus"),
+        ("Ödeme şekli en fazla", "odemeSekli"),
+        ("Kiralama türü en fazla", "kiralamaTuru"),
+        ("Faturalama tipi en fazla", "faturalamaTipi"),
+    ];
+
+    private static readonly (string, string)[] OlusturKurallari =
+    [
+        ("Müşteri seçilmelidir", "musteriId"),
+        ("Araç seçilmelidir", "vehicleId"),
+        ("Bitiş tarihi başlangıçtan sonra", "bitTar"),
+        ("Kira başlangıcı en fazla", "basTar"),
+        ("Günlük ücret negatif", "gunlukUcret"),
+        ("Risk limiti aşıldı", "riskOnay"),
+        ("Risk onayı yalnız", "riskOnay"),
+        ("Kampanya kodu", "kampanyaKodu"),
+        ("Seçilen ek hizmet", "ekHizmetler"),
+        ("Aynı ek hizmet", "ekHizmetler"),
+        ("En fazla 50 ek hizmet", "ekHizmetler"),
+        .. OrtakKiraKurallari,
+    ];
+
+    private static readonly (string, string)[] GuncelleKurallari =
+    [
+        ("KM limit negatif", "kmLimit"),
+        ("Aşım ücretleri negatif", "fazlaKmUcret"),
+        ("Tamamlanmış kirada aşım parametreleri", "kmLimit"),
+        ("Tamamlanmış kirada 2. sürücü", "ikinciSurucuId"),
+        ("Tamamlanmış kirada ofisler", "cikisOfisi"),
+        ("Tamamlanmış kirada drop ücreti", "dropUcreti"),
+        ("Faturalanmış kirada drop ücreti", "dropUcreti"),
+        .. OrtakKiraKurallari,
+    ];
+
+    private static readonly (string, string)[] TeslimKurallari = [("Çıkış KM negatif", "cikisKm")];
+
+    private static readonly (string, string)[] DonusKurallari =
+    [
+        ("Dönüş KM", "donusKm"),
+        ("KM farkı gerçekçi değil", "donusKm"),
+        ("Dönüş tarihi başlangıçtan önce", "gercekDonus"),
+        ("KM hediye", "kmHediye"),
+        ("Bitiş sebebi", "bitisSebebi"),
+        ("Teslim alan personel", "teslimAlanPersonelId"),
+    ];
+
+    private static readonly (string, string)[] UzatKurallari =
+    [
+        ("Yeni bitiş tarihi", "yeniBitTar"),
+        ("Uzatma en az 1 gün", "yeniBitTar"),
+    ];
+
+    private static readonly (string, string)[] ProvizyonKurallari =
+    [
+        ("Kapama tutarı negatif", "kapamaTutar"),
+        ("Önce Fiyat sekmesinde provizyon", "provizyon"),
+    ];
+
+    private static readonly (string, string)[] EkHizmetKurallari =
+    [
+        ("Miktar", "miktar"),
+        ("Ek hizmet tanımı bulunamadı", "ekHizmetTanimId"),
+        ("Sistem ücret kalemi", "ekHizmetTanimId"),
+    ];
+
+    private static readonly (string, string)[] MusteriKurallari =
+    [
+        ("Müşteri seçin ya da yeni müşteri", "ad"),
+        ("Bireysel cari için Ad", "ad"),
+        ("TC Kimlik No geçersiz", "tcKimlik"),
+        ("Kurumsal/Servis cari için Ünvan", "unvan"),
+        ("E-posta adresi geçersiz", "email"),
+        ("Doğum tarihi", "dogumTarihi"),
+        ("Ehliyet tarihi", "ehliyetTarihi"),
+    ];
+
+    /// <summary>
+    /// Yeni kira — Blazor <c>/kiralar/create</c> akışı: ek hizmet tanımları kira AÇILMADAN doğrulanır; kira
+    /// <see cref="RentalService.CreateDirectAsync"/> ile açılır; kalemler aynı <see cref="RentalAddOnService.AddAsync"/>
+    /// yolundan (tanım snapshot + RentalTotals). Kalem eklemesi yarıda kalırsa kira DURUR ve <c>uyari</c> döner.
+    /// </summary>
+    private static async Task<Created<KiraOlusturYaniti>> Olustur(
+        KiraOlusturIstegi istek, RentalService kiralar, RentalAddOnService ekler, EkHizmetTanimService ekTanimlar,
+        CancellationToken ct)
+    {
+        var secim = (istek.EkHizmetler ?? []).Select(e => (e.TanimId, Miktar: e.Miktar is > 0m ? e.Miktar.Value : 1m)).ToList();
+        if (secim.Count > EnFazlaEkKalem)
+            throw new ValidationException($"En fazla {EnFazlaEkKalem} ek hizmet seçilebilir.");
+        if (secim.Select(s => s.TanimId).Distinct().Count() != secim.Count)
+            throw new ValidationException("Aynı ek hizmet birden fazla seçilemez (miktarı artırın).");
+        if (secim.Count > 0)
+        {
+            var tanimlar = (await ekTanimlar.ListActiveAsync(ct)).ToDictionary(t => t.Id, t => t.Kod);
+            if (secim.Any(e => !tanimlar.ContainsKey(e.TanimId)))
+                throw new ValidationException("Seçilen ek hizmet tanımı bulunamadı (silinmiş/pasif olabilir).");
+            // SYS-* satırları yalnız FeeLineService yazar; servis manuel eklemeyi kira AÇILDIKTAN sonra reddederdi
+            // (yarım kayıt + uyarı) — kira açılmadan önce temiz red.
+            if (secim.Any(e => SistemKalemi(tanimlar[e.TanimId])))
+                throw new ValidationException("Seçilen ek hizmet sistem ücret kalemi; manuel seçilemez (otomatik hesaplanır).");
+        }
+
+        var id = await kiralar.CreateDirectAsync(istek.ToInput(), ct);
+
+        string? uyari = null;
+        try
+        {
+            foreach (var (tanimId, miktar) in secim)
+                await ekler.AddAsync(id, tanimId, miktar, ct: ct);
+        }
+        catch (ValidationException ex)
+        {
+            uyari = $"Kira açıldı ancak ek hizmet eklenemedi: {ex.Message}";
+        }
+        // Sözleşme no'su şube kapsamlı okumadan. Servis create'te çıkış ofisinin kapsamını DENETLEMEZ (Blazor ile
+        // aynı, mevcut davranış): operatör kapsamı dışında bir ofisle kira açarsa kira YAZILMIŞTIR — 403 dönmek
+        // "olmadı" sanılıp yeniden gönderime yol açardı. 201 + uyarı döner (kayıt kullanıcıya görünmez).
+        string? no = null;
+        try { no = (await kiralar.GetAsync(id, ct))?.SozlesmeNo; }
+        catch (YetkiYokException)
+        {
+            uyari = (uyari is null ? "" : uyari + " ") +
+                    "Kira açıldı ancak çıkış ofisi şube kapsamınız dışında; sözleşmeyi görüntüleyemezsiniz.";
+        }
+        return TypedResults.Created($"{Kok}/{id}", new KiraOlusturYaniti(id, no, uyari));
+    }
+
+    /// <summary>Hızlı müşteri — Blazor <c>OlusturYeniCariAsync</c> ile aynı eşleme; PII CustomerService'te
+    /// şifrelenir, TC benzersizliği 409 <c>cakisma</c>. Yanıtta YALNIZ kimlik + etiket.</summary>
+    private static async Task<Ok<MusteriHizliYaniti>> MusteriOlustur(
+        MusteriHizliIstegi istek, CustomerService musteriler, CancellationToken ct)
+    {
+        var ad = KiraOlusturIstegi.Nz(istek.Ad);
+        var unvan = KiraOlusturIstegi.Nz(istek.Unvan);
+        var soyad = KiraOlusturIstegi.Nz(istek.Soyad);
+        if (ad is null && unvan is null)
+            throw new ValidationException("Müşteri seçin ya da yeni müşteri bilgilerini girin (en az Ad veya Ünvan).");
+        var id = await musteriler.CreateAsync(new CustomerInput
+        {
+            Tip = unvan is null ? CariType.Bireysel : CariType.Kurumsal,
+            Ad = ad,
+            Soyad = soyad,
+            Unvan = unvan,
+            TcKimlik = KiraOlusturIstegi.Nz(istek.TcKimlik),
+            CepTel = KiraOlusturIstegi.Nz(istek.CepTel),
+            Email = KiraOlusturIstegi.Nz(istek.Email),
+            Il = KiraOlusturIstegi.Nz(istek.Il),
+            Ilce = KiraOlusturIstegi.Nz(istek.Ilce),
+            DogumTarihi = istek.DogumTarihi,
+            EhliyetNo = KiraOlusturIstegi.Nz(istek.EhliyetNo),
+            EhliyetSinifi = KiraOlusturIstegi.Nz(istek.EhliyetSinifi),
+            EhliyetTarihi = istek.EhliyetTarihi,
+            EhliyetYeri = KiraOlusturIstegi.Nz(istek.EhliyetYeri),
+        }, ct);
+        return TypedResults.Ok(new MusteriHizliYaniti(id, unvan ?? $"{ad} {soyad}".Trim()));
+    }
+
+    /// <summary>Açık kira güncelleme — <see cref="RentalService.UpdateOpenAsync"/> (whitelist tip; para/tarih yok).</summary>
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Guncelle(
+        Guid id, KiraGuncelleIstegi istek, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.UpdateOpenAsync(id, istek.ToInput(), ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Teslim(
+        Guid id, TeslimIstegi istek, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.DeliverAsync(id, istek.CikisKm, istek.CikisYakit, ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Donus(
+        Guid id, DonusIstegi istek, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.ReturnAsync(id, istek.DonusKm, istek.DonusYakit, istek.GercekDonus,
+                istek.KmHediye ?? 0, istek.BitisSebebi, istek.TeslimAlanPersonelId, ct))
+            return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Uzat(
+        Guid id, UzatIstegi istek, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.ExtendAsync(id, istek.YeniBitTar, ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> Iptal(
+        Guid id, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.CancelAsync(id, ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    /// <summary>Manuel provizyon (POS'suz, deftere yazmaz). Kapsam kapısı servisteki kaynak-kuralı okumasından
+    /// ÖNCE çalışır — kapsam dışı kiranın kaynak kuralı hata metniyle sızmaz.</summary>
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> ProvizyonAl(
+        Guid id, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.ProvizyonAlAsync(id, ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    private static async Task<Results<Ok<KiraSozlesmesiDto>, ProblemHttpResult>> ProvizyonKapat(
+        Guid id, ProvizyonKapatIstegi istek, RentalService kiralar, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (!await kiralar.ProvizyonKapatAsync(id, istek.KapamaTutar, istek.Iade, ct)) return Bulunamadi();
+        return await Guncel(kiralar, id, ct);
+    }
+
+    /// <summary>Ek hizmet kalemleri + güncel toplamlar (ekleme/silme sonrası SPA ikisini birden yeniler).</summary>
+    public sealed record KiraEkHizmetYaniti(IReadOnlyList<EkHizmetKalemiDto> Kalemler, KiraSozlesmesiDto Kira);
+
+    private static async Task<Results<Ok<KiraEkHizmetYaniti>, ProblemHttpResult>> EkHizmetYaniti(
+        RentalService kiralar, RentalAddOnService ekler, Guid id, CancellationToken ct)
+    {
+        var c = await kiralar.GetAsync(id, ct);
+        if (c is null) return Bulunamadi();
+        var kalemler = (await ekler.ListAsync(id, ct)).Select(EkHizmetDto).ToList();
+        return TypedResults.Ok(new KiraEkHizmetYaniti(kalemler, KiraSozlesmesiDto.From(c)));
+    }
+
+    private static async Task<Results<Ok<KiraEkHizmetYaniti>, ProblemHttpResult>> EkHizmetEkle(
+        Guid id, EkHizmetEkleIstegi istek, RentalService kiralar, RentalAddOnService ekler, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        await ekler.AddAsync(id, istek.EkHizmetTanimId, istek.Miktar, ct: ct);
+        return await EkHizmetYaniti(kiralar, ekler, id, ct);
+    }
+
+    private static bool SistemKalemi(string? kod) => kod?.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>
+    /// Kalem YALNIZ rotadaki kiraya aitse silinir (başka kiranın kalem kimliği bu rotadan silinemez).
+    /// <b>SYS-* sistem ücret satırı (genç/ek sürücü, drop) bu uçtan silinemez:</b> servis manuel EKLEMEYİ zaten
+    /// reddediyor; silme serbest kalsaydı ücret tek tıkla düşerdi (para kaçağı). Servis RemoveAsync'e guard
+    /// konmadı çünkü FeeLineService yeniden fiyatlamada aynı yöntemi kullanıyor. Blazor formu bugün bu satırı
+    /// silebiliyor (F4.6'da Blazor ekranı kalkınca kapanır).
+    /// </summary>
+    private static async Task<Results<Ok<KiraEkHizmetYaniti>, ProblemHttpResult>> EkHizmetSil(
+        Guid id, Guid kalemId, RentalService kiralar, RentalAddOnService ekler, EkHizmetTanimService ekTanimlar,
+        CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        var kalem = (await ekler.ListAsync(id, ct)).FirstOrDefault(k => k.Id == kalemId);
+        if (kalem is null) return Bulunamadi("Ek hizmet kalemi bulunamadı.");
+        if (SistemKalemi((await ekTanimlar.GetAsync(kalem.EkHizmetTanimId, ct))?.Kod))
+            throw new ValidationException("Sistem ücret kalemi manuel silinemez (sözleşme koşulları değişince otomatik güncellenir).");
+        if (!await ekler.RemoveAsync(kalemId, ct)) return Bulunamadi("Ek hizmet kalemi bulunamadı.");
+        return await EkHizmetYaniti(kiralar, ekler, id, ct);
+    }
+
+    // ================================================================== paylaşım
+
+    /// <summary>Paylaşım linki durumu. <c>Link = null</c> → aktif link yok.</summary>
+    public sealed record KiraPaylasimYaniti(KiraPaylasimLinki? Link);
+
+    public sealed record KiraPaylasimIptalYaniti(bool IptalEdildi);
+
+    private static async Task<Results<Ok<KiraPaylasimYaniti>, ProblemHttpResult>> PaylasimDurumu(
+        Guid id, RentalService kiralar, SozlesmePaylasimService paylasim, CancellationToken ct)
+    {
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        return TypedResults.Ok(new KiraPaylasimYaniti(Link(await paylasim.DurumAsync(id, ct))));
+    }
+
+    /// <summary>Paylaş: aktif link varsa AYNISI döner. Anlık görüntü Blazor ucuyla aynı zincirden
+    /// (SozlesmeService → PdfExportService.Contract — personelin bastığı nüsha ile aynı renderer).</summary>
+    private static Task<Results<Ok<KiraPaylasimYaniti>, ProblemHttpResult>> Paylas(
+        Guid id, RentalService kiralar, SozlesmeService sozlesme, PdfExportService pdf, SozlesmePaylasimService paylasim,
+        CancellationToken ct)
+        => PaylasimIsle(id, kiralar, sozlesme, pdf, ct, (no, bytes) => paylasim.PaylasAsync(id, no, bytes, ct));
+
+    /// <summary>Yeni sürüm: ESKİ token ölür, YENİ token + tazelenmiş anlık görüntü.</summary>
+    private static Task<Results<Ok<KiraPaylasimYaniti>, ProblemHttpResult>> PaylasimYeniSurum(
+        Guid id, RentalService kiralar, SozlesmeService sozlesme, PdfExportService pdf, SozlesmePaylasimService paylasim,
+        CancellationToken ct)
+        => PaylasimIsle(id, kiralar, sozlesme, pdf, ct, (no, bytes) => paylasim.YeniSurumAsync(id, no, bytes, ct));
+
+    private static async Task<Results<Ok<KiraPaylasimYaniti>, ProblemHttpResult>> PaylasimIsle(
+        Guid id, RentalService kiralar, SozlesmeService sozlesme, PdfExportService pdf, CancellationToken ct,
+        Func<string, byte[], Task<PaylasimDurum>> islem)
+    {
+        // SozlesmeService.GetAsync şube kapsamı UYGULAMAZ → önce kapsam kapısı.
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        var s = await sozlesme.GetAsync(id, ct);
+        if (s is null) return Bulunamadi();
+        return TypedResults.Ok(new KiraPaylasimYaniti(Link(await islem(s.SozlesmeNo, pdf.Contract(s)))));
+    }
+
+    private static async Task<Results<Ok<KiraPaylasimIptalYaniti>, ProblemHttpResult>> PaylasimIptal(
+        Guid id, RentalService kiralar, SozlesmePaylasimService paylasim, CancellationToken ct)
+    {
+        // Servis kira kapsamı denetlemez (yalnız izin) → kapsam kapısı burada ZORUNLU.
+        if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        return TypedResults.Ok(new KiraPaylasimIptalYaniti(await paylasim.IptalEtAsync(id, ct)));
+    }
+}

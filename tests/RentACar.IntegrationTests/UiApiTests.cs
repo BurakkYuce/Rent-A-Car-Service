@@ -447,7 +447,9 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         Assert.NotEmpty(uclar);
         var ihlal = uclar
             .Where(e => e.Metadata.GetMetadata<UiApiGrubuMetadata>() is null
-                        || (e.Metadata.GetMetadata<IzinMetadata>() is null && e.Metadata.GetMetadata<IzinMuafMetadata>() is null))
+                        || (e.Metadata.GetMetadata<IzinMetadata>() is null
+                            && e.Metadata.GetMetadata<IzinlerdenBiriMetadata>() is null // F4.1: "izinlerden biri" kapısı
+                            && e.Metadata.GetMetadata<IzinMuafMetadata>() is null))
             .Select(Rota).ToList();
         Assert.True(ihlal.Count == 0, "Grupsuz ya da izinsiz /api/ui ucu: " + string.Join(", ", ihlal));
     }
@@ -471,12 +473,16 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         // F3.5: /tablo-duzenleri/* muaf — kişisel arayüz tercihi; kullanıcı oturumdan gelir (uçta kullanıcı
         // parametresi yok), iş verisi taşımaz. Kullanıcı/firma izolasyonu TabloDuzeniTests'te kilitli.
         var muaf = UiUclari().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
-                                         && e.Metadata.GetMetadata<IzinMetadata>() is null)
+                                         && e.Metadata.GetMetadata<IzinMetadata>() is null
+                                         && e.Metadata.GetMetadata<IzinlerdenBiriMetadata>() is null)
             .Select(Rota).ToList();
         // F3.3: /istemci-hata da muaf — her oturum yalnız KENDİ tarayıcı hatasını raporlar (veri yok, yalnız log).
         Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
                                           || r == "/api/ui/v1/menu"
                                           || r == "/api/ui/v1/istemci-hata"
+                                          // F4.1: ana ekran her oturumun; kapılar İÇERİKTE (finans ViewReports, tahsilat
+                                          // anahtarı FinanceWrite) — UiKiraPanelTests içerik kapılarını kilitler.
+                                          || r == "/api/ui/v1/panel/ozet"
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
     }
 
