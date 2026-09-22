@@ -1,6 +1,6 @@
 import { formatDate } from '@angular/common';
 
-import type { FinansTahsilatIstegi, PanelTahsilatBilgisi } from '@core/api/ui-tipleri';
+import type { TahsilatIstegi, TahsilatBilgisi } from '@core/api/ui-tipleri';
 import { trKucukHarf } from '@core/metin/tr-normalize';
 import { ISTANBUL_OFSETI, YEREL } from '@core/yerel/tr-yerel';
 
@@ -155,7 +155,7 @@ export type HesapTuru = 'Kasa' | 'Banka';
 /** `POST /api/ui/v1/finans/tahsilat` gövdesi (F4.4a `TahsilatIstegi`): panelin doldurduğu alanlar zorunlu. */
 export type PanelTahsilatGovdesi = Required<
   Pick<
-    FinansTahsilatIstegi,
+    TahsilatIstegi,
     'cariId' | 'kiraId' | 'hesapId' | 'doviz' | 'kanal' | 'aciklama' | 'tahsilatAnahtar'
   >
 > & { readonly tutar: string; readonly hesap: HesapTuru };
@@ -169,7 +169,7 @@ export type PanelTahsilatGovdesi = Required<
  * - `kanal` "Masaüstü" (Blazor panosu FAZ-84: tek tık hızlı tahsilat).
  */
 export function tahsilatGovdesi(
-  bilgi: PanelTahsilatBilgisi,
+  bilgi: TahsilatBilgisi,
   secim: { readonly tutar: string; readonly hesap: HesapTuru; readonly hesapId: string | null },
   aciklama: string,
 ): PanelTahsilatGovdesi {

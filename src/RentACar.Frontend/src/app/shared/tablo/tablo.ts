@@ -663,7 +663,7 @@ export class Tablo<T> {
     if (konum.satir === 0) return; // başlık: Enter/Space düğmenin kendi davranışı (sıralama)
     const satir = this.satirlar()[konum.satir - 1];
     if (satir === undefined) return;
-    const denetim = hedef instanceof HTMLInputElement || hedef instanceof HTMLButtonElement;
+    const denetim = etkilesimliMi(hedef);
     if (olay.key === 'Enter' && !denetim) {
       olay.preventDefault();
       this.satirAc.emit(satir);
@@ -674,7 +674,9 @@ export class Tablo<T> {
     }
   }
 
-  protected ciftTik(satir: T): void {
+  protected ciftTik(satir: T, olay: MouseEvent): void {
+    // Hücredeki bağlantı/düğmeye çift tıklama o denetimin işidir (ör. "Tahsil et"), satırı açmaz.
+    if (olay.target instanceof Element && etkilesimliMi(olay.target)) return;
     this.satirAc.emit(satir);
   }
 
@@ -833,4 +835,12 @@ export class Tablo<T> {
     }
     return deger.endsWith('px') ? sayi : varsayilan;
   }
+}
+
+/**
+ * Hücre içindeki etkileşimli öğe (bağlantı, düğme, form denetimi): Enter/Boşluk/çift tıklama onun kendi
+ * davranışıdır — satırı açmaz/seçmez (bağlantıda Enter'ı yutmak yeni sekmede PDF'i açtırmazdı).
+ */
+function etkilesimliMi(hedef: Element): boolean {
+  return hedef.closest('a[href], button, input, select, textarea, label') !== null;
 }

@@ -155,6 +155,37 @@ test('F3: otomatik odakta ön dolu tutar SEÇİLİ — doğrudan "90" yazan 90,0
   expect(liste[0]?.govde['tutar']).toBe('90.00');
 });
 
+test('F3/P259-8b: Tab ile tutara dönen kullanıcı da seçili metnin yerine yazar ("90" → 90.00)', async ({
+  page,
+}) => {
+  await sahte(page, [A]);
+  const { liste } = await tahsilatYakala(page, () => 'ok');
+  await page.goto(PANEL);
+  await tahsilDugmesi(page, '34 AAA 01').click();
+  const tutar = form(page).getByLabel('Tutar');
+  await expect(tutar).toBeFocused();
+  await form(page).getByLabel('Hesap türü').focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(tutar).toBeFocused();
+  await page.keyboard.type('90');
+  await expect(tutar).toHaveValue('90');
+  await form(page).getByRole('button', { name: 'Tahsil et' }).click();
+  await expect.poll(() => liste.length).toBe(1);
+  expect(liste[0]?.govde['tutar']).toBe('90.00');
+});
+
+test('F3: fazla ondalık YUVARLANMAZ — "1,555" alan hatası, istek gitmez', async ({ page }) => {
+  await sahte(page, [A]);
+  const { liste } = await tahsilatYakala(page, () => 'ok');
+  await page.goto(PANEL);
+  await tahsilDugmesi(page, '34 AAA 01').click();
+  await form(page).getByLabel('Tutar').fill('1,555');
+  await form(page).getByRole('button', { name: 'Tahsil et' }).click();
+  await expect(form(page).getByLabel('Tutar')).toHaveAttribute('aria-invalid', 'true');
+  await expect(form(page).getByLabel('Tutar')).toHaveValue('1,555');
+  expect(liste).toHaveLength(0);
+});
+
 test('Enter + tık + çift tık: TEK istek; Idempotency-Key başlığı yok, gövde anahtarı sunucununki', async ({
   page,
 }) => {

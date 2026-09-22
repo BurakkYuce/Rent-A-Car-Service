@@ -27,11 +27,6 @@ export type PanelOzetiYaniti = Semalar['PanelOzetiYaniti'];
 export type PanelDonusSatiri = Semalar['PanelDonusSatiri'];
 export type PanelCikisSatiri = Semalar['PanelCikisSatiri'];
 export type PanelFinans = Semalar['PanelFinans'];
-/** Satır başına "Tahsil Et" verisi; `anahtar` sunucunun deterministik `TahsilatAnahtar`'ı (FinanceWrite'ta dolu). */
-export type PanelTahsilatBilgisi = Semalar['TahsilatBilgisi'];
-/** `POST /api/ui/v1/finans/tahsilat` gövdesi (F4.4a) ve `GET finans/hesaplar` öğesi. */
-export type FinansTahsilatIstegi = Semalar['TahsilatIstegi'];
-export type FinansHesapOgesi = Semalar['FinansHesapOgesi'];
 
 type SecimYolu = Extract<keyof paths, `/api/ui/v1/secim/${string}`>;
 /** F1.6 typeahead uçları: `musteri`, `arac`, `lokasyon`, … (sözleşmeden türetilir). */
@@ -44,6 +39,17 @@ export type SecimUcuOgesi<U extends SecimUcu> =
 export type TabloDuzeniYaniti = Semalar['TabloDuzeniYaniti'];
 /** `PUT /api/ui/v1/tablo-duzenleri/{tabloKodu}` gövdesi. */
 export type TabloDuzeniVerisi = Semalar['TabloDuzeniVerisi'];
+
+// ---- F4.2 kira listesi (`GET /api/ui/v1/kiralar`, `/ozet`, `/filtre-secenekleri`)
+export type KiraListeSatiri = Semalar['KiraListeSatiri'];
+/** Satırın "Tahsil Et" verisi; `anahtar` sunucunun deterministik `TahsilatAnahtar`'ı (geri gönderilir). */
+export type TahsilatBilgisi = Semalar['TahsilatBilgisi'];
+export type KiraListeOzeti = Semalar['KiraListeOzeti'];
+export type KiraFiltreSecenekleri = Semalar['KiraFiltreSecenekleri'];
+// F4.4a finans uçları (F4.2 "Tahsil Et" kullanır; F4.4/F8 aynı tipleri paylaşır)
+export type TahsilatIstegi = Semalar['TahsilatIstegi'];
+export type FinansIslemYaniti = Semalar['FinansIslemYaniti'];
+export type FinansHesapOgesi = Semalar['FinansHesapOgesi'];
 
 /** Sunucunun verdiği izin listesinde birebir eşleşme (izin adları sabit İngilizce enum adlarıdır). */
 export function izinVar(ben: BenYaniti, izin: string): boolean {

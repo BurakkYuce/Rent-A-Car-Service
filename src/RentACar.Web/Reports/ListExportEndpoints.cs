@@ -18,6 +18,7 @@ using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
+using RentACar.Web.Api.Kira;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -129,7 +130,11 @@ public static class ListExportEndpoints
                     }),
                     MusteriResolver(await cs.ListAsync()), PlakaResolver(await vs.ListAsync())),
                 "baflar" => ListExportCatalog.Baflar(await baf.ListAsync()),
-                "kiralar" => ListExportCatalog.Kiralar(await rs.SearchAsync(new RentalFilter())),
+                // F4.2: SPA kira listesinin süzgeçleri export'a AYNEN taşınır (gördüğün = indirdiğin) —
+                // parametre adları ve kurallar /api/ui/v1/kiralar ile TEK kaynaktan (KiraListeFiltresi).
+                // Parametresiz çağrı (Blazor listesinin bağlantısı) eskisi gibi TÜM kiralar. Şube kapsamı
+                // serviste ayrıca uygulanır — filtre onu genişletemez.
+                "kiralar" => ListExportCatalog.Kiralar(await rs.SearchAsync(KiraExportFiltresi(req.Query))),
                 // FAZ-48: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
                 // Şube kapsamı servis içinde ayrıca uygulanır — filtre onu genişletemez.
                 "rezervasyonlar" => ListExportCatalog.Rezervasyonlar(await rez.SearchAsync(new ReservationFilter
@@ -189,6 +194,32 @@ public static class ListExportEndpoints
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{ad}.xlsx")
         };
     }
+
+    /// <summary>
+    /// Kira export süzgeci: SPA listesinin gönderdiği adlar (<c>q, durum, fatura, tarihTuru, basMin, basMax, ofis,
+    /// ofisDurum, sahip, grup, kaynak, personelId</c>) → <see cref="KiraApi.KiraListeFiltresi"/> (API ile AYNI
+    /// dönüşüm: İstanbul günü, enum adı). Tanımsız enum adı <see cref="ValidationException"/> (sessizce "filtre yok"a
+    /// düşüp tüm listeyi indirtmez); biçimsiz tarih/bayrak/kimlik yok sayılır (SPA bunları zaten üretmez).
+    /// </summary>
+    internal static RentalFilter KiraExportFiltresi(IQueryCollection q) => new KiraApi.KiraListeFiltresi
+    {
+        Q = NullIfEmpty(q["q"].ToString()),
+        Durum = NullIfEmpty(q["durum"].ToString()),
+        Fatura = bool.TryParse(q["fatura"].ToString(), out var fatura) ? fatura : null,
+        TarihTuru = NullIfEmpty(q["tarihTuru"].ToString()),
+        BasMin = Gun(q["basMin"].ToString()),
+        BasMax = Gun(q["basMax"].ToString()),
+        Ofis = NullIfEmpty(q["ofis"].ToString()),
+        OfisDurum = NullIfEmpty(q["ofisDurum"].ToString()),
+        Sahip = NullIfEmpty(q["sahip"].ToString()),
+        Grup = NullIfEmpty(q["grup"].ToString()),
+        Kaynak = NullIfEmpty(q["kaynak"].ToString()),
+        PersonelId = Guid.TryParse(q["personelId"].ToString(), out var pid) ? pid : null,
+    }.ToFilter();
+
+    private static DateOnly? Gun(string? s)
+        => DateOnly.TryParseExact(s, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var g) ? g : null;
 
     /// <summary>Boş/whitespace sorgu değeri → null (filtre alanı "verilmemiş" sayılsın).</summary>
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
