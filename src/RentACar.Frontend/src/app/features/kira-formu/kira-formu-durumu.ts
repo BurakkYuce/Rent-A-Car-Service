@@ -669,7 +669,7 @@ export class KiraFormuDurumu {
 
   private olusturuldu(y: KiraOlusturYaniti): void {
     if (y.uyari) this.toast.uyari(y.uyari, { sure: 0 });
-    this.toast.basari(this.t('kiraFormu.bildirim.olusturuldu', { no: y.sozlesmeNo ?? '—' }));
+    this.toast.basari(this.t('kiraFormu.bildirim.olusturuldu', { no: y.sozlesmeNo }));
     // Kayıt yapıldı: "yeni kira" sekmesi temiz bir forma döner (sonraki kira için).
     formuSifirla(this.form, { fiyatTuru: this.varsayilanlar.veri()?.fiyatTuru ?? null });
     this.ekSatirSurumu.update((s) => s + 1);
@@ -677,7 +677,8 @@ export class KiraFormuDurumu {
     this.musait.sifirla();
     this.musaitFormu.reset();
     this.musaitNotu.set(null);
-    if (y.sozlesmeNo !== null) void this.router.navigate(['/kiralar', y.id]);
+    // Çıkış ofisi kapsamı sunucuda GİRİŞTE denetlenir (F4.1 M1): dönen kira oturumun kapsamında.
+    void this.router.navigate(['/kiralar', y.id]);
   }
 
   // ─── operasyon eylemleri (F4.1 uçları) ─────────────────────────────────────────────────────
