@@ -190,8 +190,41 @@ public sealed record KiraPaylasimLinki(
     string Yol, int ErisimSayisi, DateTimeOffset? SonErisimUtc, DateTimeOffset OlusturmaUtc,
     DateTimeOffset AnlikGoruntuUtc, bool Bayat);
 
-/// <summary>Paylaşım barı (yalnız OperationsWrite): aktif link + ön-doldurma (müşterinin kayıtlı GSM/e-postası).</summary>
-public sealed record KiraPaylasimBari(KiraPaylasimLinki? Link, string? MusteriTel, string? MusteriEmail, string Konu);
+/// <summary>Paylaşım barı (yalnız OperationsWrite): aktif link + ön-doldurma (müşterinin kayıtlı GSM/e-postası;
+/// KVKK <c>AnonimTelefon</c>/<c>AnonimMail</c> işaretliyse <c>null</c>). <c>Mesaj</c> (F4.3b): WhatsApp/Gmail hazır özet
+/// metni — Blazor <c>KiraForm</c> metni, link HARİÇ (mutlak adresi SPA kendi kökünden kurup " Sözleşmeniz: …" olarak
+/// ekler); <c>AnonimAd</c>'da hitap "Sayın müşterimiz". Tarih İstanbul günü, tutar tr-TR N2. Kural: <see cref="MusteriGorunumu"/>.</summary>
+public sealed record KiraPaylasimBari(KiraPaylasimLinki? Link, string? MusteriTel, string? MusteriEmail, string Konu, string Mesaj);
+
+/// <summary>
+/// F4.3b — sunucuda hesaplanmış gösterim toplamları (SPA toplama yapmaz). <c>EkHizmetToplam</c> = Σ ek hizmet
+/// kalemi brüt toplamı (kira dövizi; Blazor "Ek Hizmet Tutarı"). <c>CezaToplam</c> = kiraya bağlı cezaların Σ tutarı
+/// (TL; ceza kaydı dövizsizdir) — İPTAL cezalar SAYILMAZ (Blazor rozeti onları da topluyordu).
+/// </summary>
+public sealed record KiraToplamlari(decimal EkHizmetToplam, decimal CezaToplam);
+
+/// <summary>
+/// F4.3b — Müşteri sekmesinin salt-okunur cari özeti (<c>GET /kiralar/{id}/musteri-ozet</c>). <b>PII kuralı</b>
+/// (TEK yerde: <see cref="MusteriGorunumu"/>): TC kimlik numarası HİÇ dönmez — ne düz ne maskeli (Blazor paritesi;
+/// KVKK en az veri). Ehliyet / pasaport numarası YALNIZ maskeli (≥ 8 → son 4, 5–7 → son 2, ≤ 4 tamamen yıldız).
+/// İletişim/adres Blazor ekranıyla aynı (tam) — ancak cari kartında KVKK anonimleştirme bayrağı işaretliyse o grup
+/// boş döner (<c>AnonimAd</c> → <c>Ad = null</c>; <c>AnonimBelge</c> → numara + belge üst bilgisi).
+/// </summary>
+public sealed record KiraMusteriOzeti(
+    Guid Id, string? Ad, string Tip,
+    string? CepTel, string? Email,
+    string? EhliyetNoMaskeli, string? PasaportNoMaskeli,
+    string? EhliyetSinifi, DateTimeOffset? EhliyetTarihi, string? EhliyetYeri, string? EhliyetUlke, string? PasaportYeri,
+    string? Adres, string? Il, string? Ilce, string? MusteriTipi,
+    decimal RiskLimiti, bool KaraListe, bool Uyari, string? UyariNedeni);
+
+/// <summary>F4.3b — ek hizmet matrisi satırı (tanım fiyat/KDV'si; yalnız GÖSTERİM — satır tutarı <c>hesapla</c>'dan).</summary>
+public sealed record EkHizmetKatalogOgesi(
+    Guid Id, string Kod, string Ad, decimal BirimUcret, decimal KdvOrani, string? Aciklama, int? MaxGun);
+
+/// <summary>F4.3b — aktif, manuel seçilebilir (SYS-* hariç) ek hizmet tanımları; en çok <c>Sinir</c> satır.
+/// <c>Toplam</c> kesilmeden önceki sayı (Toplam &gt; Ogeler.Count → liste kesildi).</summary>
+public sealed record KiraEkHizmetKatalogu(IReadOnlyList<EkHizmetKatalogOgesi> Ogeler, int Toplam);
 
 /// <summary>Oturumun bu ekrandaki etkin izinleri (düğme durumları; asıl kapı sunucuda).</summary>
 public sealed record KiraYetkileri(bool Operasyon, bool Silme, bool Finans);
@@ -218,6 +251,7 @@ public sealed record KiraDetayYaniti(
     KiraDovizBilgisi? Doviz,
     KiraPaylasimBari? Paylasim,
     KiraYetkileri Yetkiler,
+    KiraToplamlari Toplamlar,
     TahsilatBilgisi? Tahsilat);
 
 public sealed record MusaitAracDto(

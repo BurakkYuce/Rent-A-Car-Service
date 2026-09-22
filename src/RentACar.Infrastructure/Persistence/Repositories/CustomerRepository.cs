@@ -76,6 +76,18 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             .ToList();
     }
 
+    /// <summary>F4.3b kimlikle tek seçim satırı — PII kolonlarına dokunmaz (bkz. <see cref="SecimAraAsync"/>).</summary>
+    public async Task<CariSecimSatiri?> SecimGetirAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var r = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad })
+            .FirstOrDefaultAsync(ct);
+        return r is null ? null
+            : new CariSecimSatiri(r.Id, new Customer { Tip = r.Tip, Unvan = r.Unvan, Ad = r.Ad, Soyad = r.Soyad }.DisplayName, r.Tip);
+    }
+
     /// <summary>Ortak filtre (arama + Tip + İYS/uyarı/kara-liste) — SearchAsync ve SearchRowsAsync paylaşır.
     /// TC araması yalnız TAM eşleşme (blind-index, filter.TcHash) — şifreli kolonda ILike anlamsız.</summary>
     private static IQueryable<Customer> ApplyFilter(IQueryable<Customer> q, CustomerFilter filter)

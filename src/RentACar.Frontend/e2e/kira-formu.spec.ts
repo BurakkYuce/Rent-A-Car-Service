@@ -178,6 +178,47 @@ const DETAY = {
   doviz: null,
   paylasim: null,
   yetkiler: { operasyon: true, silme: true, finans: true },
+  // F4.3b: sunucuda hesaplanmış gösterim toplamları (SPA toplamaz).
+  toplamlar: { ekHizmetToplam: 180, cezaToplam: 250 },
+};
+
+/** F4.3b müşteri özeti — TC hiç gelmez; ehliyet/pasaport no sunucudan MASKELİ (SPA düz numara görmez). */
+const MUSTERI_OZETI = {
+  id: MUSTERI_ID,
+  ad: 'Ayşe Yılmaz',
+  tip: 'Bireysel',
+  cepTel: '05321112233',
+  email: 'ayse@ornek.test',
+  ehliyetNoMaskeli: '****6543',
+  pasaportNoMaskeli: '****4567',
+  ehliyetSinifi: 'B',
+  ehliyetTarihi: '2015-06-01T00:00:00+00:00',
+  ehliyetYeri: 'İzmir',
+  ehliyetUlke: 'TR',
+  pasaportYeri: 'Ankara',
+  adres: 'Atatürk Cd. No:5',
+  il: 'İzmir',
+  ilce: 'Karşıyaka',
+  musteriTipi: 'Türk Ehliyetli',
+  riskLimiti: 5000,
+  karaListe: true,
+  uyari: true,
+  uyariNedeni: 'Geç iade geçmişi',
+};
+
+const KATALOG = {
+  ogeler: [
+    {
+      id: TANIM_ID,
+      kod: 'BEBEK',
+      ad: 'Bebek koltuğu',
+      birimUcret: 75.5,
+      kdvOrani: 0.1,
+      aciklama: '0-4 yaş',
+      maxGun: 30,
+    },
+  ],
+  toplam: 1,
 };
 
 interface Sahte {
@@ -188,13 +229,25 @@ interface Sahte {
 /** Tek işleyici: `/api/ui/v1/kiralar/**` + seçim uçları (yöntem + yola göre). */
 async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<string[]> {
   const hesapSorgulari: string[] = [];
-  await page.route(/\/api\/ui\/v1\/secim\//, (route) =>
-    route.fulfill({
-      json: route.request().url().includes('/secim/ek-hizmet')
+  // F4.4 sabit finans paneli (tembel) kayıtlı kirada kasa/banka hesaplarını okur — bu dosyanın testleri panele
+  // dokunmaz; boş liste yeter (sahte olmayan istek 404 konsol hatası üretirdi).
+  await page.route(/\/api\/ui\/v1\/finans\//, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ json: [] })
+      : route.fulfill({ status: 500 }),
+  );
+  await page.route(/\/api\/ui\/v1\/secim\//, (route) => {
+    const yol = new URL(route.request().url()).pathname;
+    // F4.3b kimlikle etiket uçları.
+    if (yol === `/api/ui/v1/secim/musteri/${MUSTERI_ID}`) {
+      return route.fulfill({ json: { id: MUSTERI_ID, etiket: 'Ayşe Yılmaz', tip: 'Bireysel' } });
+    }
+    return route.fulfill({
+      json: yol.endsWith('/secim/ek-hizmet')
         ? [{ id: TANIM_ID, etiket: 'Bebek koltuğu', kod: 'BEBEK' }]
         : [],
-    }),
-  );
+    });
+  });
   await page.route(/\/api\/ui\/v1\/kiralar(\/|\?|$)/, async (route) => {
     const istek = route.request();
     const url = new URL(istek.url());
@@ -216,6 +269,8 @@ async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<string[]
       });
     }
     if (yol === '/musait-arac') return route.fulfill({ json: MUSAIT });
+    if (yol === '/ek-hizmet-katalogu') return route.fulfill({ json: KATALOG });
+    if (yol === `/${KIRA_ID}/musteri-ozet`) return route.fulfill({ json: MUSTERI_OZETI });
     if (yol === '/hesapla') {
       hesapSorgulari.push(url.search);
       return route.fulfill({ json: HESAP });
@@ -284,7 +339,8 @@ test('?varac&vfrom&vto&musteriId dolu form açar; canlı hesap sunucudan (UI for
   await formHazir(page);
 
   const panel = hizli(page);
-  await expect(panel.getByLabel('Müşteri', { exact: true })).toHaveValue('Bağlantıdaki müşteri');
+  // F4.3b: bağlantıdaki kimlik gerçek adla çözülür (secim/musteri/{id}).
+  await expect(panel.getByLabel('Müşteri', { exact: true })).toHaveValue('Ayşe Yılmaz');
   await expect(panel.getByLabel('Başlangıç', { exact: true })).toHaveValue('01.10.2026');
   await expect(panel.getByLabel('Bitiş (beklenen)', { exact: true })).toHaveValue('04.10.2026');
   await expect(panel.getByRole('textbox', { name: 'Saat' }).first()).toHaveValue('09:00');
@@ -536,7 +592,8 @@ test('faturalı kirada ek hizmet ekle/sil 400: mesaj gösterilir, seçim silinme
   await expect(page.locator('.rc-form-hatalari')).toContainText(
     'Faturalanmış kiraya ek hizmet eklenemez.',
   );
-  await expect(ekle.getByRole('combobox')).toHaveValue('Bebek koltuğu');
+  // F4.3b: seçenek etiketi katalogdan, Blazor gibi "Ad (birim net)".
+  await expect(ekle.getByRole('combobox')).toHaveValue('Bebek koltuğu (75,50 ₺ net)');
 
   await page.getByRole('button', { name: 'Sil Bebek koltuğu' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }).click();
@@ -789,6 +846,172 @@ test("yazdırma rotası sunucunun PDF ucuna gider (SPA'ya yönlenmez)", async ({
   expect(new URL(page.url()).pathname.startsWith('/app/')).toBe(false);
 });
 
+test('müşteri sekmesi: TC şifreli notu, belge no MASKELİ, kara liste, risk limiti', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page);
+  await sahteKiraApi(page);
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
+  const panel = page.getByRole('tabpanel', { name: 'Müşteri' });
+  const ozet = panel.getByTestId('musteri-ozeti');
+  await expect(ozet.getByTestId('tc-kimlik')).toHaveText('***şifreli — cari kartında');
+  await expect(ozet).toContainText('05321112233');
+  await expect(panel).toContainText('****6543');
+  await expect(panel).toContainText('****4567');
+  await expect(panel).toContainText('Atatürk Cd. No:5');
+  await expect(panel).toContainText('01.06.2015');
+  await expect(panel.getByTestId('kara-liste')).toContainText('Kara liste');
+  await expect(panel.getByTestId('kara-liste')).toContainText('Geç iade geçmişi');
+  await expect(panel.getByTestId('risk-limiti')).toHaveText('5.000,00 ₺');
+  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(hatalar).toEqual([]);
+});
+
+test('Hızlı Giriş: ceza rozeti ve ek hizmet tutarı SUNUCU toplamından', async ({ page }) => {
+  await sahteKiraApi(page);
+  await page.goto(`/app/kiralar/${KIRA_ID}`);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Kira 2026220901001');
+  const rozetler = hizli(page).getByTestId('hizli-rozetler');
+  await expect(rozetler).toContainText('Tahsilat: 1.000,00 ₺');
+  await expect(rozetler).toContainText('Kalan: 2.600,00 ₺');
+  await expect(rozetler.getByTestId('ceza-rozeti')).toHaveText('Ceza: 250,00 ₺');
+  await expect(hizli(page).getByTestId('kayitli-ek-hizmet')).toHaveText('180,00 ₺');
+});
+
+test('paylaş: WhatsApp / Gmail bağlantıları sunucu metni + link, geçersiz GSM uyarır', async ({
+  page,
+}) => {
+  // window.open yakalanır (dış siteye gidilmez); init betiği CDP ile eklenir, CSP'den etkilenmez.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __acilan: string[] };
+    w.__acilan = [];
+    window.open = (u?: string | URL) => {
+      w.__acilan.push(String(u));
+      return null;
+    };
+  });
+  await sahteKiraApi(page);
+  const MESAJ =
+    'Sayın Ayşe Yılmaz, 2026220901001 nolu kira sözleşmeniz: 22.09.2026 - 25.09.2026, genel toplam 3.600,00 TL.';
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), (route) =>
+    route.fulfill({
+      json: {
+        ...DETAY,
+        paylasim: {
+          link: {
+            yol: '/sozlesme/tahmin-edilemez',
+            erisimSayisi: 0,
+            sonErisimUtc: null,
+            olusturmaUtc: '2026-09-22T06:00:00Z',
+            anlikGoruntuUtc: '2026-09-22T06:00:00Z',
+            bayat: false,
+          },
+          musteriTel: '0532 111 22 33',
+          musteriEmail: 'ayse@ornek.test',
+          konu: 'Kira Sözleşmesi 2026220901001',
+          mesaj: MESAJ,
+        },
+      },
+    }),
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}`);
+  const bar = page.getByTestId('paylas-bari');
+  await expect(bar.getByLabel('Numara (GSM)')).toHaveValue('0532 111 22 33');
+  await bar.getByRole('button', { name: "WhatsApp'ta aç" }).click();
+  await bar.getByRole('button', { name: "Gmail'de aç" }).click();
+  const acilan = await page.evaluate(() => (window as unknown as { __acilan: string[] }).__acilan);
+  const koken = new URL(page.url()).origin;
+  const tamMesaj = `${MESAJ} Sözleşmeniz: ${koken}/sozlesme/tahmin-edilemez`;
+  expect(acilan).toEqual([
+    `https://wa.me/905321112233?text=${encodeURIComponent(tamMesaj)}`,
+    'https://mail.google.com/mail/?view=cm&fs=1&to=ayse%40ornek.test' +
+      `&su=${encodeURIComponent('Kira Sözleşmesi 2026220901001')}&body=${encodeURIComponent(tamMesaj)}`,
+  ]);
+
+  await bar.getByLabel('Numara (GSM)').fill('123');
+  await bar.getByRole('button', { name: "WhatsApp'ta aç" }).click();
+  await expect(bar.getByRole('alert')).toHaveText('Geçerli bir GSM girin (örn. 05xx xxx xx xx).');
+  expect(
+    await page.evaluate(() => (window as unknown as { __acilan: string[] }).__acilan.length),
+  ).toBe(2);
+});
+
+test('ek hizmet matrisi: tanım fiyat/KDV satırları, işaret hesaba girer (tutar sunucudan)', async ({
+  page,
+}) => {
+  const hesap = await sahteKiraApi(page);
+  await page.goto(`${YENI}#sekme=ekhizmet`);
+  const matris = page.getByTestId('ek-hizmet-matrisi');
+  const satir = matris.getByRole('row', { name: /Bebek koltuğu/ });
+  await expect(satir).toContainText('75,50 ₺');
+  await expect(satir).toContainText('%10');
+  await expect(satir).toContainText('maks 30 gün');
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).check();
+  await expect(satir.getByRole('textbox', { name: 'Miktar Bebek koltuğu' })).toHaveValue(
+    /^1(,00)?$/,
+  );
+  await expect.poll(() => decodeURIComponent(hesap.at(-1) ?? '')).toContain(`ek=${TANIM_ID}:1`);
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).uncheck();
+  await expect.poll(() => hesap.at(-1) ?? '').not.toContain('ek=');
+  expect(await ciddiIhlaller(page)).toEqual([]);
+});
+
+test('ek hizmet kataloğu KESİKSE listede olmayan tanım sunucu aramasıyla eklenir (#262 L2)', async ({
+  page,
+}) => {
+  const hesap = await sahteKiraApi(page);
+  const NAV_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000016';
+  await page.route('**/api/ui/v1/kiralar/ek-hizmet-katalogu', (route) =>
+    route.fulfill({
+      json: {
+        ogeler: [{ id: NAV_ID, kod: 'NAV', ad: 'Navigasyon', birimUcret: 40, kdvOrani: 0.2 }],
+        toplam: 206,
+      },
+    }),
+  );
+  await page.goto(`${YENI}#sekme=ekhizmet`);
+  const panel = page.getByRole('tabpanel', { name: 'Ek Hizmetler' });
+  await expect(panel).toContainText('İlk 1 tanım gösteriliyor (toplam 206).');
+  const diger = panel.getByRole('combobox', {
+    name: 'Listede olmayan ek hizmet ekle (ada göre ara)',
+  });
+  await diger.click();
+  await page.getByRole('option', { name: /Bebek koltuğu/ }).click();
+  const satir = page.getByTestId('ek-hizmet-matrisi').getByRole('row', { name: /Bebek koltuğu/ });
+  await expect(satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' })).toBeChecked();
+  await expect.poll(() => decodeURIComponent(hesap.at(-1) ?? '')).toContain(`ek=${TANIM_ID}:1`);
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).uncheck();
+  await expect(page.getByTestId('ek-hizmet-matrisi')).not.toContainText('Bebek koltuğu');
+});
+
+test('anonim cari (#262 M1): paylaşım kutuları boş gelir, geçersiz numarayla WhatsApp açılmaz', async ({
+  page,
+}) => {
+  await sahteKiraApi(page);
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), (route) =>
+    route.fulfill({
+      json: {
+        ...DETAY,
+        musteri: { id: MUSTERI_ID, ad: 'Anonim müşteri' },
+        paylasim: {
+          link: null,
+          musteriTel: null,
+          musteriEmail: null,
+          konu: 'Kira Sözleşmesi 2026220901001',
+          mesaj: 'Sayın müşterimiz, 2026220901001 nolu kira sözleşmeniz: …',
+        },
+      },
+    }),
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}`);
+  const bar = page.getByTestId('paylas-bari');
+  await expect(bar.getByLabel('Numara (GSM)')).toHaveValue('');
+  await expect(bar.getByLabel('E-posta')).toHaveValue('');
+  await bar.getByRole('button', { name: "WhatsApp'ta aç" }).click();
+  await expect(bar.getByRole('alert')).toHaveText('Geçerli bir GSM girin (örn. 05xx xxx xx xx).');
+  await expect(hizli(page).getByLabel('Müşteri', { exact: true })).toHaveValue('Anonim müşteri');
+});
+
 test.describe('390 px ve koyu tema', () => {
   test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
@@ -801,6 +1024,15 @@ test.describe('390 px ve koyu tema', () => {
     expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
     expect(await ciddiIhlaller(page)).toEqual([]);
     await page.getByRole('tab', { name: 'Araç' }).click();
+    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+
+    await page.getByRole('tab', { name: 'Ek Hizmetler' }).click();
+    await expect(page.getByTestId('ek-hizmet-matrisi')).toBeVisible();
+    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+
+    // Kayıtlı kira: müşteri özeti ızgarası taşmaz.
+    await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
+    await expect(page.getByTestId('musteri-ozeti')).toBeVisible();
     expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
 
     // Kayıtlı kira: geniş tablolar kendi kutusunda kayar, gövde taşmaz.
