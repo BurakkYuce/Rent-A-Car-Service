@@ -48,10 +48,15 @@
                 }
               },
               "budgets": [
+                // İlk paket (F3.7 ölçümü, AGENTS.md "Paket bütçesi"): Angular çatısı tek başına ~302 kB
+                // (core 138 + router 73 + common/http 42 + rxjs 22 + transloco 14 + platform-browser 13),
+                // uygulama çekirdeği (oturum, tema, toast, bant, sekme stratejisi, gömülü tr.json) ~50 kB,
+                // CSS 19 kB → 371,5 kB. Uyarı ~8 kB pay bırakır: ilk pakete giren her yeni kod görünür olur.
+                // Hata 450 kB (önceki 600 kB'tan sıkı). Sayfa/özellik kodu tembel parçaya girer, buraya değil.
                 {
                   "type": "initial",
-                  "maximumWarning": "300kB",
-                  "maximumError": "600kB"
+                  "maximumWarning": "380kB",
+                  "maximumError": "450kB"
                 },
                 {
                   "type": "anyComponentStyle",
