@@ -8,7 +8,8 @@ import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { provideCeviri } from '@core/i18n/ceviri';
-import { MUKERRER_BASLIGI, MUKERRERDE_YENILE } from '@core/oturum/istek-baglami';
+import { MUKERRERDE_YENILE, SESSIZ } from '@core/oturum/istek-baglami';
+import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import type { KiraDetayYaniti, KiraSozlesmesi } from '../kira-tipleri';
 import type { TahsilatBilgisi } from './finans-tipleri';
@@ -80,6 +81,7 @@ async function kur(yazma: (c: Cagri) => Observable<unknown>) {
   };
   const toast = { basari: vi.fn(), bilgi: vi.fn(), uyari: vi.fn(), hata: vi.fn() };
   const onay = { sor: vi.fn(async () => true) };
+  const bant = { goster: vi.fn() };
   TestBed.configureTestingModule({
     providers: [
       ...provideCeviri(),
@@ -87,6 +89,7 @@ async function kur(yazma: (c: Cagri) => Observable<unknown>) {
       { provide: ApiIstemcisi, useValue: api },
       { provide: ToastServisi, useValue: toast },
       { provide: OnayServisi, useValue: onay },
+      { provide: UyariBandiServisi, useValue: bant },
       { provide: OturumServisi, useValue: { izinVar: () => true } },
     ],
   });
@@ -98,7 +101,7 @@ async function kur(yazma: (c: Cagri) => Observable<unknown>) {
     f.detayAyarla(d);
     TestBed.tick();
   };
-  return { f, cagrilar, toast, onay, degisti, detayVer };
+  return { f, cagrilar, toast, onay, bant, degisti, detayVer };
 }
 
 const tahsilatlar = (c: readonly Cagri[]) => c.filter((x) => x.yol.endsWith('/finans/tahsilat'));
@@ -176,8 +179,8 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     expect(govdesi(tahsilatlar(cagrilar)[0])['tahsilatAnahtar']).toBe(K1);
   });
 
-  it('409 mukerrer: otomatik tekrar YOK; bağlamda yeniden yükleme + "Kayıt değişmiş" başlığı; sonra yeni anahtar', async () => {
-    const { f, cagrilar, detayVer, degisti } = await kur(() =>
+  it('409 mukerrer: otomatik tekrar YOK; "Mükerrer işlem" değil form içi "kayıt değişmiş" uyarısı; sonra yeni anahtar', async () => {
+    const { f, cagrilar, detayVer, degisti, toast } = await kur(() =>
       throwError(() =>
         sunucuHatasi(409, 'mukerrer', 'Kiranın bakiyesi bu ekran açıldıktan sonra değişti.'),
       ),
@@ -188,10 +191,16 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     f.tahsilatYap(f.nakit);
     expect(tahsilatlar(cagrilar)).toHaveLength(1);
 
+    // Genel "Mükerrer işlem" bildirimi kapalı (sessiz); yeniden yükleme bağlamda (interceptor çağırır).
     const baglam = tahsilatlar(cagrilar)[0]?.secenek?.context;
-    expect(baglam?.get(MUKERRER_BASLIGI)).toBe('Kayıt değişmiş');
+    expect(baglam?.get(SESSIZ)).toBe(true);
     baglam?.get(MUKERRERDE_YENILE)?.(); // interceptor'ın yaptığı
     expect(degisti).toHaveBeenCalledTimes(1);
+    expect(f.nakit.uyari()).toBe(
+      'Kiranın bakiyesi bu ekran açıldıktan sonra değişti. Kayıt yeniden yüklendi.',
+    );
+    expect(toast.bilgi).not.toHaveBeenCalled();
+    expect(f.nakit.gonderim.genelHatalar()).toEqual([]);
     expect(f.nakit.form.getRawValue().tutar).toBe('300.00'); // form silinmez
 
     expect(f.nakit.kopya.gonderilebilir()).toBe(false);
@@ -230,6 +239,40 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     detayVer(detay(null));
     f.tahsilatYap(f.nakit);
     expect(cagrilar).toHaveLength(0);
+  });
+});
+
+describe('KiraFinansDurumu — tahsilat (sessiz istek) genel hataları', () => {
+  it.each([
+    [403, 'yetki_yok', 'bant'],
+    [409, 'cakisma', 'bant'],
+    [429, 'cok_istek', 'uyari'],
+    [500, 'sunucu', 'hata'],
+  ])('%i %s interceptor gibi gösterilir (%s)', async (status, kod, nerede) => {
+    const { f, detayVer, toast, bant } = await kur(() =>
+      throwError(() =>
+        kod === 'sunucu'
+          ? apiHatasinaCevir(new HttpErrorResponse({ status }))
+          : sunucuHatasi(status, kod, 'Sunucu mesajı.'),
+      ),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.tahsilatYap(f.nakit);
+    if (nerede === 'bant')
+      expect(bant.goster).toHaveBeenCalledWith(expect.objectContaining({ kod }));
+    if (nerede === 'uyari') expect(toast.uyari).toHaveBeenCalledWith('Sunucu mesajı.');
+    if (nerede === 'hata') expect(toast.hata).toHaveBeenCalled();
+    expect(f.nakit.uyari()).toBeNull();
+  });
+
+  it('ağ hatası → hata bildirimi; kopya DONAR (aynı anahtarla yeniden deneme)', async () => {
+    const { f, detayVer, toast } = await kur(() => throwError(() => agHatasi()));
+    detayVer(detay(tahsilat(K1)));
+    f.tahsilatYap(f.nakit);
+    expect(toast.hata).toHaveBeenCalledWith(
+      'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.',
+    );
+    expect(f.nakit.kopya.gonderilebilir()).toBe(true);
   });
 });
 

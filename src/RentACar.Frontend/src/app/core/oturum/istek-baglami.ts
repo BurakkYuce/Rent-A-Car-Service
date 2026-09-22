@@ -20,13 +20,6 @@ export const YENIDEN_GIRIS_YOK = new HttpContextToken<boolean>(() => false);
  */
 export const MUKERRERDE_YENILE = new HttpContextToken<(() => void) | null>(() => null);
 
-/**
- * `mukerrer` bilgi toast'unun başlığı (varsayılan "Mükerrer işlem"). Deterministik anahtarlı işlemde 409
- * çoğunlukla "kayıt bu ekran açıldıktan sonra değişti" demektir (F4.4 sabit panel tahsilatı); başlık bunu
- * söyler, gövde sunucunun `detail`'ıdır.
- */
-export const MUKERRER_BASLIGI = new HttpContextToken<string | null>(() => null);
-
 /** İç: istek yeniden girişten sonra tekrarlandı (ikinci `oturum_yok`'ta döngü olmasın). */
 export const TEKRARLANDI = new HttpContextToken<boolean>(() => false);
 
@@ -37,8 +30,6 @@ export interface IstekBaglamiSecenekleri {
   readonly sessiz?: boolean;
   readonly yenidenGirisYok?: boolean;
   readonly mukerrerdeYenile?: () => void;
-  /** `mukerrer` toast başlığı (bkz. {@link MUKERRER_BASLIGI}). */
-  readonly mukerrerBasligi?: string;
 }
 
 /** Tipli `HttpContext` kurucusu: `api.post(yol, govde, { context: istekBaglami({ sessiz: true }) })`. */
@@ -50,6 +41,5 @@ export function istekBaglami(
   if (secenek.sessiz) baglam = baglam.set(SESSIZ, true);
   if (secenek.yenidenGirisYok) baglam = baglam.set(YENIDEN_GIRIS_YOK, true);
   if (secenek.mukerrerdeYenile) baglam = baglam.set(MUKERRERDE_YENILE, secenek.mukerrerdeYenile);
-  if (secenek.mukerrerBasligi) baglam = baglam.set(MUKERRER_BASLIGI, secenek.mukerrerBasligi);
   return baglam;
 }

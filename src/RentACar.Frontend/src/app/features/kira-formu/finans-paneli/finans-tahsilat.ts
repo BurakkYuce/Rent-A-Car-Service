@@ -57,6 +57,15 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="t.gonderim.genelHatalar()" />
+        @if (t.uyari(); as uyari) {
+          <p
+            class="rc-form-mesaji rc-form-mesaji--uyari"
+            role="alert"
+            [attr.data-testid]="'tahsilat-uyari-' + t.hesap"
+          >
+            <strong>{{ 'kiraFinans.kayitDegismis' | transloco }}:</strong> {{ uyari }}
+          </p>
+        }
         @if (t.kopya.tazelemeBekleniyor()) {
           <p class="kf-not" role="status">{{ 'kiraFinans.tahsilat.tazeleniyor' | transloco }}</p>
         }

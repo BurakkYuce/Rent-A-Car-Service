@@ -41,7 +41,7 @@ import { AyristiranKontrol, kontrolSaglayicilari } from './temel-kontrol';
         [attr.aria-invalid]="ariaGecersiz()"
         [attr.aria-describedby]="ariaAciklayan()"
         [attr.aria-required]="ariaZorunlu()"
-        (focus)="odaklandi()"
+        (focus)="odaklandi($event)"
         (input)="yazildi($event)"
         (blur)="birakildi()"
       />
@@ -65,10 +65,27 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
     this.hataAyarla(null);
   }
 
-  protected odaklandi(): void {
+  /**
+   * Odakta gruplamasız düzenleme yazımına geçer. Metin DOM'a EŞZAMANLI yazılır ve odaktan önce metnin
+   * TAMAMI seçiliyse (klavyeyle Tab'la gelme, otomatik doldurma, e2e `fill`: önce seç sonra odakla) seçim
+   * yeniden kurulur. Aksi halde değer değişince imleç sona kayar ve yazılan mevcut tutarın SONUNA eklenirdi:
+   * "2.600,00" dolu alana "500" → "2600,00500" → 2.600,01 sessizce geçerli (F4.4 e2e'de ölçüldü). Aynı
+   * değerin değişiklik algılamasında yeniden yazılması seçimi bozmaz.
+   */
+  protected odaklandi(olay?: Event): void {
     if (this.ayristirmaHatasi() !== null) return;
     const kanonik = invariantOndalik(this.deger(), { kesir: this.kesir() });
-    this.metin.set(ondalikDuzenlemeMetni(kanonik, this.kesir()));
+    const duzenleme = ondalikDuzenlemeMetni(kanonik, this.kesir());
+    const girdi = olay?.target;
+    if (girdi instanceof HTMLInputElement && girdi.value !== duzenleme) {
+      const tamamiSecili =
+        girdi.value.length > 0 &&
+        girdi.selectionStart === 0 &&
+        girdi.selectionEnd === girdi.value.length;
+      girdi.value = duzenleme;
+      if (tamamiSecili) girdi.select();
+    }
+    this.metin.set(duzenleme);
   }
 
   protected yazildi(olay: Event): void {

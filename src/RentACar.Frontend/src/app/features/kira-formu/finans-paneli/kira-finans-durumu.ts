@@ -2,6 +2,7 @@ import {
   DestroyRef,
   Injectable,
   type Signal,
+  type WritableSignal,
   computed,
   effect,
   inject,
@@ -11,11 +12,12 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { type AbstractControl, FormControl, FormGroup, Validators } from '@angular/forms';
 import { EMPTY, type Observable, startWith } from 'rxjs';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { istekBaglami } from '@core/oturum/istek-baglami';
@@ -77,6 +79,8 @@ export interface TahsilatFormu {
   readonly gonderim: FormGonderimi;
   /** Seçili döviz (ISO) — kur alanı ve para simgesi için. */
   readonly doviz: Signal<string>;
+  /** Son gönderim 409 `mukerrer` aldı: "kira kaydı değişmiş" + sunucu mesajı (form içi uyarı). */
+  readonly uyari: WritableSignal<string | null>;
 }
 
 /** Dönem satırı mini formu (tahsilat istendi mi + hesap). */
@@ -103,6 +107,7 @@ export type DonemFormu = FormGroup<{
 export class KiraFinansDurumu {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
+  private readonly bant = inject(UyariBandiServisi);
   private readonly onay = inject(OnayServisi);
   private readonly oturum = inject(OturumServisi);
   private readonly destroyRef = inject(DestroyRef);
@@ -292,8 +297,12 @@ export class KiraFinansDurumu {
 
   /**
    * Kira tahsilatı (E01). Anahtar = detaydaki deterministik `tahsilatAnahtar` (satır kopyası); başlık YOK.
-   * 409 `mukerrer`: ekran açıldıktan sonra kirada işlem oldu (ya da çift gönderim) → kayıt yeniden
-   * yüklenir, "kayıt değişmiş" bilgisi + sunucu mesajı; yeni anahtar tazelenen detaydan alınır.
+   * 409 `mukerrer`: sunucu anahtarı YENİDEN hesaplar — ekran açıldıktan sonra kirada işlem olduysa (ya da
+   * çift gönderimde ilki yazıldıysa) bayat anahtar 409 alır, bu istekte HİÇBİR ŞEY yazılmaz. "Mükerrer işlem"
+   * başlığı parayı kaydedildi sandırır: istek `sessiz` gider, kayıt yeniden yüklenir, form İÇİNDE nötr
+   * "Kira kaydı değişmiş" uyarısı + sunucu mesajı gösterilir; yeni anahtar tazelenen detaydan alınır.
+   * Otomatik yeniden gönderim YOK. (`sessiz` diğer genel bildirimleri de kapattığı için onlar
+   * `sessizHatayiGoster`'da interceptor'la aynı biçimde gösterilir.)
    */
   tahsilatYap(tf: TahsilatFormu): void {
     if (!tf.kopya.gonderilebilir()) return;
@@ -302,15 +311,11 @@ export class KiraFinansDurumu {
       () => {
         const kopya = tf.kopya.gonderiliyor();
         if (kopya === null) return EMPTY; // düğme zaten kapalı; kilit finalize'la bırakılır
+        tf.uyari.set(null);
         return this.api.post<FinansIslemYaniti>(
           `${FINANS}/tahsilat`,
           tahsilatGovdesi(kopya, tf.hesap, tf.form.getRawValue()),
-          {
-            context: istekBaglami({
-              mukerrerdeYenile: () => this.yenile(),
-              mukerrerBasligi: this.t('kiraFinans.kayitDegismis'),
-            }),
-          },
+          { context: istekBaglami({ sessiz: true, mukerrerdeYenile: () => this.yenile() }) },
         );
       },
       {
@@ -320,7 +325,12 @@ export class KiraFinansDurumu {
           this.tamam('kiraFinans.bildirim.tahsilat');
         },
         hata: (h) => {
-          if (h.kod === 'mukerrer') tf.kopya.sonuclandi();
+          if (h.kod === 'mukerrer') {
+            tf.kopya.sonuclandi();
+            tf.uyari.set(`${h.detay} ${this.t('geriBildirim.mukerrerYenilendi')}`);
+          } else {
+            this.sessizHatayiGoster(h);
+          }
         },
       },
     );
@@ -507,6 +517,34 @@ export class KiraFinansDurumu {
     this.yenile();
   }
 
+  /**
+   * `sessiz` istekte interceptor'ın gösterMEdiği genel bildirimler — interceptor tablosuyla aynı:
+   * yetki/pilot/alansız çakışma bant, çok istek uyarı, 5xx/ağ hata bildirimi. Form hataları (`dogrulama`,
+   * kod'suz 4xx) `formGonderimi`'nde kalır.
+   */
+  private sessizHatayiGoster(h: ApiHatasi): void {
+    switch (h.kod) {
+      case 'yetki_yok':
+      case 'pilot_degil':
+        this.bant.goster({ tur: 'uyari', mesaj: h.detay, kod: h.kod });
+        break;
+      case 'cakisma':
+        if (h.alanlar === undefined) this.bant.goster({ tur: 'uyari', mesaj: h.detay, kod: h.kod });
+        break;
+      case 'cok_istek':
+        this.toast.uyari(h.detay);
+        break;
+      case 'sunucu':
+        this.toast.hata(this.t('geriBildirim.sunucuHatasi'));
+        break;
+      case 'ag':
+        this.toast.hata(this.t('geriBildirim.agHatasi'));
+        break;
+      default:
+        break;
+    }
+  }
+
   private mukerrerBaglami() {
     return istekBaglami({ mukerrerdeYenile: () => this.yenile() });
   }
@@ -581,6 +619,7 @@ export class KiraFinansDurumu {
       kopya: new TahsilatKopyasi(),
       gonderim: formGonderimi(),
       doviz: this.dovizSinyali(form.controls.doviz),
+      uyari: signal<string | null>(null),
     };
   }
 

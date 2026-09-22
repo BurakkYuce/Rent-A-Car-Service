@@ -161,6 +161,22 @@ describe('CVA kontroller', () => {
     expect(form.value.tutar).toBe('-12.50');
   });
 
+  it('para: dolu alanda odak düzenleme yazımını EŞZAMANLI yazar (hemen ardından yazılan eklenmez)', async () => {
+    const { form, girdi, yaz, birak } = await kur();
+    await yaz('tutar', '2.600,00');
+    await birak('tutar');
+    expect(girdi('tutar').value).toBe('2.600,00');
+    // Tab'la gelme / otomatik doldurma: önce tüm metin seçili, sonra odak.
+    girdi('tutar').select();
+    girdi('tutar').dispatchEvent(new Event('focus'));
+    // Değişiklik algılaması BEKLENMEDEN: DOM düzenleme yazımında ve TAMAMI hâlâ seçili (yazılan yerine geçer).
+    expect(girdi('tutar').value).toBe('2600,00');
+    expect(girdi('tutar').selectionStart).toBe(0);
+    expect(girdi('tutar').selectionEnd).toBe('2600,00'.length);
+    await yaz('tutar', '500');
+    expect(form.value.tutar).toBe('500.00');
+  });
+
   it('para: anlaşılmayan yazım değer değil hata; metin ekranda kalır, mesaj alanın altında', async () => {
     const { form, alan, girdi, yaz, birak } = await kur();
     await yaz('tutar', '12,3a');
