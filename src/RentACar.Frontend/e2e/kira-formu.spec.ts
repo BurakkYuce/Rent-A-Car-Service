@@ -582,7 +582,8 @@ test('faturalı kirada ek hizmet ekle/sil 400: mesaj gösterilir, seçim silinme
   await expect(page.locator('.rc-form-hatalari')).toContainText(
     'Faturalanmış kiraya ek hizmet eklenemez.',
   );
-  await expect(ekle.getByRole('combobox')).toHaveValue('Bebek koltuğu');
+  // F4.3b: seçenek etiketi katalogdan, Blazor gibi "Ad (birim net)".
+  await expect(ekle.getByRole('combobox')).toHaveValue('Bebek koltuğu (75,50 ₺ net)');
 
   await page.getByRole('button', { name: 'Sil Bebek koltuğu' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }).click();
