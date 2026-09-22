@@ -94,6 +94,16 @@ class DenemeForm {
   });
 }
 
+@Component({
+  selector: 'rc-odakta-sec-deneme',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, ParaGirdisi],
+  template: `<rc-para-girdisi [formControl]="tutar" />`,
+})
+class OdaktaSecDeneme {
+  readonly tutar = new FormControl<string | number | null>(1250.5);
+}
+
 async function kur() {
   TestBed.configureTestingModule({ providers: [...provideCeviri()] });
   const fixture = TestBed.createComponent(DenemeForm);
@@ -155,13 +165,11 @@ describe('CVA kontroller', () => {
     await birak('tutar');
     expect(girdi('tutar').value).toBe('1.234,56');
     expect(form.controls.tutar.touched).toBe(true);
-    await yaz('tutar', '0,005');
-    expect(form.value.tutar).toBe('0.01');
     await yaz('tutar', '-12,5');
     expect(form.value.tutar).toBe('-12.50');
   });
 
-  it('para: dolu alanda odak düzenleme yazımını EŞZAMANLI yazar (hemen ardından yazılan eklenmez)', async () => {
+  it('para: Tab/otomatik doldurma odağında düzenleme yazımı EŞZAMANLI, tümü seçili (yazılan sona eklenmez)', async () => {
     const { form, girdi, yaz, birak } = await kur();
     await yaz('tutar', '2.600,00');
     await birak('tutar');
@@ -175,6 +183,46 @@ describe('CVA kontroller', () => {
     expect(girdi('tutar').selectionEnd).toBe('2600,00'.length);
     await yaz('tutar', '500');
     expect(form.value.tutar).toBe('500.00');
+  });
+
+  it('para: YAZILAN 2’den fazla anlamlı ondalık yuvarlanmaz, alan hatası; programatik değer yuvarlanır', async () => {
+    const { fixture, form, alan, girdi, yaz, birak } = await kur();
+    // 3 hane → hata, değer yok (sessiz yuvarlama niyet dışı tutar gönderirdi).
+    await yaz('tutar', '1,555');
+    await birak('tutar');
+    expect(form.value.tutar).toBeNull();
+    expect(form.controls.tutar.hasError('paraFazlaHane')).toBe(true);
+    expect(form.controls.tutar.hasError('paraGecersiz')).toBe(false);
+    expect(girdi('tutar').value).toBe('1,555');
+    expect(alan('tutar').textContent).toContain('En fazla 2 ondalık hane girilebilir.');
+    // Önceden dolu öneri + sonuna yazılan rakamlar (adversarial F3).
+    await yaz('tutar', '1250,5090');
+    expect(form.controls.tutar.hasError('paraFazlaHane')).toBe(true);
+    await yaz('tutar', '0,005');
+    expect(form.value.tutar).toBeNull();
+    // 2 hane ve sondaki sıfırlar geçerli.
+    await yaz('tutar', '1,55');
+    expect(form.value.tutar).toBe('1.55');
+    expect(form.controls.tutar.valid).toBe(true);
+    await yaz('tutar', '1,500');
+    expect(form.value.tutar).toBe('1.50');
+    // Programatik 4 hane (sunucudan numeric(19,4)) → yuvarlanır, hata yok.
+    form.controls.tutar.setValue('1250.5050');
+    await fixture.whenStable();
+    expect(girdi('tutar').value).toBe('1.250,51');
+    expect(form.controls.tutar.valid).toBe(true);
+  });
+
+  it('para (varsayılan): programatik odakta tüm metin seçili; yazılan önerinin yerine geçer', async () => {
+    TestBed.configureTestingModule({ providers: [...provideCeviri()] });
+    const fixture = TestBed.createComponent(OdaktaSecDeneme);
+    await fixture.whenStable();
+    const g = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (g === null) throw new Error('girdi yok');
+    g.focus();
+    await fixture.whenStable();
+    expect(g.value).toBe('1250,50');
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
   });
 
   it('para: anlaşılmayan yazım değer değil hata; metin ekranda kalır, mesaj alanın altında', async () => {

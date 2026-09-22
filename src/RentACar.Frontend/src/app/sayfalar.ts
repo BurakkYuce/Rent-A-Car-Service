@@ -23,6 +23,13 @@ export const SAYFALAR: Routes = [
     loadComponent: () => import('@features/yer-tutucu/yer-tutucu').then((m) => m.YerTutucu),
   },
   {
+    // F4.2 kira listesi. Kayıt formu (`kiralar/yeni`, `kiralar/:id`) F4.3'te; liste yalnız bağlantı verir.
+    path: 'kiralar',
+    title: 'Kira Sözleşmeleri — RentACar',
+    loadComponent: () =>
+      import('@features/kiralar/kira-listesi/kira-listesi').then((m) => m.KiraListesi),
+  },
+  {
     // F3.7 vitrin dizini: çekirdeğin her parçasına bağlantı (e2e: axe iki tema, 320–1440 taşma, görsel).
     path: 'vitrin',
     title: 'Vitrin — RentACar',

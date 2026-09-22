@@ -362,11 +362,11 @@ test('409 mukerrer (bayat anahtar): otomatik tekrar YOK, kayıt yeniden yükleni
   const once = detayOkuma();
   await panel(page).getByTestId('tahsilat-Kasa').click();
 
-  // Bayat anahtarda HİÇBİR ŞEY yazılmadı: "Mükerrer işlem" değil, form içinde nötr uyarı + sunucu mesajı.
-  const uyari = panel(page).getByTestId('tahsilat-uyari-Kasa');
-  await expect(uyari).toContainText('Kira kaydı değişmiş');
-  await expect(uyari).toContainText(`${mesaj} Kayıt yeniden yüklendi.`);
-  await expect(toastlar(page)).not.toContainText('Mükerrer işlem');
+  // Bayat anahtarda HİÇBİR ŞEY yazılmadı: "Mükerrer işlem" değil, nötr uyarı + sunucu mesajı.
+  const toast = toastlar(page);
+  await expect(toast).toContainText('Kira kaydı değişmiş');
+  await expect(toast).toContainText(`${mesaj} Kayıt yeniden yüklendi.`);
+  await expect(toast).not.toContainText('Mükerrer işlem');
   await expect.poll(detayOkuma).toBeGreaterThan(once);
   await expect(tutar).toHaveValue(/^500,00$/); // yazılan korunur
   await page.waitForTimeout(300);
