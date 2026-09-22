@@ -123,11 +123,13 @@ public sealed class DisHizmetService(
         PermissionGuard.Require(currentUser, Permission.FinanceReverse); // inceltme: ters kayıt yazar
         var kayit = await repository.FindAsync(id, ct)
             ?? throw new ValidationException("Dış hizmet kaydı bulunamadı.");
-        if (kayit.Durum == DisHizmetDurum.Iptal)
-            throw new ValidationException("Kayıt zaten iptal edilmiş.");
+        // F4.4a adversarial L5: kapsam, durumdan ÖNCE — başka şubenin kaydının iptal edilmiş olduğu
+        // "zaten iptal" mesajıyla sızmasın; kapsam dışı her kayıt aynı 403'ü alır.
         var rental = await bookings.FindRentalAsync(kayit.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         Authorization.BranchScope.RequireInScope(currentUser, rental.CikisSubeId, rental.CikisOfisi);
+        if (kayit.Durum == DisHizmetDurum.Iptal)
+            throw new ValidationException("Kayıt zaten iptal edilmiş.");
         await periodLock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // ters kayıt bugüne yazılır
         await repository.IptalAsync(id, Entries(kayit, rental.VehicleId, flip: true, tarih: DateTimeOffset.UtcNow), ct);
     }

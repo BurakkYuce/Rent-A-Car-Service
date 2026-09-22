@@ -665,6 +665,263 @@
         }
       }
     },
+    "/api/ui/v1/finans/hesaplar": {
+      "get": {
+        "tags": [
+          "Finans"
+        ],
+        "parameters": [
+          {
+            "name": "tur",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FinansHesapOgesi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/tahsilat": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TahsilatIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/odeme": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OdemeIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/fatura": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaturaKesIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/donem-fatura": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DonemFaturaIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DonemFaturaYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/dis-hizmet": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisHizmetIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/dis-hizmet/{id}/iptal": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/depozito/al": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepozitoAlIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/depozito/irat": {
+      "post": {
+        "tags": [
+          "Finans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepozitoIratIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/tablo-duzenleri/{tabloKodu}": {
       "get": {
         "tags": [
@@ -2208,6 +2465,234 @@
           }
         }
       },
+      "DepozitoAlIstegi": {
+        "required": [
+          "cariId",
+          "tutar",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "DepozitoIratIstegi": {
+        "required": [
+          "cariId",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DisHizmetIstegi": {
+        "required": [
+          "kiraId",
+          "cariId",
+          "alinanHizmet",
+          "hizmetBedeli"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "alinanHizmet": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hizmetBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "komisyonOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hizmetAlinanFirma": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "komisyonFaturaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DonemFaturaIstegi": {
+        "required": [
+          "kiraId",
+          "donemSira"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "donemSira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tahsilat": {
+            "type": "boolean",
+            "default": false
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DonemFaturaYaniti": {
+        "required": [
+          "faturaId",
+          "tahsilatYazildi",
+          "bilgi"
+        ],
+        "type": "object",
+        "properties": {
+          "faturaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tahsilatYazildi": {
+            "type": "boolean"
+          },
+          "bilgi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DonusIstegi": {
         "type": "object",
         "properties": {
@@ -2353,6 +2838,112 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "FaturaKesIstegi": {
+        "required": [
+          "kiraId"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otv": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tevkifatOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tevkifatTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "damgaVergisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "iadeMi": {
+            "type": "boolean",
+            "default": false
+          },
+          "manuelMi": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "FinansHesapOgesi": {
+        "required": [
+          "id",
+          "etiket",
+          "kod",
+          "ad",
+          "tur",
+          "doviz"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "etiket": {
+            "type": "string"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "tur": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FinansIslemYaniti": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -5845,6 +6436,82 @@
           }
         }
       },
+      "OdemeIstegi": {
+        "required": [
+          "cariId",
+          "tutar",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "kanal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "PanelCikisKovalari": {
         "required": [
           "gecikmis",
@@ -6505,6 +7172,89 @@
           }
         }
       },
+      "TahsilatIstegi": {
+        "required": [
+          "cariId",
+          "tutar",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "kanal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "tahsilatAnahtar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "TeslimIstegi": {
         "type": "object",
         "properties": {
@@ -6588,6 +7338,9 @@
     },
     {
       "name": "Se\u00E7im"
+    },
+    {
+      "name": "Finans"
     },
     {
       "name": "Tablo"
