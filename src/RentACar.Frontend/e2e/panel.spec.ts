@@ -10,6 +10,8 @@ import { tasmaOlc } from './vitrin-sayfalari';
  */
 const PANEL = '/app/panel';
 const ANAHTAR = '0f9b2c1e-6a1d-5b7e-9c3a-2d4e6f8a0b1c';
+const BAYAT =
+  'Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.';
 const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
 const kademe = { yediGun: 1, otuzGun: 2, gecmis: 0 };
@@ -239,7 +241,7 @@ test('Tahsil Et: sunucu anahtarı aynen gider, gönderim kilitli, 2xx sonrası p
   expect(hatalar).toEqual([]);
 });
 
-test('Tahsil Et 409 mukerrer: yeniden gönderilmez, panel yeniden yüklenir + bilgi', async ({
+test('Tahsil Et 409 mukerrer (bayat anahtar): yeniden gönderilmez, panel yeniden yüklenir, sunucunun detail’ı gösterilir', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page, AG_HATASI);
@@ -248,12 +250,7 @@ test('Tahsil Et 409 mukerrer: yeniden gönderilmez, panel yeniden yüklenir + bi
   let gonderim = 0;
   await page.route('**/api/ui/v1/finans/tahsilat', (route) => {
     gonderim++;
-    return problem(
-      route,
-      409,
-      'mukerrer',
-      'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).',
-    );
+    return problem(route, 409, 'mukerrer', BAYAT);
   });
   await page.goto(PANEL);
   await hazir(page);
@@ -263,7 +260,9 @@ test('Tahsil Et 409 mukerrer: yeniden gönderilmez, panel yeniden yüklenir + bi
     .getByRole('button', { name: 'Tahsil et' })
     .click();
 
-  await expect(page.getByRole('status').filter({ hasText: 'Mükerrer işlem' })).toBeVisible();
+  const uyari = page.getByRole('alert').filter({ hasText: 'Tahsilat gönderimi durduruldu' });
+  await expect(uyari).toContainText(BAYAT);
+  await expect(page.getByText('Mükerrer işlem')).toHaveCount(0);
   await expect.poll(() => panel.sayi()).toBe(2);
   await expect(page.getByRole('form', { name: /Tahsilat/ })).toHaveCount(0);
   expect(gonderim).toBe(1);

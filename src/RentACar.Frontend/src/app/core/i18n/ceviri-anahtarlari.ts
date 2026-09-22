@@ -177,6 +177,8 @@ export type CeviriAnahtari =
   | 'panel.tahsilat.hesapBelirtilmemis'
   | 'panel.tahsilat.hesapId'
   | 'panel.tahsilat.kasa'
+  | 'panel.tahsilat.mukerrerBaslik'
+  | 'panel.tahsilat.mukerrerYenilendi'
   | 'panel.tahsilat.pozitif'
   | 'panel.tahsilat.tahsilEt'
   | 'panel.tahsilat.tahsilEtEtiket'

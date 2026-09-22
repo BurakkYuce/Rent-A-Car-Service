@@ -22,6 +22,7 @@ import {
 } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
+import type { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { FinansHesapOgesi, PanelTahsilatBilgisi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
@@ -46,8 +47,12 @@ import { type HesapTuru, sayi, tahsilatGovdesi } from './panel-modeli';
  * - Anahtar sunucunun deterministik `tahsilatAnahtar`'ı; gövdede AYNEN geri gider, istemci anahtarı üretilmez
  *   (`GonderimKilidi` deterministik dalı).
  * - Gönderim boyunca kilit: düğme pasif, çift tık tek istek.
- * - 409 `mukerrer`: otomatik yeniden gönderim YOK. Interceptor `mukerrer` çıktısını tetikler (panel yeniden
- *   yüklenir, form kapanır) ve bilgi toast'u gösterir.
+ * - 409 `mukerrer`: otomatik yeniden gönderim YOK; `mukerrer` çıktısı panel yeniden yüklenir, form kapanır. Sunucu
+ *   anahtarı yeniden hesaplar: bayat anahtar (ekran açıldıktan sonra kirada tahsilat/ters kayıt/bakiye değişti)
+ *   de 409 `mukerrer` döner. Bu yüzden genel "Mükerrer işlem" bildirimi KULLANILMAZ (operatör parayı kaydedildi
+ *   sanmasın): istek `sessiz`, uyarıda sunucunun `detail`'ı AYNEN + nötr başlık gösterilir.
+ * - `sessiz` yüzünden genel bant/toast'a düşmeyen kodlar (yetki, çok istek, 5xx, ağ) formun hata kutusunda
+ *   gösterilir; 5xx/ağda "kaydedilmemiş olabilir, kontrol edin" metni (sessiz başarısızlık yok).
  * - 2xx: `tamamlandi` → panel tazelenir; satırın yeni bakiyesi ve işlem sayısıyla YENİ anahtar gelir.
  */
 @Component({
@@ -85,7 +90,7 @@ import { type HesapTuru, sayi, tahsilatGovdesi } from './panel-modeli';
           </rc-alan>
         }
       </div>
-      <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
+      <rc-form-hatalari [hatalar]="hatalar()" />
       <div class="tahsilat__eylemler">
         <button
           type="submit"
@@ -152,7 +157,7 @@ export class PanelTahsilatFormu implements OnInit {
 
   /** 2xx: tahsilat yazıldı → panel tazelenir (yeni anahtar). */
   readonly tamamlandi = output();
-  /** 409 `mukerrer`: kayıt zaten var → panel yeniden yüklenir; yeniden gönderim YOK. */
+  /** 409 `mukerrer` (çift gönderim ya da bayat anahtar): panel yeniden yüklenir; yeniden gönderim YOK. */
   readonly mukerrer = output();
   readonly vazgecildi = output();
 
@@ -174,6 +179,12 @@ export class PanelTahsilatFormu implements OnInit {
   });
 
   protected readonly gonderim = formGonderimi();
+  /** `sessiz` istekte genel bant/toast'a düşmeyen hatalar (yetki, çok istek, 5xx, ağ) formda. */
+  private readonly ekHatalar = signal<readonly string[]>([]);
+  protected readonly hatalar = computed(() => [
+    ...this.gonderim.genelHatalar(),
+    ...this.ekHatalar(),
+  ]);
 
   private readonly hesaplar = signal<readonly FinansHesapOgesi[]>([]);
   private readonly secilenTur = toSignal(this.form.controls.hesap.valueChanges, {
@@ -211,6 +222,7 @@ export class PanelTahsilatFormu implements OnInit {
     const bilgi = this.bilgi();
     const deger = this.form.getRawValue();
     const tutar = invariantOndalik(deger.tutar, { kesir: 2 });
+    if (!this.gonderim.gonderiliyor()) this.ekHatalar.set([]);
     this.gonderim.gonder(
       this.form,
       () =>
@@ -221,7 +233,8 @@ export class PanelTahsilatFormu implements OnInit {
             { tutar: tutar ?? '', hesap: deger.hesap ?? 'Kasa', hesapId: deger.hesapId },
             this.t('panel.tahsilat.aciklama', { plaka: this.plaka() }),
           ),
-          { context: istekBaglami({ mukerrerdeYenile: () => this.mukerrer.emit() }) },
+          // Sessiz: genel "Mükerrer işlem" toast'u yerine sunucunun detail'ı (bkz. `hataIsle`).
+          { context: istekBaglami({ sessiz: true }) },
         ),
       {
         deterministikAnahtar: bilgi.anahtar,
@@ -234,8 +247,39 @@ export class PanelTahsilatFormu implements OnInit {
           );
           this.tamamlandi.emit();
         },
+        hata: (hata) => this.hataIsle(hata),
       },
     );
+  }
+
+  /**
+   * `dogrulama` / `cakisma` / vazgeçilen `oturum_yok` formGonderimi'nde alanlara ya da forma yazılır; burada
+   * yalnız `sessiz` yüzünden genel katmanın göstermediği kodlar ele alınır.
+   */
+  private hataIsle(hata: ApiHatasi): void {
+    switch (hata.kod) {
+      case 'mukerrer':
+        // Sunucunun detail'ı AYNEN: bayat anahtarda "kayıt değişti, yeniden yükleyip tekrar deneyin", gerçek çift
+        // gönderimde "zaten kaydedilmiş". Başlık nötr — "kaydedildi" izlenimi vermez.
+        this.toast.uyari(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
+          baslik: this.t('panel.tahsilat.mukerrerBaslik'),
+        });
+        this.mukerrer.emit();
+        return;
+      case 'sunucu':
+        this.ekHatalar.set([this.t('geriBildirim.sunucuHatasi')]);
+        return;
+      case 'ag':
+        this.ekHatalar.set([this.t('geriBildirim.agHatasi')]);
+        return;
+      case 'yetki_yok':
+      case 'pilot_degil':
+      case 'cok_istek':
+        this.ekHatalar.set([hata.detay]);
+        return;
+      default:
+        return;
+    }
   }
 
   private pozitifTutar(c: AbstractControl): ValidationErrors | null {
