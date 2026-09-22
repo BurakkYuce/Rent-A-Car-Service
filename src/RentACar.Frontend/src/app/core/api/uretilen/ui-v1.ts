@@ -2625,6 +2625,7 @@ export interface components {
       basTarEnGec: string;
     };
     KiraGuncelleIstegi: {
+      surum: null | string;
       cikisOfisi: null | string;
       donusOfisi: null | string;
       /** Format: uuid */
@@ -3073,6 +3074,7 @@ export interface components {
       createdAtUtc?: string;
       /** Format: date-time */
       updatedAtUtc?: null | string;
+      surum?: null | string;
     };
     KiraTarafDto: {
       /** Format: uuid */

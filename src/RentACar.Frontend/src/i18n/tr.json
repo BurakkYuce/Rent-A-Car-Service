@@ -683,7 +683,8 @@
       "kmHediye": "Km hediye",
       "bitisSebebi": "Bitiş sebebi",
       "teslimAlan": "Teslim alan",
-      "yeniBitTar": "Yeni bitiş"
+      "yeniBitTar": "Yeni bitiş",
+      "kayitBulunamadi": "(kayıt bulunamadı)"
     },
     "ipucu": {
       "tarihUzat": "Tarih değişikliği: Dönüş > Kira uzatma",
@@ -883,6 +884,10 @@
       "yeniSurumMesaj": "Müşteriye gönderilen ESKİ link kalıcı olarak çalışmaz; yeni adresi tekrar göndermeniz gerekir.",
       "iptalBaslik": "Sözleşme linki iptal edilsin mi?",
       "iptalMesaj": "Bu adres kalıcı olarak çalışmaz; yeniden paylaşırsanız YENİ bir adres üretilir."
+    },
+    "cakisma": {
+      "alan": "Bu alan başka bir oturumda da değişti; kaydederseniz sizin değeriniz yazılır.",
+      "bant": "{{sayi}} alan başka bir oturumda da değişti; işaretli alanları kontrol edip yeniden kaydedin."
     }
   }
 }

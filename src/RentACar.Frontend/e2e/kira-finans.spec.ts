@@ -22,7 +22,7 @@ const SAYFA = `/app/kiralar/${KIRA_ID}`;
 const BEN_TERS = { ...BEN, izinler: [...BEN.izinler, 'FinanceReverse'] };
 
 /** Kira sözleşmesi (gösterim alanları; formül yok): 3600 genel toplam, 1000 tahsil, 2600 kalan. */
-function kira(bakiye: number, tahsilat: number): Record<string, unknown> {
+function kira(bakiye: number, tahsilat: number, surum = 'v1'): Record<string, unknown> {
   const alanlar = [
     'reservationId',
     'cikisSubeId',
@@ -130,15 +130,29 @@ function kira(bakiye: number, tahsilat: number): Record<string, unknown> {
     donemselFaturalama: true,
     kdvOranSnapshot: 0.2,
     createdAtUtc: '2026-09-22T06:00:00+00:00',
+    surum,
   };
 }
 
-function detay(anahtar: string, bakiye: number, tahsilat: number): object {
+function detay(anahtar: string, bakiye: number, tahsilat: number, surum = 'v1'): object {
   return {
-    kira: kira(bakiye, tahsilat),
+    kira: kira(bakiye, tahsilat, surum),
     musteri: { id: MUSTERI_ID, ad: 'Ayşe Yılmaz' },
     ikinciSurucu: null,
-    arac: null,
+    arac: {
+      id: ARAC_ID,
+      plaka: '34 ABC 123',
+      marka: 'Fiat',
+      tip: 'Egea',
+      modelYili: 2024,
+      vites: 'Manuel',
+      yakit: 'Dizel',
+      grup: 'C',
+      segment: 'Orta',
+      km: 12000,
+      sube: 'Merkez',
+      konum: 'Otopark',
+    },
     islemSubeAdi: 'Merkez Şube',
     teslimAlanPersonelAd: null,
     teslimEdenPersonelAd: null,
@@ -183,6 +197,8 @@ interface Sahte {
   finans?: (route: Route, istek: Request) => Promise<unknown> | unknown;
   /** Detayın o anki hali (her GET'te çağrılır). */
   detay?: () => object;
+  /** Kira yazma uçları (PUT `/kiralar/{id}` …) — verilmezse 500. */
+  kiraYazma?: (route: Route, istek: Request) => Promise<unknown> | unknown;
 }
 
 interface Kayit {
@@ -192,7 +208,7 @@ interface Kayit {
 }
 
 /** Kira + finans + seçim uçları. Dönen `finansIstekleri` gönderilen her para isteğini kaydeder. */
-async function sahteApi(page: Page, { finans, detay: detayFn }: Sahte = {}) {
+async function sahteApi(page: Page, { finans, detay: detayFn, kiraYazma }: Sahte = {}) {
   const finansIstekleri: Kayit[] = [];
   let detayOkuma = 0;
   await page.route(/\/api\/ui\/v1\/secim\//, (route) =>
@@ -238,7 +254,9 @@ async function sahteApi(page: Page, { finans, detay: detayFn }: Sahte = {}) {
   await page.route(/\/api\/ui\/v1\/kiralar(\/|\?|$)/, (route) => {
     const istek = route.request();
     const yol = new URL(istek.url()).pathname.replace('/api/ui/v1/kiralar', '');
-    if (istek.method() !== 'GET') return route.fulfill({ status: 500 });
+    if (istek.method() !== 'GET') {
+      return (kiraYazma ?? ((r) => r.fulfill({ status: 500 })))(route, istek);
+    }
     if (yol === `/${KIRA_ID}`) {
       detayOkuma++;
       return route.fulfill({ json: detayFn?.() ?? detay(K1, 2600, 1000) });
@@ -480,6 +498,57 @@ test('dış hizmet iptali: FinanceReverse yoksa düğme yok; sunucu 403 verirse 
     `/api/ui/v1/finans/dis-hizmet/${DIS_HIZMET.id}/iptal`,
   ]);
   await expect(panel(page).getByRole('cell', { name: 'Kayitli' })).toBeVisible();
+  expect(hatalar).toEqual([]);
+});
+
+test('panel işlemi sonrası kira sürümü tazelenir: kirli formla Kaydet 409 almaz, yeni surum + yazılan korunur', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page);
+  await oturumAc(page);
+  let tahsilEdildi = false;
+  const putlar: Record<string, unknown>[] = [];
+  await sahteApi(page, {
+    // Tahsilat kiranın Tahsilat/Bakiye'sini ve dolayısıyla sürümünü değiştirir (sunucu: v1 → v2).
+    detay: () => (tahsilEdildi ? detay(K2, 1100, 2500, 'v2') : detay(K1, 2600, 1000, 'v1')),
+    finans: (route) => {
+      tahsilEdildi = true;
+      return route.fulfill({ json: { id: 'c1' } });
+    },
+    kiraYazma: (route, istek) => {
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      putlar.push(g);
+      if (g['surum'] !== (tahsilEdildi ? 'v2' : 'v1')) {
+        return problem(
+          route,
+          409,
+          'cakisma',
+          'Kira başka bir oturumda değişti; güncel hâli yüklendi.',
+        );
+      }
+      return route.fulfill({ json: kira(1100, 2500, 'v3') });
+    },
+  });
+  await page.goto(`${SAYFA}#sekme=ayrintilar`);
+  const aciklama = page
+    .getByRole('tabpanel', { name: 'Ayrıntılar' })
+    .getByRole('textbox', { name: 'Açıklama', exact: true });
+  await aciklama.fill('panel işleminden sonra kaydet');
+
+  // Ana form KİRLİYKEN sabit panelde tahsilat → `degisti` → kira detayı (+ surum) tazelenir.
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await panel(page).getByTestId('tahsilat-Kasa').click();
+  await expect(toastlar(page)).toContainText('Tahsilat kaydedildi.');
+  await expect(tutar).toHaveValue('1.100,00');
+  await expect(page.getByTestId('yan-ozet')).toContainText('1.100,00');
+  await expect(aciklama).toHaveValue('panel işleminden sonra kaydet'); // yazılan ezilmedi
+
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
+  expect(putlar).toHaveLength(1); // 409 → ikinci deneme YOK: ilk PUT güncel sürümle gitti
+  expect(putlar[0]).toMatchObject({ surum: 'v2', aciklama: 'panel işleminden sonra kaydet' });
+  await expect(page.locator('rc-uyari-bandi')).not.toContainText('başka bir oturumda');
   expect(hatalar).toEqual([]);
 });
 

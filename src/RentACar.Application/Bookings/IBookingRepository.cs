@@ -29,6 +29,17 @@ public interface IBookingRepository
     Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default);
     /// <summary>F4.1 adversarial M2: satır <c>FOR UPDATE</c> ile kilitlenip kilit ALTINDA okunur (aynı TX).</summary>
     Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default);
+    /// <summary>
+    /// F4.3 adversarial F2: yukarıdakiyle aynı; ek olarak <paramref name="beklenenSurum"/> doluysa satır kilidi
+    /// ALTINDA okunan güncel sürümle (<see cref="RentalSurumuAsync"/>) karşılaştırılır, farklıysa
+    /// <see cref="Common.EszamanliDegisiklikException"/> — hiçbir şey yazılmaz (TOCTOU yok).
+    /// </summary>
+    Task<bool> UpdateRentalAsync(Guid id, string? beklenenSurum, Action<RentalContract> apply, CancellationToken ct = default);
+    /// <summary>
+    /// Kiranın satır sürümü (Postgres <c>xmin</c>, opak metin): satıra yapılan HER güncellemede değişir (EF, ham SQL,
+    /// toplam senkronu — hangi yoldan olursa olsun). Kira yoksa / kapsamda değilse (RLS) <c>null</c>.
+    /// </summary>
+    Task<string?> RentalSurumuAsync(Guid id, CancellationToken ct = default);
     /// <summary>Kira + aracı AYNI transaction'da günceller (teslim/dönüş km → araç odometresi;
     /// ServiceRecordRepository.TransitionAsync deseni). Araç TX İÇİNDE okunur (PgRetry'de bayat okuma olmaz).
     /// kmLog (FAZ 2.5): verilirse dönüş odometresi km zaman-serisine AYNI transaction'da yazılır
