@@ -315,7 +315,10 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default)
+    public Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default)
+        => UpdateRentalAsync(id, null, apply, ct);
+
+    public async Task<bool> UpdateRentalAsync(Guid id, string? beklenenSurum, Action<RentalContract> apply, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -324,6 +327,11 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             // F4.1 adversarial M2: satır OKUNMADAN önce kilitlenir — eşzamanlı dönüş/ek hizmet/uzatma
             // serileşir, apply kilit altındaki GÜNCEL durumu görür (Tamamlandı kira uzatılamaz, += kaybolmaz).
             await KiraKilitleri.SatirAsync(db, id, ct);
+            // F4.3 adversarial F2: iyimser eşzamanlılık — sürüm kilit ALTINDA okunur (kontrol ile yazma arasında
+            // başka yazım giremez). Bayat istemci (başka oturum drop ücretini değiştirdi) hiçbir şey yazamaz.
+            if (beklenenSurum is not null && await KiraKilitleri.SurumAsync(db, id, ct) is { } guncel
+                && !string.Equals(guncel, beklenenSurum.Trim(), StringComparison.Ordinal))
+                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KiraMesaji);
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
             apply(r);
@@ -341,6 +349,12 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             }
             return true;
         }, ct);
+    }
+
+    public async Task<string?> RentalSurumuAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await KiraKilitleri.SurumAsync(db, id, ct);
     }
 
     public Task<bool> UpdateRentalWithVehicleAsync(
