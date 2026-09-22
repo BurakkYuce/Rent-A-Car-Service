@@ -260,7 +260,7 @@ test('Tahsil Et 409 mukerrer (bayat anahtar): yeniden gönderilmez, panel yenide
     .getByRole('button', { name: 'Tahsil et' })
     .click();
 
-  const uyari = page.getByRole('alert').filter({ hasText: 'Tahsilat gönderimi durduruldu' });
+  const uyari = page.getByRole('alert').filter({ hasText: 'Kira kaydı değişmiş' });
   await expect(uyari).toContainText(BAYAT);
   await expect(page.getByText('Mükerrer işlem')).toHaveCount(0);
   await expect.poll(() => panel.sayi()).toBe(2);

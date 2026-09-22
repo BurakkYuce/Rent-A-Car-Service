@@ -1,8 +1,10 @@
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
+  InjectionToken,
   OnInit,
   afterNextRender,
   computed,
@@ -24,6 +26,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import type { FinansHesapOgesi, PanelTahsilatBilgisi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
@@ -40,13 +43,22 @@ import { Secim } from '@shared/form/kontroller/secim';
 import { type HesapTuru, sayi, tahsilatGovdesi } from './panel-modeli';
 
 /**
+ * Panelin TEK tahsilat kilidi (sayfa sağlar). Tüm satırların formu aynı kilidi kullanır: istek uçarken ne başka
+ * satırın formu gönderebilir ne de tablodaki "Tahsil Et" düğmeleri basılabilir (sayfa `gonderiliyor()`'u okur).
+ */
+export const PANEL_TAHSILAT_KILIDI = new InjectionToken<GonderimKilidi>('PANEL_TAHSILAT_KILIDI');
+
+/**
  * Panel "Tahsil Et" formu (Blazor Home.razor hızlı tahsilat karşılığı): tutar (bakiye ön dolu, düzenlenebilir),
  * hesap türü (Kasa/Banka) ve isteğe bağlı somut kasa/banka hesabı. `POST /api/ui/v1/finans/tahsilat`.
  *
  * PARA KURALLARI (roadmap F4.5, idempotency envanteri E01):
  * - Anahtar sunucunun deterministik `tahsilatAnahtar`'ı; gövdede AYNEN geri gider, istemci anahtarı üretilmez
  *   (`GonderimKilidi` deterministik dalı).
- * - Gönderim boyunca kilit: düğme pasif, çift tık tek istek.
+ * - Gönderim boyunca kilit (sayfa düzeyi `PANEL_TAHSILAT_KILIDI`): düğme pasif, çift tık tek istek.
+ * - Form bir SATIRA aittir: sayfa onu `rentalId` anahtarıyla oluşturur; başka satırın "Tahsil Et"i yeni örnek
+ *   açar (tutar, hesap, hata — hiçbir durum satırlar arasında taşınmaz). Adversarial F1: aynı örnek korunduğunda
+ *   A'nın tutarı B'nin kirasına yazılıyordu.
  * - 409 `mukerrer`: otomatik yeniden gönderim YOK; `mukerrer` çıktısı panel yeniden yüklenir, form kapanır. Sunucu
  *   anahtarı yeniden hesaplar: bayat anahtar (ekran açıldıktan sonra kirada tahsilat/ters kayıt/bakiye değişti)
  *   de 409 `mukerrer` döner. Bu yüzden genel "Mükerrer işlem" bildirimi KULLANILMAZ (operatör parayı kaydedildi
@@ -148,6 +160,7 @@ import { type HesapTuru, sayi, tahsilatGovdesi } from './panel-modeli';
 export class PanelTahsilatFormu implements OnInit {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
+  private readonly belge = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
 
@@ -178,7 +191,9 @@ export class PanelTahsilatFormu implements OnInit {
     hesapId: new FormControl<string | null>(null),
   });
 
-  protected readonly gonderim = formGonderimi();
+  protected readonly gonderim = formGonderimi(
+    inject(PANEL_TAHSILAT_KILIDI, { optional: true }) ?? new GonderimKilidi(),
+  );
   /** `sessiz` istekte genel bant/toast'a düşmeyen hatalar (yetki, çok istek, 5xx, ağ) formda. */
   private readonly ekHatalar = signal<readonly string[]>([]);
   protected readonly hatalar = computed(() => [
@@ -200,7 +215,16 @@ export class PanelTahsilatFormu implements OnInit {
 
   constructor() {
     const kok = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-    afterNextRender(() => kok.querySelector<HTMLInputElement>('input')?.focus());
+    afterNextRender(() => {
+      const girdi = kok.querySelector<HTMLInputElement>('input');
+      girdi?.focus();
+      // Adversarial F3: ön dolu tutarda imleç sonda kalınca "90" yazan kullanıcı "1250,5090" üretiyordu. Tüm metin
+      // seçilir; `rc-para-girdisi` odakta düzenleme yazımını yeniden bastığı için (imleç sona kayar) seçim o
+      // çizimden SONRA yapılır.
+      setTimeout(() => {
+        if (girdi && this.belge.activeElement === girdi) girdi.select();
+      });
+    });
     // Tür değişince başka türün hesabı seçili kalmasın (sunucu da reddeder; burada sessizce temizlenir).
     this.form.controls.hesap.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       this.form.controls.hesapId.setValue(null);

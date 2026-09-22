@@ -307,7 +307,7 @@ describe('PanelSayfasi', () => {
         expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
           expect.objectContaining({
             durum: 'uyari',
-            baslik: 'Tahsilat gönderimi durduruldu',
+            baslik: 'Kira kaydı değişmiş',
             mesaj: `${detail} Panel yeniden yüklendi; güncel bakiyeyi kontrol edin.`,
           }),
         ]);
@@ -351,6 +351,63 @@ describe('PanelSayfasi', () => {
       await s.stabil();
       http.expectOne(OZET).flush(yanit());
       await s.stabil();
+    });
+
+    it('adversarial F1: A formu açıkken B "Tahsil Et" → form YENİDEN oluşur; tutar/anahtar/cari/kira B’nin', async () => {
+      const bilgiB = {
+        anahtar: 'bbbbbbbb-6a1d-5b7e-9c3a-2d4e6f8a0b1c',
+        cariId: 'cari-B',
+        rentalId: 'kira-B1',
+        doviz: 'TRY',
+        varsayilanTutar: 90,
+      };
+      const s = await ac(
+        ozet({
+          donusler: {
+            gecikmis: [],
+            bugun: [
+              donus('A1', { tahsilat: bilgi }),
+              donus('B1', { plaka: '06 BBB 02', bakiye: 90, tahsilat: bilgiB }),
+            ],
+            yarin: [],
+            varsayilanSekme: 'bugun',
+          },
+        }),
+      );
+      const dugmeler = () => s.kok.querySelectorAll<HTMLButtonElement>('td.islem button');
+      dugmeler()[0]?.click();
+      await s.stabil();
+      http.expectOne(HESAPLAR).flush([]);
+      await s.stabil();
+      const ilkForm = s.kok.querySelector('rc-panel-tahsilat-formu');
+      dugmeler()[1]?.click();
+      await s.stabil();
+      http.expectOne(HESAPLAR).flush([]);
+      await s.stabil();
+      const form = s.kok.querySelector('rc-panel-tahsilat-formu');
+      expect(form).not.toBe(ilkForm); // aynı örnek korunmadı
+      expect(form?.textContent).toContain('Tahsilat — 06 BBB 02 · B1');
+      form?.querySelector<HTMLButtonElement>('button[type=submit]')?.click();
+      await s.stabil();
+      const istek = http.expectOne(TAHSILAT);
+      expect(istek.request.body).toMatchObject({
+        kiraId: 'kira-B1',
+        cariId: 'cari-B',
+        tutar: '90.00',
+        tahsilatAnahtar: bilgiB.anahtar,
+      });
+      // Uçarken: tablodaki TÜM "Tahsil Et"ler ve "Yenile" pasif; başka satır açılamaz.
+      expect([...dugmeler()].map((d) => d.disabled)).toEqual([true, true]);
+      dugmeler()[0]?.click();
+      await s.stabil();
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu')?.textContent).toContain('06 BBB 02');
+      istek.flush({ id: 'x' });
+      await s.stabil();
+      http.expectOne(OZET).flush(yanit());
+      await s.stabil();
+      expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
+        expect.objectContaining({ mesaj: 'Tahsilat kaydedildi: 90,00 ₺ (06 BBB 02).' }),
+      ]);
     });
 
     it('doğrulama hatası formda kalır, değer korunur, istek tekrarlanmaz', async () => {
