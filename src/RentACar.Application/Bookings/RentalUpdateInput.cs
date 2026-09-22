@@ -10,6 +10,13 @@ namespace RentACar.Application.Bookings;
 /// </summary>
 public sealed class RentalUpdateInput
 {
+    /// <summary>
+    /// F4.3 adversarial F2 — iyimser eşzamanlılık: istemcinin okuduğu kira sürümü (<c>xmin</c>). Doluysa yazma,
+    /// satır kilidi ALTINDA güncel sürümle karşılaştırılır; farklıysa <see cref="Common.EszamanliDegisiklikException"/>
+    /// (hiçbir şey yazılmaz). <c>null</c> = denetim yok (Blazor formu — değişmedi).
+    /// </summary>
+    public string? BeklenenSurum { get; set; }
+
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
     public Guid? IkinciSurucuId { get; set; }

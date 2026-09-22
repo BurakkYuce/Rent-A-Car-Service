@@ -17,6 +17,7 @@ import { TemelKontrol, kontrolSaglayicilari } from './temel-kontrol';
       [attr.maxlength]="azamiUzunluk() ?? null"
       [attr.autocomplete]="otomatikTamamlama()"
       [attr.inputmode]="girdiModu() ?? null"
+      [attr.list]="liste() ?? null"
       [attr.aria-label]="ariaEtiketi() ?? null"
       [attr.aria-invalid]="ariaGecersiz()"
       [attr.aria-describedby]="ariaAciklayan()"
@@ -35,6 +36,8 @@ export class MetinGirdisi extends TemelKontrol<string> {
   /** Tarayıcı otomatik doldurması; kişisel veri alanlarında (TC, telefon) `off` bırakılır. */
   readonly otomatikTamamlama = input('off');
   readonly girdiModu = input<string | undefined>(undefined);
+  /** "Seç veya yaz" önerileri: sayfadaki `<datalist>`'in kimliği (serbest metin de kabul edilir). */
+  readonly liste = input<string | undefined>(undefined);
 
   protected yazildi(olay: Event): void {
     const metin = (olay.target as HTMLInputElement).value;
