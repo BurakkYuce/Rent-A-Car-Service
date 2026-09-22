@@ -143,7 +143,6 @@ export type CeviriAnahtari =
   | 'kiraFinans.depozito.not'
   | 'kiraFinans.depozito.tutar'
   | 'kiraFinans.disHizmet.bedel'
-  | 'kiraFinans.disHizmet.cariYetki'
   | 'kiraFinans.disHizmet.firma'
   | 'kiraFinans.disHizmet.hizmet'
   | 'kiraFinans.disHizmet.iptal'

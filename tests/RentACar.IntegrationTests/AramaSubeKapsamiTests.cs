@@ -115,11 +115,14 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
         using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var s = muh.ServiceProvider.GetRequiredService<SecimService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => s.MusteriAsync(null, null));
+        // Operasyonel seçimler Muhasebe'ye kapalı.
         await Assert.ThrowsAsync<YetkiYokException>(() => s.AracAsync(null, null));
-        await Assert.ThrowsAsync<YetkiYokException>(() => s.KurAsync(null, null));
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
-            muh.ServiceProvider.GetRequiredService<CustomerService>().SecimAraAsync(null, 20));
+        await Assert.ThrowsAsync<YetkiYokException>(() => s.LokasyonAsync(null, null));
+        await Assert.ThrowsAsync<YetkiYokException>(() => s.PersonelAsync(null, null));
+        // F4.4: müşteri ve kur seçimi FinanceWrite ile de açık (sabit finans paneli; PII'sız alanlar).
+        Assert.NotNull(await s.MusteriAsync(null, null));
+        Assert.NotNull(await s.KurAsync(null, null));
+        Assert.NotNull(await muh.ServiceProvider.GetRequiredService<CustomerService>().SecimAraAsync(null, 20));
     }
 
     [Fact]

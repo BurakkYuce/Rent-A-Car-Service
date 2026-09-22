@@ -120,7 +120,6 @@ export class KiraFinansDurumu {
   readonly detay: Signal<KiraDetayYaniti | null> = this._detay.asReadonly();
   readonly kira = computed(() => this._detay()?.kira ?? null);
   readonly finans = computed(() => this._detay()?.yetkiler.finans ?? false);
-  readonly operasyon = computed(() => this._detay()?.yetkiler.operasyon ?? false);
   readonly iptal = computed(() => this.kira()?.durum === 'Iptal');
   /** Dış hizmet iptali dar izin ister (Blazor `AuthorizeView Policy="izin:FinanceReverse"`); kapı sunucuda. */
   readonly tersIzni = computed(() => this.oturum.izinVar('FinanceReverse'));
@@ -143,7 +142,7 @@ export class KiraFinansDurumu {
     (id: string) => this.api.get<KiraDisHizmet[]>(`${KIRA}/${id}/dis-hizmetler`),
     { oncekiVeriyiKoru: true },
   );
-  /** Seçim ucu OperationsWrite ister; izinsizde sessiz hata notu (bant yok). */
+  /** TCMB günün kurları (`secim/kur`, OperationsWrite VEYA FinanceWrite); hata sessiz not. */
   readonly kurlar = new TemelStore(() =>
     this.api.get<KurSecimOgesi[]>('/api/ui/v1/secim/kur', {
       parametreler: { limit: KUR_LIMITI },
