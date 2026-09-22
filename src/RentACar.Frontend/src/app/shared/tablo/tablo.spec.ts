@@ -63,6 +63,7 @@ const sayfa = (kayitlar: readonly Arac[], toplam = kayitlar.length): Sayfa<Arac>
     >
       <ng-template rcTabloHucre="marka" [rcTabloHucreSutunlar]="sutunlar" let-arac>
         <b class="marka">{{ arac.marka }}</b>
+        <a class="marka-bag" href="/listeler/export/araclar">PDF</a>
       </ng-template>
     </rc-tablo>
   `,
@@ -234,6 +235,22 @@ describe('Tablo motoru', () => {
     tus(hucre(0, 3), 'Home');
     await yenile();
     expect(document.activeElement).toBe(hucre(0, 0).querySelector('input'));
+  });
+
+  it('hücredeki bağlantıda Enter ve çift tıklama satırı AÇMAZ (bağlantının kendi davranışı)', async () => {
+    const { d, hucre } = await kur();
+    const bag = hucre(1, 2).querySelector<HTMLAnchorElement>('a.marka-bag');
+    if (bag === null) throw new Error('bağlantı yok');
+    bag.focus();
+    const olay = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    bag.dispatchEvent(olay);
+    expect(olay.defaultPrevented).toBe(false);
+    bag.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+    expect(d.acilanlar).toEqual([]);
+
+    // Hücrenin kendisine çift tıklama açar.
+    hucre(1, 2).dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+    expect(d.acilanlar).toEqual(['a1']);
   });
 
   it('sayfa seçimi: başlık kutusu sayfadaki tüm satırları seçer, kısmi seçimde belirsiz', async () => {

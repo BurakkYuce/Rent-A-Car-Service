@@ -168,8 +168,9 @@ Servis düzeyinde (Blazor da kapsanır):
   formu doldurduysa ya da gönderim SONUÇLANMADIYSA (ağ/5xx/oturum/doğrulama) kopya donar ve yeniden deneme aynı
   anahtarla gider (anahtar sessizce yenisiyle ya da anahtarsızla değiştirilmez). 2xx ya da 409 `mukerrer`
   sonrası düğme yeni detay gelene dek kapalıdır; gelen detayın anahtarı alınır (ikinci meşru tahsilat).
-- Bayat anahtarın 409'u ("kira kaydı değişmiş") HİÇBİR ŞEY yazmaz: istek `sessiz` gider, kayıt yeniden yüklenir,
-  form içinde nötr uyarı + sunucu `detail`'ı gösterilir ("Mükerrer işlem" toast'u parayı kaydedildi sandırır).
+- Bayat anahtarın 409'u ("kira kaydı değişmiş") HİÇBİR ŞEY yazmaz: istek `istekBaglami({ mukerrerBasligi })` ile
+  gider — kayıt yeniden yüklenir, nötr "Kira kaydı değişmiş" uyarısı + sunucu `detail`'ı gösterilir ("Mükerrer
+  işlem" başlığı parayı kaydedildi sandırır; F4.2 "Tahsil Et" ile aynı). Otomatik yeniden gönderim yok.
 - Ödeme, depozito al/irat, dış hizmet: işlem başına `Idempotency-Key` (`formGonderimi`/`GonderimKilidi`).
   Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
 
