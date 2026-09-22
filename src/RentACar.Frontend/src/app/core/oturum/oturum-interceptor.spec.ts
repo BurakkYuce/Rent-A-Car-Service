@@ -283,7 +283,7 @@ describe('oturumInterceptor (kod bazlı)', () => {
     );
     const { govde, secenek } = problem('mukerrer', 409, {
       detail: 'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı.',
-      mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
+      mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY', ayniIcerik: true },
     });
     http.expectOne(KAYIT).flush(govde, secenek);
     await expect(sonuc).rejects.toMatchObject({ kod: 'mukerrer', mevcut: { belgeNo: 'T-1' } });
@@ -295,6 +295,36 @@ describe('oturumInterceptor (kod bazlı)', () => {
         baslik: 'İşlem zaten kaydedildi',
         mesaj:
           'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı. Kayıt yeniden yüklendi.',
+      }),
+    ]);
+  });
+
+  it('mukerrer + mevcut İÇERİK FARKLI (başka tahsilat yazıldı) → UYARI "Başka bir tahsilat yazıldı", bilgi değil', async () => {
+    const sonuc = firstValueFrom(
+      api.post(
+        KAYIT,
+        { tutar: 3000 },
+        {
+          context: istekBaglami({
+            mukerrerdeYenile: vi.fn(),
+            mukerrerBasligi: 'Kira kaydı değişmiş',
+          }),
+        },
+      ),
+    );
+    const detail =
+      'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-1, 100,00 TRY); girdiğiniz 3.000,00 TRY YAZILMADI. Güncel bakiyeyi kontrol edin.';
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail,
+      mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+    });
+    http.expectOne(KAYIT).flush(govde, secenek);
+    await expect(sonuc).rejects.toMatchObject({ kod: 'mukerrer', mevcut: { ayniIcerik: false } });
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'uyari',
+        baslik: 'Başka bir tahsilat yazıldı — tutarınız kaydedilmedi',
+        mesaj: `${detail} Kayıt yeniden yüklendi.`,
       }),
     ]);
   });

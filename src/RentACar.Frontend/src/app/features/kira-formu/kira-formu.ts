@@ -111,6 +111,11 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
       });
   }
 
+  /** Sabit panelde sonucu bilinmeyen para gönderimi varsa terk sorusu bunu söyler (3. tur, L3 metni). */
+  kaydedilmemisDegisiklikMesaji(): string | null {
+    return this.finans()?.sonucuBilinmeyenVar() ? this.t('kiraFinans.sonucuBilinmeyen') : null;
+  }
+
   kaydedilmemisDegisiklikVar(): boolean {
     return this.d.kirliMi() || (this.finans()?.kirliMi() ?? false);
   }

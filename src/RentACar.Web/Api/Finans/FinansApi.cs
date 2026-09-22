@@ -157,7 +157,7 @@ public static class FinansApi
             // tahsilatı yazıyordu. Kayıt varsa 409 "zaten kaydedildi" + mevcut (tekrar denemeye yönlendirmez).
             // Yalnız BU kiranın tahsilatıysa bildirilir (kapsam kapısı NakitGirdisiAsync'te geçildi; başka kiranın
             // anahtarı bilgi sızdırmaz, aşağıdaki yeniden hesaplamada "ait değil" 409'u alır).
-            await ZatenKaydedildiyseAsync(gelen, kira!, kasa, ct);
+            await ZatenKaydedildiyseAsync(gelen, kira!, girdi, kasa, ct);
             await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
         }
         girdi.IslemAnahtari = anahtar;
@@ -354,16 +354,39 @@ public static class FinansApi
     public const string ZatenKaydedildiMesaji =
         "Bu tahsilat zaten kaydedildi (No {0}, {1} {2}); yeni tahsilat yazılmadı.";
 
+    /// <summary>
+    /// 3. tur M-A: aynı anahtarla yazılmış kayıt gelen istekten FARKLI (tutar/döviz/hesap) — iki sekme/iki kullanıcı
+    /// aynı ekranı açıp biri tahsil etti. İkinci kişinin tutarı YAZILMADI; "zaten kaydedildi" demek (ve formu
+    /// silmek) kasiyere parasını kaydedildi sandırırdı.
+    /// </summary>
+    public const string BaskaTahsilatYazildiMesaji =
+        "Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No {0}, {1} {2}); girdiğiniz {3} {4} YAZILMADI. " +
+        "Güncel bakiyeyi kontrol edin.";
+
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
-    private static async Task ZatenKaydedildiyseAsync(Guid anahtar, RentalContract kira, CashService kasa, CancellationToken ct)
+    /// <summary>
+    /// Aynı anahtarla BU KİRAYA yazılmış tahsilat varsa 409. <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı
+    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap) — aynıysa kaybolan yanıttan sonraki kendi
+    /// tekrarı ("zaten kaydedildi"); farklıysa başkasının (ya da tutarı değiştirilmiş) işlemi ("… YAZILMADI").
+    /// </summary>
+    private static async Task ZatenKaydedildiyseAsync(
+        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, CancellationToken ct)
     {
         if (await kasa.IslemAnahtariylaBulAsync(anahtar, ct) is not { } t
             || t.RentalId != kira.Id || t.Tip != CashTransactionType.Tahsilat)
             return;
-        throw new MukerrerIslemException(
-            string.Format(Tr, ZatenKaydedildiMesaji, t.No, t.Amount.Amount.ToString("N2", Tr), t.Amount.Currency),
-            new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency));
+        var gelenDoviz = KurService.NormalizeKodStrict(gelen.Doviz);
+        var ayni = t.Amount.Amount == gelen.Tutar
+                   && string.Equals(t.Amount.Currency, gelenDoviz, StringComparison.OrdinalIgnoreCase)
+                   && t.KarsiHesap == gelen.Hesap
+                   && t.HesapId == (gelen.HesapId is { } h && h != Guid.Empty ? h : null);
+        var mevcutTutar = t.Amount.Amount.ToString("N2", Tr);
+        var mesaj = ayni
+            ? string.Format(Tr, ZatenKaydedildiMesaji, t.No, mevcutTutar, t.Amount.Currency)
+            : string.Format(Tr, BaskaTahsilatYazildiMesaji, t.No, mevcutTutar, t.Amount.Currency,
+                gelen.Tutar.ToString("N2", Tr), gelenDoviz);
+        throw new MukerrerIslemException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>

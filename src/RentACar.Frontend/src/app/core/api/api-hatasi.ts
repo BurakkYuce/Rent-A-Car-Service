@@ -32,7 +32,8 @@ export type ApiHataKodu = SunucuHataKodu | IstemciHataKodu;
 
 /**
  * 409 `mukerrer`'de aynı işlem anahtarıyla ZATEN yazılmış kayıt (F4.4 adversarial HIGH-1; OpenAPI `MevcutIslem`).
- * Doluysa istemci "zaten kaydedildi" der, formu temizler — yeniden gönderime YÖNLENDİRMEZ.
+ * `ayniIcerik` true → kendi tekrarı: "zaten kaydedildi", form temizlenir. false → BAŞKA bir işlem yazılmış, gönderilen
+ * tutar YAZILMADI: uyarı, form korunur, kayıt yenilenir, kullanıcı bilinçli yeniden gönderir (3. tur M-A).
  */
 export type MevcutIslem = Sema<'MevcutIslem'>;
 
@@ -125,11 +126,13 @@ export function apiHatasinaCevir(hata: unknown): ApiHatasi {
 /** `mevcut` uzantısı → tipli kayıt; biçimsizse `undefined` (uydurma "zaten kaydedildi" yok). */
 function mevcutIslem(deger: unknown): MevcutIslem | undefined {
   if (!nesneMi(deger)) return undefined;
-  const { id, belgeNo, tutar, doviz } = deger;
+  const { id, belgeNo, tutar, doviz, ayniIcerik } = deger;
   if (typeof id !== 'string' || typeof belgeNo !== 'string' || typeof doviz !== 'string')
     return undefined;
   if (typeof tutar !== 'number' && typeof tutar !== 'string') return undefined;
-  return { id, belgeNo, tutar, doviz };
+  // Güvenli taraf: bilinmiyorsa "aynı içerik DEĞİL" — form silinmez, "YAZILMADI" uyarısı (kasiyer parasını
+  // kaydedildi sanmasın).
+  return { id, belgeNo, tutar, doviz, ayniIcerik: ayniIcerik === true };
 }
 
 /** Tip korumalı: değer bilinen bir sunucu kodu mu? */

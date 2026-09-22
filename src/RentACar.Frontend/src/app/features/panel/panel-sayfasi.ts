@@ -4,8 +4,10 @@ import {
   Component,
   DestroyRef,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
@@ -154,6 +156,8 @@ export class PanelSayfasi {
   });
 
   private sonYukleme = 0;
+  /** Yeni anahtarı beklenen açık formun kirası (M-A); panel verisi gelince kopya güncel satırla değişir. */
+  private anahtarBekleyen: string | null = null;
 
   constructor() {
     this.politika.baglan({
@@ -165,6 +169,18 @@ export class PanelSayfasi {
       sifirla: () => this.ozet.sifirla(),
       // Canlı pano: başka sekmede kira/tahsilat değişmiş olabilir.
       sekmeyeDonunce: 'yenile',
+    });
+
+    effect(() => {
+      const satirlar = this.donusSatirlari();
+      untracked(() => {
+        const bekleyen = this.anahtarBekleyen;
+        if (bekleyen === null || this.ozet.yukleniyor()) return;
+        this.anahtarBekleyen = null;
+        const guncel = satirlar.find((s) => s.rentalId === bekleyen);
+        if (guncel?.tahsilat && this.acikTahsilat()?.rentalId === bekleyen)
+          this.acikTahsilat.set(guncel);
+      });
     });
 
     const zamanlayici = setInterval(() => this.tazelemeDenetle(), TAZELEME_DENETIM_MS);
@@ -194,6 +210,15 @@ export class PanelSayfasi {
   protected tahsilatKapat(): void {
     if (this.tahsilatSuruyor()) return;
     this.acikTahsilat.set(null);
+  }
+
+  /**
+   * 3. tur M-A: başka bir tahsilat yazılmış, açık formun tutarı YAZILMADI. Form AÇIK kalır; panel yeniden yüklenir
+   * ve açık kopya satırın GÜNCEL hâliyle (yeni anahtar) değiştirilir — kullanıcı bakiyeye bakıp bilinçli gönderir.
+   */
+  protected tahsilatAnahtariniTazele(): void {
+    this.anahtarBekleyen = this.acikTahsilat()?.rentalId ?? null;
+    this.politika.yenile();
   }
 
   /** 2xx ya da 409 `mukerrer` sonrası: form kapanır, panel yeniden yüklenir (yeni bakiye → yeni anahtar). */

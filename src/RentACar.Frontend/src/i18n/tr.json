@@ -67,6 +67,7 @@
     "mukerrerBaslik": "Mükerrer işlem",
     "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
     "zatenKaydedildi": "İşlem zaten kaydedildi",
+    "baskaIslemYazildi": "Başka bir tahsilat yazıldı — tutarınız kaydedilmedi",
     "durum": {
       "basari": "Başarılı",
       "bilgi": "Bilgi",
@@ -514,7 +515,8 @@
       "donemTahsil": "Dönem faturası kesildi, tahsilat yazıldı.",
       "disHizmet": "Dış hizmet alımı kaydedildi.",
       "disHizmetIptal": "Dış hizmet alımı iptal edildi (ters kayıt)."
-    }
+    },
+    "sonucuBilinmeyen": "Sonucu bilinmeyen bir tahsilat/ödeme var; sayfadan ayrılmadan önce kasa hareketlerini kontrol edin. Yine de ayrılmak istiyor musunuz?"
   },
   "kiraFormu": {
     "yeniBaslik": "Yeni kira",

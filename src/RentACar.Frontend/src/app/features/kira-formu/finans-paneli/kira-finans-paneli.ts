@@ -201,6 +201,10 @@ export class KiraFinansPaneli {
     return this.f.kirliMi();
   }
 
+  sonucuBilinmeyenVar(): boolean {
+    return this.f.sonucuBilinmeyenVar();
+  }
+
   protected etiket(s: FinansSekmesi): CeviriAnahtari {
     return `kiraFinans.sekme.${s}`;
   }

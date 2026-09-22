@@ -220,7 +220,13 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
                   kod: 'mukerrer',
                   detail:
                     'Bu tahsilat zaten kaydedildi (No T-000042, 500,00 TRY); yeni tahsilat yazılmadı.',
-                  mevcut: { id: 'c1', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY' },
+                  mevcut: {
+                    id: 'c1',
+                    belgeNo: 'T-000042',
+                    tutar: 500,
+                    doviz: 'TRY',
+                    ayniIcerik: true,
+                  },
                 },
               }),
             ),
@@ -321,6 +327,45 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     expect(cagrilar).toHaveLength(1);
     f.odemeYap();
     expect(cagrilar[1]?.secenek?.islemAnahtari).not.toBe(cagrilar[0]?.secenek?.islemAnahtari);
+  });
+
+  it('3. tur M-A: 409 + mevcut İÇERİK FARKLI (başka sekme yazdı) → form SİLİNMEZ, tutar korunur, yeni anahtarla bilinçli gönderim', async () => {
+    let n = 0;
+    const { f, cagrilar, detayVer, degisti } = await kur(() =>
+      ++n === 1
+        ? throwError(() =>
+            apiHatasinaCevir(
+              new HttpErrorResponse({
+                status: 409,
+                error: {
+                  status: 409,
+                  kod: 'mukerrer',
+                  detail:
+                    'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-9, 100,00 TRY); girdiğiniz 2.600,00 TRY YAZILMADI.',
+                  mevcut: { id: 'a', belgeNo: 'T-9', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+                },
+              }),
+            ),
+          )
+        : of({ id: 'c2' }),
+    );
+    detayVer(detay(tahsilat(K1))); // ön-dolu 2.600 (dokunulmamış)
+    f.nakit.form.patchValue({ aciklama: 'B kasası' });
+    f.tahsilatYap(f.nakit);
+    const baglam = tahsilatlar(cagrilar)[0]?.secenek?.context;
+    baglam?.get(MUKERRERDE_YENILE)?.();
+    expect(degisti).toHaveBeenCalledTimes(1);
+    expect(f.nakit.form.getRawValue()).toMatchObject({ tutar: '2600.00', aciklama: 'B kasası' });
+    // Tazelenen kayıt (A'nın 100'ü yazıldı → yeni anahtar K2, yeni öneri 2.500) formun tutarını EZMEZ.
+    detayVer(detay(tahsilat(K2, 2500)));
+    expect(f.nakit.form.getRawValue().tutar).toBe('2600.00');
+    expect(f.nakit.kopya.kopya()?.anahtar).toBe(K2);
+    f.tahsilatYap(f.nakit); // kullanıcı bakiyeye bakıp BİLİNÇLİ gönderir
+    expect(tahsilatlar(cagrilar)).toHaveLength(2);
+    expect(govdesi(tahsilatlar(cagrilar)[1])).toMatchObject({
+      tahsilatAnahtar: K2,
+      tutar: '2600.00',
+    });
   });
 
   it('L2: depozito alındıktan sonra kiranın depozitosuyla yeniden ÖN-DOLDURULMAZ (ikinci tık ikinci depozito değil)', async () => {

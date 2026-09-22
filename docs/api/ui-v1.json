@@ -6622,7 +6622,8 @@
           "id",
           "belgeNo",
           "tutar",
-          "doviz"
+          "doviz",
+          "ayniIcerik"
         ],
         "type": "object",
         "properties": {
@@ -6643,6 +6644,9 @@
           },
           "doviz": {
             "type": "string"
+          },
+          "ayniIcerik": {
+            "type": "boolean"
           }
         }
       },

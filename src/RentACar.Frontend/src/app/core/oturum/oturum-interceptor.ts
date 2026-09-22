@@ -153,7 +153,9 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
           const ozelBaslik = baglam.get(MUKERRER_BASLIGI);
           // F4.4 HIGH-1: işlem ZATEN yazıldı (kaybolan yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi;
           // "kayıt değişmiş, tekrar deneyin" izlenimi ikinci tahsilata yönlendiriyordu.
-          if (mevcut) toast.bilgi(mesaj, { baslik: t('geriBildirim.zatenKaydedildi') });
+          if (mevcut?.ayniIcerik) toast.bilgi(mesaj, { baslik: t('geriBildirim.zatenKaydedildi') });
+          // 3. tur M-A: BAŞKA bir işlem yazılmış; bu isteğin tutarı YAZILMADI → uyarı (bilgi tonu kaydedildi sandırır).
+          else if (mevcut) toast.uyari(mesaj, { baslik: t('geriBildirim.baskaIslemYazildi') });
           else if (ozelBaslik) toast.uyari(mesaj, { baslik: ozelBaslik });
           else toast.bilgi(mesaj, { baslik: t('geriBildirim.mukerrerBaslik') });
         }

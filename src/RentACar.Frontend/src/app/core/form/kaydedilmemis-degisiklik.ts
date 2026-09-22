@@ -8,6 +8,18 @@ import { SekmeRotaStratejisi } from '@core/sekme/sekme-stratejisi';
 /** Kaydedilmemiş değişikliği olan sayfa bileşeni (rota `canDeactivate`'i bunu sorar). */
 export interface KaydedilmemisDegisiklikSahibi {
   kaydedilmemisDegisiklikVar(): boolean;
+  /**
+   * İsteğe bağlı özel onay metni (ör. sonucu bilinmeyen para işlemi: "kasa hareketlerini kontrol edin");
+   * `null`/yoksa genel "kaydedilmemiş değişiklik" metni.
+   */
+  kaydedilmemisDegisiklikMesaji?(): string | null;
+}
+
+/** Bileşenin özel terk metni (varsa). Tip güvenli yoklama — sekme servisi de kullanır. */
+export function terkMesaji(bilesen: unknown): string | null {
+  if (typeof bilesen !== 'object' || bilesen === null) return null;
+  const f = (bilesen as Partial<KaydedilmemisDegisiklikSahibi>).kaydedilmemisDegisiklikMesaji;
+  return typeof f === 'function' ? (f.call(bilesen) ?? null) : null;
 }
 
 export type OnayIstemi = (mesaj: string) => boolean | Promise<boolean>;
@@ -87,7 +99,8 @@ export const kaydedilmemisDegisiklikGuard: CanDeactivateFn<
   if (!bilesen?.kaydedilmemisDegisiklikVar?.()) return true;
   if (inject(SekmeRotaStratejisi).saklanacakMi(mevcutRota)) return true;
   if (inject(SayfaTerki).onaylandi) return true;
-  const mesaj = inject(TranslocoService).translate('form.kaydedilmemis.onay');
+  const mesaj =
+    terkMesaji(bilesen) ?? inject(TranslocoService).translate<string>('form.kaydedilmemis.onay');
   return inject(ONAY_ISTEMI)(mesaj);
 };
 

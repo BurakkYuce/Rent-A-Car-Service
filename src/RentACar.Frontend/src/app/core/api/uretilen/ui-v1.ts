@@ -3335,6 +3335,7 @@ export interface components {
       /** Format: double */
       tutar: number | string;
       doviz: string;
+      ayniIcerik: boolean;
     };
     MukerrerProblemi: {
       type: string;

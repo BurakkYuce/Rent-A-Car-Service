@@ -171,6 +171,11 @@ export class PanelTahsilatFormu implements OnInit {
   readonly tamamlandi = output();
   /** 409 `mukerrer` (çift gönderim ya da bayat anahtar): panel yeniden yüklenir; yeniden gönderim YOK. */
   readonly mukerrer = output();
+  /**
+   * 3. tur M-A: 409 + `mevcut` İÇERİĞİ FARKLI — başka bir tahsilat yazılmış, bu formun tutarı YAZILMADI. Form
+   * AÇIK KALIR (tutar korunur); sayfa paneli yeniden yükleyip satırın YENİ anahtarını forma verir.
+   */
+  readonly anahtarTazele = output();
   readonly vazgecildi = output();
 
   private static sayac = 0;
@@ -279,6 +284,14 @@ export class PanelTahsilatFormu implements OnInit {
         // Sunucunun detail'ı AYNEN. F4.4 adversarial HIGH-1: `mevcut` doluysa işlem ZATEN yazıldı (kaybolan
         // yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi (tekrar denemeye yönlendirmez). Yoksa bayat anahtar:
         // "kayıt değişti, tutarı yeniden girin" — başlık nötr, "kaydedildi" izlenimi vermez.
+        if (hata.mevcut && !hata.mevcut.ayniIcerik) {
+          // Başka bir tahsilat yazıldı; BU tutar yazılmadı → uyarı, form korunur, yeni anahtar gelir.
+          this.toast.uyari(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
+            baslik: this.t('geriBildirim.baskaIslemYazildi'),
+          });
+          this.anahtarTazele.emit();
+          return;
+        }
         if (hata.mevcut) {
           this.toast.bilgi(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
             baslik: this.t('geriBildirim.zatenKaydedildi'),

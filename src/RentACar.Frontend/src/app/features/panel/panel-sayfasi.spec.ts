@@ -326,7 +326,13 @@ describe('PanelSayfasi', () => {
           status: 409,
           detail,
           kod: 'mukerrer',
-          mevcut: { id: 'x', belgeNo: 'T-000042', tutar: '1250.50', doviz: 'TRY' },
+          mevcut: {
+            id: 'x',
+            belgeNo: 'T-000042',
+            tutar: '1250.50',
+            doviz: 'TRY',
+            ayniIcerik: true,
+          },
         },
         { status: 409, statusText: 'Conflict' },
       );
@@ -359,6 +365,47 @@ describe('PanelSayfasi', () => {
       expect(s.kok.querySelector('rc-panel-tahsilat-formu [role=alert]')?.textContent).toContain(
         'İşlem kaydedilmemiş olabilir',
       );
+    });
+
+    it('3. tur M-A: 409 + mevcut İÇERİK FARKLI → UYARI; form AÇIK kalır, tutar korunur, güncel satırın YENİ anahtarıyla gönderilir', async () => {
+      const s = await formuAc();
+      await s.gonder();
+      const detail =
+        'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-9, 100,00 TRY); girdiğiniz 1.250,50 TRY YAZILMADI. Güncel bakiyeyi kontrol edin.';
+      http.expectOne(TAHSILAT).flush(
+        {
+          type: 'about:blank',
+          title: 'Mükerrer',
+          status: 409,
+          detail,
+          kod: 'mukerrer',
+          mevcut: { id: 'a', belgeNo: 'T-9', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
+      await s.stabil();
+      const YENI = '99999999-9999-4999-8999-999999999999';
+      const yeni = yanit();
+      yeni.donusler.bugun[0] = donus('A1', {
+        tahsilat: { ...bilgi, anahtar: YENI, varsayilanTutar: 1150.5 },
+      });
+      http.expectOne(OZET).flush(yeni);
+      await s.stabil();
+      expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
+        expect.objectContaining({
+          durum: 'uyari',
+          baslik: 'Başka bir tahsilat yazıldı — tutarınız kaydedilmedi',
+          mesaj: `${detail} Panel yeniden yüklendi; güncel bakiyeyi kontrol edin.`,
+        }),
+      ]);
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu')).not.toBeNull(); // form AÇIK
+      await s.gonder();
+      const istek = http.expectOne(TAHSILAT);
+      expect(istek.request.body).toMatchObject({ tahsilatAnahtar: YENI, tutar: '1250.50' });
+      istek.flush({ id: 'y' });
+      await s.stabil();
+      http.expectOne(OZET).flush(yanit());
+      await s.stabil();
     });
 
     it('form açıkken panel tazelenip yeni anahtar gelse de form AÇILDIĞI anahtarla gönderir (bayat → 409)', async () => {

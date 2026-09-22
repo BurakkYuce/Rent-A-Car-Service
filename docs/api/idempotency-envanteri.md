@@ -116,7 +116,7 @@ Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversar
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
-| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile; sunucuda yeniden hesaplanır) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409. **İki ayrı 409 (F4.4 HIGH-1):** bu anahtarla bu kiraya yazılmış tahsilat VARSA "zaten kaydedildi (No …)" + ProblemDetails `mevcut: { id, belgeNo, tutar, doviz }` (kaybolan yanıttan sonraki tekrar); YOKSA (bayat/yabancı anahtar) "değişti … tutarı yeniden girin", `mevcut` yok |
+| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile; sunucuda yeniden hesaplanır) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409. **İki ayrı 409 (F4.4 HIGH-1):** bu anahtarla bu kiraya yazılmış tahsilat VARSA "zaten kaydedildi (No …)" + ProblemDetails `mevcut: { id, belgeNo, tutar, doviz }` (kaybolan yanıttan sonraki tekrar); YOKSA (bayat/yabancı anahtar) "değişti … tutarı yeniden girin", `mevcut` yok. **`mevcut.ayniIcerik` (3. tur M-A):** kayıt gelen istekle birebir aynıysa (tutar `decimal` eşitliği, döviz, hesap türü, hesap) `true` → "zaten kaydedildi"; farklıysa (iki sekme/iki kullanıcı aynı anahtarla, ya da tutar değiştirilmiş tekrar) `false` → "başka bir tahsilat yazıldı … girdiğiniz X YAZILMADI" — SPA formu SİLMEZ |
 | `POST finans/odeme` | E02 | başlık zorunlu | 409 |
 | `POST finans/fatura` | E15 | yok (yapısal; başlık yok sayılır) | 400 "Kira zaten tam faturalanmış…" |
 | `POST finans/donem-fatura` | E18/E19 | yok; tahsilat `RowKey(kira, sıra)` | 200 aynı `faturaId`, `tahsilatYazildi=false`, `bilgi` dolu (gizlenmez) |
@@ -175,6 +175,9 @@ Servis düzeyinde (Blazor da kapsanır):
   formu doldurduysa ya da gönderim SONUÇLANMADIYSA (ağ/5xx/oturum/doğrulama) kopya donar ve yeniden deneme aynı
   anahtarla gider (anahtar sessizce yenisiyle ya da anahtarsızla değiştirilmez). 2xx ya da 409 `mukerrer`
   sonrası düğme yeni detay gelene dek kapalıdır; gelen detayın anahtarı alınır (ikinci meşru tahsilat).
+- `mevcut.ayniIcerik=false` (başka tahsilat yazıldı, gelen tutar YAZILMADI): UYARI "Başka bir tahsilat yazıldı",
+  form SİLİNMEZ (tutar korunur), kayıt yeniden yüklenir (yeni anahtar), kullanıcı bilinçli yeniden gönderir — üç
+  ekranda da (sabit panel, kira listesi Tahsil Et, pano Tahsil Et).
 - 409'da otomatik yeniden gönderim YOK, kayıt yeniden yüklenir, TUTAR TEMİZLENİR ve yeniden ön-doldurulmaz
   (kullanıcı güncel bakiyeye bakıp bilinçli girer). `mevcut` VARSA (kaybolan yanıt): form temizlenir, "Tahsilat
   zaten kaydedildi" bilgisi (interceptor, üç ekranda da). YOKSA (bayat anahtar): nötr "Kira kaydı değişmiş" uyarısı
