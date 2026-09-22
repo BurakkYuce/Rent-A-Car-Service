@@ -191,21 +191,44 @@ describe('TahsilPaneli (PARA)', () => {
     ]);
   });
 
-  it('409 mukerrer → yeniden GÖNDERİLMEZ; satır yeniden yüklenir (sonuclandi) + bilgi', async () => {
+  it('409 mukerrer (sunucu anahtarı yeniden hesapladı, tutmadı) → yeniden GÖNDERİLMEZ; liste yenilenir, sunucu detayı "kayıt değişmiş" uyarısıyla', async () => {
     const { fixture, d, gonder } = await kur();
     await gonder();
-    const { govde, secenek } = problem('mukerrer', 409, {
-      detail: 'Bu tahsilat zaten kaydedilmiş.',
-    });
+    const DETAY =
+      'Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu ' +
+      'kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.';
+    const { govde, secenek } = problem('mukerrer', 409, { detail: DETAY });
     http.expectOne(TAHSIL_UCU).flush(govde, secenek);
     await fixture.whenStable();
 
-    http.expectNone(TAHSIL_UCU);
+    http.expectNone(TAHSIL_UCU); // ne aynı ne yeni anahtarla, ne anahtarsız tekrar
     expect(d.sonuclar).toBe(1);
     expect(toast.toastlar()).toEqual([
-      expect.objectContaining({ durum: 'bilgi', baslik: 'Mükerrer işlem' }),
+      expect.objectContaining({
+        durum: 'uyari',
+        baslik: 'Kira kaydı değişmiş',
+        mesaj: `${DETAY} Kayıt yeniden yüklendi.`,
+      }),
     ]);
+    // "Mükerrer işlem kaydedildi" izlenimi yok: ne başarı ne "Mükerrer işlem" başlığı.
     expect(toast.toastlar().some((t) => t.durum === 'basari')).toBe(false);
+    expect(toast.toastlar().some((t) => t.baslik === 'Mükerrer işlem')).toBe(false);
+  });
+
+  it('ağ hatasından sonra yeniden deneme AYNI tahsilatAnahtar’ı taşır (anahtarsız tekrar yok)', async () => {
+    const { fixture, d, gonder } = await kur();
+    await gonder();
+    http.expectOne(TAHSIL_UCU).error(new ProgressEvent('error'));
+    await fixture.whenStable();
+    expect(d.sonuclar).toBe(0);
+
+    await gonder();
+    const ikinci = http.expectOne(TAHSIL_UCU);
+    expect(ikinci.request.body.tahsilatAnahtar).toBe(ANAHTAR);
+    expect(ikinci.request.headers.get('Idempotency-Key')).toBe(ANAHTAR);
+    ikinci.flush({ id: 'x' });
+    await fixture.whenStable();
+    expect(d.sonuclar).toBe(1);
   });
 
   it('409 cakisma ve alan hatası formu SİLMEZ; panel açık kalır, aynı anahtarla düzeltilip gönderilir', async () => {

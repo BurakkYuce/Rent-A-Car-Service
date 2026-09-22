@@ -60,8 +60,12 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
  *   başlığı da aynı değeri taşır (sunucuda deterministik anahtar başlıktan önceliklidir). İstemci anahtar
  *   ÜRETMEZ — iki sekme/iki kullanıcı aynı satırı tahsil ederse ikincisi 409 `mukerrer` olur.
  * - **Kilit:** istek uçarken gönder düğmesi pasif, ikinci gönderim yok sayılır (`formGonderimi`).
- * - **409 `mukerrer`:** yeniden gönderim YOK; interceptor bilgi toast'u gösterir, `sonuclandi` ile sayfa
- *   paneli kapatıp listeyi yeniden yükler (yeni bakiye + yeni anahtar).
+ * - **409 `mukerrer`:** yeniden gönderim YOK (ne aynı ne yeni anahtarla, ne de `tahsilatAnahtar`'sız). Sunucu
+ *   anahtarı yeniden hesaplar; tutmazsa (bayat ekran, başka kiranın anahtarı, yanıtı kaybolmuş ilk deneme) 409
+ *   döner. Toast sunucunun `detail`'ını "Kira kaydı değişmiş" başlığıyla gösterir (uyarı; "kaydedildi" demez),
+ *   `sonuclandi` ile sayfa paneli kapatıp listeyi yeniden yükler (güncel bakiye + yeni anahtar).
+ * - **Yeniden deneme** (ağ/5xx/400 sonrası aynı panelden): gövde DAİMA aynı `tahsilatAnahtar`'ı taşır — anahtarsız
+ *   tekrar yok (envanter "SPA sözleşmesi"). İlk deneme sunucuda yazıldıysa ikinci 409 alır, çift yazım olmaz.
  * - **2xx:** başarı toast'u + `sonuclandi` (liste yenilenir → satırın yeni anahtarı gelir).
  * - **Diğer hatalar** (`dogrulama`, `cakisma`, 5xx, ağ): form DEĞERLERİ KORUNUR, panel açık kalır.
  * - Cari, kira ve döviz satırdan (kira dövizi); kur boş → sunucu çözer (TRY=1; döviz: firma kuru → TCMB).
@@ -263,8 +267,13 @@ export class TahsilPaneli {
       (anahtar) =>
         this.api.post<FinansIslemYaniti>('/api/ui/v1/finans/tahsilat', govde, {
           islemAnahtari: anahtar,
-          // 409 mukerrer: tekrar gönderilmez; satır (liste) yeniden yüklenir.
-          context: istekBaglami({ mukerrerdeYenile: () => this.sonuclandi.emit() }),
+          // 409 mukerrer: tekrar gönderilmez; satır (liste) yeniden yüklenir. Sunucu anahtarı yeniden hesaplar
+          // (F4.4a): 409 çoğunlukla "kayıt bu ekran açıldıktan sonra değişti" demektir — toast sunucunun
+          // `detail`'ını "Kira kaydı değişmiş" başlığıyla gösterir, "mükerrer işlem kaydedildi" izlenimi vermez.
+          context: istekBaglami({
+            mukerrerdeYenile: () => this.sonuclandi.emit(),
+            mukerrerBasligi: this.t('kiraListesi.tahsil.kayitDegismis'),
+          }),
         }),
       {
         deterministikAnahtar: tahsilat.anahtar,
