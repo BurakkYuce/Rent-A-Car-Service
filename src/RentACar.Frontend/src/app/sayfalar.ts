@@ -23,6 +23,13 @@ export const SAYFALAR: Routes = [
     loadComponent: () => import('@features/yer-tutucu/yer-tutucu').then((m) => m.YerTutucu),
   },
   {
+    // F4.5 Panel (Blazor `/`). Kök yerine `/panel`: kök F3 vitrin/e2e/görsel tabanlarının çapası; giriş
+    // sonrası iniş ve menü "Panel" kaydı F4.6 kesişinde bu rotaya bağlanır. İzin kapısı içerikte (sunucu).
+    path: 'panel',
+    title: 'Panel — RentACar',
+    loadComponent: () => import('@features/panel/panel-sayfasi').then((m) => m.PanelSayfasi),
+  },
+  {
     // F4.2 kira listesi. Kayıt formu (`kiralar/yeni`, `kiralar/:id`) F4.3'te; liste yalnız bağlantı verir.
     path: 'kiralar',
     title: 'Kira Sözleşmeleri — RentACar',
