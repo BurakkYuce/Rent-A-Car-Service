@@ -825,6 +825,8 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             ["GET " + Kira + "/{id:guid}/dis-hizmetler"] = Oku,
             ["GET " + Kira + "/{id:guid}/kaynak-rezervasyon"] = Oku,
             ["GET " + Kira + "/{id:guid}/karne-ozeti"] = "FinanceWrite",
+            ["GET " + Kira + "/{id:guid}/musteri-ozet"] = Oku, // F4.3b
+            ["GET " + Kira + "/ek-hizmet-katalogu"] = "OperationsWrite", // F4.3b
             ["GET " + Kira + "/form-varsayilanlari"] = "OperationsWrite",
             ["GET " + Kira + "/hesapla"] = "OperationsWrite",
             ["GET " + Kira + "/musait-arac"] = "OperationsWrite",

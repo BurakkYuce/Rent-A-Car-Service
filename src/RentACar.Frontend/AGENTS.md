@@ -15,7 +15,12 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
   `lowercase`/`uppercase`/`titlecase` pipe'ları yasak ("I/ı", "İ/i" bozulur, arama kaçar).
   `@core/metin/tr-normalize` (`trKucukHarf`, `trBuyukHarf`, `trNormalize`) kullanın.
 - **Yalnız göreli URL:** `src/` içinde `http(s)://` ile başlayan metin yasak. XSRF header'ı yalnız
-  göreli URL'lere eklenir; CSP `connect-src 'self'`.
+  göreli URL'lere eklenir; CSP `connect-src 'self'`. **Tek istisna — harici paylaşım (F4.3b):**
+  `src/app/shared/dis-baglantilar.ts` içinde YALNIZ `https://wa.me/` ve Gmail taslak kökü
+  (`https://mail.google.com/mail/?view=cm&fs=1`) yazılabilir (lint seçicisi bu iki kökü birebir tanır; başka
+  mutlak adres o dosyada da hata). Gerekçe: bunlar API çağrısı değil, kullanıcının yeni sekmede açtığı gezinme
+  bağlantısıdır (`window.open`, `noopener`) — XSRF/`connect-src` kapsamına girmez; dosya `@angular/common/http`
+  ve `@core/api/*` içe aktaramaz (lint). Yeni dış bağlantı gerekiyorsa kök bu dosyaya + lint seçicisine eklenir.
 - **CSP `script-src 'self'`:** inline script/handler yok. Bu yüzden production'da
   `inlineCritical: false` ve `fonts.inline: false`; fontlar self-host.
 - **Metinler Türkçe**, `lang="tr"`. Sınıf adları İngilizce olabilir, alan adları Türkçe.
@@ -114,6 +119,8 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   başına anahtar, yeniden denemede aynı, her 2xx ve `mukerrer` sonrası yeni; deterministik sunucu
   anahtarı `deterministikAnahtar` ile dokunulmadan önce gelir), hata alanlara (`alanlar`), değerler
   korunur, 2xx'te form `pristine`.
+- **Seç veya yaz:** `<rc-metin-girdisi liste="dl-kimlik">` + sayfada `<datalist id="dl-kimlik">` (serbest
+  metin de kabul; Blazor ComboBox konvansiyonu).
 - **Kaydedilmemiş değişiklik:** sayfa `KaydedilmemisDegisiklikSahibi` uygular, rotaya
   `canDeactivate: [kaydedilmemisDegisiklikGuard]`, kurucuda `sayfaTerkKorumasi(() => form.dirty)`.
 - **Yerleşim:** `rc-sekmeli-form` + `rcSekmePaneli` (derin bağlantı `#sekme=…`, gizli sekmedeki hatalı
@@ -121,6 +128,37 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   (`TanimAlani[]` + `TanimKaynagi`, REST için `restTanimKaynagi('/api/ui/v1/…')`); form ızgarası
   `.rc-form-izgara`. Yazdırma: `_yazdir.scss` (gizli sekmeler başlığıyla basılır, `.rc-yazdirma-gizle`).
 - Vitrin: `/app/vitrin/form`, `/app/vitrin/tanim` (e2e bunların üstünde).
+
+## Kira formu (F4.3)
+
+- `features/kira-formu/`: TEK bileşen iki rotada (`/kiralar/yeni`, `/kiralar/:id`) + `/kiralar/:id/yazdir`
+  (sunucu PDF ucuna tam sayfa). Durum/eylemler `KiraFormuDurumu`'nda (sayfa `providers`), saf kurallar
+  `kira-formu-modeli.ts`'te (sorgu sözleşmesi `?varac&vfrom&vto&vgrup&musteriId`, `#sekme=…&alt=…`,
+  gövdeler: POST whitelist, PUT 58 alanın HEPSİ). Tutar formülü YOK — `hesapla` / `donus-hesapla`.
+- Hızlı Giriş alanları AYNA: aynı `FormControl` iki girdiye bağlanamaz → `form.ayna` + `aynalariBagla`.
+  Formu sıfırlarken YALNIZ `formuSifirla` (ayna değerleriyle birlikte; düz `reset` aynayı null'layıp
+  kanoniği siler — e2e yakaladı).
+- **İyimser eşzamanlılık:** detaydaki `kira.surum` PUT'a zorunlu gider; bayatsa 409 `cakisma` → güncel kayıt
+  okunur ve KİRLİ forma birleştirilir (`sunucuDegerleriniBirlestir`: dokunulmayan alan sunucu değerine çekilir,
+  dokunulan korunur, ikisi de değiştiyse alan işaretlenir). İşlem sonrası ve sekmeye dönüşte de aynı yol.
+  Dokunulmayan provizyon tarihi sunucunun orijinal anıyla geri gider (gün yuvarlaması yok).
+- Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
+- Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
+- **F4.3b parite ekleri:**
+  - Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet`. Müşteri PII'sinin TEK sunucu kuralı
+    `MusteriGorunumu` (özet + detay taraf adı + paylaşım barı + hazır mesaj): TC kimlik HİÇ dönmez (Blazor gibi
+    "şifreli — cari kartında"); ehliyet/pasaport numarası yalnız sunucuda maskeli (≥ 8 → son 4, 5–7 → son 2, ≤ 4
+    tamamen yıldız; maske istemcide YAPILMAZ); KVKK `Anonim*` bayrakları grubu boşaltır (`AnonimAd` → özette
+    `ad: null`, detayda "Anonim müşteri", mesajda "Sayın müşterimiz"; tel/e-posta paylaşım ön-doldurmasında da `null`).
+  - Hızlı Giriş "Ceza" rozeti ve kayıtlı kiradaki "Ek hizmet tutarı" detayın `toplamlar` alanından (sunucu toplar;
+    SPA toplamaz).
+  - `?musteriId=` / penceresiz `?varac=` etiketi `GET /secim/musteri/{id}` / `/secim/arac/{id}` ile çözülür (hata →
+    geçici etiket kalır; kayıt yalnız kimlikle).
+  - Ek hizmet matrisi `GET /kiralar/ek-hizmet-katalogu` (birim net + KDV yalnız gösterim; satır tutarı `hesapla`'dan).
+    Katalog kesikse (`toplam > ogeler`) listede olmayan tanım sunucu aramasıyla (`q`) eklenir.
+  - Kaynak / özel kod datalist önerileri yazılanla `q` ile sunucuda aranır (`oneriAramasi`, 250 ms).
+  - Paylaş barı (`rc-kf-paylas-bari`): hazır metin sunucudan (`paylasim.mesaj`), link varsa kendi kökünden eklenir;
+    bağlantılar `@shared/dis-baglantilar`.
 
 ## Tablo motoru (F3.5)
 
@@ -238,7 +276,8 @@ durumunda `test-results/` — iz, gerçek/fark PNG'leri — artifact). Yerelde i
   geçer). **Üretilen dosya commit'lenir ve elle düzenlenmez**; ESLint onu yok sayar. `prebuild`/`prewatch`
   her derlemede yeniden üretir.
 - Kod tipleri **doğrudan üretilen dosyadan değil** `@core/api/ui-tipleri`'nden alır (`BenYaniti`,
-  `MenuYaniti`…). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
+  `MenuYaniti`…). Özellik kendi takma adlarını kendi klasöründe `Sema<'KiraDetayYaniti'>` ile kurar
+  (ör. `features/kira-formu/kira-tipleri.ts`). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
   kullanan kod `typecheck`'te kırılır. JSON değişip tipler üretilmezse CI `tipler:kontrol` kırmızı.
 - API değiştiğinde akış: `RACAR_OPENAPI_GUNCELLE=1 dotnet test --filter UiApiOpenApiTests` →
   `npm run tipler` → ikisini birlikte commit'le.
