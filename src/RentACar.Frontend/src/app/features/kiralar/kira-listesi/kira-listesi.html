@@ -1,21 +1,25 @@
 <div class="sayfa">
   <header class="ust">
     <h1>{{ 'kiraListesi.baslik' | transloco }}</h1>
-    @if (operasyon()) {
+    @if (yeniKiraIzni() || ornekSozlesmeIzni()) {
       <div class="ust__eylemler">
-        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/kiralar/yeni">
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'kiraListesi.yeniKira' | transloco }}
-        </a>
-        <a
-          class="rc-dugme rc-dugme--kucuk"
-          href="/kiralar/ornek-sozlesme/pdf"
-          target="_blank"
-          rel="noopener"
-        >
-          <rc-ikon ad="external-link" [boyut]="14" />
-          {{ 'kiraListesi.ornekSozlesme' | transloco }}
-        </a>
+        @if (yeniKiraIzni()) {
+          <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/kiralar/yeni">
+            <rc-ikon ad="plus" [boyut]="14" />
+            {{ 'kiraListesi.yeniKira' | transloco }}
+          </a>
+        }
+        @if (ornekSozlesmeIzni()) {
+          <a
+            class="rc-dugme rc-dugme--kucuk"
+            href="/kiralar/ornek-sozlesme/pdf"
+            target="_blank"
+            rel="noopener"
+          >
+            <rc-ikon ad="external-link" [boyut]="14" />
+            {{ 'kiraListesi.ornekSozlesme' | transloco }}
+          </a>
+        }
       </div>
     }
   </header>
@@ -66,7 +70,7 @@
         <rc-alan [etiket]="'kiraListesi.filtre.basMax' | transloco">
           <rc-tarih-secici formControlName="basMax" />
         </rc-alan>
-        @if (operasyon()) {
+        @if (lokasyonSecimIzni()) {
           <rc-alan [etiket]="'kiraListesi.filtre.ofis' | transloco">
             <rc-arama-secim formControlName="ofis" [kaynak]="lokasyonlar" />
           </rc-alan>
@@ -92,10 +96,12 @@
             [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
           />
         </rc-alan>
-        @if (operasyon()) {
+        @if (kaynakSecimIzni()) {
           <rc-alan [etiket]="'kiraListesi.filtre.kaynak' | transloco">
             <rc-arama-secim formControlName="kaynak" [kaynak]="kaynaklar" />
           </rc-alan>
+        }
+        @if (personelSecimIzni()) {
           <rc-alan [etiket]="'kiraListesi.filtre.personel' | transloco">
             <rc-arama-secim formControlName="personel" [kaynak]="personeller" />
           </rc-alan>
@@ -155,7 +161,7 @@
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       <span class="islemler">
-        @if (operasyon()) {
+        @if (pdfIzni()) {
           <a
             class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
             [href]="pdfAdresi(satir)"
@@ -182,7 +188,7 @@
             <span class="rc-gorunmez">{{ satir.sozlesmeNo }}</span>
           </button>
         }
-        @if (silme() && satir.durum === 'Kirada') {
+        @if (iptalIzni() && satir.durum === 'Kirada') {
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"

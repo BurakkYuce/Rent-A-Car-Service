@@ -10,7 +10,9 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Grup</c>: menü grubu (<see cref="MenuKaydi.Kok"/> = grupsuz tek başına öğe;
 /// <see cref="MenuKaydi.KisaYollar"/> = hızlı bağlantılar).</item>
 /// <item><c>Sira</c>: menünün TAMAMINDA görüntülenme sırası (gruplar ilk öğelerinin sırasıyla dizilir).</item>
-/// <item><c>Sahip</c>: sayfayı kim çiziyor — bugün hepsi <see cref="MenuKaydi.Blazor"/>; faz kesişinde <c>spa</c> olur.</item>
+/// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
+/// (F4.6: Panel, Kiralar, Yeni Kira). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
 /// <item><c>Modul</c>: satın alınabilir modül bayrağı (ör. <see cref="ModulMetadata.WebSitesi"/>); kapalıysa öğe gizli.</item>
@@ -24,18 +26,20 @@ public sealed record MenuOgesi(
 /// <summary>
 /// Blazor <c>MainLayout</c> menüsünün TAMAMININ kaydı (F1.6) — gruplar, sıra, hızlı bağlantılar, rozetler,
 /// modül bayrakları ve her öğenin izni. Yeni arayüz kabuğu (F3.2) menüyü buradan (<c>GET /api/ui/v1/menu</c>)
-/// okur; Blazor F4.6'ya dek kendi menüsünü çizer.
-/// <para><b>Kayma çiti:</b> <c>MenuKaydiTests</c> MainLayout'taki her menü bağlantısının burada tam bir
-/// karşılığı olduğunu (ve tersini) sayarak doğrular — MainLayout'a öğe ekleyen buraya da eklemek zorunda.</para>
+/// okur; Blazor <c>MainLayout</c> da F4.6'dan beri menüyü BURADAN çizer (tek kaynak, iki arayüz).
+/// <para><b>Kayma çiti:</b> <c>MenuKaydiTests</c> kaydı F4.6 öncesi MainLayout menüsünün dondurulmuş kopyasıyla
+/// (<c>tests/…/Oracle/menu-f46-oncesi.tsv</c>) karşılaştırır — öğe ekleyen iki yeri AYNI PR'da değiştirir.</para>
 /// <para><b>İzin kuralı</b> (bugünkü rol kapısından türetilmiş): sayfa <c>izin:X</c> politikası taşıyorsa X;
 /// yalnız Admin rollü sayfa ManageUsers; aksi halde grubun rol kapısının izin karşılığı
 /// (Operasyon grupları → OperationsWrite, Finans → FinanceWrite, Raporlar → ViewReports, Sistem → ManageUsers).
 /// Rol → izin geçişi bilinçlidir: kullanıcı-bazlı istisnalar menüye yansır ve açılamayacak öğe gösterilmez
-/// (Blazor menüsü bu davranışa F4.6'da geçer).</para>
+/// (Blazor menüsü bu davranışa F4.6'da geçti — önce/sonra tablosu F4.6 PR'ında).</para>
 /// </summary>
 public static class MenuKaydi
 {
     public const string Blazor = "blazor";
+    /// <summary>F4.6: sayfa yeni arayüzde (Angular). Rota <c>/app/…</c>.</summary>
+    public const string Spa = "spa";
     public const string Kok = "";
     public const string KisaYollar = "Kısa Yollar";
     public const string RozetOkunmamisBildirim = "okunmamis-bildirim";
@@ -53,14 +57,15 @@ public static class MenuKaydi
 
         var l = new List<MenuOgesi>();
         void E(string grup, string rota, string etiket, Permission? izin, string? modul = null, string? rozet = null, bool hizli = false)
-            => l.Add(new MenuOgesi(rota, etiket, grup, (l.Count + 1) * 10, Blazor, izin, modul, rozet, hizli));
+            => l.Add(new MenuOgesi(rota, etiket, grup, (l.Count + 1) * 10,
+                SpaBarindirmaYolu(rota) ? Spa : Blazor, izin, modul, rozet, hizli));
 
         // ---- Kısa yollar (MainLayout: Roles="Admin,Yonetici,Operator")
         E(KisaYollar, "/rezervasyonlar", "Yeni Rezervasyon", OW, hizli: true);
-        E(KisaYollar, "/kiralar/yeni", "Yeni Kira", OW, hizli: true);
+        E(KisaYollar, "/app/kiralar/yeni", "Yeni Kira", OW, hizli: true); // F4.6: spa
         E(KisaYollar, "/musaitlik", "Müsaitlik-Rez Açma", OW, hizli: true);
 
-        E(Kok, "/", "Panel", null);
+        E(Kok, "/app/panel", "Panel", null); // F4.6: spa
 
         // ---- Operasyon grupları (MainLayout: Roles="Admin,Yonetici,Operator" → OperationsWrite)
         const string Arac = "Araçlar";
@@ -78,7 +83,7 @@ public static class MenuKaydi
         E(Arac, "/segmentler", "Segmentler", OW);
 
         const string Kira = "Kira";
-        E(Kira, "/kiralar", "Kiralar", OW);
+        E(Kira, "/app/kiralar", "Kiralar", OW); // F4.6: spa
         E(Kira, "/teklifler", "Teklifler", OW);
         E(Kira, "/filo-kiralama", "Filo Kiralama", OW);
 
@@ -218,4 +223,7 @@ public static class MenuKaydi
         E(Sistem, "/ice-aktar", "Veri İçe Aktar", MU);
         return l;
     }
+
+    /// <summary>Rota yeni arayüzün mü (<c>/app</c> ya da altı)? Sahip bundan türer — elle yazılmaz, kayamaz.</summary>
+    private static bool SpaBarindirmaYolu(string rota) => RentACar.Web.Spa.IlkKesis.SpaYoluMu(rota);
 }

@@ -69,6 +69,12 @@ export class OturumServisi {
     return this.izinKumesi().has(izin);
   }
 
+  /** İzinlerin HEPSİ var mı (düğme kapıları: `DUGME_IZINLERI[...].izinler`). Boş liste = oturum yeterli. */
+  izinlerVar(izinler: readonly Izin[]): boolean {
+    const kume = this.izinKumesi();
+    return izinler.every((izin) => kume.has(izin));
+  }
+
   /**
    * Uygulama açılışında bir kez `ben` okunur (guard'lar bekler). Oturum yoksa `null`; ağ/sunucu
    * hatası da `null` (giriş sayfası açılır, sunucu hatası toast'la söylenir).
