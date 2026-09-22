@@ -225,6 +225,23 @@ describe('CVA kontroller', () => {
     expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
   });
 
+  it('para: fare/dokunuş odağında TÜMÜ SEÇİLMEZ (imleç kullanıcının yerinde); klavye odağında seçilir', async () => {
+    const { girdi, yaz, birak } = await kur();
+    await yaz('tutar', '1.234,56');
+    await birak('tutar');
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.setSelectionRange(2, 2); // tarayıcının tık konumu
+    g.dispatchEvent(new Event('focus'));
+    expect(g.value).toBe('1234,56');
+    expect(g.selectionEnd! - g.selectionStart!).toBe(0); // seçim yok
+    await birak('tutar');
+    // Sonraki klavye (Tab) odağı yine tümünü seçer — bayrak tek seferliktir.
+    g.select();
+    g.dispatchEvent(new Event('focus'));
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
   it('para: anlaşılmayan yazım değer değil hata; metin ekranda kalır, mesaj alanın altında', async () => {
     const { form, alan, girdi, yaz, birak } = await kur();
     await yaz('tutar', '12,3a');

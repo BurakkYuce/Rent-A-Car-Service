@@ -50,6 +50,7 @@ import type {
   KiraDonem,
   KiraFatura,
   KurSecimOgesi,
+  TahsilatBilgisi,
 } from './finans-tipleri';
 
 const KIRA = '/api/ui/v1/kiralar' as const;
@@ -77,6 +78,8 @@ export interface TahsilatFormu {
   readonly gonderim: FormGonderimi;
   /** Seçili döviz (ISO) — kur alanı ve para simgesi için. */
   readonly doviz: Signal<string>;
+  /** Yazılan tutar (invariant metin) — yalnız kalan bakiye UYARISI için karşılaştırılır, hesap yapılmaz. */
+  readonly tutar: Signal<Para>;
 }
 
 /** Dönem satırı mini formu (tahsilat istendi mi + hesap). */
@@ -188,6 +191,8 @@ export class KiraFinansDurumu {
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
   private readonly donemFormlari = new Map<number, DonemFormu>();
+  /** Depozito tutarı kiranın depozitosuyla yalnız bir kez (depozito alınana dek) önerilir (adversarial L2). */
+  private depozitoOnDoldur = true;
   /** Dış hizmet formunda seçili döviz (kur alanı için). */
   readonly disHizmetDovizi = this.dovizSinyali(this.disHizmetFormu.controls.doviz);
   /** Depozito al formunda seçili hesap türü (hesap listesi için). */
@@ -274,16 +279,31 @@ export class KiraFinansDurumu {
     return f;
   }
 
-  /** Panel formlarından biri kirli mi (sayfa terk koruması için). */
+  /**
+   * Sayfa terk koruması (adversarial L3): panel formlarından biri kirli ya da bir para gönderimi SONUÇLANMADI
+   * (donmuş tahsilat kopyası / bekleyen `Idempotency-Key`) — sayfadan ayrılınca anahtar sessizce kaybolmasın.
+   */
   kirliMi(): boolean {
+    const formlar = [
+      this.nakit.form,
+      this.kart.form,
+      this.odemeFormu,
+      this.depozitoAlFormu,
+      this.iratFormu,
+      this.faturaFormu,
+      this.disHizmetFormu,
+    ];
+    const bekleyen = [
+      this.odemeGonderimi,
+      this.depozitoAlGonderimi,
+      this.iratGonderimi,
+      this.disHizmetGonderimi,
+    ].some((g) => g.kilit.bekleyenAnahtar !== null);
     return (
-      this.nakit.form.dirty ||
-      this.kart.form.dirty ||
-      this.odemeFormu.dirty ||
-      this.depozitoAlFormu.dirty ||
-      this.iratFormu.dirty ||
-      this.faturaFormu.dirty ||
-      this.disHizmetFormu.dirty
+      formlar.some((f) => f.dirty) ||
+      bekleyen ||
+      this.nakit.kopya.sonuclanmamis ||
+      this.kart.kopya.sonuclanmamis
     );
   }
 
@@ -322,7 +342,13 @@ export class KiraFinansDurumu {
           this.tamam('kiraFinans.bildirim.tahsilat');
         },
         hata: (h) => {
-          if (h.kod === 'mukerrer') tf.kopya.sonuclandi();
+          if (h.kod !== 'mukerrer') return;
+          // HIGH-1: tutar TEMİZLENİR ve yeniden ön-doldurulmaz. `mevcut` (işlem zaten yazıldı — kaybolan
+          // yanıt): form tamamen temizlenir; bilgi interceptor'da ("İşlem zaten kaydedildi" + No). Yoksa
+          // (bayat anahtar): kullanıcı güncel bakiyeyi görüp tutarı bilinçli yeniden girer.
+          tf.kopya.sonuclandi(false);
+          if (h.mevcut) tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
+          else tf.form.controls.tutar.setValue(null);
         },
       },
     );
@@ -363,6 +389,7 @@ export class KiraFinansDurumu {
         ),
       {
         basarili: () => {
+          this.depozitoOnDoldur = false;
           this.depozitoAlFormu.reset({ tutar: null, hesap: 'Kasa', hesapId: null });
           this.tamam('kiraFinans.bildirim.depozitoAl');
         },
@@ -401,7 +428,7 @@ export class KiraFinansDurumu {
   }
 
   /** Kiradan fatura (E15, yapısal): anahtar kullanılmaz; ikinci çağrı sunucudan 400 (form üstü hata). */
-  faturaKes(): void {
+  faturaKes(gecersiz?: () => void): void {
     const k = this.kira();
     if (!k) return;
     this.faturaGonderimi.gonder(
@@ -412,6 +439,8 @@ export class KiraFinansDurumu {
           faturaGovdesi(k.id, this.faturaFormu.getRawValue()),
         ),
       {
+        // L4: geçersiz alan kapalı <details> içindeyse görünmüyordu (sessiz "Fatura kes") → bileşen açıp odaklar.
+        ...(gecersiz ? { gecersiz } : {}),
         basarili: () => {
           this.faturaFormu.reset(this.faturaVarsayilanlari());
           this.tamam('kiraFinans.bildirim.fatura');
@@ -450,7 +479,10 @@ export class KiraFinansDurumu {
             : 'kiraFinans.bildirim.donem',
         );
       },
-      () => this.gonderilenDonem.set(null),
+      () => {
+        this.gonderilenDonem.set(null);
+        this.yenile(); // L7: 400 (ör. başka sekmede kesildi) sonrası plan ve kira tazelensin
+      },
     );
   }
 
@@ -539,22 +571,26 @@ export class KiraFinansDurumu {
     const k = d.kira;
     for (const tf of [this.nakit, this.kart]) {
       const sonuc = tf.kopya.detayGeldi(d.tahsilat ?? null, tf.form.dirty);
-      const bilgi = tf.kopya.kopya();
-      if (sonuc === 'ondoldur') {
-        tf.form.reset({
-          tutar: onDoldurmaTutari(bilgi?.varsayilanTutar),
-          doviz: dovizKodu(bilgi?.doviz ?? k.doviz),
-          kur: null,
-          hesapId: null,
-          kanal: KANALLAR[0],
-          aciklama: null,
-        });
-      }
+      if (sonuc === 'ondoldur') tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), true));
     }
-    if (this.depozitoAlFormu.pristine) {
+    // L2: kiranın depozitosu yalnız ilk açılışta önerilir; alındıktan sonra yeniden ön-doldurulmaz (ikinci tık
+    // ikinci depozito yazıyordu).
+    if (this.depozitoAlFormu.pristine && this.depozitoOnDoldur) {
       this.depozitoAlFormu.reset({ tutar: paraMetni(k.depozito, 2), hesap: 'Kasa', hesapId: null });
     }
     if (this.faturaFormu.pristine) this.faturaFormu.reset(this.faturaVarsayilanlari());
+  }
+
+  /** Tahsilat formunun boş hâli; `ondoldur` ise tutar sunucunun önerisiyle (yalnız pozitifse) dolar. */
+  private tahsilatVarsayilanlari(bilgi: TahsilatBilgisi | null, ondoldur: boolean) {
+    return {
+      tutar: ondoldur ? onDoldurmaTutari(bilgi?.varsayilanTutar) : null,
+      doviz: dovizKodu(bilgi?.doviz ?? this.kira()?.doviz),
+      kur: null,
+      hesapId: null,
+      kanal: KANALLAR[0],
+      aciklama: null,
+    };
   }
 
   private faturaVarsayilanlari() {
@@ -577,12 +613,18 @@ export class KiraFinansDurumu {
       kanal: secenekKontrolu(KANALLAR[0]),
       aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
     });
+    // L6: kullanıcı dövizi değiştirince DOKUNULMAMIŞ ön-dolu tutar temizlenir (TRY bakiye "2.600" USD gitmesin).
+    form.controls.doviz.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (form.controls.doviz.dirty && form.controls.tutar.pristine)
+        form.controls.tutar.setValue(null);
+    });
     return {
       hesap,
       form,
       kopya: new TahsilatKopyasi(),
       gonderim: formGonderimi(),
       doviz: this.dovizSinyali(form.controls.doviz),
+      tutar: this.degerSinyali(form.controls.tutar),
     };
   }
 

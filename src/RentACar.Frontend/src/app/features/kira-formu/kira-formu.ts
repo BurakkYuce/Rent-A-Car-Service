@@ -85,6 +85,8 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   private readonly t = ceviriFonksiyonu();
   private readonly sekmeli = viewChild(SekmeliForm);
   private readonly ayrintilar = viewChild(Ayrintilar);
+  /** Sabit finans paneli (tembel): yazılmış tutar ya da sonuçlanmamış para gönderimi de "kaydedilmemiş" sayılır. */
+  private readonly finans = viewChild(KiraFinansYuvasi);
 
   protected readonly sekmeler: readonly SekmeTanimi[] = SEKMELER.map((k) => ({
     kimlik: k,
@@ -95,7 +97,7 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   protected readonly bulunamadi = computed(() => this.d.detay.hata()?.status === 404);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.d.kirliMi());
+    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
     // Açık sekmeye `#sekme=` ile gelindiğinde (bileşen yaşıyor; `hashchange` tetiklenmez) sekme seçilir.
     inject(ActivatedRoute)
       .fragment.pipe(takeUntilDestroyed(inject(DestroyRef)))
@@ -108,7 +110,7 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.d.kirliMi();
+    return this.d.kirliMi() || (this.finans()?.kirliMi() ?? false);
   }
 
   protected kaydet(): void {

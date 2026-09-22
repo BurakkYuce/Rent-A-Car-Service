@@ -40,6 +40,11 @@ export class KiraFinansYuvasi {
   protected readonly yuklendi = signal(false);
   private panel: ComponentRef<KiraFinansPaneli> | null = null;
 
+  /** Sayfa terk koruması: paneldeki yazılmış değer ya da sonuçlanmamış (donmuş anahtarlı) gönderim. */
+  kirliMi(): boolean {
+    return this.panel?.instance.kirliMi() ?? false;
+  }
+
   constructor() {
     let iptal = false;
     inject(DestroyRef).onDestroy(() => (iptal = true));

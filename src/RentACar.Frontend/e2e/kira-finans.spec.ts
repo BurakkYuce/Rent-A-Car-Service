@@ -386,9 +386,59 @@ test('409 mukerrer (bayat anahtar): otomatik tekrar YOK, kayıt yeniden yükleni
   await expect(toast).toContainText(`${mesaj} Kayıt yeniden yüklendi.`);
   await expect(toast).not.toContainText('Mükerrer işlem');
   await expect.poll(detayOkuma).toBeGreaterThan(once);
-  await expect(tutar).toHaveValue(/^500,00$/); // yazılan korunur
+  // HIGH-1: tutar TEMİZLENİR ve yeniden ön-doldurulmaz — kullanıcı güncel bakiyeye bakıp bilinçli girer.
+  await expect(tutar).toHaveValue('');
   await page.waitForTimeout(300);
   expect(tahsilatlar(finansIstekleri)).toHaveLength(1);
+  expect(hatalar).toEqual([]);
+});
+
+test('HIGH-1 (R1b): ilk tahsilat yazıldı ama yanıt düştü → AYNI anahtarla tekrar → 409 mevcut → "zaten kaydedildi", form boş, ikinci tahsilat YOK', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /ERR_CONNECTION_RESET|net::/]);
+  await oturumAc(page);
+  let yazildi = false;
+  const detail = 'Bu tahsilat zaten kaydedildi (No T-000042, 500,00 TRY); yeni tahsilat yazılmadı.';
+  const { finansIstekleri } = await sahteApi(page, {
+    detay: () => (yazildi ? detay(K2, 2100, 1500, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route, istek) => {
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      if (!yazildi) {
+        yazildi = true; // sunucu yazdı…
+        return route.abort('connectionreset'); // …ama yanıt istemciye ulaşmadı
+      }
+      if (g['tahsilatAnahtar'] === K1) {
+        return problem(route, 409, 'mukerrer', detail, {
+          mevcut: { id: 'c1', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY' },
+        });
+      }
+      return route.fulfill({ json: { id: 'c2' } });
+    },
+  });
+  await page.goto(SAYFA);
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await tutar.fill('500');
+  const dugme = panel(page).getByTestId('tahsilat-Kasa');
+  await dugme.click();
+  await expect(toastlar(page)).toContainText('Sunucuya ulaşılamadı');
+  await dugme.click(); // kullanıcı doğru olanı yapar: yeniden dener (AYNI anahtar)
+
+  const toast = toastlar(page);
+  await expect(toast).toContainText('İşlem zaten kaydedildi');
+  await expect(toast).toContainText(detail);
+  await expect(toast).not.toContainText('Kira kaydı değişmiş');
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.100,00'); // kayıt yeniden yüklendi
+  await expect(tutar).toHaveValue(''); // form temiz; yeni tutar önerilmez
+
+  // Kullanıcı tekrar basarsa: boş tutar → istemci doğrulaması, İSTEK YOK.
+  await dugme.click();
+  await page.waitForTimeout(300);
+  const t = tahsilatlar(finansIstekleri);
+  expect(t).toHaveLength(2);
+  expect(t.map((k) => k.govde['tahsilatAnahtar'])).toEqual([K1, K1]);
+  expect(t[1]?.govde).toEqual(t[0]?.govde);
   expect(hatalar).toEqual([]);
 });
 
@@ -550,6 +600,154 @@ test('panel işlemi sonrası kira sürümü tazelenir: kirli formla Kaydet 409 a
   expect(putlar[0]).toMatchObject({ surum: 'v2', aciklama: 'panel işleminden sonra kaydet' });
   await expect(page.locator('rc-uyari-bandi')).not.toContainText('başka bir oturumda');
   expect(hatalar).toEqual([]);
+});
+
+test('L1: fareyle imleci tutarın ortasına koyan kullanıcı oraya yazar (tümü seçilmez); Tab ile gelince tümü seçilir', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  await sahteApi(page);
+  await page.goto(SAYFA);
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  // Düzenleme yazımında "26|00,00": iki rakamdan sonrasına tıkla (sağa yaslı metin, genişlik ölçülür).
+  const kutu = await tutar.boundingBox();
+  const x = await tutar.evaluate((el: HTMLInputElement) => {
+    const st = getComputedStyle(el);
+    const c = document.createElement('canvas').getContext('2d');
+    if (!c) return 0;
+    c.font = `${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+    const sag =
+      el.getBoundingClientRect().right -
+      parseFloat(st.paddingRight) -
+      parseFloat(st.borderRightWidth);
+    return sag - c.measureText('2600,00').width + c.measureText('26').width;
+  });
+  await page.mouse.click(x, (kutu?.y ?? 0) + (kutu?.height ?? 0) / 2);
+  const secim = await tutar.evaluate(
+    (el: HTMLInputElement) => el.selectionEnd! - el.selectionStart!,
+  );
+  expect(secim).toBe(0);
+  await page.keyboard.type('9');
+  await expect(tutar).toHaveValue('26900,00');
+
+  // Klavye odağı: tümü seçili, yazılan yerine geçer.
+  await panel(page).getByRole('tab', { name: 'Nakit', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(tutar).toBeFocused();
+  await page.keyboard.type('150');
+  await expect(tutar).toHaveValue('150');
+});
+
+test('L2/L6: Kalan rozeti + fazla tahsilat uyarısı; döviz değişince ön-dolu tutar temizlenir; depozito ikinci kez önerilmez', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  let depozitoAlindi = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    detay: () => {
+      const d = detay(K1, 2600, 1000) as { kira: Record<string, unknown> };
+      return { ...d, kira: { ...d.kira, depozito: 1500 } };
+    },
+    finans: (route) => {
+      depozitoAlindi = true;
+      return route.fulfill({ json: { id: 'd1' } });
+    },
+  });
+  await page.goto(SAYFA);
+  const p = panel(page);
+  await expect(p.getByTestId('finans-kalan')).toHaveText('Kalan: 2.600,00 ₺');
+  const tutar = p.getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await expect(p.getByTestId('tahsilat-bakiye-Kasa')).toHaveCount(0);
+  await tutar.fill('3000');
+  await expect(p.getByTestId('tahsilat-bakiye-Kasa')).toContainText(
+    'kalan bakiyeyi (2.600,00 ₺) aşıyor',
+  );
+
+  // Döviz değişince DOKUNULMAMIŞ ön-dolu tutar temizlenir (Kart formu: tutar hâlâ öneri).
+  await p.getByRole('tab', { name: 'Kart/Havale', exact: true }).click();
+  const kart = p.locator('rc-kf-finans-tahsilat');
+  await expect(kart.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('2.600,00');
+  await kart.getByRole('combobox', { name: 'Döviz' }).selectOption('USD');
+  await expect(kart.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('');
+
+  // Depozito: alındıktan sonra kiranın depozitosu yeniden önerilmez → ikinci tık istek üretmez.
+  await p.getByRole('tab', { name: 'Nakit', exact: true }).click();
+  const dep = p.locator('rc-kf-finans-depozito').getByRole('textbox', { name: 'Depozito tutarı' });
+  await expect(dep).toHaveValue('1.500,00');
+  await p.getByTestId('depozito-al').click();
+  await expect(toastlar(page)).toContainText('Depozito alındı.');
+  expect(depozitoAlindi).toBe(true);
+  await expect(dep).toHaveValue('');
+  await p.getByTestId('depozito-al').click();
+  await page.waitForTimeout(300);
+  expect(finansIstekleri.filter((k) => k.yol.endsWith('/depozito/al'))).toHaveLength(1);
+});
+
+test('L6: kalan bakiye yoksa tahsilat formunda uyarı', async ({ page }) => {
+  await oturumAc(page);
+  await sahteApi(page, { detay: () => detay(K1, 0, 3600) });
+  await page.goto(SAYFA);
+  await expect(panel(page).getByTestId('finans-kalan')).toHaveText('Kalan: 0,00 ₺');
+  await expect(panel(page).getByTestId('tahsilat-bakiye-Kasa')).toContainText('Kalan bakiye yok');
+  await expect(panel(page).getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('');
+});
+
+test('L3: panelde yazılmış tutar varken kira sekmesini KAPATMAK sorulur (sekme değişimi değil — bileşen yaşar)', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  await sahteApi(page);
+  await page.goto(SAYFA);
+  const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toHaveValue('2.600,00');
+  await tutar.fill('777');
+  await page.getByRole('button', { name: /Kira 2026220901001 sekmesini kapat/ }).click();
+  const onay = page.getByRole('alertdialog');
+  await expect(onay).toBeVisible();
+  await onay.getByRole('button', { name: 'Sayfada kal' }).click();
+  await expect(tutar).toHaveValue('777,00'); // yazılan yerinde
+});
+
+test('L4: kapalı vergi kutusunda geçersiz alan → Fatura kes kutuyu açıp alana odaklanır, istek yok', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  const { finansIstekleri } = await sahteApi(page, {
+    finans: (r) => r.fulfill({ json: { id: 'f' } }),
+  });
+  await page.goto(SAYFA);
+  await sekme(page, 'Faturalar');
+  const fat = panel(page).locator('rc-kf-finans-faturalar');
+  await fat.locator('summary').click();
+  const oran = fat.getByRole('textbox', { name: 'Tevkifat oranı %' });
+  await oran.fill('150');
+  await fat.locator('summary').click(); // kapat
+  await expect(oran).toBeHidden();
+  await fat.getByTestId('fatura-kes').click();
+  await expect(oran).toBeVisible();
+  await expect(oran).toBeFocused();
+  await expect(fat).toContainText('En çok 100');
+  expect(finansIstekleri).toHaveLength(0);
+});
+
+test('L7: dönem kesiminde 400 → plan yeniden okunur', async ({ page }) => {
+  await oturumAc(page);
+  let planOkuma = 0;
+  page.on('request', (r) => {
+    if (r.url().endsWith('/donem-plani')) planOkuma++;
+  });
+  await sahteApi(page, {
+    finans: (route) => problem(route, 400, 'dogrulama', 'Kira faturaları bu sırada değişti.'),
+  });
+  await page.goto(SAYFA);
+  await sekme(page, 'Dönemler');
+  await expect(panel(page).getByTestId('donem-kes-2')).toBeVisible();
+  const once = planOkuma;
+  await panel(page).getByTestId('donem-kes-2').click();
+  await expect(toastlar(page)).toContainText('Kira faturaları bu sırada değişti.');
+  await expect.poll(() => planOkuma).toBeGreaterThan(once);
 });
 
 test('Muhasebe (FinanceWrite, OperationsWrite yok): kur listesi ve tedarikçi cari araması çalışır', async ({

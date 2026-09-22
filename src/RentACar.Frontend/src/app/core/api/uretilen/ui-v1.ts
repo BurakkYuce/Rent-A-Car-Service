@@ -776,6 +776,15 @@ export interface paths {
             'application/json': components['schemas']['FinansIslemYaniti'];
           };
         };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
       };
     };
     delete?: never;
@@ -3121,6 +3130,23 @@ export interface components {
       rozetler: {
         [key: string]: number | string;
       };
+    };
+    MevcutIslem: {
+      /** Format: uuid */
+      id: string;
+      belgeNo: string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+    };
+    MukerrerProblemi: {
+      type: string;
+      title: string;
+      /** Format: int32 */
+      status: number | string;
+      detail: string;
+      kod: string;
+      mevcut: null | components['schemas']['MevcutIslem'];
     };
     MusaitAracDto: {
       /** Format: uuid */

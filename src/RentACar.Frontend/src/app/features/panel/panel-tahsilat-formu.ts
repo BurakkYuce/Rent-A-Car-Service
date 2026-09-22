@@ -276,11 +276,18 @@ export class PanelTahsilatFormu implements OnInit {
   private hataIsle(hata: ApiHatasi): void {
     switch (hata.kod) {
       case 'mukerrer':
-        // Sunucunun detail'ı AYNEN: bayat anahtarda "kayıt değişti, yeniden yükleyip tekrar deneyin", gerçek çift
-        // gönderimde "zaten kaydedilmiş". Başlık nötr — "kaydedildi" izlenimi vermez.
-        this.toast.uyari(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
-          baslik: this.t('panel.tahsilat.mukerrerBaslik'),
-        });
+        // Sunucunun detail'ı AYNEN. F4.4 adversarial HIGH-1: `mevcut` doluysa işlem ZATEN yazıldı (kaybolan
+        // yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi (tekrar denemeye yönlendirmez). Yoksa bayat anahtar:
+        // "kayıt değişti, tutarı yeniden girin" — başlık nötr, "kaydedildi" izlenimi vermez.
+        if (hata.mevcut) {
+          this.toast.bilgi(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
+            baslik: this.t('geriBildirim.zatenKaydedildi'),
+          });
+        } else {
+          this.toast.uyari(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
+            baslik: this.t('panel.tahsilat.mukerrerBaslik'),
+          });
+        }
         this.mukerrer.emit();
         return;
       case 'sunucu':

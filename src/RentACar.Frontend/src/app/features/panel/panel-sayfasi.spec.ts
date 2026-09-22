@@ -314,6 +314,36 @@ describe('PanelSayfasi', () => {
       },
     );
 
+    it('409 mukerrer + mevcut (işlem ZATEN yazıldı): "İşlem zaten kaydedildi" bilgisi, form kapanır, tekrar yok', async () => {
+      const s = await formuAc();
+      await s.gonder();
+      const detail =
+        'Bu tahsilat zaten kaydedildi (No T-000042, 1.250,50 TRY); yeni tahsilat yazılmadı.';
+      http.expectOne(TAHSILAT).flush(
+        {
+          type: 'about:blank',
+          title: 'Mükerrer',
+          status: 409,
+          detail,
+          kod: 'mukerrer',
+          mevcut: { id: 'x', belgeNo: 'T-000042', tutar: '1250.50', doviz: 'TRY' },
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
+      await s.stabil();
+      http.expectOne(OZET).flush(yanit());
+      await s.stabil();
+      http.expectNone(TAHSILAT);
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu')).toBeNull();
+      expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
+        expect.objectContaining({
+          durum: 'bilgi',
+          baslik: 'İşlem zaten kaydedildi',
+          mesaj: `${detail} Panel yeniden yüklendi; güncel bakiyeyi kontrol edin.`,
+        }),
+      ]);
+    });
+
     it('5xx: form açık kalır, "kaydedilmemiş olabilir" uyarısı formda; yeniden gönderim yok', async () => {
       const s = await formuAc();
       await s.gonder();

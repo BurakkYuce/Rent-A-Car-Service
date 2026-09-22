@@ -267,6 +267,38 @@ describe('oturumInterceptor (kod bazlı)', () => {
     ]);
   });
 
+  it('mukerrer + mevcut (işlem zaten yazıldı) → "İşlem zaten kaydedildi" bilgisi (mukerrerBasligi’ne rağmen); tekrar yok', async () => {
+    const yenile = vi.fn();
+    const sonuc = firstValueFrom(
+      api.post(
+        KAYIT,
+        { tutar: 500 },
+        {
+          context: istekBaglami({
+            mukerrerdeYenile: yenile,
+            mukerrerBasligi: 'Kira kaydı değişmiş',
+          }),
+        },
+      ),
+    );
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail: 'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı.',
+      mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
+    });
+    http.expectOne(KAYIT).flush(govde, secenek);
+    await expect(sonuc).rejects.toMatchObject({ kod: 'mukerrer', mevcut: { belgeNo: 'T-1' } });
+    http.expectNone(KAYIT);
+    expect(yenile).toHaveBeenCalledTimes(1);
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'bilgi',
+        baslik: 'İşlem zaten kaydedildi',
+        mesaj:
+          'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı. Kayıt yeniden yüklendi.',
+      }),
+    ]);
+  });
+
   it('dogrulama → yalnız çağırana, alan hatalarıyla; bant/toast yok', async () => {
     const sonuc = firstValueFrom(api.post(KAYIT, {}));
     const { govde, secenek } = problem('dogrulama', 400, {

@@ -217,6 +217,29 @@ describe('TahsilPaneli (PARA)', () => {
     expect(toast.toastlar().some((t) => t.baslik === 'Mükerrer işlem')).toBe(false);
   });
 
+  it('409 mukerrer + mevcut (işlem ZATEN yazıldı — kaybolan yanıt) → "İşlem zaten kaydedildi" bilgisi; tekrar yok', async () => {
+    const { fixture, d, gonder } = await kur();
+    await gonder();
+    const DETAY =
+      'Bu tahsilat zaten kaydedildi (No T-000042, 500,00 TRY); yeni tahsilat yazılmadı.';
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail: DETAY,
+      mevcut: { id: 'x', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY' },
+    });
+    http.expectOne(TAHSIL_UCU).flush(govde, secenek);
+    await fixture.whenStable();
+
+    http.expectNone(TAHSIL_UCU);
+    expect(d.sonuclar).toBe(1);
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'bilgi',
+        baslik: 'İşlem zaten kaydedildi',
+        mesaj: `${DETAY} Kayıt yeniden yüklendi.`,
+      }),
+    ]);
+  });
+
   it('ağ hatasından sonra yeniden deneme AYNI tahsilatAnahtar’ı taşır (anahtarsız tekrar yok)', async () => {
     const { fixture, d, gonder } = await kur();
     await gonder();

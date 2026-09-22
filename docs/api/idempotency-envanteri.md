@@ -116,7 +116,7 @@ Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversar
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
-| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile; sunucuda yeniden hesaplanır) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409 |
+| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile; sunucuda yeniden hesaplanır) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409. **İki ayrı 409 (F4.4 HIGH-1):** bu anahtarla bu kiraya yazılmış tahsilat VARSA "zaten kaydedildi (No …)" + ProblemDetails `mevcut: { id, belgeNo, tutar, doviz }` (kaybolan yanıttan sonraki tekrar); YOKSA (bayat/yabancı anahtar) "değişti … tutarı yeniden girin", `mevcut` yok |
 | `POST finans/odeme` | E02 | başlık zorunlu | 409 |
 | `POST finans/fatura` | E15 | yok (yapısal; başlık yok sayılır) | 400 "Kira zaten tam faturalanmış…" |
 | `POST finans/donem-fatura` | E18/E19 | yok; tahsilat `RowKey(kira, sıra)` | 200 aynı `faturaId`, `tahsilatYazildi=false`, `bilgi` dolu (gizlenmez) |
@@ -124,6 +124,13 @@ Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversar
 | `POST finans/dis-hizmet/{id}/iptal` | E34 | yok (yapısal) | 400 "Kayıt zaten iptal edilmiş." |
 | `POST finans/depozito/al` | E09 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı içerik 409 |
 | `POST finans/depozito/irat` | E12 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı tutar/kira 409 |
+
+**Önce mevcut kayıt (F4.4 adversarial HIGH-1):** yeniden hesaplamadan ÖNCE gelen `tahsilatAnahtar` ile yazılmış
+kasa işlemi aranır (`CashService.IslemAnahtariylaBulAsync`, RLS'li). Bu kiranın tahsilatıysa 409 `mukerrer` "Bu
+tahsilat zaten kaydedildi (No …, tutar …)" + `mevcut` uzantısı (OpenAPI `MukerrerProblemi`/`MevcutIslem`). Önce:
+ilk istek yazılıp yanıt kaybolunca AYNI anahtarla doğru tekrar, yeniden hesaplamada "kayıt değişti … tekrar deneyin"
+alıyor, SPA yeni anahtarla İKİNCİ tahsilatı yazdırıyordu. Başka kiranın tahsilatına ait anahtar bilgi SIZDIRMAZ
+(aşağıdaki "ait değil" 409'u). Sonuç kodu değişmedi (409 — F1.4 sözleşmesi); ayrım mesaj + uzantıdadır.
 
 **`tahsilatAnahtar` doğrulaması (F4.4a adversarial MEDIUM-3):** uç, DTO'dan gelen değeri okunan kira + güncel
 bakiye + güncel işlem sayısıyla `TahsilatAnahtar.Uret` üzerinden YENİDEN hesaplar (bakiye DB ölçeğiyle "300.0000"
@@ -168,9 +175,10 @@ Servis düzeyinde (Blazor da kapsanır):
   formu doldurduysa ya da gönderim SONUÇLANMADIYSA (ağ/5xx/oturum/doğrulama) kopya donar ve yeniden deneme aynı
   anahtarla gider (anahtar sessizce yenisiyle ya da anahtarsızla değiştirilmez). 2xx ya da 409 `mukerrer`
   sonrası düğme yeni detay gelene dek kapalıdır; gelen detayın anahtarı alınır (ikinci meşru tahsilat).
-- Bayat anahtarın 409'u ("kira kaydı değişmiş") HİÇBİR ŞEY yazmaz: istek `istekBaglami({ mukerrerBasligi })` ile
-  gider — kayıt yeniden yüklenir, nötr "Kira kaydı değişmiş" uyarısı + sunucu `detail`'ı gösterilir ("Mükerrer
-  işlem" başlığı parayı kaydedildi sandırır; F4.2 "Tahsil Et" ile aynı). Otomatik yeniden gönderim yok.
+- 409'da otomatik yeniden gönderim YOK, kayıt yeniden yüklenir, TUTAR TEMİZLENİR ve yeniden ön-doldurulmaz
+  (kullanıcı güncel bakiyeye bakıp bilinçli girer). `mevcut` VARSA (kaybolan yanıt): form temizlenir, "Tahsilat
+  zaten kaydedildi" bilgisi (interceptor, üç ekranda da). YOKSA (bayat anahtar): nötr "Kira kaydı değişmiş" uyarısı
+  (`mukerrerBasligi`) + sunucu `detail`'ı ("tutarı yeniden girin").
 - Ödeme, depozito al/irat, dış hizmet: işlem başına `Idempotency-Key` (`formGonderimi`/`GonderimKilidi`).
   Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
 

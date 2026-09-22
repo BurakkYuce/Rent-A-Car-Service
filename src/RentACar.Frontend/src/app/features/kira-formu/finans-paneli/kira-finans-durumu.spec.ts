@@ -195,13 +195,50 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     baglam?.get(MUKERRERDE_YENILE)?.(); // interceptor'ın yaptığı
     expect(degisti).toHaveBeenCalledTimes(1);
     expect(f.nakit.gonderim.genelHatalar()).toEqual([]); // form üstüne "mükerrer" yazılmaz
-    expect(f.nakit.form.getRawValue().tutar).toBe('300.00'); // form silinmez
+    // HIGH-1: tutar TEMİZLENİR (kullanıcı güncel bakiyeye bakıp bilinçli girer); diğer alanlar korunur.
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
 
     expect(f.nakit.kopya.gonderilebilir()).toBe(false);
     detayVer(detay(tahsilat(K2, 1)));
     expect(f.nakit.kopya.kopya()?.anahtar).toBe(K2);
-    expect(f.nakit.form.getRawValue().tutar).toBe('300.00'); // kullanıcının yazdığı yine korunur
+    expect(f.nakit.form.getRawValue().tutar).toBeNull(); // 409 sonrası yeniden ön-doldurulmaz
     expect(tahsilatlar(cagrilar)).toHaveLength(1); // kendiliğinden yeniden gönderim yok
+  });
+
+  it('HIGH-1: kaybolan yanıt → AYNI anahtarla tekrar → 409 + mevcut: form temizlenir, ön-doldurulmaz, ikinci istek yok', async () => {
+    let n = 0;
+    const { f, cagrilar, detayVer } = await kur(() =>
+      ++n === 1
+        ? throwError(() => agHatasi()) // ilk istek yazıldı, yanıt kayboldu
+        : throwError(() =>
+            apiHatasinaCevir(
+              new HttpErrorResponse({
+                status: 409,
+                error: {
+                  status: 409,
+                  kod: 'mukerrer',
+                  detail:
+                    'Bu tahsilat zaten kaydedildi (No T-000042, 500,00 TRY); yeni tahsilat yazılmadı.',
+                  mevcut: { id: 'c1', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY' },
+                },
+              }),
+            ),
+          ),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.nakit.form.patchValue({ tutar: '500.00', aciklama: 'Ali' });
+    f.nakit.form.markAsDirty();
+    f.tahsilatYap(f.nakit); // ağ hatası
+    f.tahsilatYap(f.nakit); // doğru tekrar: AYNI anahtar
+    const [a, b] = tahsilatlar(cagrilar);
+    expect(govdesi(b)['tahsilatAnahtar']).toBe(K1);
+    expect(b?.govde).toEqual(a?.govde);
+    // Form tamamen temizlendi (tutar + not); kaydı yeniden yükleyen detay yeni tutar ÖNERMEZ.
+    expect(f.nakit.form.getRawValue()).toMatchObject({ tutar: null, aciklama: null });
+    detayVer(detay(tahsilat(K2, 2100)));
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
+    expect(f.nakit.kopya.gonderilebilir()).toBe(true); // yeni anahtarla BİLİNÇLİ yeni tahsilat mümkün
+    expect(tahsilatlar(cagrilar)).toHaveLength(2);
   });
 
   it('dogrulama: alan hatası alana yazılır, değerler korunur', async () => {
@@ -285,6 +322,50 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     expect(cagrilar[1]?.secenek?.islemAnahtari).not.toBe(cagrilar[0]?.secenek?.islemAnahtari);
   });
 
+  it('L2: depozito alındıktan sonra kiranın depozitosuyla yeniden ÖN-DOLDURULMAZ (ikinci tık ikinci depozito değil)', async () => {
+    const { f, cagrilar, detayVer } = await kur(() => of({ id: 'd' }));
+    detayVer(detay(tahsilat(K1)));
+    expect(f.depozitoAlFormu.getRawValue().tutar).toBe('500.00');
+    f.depozitoAl();
+    expect(cagrilar.filter((c) => c.yol.endsWith('/depozito/al'))).toHaveLength(1);
+    detayVer(detay(tahsilat(K2)));
+    expect(f.depozitoAlFormu.getRawValue().tutar).toBeNull();
+    f.depozitoAl(); // boş tutar → istemci doğrulaması, istek YOK
+    expect(cagrilar.filter((c) => c.yol.endsWith('/depozito/al'))).toHaveLength(1);
+  });
+
+  it('L3: kirli panel formu ya da sonuçlanmamış gönderim "kaydedilmemiş" sayılır', async () => {
+    const { f, detayVer } = await kur(() => throwError(() => agHatasi()));
+    detayVer(detay(tahsilat(K1)));
+    expect(f.kirliMi()).toBe(false);
+    f.tahsilatYap(f.nakit); // ağ hatası: form temiz ama donmuş anahtar bekliyor
+    expect(f.nakit.form.dirty).toBe(false);
+    expect(f.kirliMi()).toBe(true);
+  });
+
+  it('L3: başlık anahtarlı işlem sonuçlanmadıysa (bekleyen Idempotency-Key) kaydedilmemiş sayılır', async () => {
+    const { f, detayVer } = await kur(() => throwError(() => agHatasi()));
+    detayVer(detay(tahsilat(K1)));
+    f.odemeFormu.patchValue({ tutar: '75.00' });
+    f.odemeYap();
+    f.odemeFormu.markAsPristine();
+    expect(f.kirliMi()).toBe(true);
+  });
+
+  it('L6: dövizi değiştirince DOKUNULMAMIŞ ön-dolu tutar temizlenir; yazılmış tutar korunur', async () => {
+    const { f, detayVer } = await kur(() => of({ id: 'c' }));
+    detayVer(detay(tahsilat(K1)));
+    expect(f.nakit.form.getRawValue().tutar).toBe('2600.00');
+    f.nakit.form.controls.doviz.markAsDirty(); // rc-secim kullanıcı seçiminde kontrolü kirletir
+    f.nakit.form.controls.doviz.setValue('USD');
+    expect(f.nakit.form.getRawValue().tutar).toBeNull();
+    f.kart.form.controls.tutar.setValue('10.00');
+    f.kart.form.controls.tutar.markAsDirty();
+    f.kart.form.controls.doviz.markAsDirty();
+    f.kart.form.controls.doviz.setValue('EUR');
+    expect(f.kart.form.getRawValue().tutar).toBe('10.00');
+  });
+
   it('depozito ön-doldurma kiranın depozitosu; irat önce onay ister, vazgeçilirse istek yok', async () => {
     const { f, cagrilar, detayVer, onay } = await kur(() => of({ id: 'x' }));
     detayVer(detay(tahsilat(K1)));
@@ -304,6 +385,25 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
 });
 
 describe('KiraFinansDurumu — yapısal işlemler', () => {
+  it('L7: dönem kesiminde 400 → plan ve kira yeniden yüklenir (degisti)', async () => {
+    const { f, detayVer, degisti, toast } = await kur(() =>
+      throwError(() => sunucuHatasi(400, 'dogrulama', 'Dönem zaten kesildi.')),
+    );
+    detayVer(detay(tahsilat(K1)));
+    f.donemKes({
+      donemSira: 1,
+      donemBas: '2026-10-01T00:00:00Z',
+      donemBit: '2026-10-31T00:00:00Z',
+      durum: 'Planlandi',
+      tahakkuk: 3100,
+      invoiceId: null,
+      kesilenTutar: null,
+    });
+    expect(toast.hata).toHaveBeenCalledWith('Dönem zaten kesildi.');
+    expect(degisti).toHaveBeenCalledTimes(1);
+    expect(f.gonderilenDonem()).toBeNull();
+  });
+
   it('dönem kes + tahsil: tahsilatYazildi=false iken sunucu bilgisi gizlenmez', async () => {
     const bilgi = 'Bu dönemin tahsilatı daha önce alınmış; yeni tahsilat yazılmadı.';
     const { f, cagrilar, detayVer, toast } = await kur(() =>

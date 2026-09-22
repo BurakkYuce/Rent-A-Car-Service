@@ -52,7 +52,7 @@ function kopyala(baglam: HttpContext): HttpContext {
  * | `kiraci_kapali` | tam temizlik + mesajlı giriş sayfası |
  * | `yetki_yok`, `pilot_degil` | uyarı bandı (form hatası değil) |
  * | `cakisma` | alan hatası varsa çağırana, yoksa bant; form korunur |
- * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`MUKERRER_BASLIGI` verilirse o başlıkla uyarı); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
+ * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`mevcut` varsa "zaten kaydedildi"; yoksa `MUKERRER_BASLIGI` verilirse o başlıkla uyarı); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
  * | `xsrf_gecersiz` | `GET oturum/xsrf` ile belirteç yenilenir, istek BİR kez tekrarlanır |
  * | `cok_istek` | uyarı toast'u |
  * | 5xx / ağ | hata toast'u |
@@ -91,7 +91,7 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
     if (!(hata instanceof HttpErrorResponse)) return throwError(() => hata);
     const baglam = gonderilen.context;
     const sessiz = baglam.get(SESSIZ);
-    const { kod, detay, alanlar } = apiHatasinaCevir(hata);
+    const { kod, detay, alanlar, mevcut } = apiHatasinaCevir(hata);
 
     switch (kod) {
       case 'xsrf_gecersiz':
@@ -151,7 +151,10 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
         if (!sessiz) {
           const mesaj = yenile ? `${detay} ${t('geriBildirim.mukerrerYenilendi')}` : detay;
           const ozelBaslik = baglam.get(MUKERRER_BASLIGI);
-          if (ozelBaslik) toast.uyari(mesaj, { baslik: ozelBaslik });
+          // F4.4 HIGH-1: işlem ZATEN yazıldı (kaybolan yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi;
+          // "kayıt değişmiş, tekrar deneyin" izlenimi ikinci tahsilata yönlendiriyordu.
+          if (mevcut) toast.bilgi(mesaj, { baslik: t('geriBildirim.zatenKaydedildi') });
+          else if (ozelBaslik) toast.uyari(mesaj, { baslik: ozelBaslik });
           else toast.bilgi(mesaj, { baslik: t('geriBildirim.mukerrerBaslik') });
         }
         break;

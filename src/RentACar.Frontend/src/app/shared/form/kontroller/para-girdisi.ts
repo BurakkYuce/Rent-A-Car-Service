@@ -46,6 +46,7 @@ import { AyristiranKontrol, kontrolSaglayicilari } from './temel-kontrol';
         [attr.aria-invalid]="ariaGecersiz()"
         [attr.aria-describedby]="ariaAciklayan()"
         [attr.aria-required]="ariaZorunlu()"
+        (pointerdown)="isaretciyleBasildi($event)"
         (focus)="odaklandi($event)"
         (input)="yazildi($event)"
         (blur)="birakildi()"
@@ -70,6 +71,16 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
     this.hataAyarla(null);
   }
 
+  /** Odak fare/dokunuşla mı geliyor (adversarial L1): o zaman imleç kullanıcının tıkladığı yerde kalır. */
+  private isaretciOdagi = false;
+
+  protected isaretciyleBasildi(olay: PointerEvent): void {
+    const girdi = olay.target;
+    if (girdi instanceof HTMLInputElement && girdi.ownerDocument.activeElement !== girdi) {
+      this.isaretciOdagi = true;
+    }
+  }
+
   /**
    * Odakta gruplamasız düzenleme yazımına geçer ve metnin TAMAMINI seçer — TÜM para girdilerinde varsayılan
    * (F4.4 + F4.2 F3/F5 + P259-8b birleşimi; eski `odaktaSec` seçeneği kalktı). Klavyeyle (Tab) ya da
@@ -77,8 +88,12 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
    * Değer DOM'a EŞZAMANLI yazılır: yalnız sinyale yazılsaydı sonraki çizimde değer değişir, seçim çöker ve
    * yazılan sona eklenirdi ("2.600,00" + "500" → "2600,00500"; F4.4 e2e'de ölçüldü). Aynı değerin sonradan
    * yeniden yazılması seçimi korur. Sona eklenmiş fazla hane yine de sessizce yuvarlanmaz (`paraFazlaHane`).
+   * **Fare/dokunuşla odakta seçilmez** (adversarial L1): imleci bilerek bir rakamın yanına koyan kullanıcı oraya
+   * yazabilmeli; düzenleme yazımı yine eşzamanlı yazılır, tarayıcı imleci tıklanan noktaya yerleştirir.
    */
   protected odaklandi(olay: Event): void {
+    const isaretci = this.isaretciOdagi;
+    this.isaretciOdagi = false;
     if (this.ayristirmaHatasi() !== null) return;
     const kanonik = invariantOndalik(this.deger(), { kesir: this.kesir() });
     const duzenleme = ondalikDuzenlemeMetni(kanonik, this.kesir());
@@ -86,7 +101,7 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
     const girdi = olay.target;
     if (girdi instanceof HTMLInputElement && duzenleme !== '') {
       if (girdi.value !== duzenleme) girdi.value = duzenleme;
-      girdi.select();
+      if (!isaretci) girdi.select();
     }
   }
 
@@ -107,6 +122,7 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
   }
 
   protected birakildi(): void {
+    this.isaretciOdagi = false;
     if (this.ayristirmaHatasi() === null) {
       const kanonik = invariantOndalik(this.deger(), { kesir: this.kesir() });
       this.metin.set(ondalikBicimle(kanonik, this.kesir()));

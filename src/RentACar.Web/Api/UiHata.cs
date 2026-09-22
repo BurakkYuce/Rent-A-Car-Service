@@ -91,18 +91,32 @@ public static class UiHata
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Sunucu hatası");
 
+        if (ex is MukerrerIslemException { Mevcut: { } m })
+            return Problem(e.Kod, ex.Message, alan: null, mevcut: m);
         return ex is ValidationException v
             ? Problem(e.Kod, v.Message, v.Alan)
             : Problem(e.Kod, VeriTasmasiMesaji);
     }
 
     /// <summary>Kod tablosundan doğrudan ProblemDetails (istisnasız adımlar için: oturum, pilot, hız sınırı).</summary>
-    public static ProblemHttpResult Problem(string kod, string detay, string? alan = null)
+    public static ProblemHttpResult Problem(string kod, string detay, string? alan = null, MevcutIslem? mevcut = null)
     {
         var (status, baslik) = Tablo[kod];
         var ek = new Dictionary<string, object?> { ["kod"] = kod };
         if (!string.IsNullOrEmpty(alan))
             ek["errors"] = new Dictionary<string, string[]> { [alan] = [detay] };
+        // F4.4 adversarial HIGH-1: 409 mukerrer'de aynı anahtarla ZATEN yazılmış kayıt (id, belge no, tutar, döviz).
+        // Anahtar adları sözleşmedir (OpenAPI: MukerrerProblemi) — ProblemDetails uzantısı adlandırma politikasına
+        // bağlı kalmasın diye elle yazılır.
+        if (mevcut is not null)
+            ek["mevcut"] = new Dictionary<string, object?>
+            {
+                ["id"] = mevcut.Id, ["belgeNo"] = mevcut.BelgeNo, ["tutar"] = mevcut.Tutar, ["doviz"] = mevcut.Doviz,
+            };
         return TypedResults.Problem(detail: detay, statusCode: status, title: baslik, extensions: ek);
     }
+
+    /// <summary>OpenAPI belgesi için 409 <c>mukerrer</c> gövdesinin biçimi (SPA tipi buradan üretilir). Yanıt
+    /// gerçekte <see cref="Problem(string, string, string?, MevcutIslem?)"/> ile yazılır.</summary>
+    public sealed record MukerrerProblemi(string Type, string Title, int Status, string Detail, string Kod, MevcutIslem? Mevcut);
 }
