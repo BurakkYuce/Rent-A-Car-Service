@@ -23,6 +23,10 @@ public static class FiloBildirimUretici
     public static async Task<int> RunAsync(AppDbContext db, Guid tenantId, DateTimeOffset now,
         TutSatEsikleri esik, CancellationToken ct = default)
     {
+        // now → tut/sat pencere parametreleri + OlusturmaTarihi (timestamptz). Npgsql yalnız Offset=0
+        // yazar; girişte UTC'ye normalize (ay çıpası da böylece UTC ayından hesaplanır — eski davranış).
+        now = now.ToUniversalTime();
+
         var mevcut = (await db.Bildirimler.AsNoTracking()
                 .Select(x => new { x.Tur, x.VehicleId, x.VadeTarihi }).ToListAsync(ct))
             .Select(x => (x.Tur, x.VehicleId, x.VadeTarihi)).ToHashSet();
