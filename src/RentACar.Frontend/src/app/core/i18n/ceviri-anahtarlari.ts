@@ -172,6 +172,7 @@ export type CeviriAnahtari =
   | 'kiraListesi.tahsil.hesapId'
   | 'kiraListesi.tahsil.kasa'
   | 'kiraListesi.tahsil.kaydet'
+  | 'kiraListesi.tahsil.kayitDegismis'
   | 'kiraListesi.tahsil.satirDegisti'
   | 'kiraListesi.tahsil.tutar'
   | 'kiraListesi.tahsil.tutarIpucu'

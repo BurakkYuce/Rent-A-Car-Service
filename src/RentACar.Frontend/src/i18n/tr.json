@@ -367,7 +367,8 @@
       "kaydet": "Tahsil et",
       "vazgec": "Vazgeç",
       "basarili": "{{no}}: {{tutar}} tahsil edildi.",
-      "satirDegisti": "{{no}} güncellendi; tahsilatı yeniden açın."
+      "satirDegisti": "{{no}} güncellendi; tahsilatı yeniden açın.",
+      "kayitDegismis": "Kira kaydı değişmiş"
     }
   }
 }

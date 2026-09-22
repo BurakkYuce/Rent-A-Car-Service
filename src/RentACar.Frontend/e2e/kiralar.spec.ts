@@ -18,6 +18,11 @@ import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
  */
 const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
+/** #257: sunucu `tahsilatAnahtar`'ı yeniden hesaplar; bayat/başka kiranın anahtarı bu detail ile 409 mukerrer. */
+const BAYAT_DETAY =
+  'Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu ' +
+  'kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.';
+
 const ANAHTAR_1 = 'aaaaaaaa-0000-5000-8000-000000000001';
 const ANAHTAR_2 = 'aaaaaaaa-0000-5000-8000-000000000002';
 
@@ -233,7 +238,7 @@ test('Tahsil Et (PARA): DTO anahtarı aynen gider, uçarken kilitli, 2xx → lis
   expect(hatalar).toEqual([]);
 });
 
-test('409 mukerrer: yeniden gönderim YOK, satır yeniden yüklenir + bilgi; 409 cakisma paneli ve değeri silmez', async ({
+test('409 mukerrer (bayat anahtar): yeniden gönderim YOK, liste yenilenir + sunucu detayı; 409 cakisma paneli ve değeri silmez', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page, AG_HATASI);
@@ -243,7 +248,7 @@ test('409 mukerrer: yeniden gönderim YOK, satır yeniden yüklenir + bilgi; 409
     gonderilen.push(route.request());
     return gonderilen.length === 1
       ? problem(route, 409, 'cakisma', 'Kayıt başka bir işlemle değişti; kontrol edin.')
-      : problem(route, 409, 'mukerrer', 'Bu tahsilat zaten kaydedilmiş.');
+      : problem(route, 409, 'mukerrer', BAYAT_DETAY);
   });
   await page.goto(SAYFA.yol);
   await hazirBekle(page, SAYFA);
@@ -261,7 +266,10 @@ test('409 mukerrer: yeniden gönderim YOK, satır yeniden yüklenir + bilgi; 409
 
   // mukerrer: tek istek, otomatik tekrar yok; panel kapanır, liste yeniden yüklenir, bilgi toast'u.
   await panelGonder(page).click();
-  await expect(page.getByText('Mükerrer işlem')).toBeVisible();
+  // Sunucunun detail'ı "Kira kaydı değişmiş" uyarısıyla; "Mükerrer işlem" (kaydedildi izlenimi) YOK.
+  await expect(page.getByText('Kira kaydı değişmiş')).toBeVisible();
+  await expect(page.getByText(BAYAT_DETAY, { exact: false })).toBeVisible();
+  await expect(page.getByText('Mükerrer işlem')).toHaveCount(0);
   await expect(panel(page)).toHaveCount(0);
   await expect.poll(() => sahte.listeIstekleri.length).toBeGreaterThan(listeOnce);
   await page.waitForTimeout(300);
