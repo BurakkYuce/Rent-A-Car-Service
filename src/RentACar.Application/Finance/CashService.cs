@@ -94,6 +94,11 @@ public sealed class CashService(
         if (input.Tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         EnsureKasaBanka(input.Hesap);
+        // F4.4a adversarial MEDIUM-2: cari kiracı içinde GERÇEKTEN var olmalı (FindAsync RLS + sorgu filtresi →
+        // yoksa/başka kiracınınsa null). Önce rastgele ya da başka kiracının cari kimliğiyle tahsilat/ödeme
+        // yazılabiliyor, defterde hiçbir ekstrede görünmeyen yetim AccountRef'li küme kalıyordu. Virmandaki L2 deseni.
+        if (await _customers.FindAsync(input.CariId, ct) is null)
+            throw new ValidationException("Cari bulunamadı.", "cariId");
 
         // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);

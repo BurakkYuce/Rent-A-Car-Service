@@ -255,10 +255,18 @@ public sealed class AracKarneTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         // Kira 1: faturalandı SONRA iptal edildi → fatura defterde kalır (immutable) → bayrak TRUE.
+        // F4.1 adversarial M3: servis artık faturalı kirayı İPTAL ETMİYOR (önce iade faturası). Bu durum ESKİ
+        // veride vardır ve karne onu doğru göstermeli → durum doğrudan yazılarak kurulur (eski kayıt benzetimi).
         var r1 = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = vehicle, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r1);
-        await rentals.CancelAsync(r1);
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() => rentals.CancelAsync(r1));
+        await using (var db = await sp.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>().CreateDbContextAsync())
+        {
+            var kira = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(db.Rentals, x => x.Id == r1);
+            kira.Durum = RentalStatus.Iptal;
+            await db.SaveChangesAsync();
+        }
 
         // Kira 2: hiç faturalanmadı → parası defterde YOK → bayrak FALSE.
         var r2 = await rentals.CreateDirectAsync(new BookingInput

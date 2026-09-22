@@ -33,7 +33,13 @@ public sealed class KurCozucu(KurService kur, ITenantSettingsRepository ayarlar)
                 throw new ValidationException(
                     "Bu firmada kur elle girilemez (Ayarlar → kur elle giriş kilidi). "
                     + "Kur alanını boş bırakın; günün tanımlı/TCMB kuru kullanılacaktır.");
-            if (k <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
+            if (k <= 0m) throw new ValidationException("Kur pozitif olmalıdır.", "kur");
+            // F4.4a adversarial HIGH-1: temel para (TRY) işleminde kur TANIM GEREĞİ 1'dir. Açık kur ≠ 1
+            // kabul edildiğinde baz tutar şişiyordu (100 TRY @5 → kira Tahsilat 500, cari −500, kasa +500) —
+            // Blazor'da döviz seçimi TRY'ye geri alınıp kur alanı dolu bırakıldığında da aynı. Sessizce 1'e
+            // düzeltmek yerine gürültülü red: çağıran niyetini (döviz mi, kur mu yanlış) kendisi netleştirsin.
+            if (KurService.NormalizeKod(doviz) == "TRY" && k != 1m)
+                throw new ValidationException("TRY işlemde kur 1 olmalıdır; kur alanını boş bırakın.", "kur");
             return k;
         }
         return await _kur.GetRateAsync(doviz ?? "TRY", tarih, ct: ct);
