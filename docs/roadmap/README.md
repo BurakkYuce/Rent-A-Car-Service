@@ -10,9 +10,9 @@
 | G0 | Revlo Angular reposuna graphify grafiği (yerel, kod-only) | — | — | ✔ 2026-09-21 |
 | [F0](F0.md) | Hazırlık: belgeler + Blazor son kritik düzeltmeler | 2 | — | ✔ 2026-09-21 |
 | [F1](F1.md) | Backend API temeli: hata/yetki, `/api/ui` + pilot kapısı, liste, idempotency, `/app` barındırma, F4–F5 seçim uçları + menü kaydı | 6 | F1.4 | ✔ 2026-09-21 |
-| [F2](F2.md) | Frontend iskeleti + kalite kapıları + tip üretimi + CI artifact dağıtımı (F2.1 F1'le paralel) | 2 | — | F2.1 ✔ · F2.2 bekliyor |
-| [F3](F3.md) | Çekirdek: tasarım sistemi, kabuk, oturum, veri katmanı, tablo, form seti, vitrin | 7 | — | bekliyor |
-| [F4](F4.md) | Pilot: Panel + Kira (liste, form, yazdır), tek SPA girişi, ilk kesiş | 6 | ✔ | bekliyor |
+| [F2](F2.md) | Frontend iskeleti + kalite kapıları + tip üretimi + CI artifact dağıtımı (F2.1 F1'le paralel) | 2 | — | F2.1 ✔ · F2.2 kod ✔ #249, sunucu Exit'i bekliyor |
+| [F3](F3.md) | Çekirdek: tasarım sistemi, kabuk, oturum, veri katmanı, tablo, form seti, vitrin | 7 | — | ✔ 2026-09-22 |
+| [F4](F4.md) | Pilot: Panel + Kira (liste, form, yazdır), tek SPA girişi, ilk kesiş | 6 | ✔ | sürüyor |
 | [F5](F5.md) | Rezervasyon, teklif, müsaitlik, takvim, rez şartları, filo kiralama | 4 | — | bekliyor |
 | [F6](F6.md) | Araçlar | 5 | ✔ | bekliyor |
 | [F7](F7.md) | Cariler & CRM | 3 | — | bekliyor |

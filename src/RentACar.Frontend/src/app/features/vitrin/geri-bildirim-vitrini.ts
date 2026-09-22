@@ -7,6 +7,7 @@ import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { type ToastDurumu, ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { type BantTuru, UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { formGonderimi } from '@shared/form/form-gonderimi';
@@ -32,6 +33,7 @@ export class GeriBildirimVitrini {
   private readonly api = inject(ApiIstemcisi);
   private readonly onay = inject(OnayServisi);
   protected readonly toast = inject(ToastServisi);
+  private readonly bant = inject(UyariBandiServisi);
   private readonly t = ceviriFonksiyonu();
 
   protected readonly form = inject(NonNullableFormBuilder).group({ plaka: [''], aciklama: [''] });
@@ -49,6 +51,8 @@ export class GeriBildirimVitrini {
     'notr',
     'bekleme',
   ];
+
+  protected readonly bantTurleri: readonly BantTuru[] = ['uyari', 'hata', 'bilgi'];
 
   protected gonder(): void {
     this.gonderim.gonder(
@@ -84,6 +88,10 @@ export class GeriBildirimVitrini {
     } else {
       this.toast.goster(durum, mesaj);
     }
+  }
+
+  protected bantGoster(tur: BantTuru): void {
+    this.bant.goster({ tur, mesaj: this.t('vitrin.bantOrnek') });
   }
 
   protected async onayIste(): Promise<void> {

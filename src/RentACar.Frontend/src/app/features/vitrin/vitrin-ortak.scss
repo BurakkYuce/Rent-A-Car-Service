@@ -1,0 +1,59 @@
+// Vitrin sayfalarının ortak iskeleti (F3.7). Yalnız token; her sayfa `styleUrl` ile alır.
+:host {
+  display: block;
+  padding: var(--rc-bosluk-4);
+}
+
+.sayfa-ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--rc-bosluk-4);
+}
+
+.giris {
+  max-width: 48rem;
+  margin-bottom: var(--rc-bosluk-4);
+  color: var(--rc-metin-ikincil);
+}
+
+.bolum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  margin-bottom: var(--rc-bosluk-4);
+  padding: var(--rc-bosluk-4);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-xl);
+  background-color: var(--rc-yuzey);
+}
+
+.satir {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.not {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+code,
+kbd {
+  font-family: var(--rc-font-mono);
+  font-size: var(--rc-yazi-xs);
+  overflow-wrap: anywhere;
+}

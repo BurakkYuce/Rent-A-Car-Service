@@ -21,7 +21,10 @@
     "uretim:kontrol": "node scripts/ikon-kaydi.mjs --kontrol && node scripts/i18n-tipleri.mjs --kontrol",
     "typecheck": "ngc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "test": "ng test --watch=false",
-    "e2e": "ng build && playwright test",
+    "e2e": "ng build && playwright test --project=chromium",
+    "e2e:gorsel": "node scripts/gorsel.mjs",
+    "e2e:gorsel:guncelle": "node scripts/gorsel.mjs --guncelle",
+    "e2e:gorsel:ci": "playwright test --project=gorsel",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
