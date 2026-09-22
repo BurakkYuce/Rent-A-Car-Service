@@ -235,18 +235,8 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
     /// <summary>Kira-fatura advisory kilidi (adversarial B2-Kritik-1): base/fark/dönem posting'leri
     /// aynı kira üzerinde SERİLEŞİR — iki farklı unique-index'e yazan yollar (base: (TenantId,RentalId);
     /// fark/dönem: (TenantId,KaynakKiraId,Sıra)) birbirini görmeden commit edemez.</summary>
-    private static async Task KiraFaturaKilidiAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
-    {
-        var conn = db.Database.GetDbConnection();
-        await using var cmd = conn.CreateCommand();
-        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
-        cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
-        var p = cmd.CreateParameter();
-        p.ParameterName = "k";
-        p.Value = $"fatura:{db.TenantId}:{rentalId}";
-        cmd.Parameters.Add(p);
-        await cmd.ExecuteScalarAsync(ct);
-    }
+    private static Task KiraFaturaKilidiAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
+        => KiraKilitleri.FaturaAsync(db, rentalId, ct); // F4.1: tek kopya (kira iptali de aynı kilidi alır)
 
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
@@ -268,6 +258,9 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             if (kiraBagi is Guid kb && !invoice.IadeMi)
             {
                 await KiraFaturaKilidiAsync(db, kb, ct);
+                // F4.1 adversarial M3: iptal ile kesim yarışı — iptal AYNI kilidi alıp açık fatura yokken
+                // iptal eder; kesim de kilit altında kiranın hâlâ iptal olmadığını doğrular.
+                await KiraKilitleri.IptalKirayaFaturaYokAsync(db, kb, ct);
                 if (invoice.RentalId is Guid rid &&
                     await db.Invoices.AsNoTracking().AnyAsync(i => i.RentalId == rid || i.KaynakKiraId == rid, ct))
                     throw new ValidationException("Kira bu sırada faturalandı (eşzamanlı istek) — kalan tutar için 'Fatura Kes' fark yolunu kullanın.");
@@ -339,6 +332,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // servis kesileceği kilit DIŞINDA hesapladı; bu arada base/fark/dönem faturası commit
             // ettiyse tutar bayattır → temiz red (çağıran güncel durumla yeniden dener).
             await KiraFaturaKilidiAsync(db, invoice.KaynakKiraId!.Value, ct);
+            await KiraKilitleri.IptalKirayaFaturaYokAsync(db, invoice.KaynakKiraId!.Value, ct); // F4.1 M3
 
             // F1.4 — AYNI dönemin çift gönderimi: sıralı ikinci istek serviste "Kesildi → mevcut
             // InvoiceId" sessiz başarısı alıyor. Yarışı kaybeden ikinci istek ise aşağıdaki faturalanan
