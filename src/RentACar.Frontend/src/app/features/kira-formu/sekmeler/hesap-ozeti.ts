@@ -15,7 +15,8 @@ import type { SunucuSayisi } from '../kira-tipleri';
 
 /**
  * Tutar özeti. Yeni kirada CANLI sunucu hesabı (`GET /kiralar/hesapla` — KiraHesapService → fiyat
- * motoru); kayıtlı kirada sözleşmenin kayıtlı değerleri. Burada hiçbir tutar HESAPLANMAZ.
+ * motoru); kayıtlı kirada sözleşmenin kayıtlı değerleri + sunucunun hesapladığı `toplamlar` (F4.3b: ek hizmet
+ * tutarı). Burada hiçbir tutar HESAPLANMAZ / TOPLANMAZ.
  */
 @Component({
   selector: 'rc-kf-hesap-ozeti',
@@ -92,6 +93,12 @@ import type { SunucuSayisi } from '../kira-tipleri';
           <div>
             <dt>{{ 'kiraFormu.hesap.baz' | transloco }}</dt>
             <dd>{{ para(k.tutar, k.doviz) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'kiraFormu.hesap.ekHizmet' | transloco }}</dt>
+            <dd data-testid="kayitli-ek-hizmet">
+              {{ para(d.detay.veri()?.toplamlar?.ekHizmetToplam, k.doviz) }}
+            </dd>
           </div>
           @if (!kisa()) {
             <div>

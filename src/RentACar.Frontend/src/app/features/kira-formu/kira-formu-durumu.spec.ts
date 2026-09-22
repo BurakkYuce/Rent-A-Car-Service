@@ -14,6 +14,21 @@ import { KiraFormuDurumu } from './kira-formu-durumu';
 const ARAC_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
 const DIGER_ARAC = '0b0e7c1a-3333-4aaa-8bbb-000000000009';
 const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
+const TANIM_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000006';
+
+const NAV_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000016';
+
+const bekle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const TAM_KATALOG = {
+  ogeler: [{ id: TANIM_ID, kod: 'BEBEK', ad: 'Bebek koltuğu', birimUcret: 75.5, kdvOrani: 0.1 }],
+  toplam: 1,
+};
+/** Testin değiştirebildiği katalog yanıtı (her testten önce tam kataloğa döner). */
+let katalogYaniti: { ogeler: typeof TAM_KATALOG.ogeler; toplam: number } = TAM_KATALOG;
+beforeEach(() => {
+  katalogYaniti = TAM_KATALOG;
+});
 
 const MUSAIT = [
   {
@@ -61,6 +76,30 @@ function sahteApi(yazma: (c: Cagri) => Observable<unknown>) {
     if (yol.endsWith('/form-varsayilanlari')) return of(VARSAYILANLAR);
     if (yol.endsWith('/musait-arac')) return of(MUSAIT);
     if (yol.endsWith('/hesapla')) return of({ ok: false, hata: 'Araç seçin.' });
+    // F4.3b kimlikle etiket uçları (PII yok: kimlik + ad + tip / plaka + grup + durum).
+    if (yol === `/api/ui/v1/secim/musteri/${MUSTERI_ID}`) {
+      return of({ id: MUSTERI_ID, etiket: 'Ayşe Yılmaz', tip: 'Bireysel' });
+    }
+    if (yol === `/api/ui/v1/secim/arac/${DIGER_ARAC}`) {
+      return of({
+        id: DIGER_ARAC,
+        etiket: '06 XYZ 42 — Renault Clio',
+        plaka: '06 XYZ 42',
+        grup: 'B',
+        durum: 'Musait',
+      });
+    }
+    if (yol.endsWith('/ek-hizmet-katalogu')) return of(katalogYaniti);
+    if (yol === '/api/ui/v1/secim/ek-hizmet') {
+      return of([
+        { id: TANIM_ID, etiket: 'Bebek koltuğu', kod: 'BEBEK' },
+        { id: NAV_ID, etiket: 'Navigasyon', kod: 'NAV' },
+        { id: 'sys-1', etiket: 'Genç sürücü', kod: 'SYS-GENC' },
+      ]);
+    }
+    if (/^\/api\/ui\/v1\/secim\/(musteri|arac)\//.test(yol)) {
+      return throwError(() => sunucuHatasi(404, 'bulunamadi', 'Bulunamadı.'));
+    }
     if (yol.startsWith('/api/ui/v1/secim/')) return of([]);
     return throwError(() => sunucuHatasi(404, 'bilinmeyen', 'yok'));
   };
@@ -113,7 +152,7 @@ async function kur(
 }
 
 describe('KiraFormuDurumu (yeni kira)', () => {
-  it('?varac&vfrom&vto&musteriId ile form dolu açılır (etiket müsait listeden), kirli değildir', async () => {
+  it('?varac&vfrom&vto&musteriId ile form dolu açılır (etiketler sunucudan), kirli değildir', async () => {
     const { d, cagrilar } = await kur({
       varac: ARAC_ID,
       vfrom: '2026-10-01',
@@ -126,7 +165,10 @@ describe('KiraFormuDurumu (yeni kira)', () => {
     expect(f.ayna.controls.arac.value?.etiket).toBe('34 ABC 123 — Fiat Egea');
     expect(f.basTar.value).toBe('2026-10-01T06:00:00.000Z');
     expect(f.bitTar.value).toBe('2026-10-04T06:00:00.000Z');
-    expect(f.musteri.value).toEqual({ id: MUSTERI_ID, etiket: 'Bağlantıdaki müşteri' });
+    // F4.3b: "Bağlantıdaki müşteri" yerine kimlikle çözülen gerçek ad (secim/musteri/{id}).
+    expect(f.musteri.value).toEqual({ id: MUSTERI_ID, etiket: 'Ayşe Yılmaz' });
+    expect(f.ayna.controls.musteri.value?.etiket).toBe('Ayşe Yılmaz');
+    expect(cagrilar.some((c) => c.yol === `/api/ui/v1/secim/musteri/${MUSTERI_ID}`)).toBe(true);
     expect(f.fiyatTuru.value).toBe('KDV Dahil Günlük');
     expect(d.musaitFormu.getRawValue()).toEqual({
       vfrom: '2026-10-01',
@@ -217,5 +259,71 @@ describe('KiraFormuDurumu (yeni kira)', () => {
     // PII formda kalmaz; yeni kira formu sıfırlanır (kayıt yapıldı).
     expect(d.yeniMusteriFormu.getRawValue().tcKimlik).toBeNull();
     expect(d.kirliMi()).toBe(false);
+  });
+  it('penceresiz ?varac= plaka etiketini kimlikle çözer (secim/arac/{id})', async () => {
+    const { d, cagrilar } = await kur({ varac: DIGER_ARAC });
+    expect(d.form.controls.arac.value).toMatchObject({
+      id: DIGER_ARAC,
+      etiket: '06 XYZ 42 — Renault Clio',
+      plaka: '06 XYZ 42',
+    });
+    expect(cagrilar.some((c) => c.yol === `/api/ui/v1/secim/arac/${DIGER_ARAC}`)).toBe(true);
+    expect(d.kirliMi()).toBe(false);
+  });
+
+  it('çözülemeyen kimlik (404) geçici etiketi korur; kayıt yine kimlikle yapılır', async () => {
+    const BILINMEYEN = '0b0e7c1a-2222-4aaa-8bbb-00000000ffff';
+    const { d } = await kur({ musteriId: BILINMEYEN });
+    expect(d.form.controls.musteri.value).toEqual({
+      id: BILINMEYEN,
+      etiket: 'Bağlantıdaki müşteri',
+    });
+  });
+
+  it('kaynak / özel kod önerileri yazılanla sunucuda aranır (q), boşken q yok', async () => {
+    const { d, cagrilar } = await kur({});
+    await bekle(300);
+    const son = (uc: string) =>
+      cagrilar.filter((c) => c.yol === `/api/ui/v1/secim/${uc}`).at(-1)?.secenek?.parametreler;
+    expect(son('rezervasyon-kaynagi')).toEqual({ q: null, limit: 20 });
+    expect(son('ozel-kod')).toEqual({ q: null, limit: 20 });
+    // Hızlı Giriş aynası da kanoniği sürer → arama.
+    d.form.controls.ayna.controls.kaynak.setValue(' Web ');
+    d.form.controls.ozelKod.setValue('KAMP');
+    await bekle(300);
+    expect(son('rezervasyon-kaynagi')).toEqual({ q: 'Web', limit: 20 });
+    expect(son('ozel-kod')).toEqual({ q: 'KAMP', limit: 20 });
+  });
+
+  it('ek hizmet matrisi: işaret satır ekler, kaldırma çıkarır; hesap parametresine girer', async () => {
+    const { d } = await kur({ varac: ARAC_ID, vfrom: '2026-10-01', vto: '2026-10-04' });
+    const oge = d.ekHizmetKatalogu.veri()?.ogeler[0];
+    expect(oge?.ad).toBe('Bebek koltuğu');
+    if (!oge) return;
+    d.ekHizmetSecimi(oge, true);
+    d.ekHizmetSecimi(oge, true); // ikinci işaret yinelenmez
+    expect(d.form.controls.ekHizmetler.getRawValue()).toEqual([
+      { tanim: { id: TANIM_ID, etiket: 'Bebek koltuğu' }, miktar: 1 },
+    ]);
+    expect(d.form.controls.ekHizmetler.dirty).toBe(true);
+    d.ekHizmetSecimi(oge, false);
+    expect(d.form.controls.ekHizmetler.length).toBe(0);
+  });
+
+  it('kayıtlı kiraya ekleme kaynağı katalogdan: etiket "Ad (birim net)", SYS yok', async () => {
+    const { d } = await kur({});
+    const liste = await firstValueFrom(d.ekHizmetKaynagi('bebek', 20));
+    expect(liste).toEqual([{ id: TANIM_ID, etiket: 'Bebek koltuğu (75,50 ₺ net)' }]);
+  });
+  it('katalog KESİKSE (toplam > satır) ekleme kaynağı sunucuda arar (q); katalogdaki öğe fiyatlı, SYS yok', async () => {
+    katalogYaniti = { ...TAM_KATALOG, toplam: 206 };
+    const { d, cagrilar } = await kur({});
+    const liste = await firstValueFrom(d.ekHizmetKaynagi('nav', 20));
+    const arama = cagrilar.filter((c) => c.yol === '/api/ui/v1/secim/ek-hizmet').at(-1);
+    expect(arama?.secenek?.parametreler).toEqual({ q: 'nav', limit: 20 });
+    expect(liste).toEqual([
+      { id: TANIM_ID, etiket: 'Bebek koltuğu (75,50 ₺ net)' },
+      { id: NAV_ID, etiket: 'Navigasyon' },
+    ]);
   });
 });
