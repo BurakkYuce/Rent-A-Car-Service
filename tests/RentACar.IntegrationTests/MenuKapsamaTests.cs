@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using RentACar.Web.Api.Menu;
 
 namespace RentACar.IntegrationTests;
 
@@ -9,6 +10,9 @@ namespace RentACar.IntegrationTests;
 /// `/raporlar/servis-ozet` rotalarının **yazılmış, rotalı ve çalışır** olduğunu ama
 /// `MainLayout.razor`'a hiç eklenmediğini buldu — yani kod vardı, kullanıcı ulaşamıyordu.
 /// Hiçbir test bunu yakalamıyordu çünkü sayfalar teknik olarak sağlamdı.</para>
+///
+/// <para><b>F4.6:</b> menü artık KAYITTAN çizilir (<see cref="MenuKaydi"/>, iki arayüzün tek kaynağı) — kapsama
+/// MainLayout metnine değil kayda bakar.</para>
 ///
 /// <para>Kapsam bilinçli olarak DAR: yalnız <c>/raporlar/*</c>. Sistem sayfaları (`/login`,
 /// `/Error`, `/not-found`), platform konsolu (ayrı layout), parametrik detay rotaları ve alt-akış
@@ -31,7 +35,7 @@ public sealed class MenuKapsamaTests
     {
         var kok = RepoKok();
         var sayfalar = Path.Combine(kok, "src/RentACar.Web/Components/Pages");
-        var menu = File.ReadAllText(Path.Combine(kok, "src/RentACar.Web/Components/Layout/MainLayout.razor"));
+        var menu = MenuKaydi.Ogeler.Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
 
         var eksik = new List<string>();
         foreach (var dosya in Directory.EnumerateFiles(sayfalar, "*.razor", SearchOption.AllDirectories))
@@ -40,13 +44,13 @@ public sealed class MenuKapsamaTests
             {
                 var rota = m.Groups[1].Value;
                 if (rota.Contains('{')) continue;                       // parametrik detay: drill-down'dan açılır
-                if (!menu.Contains($"\"{rota}\"", StringComparison.Ordinal))
+                if (!menu.Contains(rota))
                     eksik.Add($"{rota}  ({Path.GetRelativePath(kok, dosya)})");
             }
         }
 
         Assert.True(eksik.Count == 0,
-            "Bu rapor sayfaları yazılmış ama MainLayout menüsünde yok — kullanıcı ulaşamaz:\n  "
+            "Bu rapor sayfaları yazılmış ama menü kaydında (MenuKaydi) yok — kullanıcı ulaşamaz:\n  "
             + string.Join("\n  ", eksik));
     }
 }

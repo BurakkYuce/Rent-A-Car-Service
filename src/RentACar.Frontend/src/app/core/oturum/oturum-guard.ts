@@ -1,10 +1,11 @@
 import { inject } from '@angular/core';
 import { CanMatchFn, Router, UrlTree } from '@angular/router';
 
+import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
 import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 
-import { guvenliDonusAdresi } from './giris-hatasi';
+import { girisSonrasiHedef, guvenliDonusAdresi } from './giris-hatasi';
 import { OturumServisi } from './oturum-servisi';
 import type { Izin } from './oturum-tipleri';
 
@@ -14,11 +15,15 @@ function hedefAdres(router: Router): string {
   return gezinme ? router.serializeUrl(gezinme.extractedUrl) : '/';
 }
 
+/**
+ * `returnUrl` SİTE yolu olarak yazılır (`/app/…`): sunucunun `/login` → `/app/giris` yönlendirmesi Blazor
+ * adreslerini aynı parametreyle taşır; önek, girişten sonra hangisinin yeni arayüz olduğunu ayırır (F4.6).
+ */
 function giriseYonlendir(router: Router): UrlTree {
   const donus = guvenliDonusAdresi(hedefAdres(router));
   return router.createUrlTree(
     ['/giris'],
-    donus === '/' ? {} : { queryParams: { returnUrl: donus } },
+    donus === '/' ? {} : { queryParams: { returnUrl: `/app${donus}` } },
   );
 }
 
@@ -52,13 +57,22 @@ export function izinGuard(...izinler: readonly Izin[]): CanMatchFn {
   };
 }
 
-/** Giriş sayfası (canMatch): zaten oturum varsa dönüş adresine ya da ana sayfaya. */
+/**
+ * Giriş sayfası (canMatch): zaten oturum varsa giriş sonrası hedefe (`girisSonrasiHedef`): pilotsa SPA
+ * rotası, değilse ya da dönüş Blazor ekranıysa tam sayfa geçiş (sunucu `/login` kapısı hedefi çözer).
+ */
 export const misafirGuard: CanMatchFn = async () => {
   const oturum = inject(OturumServisi);
   const router = inject(Router);
+  const gezin = inject(TAM_SAYFA_GEZINMESI);
   await oturum.ilkYukleme();
   if (!oturum.girisYapildi()) return true;
   const gezinme = router.currentNavigation();
   const donus = gezinme?.extractedUrl.queryParamMap.get('returnUrl');
-  return router.parseUrl(guvenliDonusAdresi(donus));
+  const hedef = girisSonrasiHedef(oturum.ben()?.pilot === true, donus);
+  if (hedef.tur === 'spa') return router.parseUrl(hedef.yol);
+  // Tam sayfa geçiş başladı; `false` dönülseydi router sonraki rotayı (kabuk `**`) dener ve sayfa
+  // kapanana kadar boşuna kabuk + menü yüklerdi. Geçiş bitene dek giriş sayfası görünür kalır.
+  gezin(hedef.adres);
+  return true;
 };

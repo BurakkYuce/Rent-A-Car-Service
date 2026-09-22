@@ -3,8 +3,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
+import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { guvenliDonusAdresi } from '@core/oturum/giris-hatasi';
+import { girisSonrasiHedef } from '@core/oturum/giris-hatasi';
+import type { Ben } from '@core/oturum/oturum-tipleri';
 import { GirisFormu } from '@shared/giris-formu/giris-formu';
 
 /** `?neden=` → giriş sayfasındaki bilgi mesajı (interceptor ve çıkış bunu yazar). */
@@ -14,8 +16,9 @@ const NEDEN_MESAJI: Readonly<Record<string, CeviriAnahtari>> = {
 };
 
 /**
- * `/app/giris` — yeni arayüz girişi (Blazor `/auth/login` ile AYNI kimlik doğrulaması ve cookie).
- * Başarılı girişte `returnUrl` (yalnız uygulama içi yol) ya da ana sayfa.
+ * `/app/giris` — TEK giriş (F4.6: Blazor `/login` buraya yönlenir; aynı kimlik doğrulaması ve cookie).
+ * Başarılı girişte `girisSonrasiHedef`: pilot firma → `returnUrl` (yeni arayüz) ya da Panel; pilot olmayan
+ * firma ya da Blazor dönüşü → tam sayfa geçiş (sunucu `/login` kapısı dönüşü doğrular).
  */
 @Component({
   selector: 'rc-giris-sayfasi',
@@ -29,7 +32,7 @@ const NEDEN_MESAJI: Readonly<Record<string, CeviriAnahtari>> = {
           <h1>{{ 'oturum.giris.baslik' | transloco }}</h1>
           <p class="aciklama">{{ 'oturum.giris.aciklama' | transloco }}</p>
         </header>
-        <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="girildi()" />
+        <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="girildi($event)" />
       </div>
     </main>
   `,
@@ -68,6 +71,7 @@ const NEDEN_MESAJI: Readonly<Record<string, CeviriAnahtari>> = {
 })
 export class GirisSayfasi {
   private readonly router = inject(Router);
+  private readonly gezin = inject(TAM_SAYFA_GEZINMESI);
   private readonly parametreler = toSignal(inject(ActivatedRoute).queryParamMap, {
     requireSync: true,
   });
@@ -77,9 +81,9 @@ export class GirisSayfasi {
     return (neden && NEDEN_MESAJI[neden]) || null;
   });
 
-  private readonly donus = computed(() => guvenliDonusAdresi(this.parametreler().get('returnUrl')));
-
-  protected girildi(): void {
-    void this.router.navigateByUrl(this.donus(), { replaceUrl: true });
+  protected girildi(ben: Ben): void {
+    const hedef = girisSonrasiHedef(ben.pilot, this.parametreler().get('returnUrl'));
+    if (hedef.tur === 'spa') void this.router.navigateByUrl(hedef.yol, { replaceUrl: true });
+    else this.gezin(hedef.adres);
   }
 }
