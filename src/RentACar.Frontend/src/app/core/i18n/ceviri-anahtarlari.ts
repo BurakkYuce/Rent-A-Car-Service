@@ -11,6 +11,7 @@ export type CeviriAnahtari =
   | 'form.hata.gecersiz'
   | 'form.hata.isaretZorunlu'
   | 'form.hata.para'
+  | 'form.hata.paraFazlaHane'
   | 'form.hata.saat'
   | 'form.hata.sayi'
   | 'form.hata.tarih'

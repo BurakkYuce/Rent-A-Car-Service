@@ -146,6 +146,8 @@ describe('TahsilPaneli (PARA)', () => {
     // Panel açılınca odak tutarda (düzenleme metni); bırakınca tr biçimi. Öneri = kalan bakiye.
     expect(document.activeElement).toBe(tutarGirdisi());
     expect(tutarGirdisi().value).toBe('1234,50');
+    // Öneri SEÇİLİ: doğrudan yazılan tutar önerinin yerine geçer, sonuna eklenmez (adversarial F3).
+    expect([tutarGirdisi().selectionStart, tutarGirdisi().selectionEnd]).toEqual([0, 7]);
     tutarGirdisi().dispatchEvent(new Event('blur'));
     await fixture.whenStable();
     expect(tutarGirdisi().value).toBe('1.234,50');
@@ -254,6 +256,19 @@ describe('TahsilPaneli (PARA)', () => {
     expect(d.sonuclar).toBe(0);
     expect(kok.textContent).toContain('Tutar çok yüksek.');
     expect(tutarGirdisi().value).toBe('500,25');
+  });
+
+  it('2’den fazla ondalık (1,555 ya da öneri+“90” = 1234,5090) alan hatası; yuvarlanıp GÖNDERİLMEZ', async () => {
+    const { fixture, kok, gonder, tutarGirdisi } = await kur();
+    for (const yazilan of ['1,555', '1234,5090']) {
+      tutarGirdisi().value = yazilan;
+      tutarGirdisi().dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      await gonder();
+      http.expectNone(TAHSIL_UCU);
+      expect(kok.textContent).toContain('En fazla 2 ondalık hane girilebilir.');
+      expect(tutarGirdisi().value).toBe(yazilan);
+    }
   });
 
   it('tutar sıfır ya da boşsa istek GİTMEZ', async () => {

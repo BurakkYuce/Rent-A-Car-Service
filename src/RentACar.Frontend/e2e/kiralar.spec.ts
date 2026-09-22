@@ -278,6 +278,45 @@ test('409 mukerrer (bayat anahtar): yeniden gönderim YOK, liste yenilenir + sun
   expect(hatalar).toEqual([]);
 });
 
+test('Tahsil Et tutarı (PARA): odaklı açılışta öneri seçili — doğrudan “90” = 90.00; “1,555” alan hatası, istek yok', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page);
+  await kiraUclari(page, () => [tahsilatli(ANAHTAR_1, 1250.5), KIRA_2]);
+  const gonderilen: KayitliIstek[] = [];
+  await page.route('**/api/ui/v1/finans/tahsilat', async (route) => {
+    gonderilen.push(kaydet(route.request()));
+    await route.fulfill({ json: { id: 'f0000000-0000-4000-8000-000000000001' } });
+  });
+  await page.goto(SAYFA.yol);
+  await hazirBekle(page, SAYFA);
+
+  // Adversarial F3: öneri "1250,50" iken doğrudan yazılan "90" SONUNA eklenip 1250.51 gönderiliyordu.
+  await tahsilDugmesi(page).click();
+  const tutar = page.getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(tutar).toBeFocused();
+  await page.keyboard.type('90');
+  await expect(tutar).toHaveValue('90');
+  await panelGonder(page).click();
+  await expect.poll(() => gonderilen.length).toBe(1);
+  expect(JSON.parse(gonderilen[0]?.govde ?? '{}')).toMatchObject({
+    tutar: '90.00',
+    tahsilatAnahtar: ANAHTAR_1,
+  });
+
+  // 3 ondalık: yuvarlanmaz, alan hatası, istek gitmez.
+  await tahsilDugmesi(page).click();
+  await tutar.fill('1,555');
+  await panelGonder(page).click();
+  await expect(page.getByText('En fazla 2 ondalık hane girilebilir.')).toBeVisible();
+  await expect(tutar).toHaveAttribute('aria-invalid', 'true');
+  await expect(tutar).toHaveValue('1,555');
+  await page.waitForTimeout(300);
+  expect(gonderilen).toHaveLength(1);
+  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(hatalar).toEqual([]);
+});
+
 test.describe('mobil taşma (dokunmatik öykünme)', () => {
   test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 

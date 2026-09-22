@@ -93,7 +93,7 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
             [etiket]="'kiraListesi.tahsil.tutar' | transloco"
             [ipucu]="'kiraListesi.tahsil.tutarIpucu' | transloco"
           >
-            <rc-para-girdisi formControlName="tutar" [paraBirimi]="doviz()" />
+            <rc-para-girdisi formControlName="tutar" [paraBirimi]="doviz()" odaktaSec />
           </rc-alan>
           <rc-alan [etiket]="'kiraListesi.tahsil.hesap' | transloco">
             <rc-secim formControlName="hesap" [secenekler]="hesapTurleri" />
@@ -242,6 +242,8 @@ export class TahsilPaneli {
         }),
       );
     });
+    // Açılışta odak önerilen tutarda ve metin SEÇİLİ (`odaktaSec`): doğrudan yazılan tutar önerinin yerine
+    // geçer, sonuna eklenmez (adversarial F3: "1250,50" + "90" → "1250,5090" → 1 kuruş fazla tahsilat).
     afterNextRender(() => this.kok.nativeElement.querySelector<HTMLInputElement>('input')?.focus());
   }
 
