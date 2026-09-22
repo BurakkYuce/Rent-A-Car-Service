@@ -31,6 +31,10 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
+        // F4.1 adversarial: SYS- öneki sistem ücret tanımlarına ayrılmış (FeeLineService repoyu doğrudan kullanır);
+        // güncellemedeki kuralla tutarlı — elle SYS-* tanım açılamaz.
+        if (SistemKodu(n.Kod))
+            throw new ValidationException("SYS- öneki sistem ücret tanımlarına ayrılmıştır; elle tanımlanamaz.");
         if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ek hizmet zaten var.");
 
