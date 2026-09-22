@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { paraBicimle } from '@core/bicim/bicim';
 import { KiraFormuDurumu } from '../kira-formu-durumu';
+import { isoParaBirimi, sayiya } from '../kira-formu-modeli';
+import type { SunucuSayisi } from '../kira-tipleri';
 import { AracKarti } from './arac-karti';
 import { HesapOzeti } from './hesap-ozeti';
 import { KF_ORTAK } from './ortak';
@@ -107,10 +110,49 @@ import { YeniMusteri } from './yeni-musteri';
           </div>
         </section>
         <rc-kf-hesap-ozeti kisa />
+        <section class="kf-kart" [attr.aria-label]="'kiraFormuParite.rozet.etiket' | transloco">
+          <div class="kf-eylemler" data-testid="hizli-rozetler">
+            <span class="rc-rozet">{{
+              'kiraFormuParite.rozet.tahsilat' | transloco: { tutar: rozetler().tahsilat }
+            }}</span>
+            <span class="rc-rozet">{{
+              'kiraFormuParite.rozet.kalan' | transloco: { tutar: rozetler().kalan }
+            }}</span>
+            <span class="rc-rozet" data-testid="ceza-rozeti">{{
+              'kiraFormuParite.rozet.ceza' | transloco: { tutar: rozetler().ceza }
+            }}</span>
+          </div>
+        </section>
       </div>
     </div>
   `,
 })
 export class HizliGiris {
   protected readonly d = inject(KiraFormuDurumu);
+
+  /**
+   * Alt şerit rozetleri (Blazor Hızlı Giriş): tahsilat, kalan, ceza. Hepsi SUNUCU değeri — kayıtlı kirada
+   * sözleşme + `toplamlar.cezaToplam` (F4.3b; ceza kaydı TL), yeni kirada canlı hesabın kalanı. Toplama yok.
+   */
+  protected readonly rozetler = computed(() => {
+    const k = this.d.kira();
+    if (k) {
+      const doviz = isoParaBirimi(k.doviz);
+      return {
+        tahsilat: para(k.tahsilat, doviz),
+        kalan: para(k.bakiye, doviz),
+        ceza: para(this.d.detay.veri()?.toplamlar?.cezaToplam, 'TRY'),
+      };
+    }
+    const h = this.d.hesap.veri();
+    return {
+      tahsilat: para(0, this.d.kiraDovizi()),
+      kalan: h?.ok ? para(h.kalan, isoParaBirimi(h.doviz)) : '—',
+      ceza: para(0, 'TRY'),
+    };
+  });
+}
+
+function para(v: SunucuSayisi, doviz: string): string {
+  return paraBicimle(sayiya(v), doviz) || '—';
 }

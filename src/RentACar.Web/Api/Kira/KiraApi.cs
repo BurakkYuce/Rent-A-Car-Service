@@ -73,12 +73,14 @@ public static class KiraApi
         g.MapGet("/{id:guid}/dis-hizmetler", DisHizmetler);
         g.MapGet("/{id:guid}/kaynak-rezervasyon", KaynakRezervasyon);
         g.MapGet("/{id:guid}/karne-ozeti", KarneOzeti).RequirePermission(Permission.FinanceWrite);
+        g.MapGet("/{id:guid}/musteri-ozet", MusteriOzeti); // F4.3b — maskeli cari özeti (okuma kapısı)
 
         // ---- OperationsWrite (Blazor /kiralar grubu)
         var ow = g.MapGroup("").RequirePermission(Permission.OperationsWrite);
         ow.MapGet("/form-varsayilanlari", FormVarsayilanlari);
         ow.MapGet("/hesapla", Hesapla).AlanlariEsle(HesaplaKurallari);
         ow.MapGet("/musait-arac", MusaitArac);
+        ow.MapGet("/ek-hizmet-katalogu", EkHizmetKatalogu); // F4.3b — matris (fiyat/KDV; tutar hesapla'dan)
         ow.MapGet("/{id:guid}/donus-hesapla", DonusHesapla);
         ow.MapGet("/{id:guid}/donem-plani", DonemPlani);
         ow.MapGet("/{id:guid}/paylasim", PaylasimDurumu);
@@ -272,7 +274,7 @@ public static class KiraApi
     private static async Task<Results<Ok<KiraDetayYaniti>, ProblemHttpResult>> Detay(
         Guid id, HttpContext http, RentalService kiralar, CustomerService musteriler, VehicleService araclar,
         BranchService subeler, PersonelService personeller, RentalAddOnService ekler,
-        SozlesmePaylasimService paylasim, KurService kurlar, CancellationToken ct)
+        SozlesmePaylasimService paylasim, KurService kurlar, PenaltyService cezalar, CancellationToken ct)
     {
         var c = await KapsamliAsync(kiralar, id, ct);
         if (c is null) return Bulunamadi();
@@ -317,8 +319,14 @@ public static class KiraApi
             PaylasimDurum? durum = null;
             try { durum = await paylasim.DurumAsync(c.Id, ct); }
             catch (ValidationException) { durum = null; }
-            bar = new KiraPaylasimBari(Link(durum), musteri?.CepTel, musteri?.Email, $"Kira Sözleşmesi {c.SozlesmeNo}");
+            bar = new KiraPaylasimBari(Link(durum), musteri?.CepTel, musteri?.Email, $"Kira Sözleşmesi {c.SozlesmeNo}",
+                PaylasimMesaji(c, musteri?.DisplayName));
         }
+
+        // F4.3b: gösterim toplamları SUNUCUDA (SPA toplama yapmaz). Cezalar kapsam kapısından SONRA okunur.
+        var cezaToplam = (await cezalar.ListByRentalAsync(c.Id, ct))
+            .Where(p => p.Durum != CezaDurum.Iptal).Sum(p => p.Tutar);
+        var toplamlar = new KiraToplamlari(kalemler.Sum(k => k.Toplam), cezaToplam);
 
         return TypedResults.Ok(new KiraDetayYaniti(
             KiraSozlesmesiDto.From(c),
@@ -332,7 +340,56 @@ public static class KiraApi
             kalemler,
             doviz,
             bar,
-            yetki));
+            yetki,
+            toplamlar));
+    }
+
+    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+
+    /// <summary>
+    /// WhatsApp/Gmail hazır özet metni — Blazor <c>KiraForm._paylasMesaj</c> ile BİREBİR (link hariç; SPA ekler).
+    /// Blazor sunucunun yerel saatini kullanıyordu; burada açıkça İstanbul günü (TenantGun) + tr-TR biçimi.
+    /// </summary>
+    internal static string PaylasimMesaji(RentalContract c, string? musteriAd)
+    {
+        static string Gun(DateTimeOffset an) => TimeZoneInfo.ConvertTime(an, TenantGun.Dilim).ToString("dd.MM.yyyy", Tr);
+        return $"Sayın {musteriAd}, {c.SozlesmeNo} nolu kira sözleşmeniz: {Gun(c.BasTar)} - {Gun(c.BitTar)}, " +
+               $"genel toplam {c.GenelToplam.ToString("N2", Tr)} {c.Doviz ?? "TL"}.";
+    }
+
+    /// <summary>
+    /// Kimlik/belge numarası maskesi — Blazor <c>SekmeMusteri.Maske</c> ile BİREBİR: yalnız son 4 karakter görünür;
+    /// 4 ve daha kısa değer TAMAMEN yıldız; boş → null. Düz numara bu yüzeyden hiçbir koşulda dönmez.
+    /// </summary>
+    public static string? Maske(string? v)
+        => string.IsNullOrWhiteSpace(v)
+            ? null
+            : v.Length <= 4 ? new string('*', v.Length) : new string('*', v.Length - 4) + v[^4..];
+
+    /// <summary>
+    /// F4.3b — Müşteri sekmesinin salt-okunur cari özeti. Üst kayıt kapısından geçer (kapsam dışı 403, yok/başka
+    /// kiracı 404); müşteri kiranın kendi <c>MusteriId</c>'sinden okunur (istemci başka cari soramaz). PII: bkz.
+    /// <see cref="KiraMusteriOzeti"/> — kimlik/belge numaraları yalnız <see cref="Maske"/>'den geçerek çıkar.
+    /// </summary>
+    private static async Task<Results<Ok<KiraMusteriOzeti>, ProblemHttpResult>> MusteriOzeti(
+        Guid id, RentalService kiralar, CustomerService musteriler, CancellationToken ct)
+    {
+        var c = await KapsamliAsync(kiralar, id, ct);
+        if (c is null) return Bulunamadi();
+        var m = await musteriler.GetAsync(c.MusteriId, ct);
+        if (m is null) return Bulunamadi("Müşteri bulunamadı.");
+        return TypedResults.Ok(new KiraMusteriOzeti(
+            m.Id, m.DisplayName, m.Tip.ToString(),
+            m.AnonimTelefon ? null : m.CepTel,
+            m.AnonimMail ? null : m.Email,
+            m.AnonimTc ? null : Maske(m.TcKimlik),
+            m.AnonimBelge ? null : Maske(m.EhliyetNo),
+            m.AnonimBelge ? null : Maske(m.PasaportNo),
+            m.EhliyetSinifi, m.EhliyetTarihi, m.EhliyetYeri, m.EhliyetUlke, m.PasaportYeri,
+            m.AnonimAdres ? null : m.Adres,
+            m.AnonimAdres ? null : m.Il,
+            m.AnonimAdres ? null : m.Ilce,
+            m.MusteriTipi, m.RiskLimiti, m.KaraListe, m.Uyari, m.UyariNedeni));
     }
 
     private static EkHizmetKalemiDto EkHizmetDto(RentalAddOn a)
@@ -471,6 +528,27 @@ public static class KiraApi
         if (donusYakit is < 0 or > FormYakitEnFazla) // nazik önizleme sözleşmesi: ok:false (Blazor ile aynı)
             return TypedResults.Ok(KiraDonusOnizleme.Hatali($"Dönüş yakıt 0-{FormYakitEnFazla} aralığında olmalıdır."));
         return TypedResults.Ok(await kiralar.PreviewReturnAsync(id, donusKm, donusYakit, gercekDonus, kmHediye ?? 0, ct));
+    }
+
+    /// <summary>Ek hizmet kataloğu üst sınırı (kira başına kalem sınırı 50; katalog makul bir tavanla kesilir).</summary>
+    public const int EkHizmetKatalogSiniri = 200;
+
+    /// <summary>
+    /// F4.3b — Blazor ek hizmet matrisinin satırları: AKTİF tanımlar, ad sırasıyla; SYS-* sistem ücret satırları
+    /// HARİÇ (manuel seçilemez — Blazor matriste gösterip kayıtta reddediyordu). Yalnız gösterim: birim NET + KDV
+    /// oranı; satır tutarı ve toplam <c>hesapla</c>'dan gelir (UI formül taşımaz).
+    /// </summary>
+    private static async Task<Ok<KiraEkHizmetKatalogu>> EkHizmetKatalogu(EkHizmetTanimService tanimlar, CancellationToken ct)
+    {
+        var liste = (await tanimlar.ListActiveAsync(ct))
+            .Where(t => !SistemKalemi(t.Kod))
+            .OrderBy(t => t.Ad, StringComparer.Create(Tr, false)).ThenBy(t => t.Kod, StringComparer.Ordinal)
+            .ToList();
+        return TypedResults.Ok(new KiraEkHizmetKatalogu(
+            liste.Take(EkHizmetKatalogSiniri)
+                .Select(t => new EkHizmetKatalogOgesi(t.Id, t.Kod, t.Ad, t.BirimUcret, t.KdvOrani, t.Aciklama, t.MaxGun))
+                .ToList(),
+            liste.Count));
     }
 
     /// <summary>Müsait araçlar (Blazor <c>/kiralar/musait-arac</c>): takvim günleri UTC gün başına çevrilir (aynı kural).</summary>
