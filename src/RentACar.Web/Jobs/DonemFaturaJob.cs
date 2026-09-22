@@ -42,27 +42,16 @@ public sealed class DonemFaturaJob(IConfiguration config, ILogger<DonemFaturaJob
         var now = DateTimeOffset.UtcNow;
         foreach (var tenantId in tenantIds)
         {
-            try
-            {
-                var sys = new SystemTenantContext { TenantId = tenantId };
-                await using var db = new AppDbContext(options, sys, sys);
-                await TenantGuc.OpenAsync(db, tenantId, ct);
-                // FAZ-26: koşu günlüğe yazılır (başarı VE hata); üretici kodu değişmez.
-                var sonuc = await JobCalismaKaydedici.CalistirAsync(db, tenantId,
-                    JobCalismaKaydedici.DonemFatura,
-                    () => DonemFaturaUretici.RunAsync(db, tenantId, now, ct),
-                    s => s.Kesilen,
-                    s => s.Atlananlar.Count == 0 ? null : string.Join(" | ", s.Atlananlar), ct);
-                if (sonuc.Kesilen > 0 || sonuc.Atlananlar.Count > 0)
-                    log.LogInformation("Dönem job tenant {Tenant}: {Kesilen} kesim, {Tahsilat} tahsilat; atlanan: {Atlanan}",
-                        tenantId, sonuc.Kesilen, sonuc.Tahsilat, string.Join(" | ", sonuc.Atlananlar));
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch (Exception ex)
-            {
-                // Per-tenant izolasyon: tek tenant'ın hatası diğerlerini engellemesin.
-                log.LogError(ex, "Dönem job tenant {Tenant} hatası.", tenantId);
-            }
+            // Per-tenant yalıtım (UreticiYalitimi): kendi context'i + koşu günlüğü (başarı VE hata);
+            // hata loglanır (hangi iş, hangi tenant) + metrik, sonraki tenant etkilenmez.
+            var sonuc = await UreticiYalitimi.DbAdimiAsync(options, tenantId, JobCalismaKaydedici.DonemFatura,
+                db => DonemFaturaUretici.RunAsync(db, tenantId, now, ct),
+                log,
+                s => s.Kesilen,
+                s => s.Atlananlar.Count == 0 ? null : string.Join(" | ", s.Atlananlar), ct);
+            if (sonuc is not null && (sonuc.Kesilen > 0 || sonuc.Atlananlar.Count > 0))
+                log.LogInformation("Dönem job tenant {Tenant}: {Kesilen} kesim, {Tahsilat} tahsilat; atlanan: {Atlanan}",
+                    tenantId, sonuc.Kesilen, sonuc.Tahsilat, string.Join(" | ", sonuc.Atlananlar));
         }
     }
 }
