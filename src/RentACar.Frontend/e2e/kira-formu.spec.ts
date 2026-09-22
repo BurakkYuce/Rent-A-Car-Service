@@ -495,6 +495,57 @@ test('sözleşme linki: oluştur → adres kendi kökünden; yeni sürüm onay i
   expect(yazmalar).toEqual([`POST /api/ui/v1/kiralar/${KIRA_ID}/paylasim`]);
 });
 
+test('faturalı kirada ek hizmet ekle/sil 400: mesaj gösterilir, seçim silinmez', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, AG_HATASI);
+  await sahteKiraApi(page, {
+    yazma: (route, istek) =>
+      istek.method() === 'DELETE'
+        ? problem(route, 400, 'dogrulama', 'Faturalanmış kiranın ek hizmeti silinemez.')
+        : problem(route, 400, 'dogrulama', 'Faturalanmış kiraya ek hizmet eklenemez.'),
+  });
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), (route) =>
+    route.fulfill({
+      json: {
+        ...DETAY,
+        ekHizmetler: [
+          {
+            id: '0b0e7c1a-7777-4aaa-8bbb-000000000007',
+            ekHizmetTanimId: TANIM_ID,
+            ad: 'Bebek koltuğu',
+            miktar: 1,
+            birimNetFiyat: 100,
+            kdvOrani: 0.2,
+            netTutar: 100,
+            kdvTutar: 20,
+            toplam: 120,
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=ekhizmet`);
+  const ekle = page.getByTestId('ek-hizmet-ekle');
+  await ekle.getByRole('combobox').click();
+  await page.getByRole('option', { name: /Bebek koltuğu/ }).click();
+  await ekle.getByRole('button', { name: 'Ekle' }).click();
+  await expect(page.locator('.rc-form-hatalari')).toContainText(
+    'Faturalanmış kiraya ek hizmet eklenemez.',
+  );
+  await expect(ekle.getByRole('combobox')).toHaveValue('Bebek koltuğu');
+
+  await page.getByRole('button', { name: 'Sil Bebek koltuğu' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }).click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Faturalanmış kiranın ek hizmeti silinemez.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Ek hizmet kalemleri' })).toContainText(
+    'Bebek koltuğu',
+  );
+  expect(hatalar).toEqual([]);
+});
+
 test("yazdırma rotası sunucunun PDF ucuna gider (SPA'ya yönlenmez)", async ({ page }) => {
   await page.route(`**/kiralar/${KIRA_ID}/pdf`, (route) =>
     route.fulfill({ contentType: 'text/plain', body: 'PDF' }),
