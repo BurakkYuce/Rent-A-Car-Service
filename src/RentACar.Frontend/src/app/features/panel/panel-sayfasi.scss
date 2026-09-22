@@ -1,0 +1,212 @@
+:host {
+  display: block;
+  padding: var(--rc-bosluk-4);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+.icerik {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: var(--rc-yazi-xl);
+}
+
+h2 {
+  margin: 0;
+  font-size: var(--rc-yazi-lg);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ust__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+}
+
+.hata-bandi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-hata-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+
+  p {
+    margin: 0;
+  }
+}
+
+// Dönüşler / Çıkışlar ----------------------------------------------------------------------------
+.dc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: var(--rc-bosluk-4);
+}
+
+.dc__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.dc__ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dc__cipler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-1);
+}
+
+.cip {
+  display: inline-flex;
+  gap: var(--rc-bosluk-1);
+  align-items: center;
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding: 0 var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin);
+  font-size: var(--rc-yazi-xs);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--rc-yuzey-vurgu);
+  }
+
+  &[aria-pressed='true'] {
+    border-color: var(--rc-vurgu-metin);
+    background-color: var(--rc-vurgu-zemin);
+    color: var(--rc-vurgu-metin);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+}
+
+// Gecikmiş kayıt var: hangi sekme açık olursa olsun Gecikmiş çipi acil görünür (Blazor CipSinifi).
+.cip--acil,
+.cip--acil[aria-pressed='true'] {
+  border-color: var(--rc-hata-kenar);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+}
+
+.kaydirma {
+  overflow-x: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+.tablo {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    height: var(--rc-tablo-satir);
+    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
+    border-bottom: 1px solid var(--rc-kenar);
+    text-align: start;
+    vertical-align: middle;
+  }
+
+  th {
+    background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+    font-weight: var(--rc-agirlik-kalin);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .sayi {
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+    white-space: nowrap;
+  }
+
+  .tarih,
+  .plaka {
+    white-space: nowrap;
+  }
+
+  .islem {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .bos {
+    color: var(--rc-metin-ikincil);
+  }
+}
+
+// Firma durum renkleri (Blazor FAZ-81): tanımsızsa şeffaf → vurgu yok.
+.tablo--donus tbody tr td:first-child {
+  box-shadow: inset 3px 0 0 var(--rc-kiraci-renk-bugun-donecekler, transparent);
+}
+
+.tablo--cikis tbody tr td:first-child {
+  box-shadow: inset 3px 0 0 var(--rc-kiraci-renk-bugun-cikacaklar, transparent);
+}
+
+// Vade uyarısı -----------------------------------------------------------------------------------
+.vade-uyarisi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  border: 1px solid var(--rc-uyari-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+// İskelet ----------------------------------------------------------------------------------------
+.iskelet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-4);
+}
+
+.iskelet__kart {
+  display: block;
+  height: 7rem;
+}
+
+.iskelet__liste {
+  display: block;
+  height: 12rem;
+}
