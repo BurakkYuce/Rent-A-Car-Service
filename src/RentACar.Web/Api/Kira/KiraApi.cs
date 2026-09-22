@@ -272,7 +272,7 @@ public static class KiraApi
     private static async Task<Results<Ok<KiraDetayYaniti>, ProblemHttpResult>> Detay(
         Guid id, HttpContext http, RentalService kiralar, CustomerService musteriler, VehicleService araclar,
         BranchService subeler, PersonelService personeller, RentalAddOnService ekler,
-        SozlesmePaylasimService paylasim, KurService kurlar, CancellationToken ct)
+        SozlesmePaylasimService paylasim, KurService kurlar, CashService kasa, CancellationToken ct)
     {
         var c = await KapsamliAsync(kiralar, id, ct);
         if (c is null) return Bulunamadi();
@@ -320,6 +320,15 @@ public static class KiraApi
             bar = new KiraPaylasimBari(Link(durum), musteri?.CepTel, musteri?.Email, $"Kira Sözleşmesi {c.SozlesmeNo}");
         }
 
+        // F4.4 sabit panel tahsilatı: deterministik anahtar SUNUCUDA (liste/pano ile aynı üretim). Yalnız
+        // FinanceWrite ve iptal olmayan kira (FinansApi iptal kiraya tahsilatı zaten reddeder).
+        TahsilatBilgisi? tahsilat = null;
+        if (yetki.Finans && c.Durum != RentalStatus.Iptal)
+        {
+            var sayilar = await kasa.GetRentalIslemSayilariAsync([c.Id], ct);
+            tahsilat = TahsilatVerisi(c.Id, c.MusteriId, c.Bakiye, c.Doviz, sayilar.GetValueOrDefault(c.Id));
+        }
+
         return TypedResults.Ok(new KiraDetayYaniti(
             KiraSozlesmesiDto.From(c),
             new KiraTarafDto(c.MusteriId, musteri?.DisplayName ?? "—"),
@@ -332,7 +341,8 @@ public static class KiraApi
             kalemler,
             doviz,
             bar,
-            yetki));
+            yetki,
+            tahsilat));
     }
 
     private static EkHizmetKalemiDto EkHizmetDto(RentalAddOn a)

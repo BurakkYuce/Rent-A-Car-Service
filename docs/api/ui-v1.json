@@ -3370,7 +3370,8 @@
           "ekHizmetler",
           "doviz",
           "paylasim",
-          "yetkiler"
+          "yetkiler",
+          "tahsilat"
         ],
         "type": "object",
         "properties": {
@@ -3446,6 +3447,16 @@
           },
           "yetkiler": {
             "$ref": "#/components/schemas/KiraYetkileri"
+          },
+          "tahsilat": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TahsilatBilgisi"
+              }
+            ]
           }
         }
       },

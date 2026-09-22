@@ -374,6 +374,68 @@ public sealed class UiFinansApiTests(WebFixture fx)
         Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
     }
 
+    // ------------------------------------------------------------ F4.4 SPA: kira detayındaki tahsilat anahtarı
+
+    private static async Task<JsonElement> DetayAsync(Oturum s, Guid kira)
+        => await Tamam(await s.C.GetAsync($"{V1}/kiralar/{kira}"));
+
+    /// <summary>
+    /// Sabit panel akışı (SPA): anahtar DETAYDAN okunur, başlıksız gönderilir. Aynı anahtarla ikinci gönderim
+    /// (çift tık / bayat ekran) 409; detay tazelenince YENİ anahtar gelir ve ikinci MEŞRU tahsilat yazılır.
+    /// Beklenenler elle: 300 − 100 = 200 kalan, sonra 200 tahsil → 0; iki kayıt.
+    /// </summary>
+    [Fact]
+    public async Task Detay_tahsilat_anahtari_bayatlar_tazelenince_ikinci_mesru_tahsilat_yazilir()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+
+        var t1 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        Assert.Equal(o.Musteri, t1.GetProperty("cariId").GetGuid());
+        Assert.Equal(o.Kira, t1.GetProperty("rentalId").GetGuid());
+        Assert.Equal("TRY", t1.GetProperty("doviz").GetString());
+        Assert.Equal(300m, t1.GetProperty("varsayilanTutar").GetDecimal());
+        var k1 = t1.GetProperty("anahtar").GetGuid();
+
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), anahtar: null));
+        // Aynı (artık bayat) anahtar: başlık yeni olsa da 409 — ikinci kayıt yok.
+        await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), YeniAnahtar()),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+
+        var t2 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        var k2 = t2.GetProperty("anahtar").GetGuid();
+        Assert.NotEqual(k1, k2);
+        Assert.Equal(200m, t2.GetProperty("varsayilanTutar").GetDecimal());
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 200m, tahsilatAnahtar: k2), anahtar: null));
+
+        Assert.Equal(2, await TahsilatSayisiAsync(o, o.Kira));
+        var kira = await KiraOkuAsync(o, o.Kira);
+        Assert.Equal(300m, kira.Tahsilat);
+        Assert.Equal(0m, kira.Bakiye);
+        // Bakiye 0'da da anahtar dolar (Blazor sabit paneli ön/fazla tahsilata açık); varsayılan tutar 0.
+        var t3 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        Assert.Equal(0m, t3.GetProperty("varsayilanTutar").GetDecimal());
+        Assert.NotEqual(k2, t3.GetProperty("anahtar").GetGuid());
+        await TumDefterDengeliAsync(o);
+    }
+
+    [Fact]
+    public async Task Detay_tahsilat_finans_izni_yoksa_ve_iptal_kirada_null()
+    {
+        var o = await OrtamKurAsync();
+        // Operatör (FinanceWrite yok): kira okunur, tahsilat verisi YOK.
+        var op = await GirisAsync(o, Kim.OperatorDuz);
+        var d = await DetayAsync(op, o.Kira);
+        Assert.False(d.GetProperty("yetkiler").GetProperty("finans").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, d.GetProperty("tahsilat").ValueKind);
+
+        // İptal kira (tahsilatsız → iptal edilebilir): finans iznine rağmen tahsilat verisi yok (uç da reddeder).
+        Assert.True(await OkuAsync(o, sp => sp.GetRequiredService<RentalService>().CancelAsync(o.Kira)));
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        Assert.Equal(JsonValueKind.Null, (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").ValueKind);
+    }
+
     // ------------------------------------------------------------ çok döviz
 
     [Fact]
