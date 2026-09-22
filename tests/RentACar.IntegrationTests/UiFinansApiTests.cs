@@ -455,7 +455,16 @@ public sealed class UiFinansApiTests(WebFixture fx)
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.Muhasebe);
         await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m), YeniAnahtar()));
-        await OkuAsync(o, sp => sp.GetRequiredService<RentalService>().CancelAsync(o.Kira));
+        // F4.1 adversarial M3: tahsilatlı kira artık servisten İPTAL EDİLEMEZ (önce iade). "İptal + tahsilat"
+        // yalnız ESKİ veride vardır → reddi doğrula, durumu eski kayıt benzetimi olarak doğrudan yaz.
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
+            () => OkuAsync(o, sp => sp.GetRequiredService<RentalService>().CancelAsync(o.Kira)));
+        await DbAsync(o, async db =>
+        {
+            var kira = await db.Rentals.SingleAsync(x => x.Id == o.Kira);
+            kira.Durum = RentalStatus.Iptal;
+            return await db.SaveChangesAsync();
+        });
 
         await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 50m), YeniAnahtar()), HttpStatusCode.BadRequest, "dogrulama", "kiraId");
         Assert.Equal(100m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);

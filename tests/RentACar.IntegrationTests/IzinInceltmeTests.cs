@@ -95,10 +95,11 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
 
         // Muhasebe tahsilatı girer ve ters kaydını atabilir (FinanceReverse matristen gelir).
         Guid islemId;
+        var cari = await TestCari.YeniAsync(host, tenant); // Muhasebe cari açamaz (OperationsWrite yok)
         using (var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
         {
             var cash = muh.ServiceProvider.GetRequiredService<CashService>();
-            islemId = await cash.CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 250m });
+            islemId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 250m });
             var tersId = await cash.ReverseAsync(islemId);
             Assert.NotEqual(Guid.Empty, tersId);
         }
