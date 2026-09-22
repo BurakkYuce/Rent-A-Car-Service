@@ -5036,7 +5036,10 @@
             "format": "uuid"
           },
           "ad": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "tip": {
             "type": "string"

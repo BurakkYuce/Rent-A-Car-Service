@@ -431,6 +431,7 @@ export type CeviriAnahtari =
   | 'kiraFormu.yuklenemedi'
   | 'kiraFormu.yukleniyor'
   | 'kiraFormuParite.ekHizmet.birimNet'
+  | 'kiraFormuParite.ekHizmet.diger'
   | 'kiraFormuParite.ekHizmet.katalogAlinamadi'
   | 'kiraFormuParite.ekHizmet.kdv'
   | 'kiraFormuParite.ekHizmet.kesildi'

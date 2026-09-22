@@ -2971,7 +2971,7 @@ export interface components {
     KiraMusteriOzeti: {
       /** Format: uuid */
       id: string;
-      ad: string;
+      ad: null | string;
       tip: string;
       cepTel: null | string;
       email: null | string;

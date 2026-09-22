@@ -711,7 +711,8 @@
       "tanimYok": "Tanımlı ek hizmet yok. Önce Ek Hizmet Tanımları'ndan satırları oluşturun.",
       "kesildi": "İlk {{sayi}} tanım gösteriliyor (toplam {{toplam}}).",
       "katalogAlinamadi": "Ek hizmet tanımları alınamadı.",
-      "yenidenDene": "Yeniden dene"
+      "yenidenDene": "Yeniden dene",
+      "diger": "Listede olmayan ek hizmet ekle (ada göre ara)"
     }
   }
 }

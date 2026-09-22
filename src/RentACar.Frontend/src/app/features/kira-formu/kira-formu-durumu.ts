@@ -96,6 +96,11 @@ const ONERI_LIMITI = 20;
 /** Öneri kutusuna yazarken sunucu araması gecikmesi (datalist `q` ile sunucuda süzülür). */
 const ONERI_GECIKMESI = 250;
 
+/** Katalog sunucuda kesildi mi (tanım sayısı > dönen satır)? Kesikse kalanlar sunucu aramasıyla eklenir. */
+export function katalogKesildi(k: KiraEkHizmetKatalogu): boolean {
+  return (sayiya(k.toplam) ?? 0) > k.ogeler.length;
+}
+
 /** Kayıtlı kiraya ek hizmet eklerken seçenek etiketi (Blazor: "Ad (birim net)"). */
 function ekHizmetEtiketi(x: EkHizmetKatalogOgesi, doviz: string): string {
   const fiyat = paraBicimle(sayiya(x.birimUcret), doviz);
@@ -257,7 +262,6 @@ export class KiraFormuDurumu {
   readonly personelKaynagi = this.yetkiliKaynak(sunucuSecimKaynagi('personel'));
   private readonly sunucuArac = sunucuSecimKaynagi('arac');
   private readonly sunucuEkHizmet = sunucuSecimKaynagi('ek-hizmet');
-  private readonly katalogOgeleri = computed(() => this.ekHizmetKatalogu.veri()?.ogeler ?? null);
   /** Müsait liste getirildiyse araç araması O LİSTEDE (Blazor: araç listesi müsaitlerle süzülür). */
   readonly aracKaynagi: SecimKaynagi<AracSecenegi> = (arama, limit) => {
     const liste = this.musait.veri();
@@ -271,20 +275,31 @@ export class KiraFormuDurumu {
     );
   };
   /**
-   * Ek hizmet tanımları (kayıtlı kiraya ekleme): katalog yüklendiyse ondan, etiket Blazor gibi "Ad (birim net)";
-   * yüklenemediyse F1.6 arama ucu. Sistem ücret kalemleri (SYS-*) manuel seçilemez (sunucu da reddeder).
+   * Ek hizmet tanımları (kayıtlı kiraya ekleme + yeni kirada katalog dışı ekleme): katalog TAMSA ondan (yerel
+   * arama), etiket Blazor gibi "Ad (birim net)". Katalog yüklenmediyse ya da KESİLDİYSE (toplam > satır — #262 L2:
+   * 200'den sonrası eklenemiyordu) F1.6 sunucu araması (`q`) — tüm tanımlarda arar; katalogdaki öğe yine fiyatlı
+   * etiketle. Sistem ücret kalemleri (SYS-*) manuel seçilemez (sunucu da reddeder).
    */
   readonly ekHizmetKaynagi: SecimKaynagi = (arama, limit) => {
     if (!this.operasyon()) return of([]);
-    const katalog = this.katalogOgeleri();
-    if (katalog === null) {
+    const katalog = this.ekHizmetKatalogu.veri() ?? null;
+    const doviz = this.kiraDovizi();
+    const katalogda = new Map((katalog?.ogeler ?? []).map((x) => [x.id, x]));
+    if (katalog === null || katalogKesildi(katalog)) {
       return this.sunucuEkHizmet(arama, limit).pipe(
-        map((liste) => liste.filter((x) => !sistemKalemiMi(x.kod))),
+        map((liste) =>
+          liste
+            .filter((x) => !sistemKalemiMi(x.kod))
+            .map((x) => {
+              const k = katalogda.get(x.id);
+              return { id: x.id, etiket: k ? ekHizmetEtiketi(k, doviz) : x.etiket };
+            }),
+        ),
       );
     }
     const anahtar = trAramaAnahtari(arama);
     return of(
-      katalog
+      katalog.ogeler
         .filter(
           (x) =>
             anahtar === '' ||
@@ -292,7 +307,7 @@ export class KiraFormuDurumu {
             trAramaAnahtari(x.kod).includes(anahtar),
         )
         .slice(0, limit)
-        .map((x) => ({ id: x.id, etiket: ekHizmetEtiketi(x, this.kiraDovizi()) })),
+        .map((x) => ({ id: x.id, etiket: ekHizmetEtiketi(x, doviz) })),
     );
   };
 

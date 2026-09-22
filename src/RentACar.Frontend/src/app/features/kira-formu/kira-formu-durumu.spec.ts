@@ -16,7 +16,19 @@ const DIGER_ARAC = '0b0e7c1a-3333-4aaa-8bbb-000000000009';
 const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
 const TANIM_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000006';
 
+const NAV_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000016';
+
 const bekle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const TAM_KATALOG = {
+  ogeler: [{ id: TANIM_ID, kod: 'BEBEK', ad: 'Bebek koltuğu', birimUcret: 75.5, kdvOrani: 0.1 }],
+  toplam: 1,
+};
+/** Testin değiştirebildiği katalog yanıtı (her testten önce tam kataloğa döner). */
+let katalogYaniti: { ogeler: typeof TAM_KATALOG.ogeler; toplam: number } = TAM_KATALOG;
+beforeEach(() => {
+  katalogYaniti = TAM_KATALOG;
+});
 
 const MUSAIT = [
   {
@@ -77,13 +89,13 @@ function sahteApi(yazma: (c: Cagri) => Observable<unknown>) {
         durum: 'Musait',
       });
     }
-    if (yol.endsWith('/ek-hizmet-katalogu')) {
-      return of({
-        ogeler: [
-          { id: TANIM_ID, kod: 'BEBEK', ad: 'Bebek koltuğu', birimUcret: 75.5, kdvOrani: 0.1 },
-        ],
-        toplam: 1,
-      });
+    if (yol.endsWith('/ek-hizmet-katalogu')) return of(katalogYaniti);
+    if (yol === '/api/ui/v1/secim/ek-hizmet') {
+      return of([
+        { id: TANIM_ID, etiket: 'Bebek koltuğu', kod: 'BEBEK' },
+        { id: NAV_ID, etiket: 'Navigasyon', kod: 'NAV' },
+        { id: 'sys-1', etiket: 'Genç sürücü', kod: 'SYS-GENC' },
+      ]);
     }
     if (/^\/api\/ui\/v1\/secim\/(musteri|arac)\//.test(yol)) {
       return throwError(() => sunucuHatasi(404, 'bulunamadi', 'Bulunamadı.'));
@@ -290,5 +302,16 @@ describe('KiraFormuDurumu (yeni kira)', () => {
     const { d } = await kur({});
     const liste = await firstValueFrom(d.ekHizmetKaynagi('bebek', 20));
     expect(liste).toEqual([{ id: TANIM_ID, etiket: 'Bebek koltuğu (75,50 ₺ net)' }]);
+  });
+  it('katalog KESİKSE (toplam > satır) ekleme kaynağı sunucuda arar (q); katalogdaki öğe fiyatlı, SYS yok', async () => {
+    katalogYaniti = { ...TAM_KATALOG, toplam: 206 };
+    const { d, cagrilar } = await kur({});
+    const liste = await firstValueFrom(d.ekHizmetKaynagi('nav', 20));
+    const arama = cagrilar.filter((c) => c.yol === '/api/ui/v1/secim/ek-hizmet').at(-1);
+    expect(arama?.secenek?.parametreler).toEqual({ q: 'nav', limit: 20 });
+    expect(liste).toEqual([
+      { id: TANIM_ID, etiket: 'Bebek koltuğu (75,50 ₺ net)' },
+      { id: NAV_ID, etiket: 'Navigasyon' },
+    ]);
   });
 });

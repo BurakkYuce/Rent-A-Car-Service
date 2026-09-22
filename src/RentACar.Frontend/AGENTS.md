@@ -135,15 +135,21 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   kanoniği siler — e2e yakaladı).
 - Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
 - Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
-- **F4.3b parite ekleri:** Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet` (TC kimlik HİÇ dönmez —
-  Blazor gibi "şifreli — cari kartında"; ehliyet/pasaport numarası YALNIZ sunucuda maskeli — son 4 hane; SPA düz
-  numara görmez, maske istemcide YAPILMAZ). Hızlı Giriş
-  "Ceza" rozeti ve kayıtlı kiradaki "Ek hizmet tutarı" detayın `toplamlar` alanından (sunucu toplar; SPA toplamaz).
-  `?musteriId=` / penceresiz `?varac=` etiketi `GET /secim/musteri/{id}` / `/secim/arac/{id}` ile çözülür (hata →
-  geçici etiket kalır; kayıt yalnız kimlikle). Ek hizmet matrisi `GET /kiralar/ek-hizmet-katalogu` (birim net +
-  KDV yalnız gösterim; satır tutarı `hesapla`'dan). Kaynak / özel kod datalist önerileri yazılanla `q` ile sunucuda
-  aranır (`oneriAramasi`, 250 ms). Paylaş barı (`rc-kf-paylas-bari`): hazır metin sunucudan (`paylasim.mesaj`),
-  link varsa kendi kökünden eklenir; bağlantılar `@shared/dis-baglantilar`.
+- **F4.3b parite ekleri:**
+  - Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet`. Müşteri PII'sinin TEK sunucu kuralı
+    `MusteriGorunumu` (özet + detay taraf adı + paylaşım barı + hazır mesaj): TC kimlik HİÇ dönmez (Blazor gibi
+    "şifreli — cari kartında"); ehliyet/pasaport numarası yalnız sunucuda maskeli (≥ 8 → son 4, 5–7 → son 2, ≤ 4
+    tamamen yıldız; maske istemcide YAPILMAZ); KVKK `Anonim*` bayrakları grubu boşaltır (`AnonimAd` → özette
+    `ad: null`, detayda "Anonim müşteri", mesajda "Sayın müşterimiz"; tel/e-posta paylaşım ön-doldurmasında da `null`).
+  - Hızlı Giriş "Ceza" rozeti ve kayıtlı kiradaki "Ek hizmet tutarı" detayın `toplamlar` alanından (sunucu toplar;
+    SPA toplamaz).
+  - `?musteriId=` / penceresiz `?varac=` etiketi `GET /secim/musteri/{id}` / `/secim/arac/{id}` ile çözülür (hata →
+    geçici etiket kalır; kayıt yalnız kimlikle).
+  - Ek hizmet matrisi `GET /kiralar/ek-hizmet-katalogu` (birim net + KDV yalnız gösterim; satır tutarı `hesapla`'dan).
+    Katalog kesikse (`toplam > ogeler`) listede olmayan tanım sunucu aramasıyla (`q`) eklenir.
+  - Kaynak / özel kod datalist önerileri yazılanla `q` ile sunucuda aranır (`oneriAramasi`, 250 ms).
+  - Paylaş barı (`rc-kf-paylas-bari`): hazır metin sunucudan (`paylasim.mesaj`), link varsa kendi kökünden eklenir;
+    bağlantılar `@shared/dis-baglantilar`.
 
 ## Tablo motoru (F3.5)
 
