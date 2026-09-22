@@ -204,14 +204,15 @@ public sealed record KiraToplamlari(decimal EkHizmetToplam, decimal CezaToplam);
 
 /// <summary>
 /// F4.3b — Müşteri sekmesinin salt-okunur cari özeti (<c>GET /kiralar/{id}/musteri-ozet</c>). <b>PII kuralı:</b>
-/// TC / ehliyet / pasaport numarası YALNIZ maskeli (son 4 hane; ≤ 4 karakter tamamen yıldız — Blazor
+/// TC kimlik numarası HİÇ dönmez — ne düz ne maskeli (Blazor paritesi: ekran "şifreli — cari kartında" der; KVKK en az
+/// veri). Ehliyet / pasaport numarası YALNIZ maskeli (son 4 hane; ≤ 4 karakter tamamen yıldız — Blazor
 /// <c>SekmeMusteri.Maske</c>); düz numara hiçbir alanda dönmez. İletişim/adres Blazor ekranıyla aynı (tam) — ancak
 /// cari kartında KVKK anonimleştirme bayrağı işaretliyse o grup boş döner (Anonim* bayrakları).
 /// </summary>
 public sealed record KiraMusteriOzeti(
     Guid Id, string Ad, string Tip,
     string? CepTel, string? Email,
-    string? TcKimlikMaskeli, string? EhliyetNoMaskeli, string? PasaportNoMaskeli,
+    string? EhliyetNoMaskeli, string? PasaportNoMaskeli,
     string? EhliyetSinifi, DateTimeOffset? EhliyetTarihi, string? EhliyetYeri, string? EhliyetUlke, string? PasaportYeri,
     string? Adres, string? Il, string? Ilce, string? MusteriTipi,
     decimal RiskLimiti, bool KaraListe, bool Uyari, string? UyariNedeni);

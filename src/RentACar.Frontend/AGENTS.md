@@ -135,8 +135,9 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   kanoniği siler — e2e yakaladı).
 - Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
 - Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
-- **F4.3b parite ekleri:** Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet` (kimlik/ehliyet/pasaport
-  numarası YALNIZ sunucuda maskeli — son 4 hane; SPA düz numara görmez, maske istemcide YAPILMAZ). Hızlı Giriş
+- **F4.3b parite ekleri:** Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet` (TC kimlik HİÇ dönmez —
+  Blazor gibi "şifreli — cari kartında"; ehliyet/pasaport numarası YALNIZ sunucuda maskeli — son 4 hane; SPA düz
+  numara görmez, maske istemcide YAPILMAZ). Hızlı Giriş
   "Ceza" rozeti ve kayıtlı kiradaki "Ek hizmet tutarı" detayın `toplamlar` alanından (sunucu toplar; SPA toplamaz).
   `?musteriId=` / penceresiz `?varac=` etiketi `GET /secim/musteri/{id}` / `/secim/arac/{id}` ile çözülür (hata →
   geçici etiket kalır; kayıt yalnız kimlikle). Ek hizmet matrisi `GET /kiralar/ek-hizmet-katalogu` (birim net +

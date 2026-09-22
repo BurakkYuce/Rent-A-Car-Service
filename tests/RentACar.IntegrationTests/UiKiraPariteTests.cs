@@ -212,14 +212,14 @@ public sealed class UiKiraPariteTests(WebFixture fx)
     [InlineData("AB", "**")]
     [InlineData("ABCD", "****")]
     [InlineData("ABCDE", "*BCDE")]
-    [InlineData("10000000146", "*******0146")]
+    [InlineData("B9876543", "****6543")]
     public void Maske_yalniz_son_dort_kisa_deger_tamamen_yildiz(string? girdi, string? beklenen)
         => Assert.Equal(beklenen, KiraApi.Maske(girdi));
 
     // ------------------------------------------------------------ müşteri özeti
 
     [Fact]
-    public async Task Musteri_ozeti_kimlik_belge_yalniz_maskeli_duz_pii_hicbir_yerde_donmez()
+    public async Task Musteri_ozeti_TC_hic_donmez_belge_yalniz_maskeli_duz_pii_hicbir_yerde_yok()
     {
         var o = await OrtamKurAsync();
         var admin = await GirisAsync(o, Kim.Admin);
@@ -235,11 +235,11 @@ public sealed class UiKiraPariteTests(WebFixture fx)
             Assert.Equal(musteri, j.GetProperty("id").GetGuid());
             Assert.Equal("Ayşe Kaya", S(j, "ad"));
             Assert.Equal("Bireysel", S(j, "tip"));
-            Assert.Equal("*******0146", S(j, "tcKimlikMaskeli"));
             Assert.Equal("****6543", S(j, "ehliyetNoMaskeli"));
             Assert.Equal("****4567", S(j, "pasaportNoMaskeli"));
-            // Düz numara yanıtın HİÇBİR yerinde yok (alan adı değişse bile yakalanır).
-            Assert.DoesNotContain(Tc, metin, StringComparison.Ordinal);
+            // TC HİÇBİR biçimde yok (#262 kararı — Blazor paritesi, KVKK en az veri): ne alan, ne düz, ne maskeli son 4.
+            TcHicbirBicimdeYok(j, metin);
+            // Belge numaraları düz hâliyle yanıtın HİÇBİR yerinde yok (alan adı değişse bile yakalanır).
             Assert.DoesNotContain(Ehliyet, metin, StringComparison.Ordinal);
             Assert.DoesNotContain(Pasaport, metin, StringComparison.Ordinal);
             // Blazor ekranıyla aynı salt-okunur alanlar.
@@ -261,9 +261,47 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         }
 
         // Detay ucu PII'yi hâlâ yalnız ad düzeyinde verir (F4.1 kararı değişmedi).
-        var (_, detayMetin) = await JsonMetin(await op.C.GetAsync($"{Kira}/{id}"));
-        Assert.DoesNotContain(Tc, detayMetin, StringComparison.Ordinal);
-        Assert.DoesNotContain("0146", detayMetin, StringComparison.Ordinal);
+        var (detay, detayMetin) = await JsonMetin(await op.C.GetAsync($"{Kira}/{id}"));
+        TcHicbirBicimdeYok(detay, detayMetin);
+    }
+
+    /// <summary>
+    /// TC'nin HİÇBİR biçimi yanıtta yok: düz numara metinde yok; TC/kimlik alanı yok; kimlik (GUID) ve plaka
+    /// dışındaki hiçbir metin değerinde son 4 hane ("0146") geçmiyor (maskeli biçim de yakalanır). GUID/plaka hariç
+    /// tutulur çünkü rastgele üretilirler — tesadüfi "0146" geçişi testi kararsız yapmasın.
+    /// </summary>
+    private static void TcHicbirBicimdeYok(JsonElement kok, string metin)
+    {
+        Assert.DoesNotContain(Tc, metin, StringComparison.Ordinal);
+        Assert.DoesNotContain("*0146", metin, StringComparison.Ordinal);
+        foreach (var (ad, deger) in MetinDegerleri(kok))
+        {
+            // "…Utc" alanları "tc" içerir → yalnız "tc" ile BAŞLAYAN ya da "kimlik" geçen alan adı TC alanı sayılır.
+            Assert.False(ad.StartsWith("tc", StringComparison.OrdinalIgnoreCase)
+                         || ad.Contains("kimlik", StringComparison.OrdinalIgnoreCase), $"TC alanı yanıtta: {ad}");
+            if (deger is null || Guid.TryParse(deger, out _) || ad is "plaka" or "etiket") continue;
+            Assert.False(deger.Contains("0146", StringComparison.Ordinal), $"TC son 4 hanesi '{ad}' alanında: {deger}");
+        }
+    }
+
+    private static IEnumerable<(string Ad, string? Deger)> MetinDegerleri(JsonElement e, string ad = "")
+    {
+        switch (e.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var p in e.EnumerateObject())
+                {
+                    yield return (p.Name, null);
+                    foreach (var x in MetinDegerleri(p.Value, p.Name)) yield return x;
+                }
+                break;
+            case JsonValueKind.Array:
+                foreach (var x in e.EnumerateArray().SelectMany(v => MetinDegerleri(v, ad))) yield return x;
+                break;
+            case JsonValueKind.String:
+                yield return (ad, e.GetString());
+                break;
+        }
     }
 
     [Fact]
@@ -273,7 +311,6 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         var admin = await GirisAsync(o, Kim.Admin);
         var musteri = await PiiliMusteriAsync(o, admin, m =>
         {
-            m.AnonimTc = true;
             m.AnonimBelge = true;
             m.AnonimTelefon = true;
             m.AnonimMail = true;
@@ -285,7 +322,7 @@ public sealed class UiKiraPariteTests(WebFixture fx)
 
         // KVKK anonimleştirme bayrakları: ilgili grup BOŞ döner (maskeli bile değil).
         var j = await Json(await op.C.GetAsync($"{Kira}/{id}/musteri-ozet"));
-        foreach (var alan in new[] { "tcKimlikMaskeli", "ehliyetNoMaskeli", "pasaportNoMaskeli", "cepTel", "email", "adres", "il", "ilce" })
+        foreach (var alan in new[] { "ehliyetNoMaskeli", "pasaportNoMaskeli", "cepTel", "email", "adres", "il", "ilce" })
             Assert.True(j.GetProperty(alan).ValueKind == JsonValueKind.Null, $"{alan} anonim bayrağına rağmen dolu: {j}");
         Assert.Equal("Ayşe Kaya", S(j, "ad"));
 

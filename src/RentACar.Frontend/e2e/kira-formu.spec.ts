@@ -180,14 +180,13 @@ const DETAY = {
   toplamlar: { ekHizmetToplam: 180, cezaToplam: 250 },
 };
 
-/** F4.3b müşteri özeti — kimlik/belge no sunucudan MASKELİ gelir (SPA düz numara görmez). */
+/** F4.3b müşteri özeti — TC hiç gelmez; ehliyet/pasaport no sunucudan MASKELİ (SPA düz numara görmez). */
 const MUSTERI_OZETI = {
   id: MUSTERI_ID,
   ad: 'Ayşe Yılmaz',
   tip: 'Bireysel',
   cepTel: '05321112233',
   email: 'ayse@ornek.test',
-  tcKimlikMaskeli: '*******0146',
   ehliyetNoMaskeli: '****6543',
   pasaportNoMaskeli: '****4567',
   ehliyetSinifi: 'B',
@@ -554,7 +553,7 @@ test("yazdırma rotası sunucunun PDF ucuna gider (SPA'ya yönlenmez)", async ({
   expect(new URL(page.url()).pathname.startsWith('/app/')).toBe(false);
 });
 
-test('müşteri sekmesi: cari özeti MASKELİ kimlik/belge, kara liste, risk limiti', async ({
+test('müşteri sekmesi: TC şifreli notu, belge no MASKELİ, kara liste, risk limiti', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page);
@@ -562,7 +561,7 @@ test('müşteri sekmesi: cari özeti MASKELİ kimlik/belge, kara liste, risk lim
   await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
   const panel = page.getByRole('tabpanel', { name: 'Müşteri' });
   const ozet = panel.getByTestId('musteri-ozeti');
-  await expect(ozet).toContainText('*******0146');
+  await expect(ozet.getByTestId('tc-kimlik')).toHaveText('***şifreli — cari kartında');
   await expect(ozet).toContainText('05321112233');
   await expect(panel).toContainText('****6543');
   await expect(panel).toContainText('****4567');
