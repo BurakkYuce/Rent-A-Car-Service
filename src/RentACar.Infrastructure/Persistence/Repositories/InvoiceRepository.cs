@@ -261,6 +261,11 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 // F4.1 adversarial M3: iptal ile kesim yarışı — iptal AYNI kilidi alıp açık fatura yokken
                 // iptal eder; kesim de kilit altında kiranın hâlâ iptal olmadığını doğrular.
                 await KiraKilitleri.IptalKirayaFaturaYokAsync(db, kb, ct);
+                // F4.1 adversarial N2: BASE faturanın tutarı servis tarafından kilit DIŞINDA hesaplandı. Bu arada
+                // ek hizmet eklendi/silindi ya da dönüş bedeli yazıldıysa tutar bayattır → fatura sözleşmeden sapardı
+                // (P17: fatura 420 / sözleşme 360 — fazla faturalama). Kilit altında aynı formülle yeniden hesapla.
+                if (invoice.RentalId is Guid bazKira)
+                    await KiraKilitleri.BazFaturaGuncelMiAsync(db, bazKira, invoice.GenelToplam, ct);
                 if (invoice.RentalId is Guid rid &&
                     await db.Invoices.AsNoTracking().AnyAsync(i => i.RentalId == rid || i.KaynakKiraId == rid, ct))
                     throw new ValidationException("Kira bu sırada faturalandı (eşzamanlı istek) — kalan tutar için 'Fatura Kes' fark yolunu kullanın.");
