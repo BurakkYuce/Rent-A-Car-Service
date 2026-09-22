@@ -18,7 +18,6 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 
 import {
   istekBaglami,
-  MUKERRER_BASLIGI,
   MUKERRERDE_YENILE,
   SESSIZ,
   TEKRARLANDI,
@@ -150,7 +149,7 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
         yenile?.();
         if (!sessiz) {
           toast.bilgi(yenile ? `${detay} ${t('geriBildirim.mukerrerYenilendi')}` : detay, {
-            baslik: baglam.get(MUKERRER_BASLIGI) ?? t('geriBildirim.mukerrerBaslik'),
+            baslik: t('geriBildirim.mukerrerBaslik'),
           });
         }
         break;

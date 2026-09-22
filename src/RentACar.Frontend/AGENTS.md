@@ -129,7 +129,9 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   Formu sıfırlarken YALNIZ `formuSifirla` (ayna değerleriyle birlikte; düz `reset` aynayı null'layıp
   kanoniği siler — e2e yakaladı).
 - Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
-- Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
+- Sabit yan paneldeki finans paneli (F4.4) `finans-paneli/`: tembel parça (`rc-kira-finans-yuvasi` dinamik
+  `import()`; `@defer` ilk pakete ~7 kB defer çalışma zamanı ekliyordu), durum/eylemler `KiraFinansDurumu`'nda.
+  Para kuralları `docs/api/idempotency-envanteri.md` "SPA uygulaması" (tahsilat satır kopyası, sessiz 409).
 
 ## Tablo motoru (F3.5)
 

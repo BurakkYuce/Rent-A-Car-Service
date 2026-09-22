@@ -161,6 +161,18 @@ Servis düzeyinde (Blazor da kapsanır):
   denetiminden geçer; aynı başlıkla `tahsilatAnahtar`'SIZ yeniden deneme YENİ tahsilat yazar. İstemci bir
   tahsilatı hangi anahtar kümesiyle gönderdiyse yeniden denemeyi de BİREBİR aynı gövdeyle yapar.
 
+**SPA uygulaması — kira formu sabit paneli (F4.4, `features/kira-formu/finans-paneli/`):**
+- `tahsilatAnahtar`'ın kaynağı kira detayıdır: `GET kiralar/{id}` → `tahsilat` (`TahsilatBilgisi`; liste/pano ile
+  aynı üretim; FinanceWrite + iptal olmayan kira; bakiye ≤ 0'da da dolar). Tahsilat isteği başlıksız gider.
+- Form bir **satır kopyası** tutar (`TahsilatKopyasi`): boştaki form her yeni detayla kopyayı tazeler; kullanıcı
+  formu doldurduysa ya da gönderim SONUÇLANMADIYSA (ağ/5xx/oturum/doğrulama) kopya donar ve yeniden deneme aynı
+  anahtarla gider (anahtar sessizce yenisiyle ya da anahtarsızla değiştirilmez). 2xx ya da 409 `mukerrer`
+  sonrası düğme yeni detay gelene dek kapalıdır; gelen detayın anahtarı alınır (ikinci meşru tahsilat).
+- Bayat anahtarın 409'u ("kira kaydı değişmiş") HİÇBİR ŞEY yazmaz: istek `sessiz` gider, kayıt yeniden yüklenir,
+  form içinde nötr uyarı + sunucu `detail`'ı gösterilir ("Mükerrer işlem" toast'u parayı kaydedildi sandırır).
+- Ödeme, depozito al/irat, dış hizmet: işlem başına `Idempotency-Key` (`formGonderimi`/`GonderimKilidi`).
+  Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
+
 ## Açık işler
 
 - **LOW-2 (e-Fatura hayalet gönderimi):** dönem faturası yarışında kaybeden istek `eInvoice.SendAsync`'i (`InvoiceService.cs:353`) çağırıyor. Bu çağrı, `PostDonemAsync` mevcut id'yi dönmeden **önce** yapılıyor. Stub bugün `false` döndüğü için etkisi yok. Gerçek GİB bağlanınca yazılmayan bir fatura için ETTN alınır. **Gerçek e-Fatura açılmadan önce düzeltilmeli:** gönderimi commit'ten sonraya taşı ya da yalnız yazılan faturada yap. Aynı desen kira/fark faturası yarışında da (`CreateFromRentalAsync` / `PostFarkFaturasiAsync`) geçerli.
