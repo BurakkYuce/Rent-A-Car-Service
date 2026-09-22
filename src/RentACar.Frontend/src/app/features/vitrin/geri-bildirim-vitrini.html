@@ -87,4 +87,15 @@
       }
     </div>
   </section>
+
+  <section class="kart" aria-labelledby="vitrin-bant-baslik">
+    <h2 id="vitrin-bant-baslik">{{ 'vitrin.bantBaslik' | transloco }}</h2>
+    <div class="dugmeler">
+      @for (tur of bantTurleri; track tur) {
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="bantGoster(tur)">
+          {{ 'geriBildirim.durum.' + tur | transloco }}
+        </button>
+      }
+    </div>
+  </section>
 </div>

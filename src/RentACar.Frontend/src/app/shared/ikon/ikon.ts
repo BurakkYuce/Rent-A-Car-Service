@@ -4,10 +4,31 @@ import {
   computed,
   inject,
   input,
+  PendingTasks,
+  signal,
   ViewEncapsulation,
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { IKONLAR, type IkonAdi } from './ikon-kaydi';
+import type { IkonAdi } from './ikon-kaydi';
+
+/**
+ * SVG kaydı TEMBEL parça (F3.7 paket bütçesi): ~10 kB'lık `ikon-kaydi.ts` ilk pakete girmez, ilk
+ * `<rc-ikon>` çizilince bir kez yüklenir. O ana kadar ikon kutusu boyutunu korur (kayma yok), boş kalır.
+ * Yükleme `PendingTasks`'e kayıtlı: `whenStable()` (birim test) SVG'yi bekler. Parça yüklenemezse
+ * (yayın arası) bir sonraki ikon yeniden dener.
+ */
+const kayit = signal<Readonly<Record<IkonAdi, string>> | null>(null);
+let yukleme: Promise<void> | null = null;
+
+function kaydiYukle(): Promise<void> {
+  yukleme ??= import('./ikon-kaydi').then(
+    (m) => kayit.set(m.IKONLAR),
+    () => {
+      yukleme = null;
+    },
+  );
+  return yukleme;
+}
 
 /** Kanonik ikon boyutları (px). Yoğun arayüzde varsayılan 16. */
 export const IKON_BOYUTU = { yogun: 12, kucuk: 14, normal: 16, orta: 20, buyuk: 24 } as const;
@@ -72,7 +93,12 @@ export class Ikon {
     return typeof deger === 'number' ? `${deger}px` : deger;
   });
 
-  protected readonly svg = computed((): SafeHtml =>
-    this.sanitizer.bypassSecurityTrustHtml(IKONLAR[this.ad()]),
-  );
+  protected readonly svg = computed((): SafeHtml | '' => {
+    const ikonlar = kayit();
+    return ikonlar ? this.sanitizer.bypassSecurityTrustHtml(ikonlar[this.ad()]) : '';
+  });
+
+  constructor() {
+    if (kayit() === null) void kaydiYukle().finally(inject(PendingTasks).add());
+  }
 }
