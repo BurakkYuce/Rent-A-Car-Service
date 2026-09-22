@@ -22,6 +22,12 @@ export type MenuYaniti = Semalar['MenuYaniti'];
 export type IstemciHataIstegi = Semalar['IstemciHataIstegi'];
 export type SecimOgesi = Semalar['SecimOgesi'];
 
+/** `GET /api/ui/v1/panel/ozet` (F4.1): KPI, vade, kovalı dönüş/çıkış, finans (yalnız ViewReports'ta dolu). */
+export type PanelOzetiYaniti = Semalar['PanelOzetiYaniti'];
+export type PanelDonusSatiri = Semalar['PanelDonusSatiri'];
+export type PanelCikisSatiri = Semalar['PanelCikisSatiri'];
+export type PanelFinans = Semalar['PanelFinans'];
+
 type SecimYolu = Extract<keyof paths, `/api/ui/v1/secim/${string}`>;
 /** F1.6 typeahead uçları: `musteri`, `arac`, `lokasyon`, … (sözleşmeden türetilir). */
 export type SecimUcu = SecimYolu extends `/api/ui/v1/secim/${infer U}` ? U : never;
