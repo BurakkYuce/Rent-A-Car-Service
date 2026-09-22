@@ -188,6 +188,8 @@ export class KiraListesi {
 
   // ---- satır işlemleri
   protected readonly tahsilSatiri = signal<KiraListeSatiri | null>(null);
+  /** Yeni anahtarı beklenen açık tahsil panelinin kirası (3. tur M-A). */
+  private anahtarBekleyen: string | null = null;
   private readonly tahsilPaneli = viewChild(TahsilPaneli);
   /** Tahsilat isteği uçarken başka satır açılamaz (uçan istek iptal edilip sonucu kaybolmasın). */
   protected readonly tahsilSuruyor = computed(() => this.tahsilPaneli()?.gonderiliyor() ?? false);
@@ -230,6 +232,15 @@ export class KiraListesi {
       const durum = this.store.liste.durum();
       if (acik === null || durum.tur !== 'hazir' || this.tahsilSuruyor()) return;
       const guncel = durum.veri.kayitlar.find((r) => r.id === acik.id);
+      // M-A: "başka tahsilat yazıldı" sonrası beklenen tazeleme → panel AÇIK kalır, güncel satırı (yeni anahtar)
+      // alır; yazılan tutar panelde korunur.
+      if (this.anahtarBekleyen === acik.id) {
+        this.anahtarBekleyen = null;
+        if (guncel?.tahsilat) {
+          untracked(() => this.tahsilSatiri.set(guncel));
+          return;
+        }
+      }
       if (guncel?.tahsilat && guncel.tahsilat.anahtar === acik.tahsilat?.anahtar) return;
       untracked(() => {
         this.tahsilSatiri.set(null);
@@ -331,6 +342,12 @@ export class KiraListesi {
   protected tahsilKapat(): void {
     if (this.tahsilSuruyor()) return;
     this.tahsilSatiri.set(null);
+  }
+
+  /** M-A: panel açık kalır; liste yeniden yüklenince açık satır güncel hâliyle (yeni anahtar) değişir. */
+  protected tahsilAnahtariniTazele(): void {
+    this.anahtarBekleyen = this.tahsilSatiri()?.id ?? null;
+    this.yenile();
   }
 
   /** 2xx ya da 409 `mukerrer`: panel kapanır, liste (yeni anahtarla) yeniden yüklenir. Yeniden gönderim YOK. */

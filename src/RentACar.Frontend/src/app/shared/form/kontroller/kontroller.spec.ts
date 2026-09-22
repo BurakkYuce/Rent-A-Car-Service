@@ -225,9 +225,9 @@ describe('CVA kontroller', () => {
     expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
   });
 
-  it('para: fare/dokunuş odağında TÜMÜ SEÇİLMEZ (imleç kullanıcının yerinde); klavye odağında seçilir', async () => {
+  it('para: KULLANICININ YAZDIĞI tutarda fare odağı seçmez (imleç yerinde); klavye odağı seçer', async () => {
     const { girdi, yaz, birak } = await kur();
-    await yaz('tutar', '1.234,56');
+    await yaz('tutar', '1.234,56'); // kullanıcı yazdı
     await birak('tutar');
     const g = girdi('tutar');
     g.dispatchEvent(new Event('pointerdown'));
@@ -237,6 +237,30 @@ describe('CVA kontroller', () => {
     expect(g.selectionEnd! - g.selectionStart!).toBe(0); // seçim yok
     await birak('tutar');
     // Sonraki klavye (Tab) odağı yine tümünü seçer — bayrak tek seferliktir.
+    g.select();
+    g.dispatchEvent(new Event('focus'));
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
+  it('para (3. tur M-B): DOKUNULMAMIŞ ön-dolu tutarda fare odağı da TÜMÜNÜ seçer (sola tıklayıp yazan sona/başa eklemez)', async () => {
+    const { fixture, form, girdi } = await kur();
+    form.controls.tutar.setValue('2600'); // programatik ön-doldurma
+    await fixture.whenStable();
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.setSelectionRange(0, 0); // metnin soluna tık
+    g.dispatchEvent(new Event('focus'));
+    expect(g.value).toBe('2600,00');
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
+  it('para (Q1): basış odak üretmeden iptal edilirse (dokunmatik kaydırma) sonraki Tab odağı tümünü seçer', async () => {
+    const { girdi, yaz, birak } = await kur();
+    await yaz('tutar', '1.234,56');
+    await birak('tutar');
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.dispatchEvent(new Event('pointercancel'));
     g.select();
     g.dispatchEvent(new Event('focus'));
     expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);

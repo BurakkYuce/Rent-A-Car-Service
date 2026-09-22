@@ -170,6 +170,11 @@ export class TahsilPaneli {
   readonly kapat = output<void>();
   /** 2xx ya da 409 `mukerrer`: işlem sonuçlandı, liste yeniden yüklenmeli (yeni anahtar). */
   readonly sonuclandi = output<void>();
+  /**
+   * 3. tur M-A: 409 + `mevcut` İÇERİĞİ FARKLI — başka bir tahsilat yazılmış, bu panelin tutarı YAZILMADI. Panel
+   * AÇIK KALIR (tutar korunur); sayfa listeyi yeniden yükleyip satırın YENİ anahtarını panele verir.
+   */
+  readonly anahtarTazele = output<void>();
 
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
@@ -231,16 +236,20 @@ export class TahsilPaneli {
         this.form.controls.hesapId.setValue(null);
       }
     });
-    // Satır değişince (başka satırdan "Tahsil Et") form o satırın önerisiyle sıfırlanır.
+    // Satır değişince (başka satırdan "Tahsil Et") form o satırın önerisiyle sıfırlanır. AYNI kiranın güncel
+    // satırı (M-A: yeni anahtar) gelince form KORUNUR — kullanıcının yazdığı yazılmamış tutar kaybolmaz.
+    let sonKira: string | null = null;
     effect(() => {
       const s = this.satir();
-      untracked(() =>
+      untracked(() => {
+        if (s.id === sonKira) return;
+        sonKira = s.id;
         this.form.reset({
           tutar: invariantOndalik(s.tahsilat?.varsayilanTutar, { kesir: 2 }),
           hesap: 'Kasa',
           hesapId: null,
-        }),
-      );
+        });
+      });
     });
     // Açılışta odak önerilen tutarda ve metin SEÇİLİ (para girdisinin varsayılanı): doğrudan yazılan tutar önerinin yerine
     // geçer, sonuna eklenmez (adversarial F3: "1250,50" + "90" → "1250,5090" → 1 kuruş fazla tahsilat).
@@ -272,13 +281,20 @@ export class TahsilPaneli {
           // 409 mukerrer: tekrar gönderilmez; satır (liste) yeniden yüklenir. Sunucu anahtarı yeniden hesaplar
           // (F4.4a): 409 çoğunlukla "kayıt bu ekran açıldıktan sonra değişti" demektir — toast sunucunun
           // `detail`'ını "Kira kaydı değişmiş" başlığıyla gösterir, "mükerrer işlem kaydedildi" izlenimi vermez.
+          // Yeniden yükleme `hata`'da (mevcut/ayniIcerik bilinince) yapılır: kapat + yükle ya da açık tut + yeni
+          // anahtar. Buradaki boş geri çağırma interceptor'ın "Kayıt yeniden yüklendi." ekini korur.
           context: istekBaglami({
-            mukerrerdeYenile: () => this.sonuclandi.emit(),
+            mukerrerdeYenile: () => undefined,
             mukerrerBasligi: this.t('kiraListesi.tahsil.kayitDegismis'),
           }),
         }),
       {
         deterministikAnahtar: tahsilat.anahtar,
+        hata: (h) => {
+          if (h.kod !== 'mukerrer') return;
+          if (h.mevcut && !h.mevcut.ayniIcerik) this.anahtarTazele.emit();
+          else this.sonuclandi.emit();
+        },
         basarili: () => {
           this.toast.basari(
             this.t('kiraListesi.tahsil.basarili', {

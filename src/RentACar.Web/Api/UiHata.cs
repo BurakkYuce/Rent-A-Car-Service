@@ -112,6 +112,7 @@ public static class UiHata
             ek["mevcut"] = new Dictionary<string, object?>
             {
                 ["id"] = mevcut.Id, ["belgeNo"] = mevcut.BelgeNo, ["tutar"] = mevcut.Tutar, ["doviz"] = mevcut.Doviz,
+                ["ayniIcerik"] = mevcut.AyniIcerik,
             };
         return TypedResults.Problem(detail: detay, statusCode: status, title: baslik, extensions: ek);
     }

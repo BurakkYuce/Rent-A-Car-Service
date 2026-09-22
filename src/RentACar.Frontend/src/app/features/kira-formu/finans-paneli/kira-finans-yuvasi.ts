@@ -45,6 +45,11 @@ export class KiraFinansYuvasi {
     return this.panel?.instance.kirliMi() ?? false;
   }
 
+  /** Sonucu bilinmeyen para gönderimi (terk sorusu özel metinle — 3. tur). */
+  sonucuBilinmeyenVar(): boolean {
+    return this.panel?.instance.sonucuBilinmeyenVar() ?? false;
+  }
+
   constructor() {
     let iptal = false;
     inject(DestroyRef).onDestroy(() => (iptal = true));

@@ -46,10 +46,26 @@ describe('apiHatasinaCevir', () => {
         status: 409,
         detail: 'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı.',
         kod: 'mukerrer',
-        mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
+        mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY', ayniIcerik: true },
       }),
     );
-    expect(hata.mevcut).toEqual({ id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' });
+    expect(hata.mevcut).toEqual({
+      id: 'c1',
+      belgeNo: 'T-1',
+      tutar: 500,
+      doviz: 'TRY',
+      ayniIcerik: true,
+    });
+    // ayniIcerik yok/biçimsiz → güvenli taraf: false (form silinmez, "YAZILMADI" uyarısı).
+    const eksik = apiHatasinaCevir(
+      problem(409, {
+        status: 409,
+        detail: 'x',
+        kod: 'mukerrer',
+        mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY', ayniIcerik: 'evet' },
+      }),
+    );
+    expect(eksik.mevcut?.ayniIcerik).toBe(false);
     const bozuk = apiHatasinaCevir(
       problem(409, { status: 409, detail: 'x', kod: 'mukerrer', mevcut: { id: 1 } }),
     );

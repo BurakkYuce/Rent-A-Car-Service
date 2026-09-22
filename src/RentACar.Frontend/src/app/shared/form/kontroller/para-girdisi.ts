@@ -28,6 +28,9 @@ import { AyristiranKontrol, kontrolSaglayicilari } from './temel-kontrol';
  * hatası olur (sessiz yuvarlama niyet dışı tutar gönderirdi). Sondaki sıfırlar (`1,500`) sorun değildir.
  * PROGRAMATİK değer (sunucudan `1250.5000`, `writeValue`) eskisi gibi yarım kuruş sıfırdan uzağa yuvarlanır.
  */
+/** Basıştan sonra gelen odağın işaretçi (fare/dokunuş) odağı sayıldığı süre. */
+const ISARETCI_ODAK_PENCERESI_MS = 1000;
+
 @Component({
   selector: 'rc-para-girdisi',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +50,7 @@ import { AyristiranKontrol, kontrolSaglayicilari } from './temel-kontrol';
         [attr.aria-describedby]="ariaAciklayan()"
         [attr.aria-required]="ariaZorunlu()"
         (pointerdown)="isaretciyleBasildi($event)"
+        (pointercancel)="isaretciIptal()"
         (focus)="odaklandi($event)"
         (input)="yazildi($event)"
         (blur)="birakildi()"
@@ -69,16 +73,30 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
     const kanonik = invariantOndalik(deger, { kesir: this.kesir() });
     this.metin.set(ondalikBicimle(kanonik, this.kesir()));
     this.hataAyarla(null);
+    this.kullaniciYazdi = false; // programatik değer (ön-doldurma, sıfırlama): dokunulmamış sayılır
   }
 
-  /** Odak fare/dokunuşla mı geliyor (adversarial L1): o zaman imleç kullanıcının tıkladığı yerde kalır. */
-  private isaretciOdagi = false;
+  /**
+   * Kullanıcı bu değere yazdı mı. Yazmadıysa değer ön-doldurma/programatiktir: fareyle odakta da TAMAMI seçilir
+   * (3. tur M-B: sağa yaslı ön-dolu kutunun soluna tıklayıp "500" yazan kullanıcı "5002600,00" gönderiyordu).
+   */
+  private kullaniciYazdi = false;
+  /**
+   * Son işaretçi basışının zamanı (ms). Odak bu pencere içinde gelirse fare/dokunuş odağıdır (adversarial L1).
+   * Zaman penceresi: dokunuşta odak `pointerup`'tan SONRA gelir; basış odak üretmezse (kaydırma — Q1) bayrak
+   * kendiliğinden düşer, `pointercancel`/`blur` da sıfırlar.
+   */
+  private isaretciZamani: number | null = null;
 
   protected isaretciyleBasildi(olay: PointerEvent): void {
     const girdi = olay.target;
     if (girdi instanceof HTMLInputElement && girdi.ownerDocument.activeElement !== girdi) {
-      this.isaretciOdagi = true;
+      this.isaretciZamani = performance.now();
     }
+  }
+
+  protected isaretciIptal(): void {
+    this.isaretciZamani = null;
   }
 
   /**
@@ -88,12 +106,15 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
    * Değer DOM'a EŞZAMANLI yazılır: yalnız sinyale yazılsaydı sonraki çizimde değer değişir, seçim çöker ve
    * yazılan sona eklenirdi ("2.600,00" + "500" → "2600,00500"; F4.4 e2e'de ölçüldü). Aynı değerin sonradan
    * yeniden yazılması seçimi korur. Sona eklenmiş fazla hane yine de sessizce yuvarlanmaz (`paraFazlaHane`).
-   * **Fare/dokunuşla odakta seçilmez** (adversarial L1): imleci bilerek bir rakamın yanına koyan kullanıcı oraya
-   * yazabilmeli; düzenleme yazımı yine eşzamanlı yazılır, tarayıcı imleci tıklanan noktaya yerleştirir.
+   * **Fare/dokunuş odağı** (adversarial L1 + 3. tur M-B): değer kullanıcının YAZDIĞI bir tutarsa seçilmez — imleci
+   * bilerek bir rakamın yanına koyan kullanıcı oraya yazabilmeli (tarayıcı imleci tıklanan noktaya koyar). Değer
+   * DOKUNULMAMIŞ ön-doldurma/programatikse fare odağında da tamamı seçilir. Alan zaten odaklıyken ikinci tık
+   * odak üretmez; imleç tıklanan yerde kalır.
    */
   protected odaklandi(olay: Event): void {
-    const isaretci = this.isaretciOdagi;
-    this.isaretciOdagi = false;
+    const zaman = this.isaretciZamani;
+    const isaretci = zaman !== null && performance.now() - zaman < ISARETCI_ODAK_PENCERESI_MS;
+    this.isaretciZamani = null;
     if (this.ayristirmaHatasi() !== null) return;
     const kanonik = invariantOndalik(this.deger(), { kesir: this.kesir() });
     const duzenleme = ondalikDuzenlemeMetni(kanonik, this.kesir());
@@ -101,11 +122,18 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
     const girdi = olay.target;
     if (girdi instanceof HTMLInputElement && duzenleme !== '') {
       if (girdi.value !== duzenleme) girdi.value = duzenleme;
-      if (!isaretci) girdi.select();
+      if (!isaretci || !this.kullaniciYazdi) {
+        girdi.select();
+        // Fare odağında basış bırakılınca tarayıcı seçimi imlece çevirir; bir kezlik bırakma olayı engellenir.
+        if (isaretci) {
+          girdi.addEventListener('mouseup', (e) => e.preventDefault(), { once: true });
+        }
+      }
     }
   }
 
   protected yazildi(olay: Event): void {
+    this.kullaniciYazdi = true;
     const yazilan = (olay.target as HTMLInputElement).value;
     this.metin.set(yazilan);
     const secenek = { kesir: this.kesir(), negatif: this.negatif() };
@@ -122,7 +150,7 @@ export class ParaGirdisi extends AyristiranKontrol<string | number> {
   }
 
   protected birakildi(): void {
-    this.isaretciOdagi = false;
+    this.isaretciZamani = null;
     if (this.ayristirmaHatasi() === null) {
       const kanonik = invariantOndalik(this.deger(), { kesir: this.kesir() });
       this.metin.set(ondalikBicimle(kanonik, this.kesir()));

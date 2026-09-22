@@ -283,6 +283,20 @@ export class KiraFinansDurumu {
    * Sayfa terk koruması (adversarial L3): panel formlarından biri kirli ya da bir para gönderimi SONUÇLANMADI
    * (donmuş tahsilat kopyası / bekleyen `Idempotency-Key`) — sayfadan ayrılınca anahtar sessizce kaybolmasın.
    */
+  /** Sonucu bilinmeyen (ağ/5xx/oturum sonrası sonuçlanmamış) para gönderimi var mı — terk sorusu özel metinle. */
+  sonucuBilinmeyenVar(): boolean {
+    return (
+      this.nakit.kopya.sonuclanmamis ||
+      this.kart.kopya.sonuclanmamis ||
+      [
+        this.odemeGonderimi,
+        this.depozitoAlGonderimi,
+        this.iratGonderimi,
+        this.disHizmetGonderimi,
+      ].some((g) => g.kilit.bekleyenAnahtar !== null)
+    );
+  }
+
   kirliMi(): boolean {
     const formlar = [
       this.nakit.form,
@@ -293,18 +307,7 @@ export class KiraFinansDurumu {
       this.faturaFormu,
       this.disHizmetFormu,
     ];
-    const bekleyen = [
-      this.odemeGonderimi,
-      this.depozitoAlGonderimi,
-      this.iratGonderimi,
-      this.disHizmetGonderimi,
-    ].some((g) => g.kilit.bekleyenAnahtar !== null);
-    return (
-      formlar.some((f) => f.dirty) ||
-      bekleyen ||
-      this.nakit.kopya.sonuclanmamis ||
-      this.kart.kopya.sonuclanmamis
-    );
+    return formlar.some((f) => f.dirty) || this.sonucuBilinmeyenVar();
   }
 
   // ─── işlemler ──────────────────────────────────────────────────────────────────────────────
@@ -343,12 +346,15 @@ export class KiraFinansDurumu {
         },
         hata: (h) => {
           if (h.kod !== 'mukerrer') return;
-          // HIGH-1: tutar TEMİZLENİR ve yeniden ön-doldurulmaz. `mevcut` (işlem zaten yazıldı — kaybolan
-          // yanıt): form tamamen temizlenir; bilgi interceptor'da ("İşlem zaten kaydedildi" + No). Yoksa
-          // (bayat anahtar): kullanıcı güncel bakiyeyi görüp tutarı bilinçli yeniden girer.
+          // Otomatik yeniden gönderim YOK; kayıt yeniden yüklenir (yeni anahtar), ön-doldurma kapanır.
+          // - mevcut + ayniIcerik (HIGH-1, kaybolan yanıttan sonraki kendi tekrarı): "zaten kaydedildi", form temizlenir.
+          // - mevcut, içerik FARKLI (3. tur M-A: iki sekme/iki kullanıcı ya da tutarı değişmiş tekrar): bu tutar
+          //   YAZILMADI — form SİLİNMEZ (tutar dahil), uyarı interceptor'da; kullanıcı bakiyeye bakıp bilinçli gönderir.
+          // - mevcut yok (bayat anahtar): tutar temizlenir, kullanıcı güncel bakiyeye göre yeniden girer.
           tf.kopya.sonuclandi(false);
-          if (h.mevcut) tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
-          else tf.form.controls.tutar.setValue(null);
+          if (h.mevcut?.ayniIcerik)
+            tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), false));
+          else if (!h.mevcut) tf.form.controls.tutar.setValue(null);
         },
       },
     );
