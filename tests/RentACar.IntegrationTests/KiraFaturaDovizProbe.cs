@@ -114,7 +114,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR"));
         await invoices.CreateFromRentalAsync(rentalId);
         Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari));
