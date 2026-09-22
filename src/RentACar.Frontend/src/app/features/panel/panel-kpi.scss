@@ -1,0 +1,125 @@
+:host {
+  display: block;
+}
+
+// KPI kartları ------------------------------------------------------------------------------------
+.kpi-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--rc-bosluk-3);
+}
+
+.kpi-hucre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.kpi {
+  --kpi-renk: var(--rc-vurgu);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-inline-start: 4px solid var(--kpi-renk);
+  border-radius: var(--rc-yaricap-lg);
+  background-color: var(--rc-yuzey);
+  box-shadow: var(--rc-golge-1);
+
+  &[data-kod='musait'] {
+    --kpi-renk: var(--rc-basari-metin);
+  }
+  &[data-kod='serviste'] {
+    --kpi-renk: var(--rc-hata-metin);
+  }
+  &[data-kod='rezervasyon'] {
+    --kpi-renk: var(--rc-uyari-metin);
+  }
+}
+
+.kpi__etiket {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.kpi__sayi {
+  font-size: var(--rc-yazi-2xl);
+  font-weight: var(--rc-agirlik-cok-kalin);
+  line-height: var(--rc-satir-sik);
+}
+
+.kpi__cubuk {
+  display: block;
+  height: var(--rc-bosluk-1);
+  overflow: hidden;
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-yuzey-alt);
+
+  > span {
+    display: block;
+    height: 100%;
+    border-radius: var(--rc-yaricap-tam);
+    background-color: var(--kpi-renk);
+  }
+}
+
+.kpi__alt {
+  color: var(--rc-metin-soluk);
+  font-size: var(--rc-yazi-xs);
+}
+
+.vade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+}
+
+.vade__kutular {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  gap: var(--rc-bosluk-1);
+}
+
+.vade__kutu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-0-5);
+  padding: var(--rc-bosluk-1-5) var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-2xs);
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--rc-yuzey-vurgu);
+  }
+}
+
+.vade__kutu--uyari {
+  border-color: var(--rc-uyari-kenar);
+  background-color: var(--rc-uyari-zemin);
+  color: var(--rc-uyari-metin);
+}
+
+.vade__kutu--hata {
+  border-color: var(--rc-hata-kenar);
+  background-color: var(--rc-hata-zemin);
+  color: var(--rc-hata-metin);
+}
+
+.vade__sayi {
+  font-size: var(--rc-yazi-md);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.vade__baslik {
+  color: var(--rc-metin-soluk);
+  font-size: var(--rc-yazi-xs);
+  text-align: center;
+}

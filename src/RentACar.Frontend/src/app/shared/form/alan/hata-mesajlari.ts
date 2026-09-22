@@ -19,6 +19,7 @@ export function hataMesajlari(hatalar: ValidationErrors | null, cevir: Cevir): s
 
   const sirali: [string, (deger: unknown) => string][] = [
     ['paraGecersiz', () => cevir('form.hata.para')],
+    ['paraFazlaHane', (d) => cevir('form.hata.paraFazlaHane', { sayi: sayiAl(d, 'hane') })],
     ['sayiGecersiz', () => cevir('form.hata.sayi')],
     ['tarihGecersiz', () => cevir('form.hata.tarih')],
     ['saatGecersiz', () => cevir('form.hata.saat')],
