@@ -275,6 +275,147 @@
       "eskiKapatildi": "Sekme sınırı ({{sayi}}): en uzun süredir kullanılmayan “{{etiket}}” sekmesi kapatıldı."
     }
   },
+  "kiraFinans": {
+    "baslik": "Finans işlemleri",
+    "bolumler": "Finans bölümleri",
+    "onceKaydet": "Önce kaydedin — finans işlemleri kayıtlı sözleşmede yapılır.",
+    "yetkiYok": "Muhasebe (FinanceWrite) yetkisi gerekir.",
+    "kayitDegismis": "Kayıt değişmiş",
+    "sekme": {
+      "nakit": "Nakit",
+      "kart": "Kart/Havale",
+      "faturalar": "Faturalar",
+      "donem": "Dönemler",
+      "dishizmet": "Dış hizmet",
+      "kurlar": "Kurlar",
+      "ceza": "Ceza/HGS"
+    },
+    "alan": {
+      "tutar": "Tutar",
+      "doviz": "Döviz",
+      "kur": "Kur",
+      "hesap": "Hesap (kasa/banka)",
+      "hesapYok": "— hesap belirtilmemiş —",
+      "hesapTuru": "Hesap türü",
+      "kanal": "Kanal",
+      "odeyen": "Ödemeyi yapan / not",
+      "aciklama": "Açıklama",
+      "tarih": "Tarih",
+      "tur": "Tür",
+      "durum": "Durum"
+    },
+    "ipucu": {
+      "kur": "Boş: firma sabit kuru, yoksa TCMB (sunucu çözer)."
+    },
+    "tahsilat": {
+      "nakit": "Nakit tahsilat (Kasa)",
+      "kart": "Kart/havale tahsilatı (Banka)",
+      "nakitDugme": "Nakit tahsil et",
+      "kartDugme": "Kart/havale tahsil et",
+      "iptalKira": "İptal edilmiş kirada tahsilat yapılmaz.",
+      "tazeleniyor": "İşlem sonuçlandı; kira yeniden yükleniyor…"
+    },
+    "odeme": {
+      "baslik": "Giden havale (Banka)",
+      "dugme": "Giden havale kaydet",
+      "not": "Müşteri carisine ödeme olarak yazılır; kiranın tahsilat/bakiyesi değişmez."
+    },
+    "depozito": {
+      "baslik": "Depozito",
+      "tutar": "Depozito tutarı",
+      "alDugme": "Depozito al",
+      "iratTutar": "İrat tutarı",
+      "iratIpucu": "İade edilmeyen depozito GELİR yazılır (bu kiranın aracına).",
+      "iratDugme": "Depozito irat",
+      "not": "İade ve mahsup cari bazında:",
+      "ekran": "Depozito ekranı"
+    },
+    "irat": {
+      "onayBaslik": "Depozito gelir yazılsın mı?",
+      "onayMesaj": "Girilen tutar müşterinin depozitosundan kesilip GELİR yazılır (Borç Depozito / Alacak Gelir) ve bu kiranın aracına atfedilir. Kayıt değiştirilemez, geri alınamaz; kesilen tutar müşteriye artık iade edilemez.",
+      "onayla": "Gelir yaz"
+    },
+    "fatura": {
+      "liste": "Faturalar",
+      "no": "Fatura no",
+      "genelToplam": "Genel toplam",
+      "yok": "Fatura kesilmemiş.",
+      "kes": "Kiradan fatura",
+      "vergiAlanlari": "Vergi/belge alanları (isteğe bağlı)",
+      "otv": "ÖTV",
+      "tevkifatOran": "Tevkifat oranı %",
+      "tevkifatTutar": "Tevkifat tutarı",
+      "damga": "Damga vergisi",
+      "damgaIpucu": "Boş = kiradaki damga; 0 = damgasız.",
+      "iade": "İade faturası",
+      "manuel": "Manuel fatura",
+      "kesDugme": "Fatura kes",
+      "not": "Kira başına bir fatura; dönüş sonrası yeni bedel varsa fark faturası otomatik."
+    },
+    "donem": {
+      "liste": "Fatura dönemleri",
+      "aralik": "Aralık",
+      "tahakkuk": "Tahakkuk",
+      "kesilen": "Kesilen",
+      "islem": "İşlem",
+      "tahsilat": "Tahsilat",
+      "kes": "Kes",
+      "okunamadi": "Dönem planı okunamadı.",
+      "yok": "Bu kirada dönem planı yok (uzun/aylık kirada otomatik oluşur).",
+      "not": "Tahsilat fatura döviz/kuruyla yazılır; tekrar gönderim güvenlidir. Fatura iadesi tahsilatı geri almaz — geri ödeme Kart/Havale sekmesinden.",
+      "tahsilatYok": "Tahsilat yazılmadı"
+    },
+    "disHizmet": {
+      "liste": "Dış hizmet alımları",
+      "no": "No",
+      "hizmet": "Alınan hizmet",
+      "bedel": "Bedel",
+      "komisyon": "Kom. %",
+      "iptal": "İptal (ters kayıt)",
+      "yok": "Kayıt yok.",
+      "yeni": "Yeni dış hizmet alımı",
+      "tedarikci": "Tedarikçi cari",
+      "cariYetki": "Cari araması Operasyon yetkisi ister.",
+      "firma": "Firma",
+      "komisyonOran": "Tedarikçi komisyonu %",
+      "komisyonFaturaNo": "Komisyon fatura no",
+      "kaydet": "Dış hizmet kaydet",
+      "iptalBaslik": "{{no}} iptal edilsin mi?",
+      "iptalMesaj": "Araç gideri, tedarikçi cari ve komisyon geliri BUGÜN tarihli ters kayıtla geri alınır; kayıt silinmez ve iptal geri alınamaz.",
+      "iptalOnay": "İptal et"
+    },
+    "kur": {
+      "liste": "Kur bilgileri",
+      "kod": "Döviz",
+      "alis": "Döviz alış",
+      "satis": "Döviz satış",
+      "yok": "Kur kaydı yok (TCMB güncellemesi bekleniyor).",
+      "okunamadi": "Kur bilgisi okunamadı."
+    },
+    "ceza": {
+      "liste": "Cezalar",
+      "no": "Ceza no",
+      "kalan": "Kalan",
+      "yok": "Bu kiraya bağlı ceza yok.",
+      "hgs": "HGS geçişleri",
+      "zaman": "Geçiş zamanı",
+      "gise": "Gişe",
+      "hgsYok": "Kira döneminde HGS geçişi yok.",
+      "ekran": "Ceza ekle / yansıt",
+      "not": "HGS yansıtması Cezalar ekranından."
+    },
+    "bildirim": {
+      "tahsilat": "Tahsilat kaydedildi.",
+      "odeme": "Giden havale kaydedildi.",
+      "depozitoAl": "Depozito alındı.",
+      "irat": "Depozito gelir yazıldı.",
+      "fatura": "Fatura kesildi.",
+      "donem": "Dönem faturası kesildi.",
+      "donemTahsil": "Dönem faturası kesildi, tahsilat yazıldı.",
+      "disHizmet": "Dış hizmet alımı kaydedildi.",
+      "disHizmetIptal": "Dış hizmet alımı iptal edildi (ters kayıt)."
+    }
+  },
   "kiraFormu": {
     "yeniBaslik": "Yeni kira",
     "baslik": "Kira {{no}}",
@@ -623,12 +764,6 @@
     },
     "ozet": {
       "baslik": "Özet"
-    },
-    "finans": {
-      "baslik": "Finans işlemleri",
-      "yakinda": "Tahsilat, ödeme, fatura, dönem faturası, dış hizmet ve depozito bir sonraki sürümde burada.",
-      "mevcutEkran": "Mevcut ekranda aç",
-      "onceKaydet": "Önce kaydedin — finans işlemleri kayıtlı sözleşmede yapılır."
     },
     "yazdir": {
       "baslik": "Sözleşme PDF'i açılıyor…",

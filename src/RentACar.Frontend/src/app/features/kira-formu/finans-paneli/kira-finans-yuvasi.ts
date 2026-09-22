@@ -1,0 +1,59 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  type ComponentRef,
+  DestroyRef,
+  ViewContainerRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { TranslocoPipe } from '@jsverse/transloco';
+import type { KiraDetayYaniti } from '../kira-tipleri';
+import type { KiraFinansPaneli } from './kira-finans-paneli';
+
+/**
+ * Finans panelinin TEMBEL yuvası: panel (`kira-finans-paneli`, ~44 kB) ayrı parça olarak dinamik
+ * `import()` ile yüklenir; kira formunun ilk çizimine girmez. `@defer` bilinçli olarak kullanılmadı:
+ * defer çalışma zamanı `@angular/core` ile ilk pakete ~7 kB ekliyordu (ölçüldü), bu yuva eklemiyor.
+ * Girdi/çıktı panelle birebir (`detay` → `setInput`, `degisti` → yeniden yayılır).
+ */
+@Component({
+  selector: 'rc-kira-finans-yuvasi',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TranslocoPipe],
+  template: `
+    @if (!yuklendi()) {
+      <section class="kf-kart" aria-busy="true">
+        <h2 class="kf-kart__baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
+      </section>
+    }
+  `,
+})
+export class KiraFinansYuvasi {
+  readonly detay = input<KiraDetayYaniti | null>(null);
+  readonly degisti = output<void>();
+
+  private readonly vcr = inject(ViewContainerRef);
+  protected readonly yuklendi = signal(false);
+  private panel: ComponentRef<KiraFinansPaneli> | null = null;
+
+  constructor() {
+    let iptal = false;
+    inject(DestroyRef).onDestroy(() => (iptal = true));
+    void import('./kira-finans-paneli').then(({ KiraFinansPaneli }) => {
+      if (iptal) return;
+      const ref = this.vcr.createComponent(KiraFinansPaneli);
+      ref.setInput('detay', this.detay());
+      ref.instance.degisti.subscribe(() => this.degisti.emit());
+      this.panel = ref;
+      this.yuklendi.set(true);
+    });
+    effect(() => {
+      const d = this.detay();
+      if (this.yuklendi()) this.panel?.setInput('detay', d);
+    });
+  }
+}
