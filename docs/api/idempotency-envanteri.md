@@ -110,6 +110,32 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 - Yapısal mekanizmalı satırlar (E15–E18, E25, E29, E30, E34–E36) anahtar kullanmaz; başlık yok sayılabilir.
 - Deterministik satırlar (E03/E04/E22 parti, E19/E20, E24, E31) sunucu anahtarını kullanır.
 
+### `/api/ui/v1/finans/*` uç eşlemesi (F4.4 — sabit panel; F8 yeniden kullanır)
+
+Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs`. Uç kodu: `Web/Api/Finans/FinansApi.cs`.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409 |
+| `POST finans/odeme` | E02 | başlık zorunlu | 409 |
+| `POST finans/fatura` | E15 | yok (yapısal; başlık yok sayılır) | 400 "Kira zaten tam faturalanmış…" |
+| `POST finans/donem-fatura` | E18/E19 | yok; tahsilat `RowKey(kira, sıra)` | 200 aynı `faturaId`, `tahsilatYazildi=false`, `bilgi` dolu (gizlenmez) |
+| `POST finans/dis-hizmet` | E33 | başlık zorunlu | 409 |
+| `POST finans/dis-hizmet/{id}/iptal` | E34 | yok (yapısal) | 400 "Kayıt zaten iptal edilmiş." |
+| `POST finans/depozito/al` | E09 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı içerik 409 |
+| `POST finans/depozito/irat` | E12 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı tutar/kira 409 |
+
+Uç katmanının servise EKLEDİĞİ giriş kuralları (servis davranışı değişmedi; hepsi yazmadan önce 400/403):
+- Kiraya bağlı işlemde kira `RentalService.GetAsync` ile okunur → şube kapsamı dışında 403 `yetki_yok` (fatura,
+  dönem faturası ve kiraya bağlı tahsilat/irat servislerinde kapsam guard'ı yok; kapı uçtadır).
+- Kiraya bağlı tahsilat/ödemede `cariId` kiranın müşterisi olmalı (`errors.cariId`) — Blazor'un tüm girişleri zaten öyle gönderir.
+- İptal kiraya tahsilat bağlanamaz (`errors.kiraId`); iade ödemesi bağlanabilir.
+- Bu kurallar anahtar kontrolünden önce çalışır: aradaki durum değişikliğinde (kira iptal edildi) birebir tekrar
+  409 yerine 400 alır — LOW-1 ile aynı sınıf, para etkisi yok.
+- `tahsilatAnahtar` istemcinin geri gönderdiği ham Guid'dir (Blazor gizli alanıyla aynı güven düzeyi): kötü niyetli
+  FinanceWrite sahibi başka bir işlemin deterministik anahtarını önceden işgal edip O işlemi 409'a düşürebilir;
+  para yazılmaz ya da kaybolmaz.
+
 ## Açık işler
 
 - **LOW-2 (e-Fatura hayalet gönderimi):** dönem faturası yarışında kaybeden istek `eInvoice.SendAsync`'i (`InvoiceService.cs:353`) çağırıyor. Bu çağrı, `PostDonemAsync` mevcut id'yi dönmeden **önce** yapılıyor. Stub bugün `false` döndüğü için etkisi yok. Gerçek GİB bağlanınca yazılmayan bir fatura için ETTN alınır. **Gerçek e-Fatura açılmadan önce düzeltilmeli:** gönderimi commit'ten sonraya taşı ya da yalnız yazılan faturada yap. Aynı desen kira/fark faturası yarışında da (`CreateFromRentalAsync` / `PostFarkFaturasiAsync`) geçerli.
