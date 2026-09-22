@@ -14,8 +14,10 @@ namespace RentACar.Infrastructure.Persistence;
 /// (dönüş, uzatma, teslim, iptal, açık güncelleme, provizyon, ek hizmet ekle/sil) satırı OKUMADAN ÖNCE
 /// kilitler; toplam ve durum kilit ALTINDA okunur → kayıp güncelleme yok.</item>
 /// </list>
-/// <b>Sıra kuralı:</b> ikisi birden gerekiyorsa ÖNCE advisory, SONRA satır (fatura yolu da bu sırada: advisory →
-/// fatura insert'inin kira FK'si için KEY SHARE). Ters sıra kilitlenme döngüsü üretirdi.
+/// <b>Sıra kuralı:</b> ikisi birden gerekiyorsa ÖNCE advisory, SONRA satır. <c>Invoices</c> tablosunda <c>Rentals</c>'a
+/// FK YOKTUR (pg_constraint ile doğrulandı) — fatura yolu kira satırına hiç kilit almaz, YALNIZ advisory kilidi
+/// alır. Bu yüzden faturayla serileşmesi gereken her yol (iptal, dönüş, ek hizmet ekle/sil) advisory kilidi AÇIKÇA
+/// alır; satır kilidi tek başına faturayı durdurmaz (F4.1 adversarial N2 — eski belge "KEY SHARE" varsayıyordu).
 /// </summary>
 internal static class KiraKilitleri
 {
@@ -41,6 +43,24 @@ internal static class KiraKilitleri
     {
         if (await db.Rentals.AsNoTracking().AnyAsync(r => r.Id == rentalId && r.Durum == RentalStatus.Iptal, ct))
             throw new ValidationException("İptal edilmiş kiraya fatura kesilemez (kira bu sırada iptal edildi).");
+    }
+
+    /// <summary>
+    /// F4.1 adversarial N2 — BASE fatura, advisory kilit ALTINDA: servisin kilit dışında hesapladığı brüt, kiranın
+    /// ŞU ANKİ baz brütü + ek hizmet toplamıyla (InvoiceService.CreateFromRentalAsync ile aynı formül:
+    /// RoundGross(BaseGross) + Σ(net + KDV)) birebir aynı olmalı; değilse kira arada değişmiştir → red, yeniden kes.
+    /// </summary>
+    public static async Task BazFaturaGuncelMiAsync(AppDbContext db, Guid rentalId, decimal faturaBrut, CancellationToken ct)
+    {
+        var kira = await db.Rentals.AsNoTracking().FirstOrDefaultAsync(r => r.Id == rentalId, ct);
+        if (kira is null) return;
+        var ekler = await db.RentalAddOns.AsNoTracking().Where(a => a.RentalId == rentalId)
+            .Select(a => a.NetTutar + a.KdvTutar).ToListAsync(ct);
+        var guncel = RentACar.Application.Finance.KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(kira))
+                     + ekler.Sum();
+        if (guncel != faturaBrut)
+            throw new ValidationException(
+                "Kira bu sırada değişti (ek hizmet / dönüş bedeli); fatura kesilmedi — güncel tutarla yeniden kesin.");
     }
 
     /// <summary>Kirada iade edilmemiş (net) fatura var mı — base, fark ve dönem faturaları; iadesi kesilmiş

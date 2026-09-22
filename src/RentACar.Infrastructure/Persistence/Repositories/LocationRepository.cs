@@ -23,12 +23,13 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
     public async Task<Location?> FindByAdAsync(string ad, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        // BranchRepository.FindByAdAsync ile birebir desen (exact lower eşleşme + Kod sırası — C4).
-        var norm = ad.Trim().ToLowerInvariant();
-        return await db.Locations.AsNoTracking()
-            .Where(l => l.Ad.ToLower() == norm)
-            .OrderBy(l => l.Kod)
-            .FirstOrDefaultAsync(ct);
+        // F4.1 adversarial N1: eşleşme OfficeBranchInterceptor ile AYNI anahtarla ve BELLEKTE (SQL lower()
+        // Türkçe 'İ'yi .NET'ten farklı küçültüyordu). Aynı adda Kod sırası deterministik (C4 deseniyle aynı).
+        var anahtar = OfisAdiAnahtari.Uret(ad);
+        return (await db.Locations.AsNoTracking().ToListAsync(ct))
+            .Where(l => OfisAdiAnahtari.Uret(l.Ad) == anahtar)
+            .OrderBy(l => l.Kod) // interceptor ile aynı sıralama
+            .FirstOrDefault();
     }
 
     public async Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default)
