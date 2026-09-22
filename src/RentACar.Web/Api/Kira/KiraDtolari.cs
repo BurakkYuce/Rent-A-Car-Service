@@ -112,18 +112,26 @@ public sealed record KiraOlusturIstegi
 /// <summary>Ek hizmet seçimi (tanım + miktar). Miktar ≤ 0 → 1 (Blazor matrisiyle aynı).</summary>
 public sealed record KiraEkHizmetSecimi(Guid TanimId, decimal? Miktar);
 
-public sealed record TeslimIstegi(int CikisKm, int CikisYakit);
+// F4.1 adversarial L2: işlem gövdelerindeki zorunlu alanlar NULLABLE bildirilir ve UÇTA doğrulanır — JSON'da
+// eksik alan sessizce 0'a (yakıt 0 → sahte eksik-yakıt bedeli) düşmesin, 400 errors[alan] dönsün. (Bağlama
+// katmanındaki `required` eksik alanı da reddeder ama alan adı taşımaz; SPA hatayı alanın altında gösteremez.)
 
+/// <summary>Teslim: ikisi de ZORUNLU (eksik → 400 <c>errors[alan]</c>). Yakıt 0–12.</summary>
+public sealed record TeslimIstegi(int? CikisKm = null, int? CikisYakit = null);
+
+/// <summary>Dönüş: km, yakıt ve gerçek dönüş ZORUNLU (eksik → 400 <c>errors[alan]</c>).</summary>
 public sealed record DonusIstegi(
-    int DonusKm, int DonusYakit, DateTimeOffset GercekDonus,
+    int? DonusKm = null, int? DonusYakit = null, DateTimeOffset? GercekDonus = null,
     int? KmHediye = null, string? BitisSebebi = null, Guid? TeslimAlanPersonelId = null);
 
-public sealed record UzatIstegi(DateTimeOffset YeniBitTar);
+/// <summary>Uzatma: yeni bitiş ZORUNLU (eksik → 400 <c>errors[yeniBitTar]</c>).</summary>
+public sealed record UzatIstegi(DateTimeOffset? YeniBitTar = null);
 
 /// <summary>Provizyon kapama: <c>Iade=true</c> → serbest bırak (kapama tutarı 0); tutar boş → bloke tutarın tamamı.</summary>
 public sealed record ProvizyonKapatIstegi(decimal? KapamaTutar = null, bool Iade = false);
 
-public sealed record EkHizmetEkleIstegi(Guid EkHizmetTanimId, decimal Miktar);
+/// <summary>Ek hizmet: tanım ve miktar ZORUNLU (eksik → 400 <c>errors[alan]</c>).</summary>
+public sealed record EkHizmetEkleIstegi(Guid? EkHizmetTanimId = null, decimal? Miktar = null);
 
 /// <summary>Kira formundan hızlı müşteri (Blazor <c>/kiralar/musteri-olustur</c>). PII CustomerService'te
 /// şifrelenir; yanıt YALNIZ kimlik + etiket döner (girilen TC/ehliyet/telefon geri yansıtılmaz).</summary>
@@ -136,9 +144,8 @@ public sealed record MusteriHizliIstegi(
 // ---------------------------------------------------------------- yanıtlar
 
 /// <summary>Oluşturma sonucu. <c>Uyari</c>: kira AÇILDI ama bir ek hizmet eklenemedi (Blazor'daki
-/// "Kira açıldı ancak ek hizmet eklenemedi" bandı) — kira geri alınmaz, kalem detaydan eklenir; ya da çıkış
-/// ofisi oturumun şube kapsamı dışında (kira yazıldı, <c>SozlesmeNo</c> null — görüntülenemez).</summary>
-public sealed record KiraOlusturYaniti(Guid Id, string? SozlesmeNo, string? Uyari);
+/// "Kira açıldı ancak ek hizmet eklenemedi" bandı) — kira geri alınmaz, kalem detaydan eklenir.</summary>
+public sealed record KiraOlusturYaniti(Guid Id, string SozlesmeNo, string? Uyari);
 
 public sealed record MusteriHizliYaniti(Guid Id, string Etiket);
 
