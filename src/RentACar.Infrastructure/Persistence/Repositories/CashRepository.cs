@@ -99,6 +99,12 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == islemAnahtari, ct);
     }
 
+    public async Task<CashTransaction?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.CashTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IslemAnahtari == islemAnahtari, ct);
+    }
+
     /// <summary>F1.4 mükerrer mesajı — servis ön-kontrolü, kilit-içi kontrol ve kısıt yolu AYNI metni verir.</summary>
     internal const string MukerrerMesaji = "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).";
 
@@ -132,12 +138,20 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             .Where(r => r.Id == rentalId).Select(r => new { r.Doviz }).FirstOrDefaultAsync(ct);
         if (rental is null) return;
         var delta = RentalDelta(tx, rental.Doviz);
-        await db.Database.ExecuteSqlInterpolatedAsync($@"
+        // F4.1 adversarial N3: İPTAL edilmiş kiraya TAHSİLAT yazılamaz — koşul UPDATE'in kendisinde: PG READ
+        // COMMITTED'da UPDATE satır kilidini bekledikten sonra WHERE'i GÜNCEL satırda yeniden değerlendirir, yani
+        // eşzamanlı iptal (aynı satır kilidi) commit ettiyse 0 satır → red, tüm hareket geri alınır. İade ÖDEMESİ ve
+        // ters kayıtlar iptal kiraya bağlanabilir kalır (alınmış paranın iadesi — F4.4a sözleşmesi).
+        var yeniTahsilat = tx.Tip == CashTransactionType.Tahsilat && !tx.TersKayitMi;
+        var iptal = (int)RentalStatus.Iptal;
+        var etkilenen = await db.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE ""Rentals"" SET
                 ""Tahsilat"" = ""Tahsilat"" + {delta},
                 ""Bakiye"" = ""GenelToplam"" - (""Tahsilat"" + {delta}),
                 ""UpdatedAtUtc"" = {DateTimeOffset.UtcNow}
-            WHERE ""Id"" = {rentalId}", ct);
+            WHERE ""Id"" = {rentalId} AND (NOT {yeniTahsilat} OR ""Durum"" <> {iptal})", ct);
+        if (etkilenen == 0 && yeniTahsilat)
+            throw new ValidationException("İptal edilmiş kiraya tahsilat yazılamaz.");
     }
 
     public async Task PostAsync(

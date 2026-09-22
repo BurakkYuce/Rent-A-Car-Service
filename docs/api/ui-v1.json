@@ -2694,16 +2694,12 @@
         }
       },
       "DonusIstegi": {
-        "required": [
-          "donusKm",
-          "donusYakit",
-          "gercekDonus"
-        ],
         "type": "object",
         "properties": {
           "donusKm": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -2712,13 +2708,17 @@
           "donusYakit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
             "format": "int32"
           },
           "gercekDonus": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "kmHediye": {
@@ -2746,19 +2746,19 @@
         }
       },
       "EkHizmetEkleIstegi": {
-        "required": [
-          "ekHizmetTanimId",
-          "miktar"
-        ],
         "type": "object",
         "properties": {
           "ekHizmetTanimId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "miktar": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
@@ -5221,10 +5221,7 @@
             "format": "uuid"
           },
           "sozlesmeNo": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "uyari": {
             "type": [
@@ -7259,15 +7256,12 @@
         }
       },
       "TeslimIstegi": {
-        "required": [
-          "cikisKm",
-          "cikisYakit"
-        ],
         "type": "object",
         "properties": {
           "cikisKm": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -7276,6 +7270,7 @@
           "cikisYakit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -7284,13 +7279,13 @@
         }
       },
       "UzatIstegi": {
-        "required": [
-          "yeniBitTar"
-        ],
         "type": "object",
         "properties": {
           "yeniBitTar": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }

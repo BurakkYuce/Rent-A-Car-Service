@@ -320,26 +320,42 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // F4.1 adversarial M2: satır OKUNMADAN önce kilitlenir — eşzamanlı dönüş/ek hizmet/uzatma
+            // serileşir, apply kilit altındaki GÜNCEL durumu görür (Tamamlandı kira uzatılamaz, += kaybolmaz).
+            await KiraKilitleri.SatirAsync(db, id, ct);
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
             apply(r);
             try
             {
                 await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
             {
                 // Kira uzatma (ExtendAsync) tarih aralığını değiştirdiğinde GiST exclusion'a takılabilir →
                 // CreateRentalAsync ile aynı zarif hata (adversarial I1 MEDIUM-1).
+                await tx.RollbackAsync(ct);
                 throw new AvailabilityConflictException();
             }
             return true;
         }, ct);
     }
 
-    public async Task<bool> UpdateRentalWithVehicleAsync(
+    public Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle,
         Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
+        => KiraAracGuncelleAsync(id, (r, _) => applyRental(r), applyVehicle, kmLog, baglamli: false, ct);
+
+    public Task<bool> UpdateRentalWithVehicleAsync(
+        Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
+        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
+        => KiraAracGuncelleAsync(id, applyRental, applyVehicle, kmLog, baglamli: true, ct);
+
+    private async Task<bool> KiraAracGuncelleAsync(
+        Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
+        Func<RentalContract, VehicleKmLog>? kmLog, bool baglamli, CancellationToken ct)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -348,9 +364,22 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            // F4.1 adversarial M2/M3: bağlamlı yolda ÖNCE kira-fatura advisory kilidi (fatura kesimiyle
+            // serileşir), SONRA satır kilidi (KiraKilitleri sıra kuralı). Satır OKUNMADAN önce kilitlenir.
+            if (baglamli) await KiraKilitleri.FaturaAsync(db, id, ct);
+            await KiraKilitleri.SatirAsync(db, id, ct);
+
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
-            applyRental(r);
+
+            // Ek hizmet toplamı ve açık fatura KİLİT ALTINDA: ek hizmet ekle/sil de aynı satır kilidini
+            // alıp SUM'u yazıyor → burada okunan toplam commit edilmiş son hâldir.
+            var baglam = baglamli
+                ? new KiraKilitBaglami(
+                    await db.RentalAddOns.Where(a => a.RentalId == id).SumAsync(a => a.Toplam, ct),
+                    await KiraKilitleri.AcikFaturaVarAsync(db, id, ct))
+                : new KiraKilitBaglami(0m, false);
+            applyRental(r, baglam);
 
             var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == r.VehicleId, ct);
             if (vehicle is not null)

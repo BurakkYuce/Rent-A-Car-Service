@@ -23,6 +23,28 @@ public static class TarihPolitikasi
             throw new ValidationException("Kira başlangıcı en fazla 1 yıl ileri tarihli olabilir.");
     }
 
+    /// <summary>
+    /// F4.1 adversarial L4: kira bitişi için anti-typo üst sınır — başlangıçtan en fazla <see cref="KiraEnUzunYil"/>
+    /// yıl. Gerekçe: uzun dönem (operasyonel) kiralama sözleşmeleri 36–48 ay sürer; 5 yıl bunları kapsar ama
+    /// "9999" gibi yazım hatasını keser (aksi hâlde gün × ücret numeric(19,4)'ü taşırıp 500 üretiyor ve araç
+    /// yüzyıllarca bloke oluyordu). Oluşturma ve uzatma AYNI kuralı kullanır.
+    /// </summary>
+    public const int KiraEnUzunYil = 5;
+
+    public static void KiraBitis(DateTimeOffset bas, DateTimeOffset bit)
+    {
+        if (bit > bas.AddYears(KiraEnUzunYil))
+            throw new ValidationException($"Kira süresi en fazla {KiraEnUzunYil} yıl olabilir (bitiş tarihini kontrol edin).");
+    }
+
+    /// <summary>F4.1 adversarial L4: gerçek dönüş en fazla 1 yıl ileri (kira başlangıcıyla aynı anti-typo tamponu).
+    /// Geç dönüş gününü ve bedelini sınırlar (int/numeric taşması yok).</summary>
+    public static void GercekDonus(DateTimeOffset donus)
+    {
+        if (donus > Now.AddYears(1))
+            throw new ValidationException("Gerçek dönüş tarihi en fazla 1 yıl ileri olabilir.");
+    }
+
     public static void RezervasyonBaslangic(DateTimeOffset bas)
     {
         if (bas < Now.AddDays(-1))
