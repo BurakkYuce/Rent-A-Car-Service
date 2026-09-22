@@ -282,27 +282,53 @@ describe('PanelSayfasi', () => {
       ]);
     });
 
-    it('409 mukerrer: yeniden GÖNDERİLMEZ; panel yeniden yüklenir + bilgi toast’u', async () => {
+    it.each([
+      [
+        'bayat anahtar',
+        'Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.',
+      ],
+      ['gerçek çift gönderim', 'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).'],
+    ])(
+      '409 mukerrer (%s): yeniden GÖNDERİLMEZ; panel yeniden yüklenir; sunucunun detail’ı nötr başlıkla (genel "Mükerrer işlem" YOK)',
+      async (_, detail) => {
+        const s = await formuAc();
+        await s.gonder();
+        http
+          .expectOne(TAHSILAT)
+          .flush(
+            { type: 'about:blank', title: 'Mükerrer', status: 409, detail, kod: 'mukerrer' },
+            { status: 409, statusText: 'Conflict' },
+          );
+        await s.stabil();
+        http.expectOne(OZET).flush(yanit());
+        await s.stabil();
+        http.expectNone(TAHSILAT);
+        expect(s.kok.querySelector('rc-panel-tahsilat-formu')).toBeNull();
+        expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
+          expect.objectContaining({
+            durum: 'uyari',
+            baslik: 'Tahsilat gönderimi durduruldu',
+            mesaj: `${detail} Panel yeniden yüklendi; güncel bakiyeyi kontrol edin.`,
+          }),
+        ]);
+      },
+    );
+
+    it('5xx: form açık kalır, "kaydedilmemiş olabilir" uyarısı formda; yeniden gönderim yok', async () => {
       const s = await formuAc();
       await s.gonder();
-      http.expectOne(TAHSILAT).flush(
-        {
-          type: 'about:blank',
-          title: 'Mükerrer',
-          status: 409,
-          detail: 'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).',
-          kod: 'mukerrer',
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
-      await s.stabil();
-      http.expectOne(OZET).flush(yanit());
+      http
+        .expectOne(TAHSILAT)
+        .flush(
+          { type: 'about:blank', title: 'Hata', status: 500, detail: 'x', kod: 'sunucu' },
+          { status: 500, statusText: 'Server Error' },
+        );
       await s.stabil();
       http.expectNone(TAHSILAT);
-      expect(s.kok.querySelector('rc-panel-tahsilat-formu')).toBeNull();
-      expect(TestBed.inject(ToastServisi).toastlar()).toEqual([
-        expect.objectContaining({ durum: 'bilgi', baslik: 'Mükerrer işlem' }),
-      ]);
+      http.expectNone(OZET);
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu [role=alert]')?.textContent).toContain(
+        'İşlem kaydedilmemiş olabilir',
+      );
     });
 
     it('form açıkken panel tazelenip yeni anahtar gelse de form AÇILDIĞI anahtarla gönderir (bayat → 409)', async () => {

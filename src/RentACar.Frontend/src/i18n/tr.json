@@ -103,6 +103,8 @@
       "vazgec": "Vazgeç",
       "pozitif": "Tutar sıfırdan büyük olmalıdır.",
       "basarili": "Tahsilat kaydedildi: {{tutar}} ({{plaka}}).",
+      "mukerrerBaslik": "Tahsilat gönderimi durduruldu",
+      "mukerrerYenilendi": "Panel yeniden yüklendi; güncel bakiyeyi kontrol edin.",
       "aciklama": "Hızlı tahsilat (pano) — {{plaka}}"
     },
     "finans": {
