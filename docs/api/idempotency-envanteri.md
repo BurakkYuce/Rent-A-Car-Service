@@ -112,11 +112,11 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 
 ### `/api/ui/v1/finans/*` uç eşlemesi (F4.4 — sabit panel; F8 yeniden kullanır)
 
-Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs`. Uç kodu: `Web/Api/Finans/FinansApi.cs`.
+Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversarialTests.cs`. Uç kodu: `Web/Api/Finans/FinansApi.cs`.
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
-| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409 |
+| `POST finans/tahsilat` | E01 | `tahsilatAnahtar` (DTO, yalnız `kiraId` ile; sunucuda yeniden hesaplanır) ▸ başlık; ikisi de yoksa 400 | 409 `mukerrer` (aynı ya da farklı içerik); iki sekme/iki kullanıcı aynı `tahsilatAnahtar` → ikincisi 409 |
 | `POST finans/odeme` | E02 | başlık zorunlu | 409 |
 | `POST finans/fatura` | E15 | yok (yapısal; başlık yok sayılır) | 400 "Kira zaten tam faturalanmış…" |
 | `POST finans/donem-fatura` | E18/E19 | yok; tahsilat `RowKey(kira, sıra)` | 200 aynı `faturaId`, `tahsilatYazildi=false`, `bilgi` dolu (gizlenmez) |
@@ -125,16 +125,41 @@ Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs`. Uç kodu: `Web/Api
 | `POST finans/depozito/al` | E09 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı içerik 409 |
 | `POST finans/depozito/irat` | E12 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı tutar/kira 409 |
 
-Uç katmanının servise EKLEDİĞİ giriş kuralları (servis davranışı değişmedi; hepsi yazmadan önce 400/403):
+**`tahsilatAnahtar` doğrulaması (F4.4a adversarial MEDIUM-3):** uç, DTO'dan gelen değeri okunan kira + güncel
+bakiye + güncel işlem sayısıyla `TahsilatAnahtar.Uret` üzerinden YENİDEN hesaplar (bakiye DB ölçeğiyle "300.0000"
+ya da sade "300" kabul). Eşit değilse 409 `mukerrer`: ya ekran açıldıktan sonra kirada işlem oldu (bayat; SPA kaydı
+yeniden yükler ve yeni anahtarı alır) ya da anahtar bu kiraya ait değil (başka kiranın ya da başka bir işlemin
+tahmin edilebilir anahtarı — ör. dönem tahsilatının `RowKey`'i). Ham değer anahtar olarak korunur: Blazor pano/kira
+listesi ile SPA aynı anahtara düşer. Ek çit: `DonemTahsilatService` "zaten kaydedilmiş" dalında `RowKey`'li kaydın
+bu kiranın tahsilatı olduğunu doğrular; değilse sessiz no-op yerine 400 (fatura kesilmiş, tahsilat yazılmamış).
+
+Uç katmanının servise EKLEDİĞİ giriş kuralları (hepsi yazmadan önce 400/403):
 - Kiraya bağlı işlemde kira `RentalService.GetAsync` ile okunur → şube kapsamı dışında 403 `yetki_yok` (fatura,
   dönem faturası ve kiraya bağlı tahsilat/irat servislerinde kapsam guard'ı yok; kapı uçtadır).
 - Kiraya bağlı tahsilat/ödemede `cariId` kiranın müşterisi olmalı (`errors.cariId`) — Blazor'un tüm girişleri zaten öyle gönderir.
 - İptal kiraya tahsilat bağlanamaz (`errors.kiraId`); iade ödemesi bağlanabilir.
+- Sınırlar (adversarial MEDIUM-1/L2): tutar ve baz (tutar × açık kur) < 10^15 (`numeric(19,4)`), kur < 10^13
+  (`numeric(19,6)`), 4 ondalığa yuvarlanınca 0 kalan tutar reddedilir; metin alanları kolon uzunluğunda
+  (`aciklama` 512, `alinanHizmet`/`hizmetAlinanFirma` 256, `komisyonFaturaNo` 64). Kalan taşmalar (ör. otomatik kurla
+  kira Tahsilat + delta) için `/api/ui` hata eşlemesi PostgreSQL 22001/22003'ü 400 `dogrulama`'ya çevirir (genel
+  mesaj, iç ayrıntı yok); başka SQLSTATE 500 kalır.
 - Bu kurallar anahtar kontrolünden önce çalışır: aradaki durum değişikliğinde (kira iptal edildi) birebir tekrar
   409 yerine 400 alır — LOW-1 ile aynı sınıf, para etkisi yok.
-- `tahsilatAnahtar` istemcinin geri gönderdiği ham Guid'dir (Blazor gizli alanıyla aynı güven düzeyi): kötü niyetli
-  FinanceWrite sahibi başka bir işlemin deterministik anahtarını önceden işgal edip O işlemi 409'a düşürebilir;
-  para yazılmaz ya da kaybolmaz.
+
+Servis düzeyinde (Blazor da kapsanır):
+- **HIGH-1:** `KurCozucu` temel para (TRY) işleminde açık kur ≠ 1'i reddeder (`ValidationException(…, "kur")`).
+  Önce 100 TRY @5 kabul ediliyor, baz 500'e şişiyordu (kira Tahsilat, cari, kasa).
+- **MEDIUM-2:** `CashService` tahsilat/ödeme ve `DepozitoService` al/iade/irat carinin kiracıda var olduğunu
+  doğrular (`errors.cariId`); rastgele ya da başka kiracının cari kimliğine yetim defter kümesi yazılmaz.
+- **L1:** depozito al/iade hesap seçiminde hesap-döviz çiti (tahsilattaki FAZ-50 M4 gibi).
+
+**SPA sözleşmesi (adversarial L3/L4 — kod değil, istemci kuralı):**
+- **Her işlem kendi `Idempotency-Key`'ini üretir.** Başlıktan türetilen anahtar işlem türünü içermez; aynı başlık
+  farklı türde işlemlerde (ör. depozito al + tahsilat + dış hizmet) ayrı tablolara/kümelere düştüğü için HER biri
+  ayrı kayıt yazar — birbirini mükerrer saymaz. Aynı türde (tahsilat↔ödeme ortak index) ise ikincisi 409 alır.
+- **Deterministik anahtar varken başlık TÜKETİLMEZ.** `tahsilatAnahtar` gönderilen istekte başlık yalnız biçim
+  denetiminden geçer; aynı başlıkla `tahsilatAnahtar`'SIZ yeniden deneme YENİ tahsilat yazar. İstemci bir
+  tahsilatı hangi anahtar kümesiyle gönderdiyse yeniden denemeyi de BİREBİR aynı gövdeyle yapar.
 
 ## Açık işler
 
