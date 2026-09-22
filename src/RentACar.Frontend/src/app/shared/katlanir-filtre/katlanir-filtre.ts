@@ -8,7 +8,8 @@ let sonrakiNo = 0;
  * kapalıyken `hidden` (ekran okuyucu ve sekme sırası da atlar). Kapalıyken etkin filtre sayısı düğme
  * metninde kalır — filtrelenmiş liste "tüm kayıtlar" sanılmaz.
  *
- * Bilinçli olarak STİLSİZ: görünüm F3.1 token'larıyla eklenir.
+ * Kap stilsiz; aç/kapa düğmesi F3.1 primitifi (`rc-dugme rc-dugme--kucuk`) — yerel düğme koyu temada
+ * tarayıcı rengini alıp kontrast kapısını geçmiyordu (F4.2 axe).
  *
  * ```html
  * <rc-katlanir-filtre [etkinSayisi]="liste.etkinFiltreSayisi()" [(acik)]="filtreAcik">

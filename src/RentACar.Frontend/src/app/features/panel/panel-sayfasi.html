@@ -1,0 +1,250 @@
+<div class="panel">
+  <header class="ust">
+    <h1>{{ 'panel.baslik' | transloco }}</h1>
+    <nav class="ust__eylemler" [attr.aria-label]="'panel.eylemler' | transloco">
+      <!-- Blazor ekranları (tam sayfa); F5+ kesişlerinde menü kaydıyla SPA'ya döner. -->
+      <a class="rc-dugme rc-dugme--kucuk" href="/rezervasyonlar">{{
+        'panel.yeniRezervasyon' | transloco
+      }}</a>
+      <a class="rc-dugme rc-dugme--kucuk" href="/kiralar">{{ 'panel.yeniKira' | transloco }}</a>
+      <a class="rc-dugme rc-dugme--kucuk" href="/musaitlik">{{ 'panel.musaitlik' | transloco }}</a>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+        [disabled]="ozet.yukleniyor() || tahsilatSuruyor()"
+        [attr.title]="'panel.otomatikTazeleme' | transloco"
+        (click)="yenile()"
+      >
+        {{ 'panel.yenile' | transloco }}
+      </button>
+    </nav>
+  </header>
+
+  @if (ozet.hata(); as hata) {
+    <div class="hata-bandi" role="alert">
+      <p>
+        <strong>{{ 'panel.hata' | transloco }}</strong> {{ hata.detay }}
+      </p>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenile()">
+        {{ 'panel.yenidenDene' | transloco }}
+      </button>
+    </div>
+  } @else if (veri(); as v) {
+    <div class="icerik" [attr.aria-busy]="ozet.yukleniyor()">
+      <!-- 4 KPI kartı + altında vade kademesi (referans sistem parite) -->
+      <rc-panel-kpi [kartlar]="kpiKartlari()" />
+
+      <div class="dc">
+        <!-- Dönüşler: gecikmiş varsa varsayılan sekme Gecikmiş (Blazor PanelSekme) -->
+        <section class="dc__panel" aria-labelledby="panel-donusler">
+          <div class="dc__ust">
+            <h2 id="panel-donusler">{{ 'panel.donusler' | transloco }}</h2>
+            <div
+              class="dc__cipler"
+              role="group"
+              [attr.aria-label]="'panel.sekme.donusGunu' | transloco"
+            >
+              @for (cip of donusCipleri(); track cip.sekme) {
+                <button
+                  type="button"
+                  class="cip"
+                  [class.cip--acil]="cip.acil"
+                  [attr.aria-pressed]="donusSekmesi() === cip.sekme"
+                  [attr.data-sekme]="cip.sekme"
+                  (click)="donusSec(cip.sekme)"
+                >
+                  {{ sekmeEtiketi(cip.sekme) }} <b class="rc-sayi">{{ cip.sayi }}</b>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="kaydirma">
+            <table class="tablo tablo--donus">
+              <caption class="rc-gorunmez">
+                {{
+                  'panel.donusler' | transloco
+                }}
+                —
+                {{
+                  sekmeEtiketi(donusSekmesi())
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'panel.sutun.tarih' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.belge' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.musteri' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.plaka' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.sube' | transloco }}</th>
+                  <th scope="col" class="sayi">{{ 'panel.sutun.bakiye' | transloco }}</th>
+                  @if (tahsilatSutunu()) {
+                    <th scope="col" class="islem">{{ 'panel.sutun.islem' | transloco }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (satir of donusSatirlari(); track satir.rentalId) {
+                  <tr>
+                    <td class="tarih">{{ satir.tarih | tarihSaat }}</td>
+                    <td>
+                      <!-- Kira formu (F4.3 rotası); Blazor'daki gibi Dönüş sekmesinde açılır. -->
+                      <a
+                        [routerLink]="['/kiralar', satir.rentalId]"
+                        fragment="sekme=donus"
+                        [attr.aria-label]="'panel.kiraAc' | transloco: { no: satir.sozlesmeNo }"
+                        >{{ satir.sozlesmeNo }}</a
+                      >
+                    </td>
+                    <td>{{ satir.musteriAd }}</td>
+                    <td class="plaka">{{ satir.plaka }}</td>
+                    <td>{{ satir.ofis ?? '' }}</td>
+                    <td class="sayi">{{ sayi(satir.bakiye) | para: satir.doviz || 'TRY' }}</td>
+                    @if (tahsilatSutunu()) {
+                      <td class="islem">
+                        @if (satir.tahsilat?.anahtar) {
+                          <button
+                            type="button"
+                            class="rc-dugme rc-dugme--kucuk"
+                            [attr.aria-expanded]="acikTahsilat()?.rentalId === satir.rentalId"
+                            [attr.aria-label]="
+                              'panel.tahsilat.tahsilEtEtiket' | transloco: { plaka: satir.plaka }
+                            "
+                            [disabled]="tahsilatSuruyor()"
+                            (click)="tahsilatAc(satir)"
+                          >
+                            {{ 'panel.tahsilat.tahsilEt' | transloco }}
+                          </button>
+                        }
+                      </td>
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td class="bos" [attr.colspan]="tahsilatSutunu() ? 7 : 6">
+                      {{ 'panel.kayitYok' | transloco }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <!-- rentalId ile izlenir: başka satır açılınca form bileşeni YENİDEN oluşur (durum taşınmaz). -->
+          @for (satir of acikTahsilatListesi(); track satir.rentalId) {
+            @if (satir.tahsilat; as bilgi) {
+              <rc-panel-tahsilat-formu
+                [bilgi]="bilgi"
+                [plaka]="satir.plaka"
+                [belgeNo]="satir.sozlesmeNo"
+                (tamamlandi)="tahsilatSonrasi()"
+                (mukerrer)="tahsilatSonrasi()"
+                (vazgecildi)="tahsilatKapat()"
+              />
+            }
+          }
+        </section>
+
+        <!-- Çıkışlar: varsayılan daima Bugün (gecikmiş çıkış = bayat no-show) -->
+        <section class="dc__panel" aria-labelledby="panel-cikislar">
+          <div class="dc__ust">
+            <h2 id="panel-cikislar">{{ 'panel.cikislar' | transloco }}</h2>
+            <div
+              class="dc__cipler"
+              role="group"
+              [attr.aria-label]="'panel.sekme.cikisGunu' | transloco"
+            >
+              @for (cip of cikisCipleri(); track cip.sekme) {
+                <button
+                  type="button"
+                  class="cip"
+                  [class.cip--acil]="cip.acil"
+                  [attr.aria-pressed]="cikisSekmesi() === cip.sekme"
+                  [attr.data-sekme]="cip.sekme"
+                  (click)="cikisSec(cip.sekme)"
+                >
+                  {{ sekmeEtiketi(cip.sekme) }} <b class="rc-sayi">{{ cip.sayi }}</b>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="kaydirma">
+            <table class="tablo tablo--cikis">
+              <caption class="rc-gorunmez">
+                {{
+                  'panel.cikislar' | transloco
+                }}
+                —
+                {{
+                  sekmeEtiketi(cikisSekmesi())
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'panel.sutun.tarih' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.belge' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.musteri' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.plaka' | transloco }}</th>
+                  <th scope="col">{{ 'panel.sutun.sube' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (satir of cikisSatirlari(); track satir.reservationId) {
+                  <tr>
+                    <td class="tarih">{{ satir.tarih | tarihSaat }}</td>
+                    <td>{{ satir.reservationNo }}</td>
+                    <td>{{ satir.musteriAd }}</td>
+                    <td class="plaka">{{ satir.plaka }}</td>
+                    <td>{{ satir.ofis ?? '' }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td class="bos" colspan="5">{{ 'panel.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      @if (vadeUyarisi(); as u) {
+        <div class="vade-uyarisi" role="status">
+          <strong>{{ 'panel.vade.uyari' | transloco }}</strong>
+          @if (u.gecmis > 0) {
+            <span class="rc-rozet rc-rozet--hata">{{
+              'panel.vade.gecmisUyari' | transloco: { sayi: u.gecmis }
+            }}</span>
+          }
+          @if (u.yaklasan > 0) {
+            <span class="rc-rozet rc-rozet--uyari">{{
+              'panel.vade.yaklasanUyari' | transloco: { sayi: u.yaklasan }
+            }}</span>
+          }
+          @if (u.sikayet > 0) {
+            <span class="rc-rozet rc-rozet--uyari">{{
+              'panel.vade.acikSikayet' | transloco: { sayi: u.sikayet }
+            }}</span>
+          }
+          <a href="/vade">{{ 'panel.vade.pano' | transloco }}</a>
+        </div>
+      }
+
+      <!-- Finans özeti: yanıtta yoksa (ViewReports yok) hiç çizilmez — kapı sunucuda. -->
+      @if (v.finans; as f) {
+        <rc-panel-finans [finans]="f" />
+      }
+    </div>
+  } @else {
+    <div class="iskelet" aria-busy="true">
+      <span class="rc-gorunmez" role="status">{{ 'panel.yukleniyor' | transloco }}</span>
+      <div class="kpi-izgara">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <span class="rc-iskelet iskelet__kart"></span>
+        }
+      </div>
+      <div class="dc">
+        <span class="rc-iskelet iskelet__liste"></span>
+        <span class="rc-iskelet iskelet__liste"></span>
+      </div>
+    </div>
+  }
+</div>
