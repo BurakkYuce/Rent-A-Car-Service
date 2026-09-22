@@ -99,6 +99,12 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == islemAnahtari, ct);
     }
 
+    public async Task<CashTransaction?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.CashTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IslemAnahtari == islemAnahtari, ct);
+    }
+
     /// <summary>F1.4 mükerrer mesajı — servis ön-kontrolü, kilit-içi kontrol ve kısıt yolu AYNI metni verir.</summary>
     internal const string MukerrerMesaji = "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).";
 

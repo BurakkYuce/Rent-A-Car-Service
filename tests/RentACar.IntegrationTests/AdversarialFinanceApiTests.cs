@@ -124,13 +124,17 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     public async Task Muhasebe_role_is_allowed_through_the_finance_gate()
     {
         using var api = new ApiFactory(fx.AppConnectionString);
-        var c = await SeedAndLoginAsync(api, Uniq("advmuh"), UserRole.Muhasebe);
+        var kod = Uniq("advmuh");
+        var tenant = await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, kod, "u", "p", UserRole.Muhasebe);
+        var c = await api.LoginClientAsync(kod, "u", "p");
 
         // Muhasebe has FinanceWrite (but NOT OperationsWrite) → finance reads/writes pass the gate.
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/v1/finance/cash")).StatusCode);
 
-        // cariId existence is not validated by the service, so no OperationsWrite-gated setup needed.
-        var cari = Guid.NewGuid();
+        // F4.4a MEDIUM-2: the service now validates that the cari EXISTS in the tenant — Muhasebe cannot create
+        // one (OperationsWrite), so it is seeded out-of-band with an Admin scope of the same tenant.
+        using var host = new TestHost(fx.AppConnectionString);
+        var cari = await TestCari.YeniAsync(host, tenant);
         var cashId = await CreateIdAsync(c, "/api/v1/finance/cash/collect",
             new { cariId = cari, tutar = 100m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
         Assert.NotEqual(Guid.Empty, cashId);
@@ -225,12 +229,15 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         var ca = await SeedAndLoginAsync(api, Uniq("advca"), UserRole.Admin);
         var resp = await ca.PostAsJsonAsync("/api/v1/finance/cash/collect",
             new { cariId = bCari, tutar = 1234m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(HttpStatusCode.Created, resp.StatusCode); // accepted, but RLS pins it to A
+        // F4.4a MEDIUM-2: the cari must exist in the CALLER's tenant (RLS-scoped lookup) → rejected, not an
+        // orphan row in A keyed by B's GUID (previously 201 + A-local −1234 under a cari A does not have).
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        await AssertErrorEnvelopeAsync(resp);
 
         // CRITICAL: B's ledger for that cariId is UNCHANGED → no cross-tenant write/corruption.
         Assert.Equal(0m, await BalanceAsync(cb, bCari));
-        // A merely sees its OWN row keyed by that GUID (its own tenant's data, not B's).
-        Assert.Equal(-1234m, await BalanceAsync(ca, bCari));
+        // …and A wrote nothing under that GUID either.
+        Assert.Equal(0m, await BalanceAsync(ca, bCari));
     }
 
     // ─────────────────── 3) REQUEST→SERVICE MAPPING / BAD INPUT ───────────────────

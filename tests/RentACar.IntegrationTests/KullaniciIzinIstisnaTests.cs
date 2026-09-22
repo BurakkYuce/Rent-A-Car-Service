@@ -90,7 +90,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
 
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         // FinanceWrite hâlâ var: tahsilat girebilir.
-        var islem = await cash.CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 100m });
+        var islem = await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
         // FinanceReverse yasak: aynı işlemin tersini ATAMAZ — tam da istenen "tek kişiden yalnız
         // ters-kayıt yetkisi alınabilsin" senaryosu.
         var ex = await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(islem));

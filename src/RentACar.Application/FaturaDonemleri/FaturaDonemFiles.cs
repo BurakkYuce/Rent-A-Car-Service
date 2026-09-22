@@ -62,7 +62,8 @@ public sealed class OtomatikTahsilatFiltre
 public sealed class DonemTahsilatService(
     Finance.InvoiceService invoices,
     Finance.CashService kasa,
-    Finance.IInvoiceRepository invoiceRepo)
+    Finance.IInvoiceRepository invoiceRepo,
+    Finance.ICashRepository kasaRepo)
 {
     public async Task<Guid> KesVeTahsilEtAsync(
         Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
@@ -83,6 +84,7 @@ public sealed class DonemTahsilatService(
 
         var inv = await invoiceRepo.FindAsync(invId, ct)
             ?? throw new ValidationException("Dönem faturası okunamadı.");
+        var anahtar = Finance.CashService.RowKey(rentalId, donemSira);
         try
         {
             await kasa.CollectAsync(new Finance.CashInput
@@ -94,11 +96,20 @@ public sealed class DonemTahsilatService(
                 Kur = inv.Kur,
                 Hesap = hesap,
                 Aciklama = $"Dönem {donemSira} tahsilatı ({inv.No})",
-                IslemAnahtari = Finance.CashService.RowKey(rentalId, donemSira)
+                IslemAnahtari = anahtar
             }, ct);
         }
         catch (ValidationException ex) when (ex.Message.Contains("zaten kaydedilmiş"))
         {
+            // F4.4a adversarial MEDIUM-3: anahtar TAHMİN EDİLEBİLİR (kira kimliği ⊕ sıra). Başka bir işlem onu
+            // önceden kullandıysa (ör. başka kiranın tahsilatına uydurma anahtar olarak verildiyse) bu dönemin
+            // tahsilatı "daha önce alınmış" sayılıp SESSİZCE bastırılıyordu. Yalnız kayıt gerçekten bu kiranın
+            // tahsilatıysa idempotent no-op; değilse gürültülü hata (fatura kesildi, tahsilat yazılmadı).
+            var mevcut = await kasaRepo.FindByIslemAnahtariAsync(anahtar, ct);
+            if (mevcut is null || mevcut.RentalId != rentalId || mevcut.Tip != CashTransactionType.Tahsilat)
+                throw new ValidationException(
+                    $"Dönem {donemSira} faturası kesildi ancak tahsilat yazılamadı: dönem tahsilat anahtarı başka bir " +
+                    "kayıtta kullanılmış. Kayıtları kontrol edip tahsilatı ayrıca girin.");
             // Deterministik anahtar mükerreri = bu dönemin tahsilatı DAHA ÖNCE alınmış (çift-submit /
             // yeniden deneme) → idempotent no-op; fatura tarafı da idempotent olduğundan akış sessiz biter.
             return (invId, false);   // ÇAĞIRAN "yazıldı" saymasın (FAZ-30 M1)
