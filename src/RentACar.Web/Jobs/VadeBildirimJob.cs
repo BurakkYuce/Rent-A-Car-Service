@@ -9,6 +9,8 @@ namespace RentACar.Web.Jobs;
 /// sigorta/MTV/muayene vadelerini tarayıp kalıcı uygulama-içi bildirim üretir (idempotent) + firma sahibine
 /// günlük operasyon özeti WhatsApp gönderir (saat kapılı, idempotent). Dış e-posta YOK; WhatsApp config-gated
 /// (yoksa stub no-op). racar_app bağlantısı + tenant-loop + GUC (backfill deseni; owner DEĞİL).
+/// Her üretici adımı YALITILMIŞTIR (<see cref="UreticiYalitimi"/>): biri patlarsa diğerleri ve WhatsApp
+/// özeti yine koşar (#265'te müşteri hatırlatmalarının hatası özeti de her tenant için düşürüyordu).
 /// </summary>
 public sealed class VadeBildirimJob(
     IConfiguration config, IWhatsAppService whatsapp,
@@ -50,42 +52,42 @@ public sealed class VadeBildirimJob(
         var now = DateTimeOffset.UtcNow;
         var toplam = 0;
         foreach (var tenantId in tenantIds)
-        {
-            // Per-tenant izolasyon (adversarial F1): bir tenant'ın hatası tüm tarama döngüsünü
-            // ÇÖKERTMESİN — logla, sonraki tenant'a devam et.
-            try
-            {
-                var sys = new SystemTenantContext { TenantId = tenantId };
-                await using (var db = new AppDbContext(options, sys, sys))
-                {
-                    await TenantGuc.OpenAsync(db, tenantId, ct); // raw-context GUC açılışı (tek doğru yol)
-                    // FAZ-26: koşular günlüğe yazılır (başarı VE hata). Sarmalayıcı üretici kodunu
-                    // DEĞİŞTİRMEZ, dönüş/hata aynen geçer — mevcut davranış birebir korunur.
-                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
-                        JobCalismaKaydedici.VadeBildirim,
-                        () => VadeBildirimUretici.RunAsync(db, tenantId, now, ct), n => n, ct: ct);
-                    // FAZ 6.2: bakım-km (≤1000 kalan) + tut/sat (≥2 sinyal) bildirimleri — aynı kapsamlı db.
-                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
-                        JobCalismaKaydedici.FiloBildirim,
-                        () => FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct), n => n, ct: ct);
-                    // Müşteriye giden hatırlatmalar (yarın teslim / bugün iade) + kuyrukta kalan
-                    // mesajların yeniden denenmesi. Şablon tanımlı değilse mesaj KUYRUKTA kalır ve
-                    // firma şablonu yazınca bu koşu onu gönderir.
-                    toplam += await JobCalismaKaydedici.CalistirAsync(db, tenantId,
-                        JobCalismaKaydedici.MusteriBildirim,
-                        () => MusteriBildirimUretici.RunAsync(db, tenantId, now, Tz, secrets, eposta, sms, ct),
-                        n => n, ct: ct);
-                } // ← bağlantı KAPANIR (WhatsApp HTTP'si açık-bağlantı tutmasın)
-
-                // Günlük operasyon özeti WhatsApp (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).
-                await WhatsAppOzetGonderici.SendDailyAsync(options, tenantId, whatsapp, now, Tz, log, ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // shutdown → yukarı
-            catch (Exception ex)
-            {
-                log.LogError(ex, "Vade bildirim: tenant {Tenant} taraması atlandı.", tenantId);
-            }
-        }
+            toplam += await TenantKosAsync(options, tenantId, DbAdimlari(tenantId, now),
+                OzetAdimi(options, tenantId, now), log, ct);
         if (toplam > 0) log.LogInformation("Vade bildirim: {Count} yeni bildirim üretildi.", toplam);
+    }
+
+    /// <summary>
+    /// Tenant başına DB'li adımlar — sıra sabit: vade → filo (bakım-km + tut/sat) → müşteri
+    /// hatırlatmaları (yarın teslim / bugün iade + kuyruk yeniden denemesi). <c>public</c>: test,
+    /// job'ın GERÇEK adım listesini alıp birini patlayanla değiştirerek yalıtımı sınar.
+    /// </summary>
+    public IReadOnlyList<UreticiAdimi> DbAdimlari(Guid tenantId, DateTimeOffset now) =>
+    [
+        new(JobCalismaKaydedici.VadeBildirim, (db, ct) => VadeBildirimUretici.RunAsync(db, tenantId, now, ct)),
+        new(JobCalismaKaydedici.FiloBildirim, (db, ct) => FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct)),
+        new(JobCalismaKaydedici.MusteriBildirim, (db, ct) =>
+            MusteriBildirimUretici.RunAsync(db, tenantId, now, Tz, secrets, eposta, sms, ct)),
+    ];
+
+    /// <summary>Günlük operasyon özeti WhatsApp adımı (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).</summary>
+    public Func<CancellationToken, Task> OzetAdimi(DbContextOptions<AppDbContext> options, Guid tenantId, DateTimeOffset now)
+        => ct => WhatsAppOzetGonderici.SendDailyAsync(options, tenantId, whatsapp, now, Tz, log, ct);
+
+    /// <summary>
+    /// Bir tenant'ın koşusu: her adım KENDİ context'i ve try/catch'i ile (<see cref="UreticiYalitimi"/>).
+    /// Bir üreticinin hatası sonrakileri ve WhatsApp özetini DÜŞÜRMEZ; log hangi üreticinin hangi
+    /// tenant için patladığını söyler, koşu günlüğüne Basarisiz satırı düşer, metrik artar.
+    /// </summary>
+    public static async Task<int> TenantKosAsync(
+        DbContextOptions<AppDbContext> options, Guid tenantId, IEnumerable<UreticiAdimi> dbAdimlari,
+        Func<CancellationToken, Task> ozetAdimi, ILogger log, CancellationToken ct)
+    {
+        var toplam = 0;
+        foreach (var adim in dbAdimlari)
+            toplam += await UreticiYalitimi.DbAdimiAsync(options, tenantId, adim.Ad,
+                db => adim.Uret(db, ct), log, n => n, ct: ct);
+        await UreticiYalitimi.AdimAsync(tenantId, JobCalismaKaydedici.WhatsAppOzet, () => ozetAdimi(ct), log, ct);
+        return toplam;
     }
 }
