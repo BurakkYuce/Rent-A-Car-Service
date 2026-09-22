@@ -20,6 +20,7 @@ import {
   istekBaglami,
   MUKERRERDE_YENILE,
   MUKERRER_BASLIGI,
+  MUKERRER_CAGIRAN_GOSTERIR,
   SESSIZ,
   TEKRARLANDI,
   XSRF_YENILENDI,
@@ -52,7 +53,7 @@ function kopyala(baglam: HttpContext): HttpContext {
  * | `kiraci_kapali` | tam temizlik + mesajlı giriş sayfası |
  * | `yetki_yok`, `pilot_degil` | uyarı bandı (form hatası değil) |
  * | `cakisma` | alan hatası varsa çağırana, yoksa bant; form korunur |
- * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`mevcut` varsa "zaten kaydedildi"; yoksa `MUKERRER_BASLIGI` verilirse o başlıkla uyarı); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
+ * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`mevcut` varsa "zaten kaydedildi"; yoksa `MUKERRER_BASLIGI` verilirse o başlıkla uyarı; `MUKERRER_CAGIRAN_GOSTERIR` ise toast'u çağıran gösterir); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
  * | `xsrf_gecersiz` | `GET oturum/xsrf` ile belirteç yenilenir, istek BİR kez tekrarlanır |
  * | `cok_istek` | uyarı toast'u |
  * | 5xx / ağ | hata toast'u |
@@ -148,7 +149,7 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
       case 'mukerrer': {
         const yenile = baglam.get(MUKERRERDE_YENILE);
         yenile?.();
-        if (!sessiz) {
+        if (!sessiz && !baglam.get(MUKERRER_CAGIRAN_GOSTERIR)) {
           const mesaj = yenile ? `${detay} ${t('geriBildirim.mukerrerYenilendi')}` : detay;
           const ozelBaslik = baglam.get(MUKERRER_BASLIGI);
           // F4.4 HIGH-1: işlem ZATEN yazıldı (kaybolan yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi;

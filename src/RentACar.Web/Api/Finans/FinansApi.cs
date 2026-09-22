@@ -141,7 +141,8 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> Tahsilat(
-        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, CancellationToken ct)
+        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, KurCozucu kurCozucu,
+        CancellationToken ct)
     {
         // Deterministik anahtar kiraya özgüdür (kira + bakiye + işlem sayısı); kirasız ya da boş gelmesi istemci hatası.
         if (istek.TahsilatAnahtar is { } ta && (ta == Guid.Empty || istek.KiraId is null))
@@ -157,7 +158,7 @@ public static class FinansApi
             // tahsilatı yazıyordu. Kayıt varsa 409 "zaten kaydedildi" + mevcut (tekrar denemeye yönlendirmez).
             // Yalnız BU kiranın tahsilatıysa bildirilir (kapsam kapısı NakitGirdisiAsync'te geçildi; başka kiranın
             // anahtarı bilgi sızdırmaz, aşağıdaki yeniden hesaplamada "ait değil" 409'u alır).
-            await ZatenKaydedildiyseAsync(gelen, kira!, girdi, kasa, ct);
+            await ZatenKaydedildiyseAsync(gelen, kira!, girdi, kasa, kurCozucu, ct);
             await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
         }
         girdi.IslemAnahtari = anahtar;
@@ -367,11 +368,17 @@ public static class FinansApi
 
     /// <summary>
     /// Aynı anahtarla BU KİRAYA yazılmış tahsilat varsa 409. <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı
-    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap) — aynıysa kaybolan yanıttan sonraki kendi
-    /// tekrarı ("zaten kaydedildi"); farklıysa başkasının (ya da tutarı değiştirilmiş) işlemi ("… YAZILMADI").
+    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap, kur, açıklama, kanal) — aynıysa kaybolan
+    /// yanıttan sonraki kendi tekrarı ("zaten kaydedildi"); farklıysa başkasının (ya da içeriği değiştirilmiş) işlemi
+    /// ("… YAZILMADI").
+    /// <para>F4.4 L-1: kur/açıklama/kanal da karşılaştırılır — yalnız tutar/hesap aynı diye kurunu ya da açıklamasını
+    /// değiştirmiş tekrar "zaten kaydedildi" deyip formu silmesin (yazılan kayıt kullanıcının son niyeti DEĞİL).
+    /// Kur boşsa sunucunun o an çözeceği kur (<see cref="KurCozucu"/>; TRY=1) karşılaştırılır; çözülemezse güvenli
+    /// taraf "aynı değil". Kur <c>numeric(19,6)</c> saklandığı için karşılaştırma 6 haneye yuvarlanmış değerle.
+    /// Açıklama boş/boşluk = yok; kenar boşlukları yok sayılır. Kanal servisle aynı kuralla normalize edilir.</para>
     /// </summary>
     private static async Task ZatenKaydedildiyseAsync(
-        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, CancellationToken ct)
+        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, KurCozucu kurCozucu, CancellationToken ct)
     {
         if (await kasa.IslemAnahtariylaBulAsync(anahtar, ct) is not { } t
             || t.RentalId != kira.Id || t.Tip != CashTransactionType.Tahsilat)
@@ -380,13 +387,32 @@ public static class FinansApi
         var ayni = t.Amount.Amount == gelen.Tutar
                    && string.Equals(t.Amount.Currency, gelenDoviz, StringComparison.OrdinalIgnoreCase)
                    && t.KarsiHesap == gelen.Hesap
-                   && t.HesapId == (gelen.HesapId is { } h && h != Guid.Empty ? h : null);
+                   && t.HesapId == (gelen.HesapId is { } h && h != Guid.Empty ? h : null)
+                   && string.Equals(AciklamaNorm(t.Aciklama), AciklamaNorm(gelen.Aciklama), StringComparison.Ordinal)
+                   && string.Equals(t.Kanal ?? CashKanal.Masaustu, CashKanal.TryNormalize(gelen.Kanal), StringComparison.Ordinal)
+                   && await AyniKurAsync(t.Amount.Rate, gelenDoviz, gelen, kurCozucu, ct);
         var mevcutTutar = t.Amount.Amount.ToString("N2", Tr);
         var mesaj = ayni
             ? string.Format(Tr, ZatenKaydedildiMesaji, t.No, mevcutTutar, t.Amount.Currency)
             : string.Format(Tr, BaskaTahsilatYazildiMesaji, t.No, mevcutTutar, t.Amount.Currency,
                 gelen.Tutar.ToString("N2", Tr), gelenDoviz);
         throw new MukerrerIslemException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
+    }
+
+    private static string? AciklamaNorm(string? a) => string.IsNullOrWhiteSpace(a) ? null : a.Trim();
+
+    /// <summary>L-1: gelen isteğin kuru (açık ya da o an çözülecek) kayıttaki kurla aynı mı (6 hane).</summary>
+    private static async Task<bool> AyniKurAsync(
+        decimal kayitKuru, string doviz, CashInput gelen, KurCozucu kurCozucu, CancellationToken ct)
+    {
+        decimal kur;
+        if (gelen.Kur is { } acik) kur = acik;
+        else
+        {
+            try { kur = await kurCozucu.CozAsync(doviz, null, gelen.Tarih, ct); }
+            catch (ValidationException) { return false; } // çözülemeyen kur: güvenli taraf (form silinmez)
+        }
+        return Math.Round(kur, 6, MidpointRounding.AwayFromZero) == Math.Round(kayitKuru, 6, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>

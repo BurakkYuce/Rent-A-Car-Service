@@ -77,6 +77,8 @@ export type CeviriAnahtari =
   | 'geriBildirim.mukerrerYenilendi'
   | 'geriBildirim.onay.onayla'
   | 'geriBildirim.onay.vazgec'
+  | 'geriBildirim.oncekiDenemeBaslik'
+  | 'geriBildirim.oncekiDenemeKaydedildi'
   | 'geriBildirim.sunucuHatasi'
   | 'geriBildirim.zatenKaydedildi'
   | 'kabuk.anaMenu'

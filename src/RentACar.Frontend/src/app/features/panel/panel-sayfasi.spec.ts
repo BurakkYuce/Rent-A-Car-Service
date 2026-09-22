@@ -367,7 +367,7 @@ describe('PanelSayfasi', () => {
       );
     });
 
-    it('3. tur M-A: 409 + mevcut İÇERİK FARKLI → UYARI; form AÇIK kalır, tutar korunur, güncel satırın YENİ anahtarıyla gönderilir', async () => {
+    it('3. tur M-A + L-2: 409 + mevcut İÇERİK FARKLI → UYARI; form AÇIK; dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir; YENİ anahtarla gönderilir', async () => {
       const s = await formuAc();
       await s.gonder();
       const detail =
@@ -401,11 +401,72 @@ describe('PanelSayfasi', () => {
       expect(s.kok.querySelector('rc-panel-tahsilat-formu')).not.toBeNull(); // form AÇIK
       await s.gonder();
       const istek = http.expectOne(TAHSILAT);
-      expect(istek.request.body).toMatchObject({ tahsilatAnahtar: YENI, tutar: '1250.50' });
+      // L-2: tutar elle yazılmadı → eski bakiye (1.250,50) yerine yeni öneri (1.150,50).
+      expect(istek.request.body).toMatchObject({ tahsilatAnahtar: YENI, tutar: '1150.50' });
       istek.flush({ id: 'y' });
       await s.stabil();
       http.expectOne(OZET).flush(yanit());
       await s.stabil();
+    });
+
+    it('4. tur M-C: 5xx (yazıldı, yanıt kayboldu) → tutar değiştirilip AYNI anahtarla tekrar → "Önceki denemeniz kaydedilmiş", tutar TEMİZLENİR, ikinci basış istek göndermez', async () => {
+      const s = await formuAc();
+      const tutarGirdisi = () =>
+        s.kok.querySelector<HTMLInputElement>('rc-panel-tahsilat-formu rc-para-girdisi input')!;
+      const yaz = async (metin: string) => {
+        tutarGirdisi().value = metin;
+        tutarGirdisi().dispatchEvent(new Event('input'));
+        await s.stabil();
+      };
+      await yaz('500');
+      await s.gonder();
+      http
+        .expectOne(TAHSILAT)
+        .flush(
+          { type: 'about:blank', title: 'Hata', status: 500, detail: 'x', kod: 'sunucu' },
+          { status: 500, statusText: 'Server Error' },
+        );
+      await s.stabil();
+      await yaz('600');
+      await s.gonder();
+      const tekrar = http.expectOne(TAHSILAT);
+      expect(tekrar.request.body).toMatchObject({ tahsilatAnahtar: ANAHTAR, tutar: '600.00' });
+      tekrar.flush(
+        {
+          type: 'about:blank',
+          title: 'Mükerrer',
+          status: 409,
+          detail:
+            'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-42, 500,00 TRY); girdiğiniz 600,00 TRY YAZILMADI.',
+          kod: 'mukerrer',
+          mevcut: { id: 'c1', belgeNo: 'T-42', tutar: 500, doviz: 'TRY', ayniIcerik: false },
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
+      await s.stabil();
+      const YENI = '99999999-9999-4999-8999-999999999999';
+      const yeni = yanit();
+      yeni.donusler.bugun[0] = donus('A1', {
+        tahsilat: { ...bilgi, anahtar: YENI, varsayilanTutar: 750.5 },
+      });
+      http.expectOne(OZET).flush(yeni);
+      await s.stabil();
+
+      const toastlar = TestBed.inject(ToastServisi).toastlar();
+      expect(toastlar).toHaveLength(1);
+      expect(toastlar[0]).toEqual(
+        expect.objectContaining({
+          durum: 'uyari',
+          baslik: 'Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı',
+        }),
+      );
+      expect(toastlar[0]?.mesaj).toMatch(
+        /^Önceki denemeniz kaydedilmiş \(No T-42, 500,00 ₺\); girdiğiniz 600,00 ₺ YAZILMADI\./,
+      );
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu')).not.toBeNull(); // form AÇIK
+      expect(tutarGirdisi().value).toBe(''); // yeni öneri de basılmaz (L-2 yalnız M-A'da)
+      await s.gonder(); // boş tutar → istemci doğrulaması
+      http.expectNone(TAHSILAT);
     });
 
     it('form açıkken panel tazelenip yeni anahtar gelse de form AÇILDIĞI anahtarla gönderir (bayat → 409)', async () => {
