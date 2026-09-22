@@ -40,6 +40,32 @@ describe('apiHatasinaCevir', () => {
     expect(hata.message).toBe('Plaka zorunludur.');
   });
 
+  it('409 mukerrer + mevcut (işlem zaten yazıldı) → tipli `mevcut`; biçimsiz mevcut yok sayılır', () => {
+    const hata = apiHatasinaCevir(
+      problem(409, {
+        status: 409,
+        detail: 'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı.',
+        kod: 'mukerrer',
+        mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
+      }),
+    );
+    expect(hata.mevcut).toEqual({ id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' });
+    const bozuk = apiHatasinaCevir(
+      problem(409, { status: 409, detail: 'x', kod: 'mukerrer', mevcut: { id: 1 } }),
+    );
+    expect(bozuk.mevcut).toBeUndefined();
+    // Başka kodda (ör. cakisma) mevcut okunmaz.
+    const baska = apiHatasinaCevir(
+      problem(409, {
+        status: 409,
+        detail: 'x',
+        kod: 'cakisma',
+        mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
+      }),
+    );
+    expect(baska.mevcut).toBeUndefined();
+  });
+
   it('Idempotency-Key başlık hatası da alan olarak gelir', () => {
     const hata = apiHatasinaCevir(
       problem(400, {

@@ -283,7 +283,17 @@ export class KiraFormuDurumu {
     const k = this.kira();
     return k !== null && k.cikisKm !== null;
   });
-  readonly kaydedilebilir = computed(() => this.operasyon() && !this.iptal());
+  /**
+   * #261 yeniden doğrulama N1: bir işlemden (teslim, ek hizmet, uzat, provizyon, sabit panel para işlemi) ya da
+   * Kaydet'ten sonra kayıt yeniden okunurken Kaydet PASİF — işlem kiranın sürümünü değiştirdi; tazeleme bitmeden
+   * gönderilen PUT kendi değişikliği yüzünden 409 "başka oturumda değişti" alıyordu. İşlem yanıtındaki sürümü
+   * tabana yazmak yetmez: işlemin yazdığı alanlar (provizyon tarihi, çıkış km…) forma birleşmeden gönderilen tam
+   * değiştirme onları geri alırdı — birleştirme detay yenilemesinde yapılır.
+   */
+  readonly kayitTazeleniyor = computed(() => !this.yeni && this.detay.yukleniyor());
+  readonly kaydedilebilir = computed(
+    () => this.operasyon() && !this.iptal() && !this.kayitTazeleniyor(),
+  );
 
   // Sabit seçenek listeleri (sunucudan; kayıtlı eski değer listede yoksa eklenir — kaybolmaz).
   private readonly vars = computed(() => this.varsayilanlar.veri());
@@ -329,6 +339,14 @@ export class KiraFormuDurumu {
    */
   private taban: KiraSozlesmesi | null = null;
   private tabanDegerleri: KiraSunucuDegerleri | null = null;
+  /**
+   * #261 N2: sürüm çakışmasından (409 `cakisma`) sonra TEK SEFERLİK sessiz yeniden gönderim hakkı. Güncel kayıt
+   * gelince birleştirmede kullanıcının DOKUNDUĞU alanlarla çakışan sunucu değişikliği YOKSA (ör. başka sekmede
+   * 5 TL tahsilat — PUT alanlarına dokunmaz) birleştirilmiş gövde yeni sürümle yeniden gönderilir; çakışan alan
+   * varsa bant + işaretleme (bugünkü davranış). Yalnız sürüm GERÇEKTEN değiştiyse (başka tür 409 — ör. müsaitlik
+   * — aynı sonucu verir, tekrar edilmez) ve yalnız bir kez (ikinci 409 yeniden göndermez).
+   */
+  private otomatikYeniden: { readonly surum: string; readonly gonder: () => void } | null = null;
 
   constructor() {
     for (const abonelik of aynalariBagla(this.form)) {
@@ -566,6 +584,11 @@ export class KiraFormuDurumu {
         ilk = false;
       });
     });
+    // N2: yeniden okuma başarısızsa sessiz yeniden gönderim hakkı düşer (sonraki bir okumada kendiliğinden
+    // gönderim olmasın).
+    effect(() => {
+      if (this.detay.tur() === 'hata') this.otomatikYeniden = null;
+    });
     effect(() => {
       const v = this.varsayilanlar.veri();
       if (v && this.teslimFormu.pristine) {
@@ -595,13 +618,21 @@ export class KiraFormuDurumu {
     // alanlar sunucu değerine çekilir — işlem (provizyon al, teslim…) ya da başka oturumun yazdığı değer bayat
     // tam değiştirmeyle geri alınmasın (F4.3 adversarial F2 / P261-10). İkisi de değiştiyse alan işaretlenir.
     const yeni = detaydanDegerler(d, this.t('kiraFormu.alan.kayitBulunamadi'));
+    const otomatik = this.otomatikYeniden;
+    this.otomatikYeniden = null;
     if (!this.form.dirty) {
       formuSifirla(this.form, yeni);
       this.durumaGoreKilitle(d);
     } else {
       const cakisan = sunucuDegerleriniBirlestir(this.form, yeni, this.tabanDegerleri);
       this.durumaGoreKilitle(d);
-      if (cakisan.length > 0) this.cakismaIsaretle(cakisan);
+      if (cakisan.length > 0) {
+        this.cakismaIsaretle(cakisan);
+      } else if (otomatik && k.surum !== otomatik.surum && this.kaydedilebilirDurumda(d)) {
+        // N2: çakışma yok → birleştirilmiş gövde yeni sürümle, sessiz ve tek sefer (409 bandı kapanır).
+        if (this.bant.bant()?.kod === 'cakisma') this.bant.kapat();
+        queueMicrotask(otomatik.gonder);
+      }
     }
     this.taban = k;
     this.tabanDegerleri = yeni;
@@ -651,6 +682,11 @@ export class KiraFormuDurumu {
 
   /** Hem kullanıcının hem başka oturumun değiştirdiği alanlar: alanın altında not + bant (engellemez —
    *  bir sonraki Kaydet'te sunucu hataları temizlenir, kullanıcının değeri bilinçli olarak yazılır). */
+  /** Yeni okunan kayıtta Kaydet anlamlı mı (izin + iptal değil) — sessiz yeniden gönderim için. */
+  private kaydedilebilirDurumda(d: KiraDetayYaniti): boolean {
+    return d.yetkiler.operasyon && d.kira.durum !== 'Iptal';
+  }
+
   private cakismaIsaretle(alanlar: readonly (keyof KiraSunucuDegerleri)[]): void {
     const mesaj = this.t('kiraFormu.cakisma.alan');
     for (const ad of alanlar) {
@@ -692,7 +728,7 @@ export class KiraFormuDurumu {
    * Ana formu gönderir. Yeni kirada müşteri seçilmemiş ama "yeni müşteri" alanları doluysa önce cari
    * açılır, sonra kira (Blazor tek adım davranışı). `gecersizeGit` bileşenden: hatalı alanın sekmesine.
    */
-  kaydet(gecersizeGit: () => void): void {
+  kaydet(gecersizeGit: () => void, otomatikHakki = true): void {
     if (this.yeni && this.form.controls.musteri.value === null && this.yeniMusteriDolu()) {
       // F4.3 adversarial F7: önce ANA form (müşteri dışında) doğrulanır — araç/tarih eksikken cari açılıp
       // kira hiç açılmazsa PII'li yetim cari kalırdı.
@@ -722,13 +758,14 @@ export class KiraFormuDurumu {
       return;
     }
     const id = this.id ?? '';
+    const gonderilenSurum = this.taban?.surum ?? '';
     this.kayit.gonder(
       this.form,
       () =>
         this.api.put<KiraSozlesmesi>(
           `${KOK}/${id}`,
           guncelleGovdesi(this.form.getRawValue(), {
-            surum: this.taban?.surum ?? '',
+            surum: gonderilenSurum,
             provizyonTarihAni: this.taban?.provizyonTarih ?? null,
             provizyonTarihDegisti: this.form.controls.provizyonTarih.dirty,
           }),
@@ -740,7 +777,14 @@ export class KiraFormuDurumu {
         // Bayat sürüm (409 cakisma): form SİLİNMEZ; güncel kayıt okunur, dokunulmamış alanlar güncellenir,
         // dokunulanlar korunur (detayGeldi → birleştirme); kullanıcı kontrol edip yeniden kaydeder.
         hata: (h) => {
-          if (h.kod === 'cakisma') this.yenile();
+          if (h.kod !== 'cakisma') return;
+          // N2: alansız (sürüm) çakışmada tek seferlik sessiz yeniden gönderim hakkı — karar güncel kayıt
+          // birleştirilince (detayGeldi) verilir.
+          this.otomatikYeniden =
+            otomatikHakki && h.alanlar === undefined
+              ? { surum: gonderilenSurum, gonder: () => this.kaydet(gecersizeGit, false) }
+              : null;
+          this.yenile();
         },
         basarili: () => {
           this.toast.basari(this.t('kiraFormu.bildirim.kaydedildi'));

@@ -420,6 +420,69 @@ public sealed class UiFinansApiTests(WebFixture fx)
         await TumDefterDengeliAsync(o);
     }
 
+    /// <summary>
+    /// F4.4 adversarial HIGH-1: ilk istek YAZILDI ama yanıt kayboldu → istemci AYNI anahtar + AYNI gövdeyle tekrarlar.
+    /// Önce: sunucu anahtarı güncel bakiye/işlem sayısıyla yeniden hesaplayıp "kayıt değişti … tekrar deneyin" 409'u
+    /// veriyordu; kullanıcı yeni anahtarla İKİNCİ tahsilatı yazıyordu (gerçek DB'de iki kez 500). Artık 409
+    /// "zaten kaydedildi" + <c>mevcut</c> (id, belge no, tutar, döviz); bayat anahtarın 409'unda <c>mevcut</c> YOK.
+    /// Beklenenler elle: 500 tahsil, tek kayıt, kalan 300 − 500 = −200.
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_kaybolan_yanit_sonrasi_ayni_anahtar_409_mevcut_dolu_bayat_anahtar_mevcut_yok()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var k1 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        var govde = Tahsilat(o, 500m, tahsilatAnahtar: k1);
+
+        var id = await Id(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null)); // yanıt "kayboldu"
+        var tekrar = await Problem(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Contains("zaten kaydedildi", tekrar.GetProperty("detail").GetString());
+        Assert.DoesNotContain("tekrar deneyin", tekrar.GetProperty("detail").GetString());
+        var mevcut = tekrar.GetProperty("mevcut");
+        Assert.Equal(id, mevcut.GetProperty("id").GetGuid());
+        Assert.Equal(500m, mevcut.GetProperty("tutar").GetDecimal());
+        Assert.Equal("TRY", mevcut.GetProperty("doviz").GetString());
+        var no = await DbAsync(o, db => db.CashTransactions.AsNoTracking().Where(t => t.Id == id).Select(t => t.No).SingleAsync());
+        Assert.Equal(no, mevcut.GetProperty("belgeNo").GetString());
+        Assert.Contains(no, tekrar.GetProperty("detail").GetString());
+        // Gövde farklı olsa da (kullanıcı tutarı değiştirip tekrar bastı) aynı anahtar → aynı "zaten kaydedildi".
+        var farkli = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), YeniAnahtar()),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(id, farkli.GetProperty("mevcut").GetProperty("id").GetGuid());
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(-200m, (await KiraOkuAsync(o, o.Kira)).Bakiye);
+
+        // Bayat anahtar: kirada BAŞKA bir işlem oldu (bu anahtarla yazılmış kayıt YOK) → 409, mevcut yok.
+        var k2 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/odeme", new { cariId = o.Musteri, kiraId = o.Kira, tutar = 50m, hesap = "Kasa" }, YeniAnahtar()));
+        var bayat = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 50m, tahsilatAnahtar: k2), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.False(bayat.TryGetProperty("mevcut", out _));
+        Assert.Contains("tutarı yeniden girin", bayat.GetProperty("detail").GetString());
+        Assert.Equal(1, await DbAsync(o, db => db.CashTransactions.AsNoTracking()
+            .CountAsync(t => t.RentalId == o.Kira && t.Tip == CashTransactionType.Tahsilat))); // + 1 ödeme, tahsilat hâlâ tek
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>HIGH-1 kapsam: başka kiranın (aynı cari) tahsilatına ait anahtar bu kirayla gönderilirse o kaydın
+    /// no/tutarı SIZMAZ — "zaten kaydedildi" yalnız aynı kiranın tahsilatı için; diğeri "ait değil" 409'u.</summary>
+    [Fact]
+    public async Task Tahsilat_baska_kiranin_anahtari_mevcut_sizdirmaz()
+    {
+        var o = await OrtamKurAsync();
+        var (kiraB, _) = await OkuAsync(o, sp => KiraAsync(sp, o.Musteri, KiraBas.AddDays(10), gun: 2));
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var kA = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: kA), anahtar: null));
+
+        var r = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, kira: kiraB, tahsilatAnahtar: kA), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.False(r.TryGetProperty("mevcut", out _));
+        Assert.Equal(0, await TahsilatSayisiAsync(o, kiraB));
+    }
+
     [Fact]
     public async Task Detay_tahsilat_finans_izni_yoksa_ve_iptal_kirada_null()
     {

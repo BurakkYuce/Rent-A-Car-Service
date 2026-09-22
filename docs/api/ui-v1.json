@@ -721,6 +721,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
           }
         }
       }
@@ -6245,6 +6255,78 @@
               ],
               "format": "int32"
             }
+          }
+        }
+      },
+      "MevcutIslem": {
+        "required": [
+          "id",
+          "belgeNo",
+          "tutar",
+          "doviz"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "belgeNo": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          }
+        }
+      },
+      "MukerrerProblemi": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "kod",
+          "mevcut"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "mevcut": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MevcutIslem"
+              }
+            ]
           }
         }
       },

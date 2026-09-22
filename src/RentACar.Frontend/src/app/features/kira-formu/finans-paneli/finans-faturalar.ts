@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { sayiya } from '../kira-formu-modeli';
 import { KF_ORTAK } from '../sekmeler/ortak';
 import { paraGoster } from './finans-modeli';
@@ -70,7 +79,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
           <h3 class="kf-finans__baslik" id="kf-finans-fatura">
             {{ 'kiraFinans.fatura.kes' | transloco }}
           </h3>
-          <details class="kf-acilir">
+          <details class="kf-acilir" [open]="vergiAcik()" (toggle)="acildi($event)">
             <summary>{{ 'kiraFinans.fatura.vergiAlanlari' | transloco }}</summary>
             <div class="rc-form-izgara">
               <rc-alan [etiket]="'kiraFinans.fatura.otv' | transloco">
@@ -107,7 +116,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
               class="rc-dugme rc-dugme--birincil"
               data-testid="fatura-kes"
               [disabled]="f.faturaGonderimi.gonderiliyor()"
-              (click)="f.faturaKes()"
+              (click)="kes()"
             >
               {{
                 (f.faturaGonderimi.gonderiliyor()
@@ -126,6 +135,25 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 export class FinansFaturalar {
   protected readonly f = inject(KiraFinansDurumu);
   protected readonly para = paraGoster;
+  private readonly kok = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  /** Vergi alanları kutusu açık mı (geçersiz alan varsa gönderimde açılır — adversarial L4). */
+  protected readonly vergiAcik = signal(false);
+
+  protected kes(): void {
+    this.f.faturaKes(() => {
+      this.vergiAcik.set(true);
+      afterNextRender(
+        () => this.kok.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        { injector: this.injector },
+      );
+    });
+  }
+
+  protected acildi(olay: Event): void {
+    const d = olay.target;
+    if (d instanceof HTMLDetailsElement) this.vergiAcik.set(d.open);
+  }
 
   /** Blazor koşulu: genel toplam > 0 ve iptal değil. */
   protected readonly kesilebilir = computed(() => {

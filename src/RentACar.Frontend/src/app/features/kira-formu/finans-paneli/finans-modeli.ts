@@ -210,7 +210,7 @@ export function disHizmetGovdesi(kiraId: string, d: DisHizmetDegeri): DisHizmetI
 export type KopyaSonucu =
   /** Yeni kopya alındı, form boşta → değerler sunucudan ön-doldurulur. */
   | 'ondoldur'
-  /** Yeni kopya alındı (işlem sonuçlandı) ama kullanıcının yazdıkları KORUNUR. */
+  /** Yeni kopya alındı ama değerlere dokunulmaz (kullanıcı yazdı ya da 409 sonrası ön-doldurma kapalı). */
   | 'anahtar'
   /** Açık form: ESKİ kopya korunur (bayatsa sunucu 409 verir → yeniden yüklenir). */
   | 'korundu';
@@ -224,11 +224,15 @@ export type KopyaSonucu =
  *   üzerinden 409 alır — anahtar hiçbir zaman sessizce yenisiyle (ya da anahtarsızla) değiştirilmez.
  * - Gönderim sonuçlanınca (2xx ya da 409 `mukerrer`) kopya "tazeleme bekliyor" olur; gönderim düğmesi
  *   YENİ detay gelene dek kapalıdır, gelen detayın anahtarı alınır (ikinci meşru tahsilat yeni anahtarla).
+ * - 409 sonrası (`sonuclandi(false)`) ön-doldurma KAPANIR, bir sonraki 2xx'e kadar: kullanıcı güncel bakiyeye
+ *   bakıp tutarı bilinçli girer (F4.4 adversarial HIGH-1 — kaybolan yanıttan sonra ön-dolu tutar ikinci
+ *   tahsilata davetti).
  */
 export class TahsilatKopyasi {
   private readonly _kopya = signal<TahsilatBilgisi | null>(null);
   private readonly _tazelemeBekleniyor = signal(false);
   private denendi = false;
+  private ondoldurIzni = true;
 
   readonly kopya: Signal<TahsilatBilgisi | null> = this._kopya.asReadonly();
   readonly tazelemeBekleniyor: Signal<boolean> = this._tazelemeBekleniyor.asReadonly();
@@ -239,12 +243,16 @@ export class TahsilatKopyasi {
     if (this._tazelemeBekleniyor()) {
       this._tazelemeBekleniyor.set(false);
       this.denendi = false;
-      this._kopya.set(bilgi);
-      return formKirli ? 'anahtar' : 'ondoldur';
+    } else if (this._kopya() !== null && (this.denendi || formKirli)) {
+      return 'korundu';
     }
-    if (this._kopya() !== null && (this.denendi || formKirli)) return 'korundu';
     this._kopya.set(bilgi);
-    return formKirli ? 'anahtar' : 'ondoldur';
+    return formKirli || !this.ondoldurIzni ? 'anahtar' : 'ondoldur';
+  }
+
+  /** Gönderim denendi ama sonuçlanmadı (ağ/5xx/oturum/doğrulama): donmuş anahtar sayfa terkinde kaybolmasın. */
+  get sonuclanmamis(): boolean {
+    return this.denendi && !this._tazelemeBekleniyor();
   }
 
   /** Gönderim başlıyor: kopya donar ve döner (yoksa `null` — gönderim yapılmaz). */
@@ -255,8 +263,12 @@ export class TahsilatKopyasi {
     return k;
   }
 
-  /** 2xx ya da 409 `mukerrer`: işlem sonuçlandı, sonraki detayın anahtarı alınır. */
-  sonuclandi(): void {
+  /**
+   * 2xx (`ondoldur` true) ya da 409 `mukerrer` (`false`): işlem sonuçlandı, sonraki detayın anahtarı alınır.
+   * 409'dan sonra ön-doldurma bir sonraki başarılı işleme kadar kapalı kalır.
+   */
+  sonuclandi(ondoldur = true): void {
+    this.ondoldurIzni = ondoldur;
     this._tazelemeBekleniyor.set(true);
   }
 }

@@ -113,7 +113,9 @@ public static class FinansApi
             .WithTags("Finans");
 
         g.MapGet("/hesaplar", Hesaplar);
-        g.MapPost("/tahsilat", Tahsilat);
+        g.MapPost("/tahsilat", Tahsilat)
+            // 409 mukerrer gövdesi belgelenir: SPA `mevcut` (aynı anahtarla zaten yazılmış kayıt) tipini buradan alır.
+            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         g.MapPost("/odeme", Odeme);
         g.MapPost("/fatura", Fatura);
         g.MapPost("/donem-fatura", DonemFatura);
@@ -149,7 +151,15 @@ public static class FinansApi
         var (girdi, kira) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: true, kiralar, ct);
         if (istek.TahsilatAnahtar is { } gelen)
+        {
+            // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
+            // tekrar (aynı anahtar) yeniden hesaplamada "kayıt değişti" alıyor, kullanıcı yeni anahtarla İKİNCİ
+            // tahsilatı yazıyordu. Kayıt varsa 409 "zaten kaydedildi" + mevcut (tekrar denemeye yönlendirmez).
+            // Yalnız BU kiranın tahsilatıysa bildirilir (kapsam kapısı NakitGirdisiAsync'te geçildi; başka kiranın
+            // anahtarı bilgi sızdırmaz, aşağıdaki yeniden hesaplamada "ait değil" 409'u alır).
+            await ZatenKaydedildiyseAsync(gelen, kira!, kasa, ct);
             await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
+        }
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.CollectAsync(girdi, ct)));
     }
@@ -323,6 +333,12 @@ public static class FinansApi
     /// <para>Bakiye DB'den <c>numeric(19,4)</c> ölçeğiyle ("300.0000") gelir; ondalık sıfırları atılmış biçim
     /// ("300") de kabul edilir — anahtarı üreten taraf bakiyeyi başka kaynaktan (ör. hesaplanmış DTO) alabilir.</para>
     /// </summary>
+    /// <summary>Bayat/yabancı anahtar: hiçbir şey yazılmadı. "Tekrar deneyin" DENMEZ (HIGH-1): kullanıcı güncel
+    /// bakiyeyi görüp tutarı BİLİNÇLİ yeniden girmeli.</summary>
+    public const string BayatAnahtarMesaji =
+        "Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu kiraya " +
+        "ait değil; tahsilat yazılmadı. Güncel bakiyeyi kontrol edip tutarı yeniden girin.";
+
     private static async Task TahsilatAnahtariGuncelAsync(Guid gelen, RentalContract kira, CashService kasa, CancellationToken ct)
     {
         var sayilar = await kasa.GetRentalIslemSayilariAsync([kira.Id], ct);
@@ -331,9 +347,23 @@ public static class FinansApi
             CultureInfo.InvariantCulture);
         if (gelen != TahsilatAnahtar.Uret(kira.Id, kira.Bakiye, islemSayisi)
             && gelen != TahsilatAnahtar.Uret(kira.Id, sade, islemSayisi))
-            throw new MukerrerIslemException(
-                "Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu " +
-                "kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.");
+            throw new MukerrerIslemException(BayatAnahtarMesaji);
+    }
+
+    /// <summary>Kaybolan yanıttan sonraki tekrar: aynı <c>tahsilatAnahtar</c> ile bu kiraya yazılmış tahsilat.</summary>
+    public const string ZatenKaydedildiMesaji =
+        "Bu tahsilat zaten kaydedildi (No {0}, {1} {2}); yeni tahsilat yazılmadı.";
+
+    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+
+    private static async Task ZatenKaydedildiyseAsync(Guid anahtar, RentalContract kira, CashService kasa, CancellationToken ct)
+    {
+        if (await kasa.IslemAnahtariylaBulAsync(anahtar, ct) is not { } t
+            || t.RentalId != kira.Id || t.Tip != CashTransactionType.Tahsilat)
+            return;
+        throw new MukerrerIslemException(
+            string.Format(Tr, ZatenKaydedildiMesaji, t.No, t.Amount.Amount.ToString("N2", Tr), t.Amount.Currency),
+            new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency));
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>

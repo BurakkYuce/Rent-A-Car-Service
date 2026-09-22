@@ -20,6 +20,7 @@ import { FinansFaturalar } from './finans-faturalar';
 import { FinansCezalar, FinansKurlar } from './finans-listeler';
 import { FinansOdeme } from './finans-odeme';
 import { FinansTahsilat } from './finans-tahsilat';
+import { paraGoster } from './finans-modeli';
 import { KiraFinansDurumu } from './kira-finans-durumu';
 
 /** Alt sekmeler — Blazor sabit paneli: Nakit, Kredi Kart/Havale, Faturalar, Fatura Dönemleri, Dış Hizmet, Kur, Ceza/HGS. */
@@ -89,6 +90,13 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
       font-size: var(--rc-yazi-sm);
       font-weight: var(--rc-agirlik-kalin);
     }
+    .kf-finans .kf-finans__ust {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--rc-bosluk-2);
+      align-items: center;
+      justify-content: space-between;
+    }
     .kf-finans .kf-finans__satir {
       display: flex;
       flex-wrap: wrap;
@@ -98,7 +106,14 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
   `,
   template: `
     <section class="kf-kart" aria-labelledby="kf-finans-baslik" data-testid="finans-paneli">
-      <h2 class="kf-kart__baslik" id="kf-finans-baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
+      <div class="kf-finans__ust">
+        <h2 class="kf-kart__baslik" id="kf-finans-baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
+        @if (f.kira(); as k) {
+          <span class="rc-rozet" data-testid="finans-kalan">{{
+            'kiraFinans.kalan' | transloco: { tutar: para(k.bakiye, k.doviz) }
+          }}</span>
+        }
+      </div>
       @if (f.kira()) {
         <div
           class="kf-alt-sekmeler"
@@ -168,6 +183,7 @@ export class KiraFinansPaneli {
   private readonly belge = inject(DOCUMENT);
   protected readonly sekmeler = FINANS_SEKMELERI;
   protected readonly aktif = signal<FinansSekmesi>('nakit');
+  protected readonly para = paraGoster;
 
   constructor() {
     this.f.degisti = () => this.degisti.emit();
@@ -178,6 +194,11 @@ export class KiraFinansPaneli {
         this.f.sekmeAcildi(this.aktif());
       });
     });
+  }
+
+  /** Sayfa terk koruması için (yuva üzerinden sayfaya). */
+  kirliMi(): boolean {
+    return this.f.kirliMi();
   }
 
   protected etiket(s: FinansSekmesi): CeviriAnahtari {

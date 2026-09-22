@@ -66,6 +66,7 @@
     "agHatasi": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
     "mukerrerBaslik": "Mükerrer işlem",
     "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
+    "zatenKaydedildi": "İşlem zaten kaydedildi",
     "durum": {
       "basari": "Başarılı",
       "bilgi": "Bilgi",
@@ -378,6 +379,7 @@
     "onceKaydet": "Önce kaydedin — finans işlemleri kayıtlı sözleşmede yapılır.",
     "yetkiYok": "Muhasebe (FinanceWrite) yetkisi gerekir.",
     "kayitDegismis": "Kira kaydı değişmiş",
+    "kalan": "Kalan: {{tutar}}",
     "sekme": {
       "nakit": "Nakit",
       "kart": "Kart/Havale",
@@ -410,7 +412,9 @@
       "nakitDugme": "Nakit tahsil et",
       "kartDugme": "Kart/havale tahsil et",
       "iptalKira": "İptal edilmiş kirada tahsilat yapılmaz.",
-      "tazeleniyor": "İşlem sonuçlandı; kira yeniden yükleniyor…"
+      "tazeleniyor": "İşlem sonuçlandı; kira yeniden yükleniyor…",
+      "bakiyeYok": "Kalan bakiye yok ({{kalan}}); bu tutar ön/fazla tahsilat olarak yazılır.",
+      "kalaniAsiyor": "Tutar kalan bakiyeyi ({{kalan}}) aşıyor; fark fazla tahsilat olarak yazılır."
     },
     "odeme": {
       "baslik": "Giden havale (Banka)",
