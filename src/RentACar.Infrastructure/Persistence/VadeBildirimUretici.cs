@@ -18,6 +18,10 @@ public static class VadeBildirimUretici
     /// <summary>Üretilen yeni bildirim sayısını döndürür. db, tenantId'ye kapsanmış olmalı (GUC + filter).</summary>
     public static async Task<int> RunAsync(AppDbContext db, Guid tenantId, DateTimeOffset now, CancellationToken ct = default)
     {
+        // now → OlusturmaTarihi (timestamptz). Npgsql yalnız Offset=0 yazar; çağıran yerel ofsetli
+        // bir an verse de (aynı an) kayıt düşmesin diye girişte UTC'ye normalize edilir.
+        now = now.ToUniversalTime();
+
         // Vade kaynak birleşimi TEK doğruluk kaynağından (denetim O12a) — vade panosu ile birebir aynı liste.
         var kaynaklar = await OrtakSorgular.VadeKaynaklariAsync(db, ct);
 

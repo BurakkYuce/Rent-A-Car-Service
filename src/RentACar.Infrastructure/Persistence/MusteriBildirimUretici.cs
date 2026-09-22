@@ -12,7 +12,8 @@ namespace RentACar.Infrastructure.Persistence;
 ///
 /// <para><b>Zaman dilimi:</b> "yarın çıkacaklar" ve "bugün dönecekler" TAKVİM günüdür ve müşterinin
 /// takvimi yereldir — UTC gününe göre hesaplamak, akşam 21:00'den sonraki çıkışları bir gün kaydırırdı.
-/// Bu yüzden gün sınırları İstanbul saatinde bulunup UTC'ye çevrilir.</para>
+/// Bu yüzden gün sınırları İstanbul saatinde bulunup UTC'ye çevrilir — sorguya giden sınır DAİMA
+/// Offset=0'dır (Npgsql timestamptz'ye başka ofset yazmaz; bkz. <c>VadeBildirimJobSaatDilimiTests</c>).</para>
 ///
 /// <para><b>İdempotency:</b> anahtar GÜN bileşeni taşır (<c>iade-hatirlatma:{id}:2026-08-17</c>).
 /// Gün olmadan, 3 günlük bir kiralamanın hatırlatması ilk gün gönderilip sonraki günler "zaten var"
@@ -36,18 +37,30 @@ public static class MusteriBildirimUretici
                 new DogrudanAyarRepository(db), secrets, eposta, sms),
             NullCurrentUser.Instance);
 
-        var yerel = TimeZoneInfo.ConvertTime(now, tz);
-        var bugunBas = new DateTimeOffset(yerel.Year, yerel.Month, yerel.Day, 0, 0, 0, yerel.Offset);
-        var bugunBit = bugunBas.AddDays(1);
+        // Gün sınırı İSTANBUL'da hesaplanır, DB'ye giden an UTC'dir. Npgsql 6+ timestamptz
+        // parametresine yalnız Offset=0 yazar; eskiden sınırlar yerel ofsetle (+03:00) kurulup
+        // sorguya veriliyordu → her koşuda ArgumentException, hatırlatmalar hiç üretilmedi.
+        now = now.ToUniversalTime();
+        var bugun = TenantGun.Gun(now, tz);
+        var bugunBas = GunBasiUtc(bugun, tz);
+        var bugunBit = GunBasiUtc(bugun.AddDays(1), tz);
         var yarinBas = bugunBit;
-        var yarinBit = yarinBas.AddDays(1);
-        var gunEtiketi = yerel.ToString("yyyy-MM-dd");
+        var yarinBit = GunBasiUtc(bugun.AddDays(2), tz);
+        var gunEtiketi = bugun.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
         var sayac = 0;
         sayac += await TeslimHatirlatmaAsync(db, bildirim, yarinBas, yarinBit, gunEtiketi, ct);
         sayac += await IadeHatirlatmaAsync(db, bildirim, bugunBas, bugunBit, gunEtiketi, ct);
         sayac += await KuyruktaYenidenDeneAsync(db, bildirim, now, ct);
         return sayac;
+    }
+
+    /// <summary>Yerel takvim gününün 00:00'ı → UTC an (Offset=0). Ofset o GECE YARISI için çözülür
+    /// (<c>OperasyonOzetUretici</c> ile aynı yol); dilimde yaz saati olsa bile gün sınırı kaymaz.</summary>
+    private static DateTimeOffset GunBasiUtc(DateOnly gun, TimeZoneInfo tz)
+    {
+        var yerelBas = gun.ToDateTime(TimeOnly.MinValue); // Kind=Unspecified → tz'nin duvar saati
+        return new DateTimeOffset(yerelBas, tz.GetUtcOffset(yerelBas)).ToUniversalTime();
     }
 
     /// <summary>Yarın aracını teslim alacak müşterilere hatırlatma (rezervasyonlar).</summary>
