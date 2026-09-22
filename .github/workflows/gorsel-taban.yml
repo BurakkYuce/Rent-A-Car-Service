@@ -1,0 +1,50 @@
+name: Görsel tabanlar
+
+# F3.7 görsel regresyon tabanlarını CI'ın e2e işiyle AYNI imajda yeniden üretir ve artifact olarak
+# yükler (commit ETMEZ). Docker'ı olmayan geliştirici için: Actions → "Görsel tabanlar" → Run workflow
+# (dal seç) → "gorsel-tabanlari" artifact'ını indir → src/RentACar.Frontend/e2e/gorsel-tabanlari/ altına
+# aç → farkı gözle incele → commit'le. Docker'ı olan: `npm run e2e:gorsel:guncelle` (aynı sonuç).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tabanlar:
+    runs-on: ubuntu-latest
+
+    container:
+      # ci.yml `e2e` işiyle aynı etiket (@playwright/test sürümü).
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+
+    defaults:
+      run:
+        working-directory: src/RentACar.Frontend
+
+    env:
+      NG_CLI_ANALYTICS: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/RentACar.Frontend/package-lock.json
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Derleme
+        run: npm run build
+
+      - name: Tabanları yeniden üret
+        run: npx playwright test --project=gorsel --update-snapshots=all
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gorsel-tabanlari
+          path: src/RentACar.Frontend/e2e/gorsel-tabanlari/
+          retention-days: 7

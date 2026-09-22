@@ -48,6 +48,7 @@ describe('YerTutucu', () => {
     await fixture.whenStable();
     const kok = fixture.nativeElement as HTMLElement;
     expect([...kok.querySelectorAll('nav a')].map((a) => a.getAttribute('href'))).toEqual([
+      '/vitrin',
       '/vitrin/geri-bildirim',
       '/vitrin/form',
       '/vitrin/tanim',
