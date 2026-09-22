@@ -191,10 +191,19 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
-  # Yeni arayüz duman testi: production derlemesi /app/ altında, üretim CSP'siyle + axe.
-  # Chromium önbellekten gelir (anahtar: package-lock → Playwright sürümü değişince yenilenir).
+  # Yeni arayüz e2e: production derlemesi /app/ altında, üretim CSP'siyle; işlev + axe (iki tema) +
+  # 320–1440 px gövde taşması (`--project=chromium`) ve görsel regresyon (`--project=gorsel`).
+  #
+  # Neden KONTEYNER (F3.7): ekran görüntüsü tabanları piksel düzeyinde işletim sistemine/fonta/tarayıcı
+  # derlemesine bağlı. İş, tabanların üretildiği imajın AYNISINDA koşar (yerelde `npm run e2e:gorsel`
+  # aynı imajı linux/amd64 ile çalıştırır). Tarayıcı imajda hazır: indirme/önbellek adımı yok.
+  # İmaj etiketi @playwright/test sürümüyle AYNI olmalı; değilse Playwright tarayıcıyı bulamayıp
+  # "Executable doesn't exist" ile kırılır (sürüm kayması sessiz geçmez).
   e2e:
     runs-on: ubuntu-latest
+
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
 
     defaults:
       run:
@@ -215,25 +224,15 @@ jobs:
       - name: Bağımlılıklar
         run: npm ci
 
-      - name: Playwright tarayıcı önbelleği
-        id: pw-onbellek
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('src/RentACar.Frontend/package-lock.json') }}
-
-      - name: Chromium (önbellek yoksa indir)
-        if: steps.pw-onbellek.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps --only-shell chromium
-
-      - name: Chromium sistem kütüphaneleri (önbellek varsa)
-        if: steps.pw-onbellek.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-
-      - name: e2e (derleme + Playwright + axe)
+      - name: e2e (derleme + Playwright + axe + taşma)
         run: npm run e2e
 
-      - name: Playwright izleri (yalnız hata durumunda)
+      # Tabanlar e2e/gorsel-tabanlari/ (commit'li). CI eksik tabanı yazmaz, kırmızı verir.
+      # Güncelleme: `npm run e2e:gorsel:guncelle` (Docker) ya da "Görsel tabanlar" iş akışı (elle).
+      - name: Görsel regresyon (açık/koyu × 320/390/768/1440)
+        run: npm run e2e:gorsel:ci
+
+      - name: Playwright izleri ve görsel farklar (yalnız hata durumunda)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
