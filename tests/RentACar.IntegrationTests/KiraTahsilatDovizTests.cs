@@ -44,7 +44,7 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
         if (isoKod != "TRY" && isoKod.Length == 3)
             await sp.GetRequiredService<SabitKurService>()
                 .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(sp);
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, Doviz = doviz });
