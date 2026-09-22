@@ -52,6 +52,13 @@ public sealed class CustomerService(
         return _repository.SecimAraAsync(TurkishText.Normalize(t), Math.Clamp(limit, 1, 20), ct);
     }
 
+    /// <summary>F4.3b — kimlikle tek seçim satırı (PII'sız; <see cref="SecimAraAsync"/> ile aynı izin).</summary>
+    public Task<CariSecimSatiri?> SecimGetirAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        return _repository.SecimGetirAsync(id, ct);
+    }
+
     /// <summary>Liste ekranı: arama + sayfalama.</summary>
     public Task<PagedResult<Customer>> SearchAsync(CustomerFilter filter, CancellationToken ct = default)
     {
