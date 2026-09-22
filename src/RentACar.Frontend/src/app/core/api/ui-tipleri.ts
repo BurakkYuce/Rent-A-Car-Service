@@ -34,6 +34,17 @@ export type TabloDuzeniYaniti = Semalar['TabloDuzeniYaniti'];
 /** `PUT /api/ui/v1/tablo-duzenleri/{tabloKodu}` gövdesi. */
 export type TabloDuzeniVerisi = Semalar['TabloDuzeniVerisi'];
 
+// ---- F4.2 kira listesi (`GET /api/ui/v1/kiralar`, `/ozet`, `/filtre-secenekleri`)
+export type KiraListeSatiri = Semalar['KiraListeSatiri'];
+/** Satırın "Tahsil Et" verisi; `anahtar` sunucunun deterministik `TahsilatAnahtar`'ı (geri gönderilir). */
+export type TahsilatBilgisi = Semalar['TahsilatBilgisi'];
+export type KiraListeOzeti = Semalar['KiraListeOzeti'];
+export type KiraFiltreSecenekleri = Semalar['KiraFiltreSecenekleri'];
+// F4.4a finans uçları (F4.2 "Tahsil Et" kullanır; F4.4/F8 aynı tipleri paylaşır)
+export type TahsilatIstegi = Semalar['TahsilatIstegi'];
+export type FinansIslemYaniti = Semalar['FinansIslemYaniti'];
+export type FinansHesapOgesi = Semalar['FinansHesapOgesi'];
+
 /** Sunucunun verdiği izin listesinde birebir eşleşme (izin adları sabit İngilizce enum adlarıdır). */
 export function izinVar(ben: BenYaniti, izin: string): boolean {
   return ben.izinler.includes(izin);
