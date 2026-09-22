@@ -21,7 +21,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { SekmePaneli, SekmeliForm, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
-import { KiraFinansPaneli } from './finans-paneli/kira-finans-paneli';
+import { KiraFinansYuvasi } from './finans-paneli/kira-finans-yuvasi';
 import { KiraFormuDurumu } from './kira-formu-durumu';
 import {
   SEKMELER,
@@ -64,7 +64,7 @@ import { Paylasim } from './sekmeler/paylasim';
     FormHatalari,
     SekmeliForm,
     SekmePaneli,
-    KiraFinansPaneli,
+    KiraFinansYuvasi,
     HizliGiris,
     KiraBilgisi,
     Musteri,

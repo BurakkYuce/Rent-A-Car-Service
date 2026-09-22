@@ -226,6 +226,7 @@ function detay(ek: Partial<KiraSozlesmesi> = {}): KiraDetayYaniti {
     doviz: null,
     paylasim: null,
     yetkiler: { operasyon: true, silme: true, finans: true },
+    tahsilat: null,
   };
 }
 
