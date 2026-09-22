@@ -618,6 +618,41 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal(2, ozet.GetProperty("kirada").GetInt32());
     }
 
+    /// <summary>F4.2 — SPA listesinin dışa aktarması (<c>/listeler/export/kiralar</c>) ekrandaki süzgeci taşır;
+    /// parametresiz çağrı (Blazor bağlantısı) eskisi gibi hepsi. Oracle: 3 kira açıldı, 1'i iptal edildi.</summary>
+    [Fact]
+    public async Task Export_kiralar_ekrandaki_suzgeci_tasir_parametresiz_hepsi()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Admin);
+        var bas = Simdi().AddDays(40);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 3; i++) ids.Add(await KiraAcAsync(s, o, await AracAsync(o), bas.AddDays(i * 7)));
+        await Json(await Gonder(s, HttpMethod.Post, $"{Kira}/{ids[0]}/iptal"));
+
+        static async Task<int> VeriSatiriAsync(HttpResponseMessage r)
+        {
+            var metin = await r.Content.ReadAsStringAsync();
+            Assert.True(r.StatusCode == HttpStatusCode.OK, $"{(int)r.StatusCode}: {metin}");
+            Assert.Equal("text/csv", r.Content.Headers.ContentType?.MediaType);
+            return metin.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length - 1;
+        }
+
+        const string Uc = "/listeler/export/kiralar?format=csv";
+        Assert.Equal(3, await VeriSatiriAsync(await s.C.GetAsync(Uc)));
+        Assert.Equal(1, await VeriSatiriAsync(await s.C.GetAsync(Uc + "&durum=Iptal")));
+        // Sayfa taşınmaz: dosya filtreye uyan TÜM kayıtlar (2 kirada), ekrandaki sayfa değil.
+        Assert.Equal(2, await VeriSatiriAsync(await s.C.GetAsync(Uc + "&durum=Kirada&sayfa=2&boyut=1")));
+        // API ile aynı gün kuralı: son kiranın başlangıç günü ve sonrası → 1.
+        var sonGun = bas.AddDays(14).ToOffset(TimeSpan.FromHours(3)).ToString("yyyy-MM-dd");
+        Assert.Equal(1, await VeriSatiriAsync(await s.C.GetAsync(Uc + "&basMin=" + sonGun)));
+
+        // Tanımsız durum adı sessizce "hepsi"ne düşmez (yanlış dosya indirilmez): doğrulama hatası sayfası.
+        var bozuk = await s.C.GetAsync(Uc + "&durum=Yok");
+        Assert.Equal(HttpStatusCode.Redirect, bozuk.StatusCode);
+        Assert.StartsWith("/hata", bozuk.Headers.Location?.OriginalString);
+    }
+
     [Fact]
     public async Task Ek_hizmet_ekle_sil_toplam_ve_yabanci_kalem_404()
     {
