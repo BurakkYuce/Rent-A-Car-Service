@@ -185,6 +185,49 @@
         }
       }
     },
+    "/api/ui/v1/secim/kur": {
+      "get": {
+        "tags": [
+          "Se\u00E7im"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KurSecimOgesi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/secim/arac": {
       "get": {
         "tags": [
@@ -528,49 +571,6 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/SecimOgesi"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/ui/v1/secim/kur": {
-      "get": {
-        "tags": [
-          "Se\u00E7im"
-        ],
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/KurSecimOgesi"
                   }
                 }
               }

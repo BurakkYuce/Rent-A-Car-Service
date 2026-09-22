@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { of } from 'rxjs';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { type SecimKaynagi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { KF_ORTAK } from '../sekmeler/ortak';
@@ -90,7 +89,6 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
         <div class="rc-form-izgara">
           <rc-alan
             [etiket]="'kiraFinans.disHizmet.tedarikci' | transloco"
-            [ipucu]="f.operasyon() ? '' : ('kiraFinans.disHizmet.cariYetki' | transloco)"
             class="rc-form-izgara__genis"
           >
             <rc-arama-secim formControlName="cari" [kaynak]="cariKaynagi" />
@@ -154,9 +152,6 @@ export class FinansDisHizmet {
     deger: d,
     etiket: d,
   }));
-  private readonly musteriler = sunucuSecimKaynagi('musteri');
-  /** Müşteri seçim ucu OperationsWrite ister; izinsiz oturumda istek atılmaz (403 bandı çıkmasın). */
-  protected readonly cariKaynagi: SecimKaynagi = (arama, limit) =>
-    this.operasyonVar() ? this.musteriler(arama, limit) : of([]);
-  private readonly operasyonVar = computed(() => this.f.operasyon());
+  /** Müşteri seçimi OperationsWrite VEYA FinanceWrite ile açık (F4.4; Muhasebe tedarikçi arar), PII'sız. */
+  protected readonly cariKaynagi: SecimKaynagi = sunucuSecimKaynagi('musteri');
 }

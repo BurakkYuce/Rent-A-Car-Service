@@ -483,6 +483,38 @@ test('dış hizmet iptali: FinanceReverse yoksa düğme yok; sunucu 403 verirse 
   expect(hatalar).toEqual([]);
 });
 
+test('Muhasebe (FinanceWrite, OperationsWrite yok): kur listesi ve tedarikçi cari araması çalışır', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page);
+  await oturumAc(page, { ...BEN, rol: 'Muhasebe', izinler: ['FinanceWrite', 'FinanceReverse'] });
+  const secimler: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/api/ui/v1/secim/')) secimler.push(new URL(r.url()).pathname);
+  });
+  await sahteApi(page, {
+    detay: () => ({
+      ...detay(K1, 2600, 1000),
+      yetkiler: { operasyon: false, silme: false, finans: true },
+    }),
+  });
+  await page.route(/\/api\/ui\/v1\/secim\/musteri/, (route) =>
+    route.fulfill({ json: [{ id: MUSTERI_ID, etiket: 'Yol Yardım Ltd.', tip: 'Kurumsal' }] }),
+  );
+  await page.goto(SAYFA);
+  await sekme(page, 'Kurlar');
+  await expect(panel(page).getByRole('cell', { name: 'USD — ABD Doları' })).toBeVisible();
+  await sekme(page, 'Dış hizmet');
+  const cari = panel(page).getByRole('combobox', { name: 'Tedarikçi cari' });
+  await cari.click();
+  await cari.fill('yol');
+  await expect(page.getByRole('option', { name: /Yol Yardım Ltd\./ })).toBeVisible();
+  expect(secimler).toEqual(
+    expect.arrayContaining(['/api/ui/v1/secim/kur', '/api/ui/v1/secim/musteri']),
+  );
+  expect(hatalar).toEqual([]);
+});
+
 test.describe('390 px ve koyu tema', () => {
   test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
