@@ -1,5 +1,12 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
+import {
+  hizli,
+  ARAC_ID as KIRA_ARAC,
+  KIRA_ID,
+  MUSTERI_ID as KIRA_MUSTERI,
+  sahteKiraApi,
+} from './kira-sahte';
 import { BEN, oturumAc, problem } from './ortak';
 
 /**
@@ -103,18 +110,45 @@ test('Blazor dönüş adresi sunucunun /login kapısına verilir (açık yönlen
   await expect(page).toHaveURL(/\/login\?ReturnUrl=%2Fvehicles%3Fx%3D1$/);
 });
 
-// F4.3 (#261: `/app/kiralar/yeni` formu) main'e girince fixme kaldırılır; sahte uçlar F4.3'ün
-// `kira-formu.spec.ts` kurulumundan (form varsayılanları, araç/müşteri seçimi, canlı hesap) alınır.
-test.fixme('pilot: Blazor "Kirala" bağlantısı (/kiralar/yeni?varac=…&vfrom=…&vto=…&musteriId=…) SPA formunu DOLU açar', async ({
+test('pilot: Blazor "Kirala" bağlantısı (/kiralar/yeni?varac=…&vfrom=…&vto=…&musteriId=…) SPA formunu DOLU açar', async ({
   page,
 }) => {
   await oturumAc(page);
+  await sahteKiraApi(page);
   await sunucuYonlendirmesi(page, '/kiralar/yeni', '/app/kiralar/yeni');
+  // Blazor müsaitlik/araç durumu "Kirala" bağlantısının biçimi (kira sorgu sözleşmesi).
+  const sorgu = `?varac=${KIRA_ARAC}&vfrom=2026-10-01&vto=2026-10-04&musteriId=${KIRA_MUSTERI}`;
 
-  await page.goto(`/kiralar/yeni${SORGU}#sekme=arac`);
-  await expect(page).toHaveURL(/\/app\/kiralar\/yeni\?varac=.*#sekme=arac$/);
-  const panel = page.getByRole('tabpanel', { name: 'Araç' });
-  await expect(panel.getByLabel('Araç', { exact: true })).not.toHaveValue('');
-  await expect(page.getByLabel('Başlangıç', { exact: true })).toHaveValue('01.10.2026');
-  await expect(page.getByLabel('Bitiş (beklenen)', { exact: true })).toHaveValue('04.10.2026');
+  await page.goto(`/kiralar/yeni${sorgu}#sekme=fiyat`);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/app/kiralar/yeni' && url.search === sorgu && url.hash === '#sekme=fiyat',
+  );
+  // #sekme= fragment'ı 302'den sonra da çalışır: Fiyat sekmesi açık (Hızlı Giriş paneli gizli ama DOLU).
+  await expect(page.getByRole('tab', { name: 'Fiyat/Toplam' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  const panel = hizli(page);
+  await expect(panel.getByLabel('Araç', { exact: true })).toHaveValue('34 ABC 123 — Fiat Egea');
+  await expect(panel.getByLabel('Müşteri', { exact: true })).toHaveValue('Ayşe Yılmaz');
+  await expect(panel.getByLabel('Başlangıç', { exact: true })).toHaveValue('01.10.2026');
+  await expect(panel.getByLabel('Bitiş (beklenen)', { exact: true })).toHaveValue('04.10.2026');
+});
+
+test('pilot: eski yazdırma adresi (/kiralar/{id}/yazdir) → /app yazdırma rotası → sunucunun PDF ucu (döngü yok)', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  await sunucuYonlendirmesi(page, `/kiralar/${KIRA_ID}/yazdir`, `/app/kiralar/${KIRA_ID}/yazdir`);
+  const pdfIstekleri: string[] = [];
+  await page.route(`**/kiralar/${KIRA_ID}/pdf`, (route) => {
+    pdfIstekleri.push(route.request().url());
+    return route.fulfill({ contentType: 'text/plain', body: 'PDF' });
+  });
+
+  await page.goto(`/kiralar/${KIRA_ID}/yazdir`);
+  await expect(page).toHaveURL((url) => url.pathname === `/kiralar/${KIRA_ID}/pdf`);
+  // PDF ucu haritada yok: sunucu yönlendirmez, SPA'ya dönülmez; tek istek.
+  expect(pdfIstekleri).toHaveLength(1);
 });
