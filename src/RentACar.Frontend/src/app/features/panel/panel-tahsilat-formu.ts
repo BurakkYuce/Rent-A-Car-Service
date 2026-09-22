@@ -28,7 +28,12 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
-import { TahsilatDenemesi, tahsilatMukerrerBildir } from '@core/form/tahsilat-denemesi';
+import {
+  TahsilatDenemeKaydi,
+  TahsilatDenemesi,
+  type TahsilatGonderimi,
+  tahsilatMukerrerBildir,
+} from '@core/form/tahsilat-denemesi';
 import type { FinansHesapOgesi, TahsilatBilgisi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
@@ -205,9 +210,9 @@ export class PanelTahsilatFormu implements OnInit {
     inject(PANEL_TAHSILAT_KILIDI, { optional: true }) ?? new GonderimKilidi(),
   );
   /** Sonucu bilinmeyen deneme izi (M-C) + L-2. */
-  private readonly deneme = new TahsilatDenemesi();
-  /** Son gönderimin tekrar bilgisi + gönderilen tutar (M-C mesajı). */
-  private sonGonderim = { anahtar: '', tekrar: false, tutar: null as string | null, doviz: 'TRY' };
+  private readonly deneme = new TahsilatDenemesi(inject(TahsilatDenemeKaydi));
+  /** Son gönderimin fotoğrafı (belirsiz denemeler + gönderilen içerik; M-C mesajı). */
+  private sonGonderim: TahsilatGonderimi | null = null;
   /** `sessiz` istekte genel bant/toast'a düşmeyen hatalar (yetki, çok istek, 5xx, ağ) formda. */
   private readonly ekHatalar = signal<readonly string[]>([]);
   protected readonly hatalar = computed(() => [
@@ -268,12 +273,12 @@ export class PanelTahsilatFormu implements OnInit {
     this.gonderim.gonder(
       this.form,
       () => {
-        this.sonGonderim = {
-          anahtar: bilgi.anahtar,
-          tekrar: this.deneme.tekrarMi(bilgi.anahtar), // M-C: gönderimden ÖNCE
+        // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (kira listesiyle ortak kayıt).
+        this.sonGonderim = this.deneme.basla(bilgi.anahtar, {
           tutar,
           doviz: bilgi.doviz,
-        };
+          hesap: deger.hesap ?? 'Kasa',
+        });
         return this.api.post<unknown>(
           '/api/ui/v1/finans/tahsilat',
           tahsilatGovdesi(
@@ -288,7 +293,7 @@ export class PanelTahsilatFormu implements OnInit {
       {
         deterministikAnahtar: bilgi.anahtar,
         basarili: () => {
-          this.deneme.basarili();
+          if (this.sonGonderim) this.deneme.basarili(this.sonGonderim);
           this.toast.basari(
             this.t('panel.tahsilat.basarili', {
               tutar: paraBicimle(sayi(tutar), bilgi.doviz),
@@ -308,13 +313,12 @@ export class PanelTahsilatFormu implements OnInit {
    */
   private hataIsle(hata: ApiHatasi): void {
     const g = this.sonGonderim;
-    const tur = this.deneme.hataGeldi(g.anahtar, hata, g.tekrar);
-    if (tur !== null) {
+    const tur = g ? this.deneme.hataGeldi(g, hata) : null;
+    if (g && tur !== null) {
       // Sunucunun detail'ı (M-C dışında) AYNEN; başlık sınıfa göre. `mevcut` doluysa işlem ZATEN yazıldı; yoksa
       // bayat anahtar: "kayıt değişti, tutarı yeniden girin" — nötr başlık, "kaydedildi" izlenimi vermez.
       tahsilatMukerrerBildir(this.toast, this.t, tur, hata, {
-        girilenTutar: g.tutar,
-        doviz: g.doviz,
+        gonderim: g,
         bayatBaslik: this.t('panel.tahsilat.mukerrerBaslik'),
         ek: this.t('panel.tahsilat.mukerrerYenilendi'),
       });
@@ -326,6 +330,7 @@ export class PanelTahsilatFormu implements OnInit {
           this.anahtarTazele.emit();
           return;
         case 'oncekiDenemeKaydedilmis':
+        case 'baskaIslemDenemeYazilmadi':
           tutar.setValue(null);
           this.anahtarTazele.emit();
           return;

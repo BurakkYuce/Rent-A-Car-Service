@@ -30,7 +30,12 @@ import type {
 } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
-import { TahsilatDenemesi, tahsilatMukerrerBildir } from '@core/form/tahsilat-denemesi';
+import {
+  TahsilatDenemeKaydi,
+  TahsilatDenemesi,
+  type TahsilatGonderimi,
+  tahsilatMukerrerBildir,
+} from '@core/form/tahsilat-denemesi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
@@ -185,7 +190,7 @@ export class TahsilPaneli {
 
   protected readonly gonderim = formGonderimi();
   /** Sonucu bilinmeyen deneme izi (M-C) + L-2. */
-  private readonly deneme = new TahsilatDenemesi();
+  private readonly deneme = new TahsilatDenemesi(inject(TahsilatDenemeKaydi));
   /** Sayfa, istek uçarken başka satırın panelini açmaz (uçan istek iptal edilip sonucu kaybolmasın). */
   readonly gonderiliyor = this.gonderim.gonderiliyor;
 
@@ -271,7 +276,7 @@ export class TahsilPaneli {
     const tahsilat = s.tahsilat;
     if (tahsilat === null) return;
     const v = this.form.getRawValue();
-    let tekrar = false;
+    let g: TahsilatGonderimi | null = null;
     const govde: TahsilatIstegi = {
       cariId: tahsilat.cariId,
       tutar: v.tutar ?? '',
@@ -287,7 +292,12 @@ export class TahsilPaneli {
     this.gonderim.gonder(
       this.form,
       (anahtar) => {
-        tekrar = this.deneme.tekrarMi(tahsilat.anahtar); // M-C: gönderimden ÖNCE
+        // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (Panel ile ortak kayıt).
+        g = this.deneme.basla(tahsilat.anahtar, {
+          tutar: govde.tutar,
+          doviz: tahsilat.doviz,
+          hesap: govde.hesap,
+        });
         return this.api.post<FinansIslemYaniti>('/api/ui/v1/finans/tahsilat', govde, {
           islemAnahtari: anahtar,
           // 409 mukerrer: tekrar gönderilmez; toast'u `hata` gösterir (sınıf tekrar bilgisine bağlı). Yeniden
@@ -298,11 +308,11 @@ export class TahsilPaneli {
       {
         deterministikAnahtar: tahsilat.anahtar,
         hata: (h) => {
-          const tur = this.deneme.hataGeldi(tahsilat.anahtar, h, tekrar);
+          if (!g) return;
+          const tur = this.deneme.hataGeldi(g, h);
           if (tur === null) return;
           tahsilatMukerrerBildir(this.toast, this.t, tur, h, {
-            girilenTutar: govde.tutar,
-            doviz: tahsilat.doviz,
+            gonderim: g,
             bayatBaslik: this.t('kiraListesi.tahsil.kayitDegismis'),
             ek: this.t('geriBildirim.mukerrerYenilendi'),
           });
@@ -314,6 +324,7 @@ export class TahsilPaneli {
               this.anahtarTazele.emit();
               return;
             case 'oncekiDenemeKaydedilmis':
+            case 'baskaIslemDenemeYazilmadi':
               tutar.setValue(null);
               this.anahtarTazele.emit();
               return;
@@ -322,7 +333,7 @@ export class TahsilPaneli {
           }
         },
         basarili: () => {
-          this.deneme.basarili();
+          if (g) this.deneme.basarili(g);
           this.toast.basari(
             this.t('kiraListesi.tahsil.basarili', {
               no: s.sozlesmeNo,

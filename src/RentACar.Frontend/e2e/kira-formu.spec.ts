@@ -980,8 +980,13 @@ test('ek hizmet kataloğu KESİKSE listede olmayan tanım sunucu aramasıyla ekl
   const satir = page.getByTestId('ek-hizmet-matrisi').getByRole('row', { name: /Bebek koltuğu/ });
   await expect(satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' })).toBeChecked();
   await expect.poll(() => decodeURIComponent(hesap.at(-1) ?? '')).toContain(`ek=${TANIM_ID}:1`);
-  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).uncheck();
+  // `uncheck()` DEĞİL `click()`: katalog dışı satır işaret kalkınca TABLODAN ÇIKAR. `uncheck()` tıklamadan sonra AYNI
+  // öğenin durumunu okur; Angular satırı o okumadan önce kaldırırsa (yavaş CI) öğe DOM'dan kopmuş olur, Playwright
+  // eylemi baştan dener, locator bir daha çözülmez ve test 30 sn'de zaman aşımına düşer (main #262 CI). Yerelde
+  // kaldırma durum okumasından sonra geldiği için geçiyordu. Sonuç aşağıda satırın yokluğuyla doğrulanır.
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).click();
   await expect(page.getByTestId('ek-hizmet-matrisi')).not.toContainText('Bebek koltuğu');
+  await expect.poll(() => hesap.at(-1) ?? '').not.toContain('ek=');
 });
 
 test('anonim cari (#262 M1): paylaşım kutuları boş gelir, geçersiz numarayla WhatsApp açılmaz', async ({
