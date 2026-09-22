@@ -27,6 +27,7 @@ import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
 import { type GunMetni, bugun, gunEkle } from '@core/form/tarih-girdisi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { trAramaAnahtari } from '@core/metin/tr-normalize';
@@ -44,6 +45,7 @@ import { type FormGonderimi, formGonderimi } from '@shared/form/form-gonderimi';
 import {
   type KiraFormModu,
   type KiraFormu,
+  type KiraSunucuDegerleri,
   type KiraSorgusu,
   type MusaitPencere,
   SUNUCU_ALAN_ESLEMESI,
@@ -66,6 +68,7 @@ import {
   penceredenTarihler,
   secenekListesi,
   sistemKalemiMi,
+  sunucuDegerleriniBirlestir,
 } from './kira-formu-modeli';
 import type {
   AracSecenegi,
@@ -112,6 +115,7 @@ export class KiraFormuDurumu {
   private readonly oturum = inject(OturumServisi);
   private readonly toast = inject(ToastServisi);
   private readonly onay = inject(OnayServisi);
+  private readonly bant = inject(UyariBandiServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly sekme = sekmeBaglami();
   private readonly t = ceviriFonksiyonu();
@@ -319,6 +323,12 @@ export class KiraFormuDurumu {
   readonly musaitNotu = signal<string | null>(null);
   /** `?varac=` araç kimliği; müsait liste gelince etiketiyle çözülür. */
   private bekleyenArac: string | null = null;
+  /**
+   * Son okunan sunucu hâli (F4.3 adversarial F2): `surum` PUT'a gider (bayatsa 409 `cakisma`), değerler
+   * kirli formla birleştirmede "sunucu bu arada neyi değiştirdi" karşılaştırmasının tabanıdır.
+   */
+  private taban: KiraSozlesmesi | null = null;
+  private tabanDegerleri: KiraSunucuDegerleri | null = null;
 
   constructor() {
     for (const abonelik of aynalariBagla(this.form)) {
@@ -494,6 +504,26 @@ export class KiraFormuDurumu {
     this.ekSatirSurumu.update((s) => s + 1);
   }
 
+  /** Ana form müşteri dışında geçerli mi? Geçersiz alanlar "dokunuldu" olur (hata görünür); müşteri alanı hariç. */
+  private musteriDisindaGecerli(): boolean {
+    let gecerli = true;
+    const gez = (grup: FormGroup, atla: string): void => {
+      for (const [ad, kontrol] of Object.entries(
+        grup.controls as Record<string, AbstractControl>,
+      )) {
+        if (ad === atla) continue;
+        if (kontrol instanceof FormGroup) {
+          gez(kontrol, atla);
+          continue;
+        }
+        kontrol.markAllAsTouched();
+        if (kontrol.invalid) gecerli = false;
+      }
+    };
+    gez(this.form, 'musteri');
+    return gecerli;
+  }
+
   yeniMusteriDolu(): boolean {
     return Object.values(this.yeniMusteriFormu.getRawValue()).some((v) => (v ?? '') !== '');
   }
@@ -542,6 +572,16 @@ export class KiraFormuDurumu {
         untracked(() => this.teslimFormu.controls.cikisYakit.setValue(Number(v.cikisYakit)));
       }
     });
+    // Sekmeye dönüşte kayıt yeniden okunur (başka oturum/işlem değiştirmiş olabilir): temiz form güncel hâle
+    // gelir, kirli formda yalnız dokunulmamış alanlar (F4.3 adversarial F2). İlk görünüm sayılmaz.
+    let sonGorunum: number | null = null;
+    effect(() => {
+      const n = this.sekme.onaGelme();
+      untracked(() => {
+        if (sonGorunum !== null && n !== sonGorunum) this.yenile();
+        sonGorunum = n;
+      });
+    });
     // Dönüş canlı önizlemesi (ReturnMath): girdiler değişince, 300 ms gecikmeyle.
     this.donusFormu.valueChanges
       .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
@@ -551,11 +591,20 @@ export class KiraFormuDurumu {
   private detayGeldi(d: KiraDetayYaniti, ilk: boolean): void {
     const k = d.kira;
     this.sekme.etiketAyarla(this.t('kiraFormu.sekmeEtiketi', { no: k.sozlesmeNo }));
-    // Kullanıcının kaydetmediği değişiklik EZİLMEZ (işlem sonrası yenilemede form kirliyse korunur).
+    // Temiz form sunucu hâline sıfırlanır. KİRLİ formda kullanıcının dokunduğu alanlar EZİLMEZ; dokunmadığı
+    // alanlar sunucu değerine çekilir — işlem (provizyon al, teslim…) ya da başka oturumun yazdığı değer bayat
+    // tam değiştirmeyle geri alınmasın (F4.3 adversarial F2 / P261-10). İkisi de değiştiyse alan işaretlenir.
+    const yeni = detaydanDegerler(d, this.t('kiraFormu.alan.kayitBulunamadi'));
     if (!this.form.dirty) {
-      formuSifirla(this.form, detaydanDegerler(d));
+      formuSifirla(this.form, yeni);
       this.durumaGoreKilitle(d);
+    } else {
+      const cakisan = sunucuDegerleriniBirlestir(this.form, yeni, this.tabanDegerleri);
+      this.durumaGoreKilitle(d);
+      if (cakisan.length > 0) this.cakismaIsaretle(cakisan);
     }
+    this.taban = k;
+    this.tabanDegerleri = yeni;
     if (this.teslimFormu.pristine) {
       this.teslimFormu.reset({
         cikisKm: d.arac ? Number(d.arac.km) : 0,
@@ -600,6 +649,23 @@ export class KiraFormuDurumu {
     aynaDurumlariniEsitle(this.form);
   }
 
+  /** Hem kullanıcının hem başka oturumun değiştirdiği alanlar: alanın altında not + bant (engellemez —
+   *  bir sonraki Kaydet'te sunucu hataları temizlenir, kullanıcının değeri bilinçli olarak yazılır). */
+  private cakismaIsaretle(alanlar: readonly (keyof KiraSunucuDegerleri)[]): void {
+    const mesaj = this.t('kiraFormu.cakisma.alan');
+    for (const ad of alanlar) {
+      const kontrol = this.form.controls[ad] as AbstractControl<unknown>;
+      kontrol.setErrors({ ...(kontrol.errors ?? {}), [SUNUCU_HATASI]: [mesaj] });
+      kontrol.markAsTouched();
+    }
+    aynalaraHataKopyala(this.form);
+    this.bant.goster({
+      tur: 'uyari',
+      mesaj: this.t('kiraFormu.cakisma.bant', { sayi: alanlar.length }),
+      kod: 'cakisma',
+    });
+  }
+
   private donusOnizle(): void {
     const k = this.kira();
     const d = this.donusFormu.getRawValue();
@@ -628,6 +694,12 @@ export class KiraFormuDurumu {
    */
   kaydet(gecersizeGit: () => void): void {
     if (this.yeni && this.form.controls.musteri.value === null && this.yeniMusteriDolu()) {
+      // F4.3 adversarial F7: önce ANA form (müşteri dışında) doğrulanır — araç/tarih eksikken cari açılıp
+      // kira hiç açılmazsa PII'li yetim cari kalırdı.
+      if (!this.musteriDisindaGecerli()) {
+        gecersizeGit();
+        return;
+      }
       this.yeniMusteriAcik.set(true);
       this.yeniMusteriKaydet(() => this.kaydet(gecersizeGit));
       return;
@@ -653,12 +725,23 @@ export class KiraFormuDurumu {
     this.kayit.gonder(
       this.form,
       () =>
-        this.api.put<KiraSozlesmesi>(`${KOK}/${id}`, guncelleGovdesi(this.form.getRawValue()), {
-          context: istekBaglami({ mukerrerdeYenile: () => this.yenile() }),
-        }),
+        this.api.put<KiraSozlesmesi>(
+          `${KOK}/${id}`,
+          guncelleGovdesi(this.form.getRawValue(), {
+            surum: this.taban?.surum ?? '',
+            provizyonTarihAni: this.taban?.provizyonTarih ?? null,
+            provizyonTarihDegisti: this.form.controls.provizyonTarih.dirty,
+          }),
+          { context: istekBaglami({ mukerrerdeYenile: () => this.yenile() }) },
+        ),
       {
         esleme,
         gecersiz,
+        // Bayat sürüm (409 cakisma): form SİLİNMEZ; güncel kayıt okunur, dokunulmamış alanlar güncellenir,
+        // dokunulanlar korunur (detayGeldi → birleştirme); kullanıcı kontrol edip yeniden kaydeder.
+        hata: (h) => {
+          if (h.kod === 'cakisma') this.yenile();
+        },
         basarili: () => {
           this.toast.basari(this.t('kiraFormu.bildirim.kaydedildi'));
           this.yenile();
