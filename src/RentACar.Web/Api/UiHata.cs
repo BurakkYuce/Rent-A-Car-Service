@@ -58,8 +58,25 @@ public static class UiHata
         AvailabilityConflictException or DuplicateCariException or DuplicatePlakaException
             => (StatusCodes.Status409Conflict, Cakisma),
         ValidationException => (StatusCodes.Status400BadRequest, Dogrulama),
+        _ when VeriTasmasi(ex) => (StatusCodes.Status400BadRequest, Dogrulama),
         _ => null,
     };
+
+    /// <summary>Veri taşmasında dönen genel mesaj — PostgreSQL iç ayrıntısı (kolon/tablo adı) SIZDIRILMAZ.</summary>
+    public const string VeriTasmasiMesaji = "Girilen değerlerden biri izin verilen büyüklüğü ya da uzunluğu aşıyor.";
+
+    /// <summary>
+    /// F4.4a adversarial MEDIUM-1 güvenlik ağı: istemci verisinin kolona sığmaması (PostgreSQL 22001
+    /// string_data_right_truncation, 22003 numeric_value_out_of_range) 500 değil 400 <c>dogrulama</c>'dır.
+    /// Uçlar sınırları zaten önceden denetler; bu ağ gözden kaçan ya da türetilmiş (ör. kira Tahsilat + delta)
+    /// taşmaları yakalar. Yalnız bu iki SQLSTATE — diğer veritabanı hataları 500 kalır (hata gizlenmez).
+    /// </summary>
+    public static bool VeriTasmasi(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Npgsql.PostgresException { SqlState: "22001" or "22003" }) return true;
+        return false;
+    }
 
     /// <summary>
     /// Eşlenen istisnayı ProblemDetails'e çevirir; <c>detail</c> = istisna mesajı, <c>errors</c> yalnız
@@ -73,7 +90,9 @@ public static class UiHata
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Sunucu hatası");
 
-        return Problem(e.Kod, ex.Message, (ex as ValidationException)?.Alan);
+        return ex is ValidationException v
+            ? Problem(e.Kod, v.Message, v.Alan)
+            : Problem(e.Kod, VeriTasmasiMesaji);
     }
 
     /// <summary>Kod tablosundan doğrudan ProblemDetails (istisnasız adımlar için: oturum, pilot, hız sınırı).</summary>

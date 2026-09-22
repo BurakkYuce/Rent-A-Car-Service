@@ -2323,11 +2323,11 @@ export interface components {
     };
     DonusIstegi: {
       /** Format: int32 */
-      donusKm: number | string;
+      donusKm?: null | number | string;
       /** Format: int32 */
-      donusYakit: number | string;
+      donusYakit?: null | number | string;
       /** Format: date-time */
-      gercekDonus: string;
+      gercekDonus?: null | string;
       /** Format: int32 */
       kmHediye?: null | number | string;
       bitisSebebi?: null | string;
@@ -2336,9 +2336,9 @@ export interface components {
     };
     EkHizmetEkleIstegi: {
       /** Format: uuid */
-      ekHizmetTanimId: string;
+      ekHizmetTanimId?: null | string;
       /** Format: double */
-      miktar: number | string;
+      miktar?: null | number | string;
     };
     EkHizmetKalemiDto: {
       /** Format: uuid */
@@ -2886,7 +2886,7 @@ export interface components {
     KiraOlusturYaniti: {
       /** Format: uuid */
       id: string;
-      sozlesmeNo: null | string;
+      sozlesmeNo: string;
       uyari: null | string;
     };
     KiraPaylasimBari: {
@@ -3356,13 +3356,13 @@ export interface components {
     };
     TeslimIstegi: {
       /** Format: int32 */
-      cikisKm: number | string;
+      cikisKm?: null | number | string;
       /** Format: int32 */
-      cikisYakit: number | string;
+      cikisYakit?: null | number | string;
     };
     UzatIstegi: {
       /** Format: date-time */
-      yeniBitTar: string;
+      yeniBitTar?: null | string;
     };
     VadeKademesi: {
       /** Format: int32 */

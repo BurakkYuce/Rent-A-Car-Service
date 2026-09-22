@@ -23,7 +23,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
 
@@ -37,7 +37,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m });
 
@@ -51,7 +51,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
         var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 750m });
         Assert.Equal(-750m, await cash.GetCariBalanceAsync(cari));
@@ -67,7 +67,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 250m, Doviz = "EUR", Kur = 35m });
+        await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 250m, Doviz = "EUR", Kur = 35m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -86,7 +86,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         var rent = scope.ServiceProvider.GetRequiredService<RentalService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
         var rentalId = await rent.CreateDirectAsync(new BookingInput
         {
             MusteriId = cari, VehicleId = Guid.NewGuid(),
@@ -109,7 +109,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 100m });
+        await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -124,7 +124,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
         var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
         await cash.ReverseAsync(txId);
@@ -142,7 +142,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         // Tahsilat IAuditable → audit satırı yazılır.
         await scope.ServiceProvider.GetRequiredService<CashService>()
-            .CollectAsync(new CashInput { CariId = Guid.NewGuid(), Tutar = 100m });
+            .CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -155,9 +155,9 @@ public sealed class FinanceTests(PostgresFixture fx)
     public async Task Cari_balance_is_tenant_isolated()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        var cari = Guid.NewGuid();
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(host, t1);
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<CashService>()

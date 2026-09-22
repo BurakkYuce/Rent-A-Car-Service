@@ -53,7 +53,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, Guid.NewGuid());
+        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var s = await reports.GetKasaBankaSummaryAsync();
@@ -70,7 +70,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, Guid.NewGuid());
+        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var lines = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa);
@@ -85,7 +85,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, Guid.NewGuid());
+        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var gg = await reports.GetGelirGiderAsync();
@@ -113,7 +113,7 @@ public sealed class ReportingTests(PostgresFixture fx)
 
         // Ocak'ta bir tahsilat.
         await cash.CollectAsync(new CashInput
-        { CariId = Guid.NewGuid(), Tutar = 500m, Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero) });
+        { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 500m, Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero) });
 
         // Şubat'tan itibaren sorgu → Ocak işlemi sayılmaz.
         var feb = await reports.GetKasaBankaSummaryAsync(
@@ -135,7 +135,7 @@ public sealed class ReportingTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await SeedKnownLedgerAsync(s1, Guid.NewGuid());
+            await SeedKnownLedgerAsync(s1, await TestCari.YeniAsync(s1.ServiceProvider));
 
         using var s2 = host.ScopeFor(t2);
         var reports = s2.ServiceProvider.GetRequiredService<ReportService>();

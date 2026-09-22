@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
@@ -10,6 +11,7 @@ using RentACar.Application.Kur;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Web.Common;
+using RentACar.Web.Finance;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Finans;
@@ -144,8 +146,10 @@ public static class FinansApi
             throw new ValidationException("Tahsilat anahtarı yalnız kira tahsilatında (kiraId ile) gönderilir.", "tahsilatAnahtar");
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http, deterministik: istek.TahsilatAnahtar);
 
-        var girdi = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
+        var (girdi, kira) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: true, kiralar, ct);
+        if (istek.TahsilatAnahtar is { } gelen)
+            await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.CollectAsync(girdi, ct)));
     }
@@ -154,7 +158,7 @@ public static class FinansApi
         OdemeIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
-        var girdi = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
+        var (girdi, _) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: false, kiralar, ct);
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.PayAsync(girdi, ct)));
@@ -164,6 +168,9 @@ public static class FinansApi
         FaturaKesIstegi istek, InvoiceService faturalar, RentalService kiralar, CancellationToken ct)
     {
         // Yapısal (E15): kira başına fatura + fark sırası; ikinci çağrı servisten 400. Başlık kullanılmaz.
+        TutarSiniri(istek.Otv, "otv");
+        TutarSiniri(istek.TevkifatTutar, "tevkifatTutar");
+        TutarSiniri(istek.DamgaVergisi, "damgaVergisi");
         var kira = await KiraKapsamdaAsync(kiralar, istek.KiraId, ct);
         var vergi = new InvoiceTaxInfo(istek.Otv, istek.TevkifatOran, istek.TevkifatTutar, istek.DamgaVergisi,
             istek.IadeMi, istek.ManuelMi);
@@ -188,11 +195,16 @@ public static class FinansApi
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         if (istek.CariId == Guid.Empty) throw new ValidationException("Tedarikçi cari seçilmelidir.", "cariId");
         if (string.IsNullOrWhiteSpace(istek.AlinanHizmet)) throw new ValidationException("Alınan hizmet zorunludur.", "alinanHizmet");
-        if (istek.HizmetBedeli <= 0m) throw new ValidationException("Hizmet bedeli pozitif olmalıdır.", "hizmetBedeli");
+        Metin(istek.AlinanHizmet, 256, "alinanHizmet");
+        Metin(istek.HizmetAlinanFirma, 256, "hizmetAlinanFirma");
+        Metin(istek.KomisyonFaturaNo, 64, "komisyonFaturaNo");
+        Metin(istek.Aciklama, 512, "aciklama");
+        Tutar(istek.HizmetBedeli, "hizmetBedeli");
         if (istek.KomisyonOran is < 0m or > 100m)
             throw new ValidationException("Tedarikçi komisyon oranı 0 ile 100 arasında olmalıdır (%).", "komisyonOran");
         var doviz = Doviz(istek.Doviz);
         Kur(istek.Kur);
+        BazSiniri(istek.HizmetBedeli, istek.Kur, "hizmetBedeli");
         await KiraKapsamdaAsync(kiralar, istek.KiraId, ct); // alan hatası + kapsam (servis de denetler)
 
         var id = await svc.CreateAsync(new DisHizmetInput
@@ -228,6 +240,7 @@ public static class FinansApi
         var hesap = Hesap(istek.Hesap, "hesap");
         var doviz = Doviz(istek.Doviz);
         Kur(istek.Kur);
+        BazSiniri(istek.Tutar, istek.Kur);
         var id = await depozito.AlAsync(istek.CariId, istek.Tutar, hesap, doviz, istek.Kur,
             tarih: null, islemAnahtari: anahtar, hesapId: istek.HesapId, ct: ct);
         return TypedResults.Ok(new FinansIslemYaniti(id));
@@ -241,6 +254,8 @@ public static class FinansApi
         Tutar(istek.Tutar);
         var doviz = Doviz(istek.Doviz);
         Kur(istek.Kur);
+        BazSiniri(istek.Tutar, istek.Kur);
+        Metin(istek.Aciklama, 512, "aciklama");
         // Kira atfı başka şubenin aracına gelir yazmasın: kapsam kapısı. Kira–cari eşleşmesini repo çiti zorlar.
         if (istek.KiraId is { } kiraId) await KiraKapsamdaAsync(kiralar, kiraId, ct);
         var id = await depozito.IratAsync(istek.CariId, istek.Tutar, doviz, istek.Kur, istek.KiraId,
@@ -257,7 +272,7 @@ public static class FinansApi
     /// <para>İptal kiraya TAHSİLAT bağlanamaz: Blazor'un üç tahsilat girişi de (sabit panel, pano, kira listesi)
     /// iptal kirada formu göstermez ("İptal edilmiş kirada tahsilat yapılmaz"); kural burada sunucuda da tutulur.
     /// Ödeme (iade) iptal kiraya bağlanabilir — alınmış paranın geri ödenmesi meşrudur.</para></summary>
-    private static async Task<CashInput> NakitGirdisiAsync(
+    private static async Task<(CashInput Girdi, RentalContract? Kira)> NakitGirdisiAsync(
         Guid cariId, Guid? kiraId, decimal tutar, string? hesap, string? doviz, decimal? kur, Guid? hesapId,
         string? kanal, string? aciklama, DateTimeOffset? tarih, bool tahsilat, RentalService kiralar, CancellationToken ct)
     {
@@ -266,20 +281,23 @@ public static class FinansApi
         var hesapTuru = Hesap(hesap, "hesap");
         var dovizKodu = Doviz(doviz);
         Kur(kur);
+        BazSiniri(tutar, kur);
+        Metin(aciklama, 512, "aciklama");
         if (CashKanal.TryNormalize(kanal) is null)
             throw new ValidationException($"Geçersiz kanal: '{kanal}'. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.", "kanal");
         Alanli("tarih", () => TarihPolitikasi.ParaTarihi(tarih, "İşlem"));
 
+        RentalContract? kira = null;
         if (kiraId is { } kid)
         {
-            var kira = await KiraKapsamdaAsync(kiralar, kid, ct);
+            kira = await KiraKapsamdaAsync(kiralar, kid, ct);
             if (kira.MusteriId != cariId)
                 throw new ValidationException("Kira işlemi yalnız kiranın müşterisi (cari) adına yapılabilir.", "cariId");
             if (tahsilat && kira.Durum == RentalStatus.Iptal)
                 throw new ValidationException("İptal edilmiş kirada tahsilat yapılmaz.", "kiraId");
         }
 
-        return new CashInput
+        return (new CashInput
         {
             CariId = cariId,
             RentalId = kiraId,
@@ -291,7 +309,31 @@ public static class FinansApi
             HesapId = hesapId,
             Kanal = kanal,           // boş → servis "Masaüstü"
             Tarih = tarih,           // boş → servis "şimdi"
-        };
+        }, kira);
+    }
+
+    /// <summary>
+    /// F4.4a adversarial MEDIUM-3: DTO'dan gelen deterministik <c>tahsilatAnahtar</c> SUNUCUDA yeniden hesaplanır —
+    /// okunan kira + güncel bakiye + güncel işlem sayısı (<see cref="TahsilatAnahtar.Uret"/>). Eşit değilse 409
+    /// <c>mukerrer</c>: ya ekran açıldıktan sonra kirada tahsilat/ters kayıt/bakiye değişikliği oldu (bayat — ikinci
+    /// sekme, çift tık; SPA kaydı yeniden yükler) ya da anahtar bu kiraya ait değil (başka kiranın anahtarı, başka
+    /// bir işlemin tahmin edilebilir anahtarı — ör. dönem tahsilatının <c>RowKey</c>'i). Böylece istemci değeri
+    /// yalnız "bu kiranın ŞU ANKİ durumunun anahtarı" olabilir; ham değer korunduğu için Blazor pano/kira
+    /// listesiyle SPA aynı anahtara düşer (çapraz çift tahsilat koruması sürer).
+    /// <para>Bakiye DB'den <c>numeric(19,4)</c> ölçeğiyle ("300.0000") gelir; ondalık sıfırları atılmış biçim
+    /// ("300") de kabul edilir — anahtarı üreten taraf bakiyeyi başka kaynaktan (ör. hesaplanmış DTO) alabilir.</para>
+    /// </summary>
+    private static async Task TahsilatAnahtariGuncelAsync(Guid gelen, RentalContract kira, CashService kasa, CancellationToken ct)
+    {
+        var sayilar = await kasa.GetRentalIslemSayilariAsync([kira.Id], ct);
+        var islemSayisi = sayilar.TryGetValue(kira.Id, out var n) ? n : 0;
+        var sade = decimal.Parse(kira.Bakiye.ToString("0.############################", CultureInfo.InvariantCulture),
+            CultureInfo.InvariantCulture);
+        if (gelen != TahsilatAnahtar.Uret(kira.Id, kira.Bakiye, islemSayisi)
+            && gelen != TahsilatAnahtar.Uret(kira.Id, sade, islemSayisi))
+            throw new MukerrerIslemException(
+                "Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu " +
+                "kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.");
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>
@@ -307,15 +349,48 @@ public static class FinansApi
         if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.", "cariId");
     }
 
-    private static void Tutar(decimal tutar)
+    /// <summary><c>numeric(19,4)</c>: 15 tam basamak — tutar ve baz (tutar × kur) bunun altında kalmalı.</summary>
+    internal const decimal TutarUstSiniri = 1_000_000_000_000_000m;
+    /// <summary><c>numeric(19,6)</c>: 13 tam basamak — kur kolonları.</summary>
+    internal const decimal KurUstSiniri = 10_000_000_000_000m;
+
+    /// <summary>Pozitif, kolonlara sığan (F4.4a adversarial MEDIUM-1: taşma 500 üretiyordu) ve 4 ondalığa
+    /// yuvarlanınca sıfır kalmayan tutar (L2: 0,00004 kabul edilip 0 tutarlı belge yazılıyor, belge no tüketiyordu).</summary>
+    private static void Tutar(decimal tutar, string alan = "tutar")
     {
-        if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.", "tutar");
+        if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.", alan);
+        if (tutar >= TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", alan);
+        if (Math.Round(tutar, 4, MidpointRounding.AwayFromZero) == 0m)
+            throw new ValidationException("Tutar en az 0,0001 olmalıdır.", alan);
     }
 
-    /// <summary>Açık kur yalnız pozitif olabilir; "elle kur kilidi" gibi firma kuralları servisteki KurCozucu'da.</summary>
+    /// <summary>İsteğe bağlı vergi/belge tutarı: kolon (<c>numeric(19,4)</c>) sınırı; negatiflik servis kuralı.</summary>
+    private static void TutarSiniri(decimal? tutar, string alan)
+    {
+        if (tutar is { } t && Math.Abs(t) >= TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", alan);
+    }
+
+    /// <summary>Açık kur yalnız pozitif olabilir ve kolona sığmalı; TRY'de kur ≠ 1 reddi ve "elle kur kilidi"
+    /// servisteki KurCozucu'da (Blazor yolu da kapansın diye).</summary>
     private static void Kur(decimal? kur)
     {
         if (kur is <= 0m) throw new ValidationException("Kur pozitif olmalıdır (boş = otomatik).", "kur");
+        if (kur >= KurUstSiniri) throw new ValidationException("Kur çok büyük.", "kur");
+    }
+
+    /// <summary>Açık kurla baz tutar (tutar × kur) kira Tahsilat/Bakiye kolonuna (<c>numeric(19,4)</c>) sığmalı.
+    /// Tutar ve kur ayrı ayrı sınırlı olduğundan çarpım decimal'da taşmaz. Otomatik kurda kalan uç durumları
+    /// /api/ui hata eşlemesindeki 22003 → 400 ağı karşılar.</summary>
+    private static void BazSiniri(decimal tutar, decimal? kur, string alan = "tutar")
+    {
+        if (kur is { } k && tutar * k >= TutarUstSiniri) throw new ValidationException("Tutar × kur çok büyük.", alan);
+    }
+
+    /// <summary>Metin kolonun uzunluğunu aşmasın (EF yapılandırmasındaki <c>HasMaxLength</c>).</summary>
+    private static void Metin(string? deger, int enFazla, string alan)
+    {
+        if (deger is { Length: var n } && n > enFazla)
+            throw new ValidationException($"En çok {enFazla} karakter olabilir.", alan);
     }
 
     /// <summary>Boş → TRY (Blazor formlarının varsayılanı); aksi halde ISO koda indirgenir, biçimsizse alan hatası.</summary>
