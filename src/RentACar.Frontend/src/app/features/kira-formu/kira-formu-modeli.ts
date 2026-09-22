@@ -9,7 +9,7 @@ import {
 import type { Subscription } from 'rxjs';
 import type { SorguParametreleri } from '@core/api/api-istemcisi';
 import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
-import { type GunMetni, anBirlestir, gunCoz } from '@core/form/tarih-girdisi';
+import { type GunMetni, anBirlestir, anParcala, gunCoz } from '@core/form/tarih-girdisi';
 import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
 import type {
   AracSecenegi,
@@ -480,20 +480,31 @@ export function aracSecenegi(a: KiraAraci | MusaitArac): AracSecenegi {
   return { ...a, etiket: ek === '' ? a.plaka : `${a.plaka} — ${ek}` };
 }
 
-/** An → UTC takvim günü (Blazor `provizyonTarih` date alanı sunucuda UTC gece yarısı olarak saklanır). */
-export function utcGunu(an: string | null | undefined): GunMetni | null {
-  if (!an) return null;
-  const ms = Date.parse(an);
-  return Number.isNaN(ms) ? null : new Date(ms).toISOString().slice(0, 10);
+/**
+ * An → İSTANBUL takvim günü (kullanıcının gördüğü gün). Sunucunun yazdığı an (ör. provizyon al: 22:30Z =
+ * İstanbul 01:30, ertesi gün) UTC gününe indirilseydi bir gün geri görünürdü (F4.3 adversarial F6).
+ */
+export function istanbulGunu(an: string | null | undefined): GunMetni | null {
+  return anParcala(an)?.gun ?? null;
 }
 
-/** Takvim günü → UTC gece yarısı anı (tur-döngüsünde gün kaymaz: kaydet → aç → kaydet aynı gün). */
+/**
+ * Kullanıcının SEÇTİĞİ takvim günü → UTC gece yarısı anı (Blazor date alanının saklama biçimi; İstanbul günü
+ * olarak geri okunduğunda aynı gün: 00:00Z = 03:00 +03 → kaydet → aç → kaydet kayma yok).
+ */
 export function gunAnina(gun: GunMetni | null | undefined): string | null {
   return gun ? `${gun}T00:00:00Z` : null;
 }
 
-/** Kayıtlı sözleşmeden form değerleri (düzenleme). `ayna` ve `ekHizmetler` ayrı ele alınır. */
-export function detaydanDegerler(d: KiraDetayYaniti): Omit<KiraFormDegeri, 'ayna' | 'ekHizmetler'> {
+export type KiraSunucuDegerleri = Omit<KiraFormDegeri, 'ayna' | 'ekHizmetler'>;
+
+/**
+ * Kayıtlı sözleşmeden form değerleri (düzenleme). `ayna` ve `ekHizmetler` ayrı ele alınır.
+ * Kimlikler SÖZLEŞMEDEN okunur, etiket yan tablodan: kayıtlı 2. sürücü carisi silinmiş olsa da kimlik
+ * korunur (`kayitYokEtiketi`) — aksi hâlde PUT kimliği null gönderip ek sürücü ücret satırını düşürürdü
+ * (F4.3 adversarial F4).
+ */
+export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): KiraSunucuDegerleri {
   const k = d.kira;
   return {
     musteri: { id: k.musteriId, etiket: d.musteri.ad },
@@ -507,7 +518,9 @@ export function detaydanDegerler(d: KiraDetayYaniti): Omit<KiraFormDegeri, 'ayna
     riskOnay: k.riskOnay,
     cikisOfisi: ofisSecenegi(k.cikisOfisi),
     donusOfisi: ofisSecenegi(k.donusOfisi),
-    ikinciSurucu: d.ikinciSurucu ? { id: d.ikinciSurucu.id, etiket: d.ikinciSurucu.ad } : null,
+    ikinciSurucu: k.ikinciSurucuId
+      ? { id: k.ikinciSurucuId, etiket: d.ikinciSurucu?.ad ?? kayitYokEtiketi }
+      : null,
     ikinciSurucuSerbestAd: k.ikinciSurucuSerbestAd,
     ikinciSurucuSerbestSoyad: k.ikinciSurucuSerbestSoyad,
     ikinciSurucuSerbestTel: k.ikinciSurucuSerbestTel,
@@ -529,7 +542,7 @@ export function detaydanDegerler(d: KiraDetayYaniti): Omit<KiraFormDegeri, 'ayna
     faturaListesindeGizle: k.faturaListesindeGizle ?? false,
     ucusNo: k.ucusNo,
     provizyonNo: k.provizyonNo,
-    provizyonTarih: utcGunu(k.provizyonTarih),
+    provizyonTarih: istanbulGunu(k.provizyonTarih),
     onayKodu: k.onayKodu,
     firmaKodu: k.firmaKodu,
     projeAdi: k.projeAdi,
@@ -558,7 +571,7 @@ export function detaydanDegerler(d: KiraDetayYaniti): Omit<KiraFormDegeri, 'ayna
     fazlaKmUcret: k.fazlaKmUcret,
     yakitBirimUcret: k.yakitBirimUcret,
     teslimEdenPersonel: k.teslimEdenPersonelId
-      ? { id: k.teslimEdenPersonelId, etiket: d.teslimEdenPersonelAd ?? '—' }
+      ? { id: k.teslimEdenPersonelId, etiket: d.teslimEdenPersonelAd ?? kayitYokEtiketi }
       : null,
     aksYedekAnahtarDonus: k.aksYedekAnahtarDonus ?? false,
     aksStepneDonus: k.aksStepneDonus ?? false,
@@ -584,6 +597,37 @@ export function formuSifirla(
   aynaDurumlariniEsitle(form);
   form.markAsPristine();
   form.markAsUntouched();
+}
+
+/** Karşılaştırma anahtarı: seçim öğesi kimliğiyle, gerisi değeriyle (boş = null). */
+function degerAnahtari(v: unknown): string {
+  if (v === undefined || v === null || v === '') return 'null';
+  if (typeof v === 'object' && 'id' in v) return `id:${String((v as { id: unknown }).id)}`;
+  return JSON.stringify(v);
+}
+
+/**
+ * Sunucunun yeni değerlerini KİRLİ formla birleştirir (F4.3 adversarial F2): kullanıcının DOKUNMADIĞI
+ * alanlar sunucu değerine çekilir (başka oturumun ya da bir işlemin — provizyon al, teslim — yazdığı
+ * değer bayat gövdeyle geri alınmasın); dokunduğu alanlar KORUNUR. Dönüş: kullanıcının da dokunduğu ve
+ * sunucuda ÖNCEKİ okumadan bu yana değişmiş alanlar (çakışma — çağıran işaretler).
+ */
+export function sunucuDegerleriniBirlestir(
+  form: KiraFormu,
+  yeni: KiraSunucuDegerleri,
+  onceki: KiraSunucuDegerleri | null,
+): (keyof KiraSunucuDegerleri)[] {
+  const cakisan: (keyof KiraSunucuDegerleri)[] = [];
+  for (const ad of Object.keys(yeni) as (keyof KiraSunucuDegerleri)[]) {
+    const kontrol = form.controls[ad] as AbstractControl<unknown>;
+    if (kontrol.dirty) {
+      if (onceki && degerAnahtari(yeni[ad]) !== degerAnahtari(onceki[ad])) cakisan.push(ad);
+    } else if (degerAnahtari(yeni[ad]) !== degerAnahtari(kontrol.value)) {
+      kontrol.setValue(yeni[ad]);
+    }
+  }
+  aynaDurumlariniEsitle(form);
+  return cakisan;
 }
 
 // ─── Gövdeler ─────────────────────────────────────────────────────────────────────────────────
@@ -673,13 +717,22 @@ export function olusturGovdesi(d: KiraFormDegeri): KiraOlusturIstegi {
   };
 }
 
+export interface GuncelleBaglami {
+  /** Okunan kayıt sürümü (`kira.surum`) — sunucu satır kilidi altında karşılaştırır (F4.3 adversarial F2). */
+  readonly surum: string;
+  /** Sunucunun kayıtlı provizyon ANI; alana dokunulmadıysa aynen geri gider (gün yuvarlaması yok — F6). */
+  readonly provizyonTarihAni: string | null;
+  readonly provizyonTarihDegisti: boolean;
+}
+
 /**
- * `PUT /kiralar/{id}` gövdesi — TAM DEĞİŞTİRME: 58 alanın HEPSİ (sunucuda `required`; eksik alan 400).
- * Tip `KiraGuncelleIstegi` fazla/eksik anahtara izin vermez. Pasif (donuk) alanlar da kayıtlı değeriyle
- * gider (`getRawValue`), sunucu değişmediğini doğrular.
+ * `PUT /kiralar/{id}` gövdesi — TAM DEĞİŞTİRME: 58 alanın HEPSİ + okunan sürüm (sunucuda `required`; eksik
+ * alan 400, bayat sürüm 409 `cakisma`). Tip `KiraGuncelleIstegi` fazla/eksik anahtara izin vermez. Pasif
+ * (donuk) alanlar da kayıtlı değeriyle gider (`getRawValue`), sunucu değişmediğini doğrular.
  */
-export function guncelleGovdesi(d: KiraFormDegeri): KiraGuncelleIstegi {
+export function guncelleGovdesi(d: KiraFormDegeri, baglam: GuncelleBaglami): KiraGuncelleIstegi {
   return {
+    surum: baglam.surum,
     cikisOfisi: d.cikisOfisi?.etiket ?? null,
     donusOfisi: d.donusOfisi?.etiket ?? null,
     ikinciSurucuId: d.ikinciSurucu?.id ?? null,
@@ -708,7 +761,9 @@ export function guncelleGovdesi(d: KiraFormDegeri): KiraGuncelleIstegi {
     faturaListesindeGizle: d.faturaListesindeGizle ?? false,
     ucusNo: bos(d.ucusNo),
     provizyonNo: bos(d.provizyonNo),
-    provizyonTarih: gunAnina(d.provizyonTarih),
+    provizyonTarih: baglam.provizyonTarihDegisti
+      ? gunAnina(d.provizyonTarih)
+      : baglam.provizyonTarihAni,
     onayKodu: bos(d.onayKodu),
     firmaKodu: bos(d.firmaKodu),
     projeAdi: bos(d.projeAdi),
