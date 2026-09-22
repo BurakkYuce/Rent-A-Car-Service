@@ -66,7 +66,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - **Liste sorgusu:** `listeTanimi({ filtreler, siralanabilir, varsayilanSirala })` + sayfada
   `listeSorgusuUrlSenkronu(tanim)`. URL tek doğruluk kaynağı; bozuk parametre varsayılana düşer,
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
-- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`), stilsiz.
+- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`); kap stilsiz, aç/kapa düğmesi `rc-dugme`.
+- İlk gerçek liste ekranı: `features/kiralar/kira-listesi` (F4.2) — `listeTanimi` + URL senkronu + üç
+  `FetchPolicy` bağı (liste, özet, öneriler) + `TahsilatAnahtar`'lı "Tahsil Et" (`tahsil-paneli.ts`). Yeni liste
+  ekranı bu kablolamayı örnek alır.
 
 ## Oturum ve geri bildirim (F3.3)
 
@@ -100,13 +103,15 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 
 - **Typed Reactive Forms** (`FormGroup`/`FormControl<T | null>`); Signal Forms yok (deneysel).
 - **Kontroller** (`@shared/form/...`, hepsi CVA): `rc-metin-girdisi`, `rc-metin-alani`, `rc-sayi-girdisi`
-  (`number`), `rc-para-girdisi` (değer invariant METİN `"1234.56"`, görüntü `1.234,56`, yarım kuruş
-  sıfırdan uzağa; JSON sayısı da yazılabilir), `rc-secim` (yerel select), `rc-arama-secim` (CDK
+  (`number`), `rc-para-girdisi` (değer invariant METİN `"1234.56"`, görüntü `1.234,56`; JSON sayısı da
+  yazılabilir; programatik değer yarım kuruş sıfırdan uzağa yuvarlanır), `rc-secim` (yerel select), `rc-arama-secim` (CDK
   overlay + listbox; kaynak `sunucuSecimKaynagi('musteri')` → `/api/ui/v1/secim/*`, `limit ≤ 20`,
   gecikmeli, değer seçilen öğe `{ id, etiket, … }`), `rc-onay-kutusu`, `rc-anahtar`, `rc-radyo-grubu`,
   `rc-tarih-secici` (değer takvim günü `"2026-09-22"`, `aralik` ile `{ baslangic, bitis }` + hazır
   aralıklar), `rc-tarih-saat-secici` (değer UTC anı; İstanbul saatiyle gösterilir). Tarih günü `Date`
   / `toISOString` yoluna SOKULMAZ; an yerel saate çevrilip UTC sayılmaz.
+- **Para girdisi kuralı (F4.2 adversarial):** KULLANICININ yazdığı tutarda 2'den (`kesir`) fazla anlamlı ondalık
+  YUVARLANMAZ → `paraFazlaHane` ("En fazla 2 ondalık hane girilebilir."); önceden dolu + otomatik odaklı tutar `odaktaSec`.
 - **Alan:** her kontrol `<rc-alan etiket="…" ipucu="…">` içinde: etiket `for`, zorunlu `*` (doğrulayıcıdan),
   hata yuvası, `aria-invalid`/`aria-describedby`/`aria-required`. Radyo grubunda `grup`.
 - **Gönderim yalnız `formGonderimi()`** (`@shared/form/form-gonderimi`): çift tık tek istek, istemci
@@ -165,7 +170,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   (TemelStore; `Sayfa<T>` → sunucu sayfalaması), `satirKimligi`, `tabloKodu` (kullanıcı düzeni),
   `sirala`/`varsayilanSirala` (F3.4 sorgusu), `secilebilir` + `[(secim)]`, `disaAktarma`.
   Çıktılar: `siralaDegisti`/`sayfaDegisti`/`boyutDegisti` → `liste.degistir({...})`, `satirAc`, `yenidenDene`.
-- Özel hücre: `<ng-template rcTabloHucre="kod" [rcTabloHucreSutunlar]="sutunlar" let-satir>`.
+- Özel hücre: `<ng-template rcTabloHucre="kod" [rcTabloHucreSutunlar]="sutunlar" let-satir>`. Hücredeki
+  bağlantı/düğme/form denetiminde Enter ve çift tıklama satırı AÇMAZ (denetimin kendi işi; F4.2). Hücrede
+  `rc-gorunmez` (position: absolute) kullanan şablon kabına `position: relative` verir — yoksa görünmez metin
+  kaydırıcının dışına konumlanıp sayfayı yatay taşırır.
 - Dört durum ayrı: `bos` mesajsız, `yukleniyor` iskelet/soluk önceki veri + `aria-busy`, `hata` bandı +
   yeniden dene (ASLA "kayıt yok" değil), "Kayıt bulunamadı" yalnız başarılı sıfır kayıtta.
 - Kullanıcı düzeni (sıra/görünürlük/genişlik/sıralama) `GET/PUT/DELETE /api/ui/v1/tablo-duzenleri/{kod}`;

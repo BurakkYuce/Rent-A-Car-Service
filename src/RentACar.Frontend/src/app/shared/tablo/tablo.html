@@ -144,7 +144,7 @@
             [class.satir--secili]="seciliKume().has(c.kimlik)"
             [attr.aria-rowindex]="satirOfseti() + c.index + 2"
             [attr.aria-selected]="secilebilir() ? seciliKume().has(c.kimlik) : null"
-            (dblclick)="ciftTik(c.satir)"
+            (dblclick)="ciftTik(c.satir, $event)"
           >
             @for (s of gorunurSutunlar(); track s.kod; let k = $index) {
               @if (s.tanim; as t) {

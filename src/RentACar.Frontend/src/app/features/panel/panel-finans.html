@@ -1,0 +1,101 @@
+<section class="finans" aria-labelledby="panel-finans">
+  <h2 id="panel-finans">{{ 'panel.finans.baslik' | transloco }}</h2>
+  <div class="stat-satiri">
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">{{ sayi(finans().kasaBakiye) | para }}</span>
+      <span class="stat__etiket">{{ 'panel.finans.kasa' | transloco }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">{{ sayi(finans().bankaBakiye) | para }}</span>
+      <span class="stat__etiket">{{ 'panel.finans.banka' | transloco }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">{{ sayi(finans().acikBakiye) | para }}</span>
+      <span class="stat__etiket">{{ 'panel.finans.acik' | transloco }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">{{ sayi(finans().bugunTahsilatTutar) | para }}</span>
+      <span class="stat__etiket">{{
+        'panel.finans.bugunTahsilat' | transloco: { adet: sayi(finans().bugunTahsilatAdet) ?? 0 }
+      }}</span>
+    </div>
+  </div>
+
+  <div class="alt-baslik">
+    <h2>{{ 'panel.finans.filoBaslik' | transloco }}</h2>
+    <a href="/raporlar/filo-analiz">{{ 'panel.finans.filoAnaliz' | transloco }}</a>
+  </div>
+  <div class="stat-satiri">
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">
+        @if (sayi(finans().filoDolulukYuzde) !== null) {
+          %{{ sayi(finans().filoDolulukYuzde) | sayi: '1.1-1' }}
+        } @else {
+          {{ 'panel.finans.yok' | transloco }}
+        }
+      </span>
+      <span class="stat__etiket">{{ 'panel.finans.doluluk' | transloco }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">
+        @if (sayi(finans().revPacd) !== null) {
+          {{ sayi(finans().revPacd) | sayi: '1.0-0' }}
+        } @else {
+          {{ 'panel.finans.yok' | transloco }}
+        }
+      </span>
+      <span class="stat__etiket">{{ 'panel.finans.revPacd' | transloco }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat__sayi rc-sayi">
+        @if (sayi(finans().adr) !== null) {
+          {{ sayi(finans().adr) | sayi: '1.0-0' }}
+        } @else {
+          {{ 'panel.finans.yok' | transloco }}
+        }
+      </span>
+      <span class="stat__etiket">{{ 'panel.finans.adr' | transloco }}</span>
+    </div>
+  </div>
+
+  @if (trend().length > 0) {
+    <figure class="trend">
+      <figcaption class="alt-baslik">
+        <span class="trend__baslik">{{ 'panel.finans.trendBaslik' | transloco }}</span>
+        <a href="/raporlar/finans-analiz">{{ 'panel.finans.finansAnaliz' | transloco }}</a>
+      </figcaption>
+      <!-- Tek seri, tek eksen; değer her çubukta odak/üzerine gelince ve tabloda (ekran okuyucu). -->
+      <div class="trend__cubuklar" aria-hidden="true">
+        @for (ay of trend(); track $index) {
+          <div
+            class="trend__sutun"
+            [attr.title]="
+              'panel.finans.trendDeger' | transloco: { ay: ay.ay, tutar: (ay.gelir | para) }
+            "
+          >
+            <span class="trend__deger rc-sayi">{{ ay.gelir | sayi: '1.0-0' }}</span>
+            <span class="trend__alan"
+              ><span class="trend__cubuk" [style.height.%]="ay.yukseklik"></span
+            ></span>
+            <span class="trend__ay">{{ ay.ay }}</span>
+          </div>
+        }
+      </div>
+      <table class="rc-gorunmez">
+        <caption>
+          {{
+            'panel.finans.trendBaslik' | transloco
+          }}
+        </caption>
+        <tbody>
+          @for (ay of trend(); track $index) {
+            <tr>
+              <th scope="row">{{ ay.ay }}</th>
+              <td>{{ ay.gelir | para }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </figure>
+  }
+</section>
