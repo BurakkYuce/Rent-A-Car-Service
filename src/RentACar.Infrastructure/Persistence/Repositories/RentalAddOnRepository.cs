@@ -49,15 +49,21 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            // F4.1 adversarial N2: ÖNCE kira-fatura advisory kilidi (fatura kesimiyle serileşir — Invoices'ta
+            // Rentals'a FK YOK, fatura yolu satır kilidine hiç dokunmuyor), SONRA satır kilidi (KiraKilitleri sıra kuralı).
+            await KiraKilitleri.FaturaAsync(db, addOn.RentalId, ct);
             // Lost-update koruması (CRITICAL): RecomputeAsync mutlak SUM okuyup GenelToplam'ı yazar.
             // SUM'dan ÖNCE parent kira satırını kilitle → eşzamanlı ek hizmet ekleme/silme serileşir,
             // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
+            await KiraKilitleri.SatirAsync(db, addOn.RentalId, ct);
 
             var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
-            if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId, ct))
+            // F4.1: iptal edilmiş kiraya ek hizmet eklenemez (kilit ALTINDA; iptal de aynı satır kilidini alır).
+            if (rental.Durum == RentACar.Domain.Enums.RentalStatus.Iptal)
+                throw new ValidationException("İptal edilmiş kiraya ek hizmet eklenemez.");
+            // N2: base VE dönem/fark faturası (KaynakKiraId) — servisin IsRentalInvoicedAsync'i ile aynı yüklem.
+            if (await db.Invoices.AnyAsync(i => i.RentalId == addOn.RentalId || i.KaynakKiraId == addOn.RentalId, ct))
                 throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
             // K2/O2 (denetim): ek hizmet tutarları TL girilir; FX kirada kira dövizine karışıp faturada ×Kur
             // çarpılırdı (500 TL koltuk → "500 EUR" satırı → 17.500 TL defter). v1 sınırı: FX kirada ek hizmet YOK.
@@ -79,15 +85,19 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            var kalem = await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
+            if (kalem is null) return false;
+
+            // F4.1 adversarial N2: advisory → satır kilidi (AddAsync ile aynı sıra), sonra kalem kilit ALTINDA
+            // yeniden okunur (bu arada başka istek silmiş olabilir).
+            await KiraKilitleri.FaturaAsync(db, kalem.RentalId, ct);
+            // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
+            await KiraKilitleri.SatirAsync(db, kalem.RentalId, ct);
             var addOn = await db.RentalAddOns.FirstOrDefaultAsync(a => a.Id == addOnId, ct);
             if (addOn is null) return false;
 
-            // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT 1 FROM \"Rentals\" WHERE \"Id\" = {addOn.RentalId} FOR UPDATE", ct);
-
             var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct);
-            if (rental is not null && await db.Invoices.AnyAsync(i => i.RentalId == rental.Id, ct))
+            if (rental is not null && await db.Invoices.AnyAsync(i => i.RentalId == rental.Id || i.KaynakKiraId == rental.Id, ct))
                 throw new ValidationException("Faturalanmış kiranın ek hizmeti silinemez.");
 
             db.RentalAddOns.Remove(addOn);

@@ -38,6 +38,20 @@ public sealed class RentalService(
     private readonly RentACar.Application.RentalAddOns.IRentalAddOnRepository _addOnRepository = addOnRepository;
     private readonly ITenantCache _cache = cache;
 
+    /// <summary>
+    /// F4.1 adversarial L6: servis düzeyi yakıt çiti 0–100. İki ölçek yaşıyor: kira formu 0–12 gösterge
+    /// (<c>/api/ui</c> ucu ayrıca 0–12 zorlar), harici JWT API istemcileri yüzde (ör. 80) gönderiyor — onların
+    /// sözleşmesi değişmez. Çit negatif değeri ve int taşmasını (int.MinValue → sahte milyarlık eksik-yakıt
+    /// bedeli) keser; 0–100 aralığında (çıkış − dönüş) × birim ücret taşamaz.
+    /// </summary>
+    public const int YakitEnFazla = 100;
+
+    private static void YakitAraligi(int yakit, string etiket)
+    {
+        if (yakit is < 0 or > YakitEnFazla)
+            throw new ValidationException($"{etiket} yakıt 0-{YakitEnFazla} aralığında olmalıdır.");
+    }
+
     // Kira, araç Durum'unu değiştirdiğinde (Teslim→Kirada / Dönüş→Musait / İptal→Musait) VehicleService'in
     // "vehicles" cache'ini invalidate et → boş-araç dropdown/liste bayat kalmasın (latent cache tutarsızlığı fix).
     private async Task<bool> Inv(Task<bool> op)
@@ -69,6 +83,18 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1: çift savunma (web + servis)
         BookingMath.Validate(input);
         TarihPolitikasi.KiraBaslangic(input.BasTar); // geçmişe açık (retroaktif); gelecek anti-typo ≤ +1yıl
+        TarihPolitikasi.KiraBitis(input.BasTar, input.BitTar); // F4.1 L4: süre ≤ 5 yıl (9999 → taşma/bloke)
+
+        // F4.1 adversarial M1: çıkış ofisi GİRİŞ NOKTASINDA şube kapsamından geçer (UpdateOpenAsync'teki
+        // desen: ofis → Location → türetilmiş şube). Önceden operatör başka şubeye kira yazabiliyor (o
+        // şubenin aracını bloke edip kaydı kendisi de göremiyordu) ya da ofissiz "yetim" kira açabiliyordu.
+        var cikisOfisiGiris = Lim(input.CikisOfisi, 64, "Çıkış ofisi");
+        if (cikisOfisiGiris is null && !BranchScope.EffectiveFilter(_currentUser).Unrestricted)
+            throw new ValidationException("Çıkış ofisi zorunludur (şubeye bağlı kullanıcı kendi şubesinin ofisini seçmelidir).");
+        var cikisSubeId = cikisOfisiGiris is null
+            ? null : (await locationRepository.FindByAdAsync(cikisOfisiGiris, ct))?.SubeId;
+        BranchScope.RequireInScope(_currentUser, cikisSubeId, cikisOfisiGiris);
+
         // 2. sürücü: aynı tenant'ta var olmalı (RLS çapraz-tenant'ı zaten keser; bu erken temiz hata) +
         // kendisiyle aynı olamaz.
         if (input.IkinciSurucuId is Guid ikinci)
@@ -440,6 +466,8 @@ public sealed class RentalService(
         if (donusKm - c.CikisKm.Value > 100_000) return KiraDonusOnizleme.Hatali("KM farkı gerçekçi değil (100.000 üstü).");
         if (gercekDonus < c.BasTar) return KiraDonusOnizleme.Hatali("Dönüş tarihi başlangıçtan önce olamaz.");
         if (kmHediye is < 0 or > 100_000) return KiraDonusOnizleme.Hatali("KM hediye 0-100.000 aralığında olmalıdır.");
+        if (donusYakit is < 0 or > YakitEnFazla) return KiraDonusOnizleme.Hatali($"Dönüş yakıt 0-{YakitEnFazla} aralığında olmalıdır."); // F4.1 L6
+        if (gercekDonus > DateTimeOffset.UtcNow.AddYears(1)) return KiraDonusOnizleme.Hatali("Gerçek dönüş tarihi en fazla 1 yıl ileri olabilir."); // F4.1 L4
 
         var r = ReturnMath.Compute(c, donusKm, donusYakit, gercekDonus, kmHediye);
         var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
@@ -517,6 +545,7 @@ public sealed class RentalService(
     public async Task<bool> DeliverAsync(Guid id, int cikisKm, int cikisYakit, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
+        YakitAraligi(cikisYakit, "Çıkış"); // F4.1 L6
         return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
@@ -547,16 +576,19 @@ public sealed class RentalService(
         // Üst sınır: int.MaxValue hediye taşma vektörüydü (adversarial BULGU 1); km-farkı guard'ıyla simetrik.
         if (kmHediye > 100_000)
             throw new ValidationException("KM hediye gerçekçi değil (100.000 üstü).");
+        YakitAraligi(donusYakit, "Dönüş");          // F4.1 L6
+        TarihPolitikasi.GercekDonus(gercekDonus);   // F4.1 L4
         if (bitisSebebi is { } bs && bs.Trim().Length > 64)
             throw new ValidationException("Bitiş sebebi en fazla 64 karakter olabilir."); // varchar(64) — 500 yerine temiz red
         // Teslim alan personel: bu tenant'ta var olmalı (RLS zaten çapraz-tenant'ı keser; bu erken temiz hata).
         if (teslimAlanPersonelId is Guid pid &&
             await personelRepository.FindAsync(pid, ct) is null)
             throw new ValidationException("Teslim alan personel bulunamadı.");
-        // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer).
-        var ekHizmetToplam = (await _addOnRepository.ListForRentalAsync(id, ct)).Sum(a => a.Toplam);
+        // Ek hizmet brütü dönüşte GenelToplam'da KORUNMALI (yoksa düşer). F4.1 adversarial M2: toplam artık
+        // kira satır kilidi ALTINDA okunur (k.EkHizmetToplam) — önceden TX DIŞINDA okunuyordu ve eşzamanlı ek
+        // hizmet eklemesi GenelToplam'dan sessizce düşüyordu (24 yarışın 23'ünde tutarsızlık).
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
-        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
+        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
@@ -587,7 +619,7 @@ public sealed class RentalService(
             c.UzatmaGun = r.UzatmaGun;
             c.UzatmaBedeli = r.UzatmaBedeli;
             // r.GenelToplam = baz brüt (ek hizmet hariç); ek hizmet brütünü ekle (RentalTotals ile tutarlı).
-            c.GenelToplam = r.GenelToplam + ekHizmetToplam;
+            c.GenelToplam = r.GenelToplam + k.EkHizmetToplam;
             c.Bakiye = c.GenelToplam - c.Tahsilat;
             c.Durum = RentalStatus.Tamamlandi;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -614,6 +646,7 @@ public sealed class RentalService(
             throw new ValidationException("Yalnız aktif (Kirada) sözleşme uzatılabilir.");
         if (yeniBitTar <= c.BitTar)
             throw new ValidationException("Yeni bitiş tarihi mevcut bitişten sonra olmalıdır.");
+        TarihPolitikasi.KiraBitis(c.BasTar, yeniBitTar); // F4.1 L4: oluşturmayla AYNI süre sınırı
 
         // FAZ-49 KURAL MATRİSİ — uzatmanın GERÇEK giriş noktası burasıdır (UpdateOpenAsync'te tarih
         // alanı YOKTUR; RentalUpdateInput whitelist'i tip düzeyinde para/tarih taşımaz). Kaynak
@@ -659,11 +692,18 @@ public sealed class RentalService(
     public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: sözleşme iptali ayrı izin
-        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
+        // F4.1 adversarial M3: fatura/tahsilat kontrolü kira-fatura kilidi + satır kilidi ALTINDA (fatura
+        // kesimi aynı advisory kilidi alır ve kilit altında "kira iptal mi" diye bakar → yarış yok).
+        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
                 throw new ValidationException($"Kira '{c.Durum}' durumundayken iptal edilemez.");
+            // Faturalanmış kira iptal edilirse fatura ve cari alacağı yerinde kalıyordu (defter ↔ sözleşme ıraksar).
+            if (k.AcikFaturaVar)
+                throw new ValidationException("Faturalanmış kira iptal edilemez — önce faturanın iadesini kesin.");
+            if (c.Tahsilat != 0m)
+                throw new ValidationException("Tahsilatı olan kira iptal edilemez — önce tahsilatı iade edin (ödeme ya da ters kayıt).");
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, v => v.Durum = VehicleStatus.Musait, ct: ct)); // iptal → araç serbest (boşta)
