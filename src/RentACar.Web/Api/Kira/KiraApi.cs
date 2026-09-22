@@ -319,8 +319,9 @@ public static class KiraApi
             PaylasimDurum? durum = null;
             try { durum = await paylasim.DurumAsync(c.Id, ct); }
             catch (ValidationException) { durum = null; }
-            bar = new KiraPaylasimBari(Link(durum), musteri?.CepTel, musteri?.Email, $"Kira Sözleşmesi {c.SozlesmeNo}",
-                PaylasimMesaji(c, musteri?.DisplayName));
+            // PII tek kuraldan (MusteriGorunumu): KVKK Anonim* bayrakları ön-doldurmayı ve hitabı da kapsar.
+            bar = new KiraPaylasimBari(Link(durum), MusteriGorunumu.Telefon(musteri), MusteriGorunumu.Eposta(musteri),
+                $"Kira Sözleşmesi {c.SozlesmeNo}", MusteriGorunumu.PaylasimMesaji(c, musteri));
         }
 
         // F4.3b: gösterim toplamları SUNUCUDA (SPA toplama yapmaz). Cezalar kapsam kapısından SONRA okunur.
@@ -330,8 +331,8 @@ public static class KiraApi
 
         return TypedResults.Ok(new KiraDetayYaniti(
             KiraSozlesmesiDto.From(c),
-            new KiraTarafDto(c.MusteriId, musteri?.DisplayName ?? "—"),
-            ikinci is null ? null : new KiraTarafDto(ikinci.Id, ikinci.DisplayName),
+            new KiraTarafDto(c.MusteriId, MusteriGorunumu.TarafAdi(musteri)),
+            ikinci is null ? null : new KiraTarafDto(ikinci.Id, MusteriGorunumu.TarafAdi(ikinci)),
             arac is null ? null : new KiraAracDto(arac.Id, arac.Plaka, arac.Marka, arac.Tip, arac.ModelYili,
                 arac.Vites?.ToString(), arac.Yakit?.ToString(), arac.Grup, arac.Segment, arac.Km, arac.Sube, arac.Konum),
             islemSube,
@@ -347,29 +348,9 @@ public static class KiraApi
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
     /// <summary>
-    /// WhatsApp/Gmail hazır özet metni — Blazor <c>KiraForm._paylasMesaj</c> ile BİREBİR (link hariç; SPA ekler).
-    /// Blazor sunucunun yerel saatini kullanıyordu; burada açıkça İstanbul günü (TenantGun) + tr-TR biçimi.
-    /// </summary>
-    internal static string PaylasimMesaji(RentalContract c, string? musteriAd)
-    {
-        static string Gun(DateTimeOffset an) => TimeZoneInfo.ConvertTime(an, TenantGun.Dilim).ToString("dd.MM.yyyy", Tr);
-        return $"Sayın {musteriAd}, {c.SozlesmeNo} nolu kira sözleşmeniz: {Gun(c.BasTar)} - {Gun(c.BitTar)}, " +
-               $"genel toplam {c.GenelToplam.ToString("N2", Tr)} {c.Doviz ?? "TL"}.";
-    }
-
-    /// <summary>
-    /// Belge (ehliyet/pasaport) numarası maskesi — Blazor <c>SekmeMusteri.Maske</c> ile BİREBİR: yalnız son 4 karakter görünür;
-    /// 4 ve daha kısa değer TAMAMEN yıldız; boş → null. Düz numara bu yüzeyden hiçbir koşulda dönmez.
-    /// </summary>
-    public static string? Maske(string? v)
-        => string.IsNullOrWhiteSpace(v)
-            ? null
-            : v.Length <= 4 ? new string('*', v.Length) : new string('*', v.Length - 4) + v[^4..];
-
-    /// <summary>
     /// F4.3b — Müşteri sekmesinin salt-okunur cari özeti. Üst kayıt kapısından geçer (kapsam dışı 403, yok/başka
     /// kiracı 404); müşteri kiranın kendi <c>MusteriId</c>'sinden okunur (istemci başka cari soramaz). PII: bkz.
-    /// <see cref="KiraMusteriOzeti"/> — TC hiç çıkmaz; ehliyet/pasaport numarası yalnız <see cref="Maske"/>'den geçerek.
+    /// <see cref="KiraMusteriOzeti"/> ve <see cref="MusteriGorunumu"/> (TEK kural: maske + KVKK Anonim* bayrakları).
     /// </summary>
     private static async Task<Results<Ok<KiraMusteriOzeti>, ProblemHttpResult>> MusteriOzeti(
         Guid id, RentalService kiralar, CustomerService musteriler, CancellationToken ct)
@@ -378,18 +359,7 @@ public static class KiraApi
         if (c is null) return Bulunamadi();
         var m = await musteriler.GetAsync(c.MusteriId, ct);
         if (m is null) return Bulunamadi("Müşteri bulunamadı.");
-        return TypedResults.Ok(new KiraMusteriOzeti(
-            m.Id, m.DisplayName, m.Tip.ToString(),
-            m.AnonimTelefon ? null : m.CepTel,
-            m.AnonimMail ? null : m.Email,
-            // TC kimlik BİLİNÇLİ yok (ne düz ne maskeli) — Blazor paritesi + KVKK en az veri (#262 kararı).
-            m.AnonimBelge ? null : Maske(m.EhliyetNo),
-            m.AnonimBelge ? null : Maske(m.PasaportNo),
-            m.EhliyetSinifi, m.EhliyetTarihi, m.EhliyetYeri, m.EhliyetUlke, m.PasaportYeri,
-            m.AnonimAdres ? null : m.Adres,
-            m.AnonimAdres ? null : m.Il,
-            m.AnonimAdres ? null : m.Ilce,
-            m.MusteriTipi, m.RiskLimiti, m.KaraListe, m.Uyari, m.UyariNedeni));
+        return TypedResults.Ok(MusteriGorunumu.Ozet(m));
     }
 
     private static EkHizmetKalemiDto EkHizmetDto(RentalAddOn a)

@@ -715,6 +715,62 @@ test('ek hizmet matrisi: tanım fiyat/KDV satırları, işaret hesaba girer (tut
   expect(await ciddiIhlaller(page)).toEqual([]);
 });
 
+test('ek hizmet kataloğu KESİKSE listede olmayan tanım sunucu aramasıyla eklenir (#262 L2)', async ({
+  page,
+}) => {
+  const hesap = await sahteKiraApi(page);
+  const NAV_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000016';
+  await page.route('**/api/ui/v1/kiralar/ek-hizmet-katalogu', (route) =>
+    route.fulfill({
+      json: {
+        ogeler: [{ id: NAV_ID, kod: 'NAV', ad: 'Navigasyon', birimUcret: 40, kdvOrani: 0.2 }],
+        toplam: 206,
+      },
+    }),
+  );
+  await page.goto(`${YENI}#sekme=ekhizmet`);
+  const panel = page.getByRole('tabpanel', { name: 'Ek Hizmetler' });
+  await expect(panel).toContainText('İlk 1 tanım gösteriliyor (toplam 206).');
+  const diger = panel.getByRole('combobox', {
+    name: 'Listede olmayan ek hizmet ekle (ada göre ara)',
+  });
+  await diger.click();
+  await page.getByRole('option', { name: /Bebek koltuğu/ }).click();
+  const satir = page.getByTestId('ek-hizmet-matrisi').getByRole('row', { name: /Bebek koltuğu/ });
+  await expect(satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' })).toBeChecked();
+  await expect.poll(() => decodeURIComponent(hesap.at(-1) ?? '')).toContain(`ek=${TANIM_ID}:1`);
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).uncheck();
+  await expect(page.getByTestId('ek-hizmet-matrisi')).not.toContainText('Bebek koltuğu');
+});
+
+test('anonim cari (#262 M1): paylaşım kutuları boş gelir, geçersiz numarayla WhatsApp açılmaz', async ({
+  page,
+}) => {
+  await sahteKiraApi(page);
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), (route) =>
+    route.fulfill({
+      json: {
+        ...DETAY,
+        musteri: { id: MUSTERI_ID, ad: 'Anonim müşteri' },
+        paylasim: {
+          link: null,
+          musteriTel: null,
+          musteriEmail: null,
+          konu: 'Kira Sözleşmesi 2026220901001',
+          mesaj: 'Sayın müşterimiz, 2026220901001 nolu kira sözleşmeniz: …',
+        },
+      },
+    }),
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}`);
+  const bar = page.getByTestId('paylas-bari');
+  await expect(bar.getByLabel('Numara (GSM)')).toHaveValue('');
+  await expect(bar.getByLabel('E-posta')).toHaveValue('');
+  await bar.getByRole('button', { name: "WhatsApp'ta aç" }).click();
+  await expect(bar.getByRole('alert')).toHaveText('Geçerli bir GSM girin (örn. 05xx xxx xx xx).');
+  await expect(hizli(page).getByLabel('Müşteri', { exact: true })).toHaveValue('Anonim müşteri');
+});
+
 test.describe('390 px ve koyu tema', () => {
   test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 

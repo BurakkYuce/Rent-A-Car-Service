@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl } from '@angular/forms';
 import { paraBicimle } from '@core/bicim/bicim';
 import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
-import { KiraFormuDurumu } from '../kira-formu-durumu';
+import { KiraFormuDurumu, katalogKesildi } from '../kira-formu-durumu';
 import { sayiya } from '../kira-formu-modeli';
 import type { EkHizmetKatalogOgesi, SunucuSayisi } from '../kira-tipleri';
+import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
 import { KF_ORTAK } from './ortak';
 
 /**
@@ -109,16 +112,56 @@ import { KF_ORTAK } from './ortak';
                       </td>
                     </tr>
                   }
+                  <!-- Katalog dışı seçimler (katalog kesildiğinde sunucu aramasıyla eklenenler — #262 L2). -->
+                  @for (r of katalogDisi(); track r.id) {
+                    <tr>
+                      <td>
+                        <input
+                          type="checkbox"
+                          class="kf-matris-secim"
+                          checked
+                          [disabled]="!d.operasyon()"
+                          [attr.aria-label]="
+                            ('kiraFormuParite.ekHizmet.sec' | transloco) + ' ' + r.etiket
+                          "
+                          (change)="d.ekHizmetSatiriSil(r.sira)"
+                        />
+                      </td>
+                      <td>{{ r.etiket }}</td>
+                      <td class="kf-miktar">
+                        <ng-container [formGroupName]="r.sira">
+                          <rc-sayi-girdisi
+                            formControlName="miktar"
+                            [kesir]="2"
+                            [ariaEtiketi]="
+                              ('kiraFormu.ekHizmet.miktar' | transloco) + ' ' + r.etiket
+                            "
+                          />
+                        </ng-container>
+                      </td>
+                      <td class="num">—</td>
+                      <td class="num">—</td>
+                      <td class="num">{{ para(hesapKalemi(r.id)?.toplam) }}</td>
+                    </tr>
+                  }
                 </tbody>
               </table>
             </div>
-            @if ((sayi(kat.toplam) ?? 0) > kat.ogeler.length) {
+            @if (kesildi()) {
               <p class="kf-not">
                 {{
                   'kiraFormuParite.ekHizmet.kesildi'
                     | transloco: { sayi: kat.ogeler.length, toplam: kat.toplam }
                 }}
               </p>
+              <div class="rc-form-izgara">
+                <rc-alan
+                  [etiket]="'kiraFormuParite.ekHizmet.diger' | transloco"
+                  class="rc-form-izgara__genis"
+                >
+                  <rc-arama-secim [formControl]="digerSecici" [kaynak]="d.ekHizmetKaynagi" />
+                </rc-alan>
+              </div>
             }
           }
         } @else if (d.ekHizmetKatalogu.tur() === 'hata') {
@@ -233,6 +276,36 @@ import { KF_ORTAK } from './ortak';
 export class EkHizmet {
   protected readonly d = inject(KiraFormuDurumu);
   protected readonly sayi = sayiya;
+
+  /** Katalog kesikken "listede olmayan" tanım araması (sunucu `q`); seçilen satır olur, kutu boşalır. */
+  protected readonly digerSecici = new FormControl<SecimSecenegi | null>(null);
+
+  protected readonly kesildi = computed(() => {
+    const k = this.d.ekHizmetKatalogu.veri();
+    return k !== undefined && katalogKesildi(k);
+  });
+
+  /** Seçili ama katalog satırlarında OLMAYAN tanımlar (form sırasıyla) — matriste ayrıca çizilir. */
+  protected readonly katalogDisi = computed(() => {
+    this.d.ekSatirSurumu();
+    const katalogda = new Set((this.d.ekHizmetKatalogu.veri()?.ogeler ?? []).map((x) => x.id));
+    return this.d.form.controls.ekHizmetler.controls
+      .map((s, sira) => ({ tanim: s.controls.tanim.value, sira }))
+      .filter((x): x is { tanim: SecimSecenegi; sira: number } => x.tanim !== null)
+      .filter((x) => !katalogda.has(x.tanim.id))
+      .map((x) => ({ id: x.tanim.id, etiket: x.tanim.etiket, sira: x.sira }));
+  });
+
+  constructor() {
+    this.digerSecici.valueChanges.pipe(takeUntilDestroyed()).subscribe((tanim) => {
+      if (tanim) {
+        queueMicrotask(() => {
+          this.d.ekHizmetSatiriEkle(tanim);
+          this.digerSecici.setValue(null);
+        });
+      }
+    });
+  }
 
   /** Seçili tanım → FormArray sırası (matris satırı ile form satırını eşler; satır ekle/çıkar'da yenilenir). */
   protected readonly secililer = computed(() => {

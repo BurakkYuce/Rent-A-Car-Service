@@ -175,11 +175,11 @@ public sealed class UiKiraPariteTests(WebFixture fx)
 
     /// <summary>Müşteri: TC + ehliyet ŞİFRELİ yazma yolundan (hızlı müşteri ucu → CustomerService); adres/risk/kara liste
     /// ve eski düz-metin pasaport kolonu doğrudan (okuma yolu şifreli değer yoksa eskisine düşer).</summary>
-    private async Task<Guid> PiiliMusteriAsync(Ortam o, Oturum admin, Action<Customer>? ek = null)
+    private async Task<Guid> PiiliMusteriAsync(Ortam o, Oturum admin, Action<Customer>? ek = null, string? tc = Tc)
     {
         var j = await Json(await Gonder(admin, HttpMethod.Post, Kira + "/musteri", new
         {
-            ad = "Ayşe", soyad = "Kaya", tcKimlik = Tc, cepTel = "05321112233", email = "ayse@ornek.test",
+            ad = "Ayşe", soyad = "Kaya", tcKimlik = tc, cepTel = "05321112233", email = "ayse@ornek.test",
             il = "İzmir", ilce = "Karşıyaka", ehliyetNo = Ehliyet, ehliyetSinifi = "B", ehliyetYeri = "İzmir",
             ehliyetTarihi = "2015-06-01T00:00:00Z",
         }));
@@ -189,7 +189,7 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var m = await db.Customers.SingleAsync(c => c.Id == id);
         Assert.Null(m.TcKimlik); // yazma yolu düz TC bırakmaz (at-rest şifreli)
-        Assert.NotNull(m.TcKimlikEnc);
+        Assert.Equal(tc is not null, m.TcKimlikEnc is not null);
         m.Adres = "Atatürk Cd. No:5";
         m.MusteriTipi = "Türk Ehliyetli";
         m.EhliyetUlke = "TR";
@@ -211,10 +211,13 @@ public sealed class UiKiraPariteTests(WebFixture fx)
     [InlineData("   ", null)]
     [InlineData("AB", "**")]
     [InlineData("ABCD", "****")]
-    [InlineData("ABCDE", "*BCDE")]
-    [InlineData("B9876543", "****6543")]
-    public void Maske_yalniz_son_dort_kisa_deger_tamamen_yildiz(string? girdi, string? beklenen)
-        => Assert.Equal(beklenen, KiraApi.Maske(girdi));
+    [InlineData("ABCDE", "***DE")]      // L1: 5–7 karakterde yalnız son 2
+    [InlineData("123456", "****56")]
+    [InlineData("1234567", "*****67")]
+    [InlineData("B9876543", "****6543")] // ≥ 8 → son 4
+    [InlineData("U123456789", "******6789")]
+    public void Maske_uzunluga_gore_son_dort_ya_da_iki_kisa_deger_tamamen_yildiz(string? girdi, string? beklenen)
+        => Assert.Equal(beklenen, MusteriGorunumu.Maske(girdi));
 
     // ------------------------------------------------------------ müşteri özeti
 
@@ -305,26 +308,14 @@ public sealed class UiKiraPariteTests(WebFixture fx)
     }
 
     [Fact]
-    public async Task Musteri_ozeti_kapsam_403_baska_kiraci_404_izinsiz_403_anonim_bayraklari_bos()
+    public async Task Musteri_ozeti_kapsam_403_baska_kiraci_404_izinsiz_403()
     {
         var o = await OrtamKurAsync();
         var admin = await GirisAsync(o, Kim.Admin);
-        var musteri = await PiiliMusteriAsync(o, admin, m =>
-        {
-            m.AnonimBelge = true;
-            m.AnonimTelefon = true;
-            m.AnonimMail = true;
-            m.AnonimAdres = true;
-        });
+        var musteri = await PiiliMusteriAsync(o, admin);
         var arac = await AracAsync(o);
         var op = await GirisAsync(o, Kim.OperatorA);
         var id = await KiraAcAsync(op, musteri, arac, Simdi().AddHours(3));
-
-        // KVKK anonimleştirme bayrakları: ilgili grup BOŞ döner (maskeli bile değil).
-        var j = await Json(await op.C.GetAsync($"{Kira}/{id}/musteri-ozet"));
-        foreach (var alan in new[] { "ehliyetNoMaskeli", "pasaportNoMaskeli", "cepTel", "email", "adres", "il", "ilce" })
-            Assert.True(j.GetProperty(alan).ValueKind == JsonValueKind.Null, $"{alan} anonim bayrağına rağmen dolu: {j}");
-        Assert.Equal("Ayşe Kaya", S(j, "ad"));
 
         // Başka şubenin operatörü: kira kapsamı dışında → 403 (müşteri verisi sızmaz).
         await ProblemBekle(await (await GirisAsync(o, Kim.OperatorB)).C.GetAsync($"{Kira}/{id}/musteri-ozet"),
@@ -337,6 +328,88 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         var d = await GirisAsync(diger, Kim.Admin);
         Assert.Equal(HttpStatusCode.NotFound, (await d.C.GetAsync($"{Kira}/{id}/musteri-ozet")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await op.C.GetAsync($"{Kira}/{Guid.NewGuid()}/musteri-ozet")).StatusCode);
+    }
+
+    // ------------------------------------------------------------ KVKK Anonim* bayrakları (#262 adversarial M1)
+
+    private static readonly string[] BelgeAlanlari =
+        ["ehliyetNoMaskeli", "pasaportNoMaskeli", "ehliyetSinifi", "ehliyetTarihi", "ehliyetYeri", "ehliyetUlke", "pasaportYeri"];
+    private static readonly string[] AdresAlanlari = ["adres", "il", "ilce"];
+
+    private static bool Bos(JsonElement e, string ad) => e.GetProperty(ad).ValueKind == JsonValueKind.Null;
+
+    /// <summary>
+    /// TEK kural (MusteriGorunumu) hem özeti hem detayı (taraf adı + paylaşım barı + hazır mesaj) kapsar. Her bayrak
+    /// TEK BAŞINA yalnız kendi grubunu boşaltır; hepsi işaretliyken hiçbir kişisel değer iki yanıtta da geçmez.
+    /// Beklenenler elle: ad "Ayşe Kaya", tel "05321112233", e-posta "ayse@ornek.test", adres "Atatürk Cd. No:5".
+    /// </summary>
+    [Fact]
+    public async Task Anonim_bayraklari_tek_kuraldan_ozet_detay_paylasim_mesaj_her_bayrak_yalniz_kendi_grubu()
+    {
+        var o = await OrtamKurAsync();
+        var admin = await GirisAsync(o, Kim.Admin);
+        var op = await GirisAsync(o, Kim.OperatorA); // paylaşım barı yalnız OperationsWrite ile dolar
+        string[] senaryolar = ["Yok", "AnonimAd", "AnonimTelefon", "AnonimMail", "AnonimAdres", "AnonimBelge", "Hepsi"];
+
+        foreach (var sen in senaryolar)
+        {
+            bool Var(string b) => sen == b || sen == "Hepsi";
+            // TC her caride boş: aynı TC ikinci caride 409 olur; TC zaten hiçbir yüzeyde dönmüyor.
+            var musteri = await PiiliMusteriAsync(o, admin, m =>
+            {
+                m.AnonimAd = Var("AnonimAd");
+                m.AnonimTelefon = Var("AnonimTelefon");
+                m.AnonimMail = Var("AnonimMail");
+                m.AnonimAdres = Var("AnonimAdres");
+                m.AnonimBelge = Var("AnonimBelge");
+                m.AnonimTc = sen == "Hepsi";
+            }, tc: null);
+            var id = await KiraAcAsync(op, musteri, await AracAsync(o), Simdi().AddHours(4));
+            var (oz, ozMetin) = await JsonMetin(await op.C.GetAsync($"{Kira}/{id}/musteri-ozet"));
+            var (d, dMetin) = await JsonMetin(await op.C.GetAsync($"{Kira}/{id}"));
+            var bar = d.GetProperty("paylasim");
+            var mesaj = S(bar, "mesaj")!;
+            var no = d.GetProperty("kira").GetProperty("sozlesmeNo").GetString();
+
+            // Ad
+            if (Var("AnonimAd"))
+            {
+                Assert.True(Bos(oz, "ad"), $"{sen}: özet ad dolu");
+                Assert.Equal("Anonim müşteri", d.GetProperty("musteri").GetProperty("ad").GetString());
+                Assert.StartsWith($"Sayın müşterimiz, {no} nolu", mesaj);
+                Assert.DoesNotContain("Ayşe", mesaj, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Equal("Ayşe Kaya", S(oz, "ad"));
+                Assert.Equal("Ayşe Kaya", d.GetProperty("musteri").GetProperty("ad").GetString());
+                Assert.StartsWith($"Sayın Ayşe Kaya, {no} nolu", mesaj);
+            }
+            // Telefon (özet + WhatsApp ön-doldurması)
+            Assert.Equal(Var("AnonimTelefon") ? null : "05321112233", S(oz, "cepTel"));
+            Assert.Equal(Var("AnonimTelefon") ? null : "05321112233", S(bar, "musteriTel"));
+            // E-posta (özet + Gmail ön-doldurması)
+            Assert.Equal(Var("AnonimMail") ? null : "ayse@ornek.test", S(oz, "email"));
+            Assert.Equal(Var("AnonimMail") ? null : "ayse@ornek.test", S(bar, "musteriEmail"));
+            // Adres grubu
+            foreach (var a in AdresAlanlari)
+                Assert.True(Bos(oz, a) == Var("AnonimAdres"), $"{sen}: {a} beklenmedik ({oz})");
+            // Belge grubu: numara + üst bilgi birlikte
+            foreach (var a in BelgeAlanlari)
+                Assert.True(Bos(oz, a) == Var("AnonimBelge"), $"{sen}: {a} beklenmedik ({oz})");
+            // Anonim olmayan alanlar her senaryoda korunur.
+            Assert.Equal("Türk Ehliyetli", S(oz, "musteriTipi"));
+            Assert.Equal(5000m, oz.GetProperty("riskLimiti").GetDecimal());
+
+            if (sen == "Hepsi")
+            {
+                foreach (var kisisel in new[] { "Ayşe", "Kaya", "0532", "ayse@", "Atatürk", "Karşıyaka", "6543", "4567", "Ankara" })
+                {
+                    Assert.DoesNotContain(kisisel, ozMetin, StringComparison.Ordinal);
+                    Assert.DoesNotContain(kisisel, dMetin, StringComparison.Ordinal);
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------ detay: sunucu toplamları + paylaşım metni
@@ -394,7 +467,7 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         var j = await Json(await op.C.GetAsync($"{Kira}/ek-hizmet-katalogu"));
         var ogeler = j.GetProperty("ogeler").EnumerateArray().ToList();
         // Ad sırasıyla (tr-TR): Bebek Koltuğu, Navigasyon. Pasif ve SYS-* yok.
-        Assert.Equal(["Bebek Koltuğu", "Navigasyon"], ogeler.Select(x => S(x, "ad")).ToArray());
+        Assert.Equal(["Bebek Koltuğu", "Navigasyon"], ogeler.Select(x => S(x, "ad")!).ToArray());
         Assert.Equal(2, j.GetProperty("toplam").GetInt32());
         var bebek = ogeler[0];
         Assert.Equal("BEBEK", S(bebek, "kod"));
