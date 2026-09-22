@@ -109,6 +109,8 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   başına anahtar, yeniden denemede aynı, her 2xx ve `mukerrer` sonrası yeni; deterministik sunucu
   anahtarı `deterministikAnahtar` ile dokunulmadan önce gelir), hata alanlara (`alanlar`), değerler
   korunur, 2xx'te form `pristine`.
+- **Seç veya yaz:** `<rc-metin-girdisi liste="dl-kimlik">` + sayfada `<datalist id="dl-kimlik">` (serbest
+  metin de kabul; Blazor ComboBox konvansiyonu).
 - **Kaydedilmemiş değişiklik:** sayfa `KaydedilmemisDegisiklikSahibi` uygular, rotaya
   `canDeactivate: [kaydedilmemisDegisiklikGuard]`, kurucuda `sayfaTerkKorumasi(() => form.dirty)`.
 - **Yerleşim:** `rc-sekmeli-form` + `rcSekmePaneli` (derin bağlantı `#sekme=…`, gizli sekmedeki hatalı
@@ -116,6 +118,18 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   (`TanimAlani[]` + `TanimKaynagi`, REST için `restTanimKaynagi('/api/ui/v1/…')`); form ızgarası
   `.rc-form-izgara`. Yazdırma: `_yazdir.scss` (gizli sekmeler başlığıyla basılır, `.rc-yazdirma-gizle`).
 - Vitrin: `/app/vitrin/form`, `/app/vitrin/tanim` (e2e bunların üstünde).
+
+## Kira formu (F4.3)
+
+- `features/kira-formu/`: TEK bileşen iki rotada (`/kiralar/yeni`, `/kiralar/:id`) + `/kiralar/:id/yazdir`
+  (sunucu PDF ucuna tam sayfa). Durum/eylemler `KiraFormuDurumu`'nda (sayfa `providers`), saf kurallar
+  `kira-formu-modeli.ts`'te (sorgu sözleşmesi `?varac&vfrom&vto&vgrup&musteriId`, `#sekme=…&alt=…`,
+  gövdeler: POST whitelist, PUT 58 alanın HEPSİ). Tutar formülü YOK — `hesapla` / `donus-hesapla`.
+- Hızlı Giriş alanları AYNA: aynı `FormControl` iki girdiye bağlanamaz → `form.ayna` + `aynalariBagla`.
+  Formu sıfırlarken YALNIZ `formuSifirla` (ayna değerleriyle birlikte; düz `reset` aynayı null'layıp
+  kanoniği siler — e2e yakaladı).
+- Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
+- Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
 
 ## Tablo motoru (F3.5)
 
@@ -230,7 +244,8 @@ durumunda `test-results/` — iz, gerçek/fark PNG'leri — artifact). Yerelde i
   geçer). **Üretilen dosya commit'lenir ve elle düzenlenmez**; ESLint onu yok sayar. `prebuild`/`prewatch`
   her derlemede yeniden üretir.
 - Kod tipleri **doğrudan üretilen dosyadan değil** `@core/api/ui-tipleri`'nden alır (`BenYaniti`,
-  `MenuYaniti`…). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
+  `MenuYaniti`…). Özellik kendi takma adlarını kendi klasöründe `Sema<'KiraDetayYaniti'>` ile kurar
+  (ör. `features/kira-formu/kira-tipleri.ts`). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
   kullanan kod `typecheck`'te kırılır. JSON değişip tipler üretilmezse CI `tipler:kontrol` kırmızı.
 - API değiştiğinde akış: `RACAR_OPENAPI_GUNCELLE=1 dotnet test --filter UiApiOpenApiTests` →
   `npm run tipler` → ikisini birlikte commit'le.
