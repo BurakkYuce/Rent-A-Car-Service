@@ -48,6 +48,13 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ek hizmet zaten var.");
+        // F4.1 adversarial L1: SYS-* sistem ücret tanımının KODU değiştirilemez (ücret ve KDV düzenlenebilir).
+        // Kod değişince tanım "sistem" olmaktan çıkıyor, kiradaki ücret satırı manuel kalem gibi silinebiliyordu.
+        // Ters yön de kapalı: normal tanım SYS- önekine çevrilemez (manuel satırlar sistem satırına dönüşmesin).
+        var mevcut = await _repository.FindAsync(id, ct);
+        if (mevcut is not null && (SistemKodu(mevcut.Kod) || SistemKodu(n.Kod))
+            && !string.Equals(mevcut.Kod, n.Kod, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("Sistem ücret tanımının (SYS-*) kodu değiştirilemez; normal tanım SYS- önekini alamaz.");
 
         var ok = await _repository.UpdateAsync(id, t =>
         {
@@ -61,10 +68,16 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // F4.1 adversarial L1: sistem ücret tanımı silinemez — FeeLineService genç/ek sürücü ve drop ücretini
+        // bu tanımdan yazar; silinmesi ücret satırlarını sahipsiz bırakır.
+        if (await _repository.FindAsync(id, ct) is { } t && SistemKodu(t.Kod))
+            throw new ValidationException("Sistem ücret tanımı (SYS-*) silinemez.");
         var ok = await _repository.DeleteAsync(id, ct);
         _cache.Invalidate(CK);
         return ok;
     }
+
+    private static bool SistemKodu(string? kod) => kod?.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase) == true;
 
     private static void Validate(EkHizmetTanimInput n)
     {

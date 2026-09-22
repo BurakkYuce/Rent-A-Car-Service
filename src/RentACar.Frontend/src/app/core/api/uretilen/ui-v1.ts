@@ -708,6 +708,351 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/finans/hesaplar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          tur?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansHesapOgesi'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/tahsilat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TahsilatIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/odeme': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['OdemeIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/fatura': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FaturaKesIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/donem-fatura': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DonemFaturaIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DonemFaturaYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/dis-hizmet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DisHizmetIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/dis-hizmet/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/depozito/al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DepozitoAlIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/depozito/irat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DepozitoIratIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/tablo-duzenleri/{tabloKodu}': {
     parameters: {
       query?: never;
@@ -1920,13 +2265,69 @@ export interface components {
       };
       pilot: boolean;
     };
+    DepozitoAlIstegi: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      hesap: null | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+    };
+    DepozitoIratIstegi: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: uuid */
+      kiraId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      aciklama?: null | string;
+    };
+    DisHizmetIstegi: {
+      /** Format: uuid */
+      kiraId: string;
+      /** Format: uuid */
+      cariId: string;
+      alinanHizmet: null | string;
+      /** Format: double */
+      hizmetBedeli: number | string;
+      /** Format: double */
+      komisyonOran?: null | number | string;
+      hizmetAlinanFirma?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      komisyonFaturaNo?: null | string;
+      aciklama?: null | string;
+    };
+    DonemFaturaIstegi: {
+      /** Format: uuid */
+      kiraId: string;
+      /** Format: int32 */
+      donemSira: number | string;
+      /** @default false */
+      tahsilat: boolean;
+      hesap?: null | string;
+    };
+    DonemFaturaYaniti: {
+      /** Format: uuid */
+      faturaId: string;
+      tahsilatYazildi: boolean;
+      bilgi: null | string;
+    };
     DonusIstegi: {
       /** Format: int32 */
-      donusKm: number | string;
+      donusKm?: null | number | string;
       /** Format: int32 */
-      donusYakit: number | string;
+      donusYakit?: null | number | string;
       /** Format: date-time */
-      gercekDonus: string;
+      gercekDonus?: null | string;
       /** Format: int32 */
       kmHediye?: null | number | string;
       bitisSebebi?: null | string;
@@ -1935,9 +2336,9 @@ export interface components {
     };
     EkHizmetEkleIstegi: {
       /** Format: uuid */
-      ekHizmetTanimId: string;
+      ekHizmetTanimId?: null | string;
       /** Format: double */
-      miktar: number | string;
+      miktar?: null | number | string;
     };
     EkHizmetKalemiDto: {
       /** Format: uuid */
@@ -1957,6 +2358,35 @@ export interface components {
       kdvTutar: number | string;
       /** Format: double */
       toplam: number | string;
+    };
+    FaturaKesIstegi: {
+      /** Format: uuid */
+      kiraId: string;
+      /** Format: double */
+      otv?: null | number | string;
+      /** Format: double */
+      tevkifatOran?: null | number | string;
+      /** Format: double */
+      tevkifatTutar?: null | number | string;
+      /** Format: double */
+      damgaVergisi?: null | number | string;
+      /** @default false */
+      iadeMi: boolean;
+      /** @default false */
+      manuelMi: boolean;
+    };
+    FinansHesapOgesi: {
+      /** Format: uuid */
+      id: string;
+      etiket: string;
+      kod: string;
+      ad: string;
+      tur: null | string;
+      doviz: null | string;
+    };
+    FinansIslemYaniti: {
+      /** Format: uuid */
+      id: string;
     };
     GirisIstegi: {
       firma: null | string;
@@ -2456,7 +2886,7 @@ export interface components {
     KiraOlusturYaniti: {
       /** Format: uuid */
       id: string;
-      sozlesmeNo: null | string;
+      sozlesmeNo: string;
       uyari: null | string;
     };
     KiraPaylasimBari: {
@@ -2734,6 +3164,24 @@ export interface components {
       etiket: string;
       tip: string;
     };
+    OdemeIstegi: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      hesap: null | string;
+      /** Format: uuid */
+      kiraId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      kanal?: null | string;
+      aciklama?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+    };
     PanelCikisKovalari: {
       gecikmis: components['schemas']['PanelCikisSatiri'][];
       bugun: components['schemas']['PanelCikisSatiri'][];
@@ -2886,15 +3334,35 @@ export interface components {
       /** Format: double */
       varsayilanTutar: number | string;
     };
+    TahsilatIstegi: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      hesap: null | string;
+      /** Format: uuid */
+      kiraId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      kanal?: null | string;
+      aciklama?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      /** Format: uuid */
+      tahsilatAnahtar?: null | string;
+    };
     TeslimIstegi: {
       /** Format: int32 */
-      cikisKm: number | string;
+      cikisKm?: null | number | string;
       /** Format: int32 */
-      cikisYakit: number | string;
+      cikisYakit?: null | number | string;
     };
     UzatIstegi: {
       /** Format: date-time */
-      yeniBitTar: string;
+      yeniBitTar?: null | string;
     };
     VadeKademesi: {
       /** Format: int32 */

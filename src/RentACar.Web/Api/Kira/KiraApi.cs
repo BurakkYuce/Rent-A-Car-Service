@@ -116,6 +116,22 @@ public static class KiraApi
 
     private static bool Izin(HttpContext http, Permission p) => AuthExtensions.HasPermission(http.User, p);
 
+    /// <summary>F4.1 adversarial L2: gövdede eksik zorunlu alan → 400 <c>errors[alan]</c> (sessiz 0 değil).</summary>
+    private static T Zorunlu<T>(T? deger, string alan, string etiket) where T : struct
+        => deger ?? throw new ValidationException($"{etiket} zorunludur.", alan);
+
+    /// <summary>Kira formunun yakıt göstergesi ölçeği (Blazor formu ve tenant varsayılanı: 0–12). Servis ayrıca
+    /// 0–100 taşma çiti uygular (harici API yüzde ölçeği kullanıyor).</summary>
+    public const int FormYakitEnFazla = 12;
+
+    private static int Yakit(int? deger, string alan, string etiket)
+    {
+        var y = Zorunlu(deger, alan, etiket);
+        if (y is < 0 or > FormYakitEnFazla)
+            throw new ValidationException($"{etiket} 0-{FormYakitEnFazla} aralığında olmalıdır.", alan);
+        return y;
+    }
+
     /// <summary>Hızlı tahsilat verisi — Blazor pano/liste formuyla BİREBİR: anahtar
     /// <see cref="TahsilatAnahtar.Uret"/>(kira, bakiye, işlem sayısı), döviz kira dövizi (normalize), tutar bakiye.</summary>
     internal static TahsilatBilgisi TahsilatVerisi(Guid rentalId, Guid cariId, decimal bakiye, string? doviz, int islemSayisi)
@@ -170,7 +186,9 @@ public static class KiraApi
             Durum = Ad<RentalStatus>(Durum, "durum"),
             Faturali = Fatura,
             BaslangicMin = BasMin is { } mn ? GunBasi(mn) : null,
-            BaslangicMax = BasMax is { } mx ? GunBasi(mx.AddDays(1)).AddSeconds(-1) : null,
+            // F4.1 adversarial L7: gün sonu "< ertesi gün 00:00" (repo <= uygular; timestamptz µs hassasiyetinde
+            // ertesi gün − 1 µs ≡ < ertesi gün). Eski AddSeconds(-1) 23:59:59.xxx kayıtlarını dışarıda bırakıyordu.
+            BaslangicMax = BasMax is { } mx ? GunBasi(mx.AddDays(1)).AddMicroseconds(-1) : null,
             Ofis = KiraOlusturIstegi.Nz(Ofis),
             TarihTuru = Ad<TarihListesiTuru>(TarihTuru, "tarihTuru"),
             OfisDurum = Ad<OfisDurumu>(OfisDurum, "ofisDurum"),
@@ -450,6 +468,8 @@ public static class KiraApi
         RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        if (donusYakit is < 0 or > FormYakitEnFazla) // nazik önizleme sözleşmesi: ok:false (Blazor ile aynı)
+            return TypedResults.Ok(KiraDonusOnizleme.Hatali($"Dönüş yakıt 0-{FormYakitEnFazla} aralığında olmalıdır."));
         return TypedResults.Ok(await kiralar.PreviewReturnAsync(id, donusKm, donusYakit, gercekDonus, kmHediye ?? 0, ct));
     }
 
@@ -522,6 +542,10 @@ public static class KiraApi
         ("Risk limiti aşıldı", "riskOnay"),
         ("Risk onayı yalnız", "riskOnay"),
         ("Kampanya kodu", "kampanyaKodu"),
+        ("Kira süresi en fazla", "bitTar"),
+        ("Müşteri bulunamadı", "musteriId"),
+        ("Araç bulunamadı", "vehicleId"),
+        ("Çıkış ofisi zorunludur", "cikisOfisi"),
         ("Seçilen ek hizmet", "ekHizmetler"),
         ("Aynı ek hizmet", "ekHizmetler"),
         ("En fazla 50 ek hizmet", "ekHizmetler"),
@@ -540,11 +564,14 @@ public static class KiraApi
         .. OrtakKiraKurallari,
     ];
 
-    private static readonly (string, string)[] TeslimKurallari = [("Çıkış KM negatif", "cikisKm")];
+    private static readonly (string, string)[] TeslimKurallari =
+        [("Çıkış KM negatif", "cikisKm"), ("Çıkış yakıt", "cikisYakit")];
 
     private static readonly (string, string)[] DonusKurallari =
     [
         ("Dönüş KM", "donusKm"),
+        ("Dönüş yakıt", "donusYakit"),
+        ("Gerçek dönüş tarihi", "gercekDonus"),
         ("KM farkı gerçekçi değil", "donusKm"),
         ("Dönüş tarihi başlangıçtan önce", "gercekDonus"),
         ("KM hediye", "kmHediye"),
@@ -556,6 +583,7 @@ public static class KiraApi
     [
         ("Yeni bitiş tarihi", "yeniBitTar"),
         ("Uzatma en az 1 gün", "yeniBitTar"),
+        ("Kira süresi en fazla", "yeniBitTar"),
     ];
 
     private static readonly (string, string)[] ProvizyonKurallari =
@@ -589,7 +617,7 @@ public static class KiraApi
     /// </summary>
     private static async Task<Created<KiraOlusturYaniti>> Olustur(
         KiraOlusturIstegi istek, RentalService kiralar, RentalAddOnService ekler, EkHizmetTanimService ekTanimlar,
-        CancellationToken ct)
+        ICustomerRepository musteriDeposu, IVehicleRepository aracDeposu, CancellationToken ct)
     {
         var secim = (istek.EkHizmetler ?? []).Select(e => (e.TanimId, Miktar: e.Miktar is > 0m ? e.Miktar.Value : 1m)).ToList();
         if (secim.Count > EnFazlaEkKalem)
@@ -607,6 +635,14 @@ public static class KiraApi
                 throw new ValidationException("Seçilen ek hizmet sistem ücret kalemi; manuel seçilemez (otomatik hesaplanır).");
         }
 
+        Sinirlar.Olustur(istek); // F4.1 adversarial L3: numeric(19,4)/metin taşması 500 yerine 400 + alan
+        // F4.1 adversarial L5: müşteri ve araç bu kiracıda VAR olmalı (RLS kapsamlı okuma). Rentals.MusteriId /
+        // VehicleId'de FK yok — başka kiracının ya da hiç olmayan kimlikle kira yazılabiliyordu. Kontrol UÇTA:
+        // servis düzeyine almak, sentetik kimlikle kira kuran ~50 mevcut testi değiştirmeyi gerektiriyor (açık iş).
+        if (await musteriDeposu.FindAsync(istek.MusteriId, ct) is null)
+            throw new ValidationException("Müşteri bulunamadı.", "musteriId");
+        if (await aracDeposu.FindAsync(istek.VehicleId, ct) is null)
+            throw new ValidationException("Araç bulunamadı.", "vehicleId");
         var id = await kiralar.CreateDirectAsync(istek.ToInput(), ct);
 
         string? uyari = null;
@@ -619,16 +655,9 @@ public static class KiraApi
         {
             uyari = $"Kira açıldı ancak ek hizmet eklenemedi: {ex.Message}";
         }
-        // Sözleşme no'su şube kapsamlı okumadan. Servis create'te çıkış ofisinin kapsamını DENETLEMEZ (Blazor ile
-        // aynı, mevcut davranış): operatör kapsamı dışında bir ofisle kira açarsa kira YAZILMIŞTIR — 403 dönmek
-        // "olmadı" sanılıp yeniden gönderime yol açardı. 201 + uyarı döner (kayıt kullanıcıya görünmez).
-        string? no = null;
-        try { no = (await kiralar.GetAsync(id, ct))?.SozlesmeNo; }
-        catch (YetkiYokException)
-        {
-            uyari = (uyari is null ? "" : uyari + " ") +
-                    "Kira açıldı ancak çıkış ofisi şube kapsamınız dışında; sözleşmeyi görüntüleyemezsiniz.";
-        }
+        // Çıkış ofisinin kapsamı servis GİRİŞİNDE denetlenir (F4.1 adversarial M1): buraya gelen kira oturumun
+        // kapsamındadır; kapsam dışı ofis 403, hiçbir şey yazılmaz.
+        var no = (await kiralar.GetAsync(id, ct))?.SozlesmeNo ?? "";
         return TypedResults.Created($"{Kok}/{id}", new KiraOlusturYaniti(id, no, uyari));
     }
 
@@ -637,6 +666,7 @@ public static class KiraApi
     private static async Task<Ok<MusteriHizliYaniti>> MusteriOlustur(
         MusteriHizliIstegi istek, CustomerService musteriler, CancellationToken ct)
     {
+        Sinirlar.Musteri(istek); // F4.1 L3: kolon uzunlukları (varchar taşması 500 yerine 400 + alan)
         var ad = KiraOlusturIstegi.Nz(istek.Ad);
         var unvan = KiraOlusturIstegi.Nz(istek.Unvan);
         var soyad = KiraOlusturIstegi.Nz(istek.Soyad);
@@ -667,6 +697,7 @@ public static class KiraApi
         Guid id, KiraGuncelleIstegi istek, RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        Sinirlar.Guncelle(istek); // F4.1 L3
         if (!await kiralar.UpdateOpenAsync(id, istek.ToInput(), ct)) return Bulunamadi();
         return await Guncel(kiralar, id, ct);
     }
@@ -675,7 +706,9 @@ public static class KiraApi
         Guid id, TeslimIstegi istek, RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        if (!await kiralar.DeliverAsync(id, istek.CikisKm, istek.CikisYakit, ct)) return Bulunamadi();
+        if (!await kiralar.DeliverAsync(id, Zorunlu(istek.CikisKm, "cikisKm", "Çıkış KM"),
+                Yakit(istek.CikisYakit, "cikisYakit", "Çıkış yakıt"), ct))
+            return Bulunamadi();
         return await Guncel(kiralar, id, ct);
     }
 
@@ -683,7 +716,8 @@ public static class KiraApi
         Guid id, DonusIstegi istek, RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        if (!await kiralar.ReturnAsync(id, istek.DonusKm, istek.DonusYakit, istek.GercekDonus,
+        if (!await kiralar.ReturnAsync(id, Zorunlu(istek.DonusKm, "donusKm", "Dönüş KM"),
+                Yakit(istek.DonusYakit, "donusYakit", "Dönüş yakıt"), Zorunlu(istek.GercekDonus, "gercekDonus", "Gerçek dönüş tarihi"),
                 istek.KmHediye ?? 0, istek.BitisSebebi, istek.TeslimAlanPersonelId, ct))
             return Bulunamadi();
         return await Guncel(kiralar, id, ct);
@@ -693,7 +727,7 @@ public static class KiraApi
         Guid id, UzatIstegi istek, RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        if (!await kiralar.ExtendAsync(id, istek.YeniBitTar, ct)) return Bulunamadi();
+        if (!await kiralar.ExtendAsync(id, Zorunlu(istek.YeniBitTar, "yeniBitTar", "Yeni bitiş tarihi"), ct)) return Bulunamadi();
         return await Guncel(kiralar, id, ct);
     }
 
@@ -719,6 +753,7 @@ public static class KiraApi
         Guid id, ProvizyonKapatIstegi istek, RentalService kiralar, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
+        Sinirlar.Tutar(istek.KapamaTutar, "kapamaTutar", "Kapama tutarı"); // F4.1 L3
         if (!await kiralar.ProvizyonKapatAsync(id, istek.KapamaTutar, istek.Iade, ct)) return Bulunamadi();
         return await Guncel(kiralar, id, ct);
     }
@@ -739,7 +774,8 @@ public static class KiraApi
         Guid id, EkHizmetEkleIstegi istek, RentalService kiralar, RentalAddOnService ekler, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        await ekler.AddAsync(id, istek.EkHizmetTanimId, istek.Miktar, ct: ct);
+        await ekler.AddAsync(id, Zorunlu(istek.EkHizmetTanimId, "ekHizmetTanimId", "Ek hizmet"),
+            Zorunlu(istek.Miktar, "miktar", "Miktar"), ct: ct);
         return await EkHizmetYaniti(kiralar, ekler, id, ct);
     }
 

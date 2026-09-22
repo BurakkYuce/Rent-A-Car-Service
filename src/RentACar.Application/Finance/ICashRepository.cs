@@ -24,6 +24,11 @@ public interface ICashRepository
     /// (tahsis/bakiye çitlerinden ÖNCE) kullanır.</summary>
     Task<bool> IslemAnahtariVarMiAsync(Guid islemAnahtari, CancellationToken ct = default);
 
+    /// <summary>F4.4a — verilen <c>IslemAnahtari</c> ile yazılmış kasa/banka işlemi (yoksa null). Deterministik
+    /// anahtarın "zaten kaydedilmiş" dalında kaydın GERÇEKTEN aynı işleme (ör. aynı kiranın dönem tahsilatına)
+    /// ait olduğunu doğrulamak için.</summary>
+    Task<CashTransaction?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default);
+
     /// <summary>
     /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da işler. Kira
     /// tahsilat deltası tx'ten türetilir: yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−); birim = kira dövizi
