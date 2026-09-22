@@ -11,7 +11,7 @@
       <button
         type="button"
         class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
-        [disabled]="ozet.yukleniyor()"
+        [disabled]="ozet.yukleniyor() || tahsilatSuruyor()"
         [attr.title]="'panel.otomatikTazeleme' | transloco"
         (click)="yenile()"
       >
@@ -109,6 +109,7 @@
                             [attr.aria-label]="
                               'panel.tahsilat.tahsilEtEtiket' | transloco: { plaka: satir.plaka }
                             "
+                            [disabled]="tahsilatSuruyor()"
                             (click)="tahsilatAc(satir)"
                           >
                             {{ 'panel.tahsilat.tahsilEt' | transloco }}
@@ -127,7 +128,8 @@
               </tbody>
             </table>
           </div>
-          @if (acikTahsilatSatiri(); as satir) {
+          <!-- rentalId ile izlenir: başka satır açılınca form bileşeni YENİDEN oluşur (durum taşınmaz). -->
+          @for (satir of acikTahsilatListesi(); track satir.rentalId) {
             @if (satir.tahsilat; as bilgi) {
               <rc-panel-tahsilat-formu
                 [bilgi]="bilgi"

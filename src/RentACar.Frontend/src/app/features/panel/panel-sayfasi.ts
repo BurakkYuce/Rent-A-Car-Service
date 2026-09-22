@@ -11,6 +11,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { PanelDonusSatiri, PanelOzetiYaniti } from '@core/api/ui-tipleri';
+import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -33,7 +34,7 @@ import {
 } from './panel-modeli';
 import { PanelFinans } from './panel-finans';
 import { PanelKpi } from './panel-kpi';
-import { PanelTahsilatFormu } from './panel-tahsilat-formu';
+import { PANEL_TAHSILAT_KILIDI, PanelTahsilatFormu } from './panel-tahsilat-formu';
 import { PanelStore } from './panel.store';
 
 interface Cip {
@@ -55,7 +56,11 @@ interface Cip {
 @Component({
   selector: 'rc-panel-sayfasi',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [FetchPolicy, PanelStore],
+  providers: [
+    FetchPolicy,
+    PanelStore,
+    { provide: PANEL_TAHSILAT_KILIDI, useFactory: () => new GonderimKilidi() },
+  ],
   imports: [
     RouterLink,
     TranslocoPipe,
@@ -75,6 +80,8 @@ export class PanelSayfasi {
   private readonly belge = inject(DOCUMENT);
   private readonly sekme = sekmeBaglami();
   private readonly t = ceviriFonksiyonu();
+  /** Tüm satırların ortak tahsilat kilidi: istek uçarken tablodaki "Tahsil Et"ler ve "Yenile" pasif. */
+  protected readonly tahsilatSuruyor = inject(PANEL_TAHSILAT_KILIDI).gonderiliyor;
 
   protected readonly ozet = this.store.ozet;
   protected readonly veri = this.ozet.veri;
@@ -120,11 +127,16 @@ export class PanelSayfasi {
     return d ? [...d.gecikmis, ...d.bugun, ...d.yarin].some((s) => !!s.tahsilat?.anahtar) : false;
   });
 
-  /** Açık form (kopya) — tazeleme sonrası satır görünen kovada artık yoksa form kapanır. */
-  protected readonly acikTahsilatSatiri = computed<PanelDonusSatiri | null>(() => {
+  /**
+   * Açık form (kopya) — tazeleme sonrası satır görünen kovada artık yoksa form kapanır; istek uçarken ASLA
+   * kapanmaz (sonuç ve bildirim kaybolmasın). Şablon bunu `rentalId` ile izlenen tek elemanlı listeyle çizer:
+   * başka satır açılınca form bileşeni YENİDEN oluşur (adversarial F1: bayat tutar başka kiraya gidiyordu).
+   */
+  protected readonly acikTahsilatListesi = computed<readonly PanelDonusSatiri[]>(() => {
     const acik = this.acikTahsilat();
-    if (acik === null) return null;
-    return this.donusSatirlari().some((s) => s.rentalId === acik.rentalId) ? acik : null;
+    if (acik === null) return [];
+    if (this.tahsilatSuruyor()) return [acik];
+    return this.donusSatirlari().some((s) => s.rentalId === acik.rentalId) ? [acik] : [];
   });
 
   protected readonly kpiKartlari = computed<readonly KpiKarti[]>(() => {
@@ -165,7 +177,7 @@ export class PanelSayfasi {
 
   protected donusSec(sekme: PanelSekme): void {
     this.donusSecilen.set(sekme);
-    this.acikTahsilat.set(null);
+    if (!this.tahsilatSuruyor()) this.acikTahsilat.set(null);
     this.sorguyaYaz({ df: sekme });
   }
 
@@ -175,10 +187,12 @@ export class PanelSayfasi {
   }
 
   protected tahsilatAc(satir: PanelDonusSatiri): void {
+    if (this.tahsilatSuruyor()) return;
     this.acikTahsilat.set(satir);
   }
 
   protected tahsilatKapat(): void {
+    if (this.tahsilatSuruyor()) return;
     this.acikTahsilat.set(null);
   }
 
@@ -198,7 +212,7 @@ export class PanelSayfasi {
       belgeGorunur: this.belge.visibilityState !== 'hidden',
       sekmeAktif: this.sekme.aktif(),
       yaziyor: this.acikTahsilat() !== null || yazilabilirAlanMi(this.belge.activeElement),
-      mesgul: this.ozet.yukleniyor(),
+      mesgul: this.ozet.yukleniyor() || this.tahsilatSuruyor(),
     });
     if (tazele) this.politika.yenile();
   }
