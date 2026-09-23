@@ -139,7 +139,10 @@ public sealed class VehicleService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var plaka = Normalize(input.Plaka);
-        Validate(plaka, input);
+        // #285: yeni tarih/tutar kuralları YALNIZ değişen alana uygulanır — aralık dışı ESKİ verisi olan araç,
+        // başka bir alanı düzenlenirken kilitlenmez (FiloKiralamaService.UpdateMetaAsync #271 Low-1 dersi).
+        var existing = await _repository.FindAsync(id, ct);
+        Validate(plaka, input, existing);
 
         if (await _repository.PlakaExistsAsync(plaka, excludeId: id, ct))
             throw new DuplicatePlakaException(plaka);
@@ -207,7 +210,9 @@ public sealed class VehicleService(
     public Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(Guid vehicleId, int limit = 10, CancellationToken ct = default)
         => _repository.KmLoglariAsync(vehicleId, limit, ct);
 
-    private static void Validate(string plaka, VehicleInput input)
+    /// <param name="existing">Güncellemede mevcut kayıt: #278 tarih aralığı ve negatif tutar kuralları yalnız DEĞİŞEN
+    /// alana uygulanır (aynı an ya da aynı takvim günü = değişmedi). Oluşturmada <c>null</c> → her alan denetlenir.</param>
+    private static void Validate(string plaka, VehicleInput input, Vehicle? existing = null)
     {
         if (string.IsNullOrWhiteSpace(plaka))
             throw new ValidationException("Plaka zorunludur.");
@@ -225,32 +230,37 @@ public sealed class VehicleService(
         if (input.IkinciElDeger is < 0m)
             throw new ValidationException("İkinci el değeri negatif olamaz.");
         // #278 L4 — vergi/maliyet/kur alanlarında negatif değer anlamsız (karne/maliyet hesaplarını bozar).
-        foreach (var (value, label) in NonNegativeAmounts(input))
-            if (value is < 0m)
+        foreach (var (get, getExisting, label) in NonNegativeAmounts)
+            if (get(input) is < 0m && (existing is null || get(input) != getExisting(existing)))
                 throw new ValidationException($"{label} negatif olamaz.");
         // #278 L4 — tarihler makul aralıkta: 1950-01-01 … bugün + 30 yıl (typo'lu yıl 0026/20266 kayda girmesin).
-        foreach (var (value, label) in DateFields(input))
-            EnsureReasonableDate(value, label);
+        foreach (var (get, getExisting, label) in DateFields)
+            if (existing is null || FiloKiralamalar.FiloKiralamaService.TarihDegisti(getExisting(existing), get(input)))
+                EnsureReasonableDate(get(input), label);
         // PR-11: üst sınır, "12" yerine "1200" yazan bir typo'nun vitrinde "1200 araç" basmasını önler.
         if (input.VitrinAdet is < 1 or > 999)
             throw new ValidationException("Vitrin adedi 1 ile 999 arasında olmalıdır (boş = 1).");
     }
 
-    private static (decimal? Value, string Label)[] NonNegativeAmounts(VehicleInput i) =>
+    private static readonly (Func<VehicleInput, decimal?> Get, Func<Vehicle, decimal?> Existing, string Label)[] NonNegativeAmounts =
     [
-        (i.AlisVergisiz, "Alış vergisiz tutarı"), (i.AlisOtv, "Alış ÖTV"), (i.AlisKdv, "Alış KDV"),
-        (i.AylikMaliyet, "Aylık maliyet"), (i.FiloYonetimMaliyeti, "Filo yönetim maliyeti"), (i.KiraFiyat, "Kira fiyatı"),
-        (i.TsbKaskoDegeri, "TSB kasko değeri"), (i.AlisEuroFiyat, "Alış EUR fiyatı"), (i.SatisEuroFiyat, "Satış EUR fiyatı"),
-        (i.AlimBedeliKur, "Alım bedeli kuru"), (i.Arac2FiyatKur, "Araç 2. fiyat kuru"), (i.SimdiKur, "Şimdiki kur"),
-        (i.AylikMaliyetDoviz, "Döviz aylık maliyet"),
+        (i => i.AlisVergisiz, v => v.AlisVergisiz, "Alış vergisiz tutarı"), (i => i.AlisOtv, v => v.AlisOtv, "Alış ÖTV"),
+        (i => i.AlisKdv, v => v.AlisKdv, "Alış KDV"), (i => i.AylikMaliyet, v => v.AylikMaliyet, "Aylık maliyet"),
+        (i => i.FiloYonetimMaliyeti, v => v.FiloYonetimMaliyeti, "Filo yönetim maliyeti"),
+        (i => i.KiraFiyat, v => v.KiraFiyat, "Kira fiyatı"), (i => i.TsbKaskoDegeri, v => v.TsbKaskoDegeri, "TSB kasko değeri"),
+        (i => i.AlisEuroFiyat, v => v.AlisEuroFiyat, "Alış EUR fiyatı"), (i => i.SatisEuroFiyat, v => v.SatisEuroFiyat, "Satış EUR fiyatı"),
+        (i => i.AlimBedeliKur, v => v.AlimBedeliKur, "Alım bedeli kuru"), (i => i.Arac2FiyatKur, v => v.Arac2FiyatKur, "Araç 2. fiyat kuru"),
+        (i => i.SimdiKur, v => v.SimdiKur, "Şimdiki kur"), (i => i.AylikMaliyetDoviz, v => v.AylikMaliyetDoviz, "Döviz aylık maliyet"),
     ];
 
-    private static (DateTimeOffset? Value, string Label)[] DateFields(VehicleInput i) =>
+    private static readonly (Func<VehicleInput, DateTimeOffset?> Get, Func<Vehicle, DateTimeOffset?> Existing, string Label)[] DateFields =
     [
-        (i.TescilTarihi, "Tescil tarihi"), (i.AlimTarihi, "Alım tarihi"), (i.FiloGirisTarih, "Filo giriş tarihi"),
-        (i.FiloCikisTarih, "Filo çıkış tarihi"), (i.SonTeslimTarihi, "Son teslim tarihi"), (i.KiraBitTar, "Kira bitiş tarihi"),
-        (i.KiraBekTar, "Kira beklenen tarihi"), (i.SonBakimTarih, "Son bakım tarihi"), (i.KapatmaTarih, "Kapatma tarihi"),
-        (i.CikmasiPlananTarih, "Çıkması planlanan tarih"),
+        (i => i.TescilTarihi, v => v.TescilTarihi, "Tescil tarihi"), (i => i.AlimTarihi, v => v.AlimTarihi, "Alım tarihi"),
+        (i => i.FiloGirisTarih, v => v.FiloGirisTarih, "Filo giriş tarihi"), (i => i.FiloCikisTarih, v => v.FiloCikisTarih, "Filo çıkış tarihi"),
+        (i => i.SonTeslimTarihi, v => v.SonTeslimTarihi, "Son teslim tarihi"), (i => i.KiraBitTar, v => v.KiraBitTar, "Kira bitiş tarihi"),
+        (i => i.KiraBekTar, v => v.KiraBekTar, "Kira beklenen tarihi"), (i => i.SonBakimTarih, v => v.SonBakimTarih, "Son bakım tarihi"),
+        (i => i.KapatmaTarih, v => v.KapatmaTarih, "Kapatma tarihi"),
+        (i => i.CikmasiPlananTarih, v => v.CikmasiPlananTarih, "Çıkması planlanan tarih"),
     ];
 
     /// <summary>Araç tarihlerinin makul alt sınırı (model yılı alt sınırıyla aynı).</summary>
