@@ -27,6 +27,9 @@ const BLOK_HARITASI = {
   kiraFinans: 'kira-formu',
   panel: 'panel',
   kiraListesi: 'kiralar',
+  // F5.2a rezervasyonlar + teklifler (tek blok: teklif kabulü rezervasyona bağlanır).
+  rezervasyon: 'rezervasyon',
+  teklif: 'rezervasyon',
   vitrin: 'vitrin',
 };
 

@@ -1,0 +1,290 @@
+<div class="sayfa">
+  <nav class="yol">
+    <a routerLink="/rezervasyonlar">{{ 'rezervasyon.listeyeDon' | transloco }}</a>
+  </nav>
+
+  <header class="ust">
+    <h1>
+      @if (yeni) {
+        {{ 'rezervasyon.yeniBaslik' | transloco }}
+      } @else {
+        {{ 'rezervasyon.detayBaslik' | transloco: { no: rez()?.no ?? '…' } }}
+      }
+    </h1>
+    @if (rez(); as r) {
+      <span [class]="rozet(r.durum)" data-testid="rez-durum">{{ durumEtiketi(r.durum) }}</span>
+    }
+    <div class="ust__eylemler">
+      @if (yetkiler(); as y) {
+        @if (y.onayla) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="islemler.suruyor() !== null"
+            (click)="onayla()"
+          >
+            <rc-ikon ad="check" [boyut]="14" />
+            {{ 'rezervasyon.eylem.onayla' | transloco }}
+          </button>
+        }
+        @if (y.kirayaCevir) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="islemler.suruyor() !== null"
+            (click)="kirayaCevir()"
+          >
+            <rc-ikon ad="car" [boyut]="14" />
+            {{ 'rezervasyon.eylem.kirayaCevir' | transloco }}
+          </button>
+        }
+        @if (y.iptal) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk rc-dugme--tehlike"
+            [disabled]="islemler.suruyor() !== null"
+            (click)="iptal()"
+          >
+            <rc-ikon ad="x" [boyut]="14" />
+            {{ 'rezervasyon.eylem.iptal' | transloco }}
+          </button>
+        }
+      }
+      @if (duzenlenebilir()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="kayit.gonderiliyor() || !kaydedilebilir()"
+          (click)="kaydet()"
+        >
+          {{
+            (kayit.gonderiliyor() ? 'rezervasyon.eylem.kaydediliyor' : 'rezervasyon.eylem.kaydet')
+              | transloco
+          }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (bulunamadi()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      {{ 'rezervasyon.bulunamadi' | transloco }}
+    </p>
+  } @else {
+    <rc-form-hatalari [hatalar]="kayit.genelHatalar()" />
+
+    @if (rez(); as r) {
+      <section class="kart ozet" [attr.aria-label]="'rezervasyon.bolum.ozet' | transloco">
+        <dl class="ozet__liste" data-testid="rez-ozet">
+          <div>
+            <dt>{{ 'rezervasyon.ozet.gun' | transloco }}</dt>
+            <dd>{{ sayi(r.gun) | sayi: '1.0-0' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'rezervasyon.ozet.gunlukUcret' | transloco }}</dt>
+            <dd>{{ sayi(r.gunlukUcret) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'rezervasyon.ozet.tutar' | transloco }}</dt>
+            <dd>
+              <strong>{{ sayi(r.tutar) | para }}</strong>
+            </dd>
+          </div>
+          @if (sayi(r.hediyeGun); as hg) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.hediyeGun' | transloco }}</dt>
+              <dd>{{ hg | sayi: '1.0-0' }}</dd>
+            </div>
+          }
+          @if (sayi(r.faturalananGun) !== null) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.faturalananGun' | transloco }}</dt>
+              <dd>{{ sayi(r.faturalananGun) | sayi: '1.0-0' }}</dd>
+            </div>
+          }
+          @if (sayi(r.iskontoTutar) !== null) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.iskonto' | transloco }}</dt>
+              <dd>{{ sayi(r.iskontoTutar) | para }}</dd>
+            </div>
+          }
+          @if (sayi(r.haftaSonuFark) !== null) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.haftaSonuFark' | transloco }}</dt>
+              <dd>{{ sayi(r.haftaSonuFark) | para }}</dd>
+            </div>
+          }
+          @if (sayi(r.kdvOranSnapshot) !== null) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.kdv' | transloco }}</dt>
+              <dd>{{ sayi(r.kdvOranSnapshot) | percent: '1.0-2' }}</dd>
+            </div>
+          }
+          <div>
+            <dt>{{ 'rezervasyon.ozet.olusturma' | transloco }}</dt>
+            <dd>{{ r.olusturmaUtc | tarihSaat }}</dd>
+          </div>
+          @if (r.kiraId) {
+            <div>
+              <dt>{{ 'rezervasyon.ozet.kira' | transloco }}</dt>
+              <dd>
+                <a [routerLink]="['/kiralar', r.kiraId]">{{
+                  'rezervasyon.ozet.kiraAc' | transloco
+                }}</a>
+              </dd>
+            </div>
+          }
+        </dl>
+        @if (!duzenlenebilir()) {
+          <p class="not">
+            {{ 'rezervasyon.saltOkunur' | transloco: { durum: durumEtiketi(r.durum) } }}
+          </p>
+        }
+      </section>
+    } @else if (yeni) {
+      <p class="not">{{ 'rezervasyon.ozet.motorNotu' | transloco }}</p>
+    }
+
+    <div class="bolumler" [formGroup]="form">
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.temel' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.musteri' | transloco" class="rc-form-izgara__genis">
+            <rc-arama-secim
+              formControlName="musteri"
+              [kaynak]="musteriKaynagi"
+              [yerTutucu]="'rezervasyon.alan.musteriAra' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.arac' | transloco" class="rc-form-izgara__genis">
+            <rc-arama-secim
+              formControlName="arac"
+              [kaynak]="aracKaynagi"
+              [yerTutucu]="'rezervasyon.alan.plakaAra' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.basTar' | transloco">
+            <rc-tarih-saat-secici formControlName="basTar" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.bitTar' | transloco">
+            <rc-tarih-saat-secici formControlName="bitTar" />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.fiyat' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.fiyatTuru' | transloco">
+            <rc-secim formControlName="fiyatTuru" [secenekler]="fiyatTurleri()" bosEtiket="—" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.gunlukUcret' | transloco">
+            <rc-para-girdisi
+              formControlName="gunlukUcret"
+              [yerTutucu]="'rezervasyon.alan.otomatikBos' | transloco"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'rezervasyon.alan.kampanyaKodu' | transloco"
+            [ipucu]="'rezervasyon.alan.kampanyaIpucu' | transloco"
+          >
+            <rc-metin-girdisi formControlName="kampanyaKodu" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.kaynak' | transloco">
+            <rc-arama-secim formControlName="kaynak" [kaynak]="kaynakKaynagi" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.cikisOfisi' | transloco">
+            <rc-arama-secim formControlName="cikisOfisi" [kaynak]="lokasyonKaynagi" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.donusOfisi' | transloco">
+            <rc-arama-secim formControlName="donusOfisi" [kaynak]="lokasyonKaynagi" />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.talep' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.talepTuru' | transloco">
+            <rc-metin-girdisi
+              formControlName="talepTuru"
+              liste="rez-dl-talep"
+              [azamiUzunluk]="64"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.geldigiBirim' | transloco">
+            <rc-metin-girdisi formControlName="geldigiBirim" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.onayKodu' | transloco">
+            <rc-metin-girdisi formControlName="onayKodu" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.projeAdi' | transloco">
+            <rc-metin-girdisi formControlName="projeAdi" [azamiUzunluk]="128" />
+          </rc-alan>
+        </div>
+        <datalist id="rez-dl-talep">
+          @for (tur of talepTurleri(); track tur) {
+            <option [value]="tur"></option>
+          }
+        </datalist>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.km' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.kmLimit' | transloco">
+            <rc-sayi-girdisi formControlName="kmLimit" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.fazlaKmUcret' | transloco">
+            <rc-para-girdisi formControlName="fazlaKmUcret" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.yakitBirimUcret' | transloco">
+            <rc-para-girdisi formControlName="yakitBirimUcret" />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.odeme' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.provizyon' | transloco">
+            <rc-para-girdisi formControlName="provizyon" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.depozito' | transloco">
+            <rc-para-girdisi formControlName="depozito" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.komisyonOran' | transloco">
+            <rc-sayi-girdisi formControlName="komisyonOran" kesir="2" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.komisyonTutar' | transloco">
+            <rc-para-girdisi formControlName="komisyonTutar" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.dropUcreti' | transloco">
+            <rc-para-girdisi formControlName="dropUcreti" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezervasyon.alan.sonraOdeOran' | transloco">
+            <rc-sayi-girdisi formControlName="sonraOdeOran" kesir="2" />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.broker' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          @for (ad of otaAlanlari; track ad) {
+            <rc-alan [etiket]="'rezervasyon.alan.' + ad | transloco">
+              <rc-para-girdisi [formControlName]="ad" />
+            </rc-alan>
+          }
+        </div>
+      </section>
+
+      <section class="kart">
+        <h2 class="kart__baslik">{{ 'rezervasyon.bolum.aciklama' | transloco }}</h2>
+        <rc-alan [etiket]="'rezervasyon.alan.aciklama' | transloco" etiketGizli>
+          <rc-metin-alani formControlName="aciklama" [azamiUzunluk]="1024" />
+        </rc-alan>
+      </section>
+    </div>
+  }
+</div>

@@ -1,0 +1,50 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+}
+
+.ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+
+  > h1 {
+    margin: 0;
+  }
+}
+
+.ust__eylemler,
+.filtre__eylemler,
+.islemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.filtre__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding-block: var(--rc-bosluk-3);
+}
+
+.islemler {
+  // Görünmez etiketler (`rc-gorunmez`, position: absolute) hücrenin içinde konumlansın: aksi halde
+  // kaydırıcının dışındaki bir ataya göre konumlanıp sayfayı yatay taşırırlar (AGENTS.md "Tablo motoru").
+  position: relative;
+  flex-wrap: nowrap;
+}
+
+.bag {
+  font-variant-numeric: tabular-nums;
+}
+
+.tablo {
+  // Kabuk (üst çubuk + sekmeler ≈ 5 rem), başlık ve filtre düğmesi düşülür.
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 14rem);
+}
