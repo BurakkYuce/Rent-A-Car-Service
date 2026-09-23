@@ -193,7 +193,8 @@
       "gonderildi": "{{no}} gönderildi.",
       "reddedildi": "{{no}} reddedildi.",
       "kabulEdildi": "{{no}} kabul edildi: rezervasyon {{rez}} oluşturuldu.",
-      "zatenIslendi": "{{no}} bu arada işlenmiş; güncel durum yüklendi."
+      "zatenIslendi": "{{no}} bu arada işlenmiş; güncel durum yüklendi.",
+      "zatenKabulEdildi": "{{no}} zaten kabul edilmiş; açılan rezervasyon {{rez}}. İkinci rezervasyon açılmadı."
     },
     "alan": {
       "musteri": "Müşteri",
@@ -233,7 +234,8 @@
       "aciklama": "Açıklama",
       "olusturma": "Oluşturma",
       "rezervasyon": "Oluşan rezervasyon",
-      "rezervasyonAc": "Rezervasyonu aç"
+      "rezervasyonAc": "Rezervasyonu aç",
+      "rezervasyonNoAc": "{{rez}} numaralı rezervasyonu aç"
     }
   }
 }

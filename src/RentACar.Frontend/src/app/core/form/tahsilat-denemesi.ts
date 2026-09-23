@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, InjectionToken, inject } from '@angular/core';
 import type { ApiHatasi, MevcutIslem } from '../api/api-hatasi';
 import { paraBicimle } from '../bicim/bicim';
 import type { ToastServisi } from '../geri-bildirim/toast-servisi';
@@ -58,17 +58,72 @@ export function denemeyleEslesir(mevcut: MevcutIslem, d: TahsilatIcerigi): boole
 }
 
 /**
+ * Sekmeler arası kanal adı (aynı köken; başka köken göremez). Token: testler her "sekme grubu"na ayrı ad verir
+ * (paralel/sıralı testlerin trafiği birbirine karışmasın); `null` kanalı kapatır.
+ */
+export const TAHSILAT_DENEME_KANALI = new InjectionToken<string | null>('TAHSILAT_DENEME_KANALI', {
+  providedIn: 'root',
+  factory: () => 'rc-tahsilat-denemesi',
+});
+
+/**
+ * Sekmeler arası mesaj. Yalnız anahtar (kira + bakiye + işlem sayısından türetilmiş opak UUID) ve deneme içeriği
+ * (tutar, döviz, hesap türü) taşınır — müşteri adı/kimliği gibi kişisel veri YOK.
+ */
+type KanalMesaji =
+  | { readonly tur: 'ekle'; readonly anahtar: string; readonly icerik: TahsilatIcerigi }
+  | { readonly tur: 'kapat'; readonly anahtar: string }
+  | { readonly tur: 'temizle' }
+  | { readonly tur: 'senkronIste' }
+  | {
+      readonly tur: 'durum';
+      readonly kayitlar: readonly (readonly [string, readonly TahsilatIcerigi[]])[];
+    };
+
+/** Gelen içerikten YALNIZ bilinen üç alan alınır (fazlası yayılmaz/saklanmaz); biçimsizse `null`. */
+function icerikAyikla(x: unknown): TahsilatIcerigi | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const { tutar, doviz, hesap } = x as Record<string, unknown>;
+  const tutarGecerli = tutar === null || typeof tutar === 'string' || typeof tutar === 'number';
+  if (!tutarGecerli || typeof doviz !== 'string' || !(hesap === null || typeof hesap === 'string'))
+    return null;
+  return { tutar, doviz, hesap };
+}
+
+function kanalAc(ad: string | null): BroadcastChannel | null {
+  return ad === null || typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(ad);
+}
+
+const ayniIcerik = (a: TahsilatIcerigi, b: TahsilatIcerigi) =>
+  a.tutar === b.tutar && a.doviz === b.doviz && a.hesap === b.hesap;
+
+/**
  * Sonucu bilinmeyen tahsilat denemelerinin UYGULAMA GENELİ kaydı — ANAHTARA bağlı (5. tur MEDIUM-1). Anahtar kira
  * başınadır ve aynı anda birden çok formda durur (sabit panelde Nakit + Kart/Havale; kira listesi ve Panel aynı
  * kiranın aynı anahtarını gösterir). İz forma bağlı olsaydı Nakit'te kaybolan 500'den sonra Kart'taki 600 "tekrar"
  * sayılmaz, "başka işlem" diye korunur ve ikinci basış 600'ü de yazardı. Çıkışta temizlenir.
+ *
+ * **Sekmeler arası (Low temizliği A):** aynı tarayıcının sekmeleri de aynı anahtarı gösterir (bir sekmede kaybolan
+ * 500, öteki sekmede 600 basılınca görülmeli). Kayıt `BroadcastChannel` ile senkronlanır — `sessionStorage` sekmeye
+ * özeldir, `localStorage` diske yazar (tutar kalıcı kalırdı). Yeni açılan sekme mevcut durumu ister (`senkronIste`),
+ * açık sekmeler `durum` ile yanıtlar. Çıkışta hem yerel kayıt hem öteki sekmeler temizlenir. Kanal yoksa (eski
+ * tarayıcı, SSR) davranış eskisi gibi sekme içidir.
  */
 @Injectable({ providedIn: 'root' })
 export class TahsilatDenemeKaydi {
   private readonly bilinmeyenler = new Map<string, TahsilatIcerigi[]>();
+  private readonly kanal: BroadcastChannel | null = kanalAc(inject(TAHSILAT_DENEME_KANALI));
 
   constructor() {
-    inject(OturumServisi, { optional: true })?.temizlikKaydet(() => this.bilinmeyenler.clear());
+    inject(OturumServisi, { optional: true })?.temizlikKaydet(() => {
+      this.bilinmeyenler.clear();
+      this.yay({ tur: 'temizle' });
+    });
+    inject(DestroyRef, { optional: true })?.onDestroy(() => this.kanaliKapat());
+    if (this.kanal) {
+      this.kanal.onmessage = (e: MessageEvent<unknown>) => this.al(e.data);
+      this.yay({ tur: 'senkronIste' });
+    }
   }
 
   /** Bu anahtarla sonucu bilinmeyen denemeler (anlık kopya; öğeler aynı nesneler). */
@@ -77,14 +132,79 @@ export class TahsilatDenemeKaydi {
   }
 
   ekle(anahtar: string, icerik: TahsilatIcerigi): void {
-    const liste = this.bilinmeyenler.get(anahtar) ?? [];
-    liste.push(icerik);
-    this.bilinmeyenler.set(anahtar, liste);
+    this.yerelEkle(anahtar, icerik);
+    this.yay({
+      tur: 'ekle',
+      anahtar,
+      icerik: { tutar: icerik.tutar, doviz: icerik.doviz, hesap: icerik.hesap },
+    });
   }
 
   /** Bu anahtarla 2xx alındı: anahtar tek kayıt taşır, belirsiz denemeler yazılmamıştır. */
   kapat(anahtar: string): void {
     this.bilinmeyenler.delete(anahtar);
+    this.yay({ tur: 'kapat', anahtar });
+  }
+
+  /** Kanalı kapatır (kök enjektör yok edilirken; testlerde sekme kapanışı). */
+  kanaliKapat(): void {
+    this.kanal?.close();
+  }
+
+  private yerelEkle(anahtar: string, icerik: TahsilatIcerigi): void {
+    const liste = this.bilinmeyenler.get(anahtar) ?? [];
+    liste.push(icerik);
+    this.bilinmeyenler.set(anahtar, liste);
+  }
+
+  private yay(m: KanalMesaji): void {
+    try {
+      this.kanal?.postMessage(m);
+    } catch {
+      // Kapalı kanal: sekme içi kayıt yine doğru; senkron en iyi çaba.
+    }
+  }
+
+  /** Öteki sekmeden gelen mesaj — yeniden YAYILMAZ (döngü yok); biçimsiz mesaj yok sayılır. */
+  private al(veri: unknown): void {
+    if (typeof veri !== 'object' || veri === null) return;
+    const m = veri as Record<string, unknown>;
+    switch (m['tur']) {
+      case 'ekle': {
+        const icerik = icerikAyikla(m['icerik']);
+        if (typeof m['anahtar'] === 'string' && icerik) this.yerelEkle(m['anahtar'], icerik);
+        return;
+      }
+      case 'kapat':
+        if (typeof m['anahtar'] === 'string') this.bilinmeyenler.delete(m['anahtar']);
+        return;
+      case 'temizle':
+        this.bilinmeyenler.clear();
+        return;
+      case 'senkronIste':
+        if (this.bilinmeyenler.size > 0)
+          this.yay({
+            tur: 'durum',
+            kayitlar: [...this.bilinmeyenler].map(([a, l]) => [a, [...l]] as const),
+          });
+        return;
+      case 'durum':
+        if (Array.isArray(m['kayitlar'])) this.durumBirlestir(m['kayitlar']);
+        return;
+    }
+  }
+
+  /** Birden çok sekme aynı durumu yanıtlayabilir: aynı içerik ikinci kez eklenmez. */
+  private durumBirlestir(kayitlar: unknown[]): void {
+    for (const k of kayitlar) {
+      if (!Array.isArray(k) || typeof k[0] !== 'string' || !Array.isArray(k[1])) continue;
+      const anahtar = k[0];
+      for (const ham of k[1] as unknown[]) {
+        const icerik = icerikAyikla(ham);
+        if (icerik && !this.bilinmeyen(anahtar).some((d) => ayniIcerik(d, icerik)))
+          this.yerelEkle(anahtar, icerik);
+      }
+    }
   }
 }
 
