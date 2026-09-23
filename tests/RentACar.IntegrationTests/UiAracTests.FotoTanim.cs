@@ -63,6 +63,32 @@ public sealed partial class UiAracTests
         Assert.Equal([f2], sonra.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
     }
 
+    /// <summary>
+    /// GuvenliDonusTests dosya-ucu gözden geçirmesinin kanıtı: fotoğraf içeriği İNDİRME değildir (Content-Disposition
+    /// yok → tarayıcı belgeyi değiştirir, "giriş ekranında kalma" tuzağı oluşmaz) ve oturumsuz istek login'e
+    /// YÖNLENDİRİLMEZ (401 JSON, Location yok) → sunucu bu uçlar için hiçbir zaman ReturnUrl üretmez.
+    /// </summary>
+    [Fact]
+    public async Task Photo_content_is_inline_and_401_has_no_redirect()
+    {
+        var o = await OrtamKurAsync();
+        var vehicleId = await AracAsync(o, Plaka("34P"));
+        var op = await GirisAsync(o, Kim.OperatorA);
+        var path = $"{Arac}/{vehicleId}/fotograflar";
+        var photoId = (await Json(await Gonder(op, HttpMethod.Post, path, Foto(Png())), HttpStatusCode.Created)).GetProperty("id").GetGuid();
+
+        foreach (var url in new[] { $"{path}/{photoId}", $"{path}/{photoId}/kucuk" })
+        {
+            var ok = await Gonder(op, HttpMethod.Get, url);
+            Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+            Assert.Null(ok.Content.Headers.ContentDisposition);
+
+            var anonymous = await fx.Web.Istemci().GetAsync(url);
+            await ProblemBekle(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
+            Assert.Null(anonymous.Headers.Location);
+        }
+    }
+
     [Fact]
     public async Task Tanimlar_crud_kod_normalize_surum_ve_izin()
     {
