@@ -13,9 +13,64 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// YUTAR ve <c>false</c> döner — "başka bir çağrı bu olayı zaten yazdı" demektir, hata değil.
 /// Çağıran bunu görüp ikinci mesajı GÖNDERMEZ.</para>
 /// </summary>
-public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : IMesajRepository
+public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : IMesajRepository, IMessageTemplateVersionStore
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
+
+    /// <summary>F11.1b — şablon sürümleri (xmin). Kimlikler önce query filter'lı EF sorgusuyla alınır (kiracı kapsamı
+    /// RLS'e ek olarak uygulamada da); sürüm her satır için <see cref="SatirSurumu.OkuAsync"/> ile okunur.</summary>
+    public async Task<IReadOnlyDictionary<Guid, string>> VersionsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var ids = await db.MesajSablonlari.AsNoTracking().Select(x => x.Id).ToListAsync(ct);
+        var result = new Dictionary<Guid, string>(ids.Count);
+        foreach (var id in ids)
+            if (await SatirSurumu.OkuAsync(db, SatirSurumu.MesajSablonlari, id, ct) is { } v)
+                result[id] = v;
+        return result;
+    }
+
+    /// <summary>F11.1b — kilit + sürüm karşılaştırmasıyla (tür, kanal) upsert. Eşzamanlı ilk yazımın kaybedeni 409 alır
+    /// (sürümsüz yoldaki "kaybeden mevcut satıra uygular" davranışı burada YOK: bayat form sessizce ezmesin).</summary>
+    public async Task UpsertAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default)
+    {
+        try
+        {
+            await PgRetry.RunAsync(async () =>
+            {
+                await using var db = await _factory.CreateDbContextAsync(ct);
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                var id = await db.MesajSablonlari.AsNoTracking()
+                    .Where(x => x.Tur == input.Tur && x.Kanal == input.Kanal).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+                if (id is { } k)
+                {
+                    await SatirSurumu.KilitleAsync(db, SatirSurumu.MesajSablonlari, k, ct);
+                    var current = await SatirSurumu.OkuAsync(db, SatirSurumu.MesajSablonlari, k, ct);
+                    if (expectedVersion is null || !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
+                        throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+                }
+                else if (expectedVersion is not null)
+                {
+                    throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+                }
+
+                var s = await db.MesajSablonlari.FirstOrDefaultAsync(x => x.Tur == input.Tur && x.Kanal == input.Kanal, ct);
+                var isNew = s is null;
+                s ??= new MesajSablon { Tur = input.Tur, Kanal = input.Kanal };
+                s.Konu = string.IsNullOrWhiteSpace(input.Konu) ? null : input.Konu.Trim();
+                s.Govde = input.Govde.Trim();
+                s.Aktif = input.Aktif;
+                s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                if (isNew) db.MesajSablonlari.Add(s);
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+        }
+    }
 
     public async Task<IReadOnlyList<MesajSablonRow>> SablonListAsync(CancellationToken ct = default)
     {

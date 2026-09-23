@@ -12,8 +12,31 @@ namespace RentACar.Application.TenantSettings;
 /// </summary>
 public sealed class TenantSettingsService(
     ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
-    ITenantDomainRepository domains, ITenantContext tenant)
+    ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null)
 {
+    /// <summary>F11.1b — ayar satırının sürümü (satır yoksa null). ManageUsers + ekran kapısı.</summary>
+    public async Task<string?> VersionAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        return await Versions.VersionAsync(ct);
+    }
+
+    /// <summary>
+    /// F11.1b — tam değiştirme kaydı, iyimser eşzamanlılıkla (satır kilidi altında sürüm karşılaştırması; uyuşmazlık
+    /// <see cref="EszamanliDegisiklikException"/>). Doğrulama ve sır kuralı <see cref="SaveAsync(TenantSettingsModel, CancellationToken)"/>
+    /// ile AYNI (<see cref="Apply"/>).
+    /// </summary>
+    public async Task SaveAsync(TenantSettingsModel m, string? expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await Versions.UpsertAsync(s => Apply(s, m), expectedVersion, ct);
+    }
+
+    private ITenantSettingsVersionStore Versions => versionStore
+        ?? throw new InvalidOperationException("ITenantSettingsVersionStore kayıtlı değil.");
+
     public async Task<TenantSettingsModel> GetAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
@@ -149,7 +172,12 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
-        await repository.UpsertAsync(s =>
+        await repository.UpsertAsync(s => Apply(s, m), ct);
+    }
+
+    /// <summary>Model → varlık: doğrulama + sır kuralı (boş sır = mevcut cipher korunur). İki kayıt yolunun TEK kaynağı.</summary>
+    private void Apply(RentACar.Domain.Entities.TenantSettings s, TenantSettingsModel m)
+    {
         {
             s.FirmaUnvan = Trim(m.FirmaUnvan);
             s.FirmaVergiDairesi = Trim(m.FirmaVergiDairesi);
@@ -229,7 +257,7 @@ public sealed class TenantSettingsService(
             s.FaturaSeriKodu = seri;
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
-        }, ct);
+        }
     }
 
     /// <summary>

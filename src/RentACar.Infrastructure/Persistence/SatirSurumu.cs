@@ -21,9 +21,13 @@ internal static class SatirSurumu
     public const string AracSahipleri = "AracSahipleri";
     public const string Segmentler = "Segmentler";
     public const string AracTipleri = "AracTipleri";
+    /// <summary>F11.1b — firma ayarları (tenant başına tek satır) ve müşteri mesaj şablonları tam değiştirme PUT'ları.</summary>
+    public const string FirmaAyarlari = "Ayarlar";
+    public const string MesajSablonlari = "MesajSablonlari";
 
     private static readonly HashSet<string> Tablolar =
-        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri];
+        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri,
+         FirmaAyarlari, MesajSablonlari];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));

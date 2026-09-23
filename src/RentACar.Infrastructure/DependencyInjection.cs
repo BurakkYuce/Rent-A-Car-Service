@@ -155,6 +155,11 @@ public static class DependencyInjection
             Persistence.Repositories.TenantSettingsRepository>();
         services.AddScoped<RentACar.Application.Notifications.IMesajRepository,
             Persistence.Repositories.MesajRepository>();
+        // F11.1b — tam değiştirme PUT'larının sürüm deposu (iş/job yolu uygulamaları sürüm bilmez; ayrı sözleşme)
+        services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsVersionStore,
+            Persistence.Repositories.TenantSettingsRepository>();
+        services.AddScoped<RentACar.Application.Notifications.IMessageTemplateVersionStore,
+            Persistence.Repositories.MesajRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantDomainRepository,
             Persistence.Repositories.TenantDomainRepository>(); // PR-2: public-site host self-servis
         services.AddScoped<RentACar.Application.Personnel.IPersonelRepository,

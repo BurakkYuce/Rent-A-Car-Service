@@ -21,8 +21,40 @@ namespace RentACar.Application.Notifications;
 /// sınıfıdır ve <see cref="Permission.ManageUsers"/> ister.</para>
 /// </summary>
 public sealed class MusteriBildirimService(
-    IMesajRepository repository, BildirimKanaliService kanal, ICurrentUser currentUser)
+    IMesajRepository repository, BildirimKanaliService kanal, ICurrentUser currentUser,
+    IMessageTemplateVersionStore? versionStore = null)
 {
+    /// <summary>F11.1b — şablon sürümleri (kimlik → xmin). ManageUsers.</summary>
+    public async Task<IReadOnlyDictionary<Guid, string>> SablonSurumlariAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        return await Versions.VersionsAsync(ct);
+    }
+
+    /// <summary>
+    /// F11.1b — şablonu sürüm karşılaştırmasıyla kaydeder (tam değiştirme PUT'u). Doğrulama
+    /// <see cref="SablonKaydetAsync(MesajSablonInput, CancellationToken)"/> ile AYNI.
+    /// </summary>
+    public async Task SablonKaydetAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        ValidateTemplate(input);
+        await Versions.UpsertAsync(input, expectedVersion, ct);
+    }
+
+    private IMessageTemplateVersionStore Versions => versionStore
+        ?? throw new InvalidOperationException("IMessageTemplateVersionStore kayıtlı değil.");
+
+    private static void ValidateTemplate(MesajSablonInput input)
+    {
+        if (string.IsNullOrWhiteSpace(input.Govde))
+            throw new ValidationException("Mesaj gövdesi boş olamaz.");
+        if (input.Kanal == MesajKanal.Eposta && string.IsNullOrWhiteSpace(input.Konu))
+            throw new ValidationException("E-posta şablonunda konu zorunludur.");
+        if (input.Kanal == MesajKanal.Sms && input.Govde.Length > 600)
+            throw new ValidationException("SMS gövdesi 600 karakteri aşamaz.");
+    }
+
     /// <summary>Kalıcı başarısız sayılmadan önceki deneme hakkı.</summary>
     public const int MaxDeneme = 5;
 
@@ -37,12 +69,7 @@ public sealed class MusteriBildirimService(
     public async Task SablonKaydetAsync(MesajSablonInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
-        if (string.IsNullOrWhiteSpace(input.Govde))
-            throw new ValidationException("Mesaj gövdesi boş olamaz.");
-        if (input.Kanal == MesajKanal.Eposta && string.IsNullOrWhiteSpace(input.Konu))
-            throw new ValidationException("E-posta şablonunda konu zorunludur.");
-        if (input.Kanal == MesajKanal.Sms && input.Govde.Length > 600)
-            throw new ValidationException("SMS gövdesi 600 karakteri aşamaz.");
+        ValidateTemplate(input);
         await repository.SablonUpsertAsync(input, ct);
     }
 

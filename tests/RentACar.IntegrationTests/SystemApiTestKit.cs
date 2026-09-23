@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 /// <c>racar_app</c>). Her çağrı yeni bir firma kurar; kullanıcılar çalışma anında rastgele parolayla üretilir
 /// (depoda kimlik bilgisi yok).
 /// </summary>
-internal sealed class SystemApiTestKit(WebFixture fx)
+public sealed class SystemApiTestKit(WebFixture fx)
 {
     public const string V1 = "/api/ui/v1";
 

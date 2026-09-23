@@ -316,6 +316,9 @@ public sealed class GuvenliDonusTests
             // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
             // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
             "Api/Arac/AracApi.Foto.cs",
+            // F11.1b — PDF logosu (/api/ui/v1/ayarlar/logo): indirme DEĞİL (dosya adı yok → Content-Disposition yok, satır
+            // içi görsel), nosniff; /api/ui 401'i yönlendirmesiz JSON. UiSystemAdminTests.Logo_upload_...'da kilitli.
+            "Api/Sistem/SystemAdminApi.Settings.cs",
             "Documents/FirmaBelgeEndpoints.cs",
             "Documents/FirmaDokumanEndpoints.cs",
             "Reports/ListExportEndpoints.cs",

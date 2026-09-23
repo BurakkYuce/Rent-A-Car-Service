@@ -56,6 +56,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         // Kendini pasifleştirme/kilitlenme önlemi.
         if (!active && id == _currentUser.UserId)
             throw new ValidationException("Kendi hesabınızı pasifleştiremezsiniz.");
+        // F11.1b — son aktif Admin kemeri: ManageUsers istisnası verilmiş Admin-olmayan bir kullanıcı tek Admin'i
+        // pasifleştirip firmayı rol-matrisi yöneticisiz bırakabiliyordu (kalan tek çıkış platform konsolu).
+        if (!active && await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin, IsActive: true }
+            && !(await _repository.ListAsync(ct)).Any(u => u.Id != id && u.IsActive && u.Rol == Domain.Enums.UserRole.Admin))
+            throw new ValidationException("Son aktif Admin kullanıcısı pasifleştirilemez.");
         return await _repository.UpdateAsync(id, u => u.IsActive = active, ct);
     }
 
