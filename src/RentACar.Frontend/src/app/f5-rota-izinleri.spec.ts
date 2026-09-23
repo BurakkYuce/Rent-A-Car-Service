@@ -66,17 +66,20 @@ describe('F5 rotaları: Blazor sayfa izniyle aynı kapı (OperationsWrite)', () 
     return sonuclar;
   }
 
-  it.each(F5_ROTALARI_OPERATIONS_WRITE)('%s: izinsiz rol reddedilir, OperationsWrite geçer', async (yol) => {
-    const r = rota(yol);
-    expect(r.canMatch?.length ?? 0, `${yol} canMatch guard'ı yok`).toBeGreaterThan(0);
+  it.each(F5_ROTALARI_OPERATIONS_WRITE)(
+    '%s: izinsiz rol reddedilir, OperationsWrite geçer',
+    async (yol) => {
+      const r = rota(yol);
+      expect(r.canMatch?.length ?? 0, `${yol} canMatch guard'ı yok`).toBeGreaterThan(0);
 
-    // Muhasebe benzeri rol: finans + rapor izni var, operasyon izni yok → reddedilir (ana sayfaya).
-    izinler = ['FinanceWrite', 'ViewReports'];
-    const red = await sonuc(r);
-    expect(red.some((s) => s instanceof UrlTree)).toBe(true);
+      // Muhasebe benzeri rol: finans + rapor izni var, operasyon izni yok → reddedilir (ana sayfaya).
+      izinler = ['FinanceWrite', 'ViewReports'];
+      const red = await sonuc(r);
+      expect(red.some((s) => s instanceof UrlTree)).toBe(true);
 
-    izinler = ['OperationsWrite'];
-    const gecer = await sonuc(r);
-    expect(gecer.every((s) => s === true)).toBe(true);
-  });
+      izinler = ['OperationsWrite'];
+      const gecer = await sonuc(r);
+      expect(gecer.every((s) => s === true)).toBe(true);
+    },
+  );
 });

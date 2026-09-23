@@ -45,7 +45,11 @@ export async function gir(page: Page, kullanici: string): Promise<Ben> {
   return ben;
 }
 
-export async function apiGet<T>(page: Page, yol: string, sorgu?: Record<string, string>): Promise<T> {
+export async function apiGet<T>(
+  page: Page,
+  yol: string,
+  sorgu?: Record<string, string>,
+): Promise<T> {
   const y = await page.context().request.get(`${KOK}${yol}`, { params: sorgu });
   expect(y.ok(), `GET ${yol}: HTTP ${y.status()} ${await y.text()}`).toBe(true);
   return (await y.json()) as T;
@@ -86,7 +90,11 @@ export const isoAy = (g: Gun) => `${g.yil}-${iki(g.ay)}`;
  */
 export function rastgeleBaslangic(): Gun {
   const simdi = new Date(Date.now() + 3 * 3600_000);
-  const bugun = { yil: simdi.getUTCFullYear(), ay: simdi.getUTCMonth() + 1, gun: simdi.getUTCDate() };
+  const bugun = {
+    yil: simdi.getUTCFullYear(),
+    ay: simdi.getUTCMonth() + 1,
+    gun: simdi.getUTCDate(),
+  };
   const aday = gunEkle(bugun, 40 + Math.floor(Math.random() * 260));
   return { ...aday, gun: 3 + Math.floor(Math.random() * 22) };
 }

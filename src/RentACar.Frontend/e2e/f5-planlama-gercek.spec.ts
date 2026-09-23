@@ -54,7 +54,9 @@ test('müsaitlik → Kirala: bağlantı sunucunun çözdüğü pencereyi taşır
   await expect(kirala).toHaveAttribute('href', `/app/kiralar/yeni?${beklenen.toString()}`);
 
   await kirala.click();
-  await expect(page).toHaveURL((u) => u.pathname === '/app/kiralar/yeni' && u.searchParams.get('varac') === arac.id);
+  await expect(page).toHaveURL(
+    (u) => u.pathname === '/app/kiralar/yeni' && u.searchParams.get('varac') === arac.id,
+  );
   const hizli = page.locator('[data-rc-sekme="hizli"]');
   await expect(hizli.getByLabel('Araç', { exact: true })).toHaveValue(new RegExp(`^${arac.plaka}`));
   await expect(hizli.getByLabel('Başlangıç', { exact: true })).toHaveValue(trGun(bas));
@@ -83,7 +85,11 @@ test('rez şartı: oluştur → karşılandı → geri al → sil (onaylı)', as
   await expect(page.getByRole('button', { name: `Karşılandı ${sart}` })).toBeVisible();
 
   await page.getByRole('button', { name: `Sil ${sart}` }).click();
-  await page.getByRole('alertdialog').or(page.getByRole('dialog')).getByRole('button', { name: 'Sil' }).click();
+  await page
+    .getByRole('alertdialog')
+    .or(page.getByRole('dialog'))
+    .getByRole('button', { name: 'Sil' })
+    .click();
   await expect(page.getByText('Talep silindi.')).toBeVisible();
   await expect(page.getByRole('button', { name: `Sil ${sart}` })).toHaveCount(0);
   expect(hatalar).toEqual([]);
@@ -106,7 +112,9 @@ test('filo: oluştur → sunucu taksit planı (3.600,00 ₺) → künye → tama
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/filo-kiralama\/[0-9a-f-]{36}$/);
   const filoId = page.url().split('/').pop()!;
-  await expect(page.getByRole('region', { name: 'Taksit planı tablosu' })).toContainText('3.600,00');
+  await expect(page.getByRole('region', { name: 'Taksit planı tablosu' })).toContainText(
+    '3.600,00',
+  );
 
   const aciklama = `E2E-F53 künye ${Date.now()}`;
   await page.getByRole('textbox', { name: 'Açıklama' }).fill(aciklama);
