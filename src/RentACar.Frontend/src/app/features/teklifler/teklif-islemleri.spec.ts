@@ -76,6 +76,52 @@ describe('Teklif işlemleri', () => {
     expect(i.suruyor()).toBeNull();
   });
 
+  it('#271 L3: kabul TEKRARI 409 cakisma + mevcut → açılmış rezervasyonun numarası bildirilir, detay bağlantısına yazılır', async () => {
+    const rezId = '0b0e7c1a-7777-4aaa-8bbb-000000000009';
+    const { i, postlar, toast } = await kur(() =>
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              status: 409,
+              kod: 'cakisma',
+              detail: 'Teklif zaten kabul edilmiş.',
+              mevcut: { rezervasyonId: rezId, rezervasyonNo: 'RZ-000099' },
+            },
+          }),
+      ),
+    );
+    const sonra = vi.fn();
+    await i.kabul({ id: TEKLIF_ID, no: 'TK-000007' }, sonra);
+    expect(postlar).toHaveLength(1); // otomatik yeniden gönderim yok
+    expect(sonra).toHaveBeenCalledTimes(1);
+    expect(toast.bilgi).toHaveBeenCalledTimes(1);
+    expect(toast.bilgi).toHaveBeenCalledWith(
+      'TK-000007 zaten kabul edilmiş; açılan rezervasyon RZ-000099. İkinci rezervasyon açılmadı.',
+    );
+    expect(i.kabulMevcudu()).toEqual({
+      teklifId: TEKLIF_ID,
+      rezervasyonId: rezId,
+      rezervasyonNo: 'RZ-000099',
+    });
+  });
+
+  it('#271 L3: biçimsiz mevcut (no yok) uydurma rezervasyon göstermez — genel bilgi', async () => {
+    const { i, toast } = await kur(() =>
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { status: 409, kod: 'cakisma', detail: 'x', mevcut: { rezervasyonId: 'r' } },
+          }),
+      ),
+    );
+    await i.kabul({ id: TEKLIF_ID, no: 'TK-000007' }, vi.fn());
+    expect(toast.bilgi).toHaveBeenCalledWith('TK-000007 bu arada işlenmiş; güncel durum yüklendi.');
+    expect(i.kabulMevcudu()).toBeNull();
+  });
+
   it('reddet: onay reddedilirse istek gitmez', async () => {
     const { i, postlar, sor } = await kur(() => of({}), false);
     await i.reddet({ id: TEKLIF_ID, no: 'TK-000007' }, vi.fn());

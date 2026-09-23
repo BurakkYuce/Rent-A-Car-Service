@@ -150,7 +150,7 @@ import { KF_ORTAK } from './ortak';
           </div>
           <div>
             <dt>{{ 'kiraFormu.alan.teslimAlan' | transloco }}</dt>
-            <dd>{{ d.detay.veri()?.teslimAlanPersonelAd ?? '—' }}</dd>
+            <dd>{{ d.gorunenDetay()?.teslimAlanPersonelAd ?? '—' }}</dd>
           </div>
           <div>
             <dt>{{ 'kiraFormu.alan.bitisSebebi' | transloco }}</dt>

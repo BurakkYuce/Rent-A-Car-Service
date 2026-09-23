@@ -120,4 +120,16 @@ public static class UiHata
     /// <summary>OpenAPI belgesi için 409 <c>mukerrer</c> gövdesinin biçimi (SPA tipi buradan üretilir). Yanıt
     /// gerçekte <see cref="Problem(string, string, string?, MevcutIslem?)"/> ile yazılır.</summary>
     public sealed record MukerrerProblemi(string Type, string Title, int Status, string Detail, string Kod, MevcutIslem? Mevcut);
+
+    /// <summary>
+    /// #271 L3 — kod tablosundan ProblemDetails + serbest <c>mevcut</c> uzantısı (ör. teklif kabul tekrarında
+    /// ZATEN açılmış rezervasyon). <see cref="Problem(string, string, string?, MevcutIslem?)"/> ile aynı gövde
+    /// (<c>kod</c> dahil); anahtar adları çağıranın sözleşmesidir, elle yazılır (adlandırma politikasına bağlı değil).
+    /// </summary>
+    public static ProblemHttpResult Problem(string kod, string detay, IReadOnlyDictionary<string, object?> mevcut)
+    {
+        var (status, baslik) = Tablo[kod];
+        var ek = new Dictionary<string, object?> { ["kod"] = kod, ["mevcut"] = mevcut };
+        return TypedResults.Problem(detail: detay, statusCode: status, title: baslik, extensions: ek);
+    }
 }

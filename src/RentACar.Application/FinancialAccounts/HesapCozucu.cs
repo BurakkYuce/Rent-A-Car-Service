@@ -54,8 +54,10 @@ public sealed class HesapCozucu(IFinancialAccountRepository repository)
         // ADVERSARIAL M4 — hesabın kendi dövizi ile işlem dövizi çelişkisi. Hesap-bazlı bakiye
         // gerçek banka ekstresiyle mutabakat için kullanılacak; USD hesaba TRY yazmak o mutabakatı
         // anlamsız kılar. Hesabın dövizi TANIMSIZSA karışmayız (eski hesaplar).
+        // F6.1b adversarial L2: iki taraf da KurService.NormalizeKod'dan geçer — "TRL"/"TL" tanımlı hesap TRY
+        // işlemini (ya da tersi) çelişki sanıp reddediyordu.
         if (doviz is { Length: > 0 } d && !string.IsNullOrWhiteSpace(hesap.Doviz)
-            && !string.Equals(hesap.Doviz.Trim(), d.Trim(), StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(Kur.KurService.NormalizeKod(hesap.Doviz), Kur.KurService.NormalizeKod(d), StringComparison.Ordinal))
             throw new ValidationException(
                 $"'{hesap.Ad}' hesabı {hesap.Doviz} tanımlı; işlem {d.Trim().ToUpperInvariant()} olarak giriliyor.");
 

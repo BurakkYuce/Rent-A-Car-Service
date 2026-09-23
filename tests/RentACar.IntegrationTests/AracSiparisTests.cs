@@ -271,15 +271,16 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         // Bekliyor → İptal, sonra Onayla / Teslim Al.
         var a = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         await svc.IptalAsync(a);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OnaylaAsync(a));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlAsync(a));
+        // F6.1b M1: izinsiz geçiş artık 409 cakisma tipi (EszamanliDegisiklikException : ValidationException).
+        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => svc.OnaylaAsync(a));
+        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => svc.TeslimAlAsync(a));
         Assert.Equal(SiparisDurum.Iptal, (await svc.GetAsync(a))!.Durum);
 
         // Onaylandı → İptal, sonra Teslim Al.
         var b = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         Assert.True(await svc.OnaylaAsync(b));
         await svc.IptalAsync(b);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlAsync(b));
+        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => svc.TeslimAlAsync(b));
         Assert.Equal(SiparisDurum.Iptal, (await svc.GetAsync(b))!.Durum);
 
         // İptal'i tekrarlamak zararsız (idempotent) — çift tık hata vermez.
