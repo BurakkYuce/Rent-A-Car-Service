@@ -19,10 +19,21 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-23. **F4'ün KODU BİTTİ** (#264 + kapanış #270). **F5 SÜRÜYOR**: uçlar (#271) ve iki
-ekran PR'ı (#272, #273) main'de, parite + e2e (#274) açık, kesiş (F5.4) yazılıyor. Paralelde F6 backend ve iki Low
-temizliği yürüyor. Kira listesi, Panel, kira formu ve rezervasyon ekranları SPA'da; kesiş mekaniği hazır ama
-**pilot kapalı** — kullanıcılar hâlâ Blazor kullanıyor.
+Güncelleme: 2026-09-24 (MOLA — kullanıcı "yeni ajan açma, bir süre duralım" dedi; makine ısındı).
+**F4 ve F5'in KODU BİTTİ.** F6 backend + araç ekranları main'de. F10–F12'nin backend'i kısmen main'de. Faz sırası
+kilidi F6–F12 için GEVŞETİLDİ (kullanıcı kararı, `DEGISIKLIKLER.md`). **Pilot kapalı** — kullanıcılar hâlâ Blazor.
+
+**DEVAM EDERKEN İLK İŞ (sırayla):**
+1. İnceleme bekleyen 4 açık PR'ın bağımsız incelemesi (§4 deseni; her biri ayrı ajan, EN FAZLA 4 paralel):
+   - **#284 F8.1a** kasa/banka/virman/ters kayıt/bakiye düzeltme/cari ekstre/toplu/depozito/dönem kapanış/kurlar — PARA.
+   - **#286 F8.1b** fatura/ceza/gider/gelen e-fatura/araç satışı — PARA.
+   - **#283 F7.1** cari + CRM — KVKK/PII + yetki.
+   - **#288 F11.1b** sistem ayarları/kullanıcı/yetki/denetim/web sitesi — güvenlik. **CI KIRMIZI:**
+     `UiApiYapisalTests.Muafiyet_yalniz_oturum_uclarinda` — `IzinMuaf` yalnız oturum uçlarına izinli; PR bunu
+     `/profil/sifre`, `/ara`, `/bildirimler*` (5 uç) için kullandı. Düzeltme: testteki izinli listeye GEREKÇESİYLE ekle
+     ya da uygun izne bağla (Blazor'da bu sayfalar yalnız `[Authorize]`). #282 aynı testten düşerse aynı düzeltme.
+   Her PR main ile yeniden birleştirilecek (üretilen `ui-v1.json`/`ui-v1.ts` elle birleştirilmez, yeniden üretilir).
+2. Sonra fazların bir sonraki adımları (§1 "Sırada").
 
 ### ✅ Bitti
 - G0, F0 (#235 #237), F1 (#238–#240 #243–#245), F2.1 (#241), F2.2 kodu (#249), F3 (#248 #250–#255, kapanış #256).
@@ -44,23 +55,37 @@ temizliği yürüyor. Kira listesi, Panel, kira formu ve rezervasyon ekranları 
 - **F5.2b planlama ekranları (#273):** takvim, müsaitlik, rez şartları, filo kiralama (+ #271 Low-1 filo künye
   tarihi kapandı).
 - **F5.2a rezervasyon ve teklif ekranları (#272):** liste, form, detay + durum eylemleri.
+- **F5.3 parite + gerçek backend e2e (#274)** (`docs/roadmap/F5-parite.md`) ve **F5.4 kesiş (#276)** — güvenlik
+  incelemesi temiz. **F5 KODU BİTTİ**; Blazor rezervasyon sayfalarının silinmesi pilot sonrası (F4.6b deseni).
+- **Low temizliği B (#277, PARA)** ve **Low temizliği A (#280, KVKK)** — adversarial/KVKK incelemeleri temiz.
+- **F6.1a araç çekirdek uçları (#278)**, **F6.1b araç para uçları (#279, PARA; sipariş durum makinesi Medium
+  düzeltildi)**, **F6.2a araç ekranları (#285)** (+ #278 Low'ları; tarih/tutar kuralı yalnız DEĞİŞEN alana).
+- **F12.1 platform konsolu uçları (#281)** — güvenlik incelemesi temiz.
+- **CI hafifletme (#289):** yol filtresi (`changes` işi), aynı PR'da eski koşu iptali, frontend+e2e tek iş.
+  Kontrol adları artık: changes, build-test, mobil-tasma, frontend, deploy-betikleri (+ spa-surum main'de).
+  Atlanan iş SKIPPED görünür (normal). Actions kotası (3.000 dk/ay) 2026-09-23'te %90 dolmuştu; 1 Ekim'de sıfırlanır.
 - Yan düzeltmeler: #265 (müşteri bildirimleri + WhatsApp özeti 2026-08-17'den beri çalışmıyordu — UTC),
   #266 (iş koşu günlüğü hata satırı + üretici yalıtımı + üretici başına `racar_job_fail` metriği).
 
 ### ⏳ Açık PR
-- **#274 F5.3 parite + gerçek backend e2e** (rapor: `docs/roadmap/F5-parite.md`) — CI bekleniyor.
-
-### 🔄 Sürüyor (paralel ajanlar, 2026-09-23)
-- **F5.4 kesiş** (yönlendirme şablonları + menü sahibi `spa` + guard testleri devri; Blazor sayfa silme pilot
-  sonrası, F4.6b deseni).
-- **F6.1a araç çekirdek uçları** (para yok).
-- **F6.1b araç para uçları** (kredi + müşteri taksit) — §4 adversarial zorunlu.
-- **Low temizliği A** (KVKK/SPA) ve **Low temizliği B** (para; §4 adversarial zorunlu) — §6.
+- **İnceleme bekleyen (merge YOK):** #283 F7.1, #284 F8.1a, #286 F8.1b, #288 F11.1b — yukarıdaki "İLK İŞ".
+- **CI bekleyen (inceleme gerekmez; yeşilse merge):** #287 F10.1 rapor uçları (33 uç, ortak rapor şablonu;
+  vardiya YAZMA uçları eksik — F10 kesişinden önce ayrı PR), #282 F11.1a genel tanım CRUD + tanım uçları
+  (`Api/Tanim/DefinitionEndpoints.cs` genel taban; SPA tanım CRUD bileşeni PUT'a `surum` koymuyor → F11 ekran PR'ında).
+  Bu satır güncel değilse: `rtk gh pr list --state open` ile gerçeği kontrol et.
 
 ### ⬜ Sırada (başlamadı)
-1. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
-   P1 olmadıktan SONRA. Ön koşul: kullanıcı F2.2 sunucu adımlarını yapmış ve pilotu açmış olmalı.
-2. **F6 ekranlar → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
+1. **F4.6b / F5 Blazor sayfa silme:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA (kullanıcı pilotu açmalı).
+2. **F6:** F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan) → F6.3 parite+e2e →
+   F6.4 kesiş.
+3. **F7:** F7.2 ekranlar → F7.3 parite + kesiş (#283 merge edildikten sonra).
+4. **F8:** ekranlar (2–3 PR, PARA) → parite → kesiş (#284/#286 merge edildikten sonra).
+5. **F9** servis/sigorta/vade/fiyat (5 PR, PARA) — hiç başlanmadı.
+6. **F10:** ekranlar → parite → kesiş; vardiya yazma uçları.
+7. **F11:** ekranlar (tanım CRUD bileşenine `surum` desteği = çekirdek eki) → parite → kesiş.
+8. **F12:** ekranlar + kesiş. **F13** en sonda.
+9. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
+   Başka iş koşarken yapılamaz (her dosyaya dokunur); zamanlamayı kullanıcıya sor.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
@@ -146,9 +171,21 @@ Alt ajan talimatlarına **aynen** yazılır.
 
 Kullanıcının tercihi: "workflow değil, arkada subagent aç, paralel; amaç hız". Desen:
 - Her PR için ayrı worktree + arka plan ajanı. Ajan kendi PR'ını açar, **merge etmez**, CI izlemez.
-- Aynı anda **en fazla 6 ajan**.
-- Her ajanın talimatına **ortak kural dosyası** (scratchpad'de; araç kuralı + hız kuralı + proje kuralları özeti,
-  "AYNEN uygula") ve ajana özgü bir **önek** (scratchpad dosya adları için, ör. `doc-`) yazılır.
+- Aynı anda **en fazla 4 ajan** (inceleme ajanları dahil). 2026-09-23'te 8 ajan 16 GB'lık Mac'i aşırı ısıttı;
+  paylaşılan derleyici sunucusu (VBCSCompiler) 12 GB'a çıktı. Kullanıcı daha fazlasını isterse bu riski önceden söyle.
+- **Bellek kuralı:** her ajan tüm `dotnet build/test/run` komutlarının önüne
+  `UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0` koyar. Şişme görülürse koordinatör
+  `dotnet build-server shutdown` çalıştırır; güvenli, Roslyn süreç içi derlemeye düşer.
+- **Alt ajan (fork) açma yasak.** Ajan işini kendisi yapar.
+- **Adlandırma kuralı (CLAUDE.md §2):** yeni sınıf/metot/değişken/dosya adları İNGİLİZCE; yalnız domain alanları,
+  form alanları, JSON alanları ve kullanıcı metinleri Türkçe. Çevredeki Türkçe adlı kod örnek alınmaz; mevcut adlar
+  yeniden adlandırılmaz (toplu dönüşüm ayrı iş, §1 Sırada).
+- **Push öncesi yapısal testler zorunlu** (birkaç saniye; CI kırmızılarının çoğu bunlardan çıktı):
+  `TestTarihBombasi|GuvenliDonus|UcIzinKapsama|ModelGuard|UiApiTests|UiApiYapisal|UiApiOpenApi` +
+  `npm run format:check` + (OpenAPI değiştiyse) `npm run tipler:kontrol`.
+- Her ajanın talimatına **ortak kural dosyası** (scratchpad'de; araç kuralı + hız kuralı + bellek kuralı +
+  adlandırma kuralı + proje kuralları özeti, "AYNEN uygula") ve ajana özgü bir **önek** (scratchpad dosya adları
+  için, ör. `doc-`) yazılır. Scratchpad oturuma özeldir; yeni oturumda dosyayı bu maddelerden yeniden yaz.
 - Koordinatör CI'ı `scripts/pr-izle.sh` ile izler ve ayrı adımda merge eder.
 - Bağımlı PR, bağımlılığın dalı üzerinde erken başlar; bağımlılık merge olunca `git merge origin/main` yapar.
 - Ağ kesintisinde düşen ajan yeniden açılmaz, aynı ajana mesajla kaldığı yerden devam ettirilir.

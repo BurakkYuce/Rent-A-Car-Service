@@ -525,7 +525,43 @@ public sealed class UiApiYapisalTests(WebFixture fx)
                                           // F4.1: ana ekran her oturumun; kapılar İÇERİKTE (finans ViewReports, tahsilat
                                           // anahtarı FinanceWrite) — UiKiraPanelTests içerik kapılarını kilitler.
                                           || r == "/api/ui/v1/panel/ozet"
+                                          // F11.1b: Blazor'da yalnız [Authorize] olan kişisel/kiracı-geneli yüzeyler.
+                                          // /profil/sifre — herkes KENDİ parolasını değiştirir; kimlik ICurrentUser'dan,
+                                          // eski parola doğrulanır, giriş hız sınırı (UiSystemAdminTests.Password_*).
+                                          || r == "/api/ui/v1/profil/sifre"
+                                          // /ara — genel arama; şube kapsamı SearchService'te (BranchScope), kiracı RLS.
+                                          || r == "/api/ui/v1/ara"
+                                          // /bildirimler* — kiracının vade/şikayet bildirimleri; RLS izole, başka firmanın
+                                          // bildirimi 404 (UiSystemAdminTests.Notifications_and_search_*).
+                                          || r.StartsWith("/api/ui/v1/bildirimler", StringComparison.Ordinal)
+                                          // F12.1: platform konsolu — firma izin matrisi yerine PlatformAdmin policy'si
+                                          // (aşağıdaki Platform_uclari_platform_policy_tasir kilitler).
+                                          || r.StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
+    }
+
+    [Fact]
+    public void Platform_endpoints_carry_the_platform_policy_and_only_login_logout_are_anonymous()
+    {
+        // F12.1: every /api/ui/v1/platform endpoint is behind "PlatformAdmin"; the only anonymous ones are
+        // login/logout. A new platform endpoint without the policy would be reachable by any tenant user
+        // (IzinMuaf skips the tenant permission matrix) — this is the fence.
+        var platform = UiUclari().Where(e => Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(platform);
+        var anonymous = platform.Where(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is not null)
+            .Select(Rota).OrderBy(r => r, StringComparer.Ordinal).ToList();
+        Assert.Equal(new[] { "/api/ui/v1/platform/oturum/cikis", "/api/ui/v1/platform/oturum/giris" }, anonymous);
+        var missing = platform
+            .Where(e => !e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                .Any(a => a.Policy == "PlatformAdmin"))
+            .Select(Rota).ToList();
+        Assert.True(missing.Count == 0, "PlatformAdmin policy eksik: " + string.Join(", ", missing));
+        // And the policy is not used outside the platform area of the UI API.
+        var leaked = UiUclari().Where(e => !Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
+                                           && e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                                               .Any(a => a.Policy == "PlatformAdmin"))
+            .Select(Rota).ToList();
+        Assert.Empty(leaked);
     }
 
     [Fact]
@@ -559,6 +595,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     [InlineData("/api/ui/v1/kiralar", false)]
     [InlineData("/api/ui/v1/oturumlar", false)]      // segment sınırı: önek benzerliği muafiyet vermez
     [InlineData("/api/ui/v1/test/tamam", false)]
+    [InlineData("/api/ui/v1/platform/kiracilar", true)]   // F12.1: platform oturumunun firması yok
+    [InlineData("/api/ui/v1/platformx/kiracilar", false)] // segment sınırı
     public void Pilot_muafiyeti_rota_segmentine_gore(string rota, bool muaf)
         => Assert.Equal(muaf, UiApiExtensions.PilotMuaf(rota));
 

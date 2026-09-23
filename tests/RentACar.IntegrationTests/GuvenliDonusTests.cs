@@ -316,6 +316,12 @@ public sealed class GuvenliDonusTests
             // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
             // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
             "Api/Arac/AracApi.Foto.cs",
+            // F12.1 — platform konsolu UI API'si: belge içeriği (/api/ui/v1/platform/belgeler/{id}/icerik) ve firma logosu
+            // önizlemesi (/api/ui/v1/platform/kiracilar/{id}/logo). Blazor Platform/ alanı gibi DÖNÜŞ taşımaz: /api/ui 401'i
+            // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez; PlatformUiApiTests.Anonymous_gets_401_json_without_redirect).
+            // IndirmeAdresiMi kapsamı gerekmez.
+            "Api/Platform/PlatformApi.Documents.cs",
+            "Api/Platform/PlatformApi.TenantWrites.cs",
             // F11.1b — PDF logosu (/api/ui/v1/ayarlar/logo): indirme DEĞİL (dosya adı yok → Content-Disposition yok, satır
             // içi görsel), nosniff; /api/ui 401'i yönlendirmesiz JSON. UiSystemAdminTests.Logo_upload_...'da kilitli.
             "Api/Sistem/SystemAdminApi.Settings.cs",

@@ -1,0 +1,78 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'arac.detayli.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/araclar">
+        <rc-ikon ad="chevron-left" [boyut]="14" />
+        {{ 'arac.detayli.listeyeDon' | transloco }}
+      </a>
+    </div>
+  </header>
+  <p class="aciklama">{{ 'arac.detayli.aciklama' | transloco }}</p>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'arac.filtre.baslik' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan
+        [etiket]="'arac.filtre.ara' | transloco"
+        [ipucu]="'arac.detayli.araIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+      </rc-alan>
+      <rc-alan [etiket]="'arac.filtre.sube' | transloco">
+        <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="64" liste="dl-arac-detayli-sube" />
+      </rc-alan>
+      <rc-alan [etiket]="'arac.filtre.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'arac.filtre.tumu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'arac.filtre.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'arac.filtre.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+  <datalist id="dl-arac-detayli-sube">
+    @for (s of branchSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+
+  <p class="ozet" aria-live="polite">{{ summary() }}</p>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="araclar.detayli"
+    [etiket]="'arac.detayli.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+    (satirAc)="openRow($event)"
+  >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      <a class="bag" [routerLink]="['/araclar', satir.id, 'detay']">{{ satir.plaka }}</a>
+    </ng-template>
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span [class]="badge(satir.durum)">{{ statusLabel(satir.durum) }}</span>
+    </ng-template>
+  </rc-tablo>
+</div>
