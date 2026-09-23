@@ -96,6 +96,40 @@ public sealed partial class UiRezervasyonTests
         Assert.Equal(HttpStatusCode.NotFound, (await x.C.GetAsync($"{Filo}/{id}")).StatusCode);
     }
 
+    /// <summary>
+    /// F5.2b (#271 adversarial Low-1): belge tarihi sınırı yalnız tarih DEĞİŞİYORSA uygulanır. 1995 tarihli ESKİ
+    /// sözleşme (sınır: 2000 öncesi reddedilir) doğrudan DB'ye yazılır; yalnız açıklaması değişen künye PUT'u 200,
+    /// tarihi 1995'ten 1996'ya çeviren PUT 400 (alan <c>sozlesmeTarihi</c>).
+    /// </summary>
+    [Fact]
+    public async Task FiloKunye_sinir_disi_eski_tarih_yalniz_degisirse_denetlenir()
+    {
+        var o = await OrtamKurAsync();
+        var arac = await AracAsync(o);
+        var eski = new DateTimeOffset(1995, 3, 10, 0, 0, 0, TimeSpan.Zero);
+        var k = new Domain.Entities.FiloKiralama
+        {
+            TenantId = o.TenantId, No = "FK-ESKI-" + Guid.NewGuid().ToString("N")[..6], MusteriId = o.MusteriId,
+            VehicleId = arac, BasTar = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), SureAy = 12,
+            AylikUcret = 1000m, SozlesmeTarihi = eski, ImzaTarih = eski,
+        };
+        await VeriYazAsync(o.TenantId, db => db.FiloKiralamalar.Add(k));
+
+        var s = await GirisAsync(o, Kim.OperatorA);
+        var d = await Json(await s.C.GetAsync($"{Filo}/{k.Id}"));
+        var surum = d.GetProperty("surum").GetString();
+
+        var r = await Json(await Gonder(s, HttpMethod.Put, $"{Filo}/{k.Id}/kunye",
+            new { surum, sozlesmeTarihi = eski, imzaTarih = eski, aciklama = "yalnız açıklama" }));
+        Assert.Equal("yalnız açıklama", r.GetProperty("aciklama").GetString());
+        Assert.Equal(eski, r.GetProperty("sozlesmeTarihi").GetDateTimeOffset());
+
+        var yeniSurum = r.GetProperty("surum").GetString();
+        await ProblemBekle(await Gonder(s, HttpMethod.Put, $"{Filo}/{k.Id}/kunye",
+                new { surum = yeniSurum, sozlesmeTarihi = eski.AddYears(1), imzaTarih = eski, aciklama = "yalnız açıklama" }),
+            HttpStatusCode.BadRequest, "dogrulama", "sozlesmeTarihi");
+    }
+
     [Fact]
     public void Izin_haritasi_Blazor_ile_ayni()
     {

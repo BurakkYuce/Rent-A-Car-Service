@@ -123,13 +123,18 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         if (input.ToplamKmLimiti is < 0) throw new ValidationException("KM limiti negatif olamaz.");
         if (input.CikisKm is { } c && input.ToplamKm is { } t && t < c)
             throw new ValidationException("Toplam KM, çıkış KM'sinden küçük olamaz.");
-        TarihPolitikasi.BelgeTarihi(input.SozlesmeTarihi, "sozlesmeTarihi", "Sözleşme tarihi");
-        TarihPolitikasi.BelgeTarihi(input.ImzaTarih, "imzaTarih", "İmza tarihi");
-
         var mevcut = await _repository.FindAsync(id, ct)
             ?? throw new ValidationException("Sözleşme bulunamadı.");
         if (mevcut.Durum == FiloKiraDurum.Iptal)
             throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
+
+        // F5.2b (#271 adversarial Low-1): belge tarihi sınırı YALNIZ tarih DEĞİŞİYORSA uygulanır. Sınır dışı
+        // (2000 öncesi / +1 yıl sonrası) tarihli ESKİ sözleşme yalnız açıklaması değişse bile düzenlenemiyordu
+        // (rezervasyon tarih politikası H5 dersi: kural girişte, dokunulmayan geçmiş değeri kilitlemez).
+        if (TarihDegisti(mevcut.SozlesmeTarihi, input.SozlesmeTarihi))
+            TarihPolitikasi.BelgeTarihi(input.SozlesmeTarihi, "sozlesmeTarihi", "Sözleşme tarihi");
+        if (TarihDegisti(mevcut.ImzaTarih, input.ImzaTarih))
+            TarihPolitikasi.BelgeTarihi(input.ImzaTarih, "imzaTarih", "İmza tarihi");
 
         void Uygula(FiloKiralama row)
         {
@@ -158,6 +163,23 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
     }
 
     private static string? Metin(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// Belge tarihi değişiyor mu? Aynı an ya da aynı takvim günü (UTC ya da Türkiye +03) = değişmedi: Blazor künye
+    /// formu tarihi GÜN olarak geri gönderir (saat düşer, sunucu yerel gece yarısına çözülür), bu yüzden gün eşitliği
+    /// "dokunulmadı" sayılır. Sınır kuralı gün bazlıdır; aynı gün içinde saat oynaması kararı değiştirmez.
+    /// </summary>
+    internal static bool TarihDegisti(DateTimeOffset? mevcut, DateTimeOffset? yeni)
+        => (mevcut, yeni) switch
+        {
+            (null, null) => false,
+            ({ } m, { } y) => m != y
+                && m.UtcDateTime.Date != y.UtcDateTime.Date
+                && m.ToOffset(TurkiyeOfseti).Date != y.ToOffset(TurkiyeOfseti).Date,
+            _ => true,
+        };
+
+    private static readonly TimeSpan TurkiyeOfseti = TimeSpan.FromHours(3);
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
