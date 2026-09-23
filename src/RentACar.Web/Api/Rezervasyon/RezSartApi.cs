@@ -89,7 +89,7 @@ public static class RezSartApi
 
         public RezSartFilter ToFilter()
         {
-            var (min, max) = F5Ortak.GunAraligi(Bas, Bit);
+            var (min, max) = F5Ortak.GunAraligi(Bas, Bit, "bas", "bit");
             return new RezSartFilter
             {
                 MusteriId = MusteriId,

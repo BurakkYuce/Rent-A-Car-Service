@@ -93,7 +93,7 @@ public static class RezervasyonApi
 
         public ReservationFilter ToFilter()
         {
-            var (min, max) = F5Ortak.GunAraligi(BasMin, BasMax);
+            var (min, max) = F5Ortak.GunAraligi(BasMin, BasMax, "basMin", "basMax");
             return new ReservationFilter
             {
                 Query = F5Ortak.Nz(Q),
