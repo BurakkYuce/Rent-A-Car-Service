@@ -9,7 +9,12 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { provideCeviri } from '@core/i18n/ceviri';
 
 import { TeklifIslemleri } from './teklif-islemleri';
-import { teklifFormuOlustur, teklifGovdesi } from './teklif-modeli';
+import {
+  gecerlilikDogrulayici,
+  gecerlilikEnErken,
+  teklifFormuOlustur,
+  teklifGovdesi,
+} from './teklif-modeli';
 
 const TEKLIF_ID = '0b0e7c1a-8888-4aaa-8bbb-000000000008';
 
@@ -76,6 +81,32 @@ describe('Teklif işlemleri', () => {
     await i.reddet({ id: TEKLIF_ID, no: 'TK-000007' }, vi.fn());
     expect(sor).toHaveBeenCalledWith(expect.objectContaining({ tehlikeli: true }));
     expect(postlar).toEqual([]);
+  });
+});
+
+describe('Teklif geçerlilik doğrulaması (sunucu: GecerlilikTarihi < BasTar → red)', () => {
+  const dogrula = gecerlilikDogrulayici((e) => `en erken ${e}`);
+  const alan = (basTar: string, gecerlilik: string | null) => {
+    const f = teklifFormuOlustur();
+    f.controls.gecerlilik.addValidators(dogrula);
+    f.patchValue({ basTar, gecerlilik });
+    return f.controls.gecerlilik;
+  };
+
+  it('başlangıç 09:00 İstanbul → aynı gün hata (gece yarısı < başlangıç), ertesi gün geçerli', () => {
+    // 2026-10-01 09:00 İstanbul = 06:00Z.
+    expect(alan('2026-10-01T06:00:00.000Z', '2026-10-01').errors).toEqual({
+      gecerlilikErken: { mesaj: 'en erken 02.10.2026' },
+    });
+    expect(alan('2026-10-01T06:00:00.000Z', '2026-10-02').errors).toBeNull();
+    expect(alan('2026-10-01T06:00:00.000Z', null).errors).toBeNull();
+    expect(gecerlilikEnErken('2026-10-01T06:00:00.000Z')).toBe('2026-10-02');
+  });
+
+  it('başlangıç tam 00:00 İstanbul → aynı gün geçerli (eşitlik kabul)', () => {
+    // 2026-10-01 00:00 İstanbul = 2026-09-30 21:00Z.
+    expect(alan('2026-09-30T21:00:00.000Z', '2026-10-01').errors).toBeNull();
+    expect(gecerlilikEnErken('2026-09-30T21:00:00.000Z')).toBe('2026-10-01');
   });
 });
 

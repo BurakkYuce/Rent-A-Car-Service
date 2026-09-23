@@ -1173,6 +1173,7 @@ export type CeviriAnahtari =
   | 'teklif.alan.donusOfisi'
   | 'teklif.alan.fiyatTuru'
   | 'teklif.alan.gecerlilik'
+  | 'teklif.alan.gecerlilikErken'
   | 'teklif.alan.gunlukUcret'
   | 'teklif.alan.musteri'
   | 'teklif.alan.musteriAra'

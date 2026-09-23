@@ -54,7 +54,11 @@
           />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.gecerlilik' | transloco">
-          <rc-tarih-secici formControlName="gecerlilik" [hazirlar]="false" />
+          <rc-tarih-secici
+            formControlName="gecerlilik"
+            [hazirlar]="false"
+            [enAz]="gecerlilikEnAz()"
+          />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.cikisOfisi' | transloco">
           <rc-arama-secim formControlName="cikisOfisi" [kaynak]="lokasyonKaynagi" />

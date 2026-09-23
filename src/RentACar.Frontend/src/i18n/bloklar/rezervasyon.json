@@ -206,6 +206,7 @@
       "gunlukUcret": "Günlük ücret",
       "otomatikBos": "Otomatik için boş",
       "gecerlilik": "Geçerlilik",
+      "gecerlilikErken": "Geçerlilik başlangıç tarihinden önce olamaz; en erken {{enErken}} seçilebilir.",
       "cikisOfisi": "Çıkış ofisi",
       "donusOfisi": "Dönüş ofisi"
     },
