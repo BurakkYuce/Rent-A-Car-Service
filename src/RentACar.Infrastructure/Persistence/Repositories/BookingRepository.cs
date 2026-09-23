@@ -77,7 +77,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var rows = rezler.Select(r =>
         {
             var cari = cariler.TryGetValue(r.MusteriId, out var c) ? c : (Ad: "—", CepTel: (string?)null);
-            return new ReservationRow(r, cari.Ad, cari.CepTel, plakalar.GetValueOrDefault(r.VehicleId, "—"));
+            return new ReservationRow(r, cari.Ad, cari.CepTel, plakalar.GetValueOrDefault(r.VehicleId, "—"),
+                anonimAdlar.Contains(r.MusteriId));
         }).AsEnumerable();
 
         // Kaynak eşleşmesi BELLEK-İÇİ ve ORDINAL: SQL'e `lower()` olarak itmek karşılaştırmayı iki ayrı
@@ -251,8 +252,11 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var vehIds = rentals.Select(r => r.VehicleId).Distinct().ToList();
         var rentalIds = rentals.Select(r => r.Id).ToList();
 
-        var custNames = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id)).ToListAsync(ct))
-            .ToDictionary(c => c.Id, c => c.DisplayName);
+        var custRows = await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id)).ToListAsync(ct);
+        var custNames = custRows.ToDictionary(c => c.Id, c => c.DisplayName);
+        // KVKK (rezervasyon aramasıyla aynı desen): adı anonimleştirilmiş carinin GERÇEK adı arama terimiyle
+        // eşleşmez; satır bayrağı taşır, /api/ui yüzeyleri MusteriGorunumu.ListeAdi ile maskeler.
+        var anonimAdlar = custRows.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
         var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
             .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
             .ToDictionary(v => v.Id, v => v.Plaka);
@@ -267,6 +271,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             MusteriId = r.MusteriId,
             Doviz = r.Doviz,
             MusteriAd = custNames.GetValueOrDefault(r.MusteriId, "—"),
+            MusteriAnonimAd = anonimAdlar.Contains(r.MusteriId),
             Plaka = plakalar.GetValueOrDefault(r.VehicleId, "—"),
             BasTar = r.BasTar,
             BitTar = r.BitTar,
@@ -298,7 +303,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             var t = filter.Query.Trim();
             rows = rows.Where(r =>
                 r.SozlesmeNo.Contains(t, StringComparison.OrdinalIgnoreCase)
-                || r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || (!r.MusteriAnonimAd && r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase))
                 || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase));
         }
         return rows.ToList();
