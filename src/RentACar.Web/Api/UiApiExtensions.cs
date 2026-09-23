@@ -10,6 +10,7 @@ using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
 using RentACar.Web.Api.Panel;
+using RentACar.Web.Api.Platform;
 using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.TabloDuzenleri;
@@ -48,16 +49,29 @@ public static class UiApiExtensions
         => yol.StartsWithSegments(V1 + "/oturum", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Giriş/çıkış: TenantActive bunları atlar (Blazor'daki <c>/auth</c> muafiyetinin karşılığı) —
-    /// kapalı firmanın bayat çerezini taşıyan kullanıcı başka firmaya giriş yapabilmeli, çıkış hep çalışmalı.</summary>
+    /// kapalı firmanın bayat çerezini taşıyan kullanıcı başka firmaya giriş yapabilmeli, çıkış hep çalışmalı.
+    /// F12.1: platform konsolunun giriş/çıkışı da (Blazor <c>/platform</c> muafiyetinin karşılığı).</summary>
     public static bool GirisCikisYolu(PathString yol)
         => yol.StartsWithSegments(V1 + "/oturum/giris", StringComparison.OrdinalIgnoreCase)
-           || yol.StartsWithSegments(V1 + "/oturum/cikis", StringComparison.OrdinalIgnoreCase);
+           || yol.StartsWithSegments(V1 + "/oturum/cikis", StringComparison.OrdinalIgnoreCase)
+           || yol.StartsWithSegments(PlatformPrefix + "/oturum/giris", StringComparison.OrdinalIgnoreCase)
+           || yol.StartsWithSegments(PlatformPrefix + "/oturum/cikis", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>F12.1: platform konsolu uçlarının öneki (ayrı yetki alanı — <c>PlatformAdmin</c> policy).</summary>
+    public const string PlatformPrefix = V1 + "/platform";
+
+    /// <summary>F12.1: platform konsolu API'si mi (segment sınırıyla: <c>/platformlar</c> eşleşmez). PlatformIsolation
+    /// bu yolu platform operatörüne açar; pilot kapısı uygulanmaz (platform oturumunun firması yok).</summary>
+    public static bool PlatformYolu(PathString yol)
+        => yol.StartsWithSegments(PlatformPrefix, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Pilot kapısından muaf rota: oturum (giriş yapılabilsin, "pilot değilsiniz" bandı için
-    /// <c>ben</c> okunabilsin) ve istemci hata raporu. Rota DESENİ üzerinden karar verilir.</summary>
+    /// <c>ben</c> okunabilsin), istemci hata raporu ve platform konsolu (F12.1 — firma bağlamı yok; erişimi
+    /// PlatformAdmin policy'si belirler). Rota DESENİ üzerinden karar verilir.</summary>
     public static bool PilotMuaf(string rota)
         => new PathString(rota.StartsWith('/') ? rota : "/" + rota) is var p
-           && (OturumYolu(p) || p.StartsWithSegments(V1 + "/istemci-hata", StringComparison.OrdinalIgnoreCase));
+           && (OturumYolu(p) || p.StartsWithSegments(V1 + "/istemci-hata", StringComparison.OrdinalIgnoreCase)
+               || PlatformYolu(p));
 
     /// <summary>RFC 9110 güvenli yöntemler — CSRF doğrulaması yalnız bunların DIŞINDA.</summary>
     public static bool GuvenliYontem(string yontem)
@@ -208,6 +222,7 @@ public static class UiApiExtensions
         v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
         v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
         AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
+        v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 
