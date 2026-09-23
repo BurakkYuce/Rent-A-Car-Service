@@ -54,14 +54,29 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
         return [.. bulunan];
     }
 
-    public async Task AddAsync(VehiclePhoto photo, CancellationToken ct = default)
+    /// <summary>
+    /// Araç satırını işlem sonuna kadar kilitler: aynı aracın galerisine dokunan eşzamanlı yazmalar (ekle/taşı)
+    /// serileşir (#278 L3 — sıra tekrarı ve 20 adet sınırı yarışı). <c>FOR NO KEY UPDATE</c>: kendisiyle çakışır
+    /// (serileştirir) ama FK denetiminin aldığı <c>KEY SHARE</c>'i BEKLETMEZ — kira/rezervasyon eklemeleri bu kısa
+    /// kilitte takılmaz. Satır kilidi <c>xmin</c>'i değiştirmez → araç kartının <c>surum</c>'u oynamaz.
+    /// </summary>
+    private static Task LockVehicleRowAsync(AppDbContext db, Guid vehicleId, CancellationToken ct)
+        => db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Vehicles\" WHERE \"Id\" = {vehicleId} FOR NO KEY UPDATE", ct);
+
+    public async Task<bool> AddAsync(VehiclePhoto photo, int maxPhotos, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var maxSira = await db.VehiclePhotos.Where(p => p.VehicleId == photo.VehicleId)
-            .MaxAsync(p => (int?)p.Sira, ct) ?? -1;
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockVehicleRowAsync(db, photo.VehicleId, ct);
+        var existing = db.VehiclePhotos.Where(p => p.VehicleId == photo.VehicleId);
+        if (await existing.CountAsync(ct) >= maxPhotos) return false;
+        var maxSira = await existing.MaxAsync(p => (int?)p.Sira, ct) ?? -1;
         photo.Sira = maxSira + 1;
         db.VehiclePhotos.Add(photo);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default)
@@ -77,6 +92,8 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
     public async Task MoveAsync(Guid vehicleId, Guid photoId, int direction, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockVehicleRowAsync(db, vehicleId, ct); // komşu seçimi + takas kilit altında (paralel taşımada sıra tekrarı yok)
         var current = await db.VehiclePhotos.FirstOrDefaultAsync(p => p.VehicleId == vehicleId && p.Id == photoId, ct);
         if (current is null) return;
 
@@ -88,5 +105,6 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
 
         (current.Sira, neighbor.Sira) = (neighbor.Sira, current.Sira);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 }
