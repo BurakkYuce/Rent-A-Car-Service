@@ -98,7 +98,7 @@ class DenemeForm {
   selector: 'rc-odakta-sec-deneme',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, ParaGirdisi],
-  template: `<rc-para-girdisi [formControl]="tutar" odaktaSec />`,
+  template: `<rc-para-girdisi [formControl]="tutar" />`,
 })
 class OdaktaSecDeneme {
   readonly tutar = new FormControl<string | number | null>(1250.5);
@@ -169,6 +169,22 @@ describe('CVA kontroller', () => {
     expect(form.value.tutar).toBe('-12.50');
   });
 
+  it('para: Tab/otomatik doldurma odağında düzenleme yazımı EŞZAMANLI, tümü seçili (yazılan sona eklenmez)', async () => {
+    const { form, girdi, yaz, birak } = await kur();
+    await yaz('tutar', '2.600,00');
+    await birak('tutar');
+    expect(girdi('tutar').value).toBe('2.600,00');
+    // Tab'la gelme / otomatik doldurma: önce tüm metin seçili, sonra odak.
+    girdi('tutar').select();
+    girdi('tutar').dispatchEvent(new Event('focus'));
+    // Değişiklik algılaması BEKLENMEDEN: DOM düzenleme yazımında ve TAMAMI hâlâ seçili (yazılan yerine geçer).
+    expect(girdi('tutar').value).toBe('2600,00');
+    expect(girdi('tutar').selectionStart).toBe(0);
+    expect(girdi('tutar').selectionEnd).toBe('2600,00'.length);
+    await yaz('tutar', '500');
+    expect(form.value.tutar).toBe('500.00');
+  });
+
   it('para: YAZILAN 2’den fazla anlamlı ondalık yuvarlanmaz, alan hatası; programatik değer yuvarlanır', async () => {
     const { fixture, form, alan, girdi, yaz, birak } = await kur();
     // 3 hane → hata, değer yok (sessiz yuvarlama niyet dışı tutar gönderirdi).
@@ -197,7 +213,7 @@ describe('CVA kontroller', () => {
     expect(form.controls.tutar.valid).toBe(true);
   });
 
-  it('para odaktaSec: odakta tüm metin seçili; yazılan önerinin yerine geçer', async () => {
+  it('para (varsayılan): programatik odakta tüm metin seçili; yazılan önerinin yerine geçer', async () => {
     TestBed.configureTestingModule({ providers: [...provideCeviri()] });
     const fixture = TestBed.createComponent(OdaktaSecDeneme);
     await fixture.whenStable();
@@ -206,6 +222,47 @@ describe('CVA kontroller', () => {
     g.focus();
     await fixture.whenStable();
     expect(g.value).toBe('1250,50');
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
+  it('para: KULLANICININ YAZDIĞI tutarda fare odağı seçmez (imleç yerinde); klavye odağı seçer', async () => {
+    const { girdi, yaz, birak } = await kur();
+    await yaz('tutar', '1.234,56'); // kullanıcı yazdı
+    await birak('tutar');
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.setSelectionRange(2, 2); // tarayıcının tık konumu
+    g.dispatchEvent(new Event('focus'));
+    expect(g.value).toBe('1234,56');
+    expect(g.selectionEnd! - g.selectionStart!).toBe(0); // seçim yok
+    await birak('tutar');
+    // Sonraki klavye (Tab) odağı yine tümünü seçer — bayrak tek seferliktir.
+    g.select();
+    g.dispatchEvent(new Event('focus'));
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
+  it('para (3. tur M-B): DOKUNULMAMIŞ ön-dolu tutarda fare odağı da TÜMÜNÜ seçer (sola tıklayıp yazan sona/başa eklemez)', async () => {
+    const { fixture, form, girdi } = await kur();
+    form.controls.tutar.setValue('2600'); // programatik ön-doldurma
+    await fixture.whenStable();
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.setSelectionRange(0, 0); // metnin soluna tık
+    g.dispatchEvent(new Event('focus'));
+    expect(g.value).toBe('2600,00');
+    expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
+  });
+
+  it('para (Q1): basış odak üretmeden iptal edilirse (dokunmatik kaydırma) sonraki Tab odağı tümünü seçer', async () => {
+    const { girdi, yaz, birak } = await kur();
+    await yaz('tutar', '1.234,56');
+    await birak('tutar');
+    const g = girdi('tutar');
+    g.dispatchEvent(new Event('pointerdown'));
+    g.dispatchEvent(new Event('pointercancel'));
+    g.select();
+    g.dispatchEvent(new Event('focus'));
     expect([g.selectionStart, g.selectionEnd]).toEqual([0, g.value.length]);
   });
 

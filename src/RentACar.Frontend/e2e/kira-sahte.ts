@@ -1,8 +1,9 @@
 import { expect, type Page, type Request, type Route } from '@playwright/test';
 
 /**
- * Kira formu (F4.3) sahte `/api/ui/v1` verisi ve yardımcıları — `kira-formu.spec.ts` ile F4.6 `kesis.spec.ts`
- * (Blazor "Kirala" bağlantısı → 302 → SPA formu) ORTAK kullanır. Beklenen değerler sahte yanıtlardan ELLE kurulur.
+ * Kira formu (F4.3/F4.4) sahte `/api/ui/v1` verisi ve yardımcıları — `kira-formu.spec.ts` ile F4.6
+ * `kesis.spec.ts` (Blazor "Kirala" bağlantısı → 302 → SPA formu) ORTAK kullanır. Beklenen değerler sahte
+ * yanıtlardan ELLE kurulur.
  */
 export const KIRA_ID = '0b0e7c1a-1111-4aaa-8bbb-000000000001';
 export const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
@@ -221,6 +222,13 @@ export interface Sahte {
 /** Tek işleyici: `/api/ui/v1/kiralar/**` + seçim uçları (yöntem + yola göre). */
 export async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<string[]> {
   const hesapSorgulari: string[] = [];
+  // F4.4 sabit finans paneli (tembel) kayıtlı kirada kasa/banka hesaplarını okur — bu dosyanın testleri panele
+  // dokunmaz; boş liste yeter (sahte olmayan istek 404 konsol hatası üretirdi).
+  await page.route(/\/api\/ui\/v1\/finans\//, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ json: [] })
+      : route.fulfill({ status: 500 }),
+  );
   await page.route(/\/api\/ui\/v1\/secim\//, (route) => {
     const yol = new URL(route.request().url()).pathname;
     // F4.3b kimlikle etiket uçları.

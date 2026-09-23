@@ -152,3 +152,77 @@ test('pilot: eski yazdırma adresi (/kiralar/{id}/yazdir) → /app yazdırma rot
   // PDF ucu haritada yok: sunucu yönlendirmez, SPA'ya dönülmez; tek istek.
   expect(pdfIstekleri).toHaveLength(1);
 });
+
+/** Sabit finans panelinin okuma uçları (yazma yok — bu test gezinmeyi ölçer, para akışı `kira-finans.spec.ts`'te). */
+async function finansOkumalariSahtele(page: Page): Promise<void> {
+  await page.route(/\/api\/ui\/v1\/finans\//, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({
+          json: [
+            {
+              id: '0b0e7c1a-5555-4aaa-8bbb-000000000005',
+              etiket: 'Kasa · Merkez Kasa (MRK · TRY)',
+              kod: 'MRK',
+              ad: 'Merkez Kasa',
+              tur: 'Kasa',
+              doviz: 'TRY',
+            },
+          ],
+        })
+      : route.fulfill({ status: 500 }),
+  );
+  await page.route(
+    /\/api\/ui\/v1\/kiralar\/[^/]+\/(faturalar|cezalar|donem-plani|dis-hizmetler)/,
+    (route) => {
+      const yol = new URL(route.request().url()).pathname;
+      if (yol.endsWith('/cezalar'))
+        return route.fulfill({ json: { cezalar: [], hgsGecisleri: [] } });
+      return route.fulfill({ json: [] });
+    },
+  );
+}
+
+/**
+ * SAYFA İÇERİĞİNDEKİ (kabuk menüsü hariç — o sunucunun menü kaydından gelir, e2e'de sahte) bağlantılardan
+ * hangileri kesiş haritasındaki Blazor sayfasına, yani sunucu üzerinden SPA'ya geri düşüyor.
+ */
+async function haritayaDusenBaglantilar(page: Page): Promise<string[]> {
+  return page.locator('main a[href]').evaluateAll((ogeler) =>
+    ogeler
+      .map((o) => new URL((o as HTMLAnchorElement).href, location.href))
+      .filter((u) => u.origin === location.origin)
+      .map((u) => u.pathname)
+      .filter((yol) =>
+        /^\/(kiralar(\/(yeni|[0-9a-f-]{36}(\/yazdir)?))?)?$/i.test(yol.replace(/\/$/, '') || '/'),
+      ),
+  );
+}
+
+test('pilot: kira formu SPA içinde açılır — sabit finans paneli çalışır, hiçbir bağlantı Blazor kira sayfasına düşmez', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  await sahteKiraApi(page);
+  await finansOkumalariSahtele(page); // sonra kaydedilen rota önce eşleşir
+  await sunucuYonlendirmesi(page, `/kiralar/${KIRA_ID}`, `/app/kiralar/${KIRA_ID}`);
+
+  await page.goto(`/kiralar/${KIRA_ID}`);
+  await expect(page).toHaveURL((url) => url.pathname === `/app/kiralar/${KIRA_ID}`);
+
+  // M1 (güvenlik incelemesi): finans işlemleri SPA'nın kendi panelinde — "Mevcut ekranda aç" yer tutucusu yok.
+  const panel = page.getByTestId('finans-paneli');
+  await expect(panel).toBeVisible();
+  for (const ad of ['Nakit', 'Kart/Havale', 'Faturalar', 'Dönemler', 'Dış hizmet', 'Ceza/HGS']) {
+    await panel.getByRole('tab', { name: ad, exact: true }).click();
+    await expect(panel.getByRole('tab', { name: ad, exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  }
+  await expect(page.getByText('Mevcut ekranda aç')).toHaveCount(0);
+
+  // Kira listesi bağlantısı SPA rotası (tam sayfa dönüş + sunucu yönlendirmesi yok).
+  expect(await haritayaDusenBaglantilar(page)).toEqual([]);
+  await page.getByRole('link', { name: 'Kira listesi', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === '/app/kiralar');
+});

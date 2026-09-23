@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Authorization;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -201,17 +202,51 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var muh = await GirisAsync(o, Kim.Muhasebe);
-        foreach (var uc in new[] { "musteri", "arac", "lokasyon", "kur", "personel", "sube" })
+        foreach (var uc in new[] { "arac", "lokasyon", "personel", "sube", "ek-hizmet", "sigorta-urunu",
+                     "rezervasyon-kaynagi", "ozel-kod", "belge-sablonu", "arac-grubu" })
             await ProblemBekle(await muh.GetAsync($"{V1}/secim/{uc}"), HttpStatusCode.Forbidden, "yetki_yok");
+        // F4.4: müşteri ve kur Muhasebe'ye (FinanceWrite) de açık — kira formunun sabit finans paneli.
+        Assert.Equal(HttpStatusCode.OK, (await muh.GetAsync($"{V1}/secim/musteri")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await muh.GetAsync($"{V1}/secim/kur")).StatusCode);
 
-        var yasakli = await GirisAsync(o, Kim.OperatorYasakli); // Operatör ama OperationsWrite kullanıcı-bazlı YASAK
-        await ProblemBekle(await yasakli.GetAsync($"{V1}/secim/musteri"), HttpStatusCode.Forbidden, "yetki_yok");
+        // Operatör ama OperationsWrite kullanıcı-bazlı YASAK (FinanceWrite de yok): iki "herhangi biri" ucu da 403.
+        var yasakli = await GirisAsync(o, Kim.OperatorYasakli);
+        foreach (var uc in new[] { "musteri", "kur", "arac" })
+            await ProblemBekle(await yasakli.GetAsync($"{V1}/secim/{uc}"), HttpStatusCode.Forbidden, "yetki_yok");
 
         var op = await GirisAsync(o, Kim.OperatorA);
         Assert.Equal(HttpStatusCode.OK, (await op.GetAsync($"{V1}/secim/musteri")).StatusCode);
 
         var anonim = await fx.Web.Istemci().GetAsync($"{V1}/secim/musteri");
         await ProblemBekle(anonim, HttpStatusCode.Unauthorized, "oturum_yok");
+    }
+
+    /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c> ve <c>kur</c>
+    /// arama uçları "OperationsWrite veya FinanceWrite"; geri kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite
+    /// (genişleme sessizce yayılmasın).</summary>
+    [Fact]
+    public void Secim_uclari_izin_haritasi()
+    {
+        var uclar = fx.Web.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(e => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith(V1 + "/secim/", StringComparison.Ordinal))
+            .ToDictionary(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
+        Assert.Equal(14, uclar.Count); // 12 arama + F4.3b kimlikle etiket (musteri/{id}, arac/{id}) — ikisi OW
+        foreach (var (rota, e) in uclar)
+        {
+            var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
+            var tek = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinMetadata>();
+            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur")
+            {
+                Assert.Null(tek);
+                Assert.Equal(new[] { Permission.OperationsWrite, Permission.FinanceWrite }, biri!.Izinler);
+            }
+            else
+            {
+                Assert.Null(biri);
+                Assert.Equal(Permission.OperationsWrite, tek!.Izin);
+            }
+        }
     }
 
     [Fact]

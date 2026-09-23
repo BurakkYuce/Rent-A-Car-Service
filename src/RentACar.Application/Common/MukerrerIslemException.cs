@@ -10,8 +10,15 @@ namespace RentACar.Application.Common;
 /// Ayrım <c>PostgresException.ConstraintName</c> ile yapılır (<c>IdempotencyKisiti</c>).
 /// <see cref="ValidationException"/>'dan türediği için mevcut Blazor yakalayıcıları aynen çalışır.</para>
 /// </summary>
-public sealed class MukerrerIslemException(string mesaj) : ValidationException(mesaj)
+public sealed class MukerrerIslemException(string mesaj, MevcutIslem? mevcut = null) : ValidationException(mesaj)
 {
+    /// <summary>
+    /// F4.4 adversarial HIGH-1: aynı anahtarla yazılmış KAYDIN kendisi (varsa). Doluysa istemci "zaten kaydedildi"
+    /// der ve formu temizler — yeniden gönderime YÖNLENDİRMEZ (kaybolan yanıttan sonraki doğru tekrar ikinci
+    /// tahsilata dönüşmesin). ProblemDetails'e <c>mevcut</c> uzantısı olarak yazılır (<c>UiHata</c>).
+    /// </summary>
+    public MevcutIslem? Mevcut { get; } = mevcut;
+
     /// <summary>
     /// F1.4 — AYNI anahtar FARKLI içerikle geldi (başka hedef/tutar). Sessiz idempotent başarı yalnız
     /// kayıtlı satırın hedefi ve tutarı gelen istekle BİREBİR eşleşirse verilir; eşleşmezse bu metinle
@@ -27,3 +34,11 @@ public sealed class MukerrerIslemException(string mesaj) : ValidationException(m
     /// <summary>Anahtar farklı içerikle kullanılmış → 409.</summary>
     public static MukerrerIslemException FarkliIcerik() => new(FarkliIcerikMesaji);
 }
+
+/// <summary>
+/// 409 <c>mukerrer</c>'de istemciye bildirilen, aynı anahtarla ZATEN yazılmış işlem (belge no + tutar).
+/// <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı (tutar, döviz, hesap türü, hesap, kur, açıklama, kanal) — <c>true</c> ise
+/// kaybolan yanıttan sonraki kendi tekrarı (form temizlenir); <c>false</c> ise başka bir işlem yazılmış, gelen
+/// tutar YAZILMADI (form korunur, kullanıcı güncel bakiyeye bakıp bilinçli yeniden gönderir).
+/// </summary>
+public sealed record MevcutIslem(Guid Id, string BelgeNo, decimal Tutar, string Doviz, bool AyniIcerik);

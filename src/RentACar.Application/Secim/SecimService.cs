@@ -40,6 +40,7 @@ public sealed record KurSecimOgesi(string Id, string Etiket, int Birim, decimal?
 /// Önce etiketi sorgu ile BAŞLAYANLAR, sonra içerenler; kendi içinde katlanmış etikete göre (kültürden
 /// bağımsız, deterministik).</item>
 /// <item><b>Yetkili:</b> <see cref="Permission.OperationsWrite"/> — uç kapısına EK servis guard'ı (çift savunma).
+/// İstisna (F4.4): müşteri ve kur OperationsWrite VEYA FinanceWrite (sabit finans paneli; PII'sız alanlar).
 /// Altta yatan <c>ListActiveAsync</c>'lerin çoğu "yetki gerektirmez" (Blazor formları için); yeni yüzey
 /// bu gevşekliği TAŞIMAZ.</item>
 /// <item><b>PII yok:</b> yalnız kimlik + etiket + formun ihtiyacı olan operasyonel alanlar.</item>
@@ -72,9 +73,14 @@ public sealed class SecimService(
 
     private void Kapi() => PermissionGuard.Require(currentUser, Permission.OperationsWrite);
 
+    /// <summary>F4.4: müşteri ve kur seçimi Muhasebe'ye de açık (kira formunun sabit finans paneli: dış hizmet
+    /// tedarikçi carisi, kur bilgisi). Dönen alanlar PII'sız; uç kapısı da "herhangi biri".</summary>
+    private void FinansDahilKapi()
+        => PermissionGuard.RequireAny(currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
+
     public async Task<IReadOnlyList<MusteriSecimOgesi>> MusteriAsync(string? q, int? limit, CancellationToken ct = default)
     {
-        Kapi();
+        FinansDahilKapi();
         var satirlar = await musteriler.SecimAraAsync(q, Sinir(limit), ct);
         return satirlar.Select(s => new MusteriSecimOgesi(s.Id, s.Ad, s.Tip.ToString())).ToList();
     }
@@ -171,7 +177,7 @@ public sealed class SecimService(
     /// <summary>Günün TCMB kurları (en yeni gün). Ulusal veri; kiracıya/kişiye ait değil.</summary>
     public async Task<IReadOnlyList<KurSecimOgesi>> KurAsync(string? q, int? limit, CancellationToken ct = default)
     {
-        Kapi();
+        FinansDahilKapi();
         return Suz(await kurlar.BugunKurlarAsync(ct), q, limit, k => $"{k.Kod} — {k.Ad}")
             .Select(k => new KurSecimOgesi(k.Kod, $"{k.Kod} — {k.Ad}", k.Birim, k.ForexAlis, k.ForexSatis, k.Tarih))
             .ToList();
