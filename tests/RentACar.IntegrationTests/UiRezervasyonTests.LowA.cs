@@ -89,6 +89,29 @@ public sealed partial class UiRezervasyonTests
             .GetProperty("etiket").GetString());
     }
 
+    /// <summary>#280 KVKK L-1: selection order follows the displayed name — two anonymised customers whose real
+    /// names sort around an open one ("Aaaahmet" &lt; "Kkkenan" &lt; "Zzzzafer") must end up next to each other.</summary>
+    [Fact]
+    public async Task LowA_secim_musteri_siralamasi_anonimin_gercek_adini_sizdirmaz()
+    {
+        var o = await OrtamKurAsync();
+        var anonimA = new Customer { Tip = CariType.Bireysel, Ad = "Aaaahmet", Soyad = "Test", AnonimAd = true };
+        var acik = new Customer { Tip = CariType.Bireysel, Ad = "Kkkenan", Soyad = "Test" };
+        var anonimZ = new Customer { Tip = CariType.Bireysel, Ad = "Zzzzafer", Soyad = "Test", AnonimAd = true };
+        await VeriYazAsync(o.TenantId, db => db.Customers.AddRange(anonimA, acik, anonimZ));
+        var s = await GirisAsync(o, Kim.OperatorA);
+
+        var ids = (await Json(await s.C.GetAsync($"{V1}/secim/musteri?q=n"))).EnumerateArray()
+            .Select(x => x.GetProperty("id").GetGuid()).ToList();
+
+        Assert.Equal(3, ids.Count); // "Ece Kaya" (ortam carisi) "n" içermez
+        Assert.Contains(acik.Id, ids);
+        var a = ids.IndexOf(anonimA.Id);
+        var z = ids.IndexOf(anonimZ.Id);
+        Assert.True(a >= 0 && z >= 0, "anonim cariler etiketle bulunmalı");
+        Assert.Equal(1, Math.Abs(a - z)); // yan yana: konumları gerçek addan bağımsız
+    }
+
     [Fact]
     public async Task LowA_teklif_kabul_tekrari_409_mevcut_rezervasyonu_soyler()
     {

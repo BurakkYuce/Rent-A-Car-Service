@@ -715,6 +715,14 @@ export class KiraFormuDurumu {
     effect(() => {
       if (this.detay.tur() === 'hata') this.otomatikYeniden = null;
     });
+    // L5 (#280 KVKK L-3): a definitive error (403/401 with a code, 404 without one) drops the last good detail
+    // for good — otherwise a later 5xx/network failure would bring stale customer/vehicle/finance data back.
+    effect(() => {
+      const error = this.detay.hata();
+      if (error && error.kod !== 'sunucu' && error.kod !== 'ag') {
+        untracked(() => this.sonIyiDetay.set(null));
+      }
+    });
     effect(() => {
       const v = this.varsayilanlar.veri();
       if (v && this.teslimFormu.pristine) {
