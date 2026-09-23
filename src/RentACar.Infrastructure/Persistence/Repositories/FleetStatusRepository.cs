@@ -173,6 +173,8 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
                 OfisRezKapat = v.OfisRezKapat,
                 AktifKiraId = rental?.Id,
                 KiraSozlesmeNo = rental?.SozlesmeNo,
+                MusteriId = rental?.MusteriId,
+                RezMusteriId = rez?.MusteriId,
                 MusteriAd = musteri.Ad,
                 MusteriTel = musteri.Tel,
                 KiraBitTar = rental?.BitTar,

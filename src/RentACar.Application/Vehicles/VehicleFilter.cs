@@ -71,6 +71,12 @@ public sealed class VehicleFilter
     /// <c>Girilmemis</c> iken yok sayılır — iki kova aynı anda anlamlı değil.</summary>
     public string? AracSahibi { get; set; }
 
+    /// <summary>
+    /// F6.1a — sunucu tarafı sıralama (uç katmanının BEYAZ LİSTE <c>SiralamaHaritasi</c>'ından; eşitlik bozucu dahil).
+    /// Null → eski davranış (plaka artan). İstemci girdisi asla ifadeye çevrilmez.
+    /// </summary>
+    public Func<IQueryable<Domain.Entities.Vehicle>, IOrderedQueryable<Domain.Entities.Vehicle>>? Siralama { get; set; }
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }
