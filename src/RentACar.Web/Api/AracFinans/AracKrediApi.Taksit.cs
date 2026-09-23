@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.AracKredileri;
 using RentACar.Application.Common;
+using RentACar.Application.Kur;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -22,7 +23,7 @@ public static partial class AracKrediApi
 
     private static async Task<Results<Ok<TaksitOdeYaniti>, ProblemHttpResult>> TaksitOde(
         Guid id, TaksitOdeIstegi istek, HttpContext http, AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, CancellationToken ct)
+        ICurrentUser kullanici, KurCozucu kurResolver, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         var k = await KapsamliAsync(id, svc, dbf, kullanici, ct); // kapsam durumdan ÖNCE (403)
@@ -37,6 +38,10 @@ public static partial class AracKrediApi
         if (istek.Sira < 1 || istek.Sira > k.TaksitSayisi)
             throw new ValidationException($"Taksit sırası 1 ile {k.TaksitSayisi} arasında olmalıdır.", "sira");
         await Alanli("odemeTarihi", () => { TarihPolitikasi.ParaTarihi(tarih, "Taksit"); return Task.CompletedTask; });
+        // Adversarial L3: dövizli kredide ödeme günü kuru bulunamazsa hata errors[kur] ile döner (servis de aynı
+        // çözümü yapar; burada yalnız alanlı ön kontrol — TRY'de kur daima 1, çağrı gereksiz).
+        if (k.Currency != AracFinansOrtak.TemelDoviz)
+            await Alanli("kur", () => kurResolver.CozAsync(k.Currency, null, tarih ?? DateTimeOffset.UtcNow, ct));
 
         bool odendi;
         try

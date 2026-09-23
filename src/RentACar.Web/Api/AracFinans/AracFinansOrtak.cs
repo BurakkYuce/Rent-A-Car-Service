@@ -92,14 +92,23 @@ internal static class AracFinansOrtak
             throw new ValidationException("Cari bulunamadı.", alan);
     }
 
-    /// <summary>Pozitif, kolona sığan ve 4 ondalıkta sıfır kalmayan tutar.</summary>
-    public static void Tutar(decimal tutar, string alan, bool sifirSerbest = false)
+    /// <summary>Pozitif, kolona sığan ve kolon ölçeğini (<paramref name="scale"/> ondalık) aşmayan tutar.</summary>
+    public static void Tutar(decimal tutar, string alan, bool sifirSerbest = false, int scale = 4)
     {
         if (sifirSerbest ? tutar < 0m : tutar <= 0m)
             throw new ValidationException(sifirSerbest ? "Tutar negatif olamaz." : "Tutar pozitif olmalıdır.", alan);
         if (tutar >= TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", alan);
-        if (!sifirSerbest && Math.Round(tutar, 4, MidpointRounding.AwayFromZero) == 0m)
-            throw new ValidationException("Tutar en az 0,0001 olmalıdır.", alan);
+        EnsureMaxScale(tutar, scale, alan);
+    }
+
+    /// <summary>
+    /// F6.1b adversarial L1: kolon ölçeğini aşan ondalık reddedilir (DB sessizce yuvarlardı — 1000,00005 → 1000,0001;
+    /// aynı anahtarla BİREBİR tekrar "farklı içerik" sayılıyordu). Yuvarlamak yerine red: istemci ne gönderdiyse o yazılır.
+    /// </summary>
+    public static void EnsureMaxScale(decimal value, int scale, string alan)
+    {
+        if (decimal.Round(value, scale) != value)
+            throw new ValidationException($"En çok {scale} ondalık hane girilebilir.", alan);
     }
 
     /// <summary>İsteğe bağlı bilgi tutarı: negatif değil, kolona sığar.</summary>
@@ -121,12 +130,13 @@ internal static class AracFinansOrtak
     /// Açık kur: pozitif, sınır içinde; TEMEL PARADA (TRY) 1'den farklı kur REDDEDİLİR (DEVIR §5 — aksi halde baz tutar
     /// şişer ve dengeli görünen kayıt yanlış olur). Boş → döviz TRY ise 1, değilse <paramref name="dovizVarsayilan"/>.
     /// </summary>
-    public static decimal Kur(decimal? kur, string doviz, decimal dovizVarsayilan = 1m, string alan = "kur")
+    public static decimal Kur(decimal? kur, string doviz, decimal dovizVarsayilan = 1m, string alan = "kur", int scale = 6)
     {
         if (kur is { } k)
         {
             if (k <= 0m) throw new ValidationException("Kur pozitif olmalıdır.", alan);
             if (k >= KurUstSiniri) throw new ValidationException("Kur çok büyük.", alan);
+            EnsureMaxScale(k, scale, alan);
             if (doviz == TemelDoviz && k != 1m)
                 throw new ValidationException("Temel para (TRY) işleminde kur 1 olmalıdır.", alan);
             return k;
