@@ -73,6 +73,28 @@ public sealed class VehicleOwnerRepository(IDbContextFactory<AppDbContext> facto
         return true;
     }
 
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<VehicleOwner> apply, CancellationToken ct = default)
+    {
+        string? kod = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.AracSahipleri, id, beklenenSurum,
+                (db, k, c) => db.VehicleOwners.FirstOrDefaultAsync(o => o.Id == k, c),
+                o => { apply(o); kod = o.Kod; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{kod}' kodlu araç sahibi zaten var.");
+        }
+    }
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.AracSahipleri, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
