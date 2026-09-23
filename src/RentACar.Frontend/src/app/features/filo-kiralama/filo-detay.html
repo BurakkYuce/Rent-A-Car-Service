@@ -1,0 +1,178 @@
+<div class="sayfa">
+  @switch (store.detay.tur()) {
+    @case ('hata') {
+      <header class="ust">
+        <h1>{{ 'filoKiralama.detayBaslikBos' | transloco }}</h1>
+      </header>
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        <span>{{ store.detay.hata()?.detay }}</span>
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.detay.yenile()">
+          {{ 'filoKiralama.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      @if (kayit(); as k) {
+        <header class="ust">
+          <h1>
+            {{ 'filoKiralama.detayBaslik' | transloco: { no: k.no } }}
+            <span [class]="rozet()">{{ durumEtiketi() }}</span>
+          </h1>
+          <div class="ust__eylemler">
+            <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/filo-kiralama">
+              <rc-ikon ad="chevron-left" [boyut]="14" />
+              {{ 'filoKiralama.listeyeDon' | transloco }}
+            </a>
+            @if (k.yetkiler.tamamla) {
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--kucuk"
+                [disabled]="islemde()"
+                (click)="tamamla()"
+              >
+                <rc-ikon ad="circle-check" [boyut]="14" />
+                {{ 'filoKiralama.tamamla' | transloco }}
+              </button>
+            }
+            @if (k.yetkiler.iptal) {
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+                [disabled]="islemde()"
+                (click)="iptal()"
+              >
+                <rc-ikon ad="x" [boyut]="14" />
+                {{ 'filoKiralama.iptal' | transloco }}
+              </button>
+            }
+          </div>
+        </header>
+
+        <section class="bolum" aria-labelledby="filo-ozet">
+          <h2 id="filo-ozet">{{ 'filoKiralama.bolum.sozlesme' | transloco }}</h2>
+          <dl class="kunye">
+            <div>
+              <dt>{{ 'filoKiralama.alan.musteri' | transloco }}</dt>
+              <dd>{{ k.musteriAd }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.arac' | transloco }}</dt>
+              <dd>{{ k.plaka }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.basTar' | transloco }}</dt>
+              <dd>{{ k.basTar | tarih }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.sureAy' | transloco }}</dt>
+              <dd>{{ sayi(k.sureAy) | sayi: '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.aylikUcret' | transloco }}</dt>
+              <dd>{{ sayi(k.aylikUcret) | para: k.doviz }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.kdvOrani' | transloco }}</dt>
+              <dd>%{{ kdvYuzde(k) | sayi }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.doviz' | transloco }}</dt>
+              <dd>
+                {{ k.doviz }} · {{ 'filoKiralama.alan.kur' | transloco }}
+                {{ sayi(k.kur) | sayi: '1.0-6' }}
+              </dd>
+            </div>
+            <div>
+              <dt>{{ 'filoKiralama.alan.damgaVergisi' | transloco }}</dt>
+              <dd>{{ sayi(k.damgaVergisi) | para: k.doviz }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="bolum" aria-labelledby="filo-plan">
+          <h2 id="filo-plan">{{ 'filoKiralama.bolum.plan' | transloco }}</h2>
+          <p class="aciklama">{{ 'filoKiralama.planNotu' | transloco }}</p>
+          <div
+            class="plan-kap"
+            role="region"
+            tabindex="0"
+            [attr.aria-label]="'filoKiralama.planTablosu' | transloco"
+          >
+            <table class="plan">
+              <thead>
+                <tr>
+                  <th scope="col" class="num">{{ 'filoKiralama.plan.sira' | transloco }}</th>
+                  <th scope="col">{{ 'filoKiralama.plan.vade' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'filoKiralama.plan.net' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'filoKiralama.plan.kdv' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'filoKiralama.plan.toplam' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of k.ozet.taksitler; track t.sira) {
+                  <tr>
+                    <td class="num">{{ t.sira }}</td>
+                    <td>{{ t.vade | tarih }}</td>
+                    <td class="num">{{ sayi(t.net) | para: k.doviz }}</td>
+                    <td class="num">{{ sayi(t.kdv) | para: k.doviz }}</td>
+                    <td class="num">{{ sayi(t.toplam) | para: k.doviz }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" colspan="2">{{ 'filoKiralama.plan.toplamlar' | transloco }}</th>
+                  <td class="num">{{ sayi(k.ozet.toplamNet) | para: k.doviz }}</td>
+                  <td class="num">{{ sayi(k.ozet.toplamKdv) | para: k.doviz }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <th scope="row" colspan="4">{{ 'filoKiralama.plan.damga' | transloco }}</th>
+                  <td class="num">{{ sayi(k.ozet.damga) | para: k.doviz }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" colspan="4">{{ 'filoKiralama.plan.genelToplam' | transloco }}</th>
+                  <td class="num">{{ sayi(k.ozet.genelToplam) | para: k.doviz }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <section class="bolum" aria-labelledby="filo-kunye">
+          <h2 id="filo-kunye">{{ 'filoKiralama.bolum.kunye' | transloco }}</h2>
+          @if (!k.yetkiler.kunye) {
+            <p class="aciklama">{{ 'filoKiralama.kunyeKapali' | transloco }}</p>
+          }
+          <form class="form" novalidate [formGroup]="form" (ngSubmit)="kaydet()">
+            <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
+            <div class="rc-form-izgara">
+              <rc-filo-kunye-alanlari [grup]="form" />
+            </div>
+            @if (k.yetkiler.kunye) {
+              <div class="form__eylemler">
+                <button
+                  type="submit"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="gonderim.gonderiliyor() || store.detay.yukleniyor()"
+                >
+                  {{
+                    (gonderim.gonderiliyor()
+                      ? 'filoKiralama.kaydediliyor'
+                      : 'filoKiralama.kunyeKaydet'
+                    ) | transloco
+                  }}
+                </button>
+              </div>
+            }
+          </form>
+        </section>
+      } @else {
+        <header class="ust">
+          <h1>{{ 'filoKiralama.detayBaslikBos' | transloco }}</h1>
+        </header>
+        <p class="aciklama" aria-busy="true">{{ 'filoKiralama.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

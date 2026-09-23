@@ -44,6 +44,45 @@ export const SAYFALAR: Routes = [
       import('@features/kiralar/kira-listesi/kira-listesi').then((m) => m.KiraListesi),
     canActivate: [ceviriBlogu('kiralar')],
   },
+  // F5.2b planlama ekranları (Blazor /takvim, /musaitlik, /rez-sartlari, /filo-kiralama). Kayıt sayfası
+  // `filo-kiralama/:id`; `yeni` ondan ÖNCE eşleşmeli.
+  ...ceviriBloguyla('planlama', [
+    {
+      path: 'takvim',
+      title: 'Rezervasyon Takvimi — RentACar',
+      loadComponent: () => import('@features/takvim/takvim-sayfasi').then((m) => m.TakvimSayfasi),
+    },
+    {
+      path: 'musaitlik',
+      title: 'Müsait Araç Ara — RentACar',
+      loadComponent: () =>
+        import('@features/musaitlik/musaitlik-sayfasi').then((m) => m.MusaitlikSayfasi),
+    },
+    {
+      path: 'rez-sartlari',
+      title: 'Rez Şartları — RentACar',
+      loadComponent: () => import('@features/rez-sartlari/rez-sartlari').then((m) => m.RezSartlari),
+      canDeactivate: [kaydedilmemisDegisiklikGuard],
+    },
+    {
+      path: 'filo-kiralama',
+      title: 'Filo Kiralama — RentACar',
+      loadComponent: () =>
+        import('@features/filo-kiralama/filo-listesi').then((m) => m.FiloListesi),
+    },
+    {
+      path: 'filo-kiralama/yeni',
+      title: 'Yeni Filo Sözleşmesi — RentACar',
+      loadComponent: () => import('@features/filo-kiralama/filo-yeni').then((m) => m.FiloYeni),
+      canDeactivate: [kaydedilmemisDegisiklikGuard],
+    },
+    {
+      path: 'filo-kiralama/:id',
+      title: 'Filo Sözleşmesi — RentACar',
+      loadComponent: () => import('@features/filo-kiralama/filo-detay').then((m) => m.FiloDetay),
+      canDeactivate: [kaydedilmemisDegisiklikGuard],
+    },
+  ]),
   ...ceviriBloguyla('vitrin', [
     {
       // F3.7 vitrin dizini: çekirdeğin her parçasına bağlantı (e2e: axe iki tema, 320–1440 taşma, görsel).

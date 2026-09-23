@@ -1,0 +1,124 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+.ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+
+  > h1 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rc-bosluk-2);
+    align-items: center;
+    margin: 0;
+  }
+}
+
+.ust__eylemler,
+.filtre__eylemler,
+.form__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.aciklama,
+.ozet {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.filtre,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.bolum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background: var(--rc-yuzey);
+  min-width: 0;
+
+  > h2 {
+    margin: 0;
+    font-size: var(--rc-yazi-lg);
+  }
+}
+
+.kunye {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
+  margin: 0;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rc-bosluk-0-5);
+    min-width: 0;
+  }
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+}
+
+.plan-kap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.plan {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--rc-yazi-sm);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
+    border-bottom: 1px solid var(--rc-kenar);
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .num {
+    text-align: end;
+  }
+
+  tfoot th,
+  tfoot td {
+    font-weight: var(--rc-agirlik-kalin);
+  }
+}
+
+.bag {
+  font-variant-numeric: tabular-nums;
+}
+
+.tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
