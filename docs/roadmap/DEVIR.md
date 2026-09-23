@@ -19,47 +19,42 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-22. Main'de 60 PR'lık planın ~22,5'i var (~%37). Ekran olarak kira listesi, Panel ve kira
-formu SPA'da; kullanıcılar henüz Blazor kullanıyor (pilot kapalı).
+Güncelleme: 2026-09-23. Main'de 60 PR'lık planın ~24'ü var (~%40). Ekran olarak kira listesi, Panel ve kira formu
+(sabit finans paneli dahil) SPA'da; kullanıcılar henüz Blazor kullanıyor (pilot kapalı). F4'ün kodunda yalnız
+kesiş PR'ı (#264) kaldı.
 
 ### ✅ Bitti
 - G0, F0 (#235 #237), F1 (#238–#240 #243–#245), F2.1 (#241), F2.2 kodu (#249), F3 (#248 #250–#255, kapanış #256).
 - F4.1 kira + panel uçları (#258), F4.4a finans uçları `/api/ui/v1/finans` (#257), F4.2 kira listesi (#260),
   F4.5 Panel (#259), F4.3 kira formu I (#261), F4.3b kira formu parite ekleri (#262).
+- **F4.4 kira formu II — sabit finans paneli (#263, PARA).** 5 adversarial turu: HIGH-1 (kaybolan yanıt sonrası
+  ikinci tahsilat) → sunucuda "önce mevcut kayıt, sonra bayatlık" sırası + `mevcut{…, ayniIcerik}`; M-A (iki
+  sekme), M-B (ön-dolu tutara fare tıklaması), M-C (tutarı değiştirilmiş tekrar) ve son turda MEDIUM-1
+  (belirsiz tahsilat denemesi artık ANAHTARA bağlı) kapatıldı.
+- **Çekirdek eki: rota bazlı tembel çeviri (#268).** `tr.json` artık ilk pakete gömülü değil; ilk paket
+  395 → 372,5 kB (uyarı 380, hata 450). Yeni ekranlar çevirilerini kendi rota parçalarında yükler.
 - Yan düzeltmeler: #265 (müşteri bildirimleri + WhatsApp özeti 2026-08-17'den beri çalışmıyordu — UTC),
   #266 (iş koşu günlüğü hata satırı + üretici yalıtımı + üretici başına `racar_job_fail` metriği).
 
-### ⏳ Açık PR'lar — İLK BUNLAR
-1. **#263 F4.4 kira formu II (sabit finans paneli, PARA)** — dal `feat/f4-4-kira-formu-2`, head `f11db7f`,
-   CI yeşil. 4 adversarial turu geçti; **4. turda bir MEDIUM (M-C) açık → merge YOK.**
-   - **M-C:** Kullanıcı 500 yazar, yanıt kaybolur (ilk istek aslında yazıldı). Tutarı 600'e düzeltip aynı donmuş
-     anahtarla tekrar gönderir. Sunucu 409 `mukerrer` + `mevcut{…, ayniIcerik:false}` döner. UI "BAŞKA bir tahsilat
-     yazıldı; 600 YAZILMADI" deyip formu korur. Kullanıcı tekrar basınca 500+600=1100 yazılır (niyet 600).
-   - **Düzeltme (yalnız SPA, 3 yer):** `features/kira-formu/finans-paneli/kira-finans-durumu.ts` (`tahsilatYap`),
-     `features/kiralar/kira-listesi/tahsil-paneli.ts`, `features/panel/panel-tahsilat-formu.ts`. Gönderimden ÖNCE
-     "bu donmuş anahtarla sonuçlanmamış bir deneme var mı" bilgisini yakala (`tf.kopya.sonuclanmamis`).
-     `mevcut` dolu ve istek bir tekrar ise mesaj "Önceki denemeniz kaydedilmiş (No …, 500 TRY); 600 YAZILMADI"
-     olsun ve tutar TEMİZLENSİN.
-   - **Aynı turda ucuz Low'lar:**
-     - L-1: `ayniIcerik` karşılaştırmasına kur + açıklama + kanal eklensin (`src/RentACar.Web/Api/Finans/FinansApi.cs`).
-     - L-2: "YAZILMADI" sonrası dokunulmamış ön-dolu tutar yeni bakiyeyle yenilensin; kullanıcının yazdığı tutar korunsun.
-   - **Sonra:** bağımsız adversarial 5. tur (§4; probe örneği `adv-f44-gercek3.spec.ts` H1b senaryosu), CI, merge.
-2. **#264 F4.6 ilk kesiş (mekanik)** — dal `feat/f4-6-ilk-kesis`, head `194ca53`, güvenlik incelemesi TEMİZ.
-   - İçerik: pilot anahtarı, tek giriş `/login` → `/app/giris`, 5 şablonluk GET yönlendirme haritası, kayıttan menü, test devri.
-   - **Sıra ZORUNLU: #263'ten SONRA.** Aksi halde pilot kiracıda kiradan fatura/dönem/dış hizmet erişilemez.
-   - #263 merge olunca: `git merge origin/main` → pilot kiracıda kira formunun finans paneli e2e ile doğrulanır
-     (hiçbir bağlantı Blazor kira sayfasına düşmemeli) → CI → merge.
+### ⏳ Açık PR — TEK KALAN
+1. **#264 F4.6 ilk kesiş (mekanik)** — dal `feat/f4-6-ilk-kesis`, güvenlik incelemesi TEMİZ (açık yönlendirme
+   25 yük, döngü, harita sınırları, pilot anahtarı IDOR/CSRF, menü izinleri, parola sızıntısı).
+   - İçerik: platform konsolunda pilot anahtarı, tek giriş `/login` → `/app/giris`, 5 şablonluk GET yönlendirme
+     haritası (sorgu korunur; PDF/hesap/export yönlenmez), kayıttan menü, test devri, `mobil-tasma` SPA girişi.
+   - Kalan adımlar: `git merge origin/main` (#263 + #268 sonrası; `tr.json` artık tembel parçalara bölünmüş) →
+     pilot kiracıda kira formunun finans paneli e2e ile doğrulanır (hiçbir bağlantı Blazor kira sayfasına
+     düşmemeli) → kapılar + tam backend takımı → CI (`scripts/pr-izle.sh`) → merge.
+   - Merge sonrası: menü değişikliği kullanıcı onayı bekliyor (§1 "Kullanıcıda bekleyenler" Karar 2).
 
 ### ⬜ Sırada (başlamadı)
 1. **F4 kapanış belgesi:**
    - `F4.md` durum + kapanış tablosu, `README.md` faz tablosu.
-   - `DEGISIKLIKLER.md`: F4.3 → F4.3 + F4.3b bölündü (bilgi); F4.4 → F4.4a + F4.4 (bilgi); F5 kararı (§3).
-2. **Çekirdek eki — rota bazlı tembel çeviri:** `tr.json` ilk pakete gömülü; ilk paket ~400 kB (uyarı 380,
-   hata 450 — `angular.json`). F5'ten ÖNCE yapılmalı, yoksa ilk yeni fazda hata eşiği aşılır.
-3. **Low temizliği PR'ı** (§6 listesi) — para dokunanlar varsa adversarial.
-4. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
+   - `DEGISIKLIKLER.md`: F4.3 → F4.3 + F4.3b bölündü (bilgi); F4.4 → F4.4a + F4.4 (bilgi); çekirdek eki #268
+     (bilgi); F5 kararı (§1 Karar 1).
+2. **Low temizliği PR'ı** (§6 listesi) — para dokunanlar varsa adversarial.
+3. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
    P1 olmadıktan SONRA. Ön koşul: kullanıcı F2.2 sunucu adımlarını yapmış ve pilotu açmış olmalı.
-5. **F5 → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
+4. **F5 → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
@@ -67,7 +62,7 @@ formu SPA'da; kullanıcılar henüz Blazor kullanıyor (pilot kapalı).
 - **Karar (1):** F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlasın mı?
   - Önerilen: evet, F4 kodu bitince başlasın; pilot arka planda sürsün.
   - Karar gelince `DEGISIKLIKLER.md`'ye yaz.
-  - Cevap yoksa F4 kapanışı + çekirdek eki + Low temizliği yapılabilir; **F5'e başlanmaz.**
+  - Cevap yoksa #264, F4 kapanışı ve Low temizliği yapılabilir; **F5'e başlanmaz.**
 - **Karar (2):** menü görünürlüğü rolden izne geçti (#264). Operatör 79 → 74 öğe, Muhasebe 48 → 53.
   Kullanıcı onayı bekleniyor; itiraz gelirse `MenuKaydi`'nde izin eşlemesi düzeltilir.
 - **Karar (3): yakıt ölçeği.** Servis ve harici API 0–100, formlar ve referans sistem 0–12 kullanıyor. Önerilen: tek
@@ -227,6 +222,11 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
 - Merge'den sonra main CI'ını da kontrol et (`gh run list --branch main --limit 3`).
 - Canlı ya da gerçek DB denemesinden sonra: pilot bayrağı `false`, Web süreci durdurulmuş, test kullanıcıları
   silinmiş olmalı. Değişmez mali kayıtlar silinmez, iptal/ters kayıtla kapatılır.
+- **graphify grafı YERELDİR, repoda değildir.** `graphify-out/` ve `.graphifyignore`, `.git/info/exclude` ile hariç
+  tutulmuştur (graf ~30 MB ve her commit'te baştan yazılır; repoya girseydi her PR'da devasa ikili değişiklik olurdu).
+  Bu makinede yerel `post-commit`/`post-checkout` hook'ları arka planda tazeler; CI ve PR'ın graftan haberi yoktur.
+  Başka bir klonda ya da makinede graf YOKTUR: ya kurarsın ya da doğrudan `rg`/`grep` ile ararsın.
+  Graf **kod-only**: migration'lar, `tests/`, `*.md`/`*.yml` ve görseller dışarıda — "grafta yok" ≠ "repoda yok".
 - `scripts/roadmap-envanteri.py --kontrol` main'de F4–F13 bloklarında fark bildirir. Taban 2026-09-21'de donduruldu;
   CI kontrol etmez, "temiz" diye yazma.
 - Yerel çalıştırma: `CLAUDE.md` §7. Seed parolası repoda yok (`dotnet user-secrets` `Seed:Parola` ya da açılış
