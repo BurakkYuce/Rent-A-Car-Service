@@ -75,7 +75,14 @@ public sealed class SiteIcerikService(
         return await repository.GetirAsync(id, ct);
     }
 
-    public async Task<Guid> KaydetAsync(SayfaIcerikInput input, CancellationToken ct = default)
+    public Task<Guid> KaydetAsync(SayfaIcerikInput input, CancellationToken ct = default)
+        => KaydetAsync(input, expectedVersion: null, ct);
+
+    /// <summary>
+    /// F11.1b — <paramref name="expectedVersion"/> doluysa güncelleme satır kilidi altında sürümle karşılaştırılır
+    /// (uyuşmazlık <see cref="EszamanliDegisiklikException"/>). Yeni kayıtta yok sayılır.
+    /// </summary>
+    public async Task<Guid> KaydetAsync(SayfaIcerikInput input, string? expectedVersion, CancellationToken ct = default)
     {
         await GuardAsync(ct);
 
@@ -101,7 +108,7 @@ public sealed class SiteIcerikService(
 
         if (input.Id is Guid id)
         {
-            var ok = await repository.GuncelleAsync(id, s =>
+            void Apply(SayfaIcerik s)
             {
                 s.Baslik = baslik;
                 s.Govde = govde;
@@ -110,7 +117,10 @@ public sealed class SiteIcerikService(
                 s.Sira = input.Sira;
                 s.Yayinda = input.Yayinda;
                 s.UpdatedAtUtc = DateTimeOffset.UtcNow;
-            }, ct);
+            }
+            var ok = expectedVersion is null
+                ? await repository.GuncelleAsync(id, Apply, ct)
+                : await repository.GuncelleAsync(id, expectedVersion, Apply, ct);
             if (!ok) throw new ValidationException("Sayfa bulunamadı.");
             OnbellegiDusur();
             return id;
@@ -154,7 +164,11 @@ public sealed class SiteIcerikService(
         return await repository.SssListeAsync(yalnizYayinda: false, ct);
     }
 
-    public async Task<Guid> SssKaydetAsync(SssInput input, CancellationToken ct = default)
+    public Task<Guid> SssKaydetAsync(SssInput input, CancellationToken ct = default)
+        => SssKaydetAsync(input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — sürümlü SSS kaydı (bkz. <see cref="KaydetAsync(SayfaIcerikInput, string?, CancellationToken)"/>).</summary>
+    public async Task<Guid> SssKaydetAsync(SssInput input, string? expectedVersion, CancellationToken ct = default)
     {
         await GuardAsync(ct);
 
@@ -167,11 +181,14 @@ public sealed class SiteIcerikService(
 
         if (input.Id is Guid id)
         {
-            var ok = await repository.SssGuncelleAsync(id, k =>
+            void Apply(SssKaydi k)
             {
                 k.Soru = soru; k.Cevap = cevap; k.Sira = input.Sira; k.Yayinda = input.Yayinda;
                 k.UpdatedAtUtc = DateTimeOffset.UtcNow;
-            }, ct);
+            }
+            var ok = expectedVersion is null
+                ? await repository.SssGuncelleAsync(id, Apply, ct)
+                : await repository.SssGuncelleAsync(id, expectedVersion, Apply, ct);
             if (!ok) throw new ValidationException("Soru bulunamadı.");
             OnbellegiDusur();
             return id;
@@ -181,6 +198,20 @@ public sealed class SiteIcerikService(
         await repository.SssEkleAsync(yeni, ct);
         OnbellegiDusur();
         return yeni.Id;
+    }
+
+    /// <summary>F11.1b — sayfa satır sürümü (opak).</summary>
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        return await repository.VersionAsync(id, ct);
+    }
+
+    /// <summary>F11.1b — SSS satır sürümü (opak).</summary>
+    public async Task<string?> FaqVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        return await repository.FaqVersionAsync(id, ct);
     }
 
     public async Task SssSilAsync(Guid id, CancellationToken ct = default)

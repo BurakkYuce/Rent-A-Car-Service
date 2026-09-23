@@ -316,6 +316,10 @@ public sealed class GuvenliDonusTests
             // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
             // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
             "Api/Arac/AracApi.Foto.cs",
+            // F11.1b — blog kapağı içeriği (/api/ui/v1/blog-yonetim/{id}/kapak[/kucuk]): araç fotoğrafıyla aynı gerekçe —
+            // dosya adı yok (satır içi görsel, indirme değil), /api/ui 401'i yönlendirmesiz JSON. Tür yüklemede İÇERİKTEN
+            // tespit edilir, nosniff boru hattında. UiWebsiteApiTests.Blog_cover_* kilitler.
+            "Api/Sistem/WebsiteApi.Blog.cs",
             "Documents/FirmaBelgeEndpoints.cs",
             "Documents/FirmaDokumanEndpoints.cs",
             "Reports/ListExportEndpoints.cs",

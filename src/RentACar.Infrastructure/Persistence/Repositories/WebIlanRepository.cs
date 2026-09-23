@@ -100,6 +100,18 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<WebIlan> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.WebIlanlar, id, expectedVersion,
+            (db, k, c) => db.WebIlanlar.FirstOrDefaultAsync(i => i.Id == k, c),
+            i => { apply(i); i.UpdatedAtUtc = DateTimeOffset.UtcNow; }, ct);
+
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.WebIlanlar, id, ct);
+    }
+
     /// <summary>Kardeş = AYNI eşleşme anahtarına sahip, HÂLÂ TASLAK olan diğer ilanlar. Yayındaki bir
     /// ilanın fiyatı buradan DEĞİŞTİRİLMEZ — "ayrı" modda 12 taslak yaratılır, fiyat hepsine iner;
     /// sonradan tek tek düzenlenenler yayında olduğu için korunur.</summary>
