@@ -17,7 +17,18 @@ internal static class SatirSurumu
     /// <summary>F5.1 adversarial H1/L6 — teklif durum geçişleri ve kabul (rezervasyona çevirme) satır kilidi.</summary>
     public const string Teklifler = "Quotations";
 
-    private static readonly HashSet<string> Tablolar = [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler];
+    // F6.1b — araç finans/operasyon kayıtları: durum geçişleri kilit altında, tam değiştirme PUT'u sürümlü.
+    public const string AracSiparisleri = "AracSiparisleri";
+    public const string Baflar = "Baflar";
+    public const string HasarDosyalari = "DamageFiles";
+    public const string MusteriTaksitleri = "MusteriTaksitleri";
+    public const string FiloPlanHedefleri = "FiloPlanHedefleri";
+
+    private static readonly HashSet<string> Tablolar =
+    [
+        Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler,
+        AracSiparisleri, Baflar, HasarDosyalari, MusteriTaksitleri, FiloPlanHedefleri,
+    ];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));

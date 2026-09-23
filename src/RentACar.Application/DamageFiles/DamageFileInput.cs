@@ -8,4 +8,6 @@ public sealed class DamageFileInput
     public DateTimeOffset? AcilisTarihi { get; set; }
     public string? Aciklama { get; set; }
     public decimal? TahminiTutar { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı; doluysa kaydın Id'si olur (ikinci oluşturma → 409).</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
