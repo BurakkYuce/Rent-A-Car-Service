@@ -251,6 +251,193 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/yetki/matris': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RolePermissionsDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/profil/sifre': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['OwnPasswordRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/denetim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          tablo?: string;
+          kullanici?: string;
+          islem?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfAuditDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ara': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SearchHitDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyon-kaynaklari/{id}/yansit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReflectRatesResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/secim/musteri': {
     parameters: {
       query?: never;
@@ -6303,6 +6490,3470 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/ayarlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SettingsDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SettingsRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SettingsDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/logo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'image/png': string;
+            'image/jpeg': string;
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LogoDto'];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/web-sitesi-ac': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SettingsDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/domainler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DomainAddRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SettingsDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/test/eposta': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['EmailTestRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SendTestResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/test/sms': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PhoneTestRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SendTestResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/test/whatsapp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PhoneTestRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SendTestResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kullanicilar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UserCreateRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kullanicilar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kullanicilar/{id}/aktif': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UserActiveRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kullanicilar/{id}/sifre': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PasswordResetRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kullanicilar/{id}/istisnalar/{izin}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          izin: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PermissionExceptionRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          izin: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/yetki/ekranlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ScreenPermissionDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ScreenPermissionRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ScreenPermissionDto'][];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/yetki/ekranlar/{kod}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          kod: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/yetki/kopyala': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RoleCopyRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CountResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/yetki/gruplar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PermissionGroupDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PermissionGroupRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PermissionGroupDto'][];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: {
+          ad?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/yetki/gruplar/uygula': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PermissionGroupRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CountResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/mesaj-sablonlari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MessageTemplateDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/mesaj-sablonlari/{tur}/{kanal}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          tur: string;
+          kanal: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MessageTemplateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MessageTemplateDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/bildirimler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          okundu?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['NotificationCenterDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/bildirimler/{id}/oku': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/bildirimler/hepsini-oku': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CountResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WebsiteSummaryDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/havuz': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['VehicleClusterDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfListingRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ListingCreateRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingCreatedDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingDetailDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}/fiyat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ListingPriceRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingPriceResultDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}/ozellikler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ListingFeaturesRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingFeaturesResultDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}/durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ListingStatusRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}/fotograflar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            foto?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingPhotoDto'][];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/web-sitesi/ilanlar/{id}/fotograflar/{aracId}/{fotoId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          aracId: string;
+          fotoId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ListingPhotoDto'][];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/site-icerik/sayfalar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfPageRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PageRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PageDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/site-icerik/sayfalar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PageDetailDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PageRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PageDetailDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/site-icerik/sayfalar/{id}/durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PublishRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PageDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/site-icerik/sss': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FaqDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FaqRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FaqDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/site-icerik/sss/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FaqDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FaqRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FaqDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/blog-yonetim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfBlogRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BlogRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/blog-yonetim/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogDetailDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BlogRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogDetailDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/blog-yonetim/{id}/onizleme': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogPreviewDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/blog-yonetim/{id}/kapak': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'image/png': string;
+            'image/jpeg': string;
+            'image/webp': string;
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            kapak?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogDetailDto'];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BlogDetailDto'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/blog-yonetim/{id}/kapak/kucuk': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'image/png': string;
+            'image/jpeg': string;
+            'image/webp': string;
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          durum?: string;
+          ara?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BookingRequestPageDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BookingRequestSummaryDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/notlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BookingRequestNoteDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BookingRequestNoteRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BookingRequestNoteDto'][];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/aday-araclar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CandidateVehicleDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BookingRequestStatusRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/ustlen': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BookingRequestClaimRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/reddet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/gelen-talepler/{id}/donustur': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BookingRequestConvertRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BookingRequestConvertedDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/sigorta-sirketleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfInsuranceCompanyDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['InsuranceCompanyRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InsuranceCompanyDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/sigorta-sirketleri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InsuranceCompanyDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['InsuranceCompanyRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InsuranceCompanyDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kdv-oranlari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfKdvRateDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KdvRateRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KdvRateDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kdv-oranlari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KdvRateDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KdvRateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KdvRateDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ceza-turleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfPenaltyTypeDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PenaltyTypeRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PenaltyTypeDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ceza-turleri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PenaltyTypeDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PenaltyTypeRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PenaltyTypeDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/lokasyonlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+          sube?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfLocationDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['LocationRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LocationDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/lokasyonlar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LocationDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['LocationRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LocationDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/personel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+          sube?: string;
+          gorevTanimi?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfPersonnelListItem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PersonnelRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PersonnelDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/personel/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PersonnelDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PersonnelRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PersonnelDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-gruplari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          ara?: string;
+          aktif?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfVehicleGroupDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['VehicleGroupRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['VehicleGroupDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-gruplari/eslesmeyen': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UnmatchedGroupValueDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-gruplari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['VehicleGroupDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['VehicleGroupRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['VehicleGroupDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-gruplari/ata': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['GroupAssignRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GroupAssignResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/belge-sablonlari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+          tur?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfDocumentTemplateDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DocumentTemplateRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DocumentTemplateDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/belge-sablonlari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DocumentTemplateDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DocumentTemplateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DocumentTemplateDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7334,6 +10985,18 @@ export interface components {
       teslimAl: boolean;
       iptal: boolean;
     };
+    AuditDto: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarihUtc: string;
+      kullanici: null | string;
+      tablo: string;
+      kayitId: string;
+      islem: string;
+      eskiDegerler: null | string;
+      yeniDegerler: null | string;
+    };
     AylikGelir: {
       /** Format: date-time */
       ayBas: string;
@@ -7441,6 +11104,169 @@ export interface components {
       };
       pilot: boolean;
     };
+    BlogDetailDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      slug: string;
+      ozet: null | string;
+      icerik: string;
+      durum: string;
+      /** Format: date-time */
+      yayinTarihi: null | string;
+      kapakVar: boolean;
+      altBaslik: null | string;
+      seoBaslik: null | string;
+      metaAciklama: null | string;
+      anahtarKelimeler: null | string;
+      yazar: null | string;
+      kapakAlt: null | string;
+      aramaDisi: boolean;
+      slugDondu: boolean;
+      surum: null | string;
+    };
+    BlogPreviewDto: {
+      /** Format: uuid */
+      id: string;
+      durum: string;
+      adres: string;
+      baslik: string;
+      altBaslik: null | string;
+      aramaBasligi: string;
+      aramaAciklamasi: null | string;
+      anahtarKelimeler: string[];
+      aramaDisi: boolean;
+      bloklar: components['schemas']['ContentBlockDto'][];
+    };
+    BlogRequest: {
+      baslik: null | string;
+      slug: null | string;
+      ozet: null | string;
+      icerik: null | string;
+      durum: null | string;
+      altBaslik: null | string;
+      seoBaslik: null | string;
+      metaAciklama: null | string;
+      anahtarKelimeler: null | string;
+      yazar: null | string;
+      kapakAlt: null | string;
+      /** @default false */
+      aramaDisi: boolean;
+      surum?: null | string;
+    };
+    BlogRowDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      slug: string;
+      ozet: null | string;
+      durum: string;
+      /** Format: date-time */
+      yayinTarihi: null | string;
+      kapakVar: boolean;
+      altBaslik: null | string;
+      aramaDisi: boolean;
+    };
+    BookingRequestClaimRequest: {
+      ustlen: boolean;
+    };
+    BookingRequestConvertedDto: {
+      /** Format: uuid */
+      rezervasyonId: string;
+    };
+    BookingRequestConvertRequest: {
+      /** Format: uuid */
+      aracId: null | string;
+    };
+    BookingRequestNoteDto: {
+      /** Format: uuid */
+      id: string;
+      metin: string;
+      kullanici: null | string;
+      /** Format: date-time */
+      zamanUtc: string;
+    };
+    BookingRequestNoteRequest: {
+      metin: null | string;
+    };
+    BookingRequestPageDto: {
+      kayitlar: components['schemas']['BookingRequestRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      ozet: components['schemas']['BookingRequestSummaryDto'];
+    };
+    BookingRequestRowDto: {
+      /** Format: uuid */
+      id: string;
+      adSoyad: string;
+      telefon: string;
+      email: null | string;
+      /** Format: uuid */
+      ilanId: null | string;
+      ilanBaslik: null | string;
+      aracGrupKod: null | string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      sube: null | string;
+      not: null | string;
+      /** Format: double */
+      gosterilenGunlukUcret: null | number | string;
+      gosterilenKdvDahil: null | boolean;
+      durum: string;
+      durumEtiket: string;
+      aktif: boolean;
+      ilerlemeler: string[];
+      /** Format: uuid */
+      donusenRezervasyonId: null | string;
+      /** Format: uuid */
+      atananKullaniciId: null | string;
+      atananAd: null | string;
+      /** Format: date-time */
+      olusturmaTarihi: string;
+      /** Format: int32 */
+      notSayisi: number | string;
+      /** Format: int32 */
+      bekleyenGun: number | string;
+    };
+    BookingRequestStatusRequest: {
+      durum: null | string;
+    };
+    BookingRequestSummaryDto: {
+      /** Format: int32 */
+      yeni: number | string;
+      /** Format: int32 */
+      enEskiGun: null | number | string;
+    };
+    CandidateVehicleDto: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      marka: null | string;
+      tip: null | string;
+      grup: null | string;
+      sube: null | string;
+      ilanAraci: boolean;
+    };
+    ClusterVehicleDto: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      sube: null | string;
+    };
+    ContentBlockDto: {
+      tur: string;
+      metin: string;
+    };
+    CountResult: {
+      /** Format: int32 */
+      adet: number | string;
+    };
     DepozitoAlIstegi: {
       /** Format: uuid */
       cariId: string;
@@ -7482,6 +11308,44 @@ export interface components {
       komisyonFaturaNo?: null | string;
       aciklama?: null | string;
     };
+    DocumentTemplateDto: {
+      /** Format: uuid */
+      id: string;
+      belgeTuru: string;
+      ad: string;
+      varsayilanMi: boolean;
+      aktif: boolean;
+      belgeBasligi: null | string;
+      hukukiMetinSol: null | string;
+      hukukiMetinSag: null | string;
+      ekKosullarVarsayilan: null | string;
+      altBilgi: null | string;
+      imzaAlaniGoster: boolean;
+      surum: null | string;
+    };
+    DocumentTemplateRequest: {
+      belgeTuru: null | string;
+      ad: null | string;
+      varsayilanMi: boolean;
+      /** @default true */
+      aktif: boolean;
+      belgeBasligi?: null | string;
+      hukukiMetinSol?: null | string;
+      hukukiMetinSag?: null | string;
+      ekKosullarVarsayilan?: null | string;
+      altBilgi?: null | string;
+      /** @default true */
+      imzaAlaniGoster: boolean;
+      surum?: null | string;
+    };
+    DomainAddRequest: {
+      host: null | string;
+    };
+    DomainDto: {
+      host: string;
+      tur: string;
+      durum: string;
+    };
     DonemFaturaIstegi: {
       /** Format: uuid */
       kiraId: string;
@@ -7509,6 +11373,16 @@ export interface components {
       bitisSebebi?: null | string;
       /** Format: uuid */
       teslimAlanPersonelId?: null | string;
+    };
+    DueItemDto: {
+      /** Format: uuid */
+      aracId: string;
+      tur: string;
+      /** Format: date-time */
+      bitisUtc: string;
+      /** Format: int32 */
+      kalanGun: number | string;
+      gecmis: boolean;
     };
     EkHizmetEkleIstegi: {
       /** Format: uuid */
@@ -7547,6 +11421,31 @@ export interface components {
       aciklama: null | string;
       /** Format: int32 */
       maxGun: null | number | string;
+    };
+    EmailTestRequest: {
+      alici: null | string;
+    };
+    FaqDto: {
+      /** Format: uuid */
+      id: string;
+      soru: string;
+      cevap: string;
+      /** Format: int32 */
+      sira: number | string;
+      yayinda: boolean;
+      surum: null | string;
+    };
+    FaqRequest: {
+      soru: null | string;
+      cevap: null | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      sira: number | string;
+      /** @default false */
+      yayinda: boolean;
+      surum?: null | string;
     };
     FaturaKesIstegi: {
       /** Format: uuid */
@@ -7781,6 +11680,17 @@ export interface components {
       kullanici: null | string;
       sifre: null | string;
     };
+    GroupAssignRequest: {
+      /** Format: uuid */
+      hedefGrupId: string;
+      kaynak: null | string;
+      /** @default false */
+      bos: boolean;
+    };
+    GroupAssignResult: {
+      /** Format: int32 */
+      tasinan: number | string;
+    };
     HasarDto: {
       /** Format: uuid */
       id: string;
@@ -7833,6 +11743,23 @@ export interface components {
     };
     /** Format: binary */
     IFormFile: string;
+    InsuranceCompanyDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      telefon: null | string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    InsuranceCompanyRequest: {
+      kod: null | string;
+      ad: null | string;
+      telefon: null | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
+    };
     IstemciHataIstegi: {
       mesaj: null | string;
       yigin: null | string;
@@ -7875,6 +11802,25 @@ export interface components {
     };
     KaynakRezervasyonYaniti: {
       rezervasyon: null | components['schemas']['KaynakRezervasyonDto'];
+    };
+    KdvRateDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      /** Format: double */
+      oran: number | string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    KdvRateRequest: {
+      kod: null | string;
+      ad: null | string;
+      /** Format: double */
+      oran: null | number | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
     };
     KiraAracDto: {
       /** Format: uuid */
@@ -8586,6 +12532,174 @@ export interface components {
       /** Format: date-time */
       tarih: string;
     };
+    ListingCreatedDto: {
+      /** Format: uuid */
+      id: string;
+    };
+    ListingCreateRequest: {
+      mod: null | string;
+      imzalar: null | string[];
+      aracIdler: null | string[];
+    };
+    ListingDetailDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      slug: string;
+      durum: string;
+      /** Format: double */
+      gunlukFiyat: number | string;
+      /** Format: double */
+      haftalikToplam: null | number | string;
+      /** Format: double */
+      aylikToplam: null | number | string;
+      kdvDahil: boolean;
+      /** Format: int32 */
+      kardesTaslakSayisi: number | string;
+      araclar: components['schemas']['ListingVehicleDto'][];
+      ozellikler: components['schemas']['ListingFeatureDto'][];
+      fotograflar: components['schemas']['ListingPhotoDto'][];
+      surum: null | string;
+    };
+    ListingFeatureDto: {
+      etiket: string;
+      deger: string;
+      gorunur: boolean;
+    };
+    ListingFeaturesRequest: {
+      satirlar: null | components['schemas']['ListingFeatureDto'][];
+      surum?: null | string;
+    };
+    ListingFeaturesResultDto: {
+      yayinda: boolean;
+      ilan: components['schemas']['ListingDetailDto'];
+    };
+    ListingPhotoDto: {
+      /** Format: uuid */
+      aracId: string;
+      /** Format: uuid */
+      fotoId: string;
+      plaka: string;
+      /** Format: int32 */
+      sira: number | string;
+    };
+    ListingPriceRequest: {
+      /** Format: double */
+      gunlukFiyat: null | number | string;
+      /** Format: double */
+      haftalikToplam: null | number | string;
+      /** Format: double */
+      aylikToplam: null | number | string;
+      /** @default true */
+      kdvDahil: boolean;
+      surum?: null | string;
+    };
+    ListingPriceResultDto: {
+      /** Format: int32 */
+      kardesKopyalanan: number | string;
+      ilan: components['schemas']['ListingDetailDto'];
+    };
+    ListingRowDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      durum: string;
+      yayinda: boolean;
+      /** Format: int32 */
+      aracSayisi: number | string;
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      gunlukFiyat: number | string;
+      kdvDahil: boolean;
+      eksikler: string[];
+      ozellikBayat: boolean;
+    };
+    ListingStatusRequest: {
+      durum: null | string;
+    };
+    ListingVehicleDto: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      sube: null | string;
+    };
+    LocationDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      adres: null | string;
+      telefon: null | string;
+      eposta: null | string;
+      calismaSaatleri: null | string;
+      /** Format: double */
+      teslimUcreti: null | number | string;
+      sube: null | string;
+      /** Format: uuid */
+      subeId: null | string;
+      ingilizceAd: null | string;
+      bulusmaNoktasi: null | string;
+      iata: null | string;
+      webdeGizle: boolean;
+      lokasyonTuru: null | string;
+      binaNo: null | string;
+      tarif: null | string;
+      ulke: null | string;
+      postaKodu: null | string;
+      mapsKonumu: null | string;
+      ekAciklama: null | string;
+      /** Format: int32 */
+      webSira: null | number | string;
+      dropKarsilamaTuru: null | string;
+      dropCalismaSekli: null | string;
+      ozelMail: null | string;
+      ozelTelefon: null | string;
+      haftalikCalismaSaatleri: components['schemas']['WorkingHoursDto'][];
+      aktif: boolean;
+      surum: null | string;
+    };
+    LocationRequest: {
+      kod: null | string;
+      ad: null | string;
+      adres: null | string;
+      telefon: null | string;
+      eposta: null | string;
+      calismaSaatleri: null | string;
+      /** Format: double */
+      teslimUcreti: null | number | string;
+      sube: null | string;
+      ingilizceAd: null | string;
+      bulusmaNoktasi: null | string;
+      iata: null | string;
+      webdeGizle: boolean;
+      lokasyonTuru: null | string;
+      binaNo: null | string;
+      tarif: null | string;
+      ulke: null | string;
+      postaKodu: null | string;
+      mapsKonumu: null | string;
+      ekAciklama: null | string;
+      /** Format: int32 */
+      webSira: null | number | string;
+      dropKarsilamaTuru: null | string;
+      dropCalismaSekli: null | string;
+      ozelMail: null | string;
+      ozelTelefon: null | string;
+      haftalikCalismaSaatleri: null | components['schemas']['WorkingHoursDto'][];
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
+    };
+    LogoDto: {
+      logoVar: boolean;
+      /** Format: int32 */
+      genislik: null | number | string;
+      /** Format: int32 */
+      yukseklik: null | number | string;
+      /** Format: int32 */
+      bayt: null | number | string;
+    };
     LokasyonSecimOgesi: {
       /** Format: uuid */
       id: string;
@@ -8609,6 +12723,22 @@ export interface components {
       rozetler: {
         [key: string]: number | string;
       };
+    };
+    MessageTemplateDto: {
+      tur: string;
+      kanal: string;
+      kayitli: boolean;
+      konu: null | string;
+      govde: string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    MessageTemplateRequest: {
+      konu: null | string;
+      govde: null | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
     };
     MevcutIslem: {
       /** Format: uuid */
@@ -8785,6 +12915,34 @@ export interface components {
       aciklama: null | string;
       surum: null | string;
     };
+    NotificationCenterDto: {
+      /** Format: int32 */
+      vadeGecmis: number | string;
+      /** Format: int32 */
+      vadeYakin: number | string;
+      /** Format: int32 */
+      acikSikayet: number | string;
+      /** Format: date-time */
+      donemKapanis: null | string;
+      vadeler: components['schemas']['DueItemDto'][];
+      sikayetler: components['schemas']['OpenComplaintDto'][];
+      bildirimler: components['schemas']['NotificationDto'][];
+      /** Format: int32 */
+      okunmamis: number | string;
+    };
+    NotificationDto: {
+      /** Format: uuid */
+      id: string;
+      tur: string;
+      mesaj: string;
+      /** Format: uuid */
+      aracId: string;
+      /** Format: date-time */
+      vadeTarihiUtc: string;
+      okundu: boolean;
+      /** Format: date-time */
+      olusturmaUtc: string;
+    };
     OdemeIstegi: {
       /** Format: uuid */
       cariId: string;
@@ -8802,6 +12960,53 @@ export interface components {
       aciklama?: null | string;
       /** Format: date-time */
       tarih?: null | string;
+    };
+    OpenComplaintDto: {
+      /** Format: uuid */
+      id: string;
+      konu: string;
+      /** Format: date-time */
+      tarihUtc: string;
+    };
+    OwnPasswordRequest: {
+      eskiSifre: null | string;
+      yeniSifre: null | string;
+      yeniSifreTekrar: null | string;
+    };
+    PageDetailDto: {
+      /** Format: uuid */
+      id: string;
+      slug: string;
+      baslik: string;
+      govde: string;
+      metaAciklama: null | string;
+      /** Format: int32 */
+      sira: number | string;
+      yayinda: boolean;
+      surum: null | string;
+    };
+    PageRequest: {
+      baslik: null | string;
+      govde: null | string;
+      slug: null | string;
+      metaAciklama: null | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      sira: number | string;
+      /** @default false */
+      yayinda: boolean;
+      surum?: null | string;
+    };
+    PageRowDto: {
+      /** Format: uuid */
+      id: string;
+      slug: string;
+      baslik: string;
+      /** Format: int32 */
+      sira: number | string;
+      yayinda: boolean;
     };
     PanelCikisKovalari: {
       gecikmis: components['schemas']['PanelCikisSatiri'][];
@@ -8895,6 +13100,154 @@ export interface components {
       /** Format: int32 */
       acikSikayet: number | string;
     };
+    PasswordResetRequest: {
+      sifre: null | string;
+    };
+    PenaltyTypeDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      /** Format: double */
+      varsayilanTutar: null | number | string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    PenaltyTypeRequest: {
+      kod: null | string;
+      ad: null | string;
+      /** Format: double */
+      varsayilanTutar: null | number | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
+    };
+    PermissionExceptionDto: {
+      izin: string;
+      ver: boolean;
+      tanimlayan: null | string;
+      /** Format: date-time */
+      tarihUtc: string;
+    };
+    PermissionExceptionRequest: {
+      ver: boolean;
+    };
+    PermissionGroupDto: {
+      ad: string;
+      /** Format: int32 */
+      ekranSayisi: number | string;
+      /** Format: date-time */
+      guncellemeUtc: string;
+    };
+    PermissionGroupRequest: {
+      ad: null | string;
+    };
+    PersonnelDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      soyad: string;
+      tcKimlikTanimli: boolean;
+      /** Format: date-time */
+      iseGiris: null | string;
+      /** Format: date-time */
+      iseCikis: null | string;
+      surucuBelgeNo: null | string;
+      /** Format: double */
+      maas: null | number | string;
+      sube: null | string;
+      /** Format: uuid */
+      subeId: null | string;
+      gorevTanimi: null | string;
+      adres: null | string;
+      evTelefonu: null | string;
+      isTelefonu: null | string;
+      cepTel: null | string;
+      mailAdresi: null | string;
+      referans: null | string;
+      aciklama: null | string;
+      sSinifi: null | string;
+      /** Format: date-time */
+      sVerilisTarihi: null | string;
+      sVerilisYeri: null | string;
+      /** Format: date-time */
+      dogumTarihi: null | string;
+      dogumYeri: null | string;
+      babaAdi: null | string;
+      anaAdi: null | string;
+      il: null | string;
+      ilce: null | string;
+      mahalle: null | string;
+      ciltNo: null | string;
+      aileSiraNo: null | string;
+      siraNo: null | string;
+      kanGrubu: null | string;
+      racTabletNo: null | string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    PersonnelListItem: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      soyad: string;
+      sube: null | string;
+      gorevTanimi: null | string;
+      cepTel: null | string;
+      mailAdresi: null | string;
+      /** Format: date-time */
+      iseGiris: null | string;
+      /** Format: date-time */
+      iseCikis: null | string;
+      aktif: boolean;
+    };
+    PersonnelRequest: {
+      kod: null | string;
+      ad: null | string;
+      soyad: null | string;
+      tcKimlik: null | string;
+      /** Format: date-time */
+      iseGiris: null | string;
+      /** Format: date-time */
+      iseCikis: null | string;
+      surucuBelgeNo: null | string;
+      /** Format: double */
+      maas: null | number | string;
+      sube: null | string;
+      gorevTanimi: null | string;
+      adres: null | string;
+      evTelefonu: null | string;
+      isTelefonu: null | string;
+      cepTel: null | string;
+      mailAdresi: null | string;
+      referans: null | string;
+      aciklama: null | string;
+      sSinifi: null | string;
+      /** Format: date-time */
+      sVerilisTarihi: null | string;
+      sVerilisYeri: null | string;
+      /** Format: date-time */
+      dogumTarihi: null | string;
+      dogumYeri: null | string;
+      babaAdi: null | string;
+      anaAdi: null | string;
+      il: null | string;
+      ilce: null | string;
+      mahalle: null | string;
+      ciltNo: null | string;
+      aileSiraNo: null | string;
+      siraNo: null | string;
+      kanGrubu: null | string;
+      racTabletNo: null | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
+    };
+    PhoneTestRequest: {
+      telefon: null | string;
+    };
     ProblemDetails: {
       type?: null | string;
       title?: null | string;
@@ -8908,6 +13261,13 @@ export interface components {
       kapamaTutar?: null | number | string;
       /** @default false */
       iade: boolean;
+    };
+    PublishRequest: {
+      yayinda: boolean;
+    };
+    ReflectRatesResult: {
+      /** Format: int32 */
+      guncellenen: number | string;
     };
     RezervasyonDetayYaniti: {
       rezervasyon: components['schemas']['RezervasyonDto'];
@@ -9217,6 +13577,14 @@ export interface components {
     RezSartKarsilandiIstegi: {
       teslimEden: null | string;
     };
+    RoleCopyRequest: {
+      kaynak: null | string;
+      hedef: null | string;
+    };
+    RolePermissionsDto: {
+      rol: string;
+      izinler: string[];
+    };
     SayfaOfAracDetayliSatir: {
       kayitlar: components['schemas']['AracDetayliSatir'][];
       /** Format: int32 */
@@ -9283,8 +13651,41 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfAuditDto: {
+      kayitlar: components['schemas']['AuditDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfBafDto: {
       kayitlar: components['schemas']['BafDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfBlogRowDto: {
+      kayitlar: components['schemas']['BlogRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfDocumentTemplateDto: {
+      kayitlar: components['schemas']['DocumentTemplateDto'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -9327,6 +13728,28 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfInsuranceCompanyDto: {
+      kayitlar: components['schemas']['InsuranceCompanyDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfKdvRateDto: {
+      kayitlar: components['schemas']['KdvRateDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfKiraListeSatiri: {
       kayitlar: components['schemas']['KiraListeSatiri'][];
       /** Format: int32 */
@@ -9338,8 +13761,63 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfListingRowDto: {
+      kayitlar: components['schemas']['ListingRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfLocationDto: {
+      kayitlar: components['schemas']['LocationDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfMusteriTaksitSatiri: {
       kayitlar: components['schemas']['MusteriTaksitSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfPageRowDto: {
+      kayitlar: components['schemas']['PageRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfPenaltyTypeDto: {
+      kayitlar: components['schemas']['PenaltyTypeDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfPersonnelListItem: {
+      kayitlar: components['schemas']['PersonnelListItem'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -9404,6 +13882,36 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfVehicleGroupDto: {
+      kayitlar: components['schemas']['VehicleGroupDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    ScreenPermissionDto: {
+      ekranKodu: string;
+      roller: string[];
+      aktif: boolean;
+      /** Format: date-time */
+      guncellemeUtc: string;
+    };
+    ScreenPermissionRequest: {
+      ekranKodu: null | string;
+      roller: null | string[];
+      /** @default true */
+      aktif: boolean;
+    };
+    SearchHitDto: {
+      tur: string;
+      baslik: string;
+      alt: null | string;
+      url: string;
+    };
     SecimOgesi: {
       /** Format: uuid */
       id: string;
@@ -9425,6 +13933,134 @@ export interface components {
       aciklama: null | string;
       /** @default true */
       aktif: boolean;
+      surum?: null | string;
+    };
+    SendTestResult: {
+      basarili: boolean;
+      durum: string;
+      mesaj: string;
+    };
+    SettingsDto: {
+      firmaUnvan?: null | string;
+      firmaVergiDairesi?: null | string;
+      firmaVergiNo?: null | string;
+      firmaAdres?: null | string;
+      firmaTel?: null | string;
+      firmaEmail?: null | string;
+      firmaMobilTel?: null | string;
+      firmaMarka?: null | string;
+      eFaturaKullanici?: null | string;
+      eFaturaSifreTanimli?: boolean;
+      smsBaslik?: null | string;
+      smsApiKeyTanimli?: boolean;
+      posMerchantId?: null | string;
+      posApiKeyTanimli?: boolean;
+      logoUrl?: null | string;
+      logoVar?: boolean;
+      varsayilanDoviz?: null | string;
+      /** Format: double */
+      varsayilanKdvOrani?: null | number | string;
+      /** Format: uuid */
+      varsayilanGrupId?: null | string;
+      varsayilanFiyatTuru?: null | string;
+      /** Format: int32 */
+      varsayilanYakitSeviyesi?: null | number | string;
+      dropMesafeYokIseSifir?: null | boolean;
+      /** Format: int32 */
+      saatFarkiToleransDk?: null | number | string;
+      /** Format: int32 */
+      iadeIslemSaatSiniri?: null | number | string;
+      kurElleGirisKilitli?: boolean;
+      renkGecikenler?: null | string;
+      renkBugunDonecekler?: null | string;
+      renkBugunCikacaklar?: null | string;
+      renkOpsiyonlu?: null | string;
+      renkLimitBakiye?: null | string;
+      renkAlacakli?: null | string;
+      renkRezAtananPlaka?: null | string;
+      renkKiralanmayan?: null | string;
+      donemselFaturalamaJob?: boolean;
+      donemselOtomatikTahsilat?: boolean;
+      /** Format: int32 */
+      minKiraGun?: null | number | string;
+      /** Format: int32 */
+      maxKiraGun?: null | number | string;
+      rezOnayZorunlu?: null | boolean;
+      smtpHost?: null | string;
+      /** Format: int32 */
+      smtpPort?: null | number | string;
+      smtpKullanici?: null | string;
+      smtpSifreTanimli?: boolean;
+      smtpSsl?: null | boolean;
+      smtpGonderenAdres?: null | string;
+      smtpGonderenAd?: null | string;
+      faturaSeriKodu?: null | string;
+      whatsAppNumarasi?: null | string;
+      whatsAppGunlukOzet?: null | boolean;
+      webSitesiAcik?: boolean;
+      webSitesiAdresi?: null | string;
+      domainler?: components['schemas']['DomainDto'][];
+      yeniArayuzPilot?: boolean;
+      twilioTanimli?: boolean;
+      whatsAppGonderimleri?: components['schemas']['WhatsAppDeliveryDto'][];
+      surum?: null | string;
+    };
+    SettingsRequest: {
+      firmaUnvan?: null | string;
+      firmaVergiDairesi?: null | string;
+      firmaVergiNo?: null | string;
+      firmaAdres?: null | string;
+      firmaTel?: null | string;
+      firmaEmail?: null | string;
+      firmaMobilTel?: null | string;
+      firmaMarka?: null | string;
+      eFaturaKullanici?: null | string;
+      eFaturaSifre?: null | string;
+      smsBaslik?: null | string;
+      smsApiKey?: null | string;
+      posMerchantId?: null | string;
+      posApiKey?: null | string;
+      logoUrl?: null | string;
+      varsayilanDoviz?: null | string;
+      /** Format: double */
+      varsayilanKdvOrani?: null | number | string;
+      /** Format: uuid */
+      varsayilanGrupId?: null | string;
+      varsayilanFiyatTuru?: null | string;
+      /** Format: int32 */
+      varsayilanYakitSeviyesi?: null | number | string;
+      dropMesafeYokIseSifir?: null | boolean;
+      /** Format: int32 */
+      saatFarkiToleransDk?: null | number | string;
+      /** Format: int32 */
+      iadeIslemSaatSiniri?: null | number | string;
+      kurElleGirisKilitli?: boolean;
+      renkGecikenler?: null | string;
+      renkBugunDonecekler?: null | string;
+      renkBugunCikacaklar?: null | string;
+      renkOpsiyonlu?: null | string;
+      renkLimitBakiye?: null | string;
+      renkAlacakli?: null | string;
+      renkRezAtananPlaka?: null | string;
+      renkKiralanmayan?: null | string;
+      donemselFaturalamaJob?: boolean;
+      donemselOtomatikTahsilat?: boolean;
+      /** Format: int32 */
+      minKiraGun?: null | number | string;
+      /** Format: int32 */
+      maxKiraGun?: null | number | string;
+      rezOnayZorunlu?: null | boolean;
+      smtpHost?: null | string;
+      /** Format: int32 */
+      smtpPort?: null | number | string;
+      smtpKullanici?: null | string;
+      smtpSifre?: null | string;
+      smtpSsl?: null | boolean;
+      smtpGonderenAdres?: null | string;
+      smtpGonderenAd?: null | string;
+      faturaSeriKodu?: null | string;
+      whatsAppNumarasi?: null | string;
+      whatsAppGunlukOzet?: null | boolean;
       surum?: null | string;
     };
     SiteTalebiOzeti: {
@@ -9731,6 +14367,33 @@ export interface components {
       aktif: boolean;
       surum?: null | string;
     };
+    UnmatchedGroupValueDto: {
+      grup: string;
+      /** Format: int32 */
+      aracSayisi: number | string;
+      bos: boolean;
+    };
+    UserActiveRequest: {
+      aktif: boolean;
+    };
+    UserCreateRequest: {
+      kullaniciAdi: null | string;
+      gorunenAd: null | string;
+      rol: null | string;
+      sifre: null | string;
+      atanmisSube: null | string;
+    };
+    UserDto: {
+      /** Format: uuid */
+      id: string;
+      kullaniciAdi: string;
+      gorunenAd: string;
+      rol: string;
+      aktif: boolean;
+      atanmisSube: null | string;
+      istisnalar: components['schemas']['PermissionExceptionDto'][];
+      etkinIzinler: string[];
+    };
     UzatIstegi: {
       /** Format: date-time */
       yeniBitTar?: null | string;
@@ -9745,6 +14408,170 @@ export interface components {
     };
     VarsayilanGrupDto: {
       ad: null | string;
+    };
+    VehicleClusterDto: {
+      imza: string;
+      baslik: string;
+      yilAralik: null | string;
+      araclar: components['schemas']['ClusterVehicleDto'][];
+    };
+    VehicleGroupDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      aciklama: null | string;
+      sipp: null | string;
+      segment: null | string;
+      kasaTuru: null | string;
+      marka: null | string;
+      tipi: null | string;
+      /** Format: int32 */
+      koltukSayisi: null | number | string;
+      /** Format: int32 */
+      kapiSayisi: null | number | string;
+      /** Format: int32 */
+      bagajSayisi: null | number | string;
+      /** Format: int32 */
+      kucukBagaj: null | number | string;
+      /** Format: int32 */
+      buyukBagaj: null | number | string;
+      /** Format: int32 */
+      surucuMinYas: null | number | string;
+      /** Format: int32 */
+      gencSurucuYas: null | number | string;
+      /** Format: double */
+      gencSurucuUcretGunluk: null | number | string;
+      /** Format: double */
+      ekSurucuUcretGunluk: null | number | string;
+      /** Format: int32 */
+      ehliyetMinYil: null | number | string;
+      /** Format: int32 */
+      gencEhliyetMinYil: null | number | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      /** Format: double */
+      provizyon2: null | number | string;
+      /** Format: double */
+      muafiyetTutari: null | number | string;
+      /** Format: double */
+      muafiyet2: null | number | string;
+      /** Format: int32 */
+      gunlukKmLimiti: null | number | string;
+      /** Format: int32 */
+      aylikMaxKm: null | number | string;
+      /** Format: double */
+      asimKmUcreti: null | number | string;
+      /** Format: double */
+      yakitFiyati: null | number | string;
+      /** Format: double */
+      sonraOdeOran: null | number | string;
+      krediKartiSart: null | boolean;
+      /** Format: int32 */
+      webSira: null | number | string;
+      /** Format: int32 */
+      upgradeSira: null | number | string;
+      provizyonDoviz: null | string;
+      provizyon2Doviz: null | string;
+      yakitTuru: null | string;
+      vites: null | string;
+      entegrasyonKod1: null | string;
+      webId: null | string;
+      servisId: null | string;
+      aktif: boolean;
+      /** Format: int32 */
+      aracSayisi: null | number | string;
+      surum: null | string;
+    };
+    VehicleGroupRequest: {
+      kod: null | string;
+      ad: null | string;
+      aciklama: null | string;
+      sipp: null | string;
+      segment: null | string;
+      kasaTuru: null | string;
+      marka: null | string;
+      tipi: null | string;
+      /** Format: int32 */
+      koltukSayisi: null | number | string;
+      /** Format: int32 */
+      kapiSayisi: null | number | string;
+      /** Format: int32 */
+      bagajSayisi: null | number | string;
+      /** Format: int32 */
+      kucukBagaj: null | number | string;
+      /** Format: int32 */
+      buyukBagaj: null | number | string;
+      /** Format: int32 */
+      surucuMinYas: null | number | string;
+      /** Format: int32 */
+      gencSurucuYas: null | number | string;
+      /** Format: double */
+      gencSurucuUcretGunluk: null | number | string;
+      /** Format: double */
+      ekSurucuUcretGunluk: null | number | string;
+      /** Format: int32 */
+      ehliyetMinYil: null | number | string;
+      /** Format: int32 */
+      gencEhliyetMinYil: null | number | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      /** Format: double */
+      provizyon2: null | number | string;
+      /** Format: double */
+      muafiyetTutari: null | number | string;
+      /** Format: double */
+      muafiyet2: null | number | string;
+      /** Format: int32 */
+      gunlukKmLimiti: null | number | string;
+      /** Format: int32 */
+      aylikMaxKm: null | number | string;
+      /** Format: double */
+      asimKmUcreti: null | number | string;
+      /** Format: double */
+      yakitFiyati: null | number | string;
+      /** Format: double */
+      sonraOdeOran: null | number | string;
+      krediKartiSart: null | boolean;
+      /** Format: int32 */
+      webSira: null | number | string;
+      /** Format: int32 */
+      upgradeSira: null | number | string;
+      provizyonDoviz: null | string;
+      provizyon2Doviz: null | string;
+      yakitTuru: null | string;
+      vites: null | string;
+      entegrasyonKod1: null | string;
+      webId: null | string;
+      servisId: null | string;
+      /** @default true */
+      aktif: boolean;
+      surum?: null | string;
+    };
+    WebsiteSummaryDto: {
+      /** Format: int32 */
+      ilansizAracSayisi: number | string;
+      /** Format: int32 */
+      ilanSayisi: number | string;
+      /** Format: int32 */
+      yayindakiIlanSayisi: number | string;
+    };
+    WhatsAppDeliveryDto: {
+      /** Format: date */
+      gun: string;
+      tur: string;
+      alici: string;
+      basarili: boolean;
+      hataMesaji: null | string;
+      /** Format: date-time */
+      olusturmaUtc: string;
+    };
+    WorkingHoursDto: {
+      /** Format: int32 */
+      gun: number | string;
+      acilis: null | string;
+      kapanis: null | string;
+      kapali: boolean;
     };
   };
   responses: never;
