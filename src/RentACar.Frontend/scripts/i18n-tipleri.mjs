@@ -28,6 +28,11 @@ const BLOK_HARITASI = {
   panel: 'panel',
   kiraListesi: 'kiralar',
   vitrin: 'vitrin',
+  // F5.2b planlama ekranları (takvim, müsaitlik, rez şartları, filo kiralama).
+  takvimSayfasi: 'planlama',
+  musaitlikSayfasi: 'planlama',
+  rezSartlari: 'planlama',
+  filoKiralama: 'planlama',
 };
 
 const KOK = resolve(import.meta.dirname, '..');

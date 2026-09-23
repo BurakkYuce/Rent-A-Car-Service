@@ -4,6 +4,7 @@ import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
+import planlama from './i18n/bloklar/planlama.json';
 import vitrin from './i18n/bloklar/vitrin.json';
 
 /**
@@ -12,6 +13,6 @@ import vitrin from './i18n/bloklar/vitrin.json';
  * bloklar rotada `ceviriBlogu(...)` ile tembel gelir (yükleme davranışı `ceviri-blogu.spec.ts`'te).
  */
 const saglayicilar: Provider[] = [
-  { provide: ONYUKLU_CEVIRI_BLOKLARI, useValue: [kiraFormu, kiralar, panel, vitrin] },
+  { provide: ONYUKLU_CEVIRI_BLOKLARI, useValue: [kiraFormu, kiralar, panel, planlama, vitrin] },
 ];
 export default saglayicilar;
