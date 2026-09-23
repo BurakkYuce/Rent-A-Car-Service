@@ -4811,6 +4811,1020 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/cariler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          tip?: string;
+          iysIzinli?: boolean;
+          uyari?: boolean;
+          karaListe?: boolean;
+          pasif?: boolean;
+          aracVerilmez?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfCustomerListRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CustomerRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerCardDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/cariler/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerCardDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CustomerUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerCardDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/cariler/{id}/detay': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerDetailView'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/cariler/secim/il': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSecimDegeri'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/cariler/secim/ilce': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSecimDegeri'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/anketler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          anketTuru?: string;
+          durum?: string;
+          tarihBas?: string;
+          tarihBit?: string;
+          cikisOfisi?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfSurveyRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SurveyRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SurveyCardDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/anketler/varsayilan-sorular': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': string[];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/anketler/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SurveyCardDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SurveyUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SurveyCardDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/sikayetler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          ofis?: string;
+          yer?: string;
+          kanal?: string;
+          durum?: string;
+          ara?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfComplaintRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ComplaintRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ComplaintCardDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/sikayetler/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ComplaintCardDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ComplaintUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ComplaintCardDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/assistans-talepleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          plaka?: string;
+          tarihBas?: string;
+          tarihBit?: string;
+          ara?: string;
+          kapandi?: boolean;
+          yedekLastik?: boolean;
+          hareketEdemiyor?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfAssistanceRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AssistanceRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AssistanceCardDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/assistans-talepleri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AssistanceCardDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AssistanceUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AssistanceCardDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hukuk-dosyalari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          tarihBas?: string;
+          tarihBit?: string;
+          faturaNo?: string;
+          dosyaNo?: string;
+          ara?: string;
+          tur?: string;
+          durum?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfLegalFileRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['LegalFileRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LegalFileCardDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hukuk-dosyalari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LegalFileCardDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['LegalFileUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LegalFileCardDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/crm/secim/kira': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RentalPickItem'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/crm/analiz': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          tarihBas?: string;
+          tarihBit?: string;
+          minKira?: number | string;
+          kaynak?: string;
+          ofis?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CrmAnalysisDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/crm/analiz/secenekler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CrmFilterOptions'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5583,6 +6597,59 @@ export interface components {
       /** Format: double */
       toplamIscilik: number | string;
     };
+    AssistanceCardDto: {
+      talep: components['schemas']['AssistanceRow'];
+      surum: null | string;
+    };
+    AssistanceRequest: {
+      /** Format: uuid */
+      rentalId?: null | string;
+      plaka?: null | string;
+      adSoyad?: null | string;
+      cepTel?: null | string;
+      /** Format: date-time */
+      zaman?: null | string;
+      mesaj?: null | string;
+      sebep?: null | string;
+      yedekLastikMi?: boolean;
+      aracHareketMi?: boolean;
+      kapandi?: boolean;
+      cozum?: null | string;
+    };
+    AssistanceRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      zaman: string;
+      /** Format: uuid */
+      rentalId: null | string;
+      sozlesmeNo: null | string;
+      plaka: null | string;
+      adSoyad: null | string;
+      cepTel: null | string;
+      mesaj: string;
+      sebep: null | string;
+      yedekLastikMi: boolean;
+      aracHareketMi: boolean;
+      kapandi: boolean;
+      cozum: null | string;
+    };
+    AssistanceUpdateRequest: {
+      surum?: null | string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      plaka?: null | string;
+      adSoyad?: null | string;
+      cepTel?: null | string;
+      /** Format: date-time */
+      zaman?: null | string;
+      mesaj?: null | string;
+      sebep?: null | string;
+      yedekLastikMi?: boolean;
+      aracHareketMi?: boolean;
+      kapandi?: boolean;
+      cozum?: null | string;
+    };
     AylikGelir: {
       /** Format: date-time */
       ayBas: string;
@@ -5622,6 +6689,548 @@ export interface components {
         [key: string]: string;
       };
       pilot: boolean;
+    };
+    ComplaintCardDto: {
+      sikayet: components['schemas']['ComplaintRow'];
+      surum: null | string;
+    };
+    ComplaintRequest: {
+      /** Format: uuid */
+      cariId?: null | string;
+      konu?: null | string;
+      detay?: null | string;
+      durum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      cozum?: null | string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      /** Format: uuid */
+      teslimAlanPersonelId?: null | string;
+      /** Format: uuid */
+      teslimEdenPersonelId?: null | string;
+      /** Format: int32 */
+      puan?: null | number | string;
+      sikayetKanali?: null | string;
+      sikayetYeri?: null | string;
+      cikisOfisi?: null | string;
+    };
+    ComplaintRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      konu: string;
+      detay: null | string;
+      durum: string;
+      cozum: null | string;
+      /** Format: uuid */
+      cariId: null | string;
+      musteriAd: null | string;
+      musteriTel: null | string;
+      /** Format: uuid */
+      rentalId: null | string;
+      sozlesmeNo: null | string;
+      plaka: null | string;
+      /** Format: uuid */
+      teslimAlanPersonelId: null | string;
+      teslimAlanAd: null | string;
+      /** Format: uuid */
+      teslimEdenPersonelId: null | string;
+      teslimEdenAd: null | string;
+      /** Format: int32 */
+      puan: null | number | string;
+      sikayetKanali: null | string;
+      sikayetYeri: null | string;
+      cikisOfisi: null | string;
+    };
+    ComplaintUpdateRequest: {
+      surum?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      konu?: null | string;
+      detay?: null | string;
+      durum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      cozum?: null | string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      /** Format: uuid */
+      teslimAlanPersonelId?: null | string;
+      /** Format: uuid */
+      teslimEdenPersonelId?: null | string;
+      /** Format: int32 */
+      puan?: null | number | string;
+      sikayetKanali?: null | string;
+      sikayetYeri?: null | string;
+      cikisOfisi?: null | string;
+    };
+    CrmAnalysisDto: {
+      /** Format: int32 */
+      musteriSayisi: number | string;
+      /** Format: double */
+      toplamCiro: number | string;
+      /** Format: double */
+      toplamHizmetBedeli: number | string;
+      segment: components['schemas']['SayfaOfCrmSegmentRow'];
+      personel: components['schemas']['CrmStaffRow'][];
+    };
+    CrmFilterOptions: {
+      kaynaklar: string[];
+      ofisler: string[];
+    };
+    CrmSegmentRow: {
+      /** Format: uuid */
+      cariId: string;
+      ad: string;
+      mail: null | string;
+      tel: null | string;
+      /** Format: int32 */
+      kiraSayisi: number | string;
+      /** Format: double */
+      toplamCiro: number | string;
+      /** Format: double */
+      ortalamaKiraBedeli: number | string;
+      /** Format: double */
+      ortalamaKm: null | number | string;
+      /** Format: double */
+      hizmetBedeli: number | string;
+      /** Format: date-time */
+      dogumTarihi: null | string;
+      /** Format: date-time */
+      ilkKiraZamani: null | string;
+      /** Format: date-time */
+      sonIslem: null | string;
+      segment: string;
+    };
+    CrmStaffRow: {
+      /** Format: uuid */
+      personelId: string;
+      ad: string;
+      /** Format: int32 */
+      tahsisSayisi: number | string;
+    };
+    CustomerCardDto: {
+      /** Format: uuid */
+      id?: string;
+      surum?: null | string;
+      tcKimlikVar?: boolean;
+      ehliyetNoMaske?: null | string;
+      pasaportNoMaske?: null | string;
+      sifreVar?: boolean;
+      /** Format: date-time */
+      createdAtUtc?: string;
+      /** Format: date-time */
+      updatedAtUtc?: null | string;
+      tip?: null | string;
+      ad?: null | string;
+      soyad?: null | string;
+      unvan?: null | string;
+      vergiDairesi?: null | string;
+      vergiNo?: null | string;
+      cepTel?: null | string;
+      gsm2?: null | string;
+      email?: null | string;
+      il?: null | string;
+      ilce?: null | string;
+      adres?: null | string;
+      kaynak?: null | string;
+      musteriTemsilcisi?: null | string;
+      iysIzinli?: boolean;
+      uyari?: boolean;
+      uyariNedeni?: null | string;
+      ehliyetSinifi?: null | string;
+      /** Format: date-time */
+      ehliyetTarihi?: null | string;
+      ehliyetYeri?: null | string;
+      tarife?: null | string;
+      /** Format: int32 */
+      vadeGun?: number | string;
+      /** Format: double */
+      riskLimiti?: number | string;
+      riskMesaji?: null | string;
+      /** Format: date-time */
+      riskTarihi?: null | string;
+      hgsYansitmaTuru?: null | string;
+      karaListe?: boolean;
+      pasif?: boolean;
+      ozelCariTip?: null | string;
+      musteriTipi?: null | string;
+      ehliyetUlke?: null | string;
+      dil?: null | string;
+      doviz?: null | string;
+      tevkifatDurum?: null | string;
+      sinif?: null | string;
+      mailIzin?: null | boolean;
+      smsIzin?: null | boolean;
+      telefonIzin?: null | boolean;
+      /** Format: date-time */
+      dogumTarihi?: null | string;
+      babaAdi?: null | string;
+      anaAdi?: null | string;
+      faturaDonemi?: null | string;
+      /** Format: double */
+      tevkifatOrani?: null | number | string;
+      kisiler?: null | components['schemas']['CustomerContactDto'][];
+      kvkkOnay?: null | boolean;
+      /** Format: date-time */
+      kvkkOnayTarih?: null | string;
+      ekAdres?: null | string;
+      bankaIban?: null | string;
+      bankaAdi?: null | string;
+      faturaAdresi?: null | string;
+      faturaUnvan?: null | string;
+      ulke?: null | string;
+      tel2?: null | string;
+      ozelKod?: null | string;
+      entegrasyonKodu?: null | string;
+      aciklama?: null | string;
+      riskIzin?: null | string;
+      dogumYeri?: null | string;
+      pasaportYeri?: null | string;
+      /** Format: date-time */
+      pasaportTarihi?: null | string;
+      kurumsalNo?: null | string;
+      uyariSerbest?: null | string;
+      tevkifatKodu?: null | string;
+      faturaKiralayanIsim?: null | string;
+      isAdresi?: null | string;
+      isTelefonu?: null | string;
+      kayitliIl?: null | string;
+      kayitliIlce?: null | string;
+      mahalleKoy?: null | string;
+      seriNo?: null | string;
+      ciltNo?: null | string;
+      aileSira?: null | string;
+      siraNo?: null | string;
+      tcDogrulama?: boolean;
+      faturaAdresFarkli?: boolean;
+      faturaTekSatir?: boolean;
+      dogumGunuTakip?: boolean;
+      anonimAd?: boolean;
+      anonimTc?: boolean;
+      anonimTelefon?: boolean;
+      anonimMail?: boolean;
+      anonimAdres?: boolean;
+      anonimBelge?: boolean;
+      bakiyeGor?: boolean;
+      aracVerilmez?: boolean;
+      yasEhliyetSerbest?: boolean;
+      merkezKurumsal?: boolean;
+      broker?: boolean;
+      findexZorunlu?: boolean;
+      /** Format: double */
+      bayiKomisyon?: null | number | string;
+      /** Format: double */
+      webIndirim?: null | number | string;
+      /** Format: date-time */
+      karaZamani?: null | string;
+      /** Format: uuid */
+      islemSubeId?: null | string;
+      /** Format: uuid */
+      firmaId?: null | string;
+    };
+    CustomerContactDto: {
+      adSoyad: null | string;
+      telefon: null | string;
+      mail: null | string;
+      gorev: null | string;
+    };
+    CustomerDetailView: {
+      musteri: components['schemas']['KiraMusteriOzeti'];
+      karaListe: boolean;
+      pasif: boolean;
+      aracVerilmez: boolean;
+      kiralar: components['schemas']['CustomerRentalSummary'][];
+      /** Format: double */
+      bakiye: null | number | string;
+      hareketler: null | components['schemas']['CustomerLedgerLine'][];
+    };
+    CustomerLedgerLine: {
+      /** Format: date-time */
+      tarih: string;
+      kaynak: string;
+      aciklama: null | string;
+      /** Format: double */
+      borc: null | number | string;
+      /** Format: double */
+      alacak: null | number | string;
+    };
+    CustomerListRow: {
+      /** Format: uuid */
+      id: string;
+      tip: string;
+      ad: string;
+      anonim: boolean;
+      vergiNo: null | string;
+      cepTel: null | string;
+      gsm2: null | string;
+      email: null | string;
+      il: null | string;
+      ilce: null | string;
+      kaynak: null | string;
+      musteriTemsilcisi: null | string;
+      entegrasyonKodu: null | string;
+      ozelKod: null | string;
+      sinif: null | string;
+      ulke: null | string;
+      /** Format: int32 */
+      vadeGun: null | number | string;
+      /** Format: int32 */
+      kiraAdet: number | string;
+      /** Format: double */
+      ciro: number | string;
+      /** Format: date-time */
+      sonKira: null | string;
+      karaListe: boolean;
+      pasif: boolean;
+      uyari: boolean;
+      uyariNedeni: null | string;
+      iysIzinli: boolean;
+      aracVerilmez: boolean;
+    };
+    CustomerRentalSummary: {
+      /** Format: uuid */
+      id: string;
+      sozlesmeNo: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      durum: string;
+      /** Format: double */
+      genelToplam: number | string;
+      /** Format: double */
+      bakiye: number | string;
+      doviz: null | string;
+    };
+    CustomerRequest: {
+      tcKimlik?: null | string;
+      ehliyetNo?: null | string;
+      pasaportNo?: null | string;
+      sifre?: null | string;
+      tip?: null | string;
+      ad?: null | string;
+      soyad?: null | string;
+      unvan?: null | string;
+      vergiDairesi?: null | string;
+      vergiNo?: null | string;
+      cepTel?: null | string;
+      gsm2?: null | string;
+      email?: null | string;
+      il?: null | string;
+      ilce?: null | string;
+      adres?: null | string;
+      kaynak?: null | string;
+      musteriTemsilcisi?: null | string;
+      iysIzinli?: boolean;
+      uyari?: boolean;
+      uyariNedeni?: null | string;
+      ehliyetSinifi?: null | string;
+      /** Format: date-time */
+      ehliyetTarihi?: null | string;
+      ehliyetYeri?: null | string;
+      tarife?: null | string;
+      /** Format: int32 */
+      vadeGun?: number | string;
+      /** Format: double */
+      riskLimiti?: number | string;
+      riskMesaji?: null | string;
+      /** Format: date-time */
+      riskTarihi?: null | string;
+      hgsYansitmaTuru?: null | string;
+      karaListe?: boolean;
+      pasif?: boolean;
+      ozelCariTip?: null | string;
+      musteriTipi?: null | string;
+      ehliyetUlke?: null | string;
+      dil?: null | string;
+      doviz?: null | string;
+      tevkifatDurum?: null | string;
+      sinif?: null | string;
+      mailIzin?: null | boolean;
+      smsIzin?: null | boolean;
+      telefonIzin?: null | boolean;
+      /** Format: date-time */
+      dogumTarihi?: null | string;
+      babaAdi?: null | string;
+      anaAdi?: null | string;
+      faturaDonemi?: null | string;
+      /** Format: double */
+      tevkifatOrani?: null | number | string;
+      kisiler?: null | components['schemas']['CustomerContactDto'][];
+      kvkkOnay?: null | boolean;
+      /** Format: date-time */
+      kvkkOnayTarih?: null | string;
+      ekAdres?: null | string;
+      bankaIban?: null | string;
+      bankaAdi?: null | string;
+      faturaAdresi?: null | string;
+      faturaUnvan?: null | string;
+      ulke?: null | string;
+      tel2?: null | string;
+      ozelKod?: null | string;
+      entegrasyonKodu?: null | string;
+      aciklama?: null | string;
+      riskIzin?: null | string;
+      dogumYeri?: null | string;
+      pasaportYeri?: null | string;
+      /** Format: date-time */
+      pasaportTarihi?: null | string;
+      kurumsalNo?: null | string;
+      uyariSerbest?: null | string;
+      tevkifatKodu?: null | string;
+      faturaKiralayanIsim?: null | string;
+      isAdresi?: null | string;
+      isTelefonu?: null | string;
+      kayitliIl?: null | string;
+      kayitliIlce?: null | string;
+      mahalleKoy?: null | string;
+      seriNo?: null | string;
+      ciltNo?: null | string;
+      aileSira?: null | string;
+      siraNo?: null | string;
+      tcDogrulama?: boolean;
+      faturaAdresFarkli?: boolean;
+      faturaTekSatir?: boolean;
+      dogumGunuTakip?: boolean;
+      anonimAd?: boolean;
+      anonimTc?: boolean;
+      anonimTelefon?: boolean;
+      anonimMail?: boolean;
+      anonimAdres?: boolean;
+      anonimBelge?: boolean;
+      bakiyeGor?: boolean;
+      aracVerilmez?: boolean;
+      yasEhliyetSerbest?: boolean;
+      merkezKurumsal?: boolean;
+      broker?: boolean;
+      findexZorunlu?: boolean;
+      /** Format: double */
+      bayiKomisyon?: null | number | string;
+      /** Format: double */
+      webIndirim?: null | number | string;
+      /** Format: date-time */
+      karaZamani?: null | string;
+      /** Format: uuid */
+      islemSubeId?: null | string;
+      /** Format: uuid */
+      firmaId?: null | string;
+    };
+    CustomerUpdateRequest: {
+      surum?: null | string;
+      tcKimlik?: null | string;
+      ehliyetNo?: null | string;
+      pasaportNo?: null | string;
+      sifre?: null | string;
+      tip?: null | string;
+      ad?: null | string;
+      soyad?: null | string;
+      unvan?: null | string;
+      vergiDairesi?: null | string;
+      vergiNo?: null | string;
+      cepTel?: null | string;
+      gsm2?: null | string;
+      email?: null | string;
+      il?: null | string;
+      ilce?: null | string;
+      adres?: null | string;
+      kaynak?: null | string;
+      musteriTemsilcisi?: null | string;
+      iysIzinli?: boolean;
+      uyari?: boolean;
+      uyariNedeni?: null | string;
+      ehliyetSinifi?: null | string;
+      /** Format: date-time */
+      ehliyetTarihi?: null | string;
+      ehliyetYeri?: null | string;
+      tarife?: null | string;
+      /** Format: int32 */
+      vadeGun?: number | string;
+      /** Format: double */
+      riskLimiti?: number | string;
+      riskMesaji?: null | string;
+      /** Format: date-time */
+      riskTarihi?: null | string;
+      hgsYansitmaTuru?: null | string;
+      karaListe?: boolean;
+      pasif?: boolean;
+      ozelCariTip?: null | string;
+      musteriTipi?: null | string;
+      ehliyetUlke?: null | string;
+      dil?: null | string;
+      doviz?: null | string;
+      tevkifatDurum?: null | string;
+      sinif?: null | string;
+      mailIzin?: null | boolean;
+      smsIzin?: null | boolean;
+      telefonIzin?: null | boolean;
+      /** Format: date-time */
+      dogumTarihi?: null | string;
+      babaAdi?: null | string;
+      anaAdi?: null | string;
+      faturaDonemi?: null | string;
+      /** Format: double */
+      tevkifatOrani?: null | number | string;
+      kisiler?: null | components['schemas']['CustomerContactDto'][];
+      kvkkOnay?: null | boolean;
+      /** Format: date-time */
+      kvkkOnayTarih?: null | string;
+      ekAdres?: null | string;
+      bankaIban?: null | string;
+      bankaAdi?: null | string;
+      faturaAdresi?: null | string;
+      faturaUnvan?: null | string;
+      ulke?: null | string;
+      tel2?: null | string;
+      ozelKod?: null | string;
+      entegrasyonKodu?: null | string;
+      aciklama?: null | string;
+      riskIzin?: null | string;
+      dogumYeri?: null | string;
+      pasaportYeri?: null | string;
+      /** Format: date-time */
+      pasaportTarihi?: null | string;
+      kurumsalNo?: null | string;
+      uyariSerbest?: null | string;
+      tevkifatKodu?: null | string;
+      faturaKiralayanIsim?: null | string;
+      isAdresi?: null | string;
+      isTelefonu?: null | string;
+      kayitliIl?: null | string;
+      kayitliIlce?: null | string;
+      mahalleKoy?: null | string;
+      seriNo?: null | string;
+      ciltNo?: null | string;
+      aileSira?: null | string;
+      siraNo?: null | string;
+      tcDogrulama?: boolean;
+      faturaAdresFarkli?: boolean;
+      faturaTekSatir?: boolean;
+      dogumGunuTakip?: boolean;
+      anonimAd?: boolean;
+      anonimTc?: boolean;
+      anonimTelefon?: boolean;
+      anonimMail?: boolean;
+      anonimAdres?: boolean;
+      anonimBelge?: boolean;
+      bakiyeGor?: boolean;
+      aracVerilmez?: boolean;
+      yasEhliyetSerbest?: boolean;
+      merkezKurumsal?: boolean;
+      broker?: boolean;
+      findexZorunlu?: boolean;
+      /** Format: double */
+      bayiKomisyon?: null | number | string;
+      /** Format: double */
+      webIndirim?: null | number | string;
+      /** Format: date-time */
+      karaZamani?: null | string;
+      /** Format: uuid */
+      islemSubeId?: null | string;
+      /** Format: uuid */
+      firmaId?: null | string;
     };
     DepozitoAlIstegi: {
       /** Format: uuid */
@@ -6688,6 +8297,83 @@ export interface components {
       /** Format: date-time */
       tarih: string;
     };
+    LegalFileCardDto: {
+      dosya: components['schemas']['LegalFileRow'];
+      surum: null | string;
+    };
+    LegalFileRequest: {
+      dosyaNo?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      tur?: null | string;
+      avukat?: null | string;
+      /** Format: double */
+      tutar?: number | string;
+      durum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      aciklama?: null | string;
+      aktif?: boolean;
+      faturaNoTemp?: null | string;
+      avukatTel?: null | string;
+      avukatMail?: null | string;
+      avukat2Ad?: null | string;
+      avukat2Tel?: null | string;
+      avukat2Mail?: null | string;
+      /** Format: double */
+      tahsilat?: null | number | string;
+    };
+    LegalFileRow: {
+      /** Format: uuid */
+      id: string;
+      dosyaNo: string;
+      /** Format: date-time */
+      tarih: string;
+      tur: string;
+      durum: string;
+      aktif: boolean;
+      /** Format: uuid */
+      cariId: null | string;
+      musteriAd: null | string;
+      musteriTel: null | string;
+      avukat: null | string;
+      avukatTel: null | string;
+      avukatMail: null | string;
+      avukat2Ad: null | string;
+      avukat2Tel: null | string;
+      avukat2Mail: null | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: double */
+      tahsilat: null | number | string;
+      /** Format: double */
+      kalan: number | string;
+      faturaNoTemp: null | string;
+      aciklama: null | string;
+    };
+    LegalFileUpdateRequest: {
+      surum?: null | string;
+      dosyaNo?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      tur?: null | string;
+      avukat?: null | string;
+      /** Format: double */
+      tutar?: number | string;
+      durum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      aciklama?: null | string;
+      aktif?: boolean;
+      faturaNoTemp?: null | string;
+      avukatTel?: null | string;
+      avukatMail?: null | string;
+      avukat2Ad?: null | string;
+      avukat2Tel?: null | string;
+      avukat2Mail?: null | string;
+      /** Format: double */
+      tahsilat?: null | number | string;
+    };
     LokasyonSecimOgesi: {
       /** Format: uuid */
       id: string;
@@ -6957,6 +8643,18 @@ export interface components {
       kapamaTutar?: null | number | string;
       /** @default false */
       iade: boolean;
+    };
+    RentalPickItem: {
+      /** Format: uuid */
+      id: string;
+      sozlesmeNo: string;
+      plaka: null | string;
+      musteriAd: string;
+      /** Format: uuid */
+      musteriId: string;
+      cikisOfisi: null | string;
+      /** Format: date-time */
+      basTar: string;
     };
     RezervasyonDetayYaniti: {
       rezervasyon: components['schemas']['RezervasyonDto'];
@@ -7310,6 +9008,50 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfAssistanceRow: {
+      kayitlar: components['schemas']['AssistanceRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfComplaintRow: {
+      kayitlar: components['schemas']['ComplaintRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfCrmSegmentRow: {
+      kayitlar: components['schemas']['CrmSegmentRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfCustomerListRow: {
+      kayitlar: components['schemas']['CustomerListRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfFiloListeSatiri: {
       kayitlar: components['schemas']['FiloListeSatiri'][];
       /** Format: int32 */
@@ -7323,6 +9065,17 @@ export interface components {
     };
     SayfaOfKiraListeSatiri: {
       kayitlar: components['schemas']['KiraListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfLegalFileRow: {
+      kayitlar: components['schemas']['LegalFileRow'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -7356,6 +9109,17 @@ export interface components {
     };
     SayfaOfSegmentDto: {
       kayitlar: components['schemas']['SegmentDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfSurveyRow: {
+      kayitlar: components['schemas']['SurveyRow'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -7415,6 +9179,70 @@ export interface components {
       yeni: number | string;
       /** Format: int32 */
       enEskiGun: null | number | string;
+    };
+    SurveyAnswerDto: {
+      /** Format: int32 */
+      soruNo: number | string;
+      soru: null | string;
+      cevap: null | string;
+      aciklama: null | string;
+    };
+    SurveyCardDto: {
+      anket: components['schemas']['SurveyRow'];
+      surum: null | string;
+      cevaplar: components['schemas']['SurveyAnswerDto'][];
+    };
+    SurveyRequest: {
+      /** Format: uuid */
+      cariId?: null | string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      /** Format: int32 */
+      puan?: number | string;
+      yorum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      kaynak?: null | string;
+      anketTuru?: null | string;
+      durum?: null | string;
+      cikisOfisi?: null | string;
+      cevaplar?: null | components['schemas']['SurveyAnswerDto'][];
+    };
+    SurveyRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: uuid */
+      cariId: null | string;
+      musteriAd: null | string;
+      /** Format: uuid */
+      rentalId: null | string;
+      sozlesmeNo: null | string;
+      anketTuru: null | string;
+      durum: string;
+      /** Format: int32 */
+      puan: number | string;
+      kaynak: null | string;
+      cikisOfisi: null | string;
+      yorum: null | string;
+    };
+    SurveyUpdateRequest: {
+      surum?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      /** Format: int32 */
+      puan?: number | string;
+      yorum?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      kaynak?: null | string;
+      anketTuru?: null | string;
+      durum?: null | string;
+      cikisOfisi?: null | string;
+      cevaplar?: null | components['schemas']['SurveyAnswerDto'][];
     };
     TabloDuzeniVerisi: {
       sutunlar: components['schemas']['TabloSutunDuzeni'][];

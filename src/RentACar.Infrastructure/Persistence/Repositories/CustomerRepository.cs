@@ -133,8 +133,8 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var q = ApplyFilter(db.Customers.AsNoTracking(), filter);
 
         var total = await q.CountAsync(ct);
-        var page = await q
-            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+        var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad); // F7.1
+        var page = await sorted
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
 
@@ -172,7 +172,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 OzelKod = c.OzelKod,
                 Ulke = c.Ulke,
                 Sinif = c.Sinif,
-                AracVerilmez = c.AracVerilmez
+                AracVerilmez = c.AracVerilmez,
+                // F7.1: KVKK anonimleştirme bayrakları (yeni yüzey MusteriGorunumu kuralını uygular).
+                AnonimAd = c.AnonimAd, AnonimTelefon = c.AnonimTelefon, AnonimMail = c.AnonimMail, AnonimAdres = c.AnonimAdres
             };
         }).ToList();
 
@@ -236,6 +238,28 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             throw dup;
         }
         return true;
+    }
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>); yetkili kişiler aynı işlemde yüklenir.</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Customer> apply, CancellationToken ct = default)
+    {
+        Customer? current = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Customers, id, expectedVersion,
+                (db, key, c) => db.Customers.Include(x => x.Kisiler.OrderBy(k => k.Sira)).FirstOrDefaultAsync(x => x.Id == key, c),
+                x => { apply(x); current = x; }, ct);
+        }
+        catch (DbUpdateException ex) when (current is not null && AsDuplicate(ex, current) is { } dup)
+        {
+            throw dup;
+        }
+    }
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Customers, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

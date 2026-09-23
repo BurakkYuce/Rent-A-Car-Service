@@ -116,6 +116,28 @@ public sealed class CustomerService(
         }, ct);
     }
 
+    /// <summary>
+    /// F7.1 — tam değiştirme, iyimser eşzamanlılıkla: <paramref name="expectedVersion"/> satır kilidi ALTINDA
+    /// karşılaştırılır; farklıysa <see cref="EszamanliDegisiklikException"/> (409) ve hiçbir şey yazılmaz.
+    /// Doğrulama/benzersizlik kuralları <see cref="UpdateAsync(Guid, CustomerInput, CancellationToken)"/> ile aynı.
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, CustomerInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        await EnsureUniqueAsync(n, excludeId: id, ct);
+
+        return await _repository.UpdateAsync(id, expectedVersion, c =>
+        {
+            Apply(c, n);
+            c.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: yazan herkes SİLEMEZ

@@ -75,4 +75,15 @@ public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> fac
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>).</summary>
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<AssistansTalep> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.AssistanceRequests, id, expectedVersion,
+            (db, key, c) => db.AssistansTalepleri.FirstOrDefaultAsync(x => x.Id == key, c), apply, ct);
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.AssistanceRequests, id, ct);
+    }
 }
