@@ -39,7 +39,9 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.MusteriTaksitleri.Add(row);
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
+        { throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj); }
     }
 
     public async Task CreateManyAsync(IReadOnlyList<MusteriTaksit> rows, CancellationToken ct = default)
@@ -49,7 +51,12 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.MusteriTaksitleri.AddRange(rows);
         // TEK transaction: yarım plan (ör. 12 taksitten 7'si) kalırsa toplam borç yanlış görünür.
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: aynı anahtarla ikinci plan → tümü geri
+        {
+            await tx.RollbackAsync(ct);
+            throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+        }
         await tx.CommitAsync(ct);
     }
 
@@ -71,6 +78,17 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
         db.MusteriTaksitleri.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<MusteriTaksit> apply,
+        CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.MusteriTaksitleri, id, beklenenSurum,
+            (db, k, c) => db.MusteriTaksitleri.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.MusteriTaksitleri, id, ct);
     }
 
     public async Task<int> SonSiraAsync(Guid cariId, Guid? vehicleId, CancellationToken ct = default)

@@ -207,6 +207,7 @@ public static class UiApiExtensions
         v1.MapFiloKiralamaApi(); // F5.1
         v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
         v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
+        AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

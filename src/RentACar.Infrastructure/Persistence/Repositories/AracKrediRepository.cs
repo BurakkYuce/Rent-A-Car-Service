@@ -78,6 +78,12 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 throw new RentACar.Application.Common.ValidationException(
                     "Seçilen cari ya da araç bulunamadı (silinmiş olabilir); listeyi yenileyip tekrar deneyin.");
             }
+            // F6.1b — Id = işlem anahtarı (yalnız /api/ui): aynı anahtarla eşzamanlı ikinci oluşturma PK'ye çarpar.
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (PkIhlali.Mi(ex))
+            {
+                await tx.RollbackAsync(ct);
+                throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+            }
             await tx.CommitAsync(ct);
         }, ct);
     }
@@ -86,7 +92,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
 
     public async Task<bool> TaksitOdeAsync(Guid id,
         Func<int, (Expense Expense, IReadOnlyList<AccountLedgerEntry> Entries)>? posting = null,
-        CancellationToken ct = default, Guid? islemAnahtari = null)
+        CancellationToken ct = default, Guid? islemAnahtari = null, int? beklenenSira = null)
     {
         return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + sayaç yarışı koruması
         {
@@ -109,6 +115,13 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
             // yazılıp İptal'in Kapandi ile ezilmesi imkânsızlaşır (servis ön-kontrolü yarışa açıktı).
             if (row.Durum == KrediDurum.Iptal)
                 throw new RentACar.Application.Common.ValidationException("İptal kredinin taksiti ödenemez.");
+            // F6.1b — BAYATLIK (anahtar kontrolünden SONRA, kilit altında): istemci hangi taksidi ödediğini söyler.
+            // İki sekme farklı anahtarla aynı ekrandan "Taksit Öde"ye basarsa ikincisi #n+1'i DEĞİL 409 cakisma alır
+            // (aksi halde kullanıcının niyeti olmayan bir sonraki taksit de ödenirdi).
+            if (beklenenSira is int beklenen && row.OdenenTaksit + 1 != beklenen)
+                throw new RentACar.Application.Common.EszamanliDegisiklikException(
+                    $"Kredinin ödenen taksit sayısı bu ekran açıldıktan sonra değişti (şu an {row.OdenenTaksit}/{row.TaksitSayisi}); " +
+                    "taksit ödenmedi. Güncel planı kontrol edip yeniden deneyin.");
             if (row.OdenenTaksit >= row.TaksitSayisi) return false; // tüm taksitler ödendi
             row.OdenenTaksit++;
             if (row.OdenenTaksit >= row.TaksitSayisi) row.Durum = KrediDurum.Kapandi;

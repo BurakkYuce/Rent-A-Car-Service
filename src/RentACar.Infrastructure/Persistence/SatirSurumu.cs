@@ -22,8 +22,19 @@ internal static class SatirSurumu
     public const string Segmentler = "Segmentler";
     public const string AracTipleri = "AracTipleri";
 
+    // F6.1b — araç finans/operasyon kayıtları: durum geçişleri kilit altında, tam değiştirme PUT'u sürümlü.
+    public const string AracSiparisleri = "AracSiparisleri";
+    public const string Baflar = "Baflar";
+    public const string HasarDosyalari = "DamageFiles";
+    public const string MusteriTaksitleri = "MusteriTaksitleri";
+    public const string FiloPlanHedefleri = "FiloPlanHedefleri";
+
     private static readonly HashSet<string> Tablolar =
-        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri];
+    [
+        Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler,
+        Araclar, AracSahipleri, Segmentler, AracTipleri,
+        AracSiparisleri, Baflar, HasarDosyalari, MusteriTaksitleri, FiloPlanHedefleri,
+    ];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));
