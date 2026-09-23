@@ -54,6 +54,16 @@ public sealed class RezSartRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
+    public Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<RezSart> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.RezSartlari, id, beklenenSurum,
+            (db, k, c) => db.RezSartlar.FirstOrDefaultAsync(r => r.Id == k, c), apply, ct);
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.RezSartlari, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

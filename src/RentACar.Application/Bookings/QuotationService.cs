@@ -82,6 +82,10 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         var quotation = await _repository.FindAsync(id, ct)
             ?? throw new ValidationException("Teklif bulunamadı.");
         BranchScope.RequireInScope(_currentUser, quotation.CikisSubeId, quotation.CikisOfisi); // C4: tekil-guard paritesi
+        // F5.1 adversarial H1: zaten kabul edilmiş teklif (yanıtı kaybolan tekrar dahil) → 409 cakisma; eşzamanlı
+        // kabulde aynı karar repo'da satır kilidi ALTINDA yeniden verilir (bu ön kontrol yalnız hızlı yol).
+        if (quotation.Durum == QuotationStatus.Kabul && quotation.ReservationId is not null)
+            throw new EszamanliDegisiklikException(EszamanliDegisiklikException.TeklifKabulMesaji);
         if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
             throw new ValidationException("Yalnız Taslak/Gönderildi teklif kabul edilebilir.");
 

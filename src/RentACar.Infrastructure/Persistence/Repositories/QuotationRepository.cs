@@ -15,6 +15,8 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// </summary>
 public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory) : IQuotationRepository
 {
+    private const string ZatenKabulMesaji = EszamanliDegisiklikException.TeklifKabulMesaji;
+
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<Quotation>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
@@ -50,15 +52,11 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
         }, ct);
     }
 
-    public async Task<bool> UpdateAsync(Guid id, Action<Quotation> apply, CancellationToken ct = default)
-    {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var q = await db.Quotations.FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (q is null) return false;
-        apply(q);
-        await db.SaveChangesAsync(ct);
-        return true;
-    }
+    /// <summary>F5.1 adversarial L6 — satır kilidi (<c>FOR UPDATE</c>) ALTINDA oku-uygula-yaz: <paramref name="apply"/>
+    /// içindeki durum denetimi eşzamanlı kabul/red ile yarışamaz (kabul edilmiş teklif "Reddedildi"ye ezilmez).</summary>
+    public Task<bool> UpdateAsync(Guid id, Action<Quotation> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Teklifler, id, beklenenSurum: null,
+            (db, k, c) => db.Quotations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
     public async Task<Guid> ConvertToReservationAsync(
         Guid quotationId, Func<Quotation, Reservation> buildReservation, CancellationToken ct = default)
@@ -68,12 +66,19 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            // F5.1 adversarial H1: teklif satırı OKUMADAN ÖNCE kilitlenir; durum + ReservationId kilit ALTINDA yeniden
+            // denetlenir. Kilitsiz okumada 8 eşzamanlı kabulün hepsi "ReservationId null" görüp 8 rezervasyon açıyordu.
+            await SatirSurumu.KilitleAsync(db, SatirSurumu.Teklifler, quotationId, ct);
             var quotation = await db.Quotations.FirstOrDefaultAsync(x => x.Id == quotationId, ct)
                 ?? throw new ValidationException("Teklif bulunamadı.");
             if (quotation.ReservationId is not null)
-                throw new ValidationException("Teklif zaten rezervasyona çevrilmiş.");
+                throw new EszamanliDegisiklikException(ZatenKabulMesaji);
+            if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
+                throw new EszamanliDegisiklikException(
+                    $"Teklif bu sırada başka bir oturumda '{quotation.Durum}' durumuna geçti; kabul edilmedi.");
 
             var reservation = buildReservation(quotation);
+            reservation.KaynakTeklifId = quotation.Id; // yapısal çit: (TenantId, KaynakTeklifId) kısmi UNIQUE
             reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Rezervasyon, ct);
             db.Reservations.Add(reservation);
 
@@ -81,8 +86,19 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
             quotation.ReservationId = reservation.Id;
             quotation.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-            await db.SaveChangesAsync(ct); // reservation insert + quotation update + audit, atomik
-            await tx.CommitAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct); // reservation insert + quotation update + audit, atomik
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException
+            {
+                SqlState: Npgsql.PostgresErrorCodes.UniqueViolation,
+                ConstraintName: Configurations.ReservationConfig.TeklifTekRezervasyonIndeksi,
+            })
+            {
+                throw new EszamanliDegisiklikException(ZatenKabulMesaji);
+            }
             return reservation.Id;
         }, ct);
     }

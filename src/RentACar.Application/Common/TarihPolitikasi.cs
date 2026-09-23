@@ -53,6 +53,33 @@ public static class TarihPolitikasi
             throw new ValidationException("Rezervasyon en fazla 1 yıl ileri alınabilir.");
     }
 
+    /// <summary>F5.1 adversarial M2 — belge/sözleşme tarihleri için makul alt sınır (yazım hatası "0001" kesilir).</summary>
+    public static readonly DateTimeOffset EnErkenBelgeTarihi = new(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// F5.1 adversarial M2 — filo (uzun dönem) kiralama başlangıcı: kira gibi GEÇMİŞE AÇIK (retroaktif giriş) ama
+    /// <see cref="EnErkenBelgeTarihi"/>'nden önce olamaz; gelecek ≤ +1 yıl (kira başlangıcıyla aynı anti-typo tamponu).
+    /// Süre ≤ 120 ay ile son taksit vadesi en geç ~11 yıl ileridedir — "9999" başlangıç taksit planında
+    /// <c>AddMonths</c>'ı taşırıp tüm kiracının filo listesini 500'e düşürüyordu.
+    /// </summary>
+    public static void FiloBaslangic(DateTimeOffset bas, string alan = "basTar")
+    {
+        if (bas < EnErkenBelgeTarihi)
+            throw new ValidationException("Filo kiralama başlangıcı 2000 yılından önce olamaz.", alan);
+        if (bas > Now.AddYears(1))
+            throw new ValidationException("Filo kiralama başlangıcı en fazla 1 yıl ileri tarihli olabilir.", alan);
+    }
+
+    /// <summary>F5.1 adversarial M2 — sözleşme/imza gibi bilgi tarihleri: [2000, bugün + 1 yıl].</summary>
+    public static void BelgeTarihi(DateTimeOffset? tarih, string alan, string etiket)
+    {
+        if (tarih is not { } t) return;
+        if (t < EnErkenBelgeTarihi)
+            throw new ValidationException($"{etiket} 2000 yılından önce olamaz.", alan);
+        if (t > Now.AddYears(1))
+            throw new ValidationException($"{etiket} en fazla 1 yıl ileri tarihli olabilir.", alan);
+    }
+
     public static void DogumTarihi(DateTimeOffset? dogum)
     {
         if (dogum is { } d && d > Now)

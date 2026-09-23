@@ -93,6 +93,10 @@ public class Reservation : ITenantOwned, IAuditable, IOfficeScoped
     /// <summary>Tasfiye sonrası oluşan kira sözleşmesi.</summary>
     public Guid? RentalContractId { get; set; }
 
+    /// <summary>F5.1 adversarial H1 — bu rezervasyonu doğuran teklif (kabul). <c>(TenantId, KaynakTeklifId)</c> kısmi
+    /// UNIQUE index: bir teklif YAPISAL olarak tek rezervasyon doğurur (eşzamanlı kabul yarışının son çiti).</summary>
+    public Guid? KaynakTeklifId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

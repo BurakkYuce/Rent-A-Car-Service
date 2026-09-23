@@ -62,11 +62,14 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var vehIds = rezler.Select(r => r.VehicleId).Distinct().ToList();
 
         // PII çözülmez: DisplayName girdileri (Unvan/Ad/Soyad) ve CepTel düz-metin kolonlar.
-        var cariler = (await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id))
-                .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.CepTel }).ToListAsync(ct))
-            .ToDictionary(c => c.Id, c => (
+        var cariSatirlari = await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.CepTel, c.AnonimAd }).ToListAsync(ct);
+        var cariler = cariSatirlari.ToDictionary(c => c.Id, c => (
                 Ad: new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
                 c.CepTel));
+        // F5.1 adversarial L5 — KVKK: adı anonimleştirilmiş carinin GERÇEK adı arama terimiyle eşleşmez (aksi hâlde
+        // "soyadı X olan var mı" sorusu, adı gizlenen kişinin kimliğini sızdırır). Görüntü kuralı MusteriGorunumu'nda.
+        var anonimAdlar = cariSatirlari.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
         var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
                 .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
             .ToDictionary(v => v.Id, v => v.Plaka);
@@ -93,7 +96,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             var plakaTerim = new string(t.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             rows = rows.Where(r =>
                 r.Rez.ReservationNo.Contains(t, StringComparison.OrdinalIgnoreCase)
-                || r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || (!anonimAdlar.Contains(r.Rez.MusteriId) && r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase))
                 || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase)
                 || (plakaTerim.Length > 0 && r.Plaka.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase)));
         }
@@ -119,14 +122,21 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default)
+    /// <summary>F5.1 adversarial L6 — sürümsüz yol da satır kilidi (<c>FOR UPDATE</c>) ALTINDA oku-uygula-yaz:
+    /// onayla/iptal/güncelle'nin <paramref name="apply"/> içindeki durum denetimi eşzamanlı kiraya-çevirme ile yarışamaz
+    /// (kiraya çevrilmiş rezervasyon "İptal"/"Onaylı"ya ezilmez).</summary>
+    public Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum: null,
+            (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public Task<bool> UpdateReservationAsync(Guid id, string? beklenenSurum, Action<Reservation> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum,
+            (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public async Task<string?> ReservationSurumuAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var r = await db.Reservations.FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (r is null) return false;
-        apply(r);
-        await db.SaveChangesAsync(ct);
-        return true;
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Rezervasyonlar, id, ct);
     }
 
     // ---- Kira ----
@@ -432,8 +442,15 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            // F5.1 adversarial L6: satır OKUMADAN ÖNCE kilitlenir, durum kilit ALTINDA yeniden denetlenir — servisin kilit
+            // dışı kontrolü ile eşzamanlı iptal/ikinci çevirme arasındaki pencere kapanır.
+            await SatirSurumu.KilitleAsync(db, SatirSurumu.Rezervasyonlar, reservationId, ct);
             var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId, ct)
                 ?? throw new ValidationException("Rezervasyon bulunamadı.");
+            if (reservation.RentalContractId is not null
+                || reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
+                throw new EszamanliDegisiklikException(
+                    $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
             rental.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.KiraSozlesmesi, ct);
