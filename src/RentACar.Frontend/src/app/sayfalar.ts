@@ -2,6 +2,7 @@ import type { Routes } from '@angular/router';
 
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
+import { izinGuard } from '@core/oturum/oturum-guard';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 
@@ -45,40 +46,48 @@ export const SAYFALAR: Routes = [
     canActivate: [ceviriBlogu('kiralar')],
   },
   // F5.2b planlama ekranları (Blazor /takvim, /musaitlik, /rez-sartlari, /filo-kiralama). Kayıt sayfası
-  // `filo-kiralama/:id`; `yeni` ondan ÖNCE eşleşmeli.
+  // `filo-kiralama/:id`; `yeni` ondan ÖNCE eşleşmeli. F5.3 parite: Blazor sayfalarının dördü de
+  // `[Authorize(Policy = "izin:OperationsWrite")]`, uç grupları da OperationsWrite ister — izinsiz rol
+  // (ör. Muhasebe) sayfayı açıp API 403'ü görmek yerine uyarı bandıyla ana sayfaya döner.
   ...ceviriBloguyla('planlama', [
     {
       path: 'takvim',
       title: 'Rezervasyon Takvimi — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () => import('@features/takvim/takvim-sayfasi').then((m) => m.TakvimSayfasi),
     },
     {
       path: 'musaitlik',
       title: 'Müsait Araç Ara — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () =>
         import('@features/musaitlik/musaitlik-sayfasi').then((m) => m.MusaitlikSayfasi),
     },
     {
       path: 'rez-sartlari',
       title: 'Rez Şartları — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () => import('@features/rez-sartlari/rez-sartlari').then((m) => m.RezSartlari),
       canDeactivate: [kaydedilmemisDegisiklikGuard],
     },
     {
       path: 'filo-kiralama',
       title: 'Filo Kiralama — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () =>
         import('@features/filo-kiralama/filo-listesi').then((m) => m.FiloListesi),
     },
     {
       path: 'filo-kiralama/yeni',
       title: 'Yeni Filo Sözleşmesi — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () => import('@features/filo-kiralama/filo-yeni').then((m) => m.FiloYeni),
       canDeactivate: [kaydedilmemisDegisiklikGuard],
     },
     {
       path: 'filo-kiralama/:id',
       title: 'Filo Sözleşmesi — RentACar',
+      canMatch: [izinGuard('OperationsWrite')],
       loadComponent: () => import('@features/filo-kiralama/filo-detay').then((m) => m.FiloDetay),
       canDeactivate: [kaydedilmemisDegisiklikGuard],
     },

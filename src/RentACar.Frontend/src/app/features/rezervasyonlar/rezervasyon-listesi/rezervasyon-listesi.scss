@@ -44,6 +44,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+// FAZ-81 paritesi (Blazor `--tr-renk-opsiyonlu`): "Rezerv" (opsiyonlu, henüz onaylanmamış tutma) kiracının
+// seçtiği renkle ayrışır. Renk seçilmemişse değişken tanımsız → şeffaf, rozet olduğu gibi kalır. Renk metne
+// değil kenar çizgisine uygulanır (Panel satır deseni): kiracı rengi ne olursa olsun metin kontrastı bozulmaz.
+.opsiyonlu {
+  box-shadow: inset 3px 0 0 var(--rc-kiraci-renk-opsiyonlu, transparent);
+}
+
 .tablo {
   // Kabuk (üst çubuk + sekmeler ≈ 5 rem), başlık ve filtre düğmesi düşülür.
   --rc-tablo-en-fazla-yukseklik: calc(100vh - 14rem);

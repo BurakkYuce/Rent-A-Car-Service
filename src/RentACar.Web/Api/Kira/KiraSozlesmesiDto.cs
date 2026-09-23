@@ -337,7 +337,7 @@ public sealed class KiraGuncelleIstegi
         FaturaListesindeGizle = FaturaListesindeGizle,
         UcusNo = UcusNo,
         ProvizyonNo = ProvizyonNo,
-        ProvizyonTarih = ProvizyonTarih,
+        ProvizyonTarih = ProvizyonTarih?.ToUniversalTime(), // Low-B: DB'ye giden DateTimeOffset UTC
         OnayKodu = OnayKodu,
         FirmaKodu = FirmaKodu,
         ProjeAdi = ProjeAdi,

@@ -19,47 +19,59 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-23. **F4'ün KODU BİTTİ** (#264 merge). Main'de 60 PR'lık planın ~25'i var (~%42). Kira
-listesi, Panel ve kira formu (sabit finans paneli dahil) SPA'da; kesiş mekaniği hazır ama **pilot kapalı** —
-kullanıcılar hâlâ Blazor kullanıyor. Açık PR yok.
+Güncelleme: 2026-09-23. **F4'ün KODU BİTTİ** (#264 + kapanış #270). **F5 SÜRÜYOR**: uçlar (#271) ve iki
+ekran PR'ı (#272, #273) main'de, parite + e2e (#274) açık, kesiş (F5.4) yazılıyor. Paralelde F6 backend ve iki Low
+temizliği yürüyor. Kira listesi, Panel, kira formu ve rezervasyon ekranları SPA'da; kesiş mekaniği hazır ama
+**pilot kapalı** — kullanıcılar hâlâ Blazor kullanıyor.
 
 ### ✅ Bitti
 - G0, F0 (#235 #237), F1 (#238–#240 #243–#245), F2.1 (#241), F2.2 kodu (#249), F3 (#248 #250–#255, kapanış #256).
 - F4.1 kira + panel uçları (#258), F4.4a finans uçları `/api/ui/v1/finans` (#257), F4.2 kira listesi (#260),
   F4.5 Panel (#259), F4.3 kira formu I (#261), F4.3b kira formu parite ekleri (#262).
-- **F4.4 kira formu II — sabit finans paneli (#263, PARA).** 5 adversarial turu: HIGH-1 (kaybolan yanıt sonrası
-  ikinci tahsilat) → sunucuda "önce mevcut kayıt, sonra bayatlık" sırası + `mevcut{…, ayniIcerik}`; M-A (iki
-  sekme), M-B (ön-dolu tutara fare tıklaması), M-C (tutarı değiştirilmiş tekrar) ve son turda MEDIUM-1
-  (belirsiz tahsilat denemesi artık ANAHTARA bağlı) kapatıldı.
+- **F4.4 kira formu II — sabit finans paneli (#263, PARA).** 6 adversarial turu; son tur Critical/High/Medium: 0.
+  HIGH-1 (kaybolan yanıt sonrası ikinci tahsilat) → sunucuda "önce mevcut kayıt, sonra bayatlık" sırası +
+  `mevcut{…, ayniIcerik}`; M-A (iki sekme), M-B (ön-dolu tutara fare tıklaması), M-C (tutarı değiştirilmiş tekrar)
+  ve MEDIUM-1 (belirsiz tahsilat denemesi artık ANAHTARA bağlı) kapatıldı.
 - **F4.6 ilk kesiş — mekanik (#264).** Platform konsolunda pilot anahtarı, tek giriş `/login` → `/app/giris`,
   5 şablonluk GET yönlendirme haritası (sorgu korunur; PDF/hesap/export yönlenmez), menü kayıttan (rol → izin),
   test devri, `mobil-tasma` SPA girişi. Güvenlik incelemesi temiz; pilotta finans paneli e2e ile doğrulandı.
   **Pilot anahtarı kapalı** — açmak kullanıcıya ait.
 - **Çekirdek eki: rota bazlı tembel çeviri (#268).** `tr.json` artık ilk pakete gömülü değil; ilk paket
   395 → 372,5 kB (uyarı 380, hata 450). Yeni ekranlar çevirilerini kendi rota parçalarında yükler.
+- **F4 kapanışı (#270):** kod tamam; Exit'in pilot maddesi ve F4.6b açık.
+- **F5.1 rezervasyon modülü uçları (#271).** 2 adversarial tur: High (teklif kabul yarışı — iki eşzamanlı kabul
+  iki rezervasyon üretebiliyordu) + 2 Medium (filo tarih/kapsam, müsaitlik saati) düzeltildi.
+- **F5.2b planlama ekranları (#273):** takvim, müsaitlik, rez şartları, filo kiralama (+ #271 Low-1 filo künye
+  tarihi kapandı).
+- **F5.2a rezervasyon ve teklif ekranları (#272):** liste, form, detay + durum eylemleri.
 - Yan düzeltmeler: #265 (müşteri bildirimleri + WhatsApp özeti 2026-08-17'den beri çalışmıyordu — UTC),
   #266 (iş koşu günlüğü hata satırı + üretici yalıtımı + üretici başına `racar_job_fail` metriği).
 
-### ⏳ Açık PR — YOK
+### ⏳ Açık PR
+- **#274 F5.3 parite + gerçek backend e2e** (rapor: `docs/roadmap/F5-parite.md`) — CI bekleniyor.
 
-Sıradaki işe §1 "Sırada" listesinden başla; kullanıcı kararına bağlı maddelere dokunma.
+### 🔄 Sürüyor (paralel ajanlar, 2026-09-23)
+- **F5.4 kesiş** (yönlendirme şablonları + menü sahibi `spa` + guard testleri devri; Blazor sayfa silme pilot
+  sonrası, F4.6b deseni).
+- **F6.1a araç çekirdek uçları** (para yok).
+- **F6.1b araç para uçları** (kredi + müşteri taksit) — §4 adversarial zorunlu.
+- **Low temizliği A** (KVKK/SPA) ve **Low temizliği B** (para; §4 adversarial zorunlu) — §6.
 
 ### ⬜ Sırada (başlamadı)
-1. **Low temizliği PR'ı** (§6 listesi) — para dokunanlar varsa adversarial.
-2. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
+1. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
    P1 olmadıktan SONRA. Ön koşul: kullanıcı F2.2 sunucu adımlarını yapmış ve pilotu açmış olmalı.
-3. **F5 → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
+2. **F6 ekranlar → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
 - TürevRent parolası değişimi + GitGuardian olayı 37502190'ın kapatılması.
-- **Karar (1):** F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlasın mı?
-  - Önerilen: evet, F4 kodu bitince başlasın; pilot arka planda sürsün.
-  - Karar gelince `DEGISIKLIKLER.md`'ye yaz.
-  - Cevap yoksa yalnız Low temizliği yapılabilir; **F5'e başlanmaz.**
-- **Karar (2):** menü görünürlüğü rolden izne geçti (#264). Operatör 79 → 74 öğe, Muhasebe 48 → 53.
-  Kullanıcı onayı bekleniyor; itiraz gelirse `MenuKaydi`'nde izin eşlemesi düzeltilir.
-- **Karar (3): yakıt ölçeği.** Servis ve harici API 0–100, formlar ve TürevRent 0–12 kullanıyor. Önerilen: tek
+- ~~Karar (1)~~ ve ~~Karar (2)~~ **KAPANDI** — kullanıcı 2026-09-22'de oturumda doğrudan verdi
+  (`DEGISIKLIKLER.md`): F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlar; #264 menü izin eşlemesi
+  (Operatör 79 → 74, Muhasebe 48 → 53) onaylandı.
+- **Karar (4) YENİ: rezervasyon güncellemesinde doluluk çarpanı (surge).** `CLAUDE.md` "rezervasyon-update'te
+  surge atlanır" diyor; ama `ReservationService.UpdateAsync:181-182` `dolulukUygula:false` geçmiyor ve kod
+  yorumu bunu bilinçli diyor. Hangisi doğru? Karar gelmeden bu davranışa dokunma.
+- **Karar (3): yakıt ölçeği (hâlâ açık).** Servis ve harici API 0–100, formlar ve TürevRent 0–12 kullanıyor. Önerilen: tek
   ölçek 0–12. Harici `RentalsApi` için iki seçenek var: (a) >12 → 400, (b) sınırda yüzde↔12 çevirisi. Karar
   gelmeden yakıt koduna dokunma.
 - Pilotu platform konsolundan açma (Platform → kiracı detay → "Yeni Arayüz") + canlı duman testi (README "Doğrulama").
@@ -86,18 +98,26 @@ Sıradaki işe §1 "Sırada" listesinden başla; kullanıcı kararına bağlı m
    - Backend: WebFactory + gerçek PostgreSQL, `racar_app` ile izolasyon; SABİT PAROLA/KİMLİK YOK (GitGuardian).
    - Frontend: Vitest + Playwright e2e; üç zorunlu senaryo: "doğrulama hatasında form korunur", "oturum düşünce form
      kaybolmaz", "`cakisma` formu silmez". axe 0 ciddi/kritik; 320/390/768/1440 taşma 0.
-7. **Kapılar (yerel):**
-   - Frontend: `cd src/RentACar.Frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e`.
-     **Vitest'i Node 22 ile koş.** Node 26'da jsdom `localStorage` bozuk.
-   - Backend: `RACAR_TEST_PG_ADMIN="Host=localhost;Port=5432;Username=burak;Database=postgres" dotnet test RentACar.slnx -c Debug > <scratch>/full.log 2>&1; tail -30 <scratch>/full.log`
-     → "Failed: 0" açıkça. **Uzun komut çıktısını daima dosyaya yazıp `tail` ile oku**; aksi halde ajan izleyicisi
-     600 sn sessizlikte ajanı düşürür.
+7. **Kapılar (yerel) — HIZ KURALI (kullanıcı kararı 2026-09-23):** yerelde TAM paket koşulmaz, yalnız dokunulan
+   şeyin testleri.
+   - Backend: filtreli sınıf —
+     `RACAR_TEST_PG_ADMIN="Host=localhost;Port=5432;Username=burak;Database=postgres" rtk test dotnet test tests/RentACar.IntegrationTests -c Debug --filter "FullyQualifiedName~<Sinif>"`
+     → "Failed: 0" açıkça.
+   - Frontend: değişen Vitest dosyaları (`rtk npx -p node@22 npm test -- <dosya>`; **Node 22** — Node 26'da jsdom
+     `localStorage` bozuk) + `rtk npm run lint` + `rtk npm run typecheck` + değişen/yeni e2e spec dosyaları.
+   - **Tam backend, tam e2e ve build yalnız CI'da koşar.**
+   - Worktree'lerde `npm ci` YAPILMAZ; ana repodaki `src/RentACar.Frontend/node_modules` symlink'lenir
+     (`rtk run 'ln -s /Users/burak/Desktop/demo-apps/demo/src/RentACar.Frontend/node_modules <worktree>/src/RentACar.Frontend/node_modules'`).
+     Hedefte `node_modules/.bin/ng` yoksa kurulum sürüyordur, 1-2 dk bekle.
+   - Uzun komutu `run_in_background` ile koş, log dosyasını `rtk read <log> --tail-lines N` ile oku; aksi halde ajan
+     izleyicisi 600 sn sessizlikte ajanı düşürür.
 8. **Commit/PR:**
    - Commit mesajı Türkçe ve ayrıntılı (ne + neden + test özeti); kurallar `CLAUDE.md` §3.
    - `git push -u origin <dal>`, sonra `gh pr create --base main`. PR açıklamasına riskli noktaları ve
      adversarial hedeflerini yaz.
 9. **CI:**
-   - `scripts/pr-izle.sh <pr> 6 <head-sha-önek>` yalnız izler, merge etmez. Çıktıyı OKU.
+   - **Ajan CI izlemez:** push → PR → "PR no + head SHA" raporu ve biter. CI'ı koordinatör izler.
+   - Koordinatör: `scripts/pr-izle.sh <pr> 6 <head-sha-önek>` yalnız izler, merge etmez. Çıktıyı OKU.
    - `spa-surum` PR'da SKIPPED normaldir; diğer 6 kontrol (build-test, frontend, e2e, mobil-tasma,
      deploy-betikleri, GitGuardian) SUCCESS olmalı.
 10. **Para PR'ı ise** merge'den önce §4 bağımsız adversarial. Critical/High/Medium = 0 olana kadar düzelt → yeniden doğrulat.
@@ -110,10 +130,25 @@ Sıradaki işe §1 "Sırada" listesinden başla; kullanıcı kararına bağlı m
       elle birleştirilmez, koddan yeniden üretilir.
     - `tr.json`'da git iki merge-base bulursa anahtar anahtar birleştir.
 
+### Araç kuralı (kullanıcı zorunlu kıldı — istisna yok)
+Alt ajan talimatlarına **aynen** yazılır.
+- Tüm Bash komutları `rtk` ile: `rtk git …`, `rtk gh …`, `rtk npm run …`, `rtk npx …`, `rtk test dotnet test …`;
+  karşılığı yoksa `rtk run '<cmd>'`; çıktı bozuk ya da boşsa `rtk proxy <cmd>`.
+- Grep ve Glob araçları YASAK. Çıplak `grep`/`find`/`cat`/`head`/`tail`/`sed`/`awk` ve heredoc YASAK.
+- Arama `rtk grep -rn "<desen>" <dizin>`; dosya bulma `rtk find <dizin> -name "<desen>"`; okuma `rtk read <dosya>`.
+- Dosyanın ortası: Read aracı `offset`/`limit` ile. `sed -n` rtk'yı atlar, kullanma.
+- Log sonu `rtk read <dosya> --tail-lines N`; `-m` ile `--tail-lines` birlikte verilmez.
+- Testler `rtk test …`; kesilmiş çıktının tamamı `rtk recall <id>`.
+- Dosya düzenleme yalnız Edit/Write aracıyla. Commit mesajı Write ile scratchpad'e yazılır, sonra
+  `rtk git commit -F <dosya>`.
+
 ## 3. Paralel mod (isteğe bağlı, hız için)
 
 Kullanıcının tercihi: "workflow değil, arkada subagent aç, paralel; amaç hız". Desen:
-- Her PR için ayrı worktree + arka plan ajanı. Ajan kendi PR'ını açar, **merge etmez**.
+- Her PR için ayrı worktree + arka plan ajanı. Ajan kendi PR'ını açar, **merge etmez**, CI izlemez.
+- Aynı anda **en fazla 6 ajan**.
+- Her ajanın talimatına **ortak kural dosyası** (scratchpad'de; araç kuralı + hız kuralı + proje kuralları özeti,
+  "AYNEN uygula") ve ajana özgü bir **önek** (scratchpad dosya adları için, ör. `doc-`) yazılır.
 - Koordinatör CI'ı `scripts/pr-izle.sh` ile izler ve ayrı adımda merge eder.
 - Bağımlı PR, bağımlılığın dalı üzerinde erken başlar; bağımlılık merge olunca `git merge origin/main` yapar.
 - Ağ kesintisinde düşen ajan yeniden açılmaz, aynı ajana mesajla kaldığı yerden devam ettirilir.
@@ -228,13 +263,18 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
 
 ## 6. Low temizliği kuyruğu (tek PR ya da fazların içine)
 
+Durum 2026-09-23: iki paralel PR sürüyor — **Low A** (KVKK/SPA) ve **Low B** (para; §4 adversarial zorunlu).
+Maddelerin yanındaki etiket hangi PR'da olduğunu gösterir; etiketsiz madde açıktır.
+
 **Para ve backend** (para dokunanlar → §4)
-- R04 `FaturaDonemFiles`: mevcut RowKey'li kaydın tutar ve dövizi de karşılaştırılsın (Blazor ham anahtarla dönem
-  tahsilatını önden alabiliyor).
-- N4 `DonemFaturaUretici`: kilitten sonra kira durumu yeniden denetlensin (iş iptal kiraya dönem faturası kesebiliyor).
+- [sürüyor — Low B] R04 `FaturaDonemFiles`: mevcut RowKey'li kaydın tutar ve dövizi de karşılaştırılsın (Blazor
+  ham anahtarla dönem tahsilatını önden alabiliyor).
+- [sürüyor — Low B] N4 `DonemFaturaUretici`: kilitten sonra kira durumu yeniden denetlensin (iş iptal kiraya dönem
+  faturası kesebiliyor).
+- [sürüyor — Low B] `FinansApi`: +03:00 tarih parametresi 500 üretiyor (DB'ye giden tarih UTC olmalı, §5).
 - Blazor `BatchCollect`/`BatchPay`: cari varlık kontrolü yok (F8'de).
 - Ek hizmet ekleme anahtarsız (çift gönderim iki kalem; SPA kilidine bağlı).
-- Kira oluşturma atomik değil: ücret satırları ve dönem planı ayrı adımda.
+- **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
 - `RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok; kalıcı çözüm bileşik FK.
   45 test sentetik kimlik kullanıyor.
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
@@ -243,21 +283,29 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
 - 22001/22003 güvenlik ağı Warning seviyesinde loglanmalı.
 
 **KVKK ve yetki**
-- `AnonimAd`: kira listesi, Panel ve `secim/musteri*` müşteri adı bayrağı okumuyor.
+- [sürüyor — Low A] `AnonimAd`: kira listesi, Panel ve `secim/musteri*` müşteri adı bayrağı okumuyor.
 - Kullanıcı bazlı izin yasağı Blazor sayfalarını kapatmıyor (yalnız `[Authorize]`, 41 rota). SPA'da veri `/api/ui`
   izinleriyle korunur; Blazor F13'te kalkar.
+- `DUGME_IZINLERI`'nde `rezervasyonIptal` girdisi yok (açık).
 
 **SPA**
-- L5: kira detay yenilemesi 5xx dönerse finans paneli kayboluyor.
+- [sürüyor — Low A] L5: kira detay yenilemesi 5xx dönerse finans paneli kayboluyor.
+- [sürüyor — Low A] `TahsilatDenemeKaydi` sekmeler arası davranışı.
+- [sürüyor — Low A] Filo aracı silinince kaydın görünmez olması.
+- [sürüyor — Low A] Teklif kabulü 409'unda `mevcut` bilgisinin ele alınması.
 - Muhasebe rolü dönem planını okuyamıyor (Blazor paritesi; dokunma).
+
+**Bilgi / kapandı**
+- Blazor müsaitlik ekranı saati UTC sayıyor — bilgi; Blazor F13'te kalkar, düzeltilmez.
+- ~~#271 Low-1 filo künye tarihi~~ KAPANDI (#273).
 
 ## 7. Faz haritası (kalan)
 
 | Faz | Kapsam | PR | Para |
 |---|---|---|---|
-| F4 | #263, #264, kapanış; pilot sonrası F4.6b | — | ✔ |
-| F5 | Rezervasyon, takvim, müsaitlik, rez şartları, teklifler, filo kiralama (6 sayfa) | 4 | — |
-| F6 | Araçlar (14) | 5 | ✔ kredi + müşteri taksit |
+| F4 | kod ✔ (#263, #264, #270); pilot sonrası F4.6b | — | ✔ |
+| F5 | Rezervasyon, takvim, müsaitlik, rez şartları, teklifler, filo kiralama (6 sayfa) — sürüyor | 5 (2a/2b bölündü) | — |
+| F6 | Araçlar (14) — F6.1a/F6.1b sürüyor | 6 (1a/1b bölündü) | ✔ kredi + müşteri taksit |
 | F7 | Cariler & CRM (8) | 3 | — |
 | F8 | Finans + cari ekstre + fatura yazdır (19) | 6 | ✔ her PR |
 | F9 | Servis & sigorta + vade + fiyat & tarife (15) | 5 | ✔ ödeme ve yansıtma |

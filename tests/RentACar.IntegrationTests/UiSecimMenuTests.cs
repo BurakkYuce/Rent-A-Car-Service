@@ -367,7 +367,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.All(ogeler, e => Assert.Equal(
             e.GetProperty("rota").GetString()!.StartsWith("/app/", StringComparison.Ordinal) ? "spa" : "blazor",
             e.GetProperty("sahip").GetString()));
-        Assert.Equal(3, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        Assert.Equal(11, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa")); // F4.6: 3, F5.4: +8
         Assert.Equal(3, ogeler.Count(e => e.GetProperty("hizliBaglanti").GetBoolean()));
         var siralar = ogeler.Select(e => e.GetProperty("sira").GetInt32()).ToList();
         Assert.Equal(siralar.Order(), siralar);         // sıralı döner
@@ -377,7 +377,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.False(adminGovde.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
         var (op, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorA));
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/rezervasyonlar", "/vehicles", "/app/kiralar", "/cariler", "/vade", "/dokumanlar" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/vehicles", "/app/kiralar", "/cariler", "/vade", "/dokumanlar" })
             Assert.Contains(r, op);
         foreach (var r in new[] { "/vehicles/detayli", "/musteri-taksit", "/crm", "/maliyet-hesapla", "/tarife-aktar", "/kasa", "/kurlar", "/raporlar/gunluk", "/ayarlar", "/subeler" })
             Assert.DoesNotContain(r, op);
