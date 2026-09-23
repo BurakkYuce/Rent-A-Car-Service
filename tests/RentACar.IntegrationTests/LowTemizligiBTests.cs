@@ -19,14 +19,20 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// Low temizliği B — para dokunan Low maddeleri. BAĞIMSIZ ORACLE (elle):
-/// R04: 15 Oca 2027 + 90 g × 100 = 9000; D1 = 31 g × 100 = 3100 (dönem faturası brütü).
+/// R04: göreli başlangıç (TestZaman, whole-second) + 90 g × 100; D1 = (bir sonraki ayın aynı günü − başlangıç)
+/// takvim günü × 100 (dönem faturası brütü; ay uzunluğu takvimden elle, servis kodundan DEĞİL).
 /// N4: 65 gün önce başlamış 90 günlük kira; vadesi geçmiş 2 dönem — kira kilit beklerken iptal edilirse 0 fatura.
 /// RentalsApi: yabancı/olmayan müşteri-araç kimliği → 400 <c>validation</c>, hiçbir kira/rezervasyon yazılmaz.
 /// </summary>
 [Collection("postgres")]
 public sealed class LowTemizligiBTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2027, 1, 15, 10, 0, 0, TimeSpan.Zero);
+    // Sabit tarih yok (TestTarihBombasiTests): göreli, whole-second hizalı başlangıç.
+    private static readonly DateTimeOffset Start = TestZaman.GunSonra(10);
+
+    /// <summary>Oracle: first period = calendar days from start to the same day next month, × 100 per day.</summary>
+    private static decimal FirstPeriodGross(DateTimeOffset start) =>
+        (start.AddMonths(1).UtcDateTime.Date - start.UtcDateTime.Date).Days * 100m;
 
     private static async Task<(Guid kira, Guid cari)> KiraAsync(IServiceProvider sp, string plaka, DateTimeOffset bas,
         bool donemsel = false)
@@ -50,7 +56,8 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 LB 01", Bas);
+        var (kira, cari) = await KiraAsync(sp, "34 LB 01", Start);
+        var firstPeriod = FirstPeriodGross(Start);
         var kasa = sp.GetRequiredService<CashService>();
 
         // Blazor ham anahtar yolu: AYNI kiraya 1 TL, dönem tahsilatının deterministik anahtarıyla.
@@ -67,8 +74,8 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         Assert.Equal(1m, ex.Mevcut.Tutar);
         Assert.Contains("YAZILMADI", ex.Message);
 
-        // Fatura kesildi (3100 borç), yalnız ön-alınan 1 TL alacak: bakiye 3099 — dönem tahsilatı YOK.
-        Assert.Equal(3099m, await kasa.GetCariBalanceAsync(cari));
+        // Fatura kesildi (D1 borç), yalnız ön-alınan 1 TL alacak: bakiye D1 − 1 — dönem tahsilatı YOK.
+        Assert.Equal(firstPeriod - 1m, await kasa.GetCariBalanceAsync(cari));
     }
 
     [Fact]
@@ -77,18 +84,19 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 LB 02", Bas);
+        var (kira, cari) = await KiraAsync(sp, "34 LB 02", Start);
+        var firstPeriod = FirstPeriodGross(Start);
         var kasa = sp.GetRequiredService<CashService>();
         await kasa.CollectAsync(new CashInput
         {
-            CariId = cari, RentalId = kira, Tutar = 3100m, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
+            CariId = cari, RentalId = kira, Tutar = firstPeriod, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
             IslemAnahtari = CashService.RowKey(kira, 1)
         });
 
         var (_, yazildi) = await sp.GetRequiredService<DonemTahsilatService>()
             .KesVeTahsilEtDetayAsync(kira, 1, true, LedgerAccountType.Kasa);
         Assert.False(yazildi);
-        Assert.Equal(0m, await kasa.GetCariBalanceAsync(cari)); // 3100 borç − 3100 alacak
+        Assert.Equal(0m, await kasa.GetCariBalanceAsync(cari)); // D1 borç − D1 alacak
     }
 
     // ------------------------------------------------------------ N4
