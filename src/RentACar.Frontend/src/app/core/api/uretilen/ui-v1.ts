@@ -4811,10 +4811,832 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/raporlar/gelir-gider': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfGelirGiderDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/kasa-banka': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          hesap?: string;
+          hesapId?: string;
+          doviz?: string;
+          tur?: string;
+          sube?: string;
+          devir?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfCashBankReportSummaryAndLedgerLineDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/finans-analiz': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfFinanceDashboard'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/virman-gecmisi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          hesapId?: string;
+          ara?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfIReadOnlyListOfReportCurrencyTotalAndReportTransferRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/kdv-listesi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfKdvListesiDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/kdv-listesi/genis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          alis?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfVatWideSummaryAndKdvGenisSatirDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/cari-bakiye': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          ara?: string;
+          ozelKod?: string;
+          sinif?: string;
+          doviz?: string;
+          tip?: string;
+          bakiye?: string;
+          min?: number | string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfBalanceReportSummaryAndCariBalanceDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/cari-bakiye/yaslandirma': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          tarih?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfAgingReportSummaryAndAgingRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/extre-ozeti': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          cariId?: string;
+          plaka?: string;
+          ofis?: string;
+          gecikmis?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfStatementReportSummaryAndExtreOzetiRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/tahsilat-fatura': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfTahsilatFaturaDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/tahsilat-fatura/mutabakat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          ara?: string;
+          durum?: string;
+          bakiye?: string;
+          tutarsiz?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfReconciliationReportSummaryAndReconciliationReportRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/fatura-donem': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfInvoicePeriodSummaryAndFaturaDonemRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/fatura-donem/kira-durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          ara?: string;
+          faturaDurum?: string;
+          subeId?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfRentalInvoiceSummaryAndKiraFaturaDurumRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/karlilik': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          sube?: string;
+          grup?: string;
+          plaka?: string;
+          kaynak?: string;
+          sipp?: string;
+          kdvDahil?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfProfitabilitySummaryAndKarlilikSatirDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/karlilik/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          boyut?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfKarlilikOzetDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/ek-hizmet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfEkHizmetRaporDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/ek-hizmet/arac-pivot': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfEkHizmetAracPivotDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/ek-hizmet/detay': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          ara?: string;
+          personelId?: string;
+          ofis?: string;
+          kaynak?: string;
+          sistemGizle?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportResultOfAddOnDetailSummaryAndEkHizmetDetayRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/raporlar/gunluk': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          gun?: string;
+          sube?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReportSummaryResultOfGunlukFaaliyetDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AddOnDetailSummary: {
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      brut: number | string;
+    };
+    AgingReportSummary: {
+      /** Format: date */
+      tarih: string;
+      kovalar: components['schemas']['ReportAgingBuckets'];
+      /** Format: double */
+      toplam: number | string;
+    };
+    AgingRowDto: {
+      /** Format: uuid */
+      cariId: string;
+      ad: string;
+      /** Format: double */
+      b0_30: number | string;
+      /** Format: double */
+      b31_60: number | string;
+      /** Format: double */
+      b61_90: number | string;
+      /** Format: double */
+      b90Plus: number | string;
+      /** Format: double */
+      toplam: number | string;
+    };
     AracCezaOzeti: {
       /** Format: uuid */
       id: string;
@@ -4957,6 +5779,23 @@ export interface components {
       kirada: boolean;
       serviste: boolean;
       bafta: boolean;
+    };
+    AracDurumTakipRow: {
+      /** Format: date-time */
+      gun: string;
+      /** Format: int32 */
+      toplamArac: number | string;
+      /** Format: int32 */
+      dolu: number | string;
+      /** Format: int32 */
+      bakim: number | string;
+      /** Format: int32 */
+      bos: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      toplamBaf: number | string;
     };
     AracDurumYaniti: {
       liste: components['schemas']['SayfaOfAracDurumSatiri'];
@@ -5589,6 +6428,25 @@ export interface components {
       /** Format: double */
       gelir: number | string;
     };
+    AylikGelirGiderNokta: {
+      /** Format: date-time */
+      ayBas: string;
+      /** Format: double */
+      gelir: number | string;
+      /** Format: double */
+      gider: number | string;
+      /** Format: double */
+      netKar: number | string;
+    };
+    BalanceReportSummary: {
+      /** Format: double */
+      borcluToplam: number | string;
+      /** Format: double */
+      alacakliToplam: number | string;
+      ozelKodlar: string[];
+      siniflar: string[];
+      dovizler: string[];
+    };
     BelgeTuru: number;
     BenKiraci: {
       /** Format: uuid */
@@ -5622,6 +6480,58 @@ export interface components {
         [key: string]: string;
       };
       pilot: boolean;
+    };
+    CariBalanceDto: {
+      /** Format: uuid */
+      cariId: string;
+      ad: string;
+      /** Format: double */
+      bakiye: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      toplamBorc: number | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      toplamAlacak: number | string;
+      telefon?: null | string;
+      email?: null | string;
+      banka?: null | string;
+      doviz?: null | string;
+      ozelKod?: null | string;
+      sinif?: null | string;
+      /** @default false */
+      kurumsal: boolean;
+      /** @default false */
+      pasif: boolean;
+    };
+    CashBankReportOptions: {
+      dovizler: string[];
+      turler: string[];
+      subeler: string[];
+    };
+    CashBankReportSummary: {
+      hesap: string;
+      toplam: components['schemas']['CashboxSummaryDto'];
+      hesaplar: components['schemas']['ReportAccountSummaryRow'][];
+      secenekler: components['schemas']['CashBankReportOptions'];
+    };
+    CashboxSummaryDto: {
+      /** Format: double */
+      kasaGiris: number | string;
+      /** Format: double */
+      kasaCikis: number | string;
+      /** Format: double */
+      kasaBakiye: number | string;
+      /** Format: double */
+      bankaGiris: number | string;
+      /** Format: double */
+      bankaCikis: number | string;
+      /** Format: double */
+      bankaBakiye: number | string;
     };
     DepozitoAlIstegi: {
       /** Format: uuid */
@@ -5692,6 +6602,59 @@ export interface components {
       /** Format: uuid */
       teslimAlanPersonelId?: null | string;
     };
+    EkHizmetAracPivotDto: {
+      kolonlar: string[];
+      satirlar: components['schemas']['EkHizmetAracPivotSatir'][];
+      kolonToplam: (number | string)[];
+      /** Format: double */
+      genelToplam: number | string;
+    };
+    EkHizmetAracPivotSatir: {
+      /** Format: uuid */
+      vehicleId: null | string;
+      plaka: string;
+      grup: null | string;
+      sipp: null | string;
+      hucreler: (number | string)[];
+      /** Format: double */
+      toplam: number | string;
+      /** Format: int32 */
+      kalemAdet: number | string;
+    };
+    EkHizmetDetayRow: {
+      /** Format: uuid */
+      addOnId: string;
+      /** Format: uuid */
+      rentalId: string;
+      sozlesmeNo: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      plaka: string;
+      musteriAd: string;
+      rezKaynagi: null | string;
+      cikisOfisi: null | string;
+      ad: string;
+      /** Format: double */
+      miktar: number | string;
+      /** Format: double */
+      birimNetFiyat: number | string;
+      /** Format: double */
+      kdvOrani: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      brut: number | string;
+      /** Format: date-time */
+      eklenmeTarihi: string;
+      satanPersonel: null | string;
+      /** Format: double */
+      ilkTahsilat: null | number | string;
+      sistemKalemi: boolean;
+    };
     EkHizmetEkleIstegi: {
       /** Format: uuid */
       ekHizmetTanimId?: null | string;
@@ -5729,6 +6692,72 @@ export interface components {
       aciklama: null | string;
       /** Format: int32 */
       maxGun: null | number | string;
+    };
+    EkHizmetRaporDto: {
+      satirlar: components['schemas']['EkHizmetRaporRowDto'][];
+      /** Format: double */
+      toplamNet: number | string;
+      /** Format: double */
+      toplamKdv: number | string;
+      /** Format: double */
+      toplamBrut: number | string;
+      /** Format: int32 */
+      kiraAdet: number | string;
+    };
+    EkHizmetRaporRowDto: {
+      ad: string;
+      /** Format: double */
+      toplamMiktar: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      brut: number | string;
+      /** Format: int32 */
+      kiraAdet: number | string;
+    };
+    ExtreOzetiRowDto: {
+      /** Format: uuid */
+      faturaId: string;
+      faturaNo: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: date-time */
+      vadeTarihi: null | string;
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      plaka: null | string;
+      sozlesmeNo: null | string;
+      cikisOfisi: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      iadeMi: boolean;
+      /** Format: double */
+      isaretliTutar?: number | string;
+      /** Format: double */
+      isaretliTutarTl?: number | string;
+    };
+    FaturaDonemRow: {
+      /** Format: uuid */
+      invoiceId: string;
+      no: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: date-time */
+      vadeTarihi: null | string;
+      cari: string;
+      /** Format: double */
+      genelToplam: number | string;
+      currency: string;
+      /** Format: double */
+      kur: number | string;
+      durum: string;
+      iadeMi: boolean;
     };
     FaturaKesIstegi: {
       /** Format: uuid */
@@ -5915,6 +6944,14 @@ export interface components {
       tamamla: boolean;
       iptal: boolean;
     };
+    FinanceDashboard: {
+      trend: components['schemas']['AylikGelirGiderNokta'][];
+      gelirKirilim: components['schemas']['GelirGiderKalemDto'][];
+      giderKirilim: components['schemas']['GelirGiderKalemDto'][];
+      yaslandirma: components['schemas']['ReportAgingBuckets'];
+      mutabakat: components['schemas']['TahsilatFaturaDto'];
+      son30Gun: components['schemas']['AracDurumTakipRow'][];
+    };
     FinansHesapOgesi: {
       /** Format: uuid */
       id: string;
@@ -5928,10 +6965,47 @@ export interface components {
       /** Format: uuid */
       id: string;
     };
+    GelirGiderDto: {
+      /** Format: double */
+      gelirToplam: number | string;
+      /** Format: double */
+      giderToplam: number | string;
+      /** Format: double */
+      kdvTahsil: number | string;
+      /** Format: double */
+      kdvIndirilecek: number | string;
+      /** Format: double */
+      netKar: number | string;
+      gelirKirilim: components['schemas']['GelirGiderKalemDto'][];
+      giderKirilim: components['schemas']['GelirGiderKalemDto'][];
+    };
+    GelirGiderKalemDto: {
+      sourceType: string;
+      /** Format: double */
+      tutar: number | string;
+    };
     GirisIstegi: {
       firma: null | string;
       kullanici: null | string;
       sifre: null | string;
+    };
+    GunlukFaaliyetDto: {
+      /** Format: int32 */
+      yeniRezervasyon: number | string;
+      /** Format: int32 */
+      yeniKira: number | string;
+      /** Format: int32 */
+      cikis: number | string;
+      /** Format: int32 */
+      donus: number | string;
+      /** Format: int32 */
+      tahsilatAdet: number | string;
+      /** Format: double */
+      tahsilatTutar: number | string;
+      /** Format: int32 */
+      faturaAdet: number | string;
+      /** Format: double */
+      faturaTutar: number | string;
     };
     HgsGecisDto: {
       /** Format: date-time */
@@ -5942,11 +7016,99 @@ export interface components {
     };
     /** Format: binary */
     IFormFile: string;
+    InvoicePeriodSummary: {
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      toplamTl: number | string;
+    };
     IstemciHataIstegi: {
       mesaj: null | string;
       yigin: null | string;
       url: null | string;
       surum: null | string;
+    };
+    KarlilikOzetDto: {
+      boyutAdi: string;
+      satirlar: components['schemas']['KarlilikOzetSatirDto'][];
+      /** Format: double */
+      toplamGelir: number | string;
+      /** Format: double */
+      toplamGider: number | string;
+      /** Format: double */
+      toplamNetKar: number | string;
+    };
+    KarlilikOzetSatirDto: {
+      boyut: string;
+      /** Format: int32 */
+      aracAdet: number | string;
+      /** Format: double */
+      gelir: number | string;
+      /** Format: double */
+      gider: number | string;
+      /** Format: double */
+      netKar: number | string;
+      /** Format: double */
+      aracBasiGelir?: null | number | string;
+      /** Format: double */
+      dolulukYuzde?: null | number | string;
+      /** Format: double */
+      potansiyelGelir?: null | number | string;
+      /** Format: double */
+      referansToplamMaliyet?: null | number | string;
+    };
+    KarlilikSatirDto: {
+      /** Format: uuid */
+      vehicleId: null | string;
+      plaka: string;
+      sube: null | string;
+      grup: null | string;
+      segment: null | string;
+      /** Format: double */
+      gelir: number | string;
+      /** Format: double */
+      gider: number | string;
+      /** Format: double */
+      netKar: number | string;
+      sipp?: null | string;
+      otopark?: null | string;
+      rezKaynagi?: null | string;
+      cariAd?: null | string;
+      /** Format: double */
+      cariBakiye?: null | number | string;
+      /** Format: double */
+      referansAylikMaliyet?: null | number | string;
+      /** Format: double */
+      referansFiloYonetimMaliyeti?: null | number | string;
+      /** Format: double */
+      potansiyelGelir?: null | number | string;
+      /** Format: double */
+      hesaplananKdv?: null | number | string;
+      /** Format: double */
+      dolulukYuzde?: null | number | string;
+      /** Format: double */
+      revPacd?: null | number | string;
+      /** Format: double */
+      adr?: null | number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      sahiplikGun: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      kiralananGun: number | string;
+      /**
+       * Format: int32
+       * @default 0
+       */
+      kiraAdet: number | string;
+      /** Format: double */
+      referansToplamMaliyet?: null | number | string;
+      /** Format: double */
+      gelirKdvDahil?: null | number | string;
     };
     KarneOzetiDto: {
       /** Format: uuid */
@@ -5984,6 +7146,64 @@ export interface components {
     };
     KaynakRezervasyonYaniti: {
       rezervasyon: null | components['schemas']['KaynakRezervasyonDto'];
+    };
+    KdvGenisSatirDto: {
+      /** Format: uuid */
+      belgeId: string;
+      tur: string;
+      no: string;
+      /** Format: date-time */
+      tarih: string;
+      cari: string;
+      durum: string;
+      /** Format: double */
+      net20: number | string;
+      /** Format: double */
+      kdv20: number | string;
+      /** Format: double */
+      net10: number | string;
+      /** Format: double */
+      kdv10: number | string;
+      /** Format: double */
+      net1: number | string;
+      /** Format: double */
+      kdv1: number | string;
+      /** Format: double */
+      net0: number | string;
+      /** Format: double */
+      digerNet: number | string;
+      /** Format: double */
+      digerKdv: number | string;
+      /** Format: double */
+      toplamNet: number | string;
+      /** Format: double */
+      toplamKdv: number | string;
+      /** Format: double */
+      toplamBrut?: number | string;
+      alisMi?: boolean;
+    };
+    KdvListesiDto: {
+      satirlar: components['schemas']['KdvListesiRowDto'][];
+      /** Format: double */
+      toplamNet: number | string;
+      /** Format: double */
+      toplamKdv: number | string;
+      /** Format: double */
+      toplamBrut: number | string;
+      /** Format: int32 */
+      faturaAdet: number | string;
+    };
+    KdvListesiRowDto: {
+      /** Format: double */
+      oran: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      brut: number | string;
+      /** Format: int32 */
+      faturaAdet: number | string;
     };
     KiraAracDto: {
       /** Format: uuid */
@@ -6155,6 +7375,24 @@ export interface components {
       currency: string;
       durum: string;
       tur: string;
+    };
+    KiraFaturaDurumRow: {
+      /** Format: uuid */
+      rentalId: string;
+      sozlesmeNo: string;
+      plaka: string;
+      cari: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      durum: string;
+      faturalanan: boolean;
+      /** Format: int32 */
+      faturaAdet: number | string;
+      /** Format: double */
+      faturalananTutar: number | string;
+      ofis: null | string;
     };
     KiraFiltreSecenekleri: {
       sahipler: string[];
@@ -6688,6 +7926,33 @@ export interface components {
       /** Format: date-time */
       tarih: string;
     };
+    LedgerLineDto: {
+      /** Format: date-time */
+      tarih: string;
+      sourceType: string;
+      aciklama: null | string;
+      /** Format: double */
+      borc: number | string;
+      /** Format: double */
+      alacak: number | string;
+      /** Format: double */
+      yuruyenBakiye: number | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      native: number | string;
+      /** @default TRY */
+      doviz: string;
+      cariAd?: null | string;
+      belgeNo?: null | string;
+      sube?: null | string;
+      kanal?: null | string;
+      /** @default false */
+      devirMi: boolean;
+    };
     LokasyonSecimOgesi: {
       /** Format: uuid */
       id: string;
@@ -6952,11 +8217,248 @@ export interface components {
       detail?: null | string;
       instance?: null | string;
     };
+    ProfitabilitySummary: {
+      /** Format: double */
+      toplamGelir: number | string;
+      /** Format: double */
+      toplamGider: number | string;
+      /** Format: double */
+      toplamNetKar: number | string;
+      kdvDahil: boolean;
+      /** Format: double */
+      toplamPotansiyelGelir: null | number | string;
+      /** Format: double */
+      toplamReferansMaliyet: null | number | string;
+      /** Format: double */
+      toplamHesaplananKdv: null | number | string;
+    };
     ProvizyonKapatIstegi: {
       /** Format: double */
       kapamaTutar?: null | number | string;
       /** @default false */
       iade: boolean;
+    };
+    ReconciliationReportRow: {
+      /** Format: uuid */
+      rentalId: string;
+      sozlesmeNo: string;
+      plaka: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      /** Format: date-time */
+      basTar: string;
+      durum: string;
+      doviz: string;
+      /** Format: double */
+      matrah: number | string;
+      /** Format: double */
+      damgaVergisi: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      /** Format: double */
+      tahsilat: number | string;
+      /** Format: double */
+      defterTahsilat: number | string;
+      /** Format: double */
+      faturalanan: number | string;
+      /** Format: double */
+      musteriBakiye: number | string;
+      /** Format: double */
+      bakiye: number | string;
+      /** Format: double */
+      faturaFarki: number | string;
+      /** Format: double */
+      tahsilatAyrimi: number | string;
+      tutarsiz: boolean;
+    };
+    ReconciliationReportSummary: {
+      /** Format: double */
+      genelToplam: number | string;
+      /** Format: double */
+      tahsilat: number | string;
+      /** Format: double */
+      faturalanan: number | string;
+      /** Format: int32 */
+      tutarsizAdet: number | string;
+    };
+    RentalInvoiceSummary: {
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: int32 */
+      faturalanmamisAdet: number | string;
+      /** Format: double */
+      faturalananTutar: number | string;
+    };
+    ReportAccountSummaryRow: {
+      tur: string;
+      /** Format: uuid */
+      hesapId: null | string;
+      hesapAd: null | string;
+      /** Format: double */
+      giris: number | string;
+      /** Format: double */
+      cikis: number | string;
+      /** Format: double */
+      bakiye: number | string;
+    };
+    ReportAgingBuckets: {
+      /** Format: double */
+      b0_30: number | string;
+      /** Format: double */
+      b31_60: number | string;
+      /** Format: double */
+      b61_90: number | string;
+      /** Format: double */
+      b90Plus: number | string;
+    };
+    ReportCurrencyTotal: {
+      doviz: string;
+      /** Format: double */
+      toplam: number | string;
+    };
+    ReportExportLinks: {
+      excel: string;
+      csv: string;
+      pdf: null | string;
+    };
+    ReportPeriodDto: {
+      /** Format: date */
+      bas: null | string;
+      /** Format: date */
+      bit: null | string;
+    };
+    ReportResultOfAddOnDetailSummaryAndEkHizmetDetayRow: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['AddOnDetailSummary'];
+      satirlar: components['schemas']['SayfaOfEkHizmetDetayRow'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfAgingReportSummaryAndAgingRowDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['AgingReportSummary'];
+      satirlar: components['schemas']['SayfaOfAgingRowDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfBalanceReportSummaryAndCariBalanceDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['BalanceReportSummary'];
+      satirlar: components['schemas']['SayfaOfCariBalanceDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfCashBankReportSummaryAndLedgerLineDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['CashBankReportSummary'];
+      satirlar: components['schemas']['SayfaOfLedgerLineDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfInvoicePeriodSummaryAndFaturaDonemRow: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['InvoicePeriodSummary'];
+      satirlar: components['schemas']['SayfaOfFaturaDonemRow'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfIReadOnlyListOfReportCurrencyTotalAndReportTransferRow: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['ReportCurrencyTotal'][];
+      satirlar: components['schemas']['SayfaOfReportTransferRow'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfProfitabilitySummaryAndKarlilikSatirDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['ProfitabilitySummary'];
+      satirlar: components['schemas']['SayfaOfKarlilikSatirDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfReconciliationReportSummaryAndReconciliationReportRow: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['ReconciliationReportSummary'];
+      satirlar: components['schemas']['SayfaOfReconciliationReportRow'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfRentalInvoiceSummaryAndKiraFaturaDurumRow: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['RentalInvoiceSummary'];
+      satirlar: components['schemas']['SayfaOfKiraFaturaDurumRow'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfStatementReportSummaryAndExtreOzetiRowDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['StatementReportSummary'];
+      satirlar: components['schemas']['SayfaOfExtreOzetiRowDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportResultOfVatWideSummaryAndKdvGenisSatirDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['VatWideSummary'];
+      satirlar: components['schemas']['SayfaOfKdvGenisSatirDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfEkHizmetAracPivotDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['EkHizmetAracPivotDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfEkHizmetRaporDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['EkHizmetRaporDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfFinanceDashboard: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['FinanceDashboard'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfGelirGiderDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['GelirGiderDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfGunlukFaaliyetDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['GunlukFaaliyetDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfKarlilikOzetDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['KarlilikOzetDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfKdvListesiDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['KdvListesiDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportSummaryResultOfTahsilatFaturaDto: {
+      donem: components['schemas']['ReportPeriodDto'];
+      ozet: null | components['schemas']['TahsilatFaturaDto'];
+      export: null | components['schemas']['ReportExportLinks'];
+    };
+    ReportTransferRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      kaynakTur: string;
+      /** Format: uuid */
+      kaynakHesapId: null | string;
+      kaynakHesapAd: null | string;
+      hedefTur: string;
+      /** Format: uuid */
+      hedefHesapId: null | string;
+      hedefHesapAd: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      tutarTl: number | string;
+      makbuzNo: null | string;
+      sube: null | string;
+      islemYapan: null | string;
+      aciklama: null | string;
+      kunyeVar: boolean;
     };
     RezervasyonDetayYaniti: {
       rezervasyon: components['schemas']['RezervasyonDto'];
@@ -7266,6 +8768,17 @@ export interface components {
     RezSartKarsilandiIstegi: {
       teslimEden: null | string;
     };
+    SayfaOfAgingRowDto: {
+      kayitlar: components['schemas']['AgingRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfAracDetayliSatir: {
       kayitlar: components['schemas']['AracDetayliSatir'][];
       /** Format: int32 */
@@ -7310,6 +8823,50 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfCariBalanceDto: {
+      kayitlar: components['schemas']['CariBalanceDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfEkHizmetDetayRow: {
+      kayitlar: components['schemas']['EkHizmetDetayRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfExtreOzetiRowDto: {
+      kayitlar: components['schemas']['ExtreOzetiRowDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfFaturaDonemRow: {
+      kayitlar: components['schemas']['FaturaDonemRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfFiloListeSatiri: {
       kayitlar: components['schemas']['FiloListeSatiri'][];
       /** Format: int32 */
@@ -7321,8 +8878,74 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfKarlilikSatirDto: {
+      kayitlar: components['schemas']['KarlilikSatirDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfKdvGenisSatirDto: {
+      kayitlar: components['schemas']['KdvGenisSatirDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfKiraFaturaDurumRow: {
+      kayitlar: components['schemas']['KiraFaturaDurumRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfKiraListeSatiri: {
       kayitlar: components['schemas']['KiraListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfLedgerLineDto: {
+      kayitlar: components['schemas']['LedgerLineDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfReconciliationReportRow: {
+      kayitlar: components['schemas']['ReconciliationReportRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfReportTransferRow: {
+      kayitlar: components['schemas']['ReportTransferRow'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -7416,6 +9039,12 @@ export interface components {
       /** Format: int32 */
       enEskiGun: null | number | string;
     };
+    StatementReportSummary: {
+      /** Format: double */
+      toplamTl: number | string;
+      /** Format: int32 */
+      gecikmisAdet: number | string;
+    };
     TabloDuzeniVerisi: {
       sutunlar: components['schemas']['TabloSutunDuzeni'][];
       siralama: components['schemas']['TabloSiralamaDuzeni'][];
@@ -7446,6 +9075,18 @@ export interface components {
       doviz: string;
       /** Format: double */
       varsayilanTutar: number | string;
+    };
+    TahsilatFaturaDto: {
+      /** Format: int32 */
+      faturaAdet: number | string;
+      /** Format: double */
+      faturaToplam: number | string;
+      /** Format: int32 */
+      tahsilatAdet: number | string;
+      /** Format: double */
+      tahsilatToplam: number | string;
+      /** Format: double */
+      fark: number | string;
     };
     TahsilatIstegi: {
       /** Format: uuid */
@@ -7645,6 +9286,24 @@ export interface components {
     };
     VarsayilanGrupDto: {
       ad: null | string;
+    };
+    VatWideSummary: {
+      /** Format: double */
+      satisNet: number | string;
+      /** Format: double */
+      satisKdv: number | string;
+      /** Format: double */
+      alisNet: number | string;
+      /** Format: double */
+      alisKdv: number | string;
+      /** Format: double */
+      netKdv: number | string;
+      /** Format: int32 */
+      satisBelgeAdet: number | string;
+      /** Format: int32 */
+      alisBelgeAdet: number | string;
+      /** Format: int32 */
+      atlananDovizliAlis: number | string;
     };
   };
   responses: never;
