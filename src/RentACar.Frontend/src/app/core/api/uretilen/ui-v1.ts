@@ -7676,6 +7676,750 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/platform/oturum/giris': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformLoginRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformSessionResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/oturum/cikis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/oturum/ben': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformSessionResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformSummary'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          durum?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfPlatformTenantRowDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformTenantCreateRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/secim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantOptionDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformTenantUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/{id}/durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformTenantStatusRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformSwitchRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/{id}/web-sitesi-modulu': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformSwitchRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/kiracilar/{id}/logo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'image/png': string;
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            logo?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformTenantDetailDto'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/belgeler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformDocumentDto'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': components['schemas']['PlatformDocumentUploadForm'];
+          'application/x-www-form-urlencoded': components['schemas']['PlatformDocumentUploadForm'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformDocumentDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/belgeler/{id}/surum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformDocumentDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/belgeler/{id}/durum': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlatformDocumentStatusRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlatformDocumentDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/belgeler/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/platform/belgeler/{id}/icerik': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/pdf': string;
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11129,6 +11873,158 @@ export interface components {
       /** @default true */
       aktif: boolean;
     };
+    PlatformDocumentDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      aciklama: null | string;
+      dosyaAdi: string;
+      /** Format: int64 */
+      boyut: number | string;
+      /** Format: int32 */
+      surum: number | string;
+      durum: string;
+      yalnizYoneticiler: boolean;
+      /** Format: date-time */
+      guncelleme: string;
+      yukleyenOperator: null | string;
+      hedefKodlar: string[];
+    };
+    PlatformDocumentStatusRequest: {
+      durum: null | string;
+    };
+    PlatformDocumentUploadForm: {
+      baslik?: null | string;
+      aciklama?: null | string;
+      dosya?: null | components['schemas']['IFormFile'];
+      yalnizYoneticiler?: null | string;
+      hedef?: null | string[];
+    };
+    PlatformDomainDto: {
+      host: string;
+      tur: string;
+      durum: string;
+    };
+    PlatformLoginRequest: {
+      kullanici: null | string;
+      sifre: null | string;
+    };
+    PlatformLogoDto: {
+      var: boolean;
+      /** Format: int32 */
+      bayt: null | number | string;
+      /** Format: int32 */
+      genislik: null | number | string;
+      /** Format: int32 */
+      yukseklik: null | number | string;
+      baskiyaUygun: boolean;
+      uyari: null | string;
+    };
+    PlatformSessionResponse: {
+      kullanici: string;
+    };
+    PlatformSummary: {
+      /** Format: int32 */
+      toplamKiraci: number | string;
+      /** Format: int32 */
+      aktif: number | string;
+      /** Format: int32 */
+      pasif: number | string;
+      /** Format: int32 */
+      kapali: number | string;
+      /** Format: int32 */
+      toplamKullanici: number | string;
+      /** Format: int32 */
+      toplamArac: number | string;
+      /** Format: int32 */
+      aktifKira: number | string;
+      /** Format: int32 */
+      son30GunYeniKiraci: number | string;
+    };
+    PlatformSwitchRequest: {
+      aktif: null | boolean;
+    };
+    PlatformTenantCreateRequest: {
+      kod: null | string;
+      ad: null | string;
+      adminKullanici: null | string;
+      adminSifre: null | string;
+    };
+    PlatformTenantDetailDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      durum: string;
+      /** Format: date-time */
+      kapanisTarihi: null | string;
+      /** Format: date-time */
+      olusturma: string;
+      /** Format: date-time */
+      guncelleme: null | string;
+      surum: string;
+      yetkiliAd: null | string;
+      eposta: null | string;
+      telefon: null | string;
+      notlar: null | string;
+      plan: null | string;
+      /** Format: int32 */
+      kullaniciSayisi: number | string;
+      /** Format: int32 */
+      aracSayisi: number | string;
+      /** Format: int32 */
+      aktifKira: number | string;
+      /** Format: int32 */
+      toplamKira: number | string;
+      /** Format: date-time */
+      sonGiris: null | string;
+      /** Format: double */
+      gelir30Gun: number | string;
+      webSitesiModulu: boolean;
+      yeniArayuzPilot: boolean;
+      halkaAcikSite: boolean;
+      domainler: components['schemas']['PlatformDomainDto'][];
+      logo: components['schemas']['PlatformLogoDto'];
+    };
+    PlatformTenantOptionDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      durum: string;
+    };
+    PlatformTenantRowDto: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      ad: string;
+      durum: string;
+      /** Format: date-time */
+      kapanisTarihi: null | string;
+      /** Format: date-time */
+      olusturma: string;
+      /** Format: int32 */
+      kullaniciSayisi: number | string;
+      /** Format: int32 */
+      aracSayisi: number | string;
+      /** Format: int32 */
+      aktifKira: number | string;
+      /** Format: date-time */
+      sonGiris: null | string;
+    };
+    PlatformTenantStatusRequest: {
+      durum: null | string;
+      onayKod: null | string;
+    };
+    PlatformTenantUpdateRequest: {
+      ad: null | string;
+      yetkiliAd: null | string;
+      eposta: null | string;
+      telefon: null | string;
+      notlar: null | string;
+      plan: null | string;
+      surum: null | string;
+    };
     ProblemDetails: {
       type?: null | string;
       title?: null | string;
@@ -12067,6 +12963,17 @@ export interface components {
     };
     SayfaOfPeriyodikServisRow: {
       kayitlar: components['schemas']['PeriyodikServisRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfPlatformTenantRowDto: {
+      kayitlar: components['schemas']['PlatformTenantRowDto'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
