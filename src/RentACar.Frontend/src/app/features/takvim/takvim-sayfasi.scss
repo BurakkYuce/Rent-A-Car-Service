@@ -1,0 +1,162 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+.ust > h1 {
+  margin: 0;
+}
+
+.ay-gezinme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.ay-gezinme__ay {
+  font-size: var(--rc-yazi-lg);
+  min-width: 9rem;
+  text-align: center;
+}
+
+.filtre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.filtre__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.lejant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--rc-yazi-xs);
+
+  > li {
+    display: flex;
+    gap: var(--rc-bosluk-1-5);
+    align-items: center;
+  }
+}
+
+.kare {
+  display: inline-block;
+  width: var(--rc-bosluk-3);
+  height: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-sm);
+}
+
+.kare--rez {
+  background: var(--rc-uyari-zemin);
+}
+
+.kare--kira {
+  background: var(--rc-bilgi-zemin);
+}
+
+.izgara-kap {
+  // Ay × 200 araç: kaydırma kabın içinde (sayfa gövdesi yatay taşmaz), araç sütunu ve başlık yapışkan.
+  max-width: 100%;
+  max-height: calc(100vh - 20rem);
+  min-height: 8rem;
+  overflow: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+
+  &:focus-visible {
+    outline: var(--rc-odak-kalinlik) solid var(--rc-odak);
+    outline-offset: var(--rc-odak-bosluk);
+  }
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+}
+
+.izgara {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--rc-yazi-xs);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    min-width: var(--rc-bosluk-6);
+    height: var(--rc-bosluk-6);
+    padding: 0;
+    border-right: 1px solid var(--rc-kenar);
+    border-bottom: 1px solid var(--rc-kenar);
+    text-align: center;
+    background: var(--rc-yuzey);
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: var(--rc-agirlik-kalin);
+    background: var(--rc-yuzey-alt);
+  }
+
+  .arac {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 7rem;
+    padding-inline: var(--rc-bosluk-2);
+    text-align: start;
+    white-space: nowrap;
+    background: var(--rc-yuzey-alt);
+  }
+
+  thead .arac {
+    z-index: 3;
+  }
+
+  .hafta-sonu {
+    background: var(--rc-yuzey-alt);
+    color: var(--rc-metin-ikincil);
+  }
+
+  td.rez {
+    background: var(--rc-uyari-zemin);
+    color: var(--rc-uyari-metin);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  td.kira {
+    background: var(--rc-bilgi-zemin);
+    color: var(--rc-bilgi-metin);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  td.bos {
+    padding: var(--rc-bosluk-3);
+    color: var(--rc-metin-ikincil);
+    text-align: start;
+  }
+}
+
+.bag {
+  position: relative;
+}
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
