@@ -1,6 +1,19 @@
-import { FormControl, FormGroup, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  Validators,
+  type AbstractControl,
+  type ValidationErrors,
+  type ValidatorFn,
+} from '@angular/forms';
 import type { Sema } from '@core/api/ui-tipleri';
-import { anBirlestir, type GunMetni } from '@core/form/tarih-girdisi';
+import {
+  anBirlestir,
+  anParcala,
+  gunBicimle,
+  gunEkle,
+  type GunMetni,
+} from '@core/form/tarih-girdisi';
 import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
 
 /** F5.1 teklif uçlarının sözleşme tipleri. */
@@ -64,6 +77,33 @@ export type TeklifFormDegeri = ReturnType<TeklifFormu['getRawValue']>;
  */
 export function gecerlilikAni(gun: GunMetni | null): string | null {
   return gun ? anBirlestir(gun, '00:00') : null;
+}
+
+/**
+ * Sunucunun kabul edeceği en erken geçerlilik günü: geçerlilik günün İstanbul gece yarısı olarak gittiği için
+ * başlangıç 00:00 değilse başlangıç günü REDDEDİLİR (gece yarısı < başlangıç) → ertesi gün. Başlangıç yoksa `null`.
+ */
+export function gecerlilikEnErken(basTar: string | null): GunMetni | null {
+  const p = anParcala(basTar);
+  if (!p) return null;
+  return p.saat === '00:00' ? p.gun : gunEkle(p.gun, 1);
+}
+
+/**
+ * İstemci doğrulaması — sunucu kuralının (`GecerlilikTarihi < BasTar` → red) birebir aynısı, aynı anlarla
+ * karşılaştırır; istek gitmeden alanın altında açıklayıcı mesaj verir. Kardeş `basTar` kontrolünü okur (başlangıç
+ * değişince çağıran `updateValueAndValidity` yapar). Mesaj çağırandan (çeviri).
+ */
+export function gecerlilikDogrulayici(mesaj: (enErken: string) => string): ValidatorFn {
+  return (k: AbstractControl): ValidationErrors | null => {
+    const gun = k.value as GunMetni | null;
+    const bas = k.parent?.get('basTar')?.value as string | null | undefined;
+    const an = gecerlilikAni(gun);
+    if (!an || !bas) return null;
+    if (Date.parse(an) >= Date.parse(bas)) return null;
+    const enErken = gecerlilikEnErken(bas);
+    return { gecerlilikErken: { mesaj: mesaj(enErken ? gunBicimle(enErken) : '') } };
+  };
 }
 
 /** Doğrulayıcının garanti ettiği zorunlu değer; yoksa programlama hatası. */

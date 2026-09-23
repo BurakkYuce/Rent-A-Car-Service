@@ -4,8 +4,10 @@ import {
   computed,
   effect,
   inject,
+  signal,
   untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
@@ -27,8 +29,11 @@ import {
   varsayilanTarihler,
   type RezervasyonFormSecenekleri,
 } from '../../rezervasyonlar/rezervasyon-modeli';
+import type { GunMetni } from '@core/form/tarih-girdisi';
 import {
   TEKLIF_KOKU,
+  gecerlilikDogrulayici,
+  gecerlilikEnErken,
   teklifFormuOlustur,
   teklifGovdesi,
   type TeklifOlusturYaniti,
@@ -69,8 +74,20 @@ export class TeklifFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   protected readonly aracKaynagi = sunucuSecimKaynagi('arac');
   protected readonly lokasyonKaynagi = sunucuSecimKaynagi('lokasyon');
 
+  /** Takvimde seçilebilecek en erken geçerlilik günü (başlangıca göre; sunucu kuralıyla aynı). */
+  protected readonly gecerlilikEnAz = signal<GunMetni | null>(null);
+
   constructor() {
     sayfaTerkKorumasi(() => this.form.dirty);
+    const { basTar, gecerlilik } = this.form.controls;
+    gecerlilik.addValidators(
+      gecerlilikDogrulayici((enErken) => this.t('teklif.alan.gecerlilikErken', { enErken })),
+    );
+    // Başlangıç değişince geçerlilik yeniden doğrulanır ve takvimin alt sınırı güncellenir.
+    basTar.valueChanges.pipe(takeUntilDestroyed()).subscribe((b) => {
+      this.gecerlilikEnAz.set(gecerlilikEnErken(b));
+      gecerlilik.updateValueAndValidity({ emitEvent: false });
+    });
     this.form.reset(varsayilanTarihler());
     this.secenekler.yukle();
     effect(() => {
