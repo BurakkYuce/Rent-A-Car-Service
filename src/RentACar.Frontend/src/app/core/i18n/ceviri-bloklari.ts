@@ -9,6 +9,8 @@ export const CEVIRI_BLOKLARI = {
     import('../../../i18n/bloklar/kiralar.json').then((m) => m.default),
   panel: (): Promise<Translation> =>
     import('../../../i18n/bloklar/panel.json').then((m) => m.default),
+  planlama: (): Promise<Translation> =>
+    import('../../../i18n/bloklar/planlama.json').then((m) => m.default),
   vitrin: (): Promise<Translation> =>
     import('../../../i18n/bloklar/vitrin.json').then((m) => m.default),
 } as const;

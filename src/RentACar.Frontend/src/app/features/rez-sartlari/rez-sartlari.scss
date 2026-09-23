@@ -1,0 +1,72 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+.ust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+
+  > h1 {
+    margin: 0;
+  }
+}
+
+.ust__eylemler,
+.filtre__eylemler,
+.duzenleyici__eylemler,
+.islemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.islemler {
+  // Görünmez etiketler hücrenin içinde konumlansın (tablo kaydırıcısının dışına taşmasın).
+  position: relative;
+  flex-wrap: nowrap;
+}
+
+.aciklama,
+.ozet {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.filtre,
+.duzenleyici__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.duzenleyici {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background: var(--rc-yuzey);
+
+  > h2 {
+    margin: 0;
+    font-size: var(--rc-yazi-lg);
+
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+.tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
