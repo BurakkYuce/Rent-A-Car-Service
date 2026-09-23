@@ -110,12 +110,32 @@ public sealed class DonemTahsilatService(
                 throw new ValidationException(
                     $"Dönem {donemSira} faturası kesildi ancak tahsilat yazılamadı: dönem tahsilat anahtarı başka bir " +
                     "kayıtta kullanılmış. Kayıtları kontrol edip tahsilatı ayrıca girin.");
+            // R04 (Low temizliği B): anahtar tahmin edilebilir ve Blazor kasa formu ham IslemAnahtari kabul eder →
+            // aynı kiraya FARKLI tutar/döviz/kurla bir tahsilat bu anahtarı ÖNDEN alabilir. Sessiz başarı yalnız
+            // kayıt dönem faturasının tutarı + dövizi + kuruyla BİREBİR aynıysa (idempotency envanteri "sessiz
+            // başarı kuralı"); değilse 409 farklı içerik — dönem tahsilatı YAZILMADI, gizlenmez.
+            if (!AyniDonemTahsilati(mevcut, inv))
+                throw new MukerrerIslemException(
+                    $"Dönem {donemSira} faturası kesildi ancak tahsilat YAZILMADI: dönem tahsilat anahtarı farklı " +
+                    $"içerikli bir tahsilatta (No {mevcut.No}, {mevcut.Amount.Amount:0.00} {mevcut.Amount.Currency}) " +
+                    "kullanılmış. " + MukerrerIslemException.FarkliIcerikMesaji,
+                    new MevcutIslem(mevcut.Id, mevcut.No, mevcut.Amount.Amount, mevcut.Amount.Currency, AyniIcerik: false));
             // Deterministik anahtar mükerreri = bu dönemin tahsilatı DAHA ÖNCE alınmış (çift-submit /
             // yeniden deneme) → idempotent no-op; fatura tarafı da idempotent olduğundan akış sessiz biter.
             return (invId, false);   // ÇAĞIRAN "yazıldı" saymasın (FAZ-30 M1)
         }
         return (invId, true);
     }
+
+    /// <summary>R04: RowKey'li mevcut tahsilat bu dönem faturasının tahsilatıyla içerik olarak aynı mı? Tutar
+    /// DB ölçeğinde (numeric(19,4)), kur numeric(19,6) hassasiyetinde karşılaştırılır; decimal eşitliği ölçekten
+    /// bağımsızdır (300.0000 == 300).</summary>
+    private static bool AyniDonemTahsilati(CashTransaction mevcut, Invoice inv) =>
+        Math.Round(mevcut.Amount.Amount, 4, MidpointRounding.AwayFromZero)
+            == Math.Round(inv.GenelToplam, 4, MidpointRounding.AwayFromZero)
+        && string.Equals(mevcut.Amount.Currency, inv.Currency, StringComparison.OrdinalIgnoreCase)
+        && Math.Round(mevcut.Amount.Rate, 6, MidpointRounding.AwayFromZero)
+            == Math.Round(inv.Kur, 6, MidpointRounding.AwayFromZero);
 }
 
 /// <summary>Dönem önizleme satırı (B1): plan satırı + pro-rata tahakkuk (salt hesap; B2 kesimde
