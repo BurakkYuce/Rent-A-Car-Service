@@ -125,7 +125,7 @@ export const BITIS_SEBEPLERI = [
  * veri store'ları, canlı hesap akışı ve eylemler burada; sekme bileşenleri yalnız çizer.
  *
  * Kurallar: canlı hesap SUNUCUDAN (`hesapla`, `donus-hesapla`); hata hiçbir dalda form değerine
- * dokunmaz (`formGonderimi`); ek hizmet ekleme ANAHTARSIZ (servis desteklemiyor) → istek boyunca kilit.
+ * dokunmaz (`formGonderimi`); ek hizmet ekleme gönderim başına `Idempotency-Key` + istek boyunca kilit.
  */
 @Injectable()
 export class KiraFormuDurumu {
@@ -992,24 +992,33 @@ export class KiraFormuDurumu {
   }
 
   /**
-   * Ek hizmet ekleme: servis idempotency anahtarı DESTEKLEMİYOR (Blazor'la aynı: iki istek iki kalem).
-   * Koruma: `formGonderimi` kilidi istek boyunca ikinci gönderimi yok sayar, düğme pasif.
+   * Ek hizmet ekleme: gönderim başına `Idempotency-Key` (sunucu zorunlu tutar). Aynı gönderimin yeniden
+   * denemesi (ağ/5xx) aynı anahtarla gider → ikinci kalem yazılmaz, 409 `mukerrer`. 409'da otomatik yeniden
+   * gönderim yok; kayıt yeniden yüklenir, `mevcut.ayniIcerik` ise (kendi tekrarım) form temizlenir.
    */
   ekHizmetEkle(): void {
     const d = this.ekHizmetEkleFormu.getRawValue();
     this.ekHizmetEkleGonderimi.gonder(
       this.ekHizmetEkleFormu,
-      () =>
-        this.api.post<KiraEkHizmetYaniti>(`${KOK}/${this.id ?? ''}/ek-hizmetler`, {
-          ekHizmetTanimId: d.tanim?.id ?? null,
-          miktar: d.miktar,
-        }),
+      (anahtar) =>
+        this.api.post<KiraEkHizmetYaniti>(
+          `${KOK}/${this.id ?? ''}/ek-hizmetler`,
+          { ekHizmetTanimId: d.tanim?.id ?? null, miktar: d.miktar },
+          {
+            islemAnahtari: anahtar,
+            context: istekBaglami({ mukerrerdeYenile: () => this.yenile() }),
+          },
+        ),
       {
         esleme: { ekHizmetTanimId: 'tanim' },
         basarili: () => {
           this.ekHizmetEkleFormu.reset({ tanim: null, miktar: 1 });
           this.toast.basari(this.t('kiraFormu.bildirim.ekHizmetEklendi'));
           this.yenile();
+        },
+        hata: (h) => {
+          if (h.kod === 'mukerrer' && h.mevcut?.ayniIcerik === true)
+            this.ekHizmetEkleFormu.reset({ tanim: null, miktar: 1 });
         },
       },
     );

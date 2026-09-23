@@ -21,8 +21,12 @@ public static class ReservationsApi
                 ? Results.Ok(ReservationResponse.From(r))
                 : NotFound());
 
-        grp.MapPost("/", async (BookingRequest req, ReservationService svc, CancellationToken ct) =>
+        grp.MapPost("/", async (BookingRequest req, ReservationService svc,
+            RentACar.Application.Customers.ICustomerRepository cariler,
+            RentACar.Application.Vehicles.IVehicleRepository araclar, CancellationToken ct) =>
         {
+            // Low-B: kiraya çevrilince aynı kimlikler kiraya taşınır — RentalsApi ile AYNI varlık kontrolü.
+            await RentalsApi.VarlikKontroluAsync(req, cariler, araclar, ct);
             var id = await svc.CreateAsync(req.ToInput(), ct);
             return Results.Created($"/api/v1/reservations/{id}", ReservationResponse.From((await svc.GetAsync(id, ct))!));
         }).RequirePermission(Permission.OperationsWrite);

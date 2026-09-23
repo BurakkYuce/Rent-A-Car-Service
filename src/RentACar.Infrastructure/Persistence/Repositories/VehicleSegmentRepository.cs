@@ -73,6 +73,28 @@ public sealed class VehicleSegmentRepository(IDbContextFactory<AppDbContext> fac
         return true;
     }
 
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<VehicleSegment> apply, CancellationToken ct = default)
+    {
+        string? kod = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Segmentler, id, beklenenSurum,
+                (db, k, c) => db.VehicleSegments.FirstOrDefaultAsync(s => s.Id == k, c),
+                s => { apply(s); kod = s.Kod; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{kod}' kodlu segment zaten var.");
+        }
+    }
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Segmentler, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

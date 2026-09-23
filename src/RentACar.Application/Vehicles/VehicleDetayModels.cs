@@ -24,7 +24,9 @@ public sealed record VehicleDetayRow(
     DateTimeOffset? NoterSatisTarihi,
     string? AktifKiraMusteri,
     DateTimeOffset? AktifKiraBitis,
-    string? AktifKiraSozlesmeNo);
+    string? AktifKiraSozlesmeNo,
+    // F6.1a — aktif kira müşterisinin kimliği: JSON ucu görünen adı KVKK tek kuralıyla (AnonimAd) yeniden çözer.
+    Guid? AktifKiraMusteriId = null);
 
 /// <summary>
 /// FAZ-11 — araç LİSTESİ satırının diğer tablolardan gelen ek bilgisi. Sayfalanmış listede

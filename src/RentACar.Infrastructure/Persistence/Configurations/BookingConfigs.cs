@@ -203,6 +203,8 @@ internal sealed class RentalAddOnConfig : IEntityTypeConfiguration<RentalAddOn>
         e.Property(x => x.KdvTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.Toplam).HasColumnType("numeric(19,4)");
         e.HasIndex(x => new { x.TenantId, x.RentalId });
+        e.HasIndex(x => new { x.TenantId, x.IslemAnahtari }).IsUnique()
+            .HasFilter("\"IslemAnahtari\" IS NOT NULL"); // Low-B: ek hizmet çift-gönderim çiti (kısmi unique)
     }
 }
 

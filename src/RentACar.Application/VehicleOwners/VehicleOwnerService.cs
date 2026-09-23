@@ -38,7 +38,14 @@ public sealed class VehicleOwnerService(IVehicleOwnerRepository repository, ICur
         return owner.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, VehicleOwnerInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, VehicleOwnerInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F6.1a — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+
+    /// <summary>F6.1a — <paramref name="beklenenSurum"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, VehicleOwnerInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -46,11 +53,14 @@ public sealed class VehicleOwnerService(IVehicleOwnerRepository repository, ICur
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu araç sahibi zaten var.");
 
-        return await _repository.UpdateAsync(id, owner =>
+        void Uygula(VehicleOwner owner)
         {
             Apply(owner, n);
             owner.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        return beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

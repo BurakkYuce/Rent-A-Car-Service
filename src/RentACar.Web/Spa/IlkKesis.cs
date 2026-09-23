@@ -4,11 +4,11 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): F4 envanterinde silinecek Blazor <c>@page</c>
-/// ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5) envanterinde
+/// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
 /// eşleşmeyen yol haritada yoktur. Yalnız GET/HEAD, yalnız PİLOT kiracının oturumu (middleware karar verir).
@@ -43,19 +43,34 @@ public static class IlkKesis
     public sealed record Eslem(string Kaynak, string Hedef);
 
     /// <summary>
-    /// F4 envanteri (<c>docs/roadmap/F4.md</c>): <c>Home.razor</c> <c>/</c>, <c>RentalList.razor</c> <c>/kiralar</c>,
-    /// <c>KiraForm.razor</c> <c>/kiralar/yeni</c> + <c>/kiralar/{Id:guid}</c>, <c>RentalPrint.razor</c>
-    /// <c>/kiralar/{Id:guid}/yazdir</c>. <c>Login.razor</c> (<c>/login</c>) haritada DEĞİL — pilot olsun olmasın
-    /// herkes için <see cref="GirisYonlendirmesi"/>/<see cref="GirisSonrasi"/>. <c>IlkKesisTests</c> bu listeyi
-    /// sayfaların gerçek <c>@page</c> satırlarıyla karşılaştırır.
+    /// Kesişi yapılmış fazların envanteri — her faz kendi bloğu; <c>IlkKesisTests</c> listeyi fazların envanter
+    /// tablolarıyla (<c>docs/roadmap/F*.md</c>) ve sayfaların gerçek <c>@page</c> satırlarıyla karşılaştırır.
+    /// <list type="bullet">
+    /// <item><b>F4</b> (F4.6): <c>Home.razor</c> <c>/</c>, <c>RentalList.razor</c> <c>/kiralar</c>, <c>KiraForm.razor</c>
+    /// <c>/kiralar/yeni</c> + <c>/kiralar/{Id:guid}</c>, <c>RentalPrint.razor</c> <c>/kiralar/{Id:guid}/yazdir</c>.
+    /// <c>Login.razor</c> (<c>/login</c>) haritada DEĞİL — pilot olsun olmasın herkes için
+    /// <see cref="GirisYonlendirmesi"/>/<see cref="GirisSonrasi"/>.</item>
+    /// <item><b>F5</b> (F5.4): rezervasyonlar, teklifler, takvim, müsaitlik, rez şartları, filo kiralama — her biri
+    /// TEK <c>@page</c> (liste; Blazor'da kayıt formu listenin içindeydi). SPA'nın <c>/yeni</c> ve <c>/:id</c>
+    /// rotalarının Blazor karşılığı yok, haritaya girmez. <c>/takvim-abonelik</c>, <c>/rezervasyon-kaynaklari</c>
+    /// ayrı sayfalardır (segment eşitliği; önek eşleşmesi yok).</item>
+    /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Harita { get; } =
     [
+        // F4
         new("/", SpaPanel),
         new("/kiralar", SpaBarindirma.Onek + "/kiralar"),
         new("/kiralar/yeni", SpaBarindirma.Onek + "/kiralar/yeni"),
         new("/kiralar/{id:guid}", SpaBarindirma.Onek + "/kiralar/{id}"),
         new("/kiralar/{id:guid}/yazdir", SpaBarindirma.Onek + "/kiralar/{id}/yazdir"),
+        // F5
+        new("/rezervasyonlar", SpaBarindirma.Onek + "/rezervasyonlar"),
+        new("/teklifler", SpaBarindirma.Onek + "/teklifler"),
+        new("/takvim", SpaBarindirma.Onek + "/takvim"),
+        new("/musaitlik", SpaBarindirma.Onek + "/musaitlik"),
+        new("/rez-sartlari", SpaBarindirma.Onek + "/rez-sartlari"),
+        new("/filo-kiralama", SpaBarindirma.Onek + "/filo-kiralama"),
     ];
 
     private const string GuidParametre = "{id:guid}";

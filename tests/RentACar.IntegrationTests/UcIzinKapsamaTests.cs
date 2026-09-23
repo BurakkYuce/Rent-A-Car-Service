@@ -90,12 +90,13 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// F4 kesişinde silinecek Blazor POST uçları (docs/roadmap/F4.md envanteri, "F4 (bu faz)" satırları). F4.6b bu
-    /// uçları (ör. <c>/kiralar/cancel</c>) sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
+    /// Kesişi yapılmış fazlarda (F4, F5) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
+    /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
+    /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
-    private static HashSet<string> F4KesisindeSilinecekUclar(string kok)
-        => Regex.Matches(File.ReadAllText(Path.Combine(kok, "docs/roadmap/F4.md")),
-                @"^\|\s*`(?<uc>/[^`]+)`\s*\|[^|]*\|\s*F4 \(bu faz\)\s*\|", RegexOptions.Multiline)
+    private static HashSet<string> KesisteSilinecekUclar(string kok, string faz)
+        => Regex.Matches(File.ReadAllText(Path.Combine(kok, $"docs/roadmap/{faz}.md")),
+                $@"^\|\s*`(?<uc>/[^`]+)`\s*\|[^|]*\|\s*{faz} \(bu faz\)\s*\|", RegexOptions.Multiline)
             .Select(m => m.Groups["uc"].Value).ToHashSet(StringComparer.Ordinal);
 
     [Fact]
@@ -107,9 +108,15 @@ public sealed class UcIzinKapsamaTests
         // yaşayacak dar uçlar sayılır ve üç dar-izin türünün her biri en az bir kez aranır. /kiralar/cancel'in
         // (canlı hatanın kaynağı) SPA karşılığı UiDugmeIzinTests'te (kiraIptal: OperationsWrite + OperationsDelete).
         var kok = RepoKok();
-        var silinecek = F4KesisindeSilinecekUclar(kok);
+        var silinecek = KesisteSilinecekUclar(kok, "F4");
         Assert.Contains("/kiralar/cancel", silinecek); // envanter ayrıştırması çalışıyor
         Assert.True(silinecek.Count >= 15, $"F4 envanteri şüpheli: {silinecek.Count} uç.");
+        // F5.4 devri: F5 envanterinin 18 ucu (dar olanlar /rezervasyonlar/cancel, /filo-kiralama/iptal) da sayılmaz;
+        // SPA karşılıkları sunucunun `yetkiler` bayrakları + UiRezervasyonTests.Izin_haritasi_Blazor_ile_ayni.
+        var f5 = KesisteSilinecekUclar(kok, "F5");
+        Assert.Equal(18, f5.Count);
+        Assert.Contains("/rezervasyonlar/cancel", f5);
+        silinecek.UnionWith(f5);
 
         var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
         Assert.True(kalici.Count >= 10, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");

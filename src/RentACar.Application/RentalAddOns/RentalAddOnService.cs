@@ -30,7 +30,7 @@ public sealed class RentalAddOnService(
     public async Task<Guid> AddAsync(
         Guid rentalId, Guid ekHizmetTanimId, decimal miktar,
         decimal? birimNetOverride = null, decimal? kdvOraniOverride = null,
-        bool sistem = false, CancellationToken ct = default, Guid? personelId = null)
+        bool sistem = false, CancellationToken ct = default, Guid? personelId = null, Guid? islemAnahtari = null)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         // FAZ 5-C4 adversarial bulgusu (önceden var olan açık): ek hizmet, şube-kapsam guard'sız TEK
@@ -40,6 +40,13 @@ public sealed class RentalAddOnService(
         // kapsam-guard'sız, reprice yollarıysa üstte zaten guard'lı (çift sorguya gerek yok).
         if (!sistem && await _bookings.FindRentalAsync(rentalId, ct) is { } kira)
             BranchScope.RequireInScope(_currentUser, kira.CikisSubeId, kira.CikisOfisi);
+        // Low-B idempotency (DEVIR §5 sırası): kapsamdan SONRA, tüm iş kuralı/durum çitlerinden ÖNCE "bu anahtarla
+        // kayıt var mı". Önce: anahtarsız çift gönderim İKİ kalem yazıyordu; kaybolan yanıttan sonraki doğru tekrar,
+        // arada kira faturalanınca 400 "faturalanmış" alırdı. Eşzamanlı yarışı repo kira kilidi altında yeniden
+        // denetler; en son savunma kısmi unique index (IdempotencyKisiti → 409 mükerrer).
+        if (!sistem && islemAnahtari is { } anahtar
+            && await _repository.FindByIslemAnahtariAsync(anahtar, ct) is { } onceki)
+            throw Mukerrer(onceki, rentalId, ekHizmetTanimId, miktar);
         if (miktar <= 0) throw new ValidationException("Miktar sıfırdan büyük olmalıdır.");
         // Taşma guard'ı (adversarial PR-B): devasa miktar round(birim×miktar)'da OverflowException → 500
         // üretiyordu; canlı-hesap ucuyla simetrik gerçekçi üst sınır.
@@ -76,10 +83,29 @@ public sealed class RentalAddOnService(
             KdvTutar = kdv,
             Toplam = gross,
             // FAZ-78: satan personel. Sistem kalemlerinde (SYS-*) daima boş — onları kimse satmaz.
-            PersonelId = sistem ? null : personelId
+            PersonelId = sistem ? null : personelId,
+            IslemAnahtari = sistem ? null : islemAnahtari
         };
         await _repository.AddAsync(addOn, ct);
         return addOn.Id;
+    }
+
+    /// <summary>
+    /// Low-B: aynı anahtarla ZATEN yazılmış kalem → 409 <c>mukerrer</c>. Kalem bu kiraya aitse <c>mevcut</c> döner
+    /// (<c>AyniIcerik</c>: tanım + miktar birebir → kaybolan yanıttan sonraki kendi tekrarı; değilse gelen kalem
+    /// YAZILMADI). Başka kiraya aitse <c>mevcut</c> dönmez (bilgi sızmaz) — farklı içerik 409'u.
+    /// </summary>
+    public static MukerrerIslemException Mukerrer(RentalAddOn onceki, Guid rentalId, Guid ekHizmetTanimId, decimal miktar)
+    {
+        if (onceki.RentalId != rentalId) return MukerrerIslemException.FarkliIcerik();
+        var ayni = onceki.EkHizmetTanimId == ekHizmetTanimId
+                   && Math.Round(onceki.Miktar, 4, MidpointRounding.AwayFromZero)
+                      == Math.Round(miktar, 4, MidpointRounding.AwayFromZero);
+        return new MukerrerIslemException(
+            ayni
+                ? $"Bu ek hizmet zaten eklendi ({onceki.Ad}, miktar {onceki.Miktar:0.####})."
+                : MukerrerIslemException.FarkliIcerikMesaji,
+            new MevcutIslem(onceki.Id, onceki.Ad, onceki.Toplam, "TRY", ayni));
     }
 
     public async Task<bool> RemoveAsync(Guid addOnId, CancellationToken ct = default)
