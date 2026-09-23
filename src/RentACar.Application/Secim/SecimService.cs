@@ -82,7 +82,8 @@ public sealed class SecimService(
     {
         FinansDahilKapi();
         var satirlar = await musteriler.SecimAraAsync(q, Sinir(limit), ct);
-        return satirlar.Select(s => new MusteriSecimOgesi(s.Id, s.Ad, s.Tip.ToString())).ToList();
+        // KVKK: AnonimAd → etiket (CariAnonimlik — Web MusteriGorunumu ile aynı sabit); repo aramada da etiketi eşler.
+        return satirlar.Select(s => new MusteriSecimOgesi(s.Id, CariAnonimlik.Ad(s.Ad, s.AnonimAd), s.Tip.ToString())).ToList();
     }
 
     public async Task<IReadOnlyList<AracSecimOgesi>> AracAsync(string? q, int? limit, CancellationToken ct = default)
@@ -103,7 +104,7 @@ public sealed class SecimService(
     {
         Kapi();
         var s = await musteriler.SecimGetirAsync(id, ct);
-        return s is null ? null : new MusteriSecimOgesi(s.Id, s.Ad, s.Tip.ToString());
+        return s is null ? null : new MusteriSecimOgesi(s.Id, CariAnonimlik.Ad(s.Ad, s.AnonimAd), s.Tip.ToString());
     }
 
     /// <summary>

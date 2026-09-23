@@ -47,6 +47,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
 
         var row = new AracKredi
         {
+            Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? ia : Guid.NewGuid(), // F6.1b idempotent oluşturma
             BankaAdi = input.BankaAdi.Trim(),
             VehicleId = input.VehicleId,
             // FAZ-13: cari yalnız İLİŞKİ — cari bakiyesine/defterine hiçbir kayıt gitmez.
@@ -73,7 +74,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
     /// ödenmiş taksitleri retro postlanmaz. Çift-submit: islemAnahtari + Expense kısmi unique index.</summary>
     public async Task<bool> TaksitOdeAsync(Guid id, LedgerAccountType hesap = LedgerAccountType.Kasa,
         DateTimeOffset? odemeTarih = null, Guid? islemAnahtari = null,
-        Guid? hesapId = null, CancellationToken ct = default)
+        Guid? hesapId = null, CancellationToken ct = default, int? beklenenSira = null)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite); // defter yazar
         if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
@@ -89,7 +90,9 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
         var kur = await _kurCozucu.CozAsync(kredi.Currency, null, tarih, ct); // 1.1 sözleşmesi
         var ozet = Hesapla(kredi);
         var anahtar = islemAnahtari is { } a && a != Guid.Empty ? a : (Guid?)null;
-        var hesapRef = await _hesapCozucu.CozAsync(hesapId, hesap, ct); // FAZ-50 (lambda'dan ONCE: async)
+        // FAZ-50 (lambda'dan ONCE: async). F6.1b: kredi dövizi de verilir — hesap-döviz çiti (ADVERSARIAL M4)
+        // taksitte uygulanmıyordu: USD tanımlı bankadan TRY taksit (ya da tersi) hesap mutabakatını bozuyordu.
+        var hesapRef = await _hesapCozucu.CozAsync(hesapId, hesap, ct, kredi.Currency);
 
         return await _repository.TaksitOdeAsync(id, sira =>
         {
@@ -122,7 +125,7 @@ public sealed class AracKrediService(IAracKrediRepository repository, ICurrentUs
                     Direction = LedgerDirection.Credit, Amount = money, SourceType = "Gider", SourceId = expense.Id, Description = desc }
             ];
             return (expense, entries);
-        }, ct, anahtar);
+        }, ct, anahtar, beklenenSira);
     }
 
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)

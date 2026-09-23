@@ -24,9 +24,20 @@ internal static class SatirSurumu
     /// <summary>F7.1 — cari kartı ve CRM kayıtları (anket, şikayet, assistans, hukuk) tam değiştirme PUT'ları.</summary>
     public const string Customers = "Customers", Surveys = "Anketler", Complaints = "Sikayetler", AssistanceRequests = "AssistansTalepleri", LegalFiles = "HukukDosyalari";
 
+    // F6.1b — araç finans/operasyon kayıtları: durum geçişleri kilit altında, tam değiştirme PUT'u sürümlü.
+    public const string AracSiparisleri = "AracSiparisleri";
+    public const string Baflar = "Baflar";
+    public const string HasarDosyalari = "DamageFiles";
+    public const string MusteriTaksitleri = "MusteriTaksitleri";
+    public const string FiloPlanHedefleri = "FiloPlanHedefleri";
+
     private static readonly HashSet<string> Tablolar =
-        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri,
-         Customers, Surveys, Complaints, AssistanceRequests, LegalFiles];
+    [
+        Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler,
+        Araclar, AracSahipleri, Segmentler, AracTipleri,
+        AracSiparisleri, Baflar, HasarDosyalari, MusteriTaksitleri, FiloPlanHedefleri,
+        Customers, Surveys, Complaints, AssistanceRequests, LegalFiles,
+    ];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));
