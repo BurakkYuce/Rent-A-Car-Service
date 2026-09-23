@@ -5,6 +5,7 @@ import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
+import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
 
 /**
  * Kabuk içindeki sayfalar (oturum şart; `canMatch: [oturumGuard]` kabuk rotasında). Hepsi tembel.
@@ -152,4 +153,6 @@ export const SAYFALAR: Routes = [
   ...KIRA_FORMU_ROTALARI,
   // F5.2a rezervasyonlar + teklifler: liste, /yeni, /:id (teklif kaydı salt okunur + eylemler).
   ...REZERVASYON_ROTALARI,
+  // F6.2a araçlar: liste, detaylı liste, kart (yeni/:id + foto), detay, durum panosu, tanımlar.
+  ...VEHICLE_ROUTES,
 ];
