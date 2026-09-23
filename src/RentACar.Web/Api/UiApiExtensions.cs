@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Common;
+using RentACar.Web.Api.Arac;
 using RentACar.Web.Api.Finans;
 using RentACar.Web.Api.IstemciHata;
 using RentACar.Web.Api.Kira;
@@ -204,6 +205,8 @@ public static class UiApiExtensions
         v1.MapPlanlamaApi();    // F5.1 — takvim + müsaitlik
         v1.MapRezSartApi();     // F5.1
         v1.MapFiloKiralamaApi(); // F5.1
+        v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
+        v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

@@ -47,6 +47,10 @@ public sealed class FleetStatusRow
     // Aktif kira (yoksa null)
     public Guid? AktifKiraId { get; init; }
     public string? KiraSozlesmeNo { get; init; }
+    /// <summary>F6.1a — aktif kira müşterisinin kimliği (JSON ucu görünen adı KVKK tek kuralıyla yeniden çözer).</summary>
+    public Guid? MusteriId { get; init; }
+    /// <summary>F6.1a — sıradaki rezervasyon müşterisinin kimliği (aynı amaç).</summary>
+    public Guid? RezMusteriId { get; init; }
     public string? MusteriAd { get; init; }
     /// <summary>Aktif kira müşterisinin cep telefonu — operatör satırdan arayabilsin diye
     /// (canlı arac_guncel_durum'un "Cep Tel" kolonu). Şifreli PII değildir (TC/ehliyet/pasaport
