@@ -4,6 +4,7 @@ using RentACar.Application.Common;
 using RentACar.Application.Kur;
 using RentACar.Application.MusteriTaksitleri;
 using RentACar.Domain.Common;
+using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Common;
@@ -22,7 +23,7 @@ public static partial class MusteriTaksitApi
             throw new ValidationException($"Taksit sayısı 1 ile {MusteriTaksitService.MaxTaksit} arasında olmalıdır.", "taksitSayisi");
         await PlanMevcutAsync(anahtar, i, svc, dbf, ct); // (1) ÖNCE mevcut plan
 
-        AracFinansOrtak.Tutar(i.ToplamTutar, "toplamTutar");
+        AracFinansOrtak.Tutar(i.ToplamTutar, "toplamTutar", scale: 2);
         AracFinansOrtak.Metin(i.Aciklama, 512, "aciklama");
         var ilk = F5Ortak.Utc(i.IlkVade);
         var (doviz, kur) = await DovizKurAsync(i.Doviz, i.Kur, ilk, kurCozucu, ct);
@@ -57,7 +58,7 @@ public static partial class MusteriTaksitApi
         var satirlar = await db.MusteriTaksitleri.AsNoTracking().Where(t => olasi.Contains(t.Id))
             .Select(t => t.TaksitTutari).ToListAsync(ct);
         var toplam = satirlar.Sum();
-        var doviz = string.IsNullOrWhiteSpace(i.Doviz) ? "TRY" : i.Doviz.Trim().ToUpperInvariant();
+        var doviz = AracFinansOrtak.Doviz(i.Doviz); // yazımla AYNI normalizasyon (L1)
         var ayni = ilk.CariId == i.CariId && ilk.VehicleId == BosIse(i.VehicleId) && ilk.Currency == doviz
                    && satirlar.Count == i.TaksitSayisi
                    && toplam == decimal.Round(i.ToplamTutar, 2, MidpointRounding.AwayFromZero);
@@ -79,18 +80,28 @@ public static partial class MusteriTaksitApi
         Guid id, TaksitOdendiIstegi? istek, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser kullanici, CancellationToken ct)
     {
-        if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is null) return Bulunamadi();
+        if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is not { } checkedRow) return Bulunamadi();
         var tarih = F5Ortak.Utc(istek?.OdemeTarihi);
         Alanli("odemeTarihi", () => TarihPolitikasi.ParaTarihi(tarih, "Taksit ödeme"));
-        if (!await svc.OdemeIsaretleKilitliAsync(id, true, tarih, ct)) return Bulunamadi();
+        if (!await svc.OdemeIsaretleKilitliAsync(id, true, tarih, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<MusteriTaksitSatiri>, ProblemHttpResult>> GeriAl(
         Guid id, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
     {
-        if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is null) return Bulunamadi();
-        if (!await svc.OdemeIsaretleKilitliAsync(id, false, null, ct)) return Bulunamadi();
+        if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is not { } checkedRow) return Bulunamadi();
+        if (!await svc.OdemeIsaretleKilitliAsync(id, false, null, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
+
+    /// <summary>
+    /// Adversarial L4: kapsam kilidin DIŞINDA aracın şubesinden denetlendi; kilit altında taksidin aracı hâlâ o araç
+    /// olmalı. Aksi halde (arada PUT ile başka araca taşındı) işlem yapılmaz → 409 <c>cakisma</c>, kayıt yeniden okunur.
+    /// </summary>
+    private static Action<MusteriTaksit> SameVehicleGuard(Guid? checkedVehicleId) => row =>
+    {
+        if (row.VehicleId != checkedVehicleId)
+            throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+    };
 }

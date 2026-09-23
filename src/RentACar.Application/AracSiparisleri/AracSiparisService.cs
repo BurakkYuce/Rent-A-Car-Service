@@ -79,21 +79,25 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
         }, ct);
     }
 
-    public Task<bool> OnaylaAsync(Guid id, CancellationToken ct = default) => SetDurum(id, SiparisDurum.Onaylandi, ct);
-    public Task<bool> TeslimAlAsync(Guid id, CancellationToken ct = default) => SetDurum(id, SiparisDurum.TeslimAlindi, ct);
-    public Task<bool> IptalAsync(Guid id, CancellationToken ct = default) => SetDurum(id, SiparisDurum.Iptal, ct);
+    // F6.1b adversarial M1: Blazor da aynı kilitli geçiş tablosundan geçer (bilinçli sıkılaştırma — önce kilitsiz
+    // okuma ile yalnız İptal→X kapalıydı; TeslimAlındı→Onaylandı/İptal geri dönüşü açıktı).
+    public Task<bool> OnaylaAsync(Guid id, CancellationToken ct = default) => DurumDegistirAsync(id, SiparisDurum.Onaylandi, ct);
+    public Task<bool> TeslimAlAsync(Guid id, CancellationToken ct = default) => DurumDegistirAsync(id, SiparisDurum.TeslimAlindi, ct);
+    public Task<bool> IptalAsync(Guid id, CancellationToken ct = default) => DurumDegistirAsync(id, SiparisDurum.Iptal, ct);
 
-    private async Task<bool> SetDurum(Guid id, SiparisDurum durum, CancellationToken ct)
+    /// <summary>
+    /// F6.1b adversarial M1 — izinli durum geçişleri (TEK kaynak; uç yetki bayrakları da buradan türer):
+    /// Onaylandı yalnız Bekliyor'dan; TeslimAlındı yalnız Bekliyor|Onaylandı'dan; İptal TeslimAlındı ve İptal
+    /// DIŞINDAN. İptal ve TeslimAlındı terminal (teslim alınmış sipariş geri alınamaz / iptal edilemez).
+    /// Aynı duruma "geçiş" bu tabloda yoktur — çağıran onu no-op sayar.
+    /// </summary>
+    public static bool IsTransitionAllowed(SiparisDurum from, SiparisDurum to) => to switch
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        // İptal TERMİNALDİR: ekranın iptal onayı "bir daha onaylanamaz, teslim alınamaz" diyor; iki
-        // sekmede eski listeden "Onayla"/"Teslim Al"a basan kullanıcı İptal → Onaylandı/TeslimAlındı
-        // geçişi yapabiliyordu (adversarial bulgu). Düzenleme guard'ıyla (UpdateAsync) aynı kural.
-        if (durum != SiparisDurum.Iptal
-            && (await _repository.FindAsync(id, ct))?.Durum == SiparisDurum.Iptal)
-            throw new ValidationException("İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz.");
-        return await _repository.SetDurumAsync(id, durum, ct);
-    }
+        SiparisDurum.Onaylandi => from == SiparisDurum.Bekliyor,
+        SiparisDurum.TeslimAlindi => from is SiparisDurum.Bekliyor or SiparisDurum.Onaylandi,
+        SiparisDurum.Iptal => from is not (SiparisDurum.TeslimAlindi or SiparisDurum.Iptal),
+        _ => false,
+    };
 
     /// <summary>F6.1b — kayıt sürümü (xmin; tam değiştirme PUT'unun iyimser eşzamanlılığı).</summary>
     public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
@@ -118,9 +122,9 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
     }
 
     /// <summary>
-    /// F6.1b — durum geçişi KİLİT ALTINDA (/api/ui). <see cref="SetDurum"/> iptal çitini kilitsiz okuyordu: iki
-    /// sekmede eşzamanlı "İptal" + "Onayla" iptal kaydı Onaylandı'ya çevirebiliyordu. İptal terminal; aynı duruma
-    /// ikinci geçiş yapısal no-op (tekrar gönderim zararsız).
+    /// F6.1b — durum geçişi KİLİT ALTINDA, <see cref="IsTransitionAllowed"/> tablosuyla. Aynı duruma ikinci geçiş
+    /// yapısal no-op (çift tık zararsız); tabloda olmayan geçiş 409 <c>cakisma</c> (bayat sekme — güncel kayıt
+    /// yeniden yüklenmeli).
     /// </summary>
     public async Task<bool> DurumDegistirAsync(Guid id, SiparisDurum durum, CancellationToken ct = default)
     {
@@ -128,8 +132,10 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
         return await _repository.KilitliGuncelleAsync(id, null, row =>
         {
             if (row.Durum == durum) return;
-            if (row.Durum == SiparisDurum.Iptal)
-                throw new ValidationException("İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz.");
+            if (!IsTransitionAllowed(row.Durum, durum))
+                throw new EszamanliDegisiklikException(row.Durum == SiparisDurum.Iptal
+                    ? "İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz."
+                    : $"Sipariş '{row.Durum}' durumunda; '{durum}' durumuna geçilemez. Güncel kaydı kontrol edin.");
             row.Durum = durum;
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);

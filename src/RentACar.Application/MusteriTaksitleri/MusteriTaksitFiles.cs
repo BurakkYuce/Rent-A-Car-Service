@@ -242,13 +242,17 @@ public sealed class MusteriTaksitService(
     /// <c>mukerrer</c> + <c>mevcut</c> (aynı tarih ya da tarihsiz tekrar → <c>ayniIcerik</c>). Beklemedeki taksidi
     /// geri almak yapısal no-op.
     /// </summary>
+    /// <param name="lockedGuard">F6.1b adversarial L4: kilit ALTINDA çağrılır, durumdan ÖNCE (ör. uç, kapsamı
+    /// denetlediği araç kimliğinin hâlâ aynı olduğunu doğrular — arada başka oturum taksidi başka şubenin aracına
+    /// taşıdıysa işlem yapılmaz).</param>
     public async Task<bool> OdemeIsaretleKilitliAsync(Guid id, bool odendi, DateTimeOffset? tarih = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Action<MusteriTaksit>? lockedGuard = null)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (odendi) TarihPolitikasi.ParaTarihi(tarih, "Taksit ödeme");
         return await _repository.KilitliGuncelleAsync(id, null, r =>
         {
+            lockedGuard?.Invoke(r);
             if (odendi && r.Durum == TaksitDurum.Odendi)
             {
                 var ayni = tarih is null || r.OdemeTarihi is { } ot

@@ -39,6 +39,7 @@ public static partial class AracKrediApi
             throw new ValidationException($"Kredi tutarı en fazla {EnFazlaKrediTutari:N0} olabilir.", "krediTutari");
         if (i.FaizOran < 0m || i.FaizOran > EnFazlaFaizOrani)
             throw new ValidationException("Faiz oranı 0 ile 10 (yıllık %1000) arasında bir kesir olmalıdır.", "faizOran");
+        AracFinansOrtak.EnsureMaxScale(i.FaizOran, 4, "faizOran"); // numeric(9,4) — L1
         if (i.TaksitSayisi is < 1 or > 360)
             throw new ValidationException("Taksit sayısı 1 ile 360 arasında olmalıdır.", "taksitSayisi");
         var bas = F5Ortak.Utc(i.BaslangicTarihi);

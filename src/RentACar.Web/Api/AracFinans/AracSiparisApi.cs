@@ -90,9 +90,12 @@ public static class AracSiparisApi
         if (s is null) return null;
         var cari = s.TedarikciCariId is { } c ? F5Ortak.CariAdi(await F5Ortak.CarilerAsync(dbf, [c], ct), c) : null;
         var yaz = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
+        // Durum bayrakları servisin TEK geçiş tablosundan (adversarial M1: ayrı kopya teslim sonrası "onayla"yı açık bırakmıştı).
         var y = new AracSiparisYetkileri(
-            yaz && s.Durum != SiparisDurum.Iptal, yaz && s.Durum == SiparisDurum.Bekliyor,
-            yaz && s.Durum is SiparisDurum.Bekliyor or SiparisDurum.Onaylandi, yaz && s.Durum != SiparisDurum.Iptal);
+            yaz && s.Durum != SiparisDurum.Iptal,
+            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.Onaylandi),
+            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.TeslimAlindi),
+            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.Iptal));
         return AracSiparisDto.From(s, surum, cari, y);
     }
 
@@ -130,7 +133,7 @@ public static class AracSiparisApi
 
     private static MukerrerIslemException Mevcut(AracSiparis m, AracSiparisIstegi i)
     {
-        var doviz = string.IsNullOrWhiteSpace(i.Doviz) ? "TRY" : i.Doviz.Trim().ToUpperInvariant();
+        var doviz = AracFinansOrtak.Doviz(i.Doviz); // yazımla AYNI normalizasyon (L1: birebir tekrar ayniIcerik=true)
         var ayni = string.Equals(m.Tedarikci, i.Tedarikci?.Trim(), StringComparison.Ordinal) && m.Adet == (i.Adet ?? 1)
                    && m.BirimFiyat == i.BirimFiyat && m.Currency == doviz;
         var toplam = m.Adet * m.BirimFiyat;

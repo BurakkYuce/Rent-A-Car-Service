@@ -35,7 +35,7 @@ public sealed partial class UiAracFinansTests
         // Eşzamanlı iptal + onayla: iptal terminal — son durum iptal ise onay geri getiremez.
         await Task.WhenAll(Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/iptal"), Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/onayla"));
         Assert.Equal("Iptal", (await Json(await Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/iptal"))).GetProperty("durum").GetString());
-        await ProblemBekle(await Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/onayla"), HttpStatusCode.BadRequest, "dogrulama");
+        await ProblemBekle(await Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/onayla"), HttpStatusCode.Conflict, "cakisma"); // M1: izinsiz geçiş
         await ProblemBekle(await Gonder(s, HttpMethod.Put, $"{Siparis}/{id}", new { tedarikci = "Y", birimFiyat = 1m,
             surum = (await Json(await s.C.GetAsync($"{Siparis}/{id}"))).GetProperty("surum").GetString() }), HttpStatusCode.BadRequest, "dogrulama");
     }

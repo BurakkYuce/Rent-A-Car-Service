@@ -25,7 +25,7 @@ public static partial class MusteriTaksitApi
     private static async Task<MusteriTaksitInput> GirdiAsync(MusteriTaksitIstegi i, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
     {
-        AracFinansOrtak.Tutar(i.TaksitTutari, "taksitTutari");
+        AracFinansOrtak.Tutar(i.TaksitTutari, "taksitTutari", scale: 2); // servis 2 haneye yuvarlar — sessiz yuvarlama yerine red (L1)
         if (i.Vade is null) throw new ValidationException("Vade zorunludur.", "vade");
         AracFinansOrtak.Metin(i.Aciklama, 512, "aciklama");
         var durum = F5Ortak.EnumAdi<TaksitDurum>(i.Durum, "durum") ?? TaksitDurum.Bekliyor;
@@ -45,7 +45,7 @@ public static partial class MusteriTaksitApi
         DateTimeOffset? tarih, KurCozucu kurCozucu, CancellationToken ct)
     {
         var doviz = AracFinansOrtak.Doviz(dovizGirdi);
-        AracFinansOrtak.Kur(kurGirdi, doviz); // sınır + TRY'de kur = 1
+        AracFinansOrtak.Kur(kurGirdi, doviz, scale: 4); // sınır + TRY'de kur = 1; kolon numeric(19,4)
         decimal kur = 1m;
         try { kur = await kurCozucu.CozAsync(doviz, kurGirdi, tarih, ct); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)
@@ -87,7 +87,7 @@ public static partial class MusteriTaksitApi
 
     private static MukerrerIslemException TekilMevcut(MusteriTaksit m, MusteriTaksitIstegi i)
     {
-        var doviz = string.IsNullOrWhiteSpace(i.Doviz) ? "TRY" : i.Doviz.Trim().ToUpperInvariant();
+        var doviz = AracFinansOrtak.Doviz(i.Doviz); // yazımla AYNI normalizasyon (L1)
         var ayni = m.CariId == i.CariId && m.VehicleId == BosIse(i.VehicleId)
                    && m.TaksitTutari == decimal.Round(i.TaksitTutari, 2, MidpointRounding.AwayFromZero)
                    && m.Currency == doviz && AracFinansOrtak.AyniAn(m.Vade, F5Ortak.Utc(i.Vade));
