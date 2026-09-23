@@ -17,4 +17,8 @@ public sealed class PaymentTypeService(IPaymentTypeRepository repository, ICurre
 
     public Task<bool> UpdateAsync(Guid id, PaymentTypeInput input, CancellationToken ct = default)
         => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, ct);
+
+    /// <summary>F11.1a — full replacement with optimistic concurrency (409 <c>cakisma</c> on a stale version).</summary>
+    public Task<bool> UpdateAsync(Guid id, PaymentTypeInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, expectedVersion, ct);
 }

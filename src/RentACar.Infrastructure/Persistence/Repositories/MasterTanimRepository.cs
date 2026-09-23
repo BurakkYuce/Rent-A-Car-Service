@@ -84,7 +84,24 @@ public abstract class MasterTanimRepository<T>(IDbContextFactory<AppDbContext> f
         if (entity is null) return false;
 
         db.Set<T>().Remove(entity);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            // F11.1a: a row referenced by a foreign key is "in use" — a clear message instead of a 500.
+            throw new ValidationException(DefinitionMessages.InUse(_adTekil));
+        }
         return true;
     }
+
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersion.ReadAsync<T>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default)
+        => RowVersion.ReadAllAsync<T>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<T> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, e => $"'{e.Kod}' kodlu {_adTekil} zaten var.", ct);
 }

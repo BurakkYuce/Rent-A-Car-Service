@@ -13,6 +13,7 @@ using RentACar.Web.Api.Panel;
 using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.TabloDuzenleri;
+using RentACar.Web.Api.Tanim;
 
 namespace RentACar.Web.Api;
 
@@ -182,6 +183,7 @@ public static class UiApiExtensions
         v1.MapFiloKiralamaApi(); // F5.1
         v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
         v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
+        v1.MapTanimApi();        // F11.1a — F11 tanımları (ilk yarı), genel tanım CRUD deseni
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

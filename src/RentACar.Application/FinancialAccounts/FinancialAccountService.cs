@@ -49,7 +49,20 @@ public sealed class FinancialAccountService(
         return account.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, FinancialAccountInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, FinancialAccountInput input, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1a — full replacement with optimistic concurrency (stale version → 409 <c>cakisma</c>).</summary>
+    public Task<bool> UpdateAsync(Guid id, FinancialAccountInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion, ct);
+
+    /// <summary>F11.1a — opaque row version.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.1a — versions of every row.</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => _repository.GetVersionsAsync(ct);
+
+    private async Task<bool> UpdateCoreAsync(Guid id, FinancialAccountInput input, string? expectedVersion, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -57,13 +70,21 @@ public sealed class FinancialAccountService(
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu hesap zaten var.");
 
-        var sonuc = await _repository.UpdateAsync(id, account =>
+        void Update(FinancialAccount account)
         {
             Apply(account, n);
             account.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
-        _cache.Invalidate(AktifCacheKey);
-        return sonuc;
+        }
+        try
+        {
+            return expectedVersion is null
+                ? await _repository.UpdateAsync(id, Update, ct)
+                : await _repository.UpdateAsync(id, expectedVersion, Update, ct);
+        }
+        finally
+        {
+            _cache.Invalidate(AktifCacheKey);
+        }
     }
 
     /// <summary>
