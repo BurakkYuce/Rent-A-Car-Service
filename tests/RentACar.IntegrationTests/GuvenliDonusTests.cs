@@ -311,6 +311,11 @@ public sealed class GuvenliDonusTests
 
         Assert.Equal(new[]
         {
+            // F6.1a — araç fotoğraf içeriği (/api/ui/v1/araclar/{id}/fotograflar/{fotoId}[/kucuk]): indirme DEĞİL
+            // (dosya adı verilmez → Content-Disposition yok, görsel satır içi gösterilir) ve /api/ui 401'i
+            // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
+            // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
+            "Api/Arac/AracApi.Foto.cs",
             "Documents/FirmaBelgeEndpoints.cs",
             "Documents/FirmaDokumanEndpoints.cs",
             "Reports/ListExportEndpoints.cs",
