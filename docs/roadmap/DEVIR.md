@@ -19,9 +19,9 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-23. Main'de 60 PR'lık planın ~24'ü var (~%40). Ekran olarak kira listesi, Panel ve kira formu
-(sabit finans paneli dahil) SPA'da; kullanıcılar henüz Blazor kullanıyor (pilot kapalı). F4'ün kodunda yalnız
-kesiş PR'ı (#264) kaldı.
+Güncelleme: 2026-09-23. **F4'ün KODU BİTTİ** (#264 merge). Main'de 60 PR'lık planın ~25'i var (~%42). Kira
+listesi, Panel ve kira formu (sabit finans paneli dahil) SPA'da; kesiş mekaniği hazır ama **pilot kapalı** —
+kullanıcılar hâlâ Blazor kullanıyor. Açık PR yok.
 
 ### ✅ Bitti
 - G0, F0 (#235 #237), F1 (#238–#240 #243–#245), F2.1 (#241), F2.2 kodu (#249), F3 (#248 #250–#255, kapanış #256).
@@ -31,30 +31,24 @@ kesiş PR'ı (#264) kaldı.
   ikinci tahsilat) → sunucuda "önce mevcut kayıt, sonra bayatlık" sırası + `mevcut{…, ayniIcerik}`; M-A (iki
   sekme), M-B (ön-dolu tutara fare tıklaması), M-C (tutarı değiştirilmiş tekrar) ve son turda MEDIUM-1
   (belirsiz tahsilat denemesi artık ANAHTARA bağlı) kapatıldı.
+- **F4.6 ilk kesiş — mekanik (#264).** Platform konsolunda pilot anahtarı, tek giriş `/login` → `/app/giris`,
+  5 şablonluk GET yönlendirme haritası (sorgu korunur; PDF/hesap/export yönlenmez), menü kayıttan (rol → izin),
+  test devri, `mobil-tasma` SPA girişi. Güvenlik incelemesi temiz; pilotta finans paneli e2e ile doğrulandı.
+  **Pilot anahtarı kapalı** — açmak kullanıcıya ait.
 - **Çekirdek eki: rota bazlı tembel çeviri (#268).** `tr.json` artık ilk pakete gömülü değil; ilk paket
   395 → 372,5 kB (uyarı 380, hata 450). Yeni ekranlar çevirilerini kendi rota parçalarında yükler.
 - Yan düzeltmeler: #265 (müşteri bildirimleri + WhatsApp özeti 2026-08-17'den beri çalışmıyordu — UTC),
   #266 (iş koşu günlüğü hata satırı + üretici yalıtımı + üretici başına `racar_job_fail` metriği).
 
-### ⏳ Açık PR — TEK KALAN
-1. **#264 F4.6 ilk kesiş (mekanik)** — dal `feat/f4-6-ilk-kesis`, güvenlik incelemesi TEMİZ (açık yönlendirme
-   25 yük, döngü, harita sınırları, pilot anahtarı IDOR/CSRF, menü izinleri, parola sızıntısı).
-   - İçerik: platform konsolunda pilot anahtarı, tek giriş `/login` → `/app/giris`, 5 şablonluk GET yönlendirme
-     haritası (sorgu korunur; PDF/hesap/export yönlenmez), kayıttan menü, test devri, `mobil-tasma` SPA girişi.
-   - Kalan adımlar: `git merge origin/main` (#263 + #268 sonrası; `tr.json` artık tembel parçalara bölünmüş) →
-     pilot kiracıda kira formunun finans paneli e2e ile doğrulanır (hiçbir bağlantı Blazor kira sayfasına
-     düşmemeli) → kapılar + tam backend takımı → CI (`scripts/pr-izle.sh`) → merge.
-   - Merge sonrası: menü değişikliği kullanıcı onayı bekliyor (§1 "Kullanıcıda bekleyenler" Karar 2).
+### ⏳ Açık PR — YOK
+
+Sıradaki işe §1 "Sırada" listesinden başla; kullanıcı kararına bağlı maddelere dokunma.
 
 ### ⬜ Sırada (başlamadı)
-1. **F4 kapanış belgesi:**
-   - `F4.md` durum + kapanış tablosu, `README.md` faz tablosu.
-   - `DEGISIKLIKLER.md`: F4.3 → F4.3 + F4.3b bölündü (bilgi); F4.4 → F4.4a + F4.4 (bilgi); çekirdek eki #268
-     (bilgi); F5 kararı (§1 Karar 1).
-2. **Low temizliği PR'ı** (§6 listesi) — para dokunanlar varsa adversarial.
-3. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
+1. **Low temizliği PR'ı** (§6 listesi) — para dokunanlar varsa adversarial.
+2. **F4.6b — Blazor kira + Panel sayfalarının ve hedefsiz POST uçlarının silinmesi:** YALNIZ pilotta 10 iş günü
    P1 olmadıktan SONRA. Ön koşul: kullanıcı F2.2 sunucu adımlarını yapmış ve pilotu açmış olmalı.
-4. **F5 → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
+3. **F5 → F12** modül fazları (her biri `F*.md` "Kalıp"a göre), sonra **F13** söküm.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
@@ -62,7 +56,7 @@ kesiş PR'ı (#264) kaldı.
 - **Karar (1):** F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlasın mı?
   - Önerilen: evet, F4 kodu bitince başlasın; pilot arka planda sürsün.
   - Karar gelince `DEGISIKLIKLER.md`'ye yaz.
-  - Cevap yoksa #264, F4 kapanışı ve Low temizliği yapılabilir; **F5'e başlanmaz.**
+  - Cevap yoksa yalnız Low temizliği yapılabilir; **F5'e başlanmaz.**
 - **Karar (2):** menü görünürlüğü rolden izne geçti (#264). Operatör 79 → 74 öğe, Muhasebe 48 → 53.
   Kullanıcı onayı bekleniyor; itiraz gelirse `MenuKaydi`'nde izin eşlemesi düzeltilir.
 - **Karar (3): yakıt ölçeği.** Servis ve harici API 0–100, formlar ve TürevRent 0–12 kullanıyor. Önerilen: tek
