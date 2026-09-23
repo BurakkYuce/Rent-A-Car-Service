@@ -110,8 +110,9 @@ public sealed class QuotationTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(Input(m, v));
         await svc.AcceptAsync(id);
-        // Kabul edilmiş teklif tekrar kabul edilemez.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AcceptAsync(id));
+        // Kabul edilmiş teklif tekrar kabul edilemez. F5.1 adversarial H1: yanıtı kaybolan tekrar da eşzamanlı ikinci
+        // kabulle AYNI sözleşmeyi alır — EszamanliDegisiklikException (409 cakisma; ValidationException'dan türer).
+        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => svc.AcceptAsync(id));
     }
 
     [Fact]

@@ -16,7 +16,9 @@ namespace RentACar.Web.Api.Rezervasyon;
 /// <summary>
 /// <c>/api/ui/v1/filo-kiralama/*</c> — uzun dönem filo kiralama (F5.1). İş mantığı <see cref="FiloKiralamaService"/>'te;
 /// DEFTER YAZMAZ (taksit planı salt-hesap). İzin OperationsWrite; iptal ayrıca OperationsDelete (Blazor dar izni).
-/// <para><b>Şube kapsamı yok</b> (Blazor paritesi): sözleşmenin şube/ofis alanı yok — kiracı geneli. Açık iş olarak PR'da.</para>
+/// <para><b>Şube kapsamı ARACIN şubesinden</b> (F5.1 adversarial M3): sözleşmenin kendi şube alanı yok; liste aracın
+/// şubesiyle süzülür, tekil uçlar (detay/künye/tamamla/iptal) başka şubenin sözleşmesinde durumdan ÖNCE 403
+/// <c>yetki_yok</c>, oluşturmada başka şubenin aracı 403. Blazor yolu değişmedi (servisin kapsamlı yolları yalnız burada).</para>
 /// <para>Künye PUT'u tam değiştirmedir: zorunlu <c>surum</c>, uyuşmazlık 409 <c>cakisma</c>. Para/süre alanları künye
 /// tipinde YOK (plan bu yoldan değişemez).</para>
 /// </summary>
@@ -49,7 +51,7 @@ public static class FiloKiralamaApi
         string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
-        var liste = await filo.ListAsync(new FiloKiralamaFilter
+        var liste = await filo.ListKapsamliAsync(new FiloKiralamaFilter
         {
             MusteriId = musteriId, Plaka = F5Ortak.Nz(plaka), Ara = F5Ortak.Nz(ara),
             Durum = F5Ortak.EnumAdi<FiloKiraDurum>(durum, "durum"), Bas = min, Bit = max,
@@ -73,7 +75,7 @@ public static class FiloKiralamaApi
         CancellationToken ct)
     {
         var surum = await depo.SurumAsync(id, ct); // alanlardan ÖNCE
-        var k = await filo.GetAsync(id, ct);
+        var k = await filo.GetKapsamliAsync(id, ct); // kapsam dışı → 403 (içerik sızmaz)
         if (k is null) return null;
         var cariler = await F5Ortak.CarilerAsync(dbf, [k.MusteriId], ct);
         var plakalar = await F5Ortak.PlakalarAsync(dbf, [k.VehicleId], ct);
@@ -120,7 +122,7 @@ public static class FiloKiralamaApi
             throw new ValidationException("Döviz 3 harfli ISO kodu olmalıdır (ör. TRY, EUR).", "doviz");
         Metinler(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
         await RezervasyonApi.VarlikAsync(musteriler, araclar, i.MusteriId, i.VehicleId, ct);
-        var id = await filo.CreateAsync(new FiloKiralamaInput
+        var id = await filo.CreateKapsamliAsync(new FiloKiralamaInput
         {
             MusteriId = i.MusteriId, VehicleId = i.VehicleId, BasTar = F5Ortak.Utc(i.BasTar), SureAy = i.SureAy ?? 0,
             AylikUcret = i.AylikUcret ?? 0m, KdvOrani = i.KdvOrani ?? 0.20m, Doviz = doviz, Kur = i.Kur ?? 1m,
@@ -139,7 +141,7 @@ public static class FiloKiralamaApi
         Guid id, FiloKunyeIstegi i, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        if (await filo.GetAsync(id, ct) is null) return Bulunamadi();
+        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
         if (string.IsNullOrWhiteSpace(i.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         Metinler(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
@@ -157,7 +159,7 @@ public static class FiloKiralamaApi
         Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        if (await filo.GetAsync(id, ct) is null) return Bulunamadi();
+        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
         if (!await filo.TamamlaAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, http, filo, depo, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
@@ -166,7 +168,7 @@ public static class FiloKiralamaApi
         Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        if (await filo.GetAsync(id, ct) is null) return Bulunamadi();
+        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
         if (!await filo.IptalAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, http, filo, depo, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }

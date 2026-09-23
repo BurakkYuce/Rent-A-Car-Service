@@ -20,6 +20,14 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
 
         if (filter is not null)
         {
+            // F5.1 adversarial M3 — C4 ŞABLON (BranchScope.InScope ile birebir), ARACIN şubesi üzerinden.
+            if (!filter.Kapsam.Unrestricted)
+            {
+                var kid = filter.Kapsam.SubeId; var kad = filter.Kapsam.SubeAd;
+                q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId
+                    && ((kid != null && v.SubeId == kid)
+                        || ((kid == null || v.SubeId == null) && kad != null && v.Sube != null && v.Sube.Trim() == kad))));
+            }
             if (filter.MusteriId is { } m) q = q.Where(x => x.MusteriId == m);
             if (filter.Durum is { } d) q = q.Where(x => x.Durum == d);
             if (filter.Bas is { } b) q = q.Where(x => x.BasTar >= b);
@@ -64,6 +72,14 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.FiloKiralamalar, id, ct);
+    }
+
+    public async Task<(Guid? SubeId, string? Sube)?> AracSubesiAsync(Guid vehicleId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var v = await db.Vehicles.AsNoTracking().Where(x => x.Id == vehicleId)
+            .Select(x => new { x.SubeId, x.Sube }).FirstOrDefaultAsync(ct);
+        return v is null ? null : (v.SubeId, v.Sube);
     }
 
     public async Task<FiloKiralama?> FindAsync(Guid id, CancellationToken ct = default)

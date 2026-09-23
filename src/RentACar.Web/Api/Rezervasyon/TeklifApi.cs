@@ -21,7 +21,8 @@ namespace RentACar.Web.Api.Rezervasyon;
 /// <para>Kimlikli her uç ÖNCE <see cref="QuotationService.GetAsync"/>'ten geçer (kapsam dışı 403, yok 404) — durum
 /// kontrolünden önce. Blazor'da teklif düzenleme yok → PUT yok (parite).</para>
 /// <para>Çift gönderim: oluşturma anahtarsız (Blazor ile aynı; SPA düğmeyi kilitler); gönder/reddet/kabul durum
-/// makinesiyle yapısal korunur (kabul ikinci kez → 400, ikinci rezervasyon AÇILMAZ).</para>
+/// makinesiyle yapısal korunur. Kabul teklif satırını kilitler; ikinci kabul (eşzamanlı ya da yanıtı kaybolan tekrar)
+/// → 409 <c>cakisma</c>, ikinci rezervasyon AÇILMAZ (ayrıca <c>(TenantId, KaynakTeklifId)</c> kısmi UNIQUE — F5.1 adversarial H1).</para>
 /// </summary>
 public static class TeklifApi
 {

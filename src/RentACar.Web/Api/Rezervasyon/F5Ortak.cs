@@ -35,6 +35,18 @@ internal static class F5Ortak
         return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
     }
 
+    /// <summary>
+    /// F5.1 adversarial L4 — "duvar saati" (offset'i anlamsız, gün+saat İstanbul niyetiyle girilmiş an) → gerçek UTC an.
+    /// <see cref="Application.Availability.AvailabilityService.Pencere"/> gün+saati offset 0 ile kurar (Blazor ekranı ve
+    /// fiyat motorunun takvim-günü konvansiyonu); müsaitlik ÇAKIŞMA sorgusu ise gerçek an ister — 08:00 aranınca
+    /// 08:00 İstanbul (05:00Z) sorgulanmalı, 08:00Z (11:00 İstanbul) değil.
+    /// </summary>
+    public static DateTimeOffset YereldenUtc(DateTimeOffset duvar)
+    {
+        var yerel = DateTime.SpecifyKind(duvar.DateTime, DateTimeKind.Unspecified);
+        return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
+    }
+
     /// <summary>Takvim günü aralığı: [gün başı, ertesi gün başı − 1 µs] (üst sınır GÜN DAHİL; repo &lt;= uygular).</summary>
     public static (DateTimeOffset? Min, DateTimeOffset? Max) GunAraligi(DateOnly? min, DateOnly? max)
         => (min is { } a ? GunBasi(a) : null, max is { } b ? GunBasi(b.AddDays(1)).AddMicroseconds(-1) : null);

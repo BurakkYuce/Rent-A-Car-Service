@@ -24,7 +24,8 @@ namespace RentACar.Web.Api.Rezervasyon;
 /// (Blazor <c>[Authorize(Policy="izin:OperationsWrite")]</c> ile aynı). Şube kapsamı servislerde
 /// (<see cref="CalendarService"/>, <see cref="AvailabilityService"/>, <see cref="VehicleService"/>).
 /// <para><b>Hesap SUNUCUDA</b> (UI formül taşımaz): takvim ızgarası (gün × araç, kira önceliği), müsaitlik penceresi
-/// (<see cref="AvailabilityService.Pencere"/>), yaş, km limiti yönü, boşta gün, broker çiti, döviz süzgeci ve grup
+/// (<see cref="AvailabilityService.Pencere"/>; gün+saat İSTANBUL saatidir, çakışma sorgusu ve yanıttaki
+/// <c>pencereBas/Bit</c> gerçek UTC an — F5.1 adversarial L4), yaş, km limiti yönü, boşta gün, broker çiti, döviz süzgeci ve grup
 /// başına fiyat (<see cref="RentalQuoteEngine"/> — persist SIFIR, yalnız gösterim).</para>
 /// </summary>
 public static class PlanlamaApi
@@ -146,11 +147,14 @@ public static class PlanlamaApi
         var pencere = AvailabilityService.Pencere(s.BasGun, s.BitGun, s.Gun, s.BasSaat, s.BitSaat)
             ?? throw new ValidationException("Bitiş tarihi ya da gün sayısından birini girin.", "bitGun");
         var (from, to) = pencere;
+        // F5.1 adversarial L4: gün+saat İSTANBUL niyetidir. Çakışma sorgusu gerçek UTC anla koşar; fiyat motoru, broker
+        // çiti ve kira bağlantısı takvim-günü konvansiyonunda (Blazor ile aynı) duvar değerleriyle kalır.
+        var (fromUtc, toUtc) = (F5Ortak.YereldenUtc(from), F5Ortak.YereldenUtc(to));
         var grup = F5Ortak.Nz(s.Grup);
         var sube = F5Ortak.Nz(s.Sube);
         var rezKaynak = F5Ortak.Nz(s.RezKaynak);
 
-        var liste = await musaitlik.FindAvailableAsync(from, to, grup, sube, ct); // kapsam serviste
+        var liste = await musaitlik.FindAvailableAsync(fromUtc, toUtc, grup, sube, ct); // kapsam serviste
         // Plaka süzgeci LİSTE ÜZERİNDE (müsaitlik sorgusunun kapsam kuralları dokunulmadan); terim normalize.
         var p = new string((s.Plaka ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
         if (p.Length > 0)
@@ -225,7 +229,7 @@ public static class PlanlamaApi
         // Kirala bağlantısı ÇÖZÜLMÜŞ pencereden (gün-modunda bitiş alanı boştur) — kira formu sorgu sözleşmesi.
         var sorgu = new KiralaSorgusu(
             from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), grup);
-        return TypedResults.Ok(new MusaitlikYaniti(from, to, satirlar, elenen, gerekce, sorgu));
+        return TypedResults.Ok(new MusaitlikYaniti(fromUtc, toUtc, satirlar, elenen, gerekce, sorgu)); // gerçek pencere (UTC)
     }
 
     /// <summary>Müsaitlik süzgeç seçenekleri. Dövizler AKTİF tarifelerden (teklif dövizinin tek kaynağı).</summary>

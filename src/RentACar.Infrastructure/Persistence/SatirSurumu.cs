@@ -14,8 +14,10 @@ internal static class SatirSurumu
     public const string Rezervasyonlar = "Reservations";
     public const string RezSartlari = "RezSartlari";
     public const string FiloKiralamalar = "FiloKiralamalar";
+    /// <summary>F5.1 adversarial H1/L6 — teklif durum geçişleri ve kabul (rezervasyona çevirme) satır kilidi.</summary>
+    public const string Teklifler = "Quotations";
 
-    private static readonly HashSet<string> Tablolar = [Rezervasyonlar, RezSartlari, FiloKiralamalar];
+    private static readonly HashSet<string> Tablolar = [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));

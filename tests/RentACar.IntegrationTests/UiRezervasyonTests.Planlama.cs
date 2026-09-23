@@ -37,8 +37,9 @@ public sealed partial class UiRezervasyonTests
         var kabul = await Json(await Gonder(a, HttpMethod.Post, $"{Teklif}/{id}/kabul"));
         var rezId = kabul.GetProperty("rezervasyonId").GetGuid();
         Assert.Equal(300m, (await Json(await a.C.GetAsync($"{Rez}/{rezId}"))).GetProperty("rezervasyon").GetProperty("tutar").GetDecimal());
-        // İkinci kabul ve kabul sonrası red: durum makinesi → 400; ikinci rezervasyon açılmaz.
-        await ProblemBekle(await Gonder(a, HttpMethod.Post, $"{Teklif}/{id}/kabul"), HttpStatusCode.BadRequest, "dogrulama");
+        // İkinci kabul: 409 cakisma (F5.1 adversarial H1 — eşzamanlı kabulle aynı sözleşme); kabul sonrası red: durum
+        // makinesi → 400; ikinci rezervasyon açılmaz.
+        await ProblemBekle(await Gonder(a, HttpMethod.Post, $"{Teklif}/{id}/kabul"), HttpStatusCode.Conflict, "cakisma");
         await ProblemBekle(await Gonder(a, HttpMethod.Post, $"{Teklif}/{id}/reddet"), HttpStatusCode.BadRequest, "dogrulama");
         Assert.Equal(1, (await Json(await a.C.GetAsync(Rez))).GetProperty("toplam").GetInt32());
     }
