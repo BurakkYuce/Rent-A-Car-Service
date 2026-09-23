@@ -43,6 +43,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
 
         var row = new Baf
         {
+            Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? ia : Guid.NewGuid(), // F6.1b idempotent oluşturma
             PersonelId = input.PersonelId,
             VehicleId = input.VehicleId,
             CikisTarihi = input.CikisTarihi ?? DateTimeOffset.UtcNow,
@@ -86,5 +87,44 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         if (baf is null) return false;
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
         return await _repository.IptalAsync(id, ct);
+    }
+
+    /// <summary>
+    /// F6.1b — <see cref="TeslimAlAsync"/>'in KİLİTLİ karşılığı (/api/ui). Blazor yolu durumu kilitsiz okuyordu:
+    /// eşzamanlı iki teslim (ya da teslim + iptal) ikisi de "Açık" görüp birbirini eziyordu. Kapsam ve durum çitleri
+    /// satır kilidinin ALTINDA yeniden denetlenir (kapsam önce — başka şubenin kaydının durumu sızmasın).
+    /// </summary>
+    public async Task<bool> TeslimAlKilitliAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset? donusTarihi,
+        string? donusSube, TimeOnly? donusSaat, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var sube = string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim();
+        return await _repository.KilitliGuncelleAsync(id, row =>
+        {
+            BranchScope.RequireInScope(_currentUser, row.Sube);
+            if (row.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
+            if (donusKm < row.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
+            row.DonusTarihi = donusTarihi ?? DateTimeOffset.UtcNow;
+            row.DonusKm = donusKm;
+            row.DonusYakit = donusYakit;
+            if (sube is not null) row.DonusSube = sube;
+            if (donusSaat is { } ds) row.DonusSaat = ds;
+            row.Durum = Domain.Enums.BafDurum.Kapandi;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F6.1b — kilitli iptal: yalnız AÇIK tahsis iptal edilir (kapanmış tahsisin dönüş km/yakıt kaydı
+    /// iptalle "yok" sayılmasın); zaten iptal olan → 400.</summary>
+    public async Task<bool> IptalKilitliAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete);
+        return await _repository.KilitliGuncelleAsync(id, row =>
+        {
+            BranchScope.RequireInScope(_currentUser, row.Sube);
+            if (row.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis iptal edilebilir.");
+            row.Durum = Domain.Enums.BafDurum.Iptal;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
     }
 }

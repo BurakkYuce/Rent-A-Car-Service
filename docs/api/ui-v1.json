@@ -2896,6 +2896,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeklifKabulCakismaProblemi"
+                }
+              }
+            }
           }
         }
       }
@@ -5348,6 +5358,1765 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri": {
+      "get": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dosyaNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfAracKrediListeSatiri"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AracKrediIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracKrediOlusturYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri/ozet": {
+      "get": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dosyaNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracKrediPano"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri/{id}": {
+      "get": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracKrediDetayYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri/{id}/taksit-ode": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaksitOdeIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaksitOdeYaniti"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri/{id}/iptal": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-kredileri/toplu-iptal": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Kredisi"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KrediTopluIptalIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KrediTopluIptalYaniti"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri": {
+      "get": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vadeMin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "vadeMax",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "gecikmis",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfMusteriTaksitSatiri"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MusteriTaksitIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusteriTaksitOlusturYaniti"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri/ozet": {
+      "get": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vadeMin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "vadeMax",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "gecikmis",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaksitOzet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri/{id}": {
+      "get": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusteriTaksitSatiri"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MusteriTaksitIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusteriTaksitSatiri"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri/plan": {
+      "post": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaksitPlanIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaksitPlanYaniti"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri/{id}/odendi": {
+      "post": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TaksitOdendiIstegi"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusteriTaksitSatiri"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/musteri-taksitleri/{id}/geri-al": {
+      "post": {
+        "tags": [
+          "M\u00FC\u015Fteri Taksit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusteriTaksitSatiri"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-siparisleri": {
+      "get": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arac",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dosyaNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfAracSiparisSatiri"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AracSiparisIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisOlusturYaniti"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-siparisleri/{id}": {
+      "get": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AracSiparisIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-siparisleri/{id}/onayla": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-siparisleri/{id}/teslim-al": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/arac-siparisleri/{id}/iptal": {
+      "post": {
+        "tags": [
+          "Ara\u00E7 Sipari\u015F"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AracSiparisDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/baflar": {
+      "get": {
+        "tags": [
+          "BAF"
+        ],
+        "parameters": [
+          {
+            "name": "personelId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kullanimAmaci",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lokasyon",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfBafDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "BAF"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BafIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BafDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/baflar/{id}": {
+      "get": {
+        "tags": [
+          "BAF"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BafDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/baflar/{id}/teslim-al": {
+      "post": {
+        "tags": [
+          "BAF"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BafTeslimIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BafDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/baflar/{id}/iptal": {
+      "post": {
+        "tags": [
+          "BAF"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BafDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari": {
+      "get": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfHasarDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HasarIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari/{id}": {
+      "get": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari/{id}/onaya-gonder": {
+      "post": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari/{id}/onayla": {
+      "post": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HasarNotIstegi"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari/{id}/reddet": {
+      "post": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HasarNotIstegi"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hasar-dosyalari/{id}/kapat": {
+      "post": {
+        "tags": [
+          "Hasar Dosyas\u0131"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HasarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/filo-plan": {
+      "get": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "parameters": [
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfFiloPlanDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiloPlanIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiloPlanDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/filo-plan/{id}": {
+      "get": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiloPlanDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiloPlanIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiloPlanDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/filo-plan/{id}/delta": {
+      "post": {
+        "tags": [
+          "Filo Plan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiloPlanDeltaIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiloPlanDto"
+                }
+              }
+            }
           }
         }
       }
@@ -8290,6 +10059,572 @@
           }
         }
       },
+      "AracKrediDetayYaniti": {
+        "required": [
+          "id",
+          "no",
+          "bankaAdi",
+          "vehicleId",
+          "plaka",
+          "cariId",
+          "cariAd",
+          "dosyaNo",
+          "krediTutari",
+          "faizOran",
+          "taksitSayisi",
+          "odenenTaksit",
+          "baslangicTarihi",
+          "doviz",
+          "kur",
+          "durum",
+          "aciklama",
+          "ozet",
+          "sonrakiTaksit",
+          "yetkiler"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "bankaAdi": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "krediTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "faizOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "taksitSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "odenenTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "baslangicTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozet": {
+            "$ref": "#/components/schemas/AracKrediOzet"
+          },
+          "sonrakiTaksit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SonrakiTaksit"
+              }
+            ]
+          },
+          "yetkiler": {
+            "$ref": "#/components/schemas/AracKrediYetkileri"
+          }
+        }
+      },
+      "AracKrediIstegi": {
+        "type": "object",
+        "properties": {
+          "bankaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "krediTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "faizOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "taksitSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "baslangicTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AracKrediListeSatiri": {
+        "required": [
+          "id",
+          "no",
+          "bankaAdi",
+          "vehicleId",
+          "plaka",
+          "cariId",
+          "cariAd",
+          "dosyaNo",
+          "krediTutari",
+          "faizOran",
+          "taksitSayisi",
+          "odenenTaksit",
+          "baslangicTarihi",
+          "doviz",
+          "durum",
+          "toplamGeriOdeme",
+          "aylikTaksit",
+          "kalanBakiye",
+          "sonVadeGunu"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "bankaAdi": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "krediTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "faizOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "taksitSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "odenenTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "baslangicTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "toplamGeriOdeme": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aylikTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalanBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sonVadeGunu": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AracKrediOlusturYaniti": {
+        "required": [
+          "id",
+          "no"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          }
+        }
+      },
+      "AracKrediOzet": {
+        "required": [
+          "toplamFaiz",
+          "toplamGeriOdeme",
+          "aylikTaksit",
+          "odenenTutar",
+          "kalanBakiye",
+          "taksitler",
+          "sonVadeGunu",
+          "sonTaksitTutari",
+          "buAyToplamTaksit"
+        ],
+        "type": "object",
+        "properties": {
+          "toplamFaiz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamGeriOdeme": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aylikTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "odenenTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalanBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "taksitler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracKrediTaksit"
+            }
+          },
+          "sonVadeGunu": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonTaksitTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "buAyToplamTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "AracKrediPano": {
+        "required": [
+          "toplamFaiz",
+          "sonVadeGunu",
+          "sonTaksitTutari",
+          "buAyToplamTaksit",
+          "toplamKrediBorcu"
+        ],
+        "type": "object",
+        "properties": {
+          "toplamFaiz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sonVadeGunu": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonTaksitTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "buAyToplamTaksit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamKrediBorcu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "AracKrediTaksit": {
+        "required": [
+          "sira",
+          "vade",
+          "tutar",
+          "odendi"
+        ],
+        "type": "object",
+        "properties": {
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "vade": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "odendi": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AracKrediYetkileri": {
+        "required": [
+          "taksitOde",
+          "iptal"
+        ],
+        "type": "object",
+        "properties": {
+          "taksitOde": {
+            "type": "boolean"
+          },
+          "iptal": {
+            "type": "boolean"
+          }
+        }
+      },
       "AracListeSatiri": {
         "required": [
           "id",
@@ -9014,6 +11349,598 @@
           }
         }
       },
+      "AracSiparisDto": {
+        "required": [
+          "id",
+          "no",
+          "durum",
+          "surum",
+          "tedarikci",
+          "tedarikciCariId",
+          "tedarikciCariAd",
+          "siparisTarihi",
+          "beklenenTeslim",
+          "imzaTarih",
+          "dosyaNo",
+          "satisTemsilci",
+          "ozelTemsilci",
+          "marka",
+          "tip",
+          "grup",
+          "versiyon",
+          "opsiyon",
+          "renk",
+          "icRenk",
+          "kaynakTip",
+          "satisTipi",
+          "tsbKayitNo",
+          "krediId",
+          "adet",
+          "birimFiyat",
+          "toplam",
+          "piyasaFiyat",
+          "opsFiyat",
+          "filoFiyat",
+          "doviz",
+          "kur",
+          "aciklama",
+          "yetkiler"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tedarikci": {
+            "type": "string"
+          },
+          "tedarikciCariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tedarikciCariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siparisTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "beklenenTeslim": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "imzaTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "satisTemsilci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelTemsilci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "versiyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opsiyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "renk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "icRenk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynakTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "satisTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tsbKayitNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "krediId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "birimFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "piyasaFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "opsFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "filoFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkiler": {
+            "$ref": "#/components/schemas/AracSiparisYetkileri"
+          }
+        }
+      },
+      "AracSiparisIstegi": {
+        "type": "object",
+        "properties": {
+          "tedarikci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tedarikciCariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "siparisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "beklenenTeslim": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "imzaTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "satisTemsilci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelTemsilci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "versiyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opsiyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "renk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "icRenk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynakTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "satisTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tsbKayitNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "krediId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "birimFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "piyasaFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "opsFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "filoFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AracSiparisOlusturYaniti": {
+        "required": [
+          "id",
+          "no"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          }
+        }
+      },
+      "AracSiparisSatiri": {
+        "required": [
+          "id",
+          "no",
+          "durum",
+          "tedarikci",
+          "tedarikciCariAd",
+          "siparisTarihi",
+          "beklenenTeslim",
+          "dosyaNo",
+          "marka",
+          "tip",
+          "grup",
+          "adet",
+          "birimFiyat",
+          "toplam",
+          "doviz",
+          "krediId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "tedarikci": {
+            "type": "string"
+          },
+          "tedarikciCariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siparisTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "beklenenTeslim": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "birimFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "krediId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "AracSiparisYetkileri": {
+        "required": [
+          "duzenle",
+          "onayla",
+          "teslimAl",
+          "iptal"
+        ],
+        "type": "object",
+        "properties": {
+          "duzenle": {
+            "type": "boolean"
+          },
+          "onayla": {
+            "type": "boolean"
+          },
+          "teslimAl": {
+            "type": "boolean"
+          },
+          "iptal": {
+            "type": "boolean"
+          }
+        }
+      },
       "AylikGelir": {
         "required": [
           "ayBas",
@@ -9032,6 +11959,276 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "BafDto": {
+        "required": [
+          "id",
+          "no",
+          "durum",
+          "personelId",
+          "personelAd",
+          "vehicleId",
+          "plaka",
+          "cikisTarihi",
+          "cikisSaat",
+          "cikisKm",
+          "cikisYakit",
+          "sube",
+          "donusTarihi",
+          "donusSaat",
+          "donusKm",
+          "donusYakit",
+          "donusSube",
+          "kullanimAmaci",
+          "onaylayan",
+          "onaylayanAd",
+          "kirayaVer",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelAd": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "cikisTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cikisSaat": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          },
+          "cikisKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cikisYakit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donusTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "donusSaat": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          },
+          "donusKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusYakit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusSube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kullanimAmaci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "onaylayan": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "onaylayanAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kirayaVer": {
+            "type": "boolean"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BafIstegi": {
+        "type": "object",
+        "properties": {
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cikisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "cikisKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cikisYakit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kullanimAmaci": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "onaylayan": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "kirayaVer": {
+            "type": "boolean"
+          },
+          "cikisSaat": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          }
+        }
+      },
+      "BafTeslimIstegi": {
+        "required": [
+          "donusKm"
+        ],
+        "type": "object",
+        "properties": {
+          "donusKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusYakit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "donusSube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donusSaat": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
           }
         }
       },
@@ -10323,6 +13520,156 @@
           }
         }
       },
+      "FiloPlanDeltaIstegi": {
+        "required": [
+          "yon"
+        ],
+        "type": "object",
+        "properties": {
+          "yon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FiloPlanDto": {
+        "required": [
+          "id",
+          "aracGrupAdi",
+          "sipp",
+          "donem",
+          "hedefAdet",
+          "aciklama",
+          "gerceklesen",
+          "toplamKayitli",
+          "fark",
+          "durum",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "aracGrupAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sipp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedefAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gerceklesen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamKayitli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fark": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FiloPlanIstegi": {
+        "required": [
+          "aracGrupAdi",
+          "sipp",
+          "donem",
+          "hedefAdet"
+        ],
+        "type": "object",
+        "properties": {
+          "aracGrupAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sipp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedefAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "FiloTaksitDto": {
         "required": [
           "sira",
@@ -10465,6 +13812,170 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "HasarDto": {
+        "required": [
+          "id",
+          "no",
+          "durum",
+          "vehicleId",
+          "plaka",
+          "rentalId",
+          "cariId",
+          "cariAd",
+          "acilisTarihi",
+          "aciklama",
+          "tahminiTutar",
+          "onayNotu",
+          "yetkiler"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "acilisTarihi": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tahminiTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "onayNotu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkiler": {
+            "$ref": "#/components/schemas/HasarYetkileri"
+          }
+        }
+      },
+      "HasarIstegi": {
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "acilisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tahminiTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "HasarNotIstegi": {
+        "type": "object",
+        "properties": {
+          "not": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "HasarYetkileri": {
+        "required": [
+          "onayaGonder",
+          "onayla",
+          "reddet",
+          "kapat"
+        ],
+        "type": "object",
+        "properties": {
+          "onayaGonder": {
+            "type": "boolean"
+          },
+          "onayla": {
+            "type": "boolean"
+          },
+          "reddet": {
+            "type": "boolean"
+          },
+          "kapat": {
+            "type": "boolean"
           }
         }
       },
@@ -13832,6 +17343,37 @@
           }
         }
       },
+      "KrediTopluIptalIstegi": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "KrediTopluIptalYaniti": {
+        "required": [
+          "iptalEdilen"
+        ],
+        "type": "object",
+        "properties": {
+          "iptalEdilen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "KurSecimOgesi": {
         "required": [
           "id",
@@ -14562,6 +18104,215 @@
           },
           "tip": {
             "type": "string"
+          }
+        }
+      },
+      "MusteriTaksitIstegi": {
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "vehicleSaleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "vade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "taksitTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "odemeTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MusteriTaksitOlusturYaniti": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MusteriTaksitSatiri": {
+        "required": [
+          "id",
+          "sira",
+          "cariId",
+          "cariAd",
+          "vehicleId",
+          "plaka",
+          "vehicleSaleId",
+          "vade",
+          "taksitTutari",
+          "doviz",
+          "kur",
+          "tutarBaz",
+          "durum",
+          "gecikti",
+          "odemeTarihi",
+          "aciklama",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vehicleSaleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "vade": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "taksitTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tutarBaz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "gecikti": {
+            "type": "boolean"
+          },
+          "odemeTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -16562,6 +20313,55 @@
           }
         }
       },
+      "SayfaOfAracKrediListeSatiri": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracKrediListeSatiri"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfAracListeSatiri": {
         "required": [
           "kayitlar",
@@ -16660,6 +20460,104 @@
           }
         }
       },
+      "SayfaOfAracSiparisSatiri": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracSiparisSatiri"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfBafDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BafDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfFiloListeSatiri": {
         "required": [
           "kayitlar",
@@ -16709,6 +20607,104 @@
           }
         }
       },
+      "SayfaOfFiloPlanDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FiloPlanDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfHasarDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HasarDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfKiraListeSatiri": {
         "required": [
           "kayitlar",
@@ -16722,6 +20718,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/KiraListeSatiri"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfMusteriTaksitSatiri": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MusteriTaksitSatiri"
             }
           },
           "toplam": {
@@ -17128,6 +21173,36 @@
           }
         }
       },
+      "SonrakiTaksit": {
+        "required": [
+          "sira",
+          "vade",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "vade": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "TabloDuzeniVerisi": {
         "required": [
           "sutunlar",
@@ -17334,6 +21409,249 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "TaksitOdeIstegi": {
+        "required": [
+          "sira",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "odemeTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TaksitOdendiIstegi": {
+        "type": "object",
+        "properties": {
+          "odemeTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TaksitOdeYaniti": {
+        "required": [
+          "giderId",
+          "giderNo",
+          "sira",
+          "tutar",
+          "doviz",
+          "kredi"
+        ],
+        "type": "object",
+        "properties": {
+          "giderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "giderNo": {
+            "type": "string"
+          },
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kredi": {
+            "$ref": "#/components/schemas/AracKrediDetayYaniti"
+          }
+        }
+      },
+      "TaksitOzet": {
+        "required": [
+          "adet",
+          "odenenAdet",
+          "gecikenAdet",
+          "toplamBaz",
+          "odenenBaz",
+          "kalanBaz"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "odenenAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gecikenAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamBaz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "odenenBaz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalanBaz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "TaksitPlanIstegi": {
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "vehicleSaleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "toplamTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "taksitSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ilkVade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TaksitPlanYaniti": {
+        "required": [
+          "adet",
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -17735,6 +22053,65 @@
           }
         }
       },
+      "TeklifKabulCakismaProblemi": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "kod",
+          "mevcut"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "mevcut": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TeklifKabulMevcut"
+              }
+            ]
+          }
+        }
+      },
+      "TeklifKabulMevcut": {
+        "required": [
+          "rezervasyonId",
+          "rezervasyonNo"
+        ],
+        "type": "object",
+        "properties": {
+          "rezervasyonId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rezervasyonNo": {
+            "type": "string"
+          }
+        }
+      },
       "TeklifKabulYaniti": {
         "required": [
           "rezervasyonId",
@@ -18116,6 +22493,24 @@
     },
     {
       "name": "Ara\u00E7 Tan\u0131mlar\u0131"
+    },
+    {
+      "name": "Ara\u00E7 Kredisi"
+    },
+    {
+      "name": "M\u00FC\u015Fteri Taksit"
+    },
+    {
+      "name": "Ara\u00E7 Sipari\u015F"
+    },
+    {
+      "name": "BAF"
+    },
+    {
+      "name": "Hasar Dosyas\u0131"
+    },
+    {
+      "name": "Filo Plan"
     }
   ]
 }

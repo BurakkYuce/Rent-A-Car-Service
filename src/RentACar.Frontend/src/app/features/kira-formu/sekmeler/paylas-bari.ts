@@ -28,7 +28,7 @@ import { KiraFormuDurumu } from '../kira-formu-durumu';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TranslocoPipe, Alan, MetinGirdisi],
   template: `
-    @if (d.detay.veri()?.paylasim) {
+    @if (d.gorunenDetay()?.paylasim) {
       <section
         class="kf-kart"
         [attr.aria-label]="'kiraFormuParite.paylas.baslik' | transloco"
@@ -78,7 +78,7 @@ export class PaylasBari {
   protected readonly eposta = new FormControl<string | null>(null);
   protected readonly hata = signal<string | null>(null);
 
-  private readonly bar = computed(() => this.d.detay.veri()?.paylasim ?? null);
+  private readonly bar = computed(() => this.d.gorunenDetay()?.paylasim ?? null);
 
   /** Mesaj = sunucunun hazır metni (+ aktif link varsa " Sözleşmeniz: <mutlak adres>"). */
   readonly mesaj = computed(() => {

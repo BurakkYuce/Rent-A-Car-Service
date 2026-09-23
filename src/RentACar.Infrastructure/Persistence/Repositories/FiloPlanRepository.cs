@@ -44,6 +44,24 @@ public sealed class FiloPlanRepository(IDbContextFactory<AppDbContext> factory) 
         return true;
     }
 
+    public async Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<FiloPlanHedefi> apply,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.FiloPlanHedefleri, id, beklenenSurum,
+                (db, k, c) => db.FiloPlanHedefleri.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        { throw new ValidationException("Bu grup/SIPP/dönem için hedef zaten tanımlı."); }
+    }
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.FiloPlanHedefleri, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
