@@ -179,6 +179,7 @@ public static class UiApiExtensions
         v1.MapPlanlamaApi();    // F5.1 — takvim + müsaitlik
         v1.MapRezSartApi();     // F5.1
         v1.MapFiloKiralamaApi(); // F5.1
+        AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

@@ -45,6 +45,7 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
 
         var row = new AracSiparis
         {
+            Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? ia : Guid.NewGuid(), // F6.1b idempotent oluşturma
             SiparisTarihi = input.SiparisTarihi ?? DateTimeOffset.UtcNow,
             Durum = SiparisDurum.Bekliyor
         };
@@ -92,6 +93,46 @@ public sealed class AracSiparisService(IAracSiparisRepository repository, ICurre
             && (await _repository.FindAsync(id, ct))?.Durum == SiparisDurum.Iptal)
             throw new ValidationException("İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz.");
         return await _repository.SetDurumAsync(id, durum, ct);
+    }
+
+    /// <summary>F6.1b — kayıt sürümü (xmin; tam değiştirme PUT'unun iyimser eşzamanlılığı).</summary>
+    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+
+    /// <summary>
+    /// F6.1b — <see cref="UpdateAsync"/>'in sürümlü ve KİLİTLİ karşılığı (/api/ui PUT). İptal çiti ve sürüm
+    /// karşılaştırması satır kilidinin ALTINDA: eşzamanlı iptal ile düzenleme yarışı iptal kaydı değiştiremez; bayat
+    /// sürüm → 409 <c>cakisma</c>. Durum ve No değişmez.
+    /// </summary>
+    public async Task<bool> UpdateSurumluAsync(Guid id, AracSiparisInput input, string surum, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        Validate(input);
+        return await _repository.KilitliGuncelleAsync(id, surum, row =>
+        {
+            if (row.Durum == SiparisDurum.Iptal)
+                throw new ValidationException("İptal edilmiş sipariş düzenlenemez.");
+            row.SiparisTarihi = input.SiparisTarihi ?? row.SiparisTarihi;
+            Apply(row, input);
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>
+    /// F6.1b — durum geçişi KİLİT ALTINDA (/api/ui). <see cref="SetDurum"/> iptal çitini kilitsiz okuyordu: iki
+    /// sekmede eşzamanlı "İptal" + "Onayla" iptal kaydı Onaylandı'ya çevirebiliyordu. İptal terminal; aynı duruma
+    /// ikinci geçiş yapısal no-op (tekrar gönderim zararsız).
+    /// </summary>
+    public async Task<bool> DurumDegistirAsync(Guid id, SiparisDurum durum, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        return await _repository.KilitliGuncelleAsync(id, null, row =>
+        {
+            if (row.Durum == durum) return;
+            if (row.Durum == SiparisDurum.Iptal)
+                throw new ValidationException("İptal edilmiş sipariş onaylanamaz ya da teslim alınamaz.");
+            row.Durum = durum;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
     }
 
     /// <summary>Ortak doğrulama — create ve update AYNI kuralları uygular (biri gevşek kalırsa

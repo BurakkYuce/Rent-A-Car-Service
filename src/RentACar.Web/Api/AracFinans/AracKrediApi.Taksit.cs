@@ -1,0 +1,84 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using RentACar.Application.AracKredileri;
+using RentACar.Application.Common;
+using RentACar.Domain.Common;
+using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Persistence;
+using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Common;
+
+namespace RentACar.Web.Api.AracFinans;
+
+public static partial class AracKrediApi
+{
+    public const string TaksitZatenOdendi = "Bu taksit ödemesi zaten kaydedildi (Gider No {0}, {1} {2}); yeni ödeme yazılmadı.";
+    public const string TaksitBaskaOdeme =
+        "Bu işlem anahtarıyla başka içerikte bir taksit ödemesi kaydedilmiş (Gider No {0}, {1} {2}); girdiğiniz ödeme " +
+        "YAZILMADI. Güncel taksit planını kontrol edin.";
+    public const string AnahtarBaskaIslemde =
+        "Bu işlem anahtarı başka bir işlemde kullanılmış; taksit ödenmedi. Kayıtları kontrol edip yeni işlem başlatın.";
+
+    private static async Task<Results<Ok<TaksitOdeYaniti>, ProblemHttpResult>> TaksitOde(
+        Guid id, TaksitOdeIstegi istek, HttpContext http, AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, CancellationToken ct)
+    {
+        var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
+        var k = await KapsamliAsync(id, svc, dbf, kullanici, ct); // kapsam durumdan ÖNCE (403)
+        if (k is null) return Bulunamadi();
+        var hesap = HesapTuru(istek.Hesap);
+        var tarih = F5Ortak.Utc(istek.OdemeTarihi);
+
+        // (1) ÖNCE bu anahtarla yazılmış ödeme (kaybolan yanıttan sonraki tekrar ikinci taksidi ÖDEMEZ).
+        await MevcutTaksitAsync(dbf, anahtar, k, istek, hesap, tarih, ct);
+
+        // (2) Giriş kuralları; bayatlık (sira ≠ ödenen+1) kilit altında serviste → 409 cakisma.
+        if (istek.Sira < 1 || istek.Sira > k.TaksitSayisi)
+            throw new ValidationException($"Taksit sırası 1 ile {k.TaksitSayisi} arasında olmalıdır.", "sira");
+        await Alanli("odemeTarihi", () => { TarihPolitikasi.ParaTarihi(tarih, "Taksit"); return Task.CompletedTask; });
+
+        bool odendi;
+        try
+        {
+            odendi = await svc.TaksitOdeAsync(id, hesap, tarih, anahtar, istek.HesapId, ct, beklenenSira: istek.Sira);
+        }
+        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        {
+            // Yarış: aynı anahtarla eşzamanlı ikinci istek kilit içi anahtar çitine takıldı → yazılmış kaydı bildir.
+            await MevcutTaksitAsync(dbf, anahtar, k, istek, hesap, tarih, ct);
+            throw;
+        }
+        if (!odendi) throw new EszamanliDegisiklikException("Kredinin tüm taksitleri ödenmiş; taksit ödenmedi.");
+
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var g = await db.Expenses.AsNoTracking().FirstAsync(e => e.IslemAnahtari == anahtar, ct);
+        var detay = await DetayAsync(id, http, svc, dbf, kullanici, ct);
+        return TypedResults.Ok(new TaksitOdeYaniti(g.Id, g.No, istek.Sira, g.GenelToplam, g.Currency, detay!));
+    }
+
+    /// <summary>
+    /// Aynı anahtarla yazılmış gider varsa 409 <c>mukerrer</c>. Bu kredinin taksidiyse <c>mevcut</c> döner;
+    /// <c>ayniIcerik</c>: aynı taksit sırası, hesap türü, spesifik hesap ve (açık verildiyse) tarih. Anahtar başka bir
+    /// işlemin (başka kredi, başka gider) ise ayrıntı SIZDIRILMAZ.
+    /// </summary>
+    private static async Task MevcutTaksitAsync(IDbContextFactory<AppDbContext> dbf, Guid anahtar, AracKredi k,
+        TaksitOdeIstegi istek, LedgerAccountType hesap, DateTimeOffset? tarih, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var g = await db.Expenses.AsNoTracking().FirstOrDefaultAsync(e => e.IslemAnahtari == anahtar, ct);
+        if (g is null) return;
+        var onek = $"Kredi taksiti {k.No} #";
+        if (g.Tip != ExpenseType.Finansman || g.Aciklama is not { } a || !a.StartsWith(onek, StringComparison.Ordinal))
+            throw new MukerrerIslemException(AnahtarBaskaIslemde);
+        var siraMetni = a[onek.Length..].Split('/')[0];
+        var sira = int.TryParse(siraMetni, out var s) ? s : 0;
+        var hesapId = istek.HesapId is { } h && h != Guid.Empty ? h : (Guid?)null;
+        var ayni = sira == istek.Sira && g.KasaBankaHesap == hesap && g.FinansalHesapId == hesapId
+                   && AracFinansOrtak.AyniAn(g.Tarih, tarih);
+        var tutar = g.GenelToplam.ToString("N2", Tr);
+        throw new MukerrerIslemException(
+            string.Format(Tr, ayni ? TaksitZatenOdendi : TaksitBaskaOdeme, g.No, tutar, g.Currency),
+            new MevcutIslem(g.Id, g.No, g.GenelToplam, g.Currency, ayni));
+    }
+}

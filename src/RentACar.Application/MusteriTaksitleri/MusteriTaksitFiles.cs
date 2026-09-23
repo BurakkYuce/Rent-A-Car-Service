@@ -18,6 +18,12 @@ public interface IMusteriTaksitRepository
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     /// <summary>Bir cari+araç için mevcut en yüksek sıra (plan üretiminde devam etmek için).</summary>
     Task<int> SonSiraAsync(Guid cariId, Guid? vehicleId, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır kilidi + (doluysa) xmin sürüm karşılaştırması altında güncelleme.</summary>
+    Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<MusteriTaksit> apply, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır sürümü (xmin); yoksa null.</summary>
+    Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>Taksit listesi filtresi. Boş alan = kısıt yok.</summary>
@@ -45,6 +51,9 @@ public sealed class MusteriTaksitInput
     public TaksitDurum Durum { get; set; } = TaksitDurum.Bekliyor;
     public DateTimeOffset? OdemeTarihi { get; set; }
     public string? Aciklama { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı; doluysa taksidin Id'si olur (ikinci oluşturma → 409).
+    /// Güncellemede yok sayılır.</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
 
 /// <summary>Plan üretimi girdisi: N eşit taksit, aylık vade.</summary>
@@ -60,6 +69,9 @@ public sealed class TaksitPlanInput
     public string? Currency { get; set; }
     public decimal? Kur { get; set; }
     public string? Aciklama { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı. Doluysa planın taksit Id'leri ondan TÜRETİLİR
+    /// (<see cref="MusteriTaksitService.PlanSatirId"/>): aynı anahtarla ikinci plan PK'ye çarpar → 409, yarım plan olmaz.</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
 
 /// <summary>Cari bazlı özet (liste başlığı).</summary>
@@ -109,7 +121,11 @@ public sealed class MusteriTaksitService(
     public async Task<Guid> CreateAsync(MusteriTaksitInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        var row = new MusteriTaksit { Sira = await _repository.SonSiraAsync(input.CariId, input.VehicleId, ct) + 1 };
+        var row = new MusteriTaksit
+        {
+            Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? ia : Guid.NewGuid(), // F6.1b idempotent oluşturma
+            Sira = await _repository.SonSiraAsync(input.CariId, input.VehicleId, ct) + 1,
+        };
         Uygula(row, input);
         await _repository.CreateAsync(row, ct);
         return row.Id;
@@ -178,6 +194,7 @@ public sealed class MusteriTaksitService(
                 : aylik;
             rows.Add(new MusteriTaksit
             {
+                Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? PlanSatirId(ia, i) : Guid.NewGuid(),
                 CariId = input.CariId, VehicleId = input.VehicleId, VehicleSaleId = input.VehicleSaleId,
                 Sira = baslangicSira + i, Vade = ilk.AddMonths(i - 1), TaksitTutari = tutar,
                 Currency = currency, Kur = kur, Aciklama = Trim(input.Aciklama)
@@ -185,6 +202,67 @@ public sealed class MusteriTaksitService(
         }
         await _repository.CreateManyAsync(rows, ct);
         return rows.Count;
+    }
+
+    /// <summary>F6.1b — plan satırı Id'si: 1. satır anahtarın KENDİSİ (mükerrer denetimi onu bulur), sonrakiler
+    /// UUIDv5(anahtar, "plan|i"). Saf; aynı anahtar her zaman aynı kimlik kümesini verir.</summary>
+    public static Guid PlanSatirId(Guid anahtar, int sira)
+        => sira == 1 ? anahtar : IslemAnahtariTuretici.UuidV5(anahtar, $"plan|{sira}");
+
+    /// <summary>F6.1b — kayıt sürümü (xmin).</summary>
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.RequireAny(_currentUser, Permission.FinanceWrite, Permission.ViewReports);
+        return await _repository.SurumAsync(id, ct);
+    }
+
+    /// <summary>F6.1b — <see cref="UpdateAsync"/>'in sürümlü, KİLİTLİ karşılığı (/api/ui PUT): bayat sürüm → 409
+    /// <c>cakisma</c>; başka oturumun ödeme işaretini ya da tutar değişikliğini sessizce ezmez.</summary>
+    public async Task<bool> UpdateSurumluAsync(Guid id, MusteriTaksitInput input, string surum, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        var kopya = new MusteriTaksit();
+        Uygula(kopya, input);
+        return await _repository.KilitliGuncelleAsync(id, surum, r =>
+        {
+            r.CariId = kopya.CariId; r.VehicleId = kopya.VehicleId; r.VehicleSaleId = kopya.VehicleSaleId;
+            r.Vade = kopya.Vade; r.TaksitTutari = kopya.TaksitTutari;
+            r.Currency = kopya.Currency; r.Kur = kopya.Kur;
+            r.Durum = kopya.Durum; r.OdemeTarihi = kopya.OdemeTarihi; r.Aciklama = kopya.Aciklama;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>Zaten ödendi işaretli taksidin ikinci "ödendi" isteği.</summary>
+    public const string ZatenOdendiMesaji = "Bu taksit zaten ödendi olarak işaretlenmiş (No #{0}, {1} {2}); yeniden işaretlenmedi.";
+
+    /// <summary>
+    /// F6.1b — ödendi/geri-al işareti KİLİT ALTINDA (/api/ui). Deftere DOKUNMAZ (takip bayrağı). Blazor yolu ikinci
+    /// "ödendi"de ödeme tarihini sessizce yeniden yazıyordu; burada ödenmiş taksidin tekrar işaretlenmesi 409
+    /// <c>mukerrer</c> + <c>mevcut</c> (aynı tarih ya da tarihsiz tekrar → <c>ayniIcerik</c>). Beklemedeki taksidi
+    /// geri almak yapısal no-op.
+    /// </summary>
+    public async Task<bool> OdemeIsaretleKilitliAsync(Guid id, bool odendi, DateTimeOffset? tarih = null,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        if (odendi) TarihPolitikasi.ParaTarihi(tarih, "Taksit ödeme");
+        return await _repository.KilitliGuncelleAsync(id, null, r =>
+        {
+            if (odendi && r.Durum == TaksitDurum.Odendi)
+            {
+                var ayni = tarih is null || r.OdemeTarihi is { } ot
+                    && ot.UtcTicks / TimeSpan.TicksPerMicrosecond == tarih.Value.UtcTicks / TimeSpan.TicksPerMicrosecond;
+                var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+                throw new MukerrerIslemException(
+                    string.Format(tr, ZatenOdendiMesaji, r.Sira, r.TaksitTutari.ToString("N2", tr), r.Currency),
+                    new MevcutIslem(r.Id, $"#{r.Sira}", r.TaksitTutari, r.Currency, ayni));
+            }
+            if (!odendi && r.Durum != TaksitDurum.Odendi) return; // zaten beklemede: no-op
+            r.Durum = odendi ? TaksitDurum.Odendi : TaksitDurum.Bekliyor;
+            r.OdemeTarihi = odendi ? (tarih ?? DateTimeOffset.UtcNow) : null;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
     }
 
     private static void Uygula(MusteriTaksit row, MusteriTaksitInput n)

@@ -15,4 +15,7 @@ public interface IBafRepository
     Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset donusTarihi,
         string? donusSube, TimeOnly? donusSaat, CancellationToken ct = default);
     Task<bool> IptalAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır kilidi (FOR UPDATE) altında güncelleme; durum çitleri <paramref name="apply"/> içinde.</summary>
+    Task<bool> KilitliGuncelleAsync(Guid id, Action<Baf> apply, CancellationToken ct = default);
 }
