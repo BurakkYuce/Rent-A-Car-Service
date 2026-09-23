@@ -93,6 +93,34 @@ public sealed class PlatformAdminService(
         return rows;
     }
 
+    /// <summary>F12.1: lightweight tenant options (platform table only — no per-tenant RLS round-trips).</summary>
+    public sealed record TenantOption(Guid Id, string Code, string Name, bool IsActive, DateTimeOffset? KapanisTarihiUtc);
+
+    /// <summary>F12.1: all tenants as selection options (UI API picker, document targets), ordered by code.</summary>
+    public async Task<IReadOnlyList<TenantOption>> ListTenantOptionsAsync(CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        return await db.Tenants.AsNoTracking().OrderBy(t => t.Code)
+            .Select(t => new TenantOption(t.Id, t.Code, t.Name, t.IsActive, t.KapanisTarihiUtc))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>F12.1: does a tenant with this id exist (UI API 404 before any action).</summary>
+    public async Task<bool> TenantExistsAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        return await db.Tenants.AsNoTracking().AnyAsync(t => t.Id == tenantId, ct);
+    }
+
+    /// <summary>F12.1: is the code taken, case-INSENSITIVELY ("Demo" vs "demo" would be two login keys that differ
+    /// only by case — confusing for users). The unique index still guards exact duplicates under a race.</summary>
+    public async Task<bool> TenantCodeTakenAsync(string code, CancellationToken ct = default)
+    {
+        var lowered = (code ?? "").Trim().ToLowerInvariant();
+        await using var db = OwnerDb();
+        return await db.Tenants.AsNoTracking().AnyAsync(t => t.Code.ToLower() == lowered, ct);
+    }
+
     /// <summary>Tenant detayı: bilgi alanları + metrikler. Gelir30Gun = son 30 gün defter Gelir
     /// (ΣCredit−ΣDebit base — GelirGider netleme aynası, iade düşer).</summary>
     public async Task<PlatformTenantDetay?> GetTenantAsync(Guid tenantId, CancellationToken ct = default)
@@ -152,10 +180,43 @@ public sealed class PlatformAdminService(
             ayarlar?.YeniArayuzPilot == true); // F4.6
     }
 
+    /// <summary>
+    /// F12.1: optimistic-concurrency version of a tenant row for full-replace updates (<c>surum</c> in the UI API).
+    /// Derived from the last write stamp (every platform write sets <c>UpdatedAtUtc</c>); both sides of the comparison
+    /// are read from the DB (microsecond precision), so the round-trip is stable. String: ticks exceed JS safe integers.
+    /// </summary>
+    public static string TenantVersion(DateTimeOffset createdAtUtc, DateTimeOffset? updatedAtUtc)
+        => (updatedAtUtc ?? createdAtUtc).UtcTicks.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// F12.1: audit row for a platform action in the tenant's OWN <c>AuditLogs</c> (the owner context has no audit
+    /// interceptor). The caller must be inside <see cref="TenantKapsaminda{T}"/> for the same tenant (FORCE-RLS
+    /// WITH CHECK) and save in the same transaction as the change, so the action and its record commit together.
+    /// </summary>
+    private static void AddAudit(AppDbContext db, Guid tenantId, string entityName, string entityId, AuditAction action,
+        string operatorName, object? oldValues, object? newValues)
+        => db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            EntityName = entityName,
+            EntityId = entityId,
+            Action = action,
+            UserName = "platform:" + operatorName,
+            TimestampUtc = DateTimeOffset.UtcNow,
+            OldValues = oldValues is null ? null : System.Text.Json.JsonSerializer.Serialize(oldValues),
+            NewValues = newValues is null ? null : System.Text.Json.JsonSerializer.Serialize(newValues),
+        });
+
+    private static object StateSnapshot(Tenant t)
+        => new { t.IsActive, Kapali = t.KapanisTarihiUtc is not null, t.WebSitesiModulu };
+
     /// <summary>Bilgi alanlarını günceller. Code DEĞİŞMEZ (login anahtarı). Kolon sınırları burada
-    /// doğrulanır (L1 deseni: DbUpdateException→500 yerine anlamlı red).</summary>
+    /// doğrulanır (L1 deseni: DbUpdateException→500 yerine anlamlı red). <paramref name="expectedVersion"/> verilirse
+    /// (UI API tam değiştirme) satırın güncel <see cref="TenantVersion"/>'ı ile eşleşmeli; aksi halde
+    /// <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>).</summary>
     public async Task UpdateTenantAsync(Guid tenantId, string name, string? yetkiliAd, string? eposta,
-        string? telefon, string? notlar, string? plan, string operatorName, CancellationToken ct = default)
+        string? telefon, string? notlar, string? plan, string operatorName, CancellationToken ct = default,
+        string? expectedVersion = null)
     {
         name = (name ?? "").Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("Firma adı zorunludur.");
@@ -167,19 +228,36 @@ public sealed class PlatformAdminService(
         if ((plan ?? "").Length > 64) throw new ValidationException("Plan en çok 64 karakter olabilir.");
 
         await using var db = OwnerDb();
-        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-        tenant.Name = name;
-        tenant.YetkiliAd = Bosalt(yetkiliAd);
-        tenant.Eposta = Bosalt(eposta);
-        tenant.Telefon = Bosalt(telefon);
-        tenant.Notlar = Bosalt(notlar);
-        tenant.Plan = Bosalt(plan);
-        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        var tenant = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var t = await LockTenantAsync(db, tenantId, ct);
+            // Checked under the row lock: two operators saving the same version cannot both win.
+            if (expectedVersion is not null && expectedVersion != TenantVersion(t.CreatedAtUtc, t.UpdatedAtUtc))
+                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+            var before = new { t.Name, t.YetkiliAd, t.Eposta, t.Telefon, t.Notlar, t.Plan };
+            t.Name = name;
+            t.YetkiliAd = Bosalt(yetkiliAd);
+            t.Eposta = Bosalt(eposta);
+            t.Telefon = Bosalt(telefon);
+            t.Notlar = Bosalt(notlar);
+            t.Plan = Bosalt(plan);
+            t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(Tenant), tenantId.ToString(), AuditAction.Update, operatorName, before,
+                new { t.Name, t.YetkiliAd, t.Eposta, t.Telefon, t.Notlar, t.Plan });
+            await db.SaveChangesAsync(ct);
+            return t;
+        }, ct);
         log.LogWarning("PLATFORM: tenant {Code} bilgileri güncellendi — operatör {Operator}.", tenant.Code, operatorName);
 
         static string? Bosalt(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    }
+
+    /// <summary>F12.1: tenant row under <c>FOR UPDATE</c> (call inside a transaction), tracked for the write.</summary>
+    private static async Task<Tenant> LockTenantAsync(AppDbContext db, Guid tenantId, CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Tenants\" WHERE \"Id\" = {tenantId} FOR UPDATE", ct);
+        return await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
+            ?? throw new ValidationException("Tenant bulunamadı.");
     }
 
     // ---- PR-B: Belge Merkezi (platform → tenant PDF dağıtımı) ----
@@ -340,8 +418,11 @@ public sealed class PlatformAdminService(
                 ayar = new RentACar.Domain.Entities.TenantSettings { TenantId = tenantId };
                 db.TenantSettings.Add(ayar);
             }
+            var hadLogo = ayar.LogoBytes is { Length: > 0 };
             ayar.LogoBytes = png is { Length: > 0 } ? png : null;
             ayar.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(RentACar.Domain.Entities.TenantSettings), ayar.Id.ToString(), AuditAction.Update,
+                operatorName, new { Logo = hadLogo }, new { Logo = png is { Length: > 0 }, LogoBayt = png?.Length ?? 0 });
             await db.SaveChangesAsync(ct);
             return 0;
         }, ct);
@@ -372,11 +453,18 @@ public sealed class PlatformAdminService(
     public async Task SetWebSitesiModuluAsync(Guid tenantId, bool aktif, string operatorName, CancellationToken ct = default)
     {
         await using var db = OwnerDb();
-        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-        tenant.WebSitesiModulu = aktif;
-        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        var tenant = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var t = await LockTenantAsync(db, tenantId, ct);
+            if (t.WebSitesiModulu == aktif) return t; // no-op (no audit row for a non-change)
+            var before = new { t.WebSitesiModulu };
+            t.WebSitesiModulu = aktif;
+            t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(Tenant), tenantId.ToString(), AuditAction.Update, operatorName,
+                before, new { t.WebSitesiModulu });
+            await db.SaveChangesAsync(ct);
+            return t;
+        }, ct);
 
         // Invalidate ŞART: yoksa "modülü açtım, menü gelmedi" (TTL kadar sessizlik).
         statusCache.Invalidate(tenantId);
@@ -436,14 +524,20 @@ public sealed class PlatformAdminService(
     public async Task SetActiveAsync(Guid tenantId, bool active, string operatorName, CancellationToken ct = default)
     {
         await using var db = OwnerDb();
-        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-        if (active && tenant.KapanisTarihiUtc is not null)
-            throw new ValidationException("Kapalı firma 'Aktifleştir' ile açılamaz — 'Yeniden Aç' kullanın.");
-        if (tenant.IsActive == active) return;
-        tenant.IsActive = active;
-        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        var (tenant, changed) = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var t = await LockTenantAsync(db, tenantId, ct);
+            if (active && t.KapanisTarihiUtc is not null)
+                throw new ValidationException("Kapalı firma 'Aktifleştir' ile açılamaz — 'Yeniden Aç' kullanın.");
+            if (t.IsActive == active) return (t, false);
+            var before = StateSnapshot(t);
+            t.IsActive = active;
+            t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(Tenant), tenantId.ToString(), AuditAction.Update, operatorName, before, StateSnapshot(t));
+            await db.SaveChangesAsync(ct);
+            return (t, true);
+        }, ct);
+        if (!changed) return;
         statusCache.Invalidate(tenantId); // anlık kesme (aynı-instance): açık oturum sonraki istekte düşer
         log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) {Durum} — operatör {Operator}.",
             tenant.Code, tenantId, active ? "AÇILDI" : "PASİFLEŞTİRİLDİ", operatorName);
@@ -455,13 +549,19 @@ public sealed class PlatformAdminService(
     public async Task CloseAsync(Guid tenantId, string operatorName, CancellationToken ct = default)
     {
         await using var db = OwnerDb();
-        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-        if (tenant.KapanisTarihiUtc is not null) return; // idempotent
-        tenant.KapanisTarihiUtc = DateTimeOffset.UtcNow;
-        tenant.IsActive = false;
-        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        var (tenant, changed) = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var t = await LockTenantAsync(db, tenantId, ct);
+            if (t.KapanisTarihiUtc is not null) return (t, false); // idempotent
+            var before = StateSnapshot(t);
+            t.KapanisTarihiUtc = DateTimeOffset.UtcNow;
+            t.IsActive = false;
+            t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(Tenant), tenantId.ToString(), AuditAction.Update, operatorName, before, StateSnapshot(t));
+            await db.SaveChangesAsync(ct);
+            return (t, true);
+        }, ct);
+        if (!changed) return;
         statusCache.Invalidate(tenantId);
         log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) KAPATILDI (veri korunuyor) — operatör {Operator}.",
             tenant.Code, tenantId, operatorName);
@@ -471,20 +571,26 @@ public sealed class PlatformAdminService(
     public async Task ReopenAsync(Guid tenantId, string operatorName, CancellationToken ct = default)
     {
         await using var db = OwnerDb();
-        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-        if (tenant.KapanisTarihiUtc is null) return; // idempotent
-        tenant.KapanisTarihiUtc = null;
-        tenant.IsActive = true;
-        tenant.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        var (tenant, changed) = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var t = await LockTenantAsync(db, tenantId, ct);
+            if (t.KapanisTarihiUtc is null) return (t, false); // idempotent
+            var before = StateSnapshot(t);
+            t.KapanisTarihiUtc = null;
+            t.IsActive = true;
+            t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            AddAudit(db, tenantId, nameof(Tenant), tenantId.ToString(), AuditAction.Update, operatorName, before, StateSnapshot(t));
+            await db.SaveChangesAsync(ct);
+            return (t, true);
+        }, ct);
+        if (!changed) return;
         statusCache.Invalidate(tenantId);
         log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) YENİDEN AÇILDI — operatör {Operator}.",
             tenant.Code, tenantId, operatorName);
     }
 
-    /// <summary>Yeni tenant + ilk admin kullanıcı oluştur.</summary>
-    public async Task CreateTenantAsync(
+    /// <summary>Yeni tenant + ilk admin kullanıcı oluştur. Yeni firmanın kimliğini döner (F12.1: UI API 201).</summary>
+    public async Task<Guid> CreateTenantAsync(
         string code, string name, string adminUser, string adminPassword, string operatorName, CancellationToken ct = default)
     {
         code = (code ?? "").Trim();
@@ -514,12 +620,30 @@ public sealed class PlatformAdminService(
         };
         db.Tenants.Add(tenant);
         db.Users.Add(user);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        {
+            // Race between the AnyAsync pre-check and the insert: the unique index is the real guard.
+            throw new ValidationException($"'{code}' kodlu firma zaten var.");
+        }
 
         // Tanım varsayılanları (marka/renk/segment/ceza türü…) — yeni tenant restart beklemeden dolu başlasın.
         await MasterDataSeeder.SeedTenantAsync(db, tenant.Id, ct);
 
+        // F12.1: creation lands in the new tenant's own audit trail (password/hash NEVER recorded).
+        await TenantKapsaminda(db, tenant.Id, async () =>
+        {
+            AddAudit(db, tenant.Id, nameof(Tenant), tenant.Id.ToString(), AuditAction.Create, operatorName, null,
+                new { tenant.Code, tenant.Name, AdminKullanici = adminUser });
+            await db.SaveChangesAsync(ct);
+            return 0;
+        }, ct);
+
         log.LogWarning("PLATFORM: yeni tenant {Code} + admin {Admin} oluşturuldu — operatör {Operator}.",
             code, adminUser, operatorName);
+        return tenant.Id;
     }
 }

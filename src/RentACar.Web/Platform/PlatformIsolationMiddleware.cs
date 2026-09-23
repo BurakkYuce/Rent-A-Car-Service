@@ -46,6 +46,8 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             // F1.2: yeni arayüzün oturum uçları (giriş/çıkış çalışmalı; ben → 401 "firma oturumu yok").
             || RentACar.Web.Api.UiApiExtensions.OturumYolu(path)
+            // F12.1: platform konsolunun UI API'si (/api/ui/v1/platform/*) — Blazor /platform muafiyetinin karşılığı.
+            || RentACar.Web.Api.UiApiExtensions.PlatformYolu(path)
             || Path.HasExtension(p); // statik varlıklar (.css/.js/.woff2 …) — sayfa değil
     }
 }
