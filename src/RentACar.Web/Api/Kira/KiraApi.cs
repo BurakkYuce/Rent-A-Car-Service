@@ -150,7 +150,8 @@ public static class KiraApi
     private static readonly SiralamaHaritasi<RentalRow> Harita = SiralamaHaritasi<RentalRow>
         .Olustur(r => r.Id)
         .Alan("sozlesmeNo", r => r.SozlesmeNo)
-        .Alan("musteri", r => r.MusteriAd)
+        // KVKK: sıralama da GÖRÜNEN ada göre (anonim carinin gerçek adı sıradan sızmasın).
+        .Alan("musteri", r => r.MusteriAnonimAd ? MusteriGorunumu.AnonimAdEtiketi : r.MusteriAd)
         .Alan("plaka", r => r.Plaka)
         .Alan("basTar", r => r.BasTar)
         .Alan("bitTar", r => r.BitTar)
@@ -244,7 +245,7 @@ public static class KiraApi
         var tahsilSet = tahsilEdilebilir.ToHashSet();
 
         var kayitlar = sayfaSatirlari.Select(r => new KiraListeSatiri(
-            r.Id, r.SozlesmeNo, r.MusteriId, r.MusteriAd, r.Plaka, r.BasTar, r.BitTar, r.VadeTar, r.Gun,
+            r.Id, r.SozlesmeNo, r.MusteriId, MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.BasTar, r.BitTar, r.VadeTar, r.Gun,
             r.HediyeGun, r.FaturalananGun, r.Tutar, r.Bakiye, r.Doviz, r.Kaynak, r.CikisOfisi, r.DonusOfisi,
             r.Provizyon, r.Depozito, r.KomisyonOran, r.KomisyonTutar, r.OnayKodu, r.ProjeAdi, r.AssistFirma,
             r.OzelSoforBilgisi, r.Durum.ToString(), r.Faturali,

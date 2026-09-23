@@ -78,7 +78,12 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
             row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Baf, ct);
             db.Baflar.Add(row);
-            await db.SaveChangesAsync(ct);
+            try { await db.SaveChangesAsync(ct); }
+            catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
+            {
+                await tx.RollbackAsync(ct);
+                throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+            }
             await tx.CommitAsync(ct);
         }, ct);
     }
@@ -111,4 +116,8 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    public Task<bool> KilitliGuncelleAsync(Guid id, Action<Baf> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Baflar, id, beklenenSurum: null,
+            (db, k, c) => db.Baflar.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 }

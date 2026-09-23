@@ -26,6 +26,7 @@ public sealed class ReservationFilter
 /// Rezervasyon liste satırı: kaydın KENDİSİ + görüntüleme adları (müşteri/plaka/telefon) tek
 /// sorguda çözülmüş. Entity taşınır çünkü liste ekranındaki düzenleme formu tüm alanları
 /// (Ota*, kampanya kodu, fiyat türü…) prefill eder; adlar ayrı taşınır çünkü ekran artık
-/// PII çözen <c>CustomerService.ListAsync</c>'e bağımlı değil.
+/// PII çözen <c>CustomerService.ListAsync</c>'e bağımlı değil. <c>MusteriAnonimAd</c>: KVKK bayrağı —
+/// <c>MusteriAd</c> ham addır, /api/ui yüzeyleri <c>MusteriGorunumu.ListeAdi</c> ile maskeler.
 /// </summary>
-public sealed record ReservationRow(Reservation Rez, string MusteriAd, string? CepTel, string Plaka);
+public sealed record ReservationRow(Reservation Rez, string MusteriAd, string? CepTel, string Plaka, bool MusteriAnonimAd = false);

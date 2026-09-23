@@ -17,4 +17,6 @@ public sealed class BafInput
     public Guid? Onaylayan { get; set; }
     public bool KirayaVer { get; set; }
     public TimeOnly? CikisSaat { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı; doluysa kaydın Id'si olur (ikinci oluşturma → 409).</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
