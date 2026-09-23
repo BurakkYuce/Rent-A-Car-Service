@@ -41,6 +41,15 @@ public sealed class IlkKesisKararTests
     [InlineData("/kiralar/3F2504E0-4F89-11D3-9A0C-0305E82C3301", "/app/kiralar/" + G)] // kanonik (D, küçük harf)
     [InlineData("/kiralar/" + G + "/yazdir", "/app/kiralar/" + G + "/yazdir")]
     [InlineData("/kiralar/" + G + "/yazdir/", "/app/kiralar/" + G + "/yazdir")]
+    // F5.4 rezervasyon kesişi: tek @page'li altı liste sayfası
+    [InlineData("/rezervasyonlar", "/app/rezervasyonlar")]
+    [InlineData("/Rezervasyonlar/", "/app/rezervasyonlar")]
+    [InlineData("/teklifler", "/app/teklifler")]
+    [InlineData("/takvim", "/app/takvim")]
+    [InlineData("/musaitlik", "/app/musaitlik")]
+    [InlineData("/MUSAITLIK/", "/app/musaitlik")]
+    [InlineData("/rez-sartlari", "/app/rez-sartlari")]
+    [InlineData("/filo-kiralama", "/app/filo-kiralama")]
     public void Haritadaki_sablon_SPA_yoluna_esler(string yol, string beklenen)
         => Assert.Equal(beklenen, IlkKesis.SpaYolu(yol));
 
@@ -62,8 +71,30 @@ public sealed class IlkKesisKararTests
     [InlineData("/raporlar/export/kiralar")]
     [InlineData("/kasa/makbuz/" + G + "/pdf")]
     [InlineData("/faturalar/" + G + "/pdf")]
-    [InlineData("/musaitlik")]
     [InlineData("/vehicles")]
+    // F5: Blazor'da karşılığı olmayan SPA alt rotaları, POST uçlarının GET'i, önek/benzer adlı sayfalar, export, takvim beslemesi
+    [InlineData("/rezervasyonlar/yeni")]
+    [InlineData("/rezervasyonlar/" + G)]
+    [InlineData("/rezervasyonlar/create")]
+    [InlineData("/rezervasyonlar/cancel")]
+    [InlineData("/teklifler/yeni")]
+    [InlineData("/teklifler/" + G)]
+    [InlineData("/teklifler/kabul")]
+    [InlineData("/takvim/yenile")]
+    [InlineData("/takvim-abonelik")]
+    [InlineData("/rezervasyon-kaynaklari")]
+    [InlineData("/rezervasyonlarx")]
+    [InlineData("/musaitlik/x")]
+    [InlineData("/rez-sartlari/delete")]
+    [InlineData("/filo-kiralama/yeni")]
+    [InlineData("/filo-kiralama/" + G)]
+    [InlineData("/filo-kiralama/iptal")]
+    [InlineData("/listeler/export/rezervasyonlar")]
+    [InlineData("/listeler/export/filo-kiralama")]
+    [InlineData("/feed/calendar/x.ics")]
+    [InlineData("/app/rezervasyonlar")]
+    [InlineData("/api/ui/v1/rezervasyonlar")]
+    [InlineData("/api/ui/v1/musaitlik")]
     [InlineData("/login")]
     [InlineData("/app/kiralar")]
     [InlineData("/api/ui/v1/kiralar")]
@@ -138,6 +169,9 @@ public sealed class IlkKesisKararTests
     [InlineData(true, "/app/kiralar?q=a", "/app/kiralar?q=a")]
     [InlineData(true, "/app/giris?returnUrl=%2Fapp", "/app/panel")]                     // döngü yok
     [InlineData(true, "/APP/GIRIS", "/app/panel")]
+    [InlineData(true, "/rezervasyonlar?durum=Rezerv", "/app/rezervasyonlar?durum=Rezerv")] // F5.4
+    [InlineData(true, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04")]
+    [InlineData(true, "/takvim-abonelik", "/takvim-abonelik")]                          // F5 dışı benzer ad Blazor'da
     [InlineData(true, "/vehicles?x=1", "/vehicles?x=1")]                                // taşınmamış modül Blazor'da
     [InlineData(true, "/kiralar/" + G + "/pdf", "/kiralar/" + G + "/pdf")]              // PDF yönlenmez
     [InlineData(true, "//evil.com", "/app/panel")]
@@ -148,6 +182,8 @@ public sealed class IlkKesisKararTests
     [InlineData(false, "/app/kiralar", "/")]
     [InlineData(false, "/app", "/")]
     [InlineData(false, "/kiralar?varac=x", "/kiralar?varac=x")]
+    [InlineData(false, "/rezervasyonlar?durum=Rezerv", "/rezervasyonlar?durum=Rezerv")]
+    [InlineData(false, "/app/rezervasyonlar", "/")]
     [InlineData(false, "/vehicles", "/vehicles")]
     [InlineData(false, "//evil.com", "/")]
     [InlineData(false, "/platform/tenants", "/")]
@@ -159,22 +195,27 @@ public sealed class IlkKesisKararTests
     [InlineData("/app/kiralar", "/kiralar")]
     [InlineData("/app/kiralar/yeni", "/kiralar/yeni")]
     [InlineData("/app/kiralar/{id}", null)]                // parametreli rota menüde yok
+    [InlineData("/app/rezervasyonlar", "/rezervasyonlar")] // F5.4 menü öğeleri
+    [InlineData("/app/teklifler", "/teklifler")]
+    [InlineData("/app/takvim", "/takvim")]
+    [InlineData("/app/musaitlik", "/musaitlik")]
+    [InlineData("/app/rez-sartlari", "/rez-sartlari")]
+    [InlineData("/app/filo-kiralama", "/filo-kiralama")]
+    [InlineData("/app/rezervasyonlar/yeni", null)]         // Blazor'da ayrı "yeni" sayfası yoktu
     [InlineData("/vehicles", null)]
     public void Menu_icin_Blazor_karsiligi(string spa, string? beklenen)
         => Assert.Equal(beklenen, IlkKesis.BlazorKarsiligi(spa));
 
     /// <summary>
-    /// Harita = F4 envanterindeki silinecek <c>@page</c> şablonları (<c>/login</c> hariç — o herkes için tek giriş).
-    /// Hem envanter tablosu (docs/roadmap/F4.md) hem sayfaların gerçek <c>@page</c> satırları kaynağa bağlanır:
-    /// sayfa rotası değişir ya da envantere sayfa eklenirse harita kırmızı olur.
+    /// Bir fazın envanter tablosundaki (<c>docs/roadmap/F?.md</c>) sayfa rotaları; aynı sayfaların gerçek <c>@page</c>
+    /// satırlarıyla BİREBİR karşılaştırılır (sayfa rotası değişir ya da envantere sayfa eklenirse kırmızı).
     /// </summary>
-    [Fact]
-    public void Harita_F4_envanterinin_page_sablonlarindan_turetilmis()
+    private static HashSet<string> EnvanterRotalari(string faz, int beklenenSayfa)
     {
         var kok = RepoKok();
-        var f4 = File.ReadAllText(Path.Combine(kok, "docs/roadmap/F4.md"));
-        var satirlar = Regex.Matches(f4, @"^\| `(?<dosya>[^`]+\.razor)`[^|]*\| (?<rotalar>[^|]+) \|", RegexOptions.Multiline);
-        Assert.Equal(5, satirlar.Count);
+        var md = File.ReadAllText(Path.Combine(kok, $"docs/roadmap/{faz}.md"));
+        var satirlar = Regex.Matches(md, @"^\| `(?<dosya>[^`]+\.razor)`[^|]*\| (?<rotalar>[^|]+) \|", RegexOptions.Multiline);
+        Assert.Equal(beklenenSayfa, satirlar.Count);
 
         static string Normal(string r) => r.Trim().Replace("{Id:guid}", "{id:guid}", StringComparison.Ordinal);
         var envanter = new HashSet<string>(StringComparer.Ordinal);
@@ -188,10 +229,41 @@ public sealed class IlkKesisKararTests
         }
 
         Assert.Equal(envanter.OrderBy(x => x), sayfalar.OrderBy(x => x)); // envanter = sayfaların gerçek rotaları
-        Assert.Contains("/login", envanter);
-        envanter.Remove("/login");
-        Assert.Equal(envanter.OrderBy(x => x), IlkKesis.Harita.Select(e => e.Kaynak).OrderBy(x => x));
+        return envanter;
+    }
+
+    /// <summary>
+    /// Harita = kesişi yapılmış fazların (F4, F5) envanterindeki silinecek <c>@page</c> şablonları (<c>/login</c>
+    /// hariç — o herkes için tek giriş). Fazlar ayrık; hedefler /app altında ve benzersiz.
+    /// </summary>
+    [Fact]
+    public void Harita_kesisi_yapilmis_fazlarin_page_sablonlarindan_turetilmis()
+    {
+        var f4 = EnvanterRotalari("F4", 5);
+        Assert.Contains("/login", f4);
+        f4.Remove("/login");
+        var f5 = EnvanterRotalari("F5", 6);
+        Assert.Equal(new[] { "/filo-kiralama", "/musaitlik", "/rez-sartlari", "/rezervasyonlar", "/takvim", "/teklifler" },
+            f5.OrderBy(x => x, StringComparer.Ordinal));
+        Assert.Empty(f4.Intersect(f5));
+
+        Assert.Equal(f4.Concat(f5).OrderBy(x => x), IlkKesis.Harita.Select(e => e.Kaynak).OrderBy(x => x));
         Assert.All(IlkKesis.Harita, e => Assert.StartsWith("/app/", e.Hedef));
+        Assert.Equal(IlkKesis.Harita.Count, IlkKesis.Harita.Select(e => e.Hedef).Distinct().Count());
+    }
+
+    /// <summary>
+    /// F5 haritasının hedefleri SPA'da GERÇEK rota (bağımsız kaynak: Angular rota dosyaları metin olarak okunur —
+    /// yoksa pilot kullanıcı 302 sonrası SPA'nın "sayfa yok" ekranına düşerdi).
+    /// </summary>
+    [Fact]
+    public void F5_hedefleri_SPA_rota_dosyalarinda_tanimli()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app");
+        var metin = File.ReadAllText(Path.Combine(app, "sayfalar.ts"))
+            + File.ReadAllText(Path.Combine(app, "features/rezervasyonlar/rezervasyonlar.routes.ts"));
+        foreach (var yol in new[] { "rezervasyonlar", "teklifler", "takvim", "musaitlik", "rez-sartlari", "filo-kiralama" })
+            Assert.Contains($"path: '{yol}',", metin);
     }
 }
 
@@ -295,11 +367,35 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await YonlenirAsync(op, "/kiralar/yeni" + kirala, "/app/kiralar/yeni" + kirala);
     }
 
+    /// <summary>F5.4: rezervasyon modülünün altı Blazor sayfası pilot firmada SPA'ya; Blazor sorgusu AYNEN taşınır.</summary>
+    [Fact]
+    public async Task Pilot_F5_sayfalari_SPA_ya_302_sorgu_AYNEN()
+    {
+        var c = await OturumAsync(fx.PilotAdmin);
+        await YonlenirAsync(c, "/rezervasyonlar", "/app/rezervasyonlar");
+        await YonlenirAsync(c, "/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz", "/app/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz");
+        await YonlenirAsync(c, "/rezervasyonlar?vurgu=" + G, "/app/rezervasyonlar?vurgu=" + G); // gelen talep dönüşümü
+        await YonlenirAsync(c, "/teklifler", "/app/teklifler");
+        await YonlenirAsync(c, "/takvim?ay=2026-10", "/app/takvim?ay=2026-10");
+        await YonlenirAsync(c, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04");
+        await YonlenirAsync(c, "/rez-sartlari?musteriId=" + G, "/app/rez-sartlari?musteriId=" + G);
+        await YonlenirAsync(c, "/filo-kiralama/", "/app/filo-kiralama");
+        await YonlenirAsync(c, "/musaitlik", "/app/musaitlik", HttpMethod.Head);
+
+        var op = await OturumAsync(fx.PilotOperator);
+        await YonlenirAsync(op, "/rezervasyonlar", "/app/rezervasyonlar");
+        await YonlenirAsync(op, "/musaitlik", "/app/musaitlik");
+    }
+
     [Fact]
     public async Task Pilot_olmayan_firma_yonlenmez_Blazor_sayfasi_acilir()
     {
         var c = await OturumAsync(fx.DigerAdmin);
-        foreach (var url in new[] { "/", "/kiralar", "/kiralar/yeni" })
+        foreach (var url in new[]
+                 {
+                     "/", "/kiralar", "/kiralar/yeni",
+                     "/rezervasyonlar", "/teklifler", "/takvim", "/musaitlik", "/rez-sartlari", "/filo-kiralama",
+                 })
         {
             var r = await c.GetAsync(url);
             Assert.True(r.StatusCode == HttpStatusCode.OK, $"{url}: {(int)r.StatusCode} {r.Headers.Location}");
@@ -325,7 +421,12 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         Assert.Contains("/kiralar/donus-hesapla", kiraGetleri);
         Assert.Contains("/kiralar/musait-arac", kiraGetleri);
 
-        var adresler = kiraGetleri.Select(Ornek).Concat(
+        // F5.4: haritadaki HER kaynak sayfanın altındaki minimal-API GET'leri de (bugün yok; eklenirse kapsanır).
+        var onekler = IlkKesis.Harita.Select(e => e.Kaynak).Where(k => k != "/" && !k.Contains('{')).ToList();
+        var altGetler = MinimalGetUclari()
+            .Where(u => onekler.Any(o => u.StartsWith(o + "/", StringComparison.OrdinalIgnoreCase))).ToList();
+
+        var adresler = kiraGetleri.Concat(altGetler).Distinct().Select(Ornek).Concat(
         [
             "/kiralar/" + G + "/pdf?indir=1",
             "/listeler/export/kiralar?format=excel",
@@ -333,8 +434,15 @@ public sealed class IlkKesisHostTests(WebFixture fx)
             "/raporlar/export/gelir-gider",
             "/kasa/makbuz/" + G + "/pdf",
             "/faturalar/" + G + "/pdf",
-            "/musaitlik",
             "/vehicles",
+            // F5: export (liste ekranlarının Excel/CSV/PDF'i), takvim beslemesi, benzer adlı Blazor sayfaları
+            "/listeler/export/rezervasyonlar?format=excel",
+            "/listeler/export/rezervasyonlar?format=pdf&ara=x",
+            "/listeler/export/filo-kiralama?format=csv",
+            "/listeler/export/teklifler",
+            "/feed/calendar/x.ics",
+            "/takvim-abonelik",
+            "/rezervasyon-kaynaklari",
         ]).ToList();
         var ihlal = new List<string>();
         foreach (var url in adresler)
@@ -349,7 +457,16 @@ public sealed class IlkKesisHostTests(WebFixture fx)
     public async Task Pilot_POST_yonlenmez()
     {
         var c = await OturumAsync(fx.PilotAdmin);
-        foreach (var url in new[] { "/kiralar/create", "/kiralar/update", "/kiralar/yeni", "/kiralar", "/" })
+        foreach (var url in new[]
+                 {
+                     "/kiralar/create", "/kiralar/update", "/kiralar/yeni", "/kiralar", "/",
+                     // F5 Blazor POST uçları (hedefsiz; bu PR'da silinmedi) + sayfa yollarına POST
+                     "/rezervasyonlar/create", "/rezervasyonlar/update", "/rezervasyonlar/confirm", "/rezervasyonlar/cancel",
+                     "/rezervasyonlar/convert", "/teklifler/create", "/teklifler/gonder", "/teklifler/kabul", "/teklifler/reddet",
+                     "/filo-kiralama/create", "/filo-kiralama/guncelle", "/filo-kiralama/iptal", "/filo-kiralama/tamamla",
+                     "/rez-sartlari/create", "/rez-sartlari/update", "/rez-sartlari/karsilandi", "/rez-sartlari/geri-al",
+                     "/rez-sartlari/delete", "/rezervasyonlar", "/musaitlik", "/takvim",
+                 })
         {
             var r = await c.PostAsync(url, new FormUrlEncodedContent([]));
             var konum = r.Headers.Location?.OriginalString;
@@ -413,6 +530,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fkiralar%3Fvarac%3Dx", "/app/kiralar?varac=x");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fkiralar%3Fq%3Da", "/app/kiralar?q=a");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fvehicles", "/vehicles");
+        await YonlenirAsync(pilot, "/login?ReturnUrl=%2Frezervasyonlar%3Fdurum%3DRezerv", "/app/rezervasyonlar?durum=Rezerv"); // F5.4
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2F%2Fevil.com", "/app/panel");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fgiris", "/app/panel");
 
@@ -438,6 +556,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                  {
                      "/", "/kiralar", "/kiralar/yeni?varac=" + G, "/kiralar/" + G + "/yazdir", "/kiralar/" + G + "/pdf",
                      "/vehicles", "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
+                     "/rezervasyonlar", "/musaitlik?from=2026-10-01", "/filo-kiralama",
                  })
         {
             var zincir = await ZincirAsync(c, baslangic);
