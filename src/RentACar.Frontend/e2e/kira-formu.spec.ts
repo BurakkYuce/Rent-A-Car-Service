@@ -229,6 +229,13 @@ interface Sahte {
 /** Tek işleyici: `/api/ui/v1/kiralar/**` + seçim uçları (yöntem + yola göre). */
 async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<string[]> {
   const hesapSorgulari: string[] = [];
+  // F4.4 sabit finans paneli (tembel) kayıtlı kirada kasa/banka hesaplarını okur — bu dosyanın testleri panele
+  // dokunmaz; boş liste yeter (sahte olmayan istek 404 konsol hatası üretirdi).
+  await page.route(/\/api\/ui\/v1\/finans\//, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ json: [] })
+      : route.fulfill({ status: 500 }),
+  );
   await page.route(/\/api\/ui\/v1\/secim\//, (route) => {
     const yol = new URL(route.request().url()).pathname;
     // F4.3b kimlikle etiket uçları.
@@ -621,7 +628,7 @@ const ayrintiAciklama = (page: Page) =>
     .getByRole('tabpanel', { name: 'Ayrıntılar' })
     .getByRole('textbox', { name: 'Açıklama', exact: true });
 
-test('F2/R2 bayat sekme: başka oturumun drop ücreti geri ALINMAZ — 409 → güncel hâl birleşir, açıklama korunur', async ({
+test('F2/R2 + N2 bayat sekme: başka oturumun drop ücreti geri ALINMAZ — 409 → güncel hâl birleşir, çakışma yoksa TEK sefer sessiz yeniden gönderim', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page, [...AG_HATASI, /status of 409/]);
@@ -649,22 +656,95 @@ test('F2/R2 bayat sekme: başka oturumun drop ücreti geri ALINMAZ — 409 → g
   await ayrintiAciklama(page).fill('bayat sekme');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
 
-  await expect(page.locator('rc-uyari-bandi')).toContainText('başka bir oturumda değişti');
-  expect(putlar[0]).toMatchObject({ surum: 'v1', dropUcreti: null }); // reddedildi, hiçbir şey yazılmadı
-  // Güncel hâl birleşti: dokunulmayan drop ücreti 300, dokunulan açıklama yerinde.
-  await page.getByRole('tab', { name: 'Fiyat/Toplam' }).click();
-  await expect(
-    page.getByRole('tabpanel', { name: 'Fiyat/Toplam' }).getByLabel('Drop ücreti'),
-  ).toHaveValue('300,00');
-  await page.getByRole('tab', { name: 'Ayrıntılar' }).click();
-  await expect(ayrintiAciklama(page)).toHaveValue('bayat sekme');
-
-  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  // Kullanıcı TEK kez bastı: 409 → güncel hâl birleşti (dokunulmayan drop ücreti 300, dokunulan açıklama
+  // yerinde; çakışan alan yok) → birleştirilmiş gövde v2 ile kendiliğinden bir kez daha gitti.
   await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
   expect(putlar).toHaveLength(2);
+  expect(putlar[0]).toMatchObject({ surum: 'v1', dropUcreti: null }); // reddedildi, hiçbir şey yazılmadı
   expect(putlar[1]).toMatchObject({ surum: 'v2', dropUcreti: 300, aciklama: 'bayat sekme' });
   expect(sunucu.kira['dropUcreti']).toBe(300);
+  await expect(page.locator('rc-uyari-bandi')).not.toContainText('başka bir oturumda değişti');
   expect(hatalar).toEqual([]);
+});
+
+test('N2 aynı alana başka oturum yazdı: 409 → çakışma işaretlenir + bant, OTOMATİK yeniden gönderim YOK', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /status of 409/]);
+  const putlar: Record<string, unknown>[] = [];
+  const sunucu = await durumluKira(page, { surum: 'v1', aciklama: null }, (route, istek, s) => {
+    const g = istek.postDataJSON() as Record<string, unknown>;
+    putlar.push(g);
+    if (g['surum'] !== s.kira['surum']) {
+      return problem(
+        route,
+        409,
+        'cakisma',
+        'Kira başka bir oturumda değişti; güncel hâli yüklendi.',
+      );
+    }
+    s.kira = { ...s.kira, aciklama: g['aciklama'], surum: 'v3' };
+    return route.fulfill({ json: s.kira });
+  });
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=ayrintilar`);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Kira 2026220901001');
+  sunucu.kira = { ...sunucu.kira, aciklama: 'öteki oturumun notu', surum: 'v2' };
+  await ayrintiAciklama(page).fill('benim notum');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+
+  await expect(page.locator('rc-uyari-bandi')).toContainText('alan başka bir oturumda da değişti');
+  await expect(ayrintiAciklama(page)).toHaveValue('benim notum');
+  await expect(ayrintiAciklama(page)).toHaveAttribute('aria-invalid', 'true');
+  await page.waitForTimeout(400);
+  expect(putlar).toHaveLength(1);
+
+  // Kullanıcı bilinçli yeniden kaydeder: v2 ile gider.
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
+  expect(putlar[1]).toMatchObject({ surum: 'v2', aciklama: 'benim notum' });
+  expect(hatalar).toEqual([]);
+});
+
+test('N1 işlem sonrası kayıt yeniden okunurken Kaydet PASİF; okuma bitince yeni sürümle tek PUT', async ({
+  page,
+}) => {
+  const putlar: Record<string, unknown>[] = [];
+  let bekletilen: (() => void) | null = null;
+  const sunucu = await durumluKira(
+    page,
+    { surum: 'v1', provizyon: 500, provizyonDurum: 'Yok' },
+    (route, istek, s) => {
+      if (new URL(istek.url()).pathname.endsWith('/provizyon/al')) {
+        s.kira = { ...s.kira, provizyonDurum: 'Alindi', surum: 'v2' };
+        return route.fulfill({ json: s.kira });
+      }
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      putlar.push(g);
+      if (g['surum'] !== s.kira['surum']) return problem(route, 409, 'cakisma', 'Bayat.');
+      return route.fulfill({ json: s.kira });
+    },
+  );
+  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=ayrintilar`);
+  await ayrintiAciklama(page).fill('işlemden sonra');
+  // Provizyon sonrası detay okuması GECİKİR (yavaş ağ).
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${KIRA_ID}$`), async (route) => {
+    if (route.request().method() !== 'GET' || sunucu.kira['surum'] !== 'v2')
+      return route.fallback();
+    await new Promise<void>((r) => (bekletilen = r));
+    return route.fallback();
+  });
+  await page.getByRole('tab', { name: 'Finans/Uçuş' }).click();
+  await page.getByRole('button', { name: 'Provizyon al (manuel)' }).click();
+  const kaydet = page.getByRole('button', { name: 'Kaydet', exact: true });
+  await expect(kaydet).toBeDisabled(); // tazeleme bitmeden kendi değişikliğiyle 409 almasın
+  await expect.poll(() => bekletilen !== null).toBe(true);
+  (bekletilen as unknown as () => void)();
+  await expect(page.getByTestId('provizyon-durum')).toHaveText('Alındı');
+  await expect(kaydet).toBeEnabled();
+  await kaydet.click();
+  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
+  expect(putlar).toHaveLength(1);
+  expect(putlar[0]).toMatchObject({ surum: 'v2', aciklama: 'işlemden sonra' });
 });
 
 test('P261-10 form kirliyken "Provizyon al": sunucunun yazdığı provizyon tarihi Kaydet\'te SİLİNMEZ', async ({
@@ -900,8 +980,13 @@ test('ek hizmet kataloğu KESİKSE listede olmayan tanım sunucu aramasıyla ekl
   const satir = page.getByTestId('ek-hizmet-matrisi').getByRole('row', { name: /Bebek koltuğu/ });
   await expect(satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' })).toBeChecked();
   await expect.poll(() => decodeURIComponent(hesap.at(-1) ?? '')).toContain(`ek=${TANIM_ID}:1`);
-  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).uncheck();
+  // `uncheck()` DEĞİL `click()`: katalog dışı satır işaret kalkınca TABLODAN ÇIKAR. `uncheck()` tıklamadan sonra AYNI
+  // öğenin durumunu okur; Angular satırı o okumadan önce kaldırırsa (yavaş CI) öğe DOM'dan kopmuş olur, Playwright
+  // eylemi baştan dener, locator bir daha çözülmez ve test 30 sn'de zaman aşımına düşer (main #262 CI). Yerelde
+  // kaldırma durum okumasından sonra geldiği için geçiyordu. Sonuç aşağıda satırın yokluğuyla doğrulanır.
+  await satir.getByRole('checkbox', { name: 'Seç Bebek koltuğu' }).click();
   await expect(page.getByTestId('ek-hizmet-matrisi')).not.toContainText('Bebek koltuğu');
+  await expect.poll(() => hesap.at(-1) ?? '').not.toContain('ek=');
 });
 
 test('anonim cari (#262 M1): paylaşım kutuları boş gelir, geçersiz numarayla WhatsApp açılmaz', async ({

@@ -20,6 +20,7 @@ import {
   istekBaglami,
   MUKERRERDE_YENILE,
   MUKERRER_BASLIGI,
+  MUKERRER_CAGIRAN_GOSTERIR,
   SESSIZ,
   TEKRARLANDI,
   XSRF_YENILENDI,
@@ -52,7 +53,7 @@ function kopyala(baglam: HttpContext): HttpContext {
  * | `kiraci_kapali` | tam temizlik + mesajlı giriş sayfası |
  * | `yetki_yok`, `pilot_degil` | uyarı bandı (form hatası değil) |
  * | `cakisma` | alan hatası varsa çağırana, yoksa bant; form korunur |
- * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`MUKERRER_BASLIGI` verilirse o başlıkla uyarı); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
+ * | `mukerrer` | `MUKERRERDE_YENILE` çağrılır + bilgi toast'u (`mevcut` varsa "zaten kaydedildi"; yoksa `MUKERRER_BASLIGI` verilirse o başlıkla uyarı; `MUKERRER_CAGIRAN_GOSTERIR` ise toast'u çağıran gösterir); YENİ ANAHTARLA TEKRAR GÖNDERİLMEZ |
  * | `xsrf_gecersiz` | `GET oturum/xsrf` ile belirteç yenilenir, istek BİR kez tekrarlanır |
  * | `cok_istek` | uyarı toast'u |
  * | 5xx / ağ | hata toast'u |
@@ -91,7 +92,7 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
     if (!(hata instanceof HttpErrorResponse)) return throwError(() => hata);
     const baglam = gonderilen.context;
     const sessiz = baglam.get(SESSIZ);
-    const { kod, detay, alanlar } = apiHatasinaCevir(hata);
+    const { kod, detay, alanlar, mevcut } = apiHatasinaCevir(hata);
 
     switch (kod) {
       case 'xsrf_gecersiz':
@@ -148,10 +149,15 @@ export const oturumInterceptor: HttpInterceptorFn = (istek, sonraki) => {
       case 'mukerrer': {
         const yenile = baglam.get(MUKERRERDE_YENILE);
         yenile?.();
-        if (!sessiz) {
+        if (!sessiz && !baglam.get(MUKERRER_CAGIRAN_GOSTERIR)) {
           const mesaj = yenile ? `${detay} ${t('geriBildirim.mukerrerYenilendi')}` : detay;
           const ozelBaslik = baglam.get(MUKERRER_BASLIGI);
-          if (ozelBaslik) toast.uyari(mesaj, { baslik: ozelBaslik });
+          // F4.4 HIGH-1: işlem ZATEN yazıldı (kaybolan yanıttan sonraki tekrar) → "zaten kaydedildi" bilgisi;
+          // "kayıt değişmiş, tekrar deneyin" izlenimi ikinci tahsilata yönlendiriyordu.
+          if (mevcut?.ayniIcerik) toast.bilgi(mesaj, { baslik: t('geriBildirim.zatenKaydedildi') });
+          // 3. tur M-A: BAŞKA bir işlem yazılmış; bu isteğin tutarı YAZILMADI → uyarı (bilgi tonu kaydedildi sandırır).
+          else if (mevcut) toast.uyari(mesaj, { baslik: t('geriBildirim.baskaIslemYazildi') });
+          else if (ozelBaslik) toast.uyari(mesaj, { baslik: ozelBaslik });
           else toast.bilgi(mesaj, { baslik: t('geriBildirim.mukerrerBaslik') });
         }
         break;

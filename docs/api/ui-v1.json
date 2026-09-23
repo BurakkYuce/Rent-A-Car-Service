@@ -185,6 +185,49 @@
         }
       }
     },
+    "/api/ui/v1/secim/kur": {
+      "get": {
+        "tags": [
+          "Se\u00E7im"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KurSecimOgesi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/secim/arac": {
       "get": {
         "tags": [
@@ -596,49 +639,6 @@
         }
       }
     },
-    "/api/ui/v1/secim/kur": {
-      "get": {
-        "tags": [
-          "Se\u00E7im"
-        ],
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/KurSecimOgesi"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/ui/v1/secim/sube": {
       "get": {
         "tags": [
@@ -778,6 +778,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FinansIslemYaniti"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
                 }
               }
             }
@@ -3535,7 +3545,8 @@
           "doviz",
           "paylasim",
           "yetkiler",
-          "toplamlar"
+          "toplamlar",
+          "tahsilat"
         ],
         "type": "object",
         "properties": {
@@ -3614,6 +3625,16 @@
           },
           "toplamlar": {
             "$ref": "#/components/schemas/KiraToplamlari"
+          },
+          "tahsilat": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TahsilatBilgisi"
+              }
+            ]
           }
         }
       },
@@ -6593,6 +6614,82 @@
               ],
               "format": "int32"
             }
+          }
+        }
+      },
+      "MevcutIslem": {
+        "required": [
+          "id",
+          "belgeNo",
+          "tutar",
+          "doviz",
+          "ayniIcerik"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "belgeNo": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "ayniIcerik": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MukerrerProblemi": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "kod",
+          "mevcut"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "mevcut": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MevcutIslem"
+              }
+            ]
           }
         }
       },

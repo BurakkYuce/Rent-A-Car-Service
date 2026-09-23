@@ -66,6 +66,11 @@
     "agHatasi": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
     "mukerrerBaslik": "Mükerrer işlem",
     "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
+    "zatenKaydedildi": "İşlem zaten kaydedildi",
+    "baskaIslemYazildi": "Başka bir tahsilat yazıldı — tutarınız kaydedilmedi",
+    "denemeKaydedilmedi": "Sonucu bilinmeyen önceki denemeniz ({{onceki}}) de kaydedilmedi. Tutar alanı temizlendi: güncel bakiyeyi kontrol edip gerekiyorsa yeniden girin.",
+    "oncekiDenemeBaslik": "Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı",
+    "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş (No {{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Tutar alanı temizlendi: güncel bakiyeyi kontrol edip gerekiyorsa yeni tutarı girin.",
     "durum": {
       "basari": "Başarılı",
       "bilgi": "Bilgi",
@@ -104,12 +109,12 @@
       "desen": "Biçim geçersiz.",
       "sayi": "Geçerli bir sayı girin.",
       "para": "Geçerli bir tutar girin (ör. 1.234,56).",
+      "paraFazlaHane": "En fazla {{sayi}} ondalık hane girilebilir.",
       "tarih": "Geçerli bir tarih girin (gg.aa.yyyy).",
       "saat": "Geçerli bir saat girin (ss:dd).",
       "tarihAralikDisi": "Tarih izin verilen aralığın dışında.",
       "tarihSirasi": "Bitiş tarihi başlangıçtan önce olamaz.",
-      "gecersiz": "Değer geçersiz.",
-      "paraFazlaHane": "En fazla {{sayi}} ondalık hane girilebilir."
+      "gecersiz": "Değer geçersiz."
     },
     "kaydedilmemis": {
       "onay": "Kaydedilmemiş değişiklikler var. Sayfadan çıkarsanız kaybolacak. Çıkılsın mı?"

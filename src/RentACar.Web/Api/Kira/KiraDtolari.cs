@@ -232,6 +232,12 @@ public sealed record KiraYetkileri(bool Operasyon, bool Silme, bool Finans);
 /// <summary>
 /// Kira formu modeli (<c>GET /kiralar/{id}</c>). Alt kayıtlar (fatura, ceza+HGS, dönem planı, dış hizmet,
 /// kaynak rezervasyon, karne özeti) ayrı uçlardadır — her biri üst kaydın şube kapsamından geçer.
+/// <para><c>Tahsilat</c> (F4.4): sabit paneldeki tahsilat formunun deterministik anahtarı — liste/pano satırıyla
+/// AYNI üretim (<c>TahsilatAnahtar.Uret(kira, bakiye, işlem sayısı)</c>; Blazor pano/liste ve SPA aynı anahtara
+/// düşer). Yalnız FinanceWrite'lı oturuma ve iptal olmayan kiraya dolar; liste satırından farklı olarak bakiye
+/// ≤ 0'da da dolar (Blazor sabit paneli fazla/ön tahsilata da açıktır; <c>VarsayilanTutar</c> o zaman ≤ 0 —
+/// SPA ön-doldurmaz). Kira her yüklendiğinde güncel durumun anahtarıdır; bayat anahtar
+/// <c>POST finans/tahsilat</c>'ta 409 <c>mukerrer</c> alır (sunucu yeniden hesaplar).</para>
 /// </summary>
 public sealed record KiraDetayYaniti(
     KiraSozlesmesiDto Kira,
@@ -245,7 +251,8 @@ public sealed record KiraDetayYaniti(
     KiraDovizBilgisi? Doviz,
     KiraPaylasimBari? Paylasim,
     KiraYetkileri Yetkiler,
-    KiraToplamlari Toplamlar);
+    KiraToplamlari Toplamlar,
+    TahsilatBilgisi? Tahsilat);
 
 public sealed record MusaitAracDto(
     Guid Id, string Plaka, string? Marka, string? Tip, int? ModelYili, string? Vites, string? Yakit,

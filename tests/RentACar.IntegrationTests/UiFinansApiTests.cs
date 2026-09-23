@@ -214,11 +214,12 @@ public sealed class UiFinansApiTests(WebFixture fx)
     }
 
     private static object Tahsilat(Ortam o, decimal tutar, string hesap = "Kasa", Guid? kira = null, bool kirasiz = false,
-        string? doviz = null, decimal? kur = null, Guid? tahsilatAnahtar = null, Guid? cari = null, Guid? hesapId = null)
+        string? doviz = null, decimal? kur = null, Guid? tahsilatAnahtar = null, Guid? cari = null, Guid? hesapId = null,
+        string? aciklama = "F4.4 test", string? kanal = "Masaüstü", DateTimeOffset? tarih = null)
         => new
         {
             cariId = cari ?? o.Musteri, kiraId = kirasiz ? (Guid?)null : kira ?? o.Kira, tutar, hesap,
-            doviz, kur, tahsilatAnahtar, hesapId, kanal = "Masaüstü", aciklama = "F4.4 test",
+            doviz, kur, tahsilatAnahtar, hesapId, kanal, aciklama, tarih,
         };
 
     private Task<int> TahsilatSayisiAsync(Ortam o, Guid kira)
@@ -372,6 +373,242 @@ public sealed class UiFinansApiTests(WebFixture fx)
         // Başlıksız + deterministik anahtar → yazılır.
         await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 300m, tahsilatAnahtar: k), anahtar: null));
         Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+    }
+
+    // ------------------------------------------------------------ F4.4 SPA: kira detayındaki tahsilat anahtarı
+
+    private static async Task<JsonElement> DetayAsync(Oturum s, Guid kira)
+        => await Tamam(await s.C.GetAsync($"{V1}/kiralar/{kira}"));
+
+    /// <summary>
+    /// Sabit panel akışı (SPA): anahtar DETAYDAN okunur, başlıksız gönderilir. Aynı anahtarla ikinci gönderim
+    /// (çift tık / bayat ekran) 409; detay tazelenince YENİ anahtar gelir ve ikinci MEŞRU tahsilat yazılır.
+    /// Beklenenler elle: 300 − 100 = 200 kalan, sonra 200 tahsil → 0; iki kayıt.
+    /// </summary>
+    [Fact]
+    public async Task Detay_tahsilat_anahtari_bayatlar_tazelenince_ikinci_mesru_tahsilat_yazilir()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+
+        var t1 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        Assert.Equal(o.Musteri, t1.GetProperty("cariId").GetGuid());
+        Assert.Equal(o.Kira, t1.GetProperty("rentalId").GetGuid());
+        Assert.Equal("TRY", t1.GetProperty("doviz").GetString());
+        Assert.Equal(300m, t1.GetProperty("varsayilanTutar").GetDecimal());
+        var k1 = t1.GetProperty("anahtar").GetGuid();
+
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), anahtar: null));
+        // Aynı (artık bayat) anahtar: başlık yeni olsa da 409 — ikinci kayıt yok.
+        await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), YeniAnahtar()),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+
+        var t2 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        var k2 = t2.GetProperty("anahtar").GetGuid();
+        Assert.NotEqual(k1, k2);
+        Assert.Equal(200m, t2.GetProperty("varsayilanTutar").GetDecimal());
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 200m, tahsilatAnahtar: k2), anahtar: null));
+
+        Assert.Equal(2, await TahsilatSayisiAsync(o, o.Kira));
+        var kira = await KiraOkuAsync(o, o.Kira);
+        Assert.Equal(300m, kira.Tahsilat);
+        Assert.Equal(0m, kira.Bakiye);
+        // Bakiye 0'da da anahtar dolar (Blazor sabit paneli ön/fazla tahsilata açık); varsayılan tutar 0.
+        var t3 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat");
+        Assert.Equal(0m, t3.GetProperty("varsayilanTutar").GetDecimal());
+        Assert.NotEqual(k2, t3.GetProperty("anahtar").GetGuid());
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>
+    /// F4.4 adversarial HIGH-1: ilk istek YAZILDI ama yanıt kayboldu → istemci AYNI anahtar + AYNI gövdeyle tekrarlar.
+    /// Önce: sunucu anahtarı güncel bakiye/işlem sayısıyla yeniden hesaplayıp "kayıt değişti … tekrar deneyin" 409'u
+    /// veriyordu; kullanıcı yeni anahtarla İKİNCİ tahsilatı yazıyordu (gerçek DB'de iki kez 500). Artık 409
+    /// "zaten kaydedildi" + <c>mevcut</c> (id, belge no, tutar, döviz); bayat anahtarın 409'unda <c>mevcut</c> YOK.
+    /// Beklenenler elle: 500 tahsil, tek kayıt, kalan 300 − 500 = −200.
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_kaybolan_yanit_sonrasi_ayni_anahtar_409_mevcut_dolu_bayat_anahtar_mevcut_yok()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var k1 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        var govde = Tahsilat(o, 500m, tahsilatAnahtar: k1);
+
+        var id = await Id(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null)); // yanıt "kayboldu"
+        var tekrar = await Problem(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Contains("zaten kaydedildi", tekrar.GetProperty("detail").GetString());
+        Assert.DoesNotContain("tekrar deneyin", tekrar.GetProperty("detail").GetString());
+        var mevcut = tekrar.GetProperty("mevcut");
+        Assert.True(mevcut.GetProperty("ayniIcerik").GetBoolean()); // birebir aynı gövde: kendi tekrarı
+        Assert.Equal(id, mevcut.GetProperty("id").GetGuid());
+        Assert.Equal(500m, mevcut.GetProperty("tutar").GetDecimal());
+        Assert.Equal("TRY", mevcut.GetProperty("doviz").GetString());
+        var no = await DbAsync(o, db => db.CashTransactions.AsNoTracking().Where(t => t.Id == id).Select(t => t.No).SingleAsync());
+        Assert.Equal(no, mevcut.GetProperty("belgeNo").GetString());
+        Assert.Contains(no, tekrar.GetProperty("detail").GetString());
+        // 3. tur M-A / G1b: gövde FARKLI (kullanıcı tutarı değiştirdi ya da başka sekme) → kayıt yine tek, ama
+        // "zaten kaydedildi" DEĞİL: "başka bir tahsilat yazıldı … girdiğiniz 100,00 TRY YAZILMADI", ayniIcerik=false.
+        var farkli = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k1), YeniAnahtar()),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(id, farkli.GetProperty("mevcut").GetProperty("id").GetGuid());
+        Assert.False(farkli.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
+        Assert.Contains("girdiğiniz 100,00 TRY YAZILMADI", farkli.GetProperty("detail").GetString());
+        Assert.Contains("500,00 TRY", farkli.GetProperty("detail").GetString());
+        Assert.DoesNotContain("zaten kaydedildi", farkli.GetProperty("detail").GetString());
+        // Aynı tutar ama başka hesap türü (Banka) de "aynı içerik" değildir.
+        var bankadan = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 500m, hesap: "Banka", tahsilatAnahtar: k1), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.False(bankadan.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
+        // Ölçek farkı (500 vs "500.00") aynı içeriktir (decimal eşitliği).
+        var olcek = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 500.00m, tahsilatAnahtar: k1), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.True(olcek.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(-200m, (await KiraOkuAsync(o, o.Kira)).Bakiye);
+
+        // Bayat anahtar: kirada BAŞKA bir işlem oldu (bu anahtarla yazılmış kayıt YOK) → 409, mevcut yok.
+        var k2 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/odeme", new { cariId = o.Musteri, kiraId = o.Kira, tutar = 50m, hesap = "Kasa" }, YeniAnahtar()));
+        var bayat = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 50m, tahsilatAnahtar: k2), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.False(bayat.TryGetProperty("mevcut", out _));
+        Assert.Contains("tutarı yeniden girin", bayat.GetProperty("detail").GetString());
+        Assert.Equal(1, await DbAsync(o, db => db.CashTransactions.AsNoTracking()
+            .CountAsync(t => t.RentalId == o.Kira && t.Tip == CashTransactionType.Tahsilat))); // + 1 ödeme, tahsilat hâlâ tek
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>
+    /// F4.4 L-1: "aynı içerik" yalnız tutar/döviz/hesap değil; kur, açıklama ve kanal da birebir olmalı. Kurunu,
+    /// açıklamasını ya da kanalını değiştirmiş tekrar "zaten kaydedildi" DEMEZ (form silinmesin). Açıklamanın kenar
+    /// boşlukları, açık kur 1 ≡ boş kur (TRY) ve boş kur ≡ firmanın sabit kuru (USD 30) aynı içeriktir.
+    /// Beklenenler elle: TRY 500 (açıklama "F4.4 test", kanal Masaüstü, kur boş=1) ve USD 10 @ sabit 30 yazıldı;
+    /// her tekrar 409, kayıt sayısı sabit (TRY 1 + USD 1 = 2).
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_ayni_icerik_kur_aciklama_kanal_da_karsilastirilir()
+    {
+        var o = await OrtamKurAsync(sp => sp.GetRequiredService<SabitKurService>()
+            .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
+        var s = await GirisAsync(o, Kim.Muhasebe);
+
+        async Task<bool> AyniIcerik(object govde)
+            => (await Problem(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null), HttpStatusCode.Conflict, "mukerrer"))
+                .GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean();
+
+        var k1 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 500m, tahsilatAnahtar: k1), anahtar: null));
+        Assert.True(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1)));
+        Assert.True(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1, aciklama: "  F4.4 test ")));
+        Assert.True(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1, kur: 1m)));
+        Assert.False(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1, aciklama: "kapora")));
+        Assert.False(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1, aciklama: null)));
+        Assert.False(await AyniIcerik(Tahsilat(o, 500m, tahsilatAnahtar: k1, kanal: "Mobil")));
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+
+        var k2 = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 10m, doviz: "USD", tahsilatAnahtar: k2), anahtar: null));
+        Assert.True(await AyniIcerik(Tahsilat(o, 10m, doviz: "USD", tahsilatAnahtar: k2)));
+        Assert.True(await AyniIcerik(Tahsilat(o, 10m, doviz: "USD", kur: 30m, tahsilatAnahtar: k2)));
+        Assert.False(await AyniIcerik(Tahsilat(o, 10m, doviz: "USD", kur: 31m, tahsilatAnahtar: k2)));
+        Assert.Equal(2, await TahsilatSayisiAsync(o, o.Kira));
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>
+    /// 5. tur LOW-3: açık işlem tarihi de "aynı içerik"in parçası (boş tarih = "şimdi", karşılaştırılamaz → farksız);
+    /// TRY'de açık kur ≠ 1 olan tekrar mükerrer 409'u DEĞİL, 400 dogrulama (kur) alır — kural anahtardan önce.
+    /// Beklenenler elle: 2 gün önce 10:00 UTC'li 250 TRY yazıldı; tekrarlar 409/400, kayıt sayısı hep 1.
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_ayni_icerik_tarihi_karsilastirir_try_kur_hatasi_dogrulama_doner()
+    {
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var tarih = new DateTimeOffset(DateTimeOffset.UtcNow.UtcDateTime.Date.AddDays(-2).AddHours(10), TimeSpan.Zero);
+
+        async Task<bool> AyniIcerik(object govde)
+            => (await Problem(await PostAsync(s, "/finans/tahsilat", govde, anahtar: null), HttpStatusCode.Conflict, "mukerrer"))
+                .GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean();
+
+        var k = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih), anahtar: null));
+        Assert.True(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih)));
+        Assert.True(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k)));
+        Assert.False(await AyniIcerik(Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih.AddDays(1))));
+        await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 250m, tahsilatAnahtar: k, tarih: tarih, kur: 5m), anahtar: null),
+            HttpStatusCode.BadRequest, "dogrulama", "kur");
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(250m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>
+    /// 3. tur M-A (G2): iki kullanıcı AYNI detayla açık (aynı anahtar K). A 100 tahsil eder; B ön-dolu 300'ü gönderir
+    /// → 409 mevcut, ayniIcerik=false, "girdiğiniz 300,00 TRY YAZILMADI" (B'nin parası kaydedilmiş sanılmasın).
+    /// Yalnız A'nın 100'ü yazılı; B detayı tazeleyip yeni anahtarla bilinçli gönderince ikinci kayıt yazılır.
+    /// </summary>
+    [Fact]
+    public async Task Tahsilat_iki_kullanici_ayni_anahtar_farkli_tutar_yazilmadi_der()
+    {
+        var o = await OrtamKurAsync();
+        var a = await GirisAsync(o, Kim.Muhasebe);
+        var b = await GirisAsync(o, Kim.Admin);
+        var k = (await DetayAsync(a, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        Assert.Equal(k, (await DetayAsync(b, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid());
+
+        var idA = await Id(await PostAsync(a, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: k), anahtar: null));
+        var r = await Problem(await PostAsync(b, "/finans/tahsilat", Tahsilat(o, 300m, tahsilatAnahtar: k), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        var m = r.GetProperty("mevcut");
+        Assert.Equal(idA, m.GetProperty("id").GetGuid());
+        Assert.Equal(100m, m.GetProperty("tutar").GetDecimal());
+        Assert.False(m.GetProperty("ayniIcerik").GetBoolean());
+        Assert.Contains("girdiğiniz 300,00 TRY YAZILMADI", r.GetProperty("detail").GetString());
+        Assert.Equal(1, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(100m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);
+
+        var k2 = (await DetayAsync(b, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(b, "/finans/tahsilat", Tahsilat(o, 200m, tahsilatAnahtar: k2), anahtar: null));
+        Assert.Equal(2, await TahsilatSayisiAsync(o, o.Kira));
+        Assert.Equal(300m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);
+        await TumDefterDengeliAsync(o);
+    }
+
+    /// <summary>HIGH-1 kapsam: başka kiranın (aynı cari) tahsilatına ait anahtar bu kirayla gönderilirse o kaydın
+    /// no/tutarı SIZMAZ — "zaten kaydedildi" yalnız aynı kiranın tahsilatı için; diğeri "ait değil" 409'u.</summary>
+    [Fact]
+    public async Task Tahsilat_baska_kiranin_anahtari_mevcut_sizdirmaz()
+    {
+        var o = await OrtamKurAsync();
+        var (kiraB, _) = await OkuAsync(o, sp => KiraAsync(sp, o.Musteri, KiraBas.AddDays(10), gun: 2));
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        var kA = (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
+        await Id(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, tahsilatAnahtar: kA), anahtar: null));
+
+        var r = await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 100m, kira: kiraB, tahsilatAnahtar: kA), anahtar: null),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.False(r.TryGetProperty("mevcut", out _));
+        Assert.Equal(0, await TahsilatSayisiAsync(o, kiraB));
+    }
+
+    [Fact]
+    public async Task Detay_tahsilat_finans_izni_yoksa_ve_iptal_kirada_null()
+    {
+        var o = await OrtamKurAsync();
+        // Operatör (FinanceWrite yok): kira okunur, tahsilat verisi YOK.
+        var op = await GirisAsync(o, Kim.OperatorDuz);
+        var d = await DetayAsync(op, o.Kira);
+        Assert.False(d.GetProperty("yetkiler").GetProperty("finans").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, d.GetProperty("tahsilat").ValueKind);
+
+        // İptal kira (tahsilatsız → iptal edilebilir): finans iznine rağmen tahsilat verisi yok (uç da reddeder).
+        Assert.True(await OkuAsync(o, sp => sp.GetRequiredService<RentalService>().CancelAsync(o.Kira)));
+        var s = await GirisAsync(o, Kim.Muhasebe);
+        Assert.Equal(JsonValueKind.Null, (await DetayAsync(s, o.Kira)).GetProperty("tahsilat").ValueKind);
     }
 
     // ------------------------------------------------------------ çok döviz

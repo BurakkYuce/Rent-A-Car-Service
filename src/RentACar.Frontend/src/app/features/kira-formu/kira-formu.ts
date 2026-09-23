@@ -21,7 +21,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { SekmePaneli, SekmeliForm, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
-import { KiraFinansPaneli } from './finans-paneli/kira-finans-paneli';
+import { KiraFinansYuvasi } from './finans-paneli/kira-finans-yuvasi';
 import { KiraFormuDurumu } from './kira-formu-durumu';
 import {
   SEKMELER,
@@ -65,7 +65,7 @@ import { Paylasim } from './sekmeler/paylasim';
     FormHatalari,
     SekmeliForm,
     SekmePaneli,
-    KiraFinansPaneli,
+    KiraFinansYuvasi,
     HizliGiris,
     KiraBilgisi,
     Musteri,
@@ -87,6 +87,8 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   private readonly t = ceviriFonksiyonu();
   private readonly sekmeli = viewChild(SekmeliForm);
   private readonly ayrintilar = viewChild(Ayrintilar);
+  /** Sabit finans paneli (tembel): yazılmış tutar ya da sonuçlanmamış para gönderimi de "kaydedilmemiş" sayılır. */
+  private readonly finans = viewChild(KiraFinansYuvasi);
 
   protected readonly sekmeler: readonly SekmeTanimi[] = SEKMELER.map((k) => ({
     kimlik: k,
@@ -97,7 +99,7 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   protected readonly bulunamadi = computed(() => this.d.detay.hata()?.status === 404);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.d.kirliMi());
+    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
     // Açık sekmeye `#sekme=` ile gelindiğinde (bileşen yaşıyor; `hashchange` tetiklenmez) sekme seçilir.
     inject(ActivatedRoute)
       .fragment.pipe(takeUntilDestroyed(inject(DestroyRef)))
@@ -109,8 +111,13 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
       });
   }
 
+  /** Sabit panelde sonucu bilinmeyen para gönderimi varsa terk sorusu bunu söyler (3. tur, L3 metni). */
+  kaydedilmemisDegisiklikMesaji(): string | null {
+    return this.finans()?.sonucuBilinmeyenVar() ? this.t('kiraFinans.sonucuBilinmeyen') : null;
+  }
+
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.d.kirliMi();
+    return this.d.kirliMi() || (this.finans()?.kirliMi() ?? false);
   }
 
   protected kaydet(): void {

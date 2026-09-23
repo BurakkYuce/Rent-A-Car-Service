@@ -30,6 +30,12 @@ import type {
 } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
+import {
+  TahsilatDenemeKaydi,
+  TahsilatDenemesi,
+  type TahsilatGonderimi,
+  tahsilatMukerrerBildir,
+} from '@core/form/tahsilat-denemesi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
@@ -60,10 +66,11 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
  *   başlığı da aynı değeri taşır (sunucuda deterministik anahtar başlıktan önceliklidir). İstemci anahtar
  *   ÜRETMEZ — iki sekme/iki kullanıcı aynı satırı tahsil ederse ikincisi 409 `mukerrer` olur.
  * - **Kilit:** istek uçarken gönder düğmesi pasif, ikinci gönderim yok sayılır (`formGonderimi`).
- * - **409 `mukerrer`:** yeniden gönderim YOK (ne aynı ne yeni anahtarla, ne de `tahsilatAnahtar`'sız). Sunucu
- *   anahtarı yeniden hesaplar; tutmazsa (bayat ekran, başka kiranın anahtarı, yanıtı kaybolmuş ilk deneme) 409
- *   döner. Toast sunucunun `detail`'ını "Kira kaydı değişmiş" başlığıyla gösterir (uyarı; "kaydedildi" demez),
- *   `sonuclandi` ile sayfa paneli kapatıp listeyi yeniden yükler (güncel bakiye + yeni anahtar).
+ * - **409 `mukerrer`:** yeniden gönderim YOK (ne aynı ne yeni anahtarla, ne de `tahsilatAnahtar`'sız). Sınıf ve
+ *   toast `TahsilatDenemesi` + `tahsilatMukerrerBildir` (sabit panel ve Panel ile TEK kural): kendi birebir tekrarı
+ *   ("zaten kaydedildi") ve bayat anahtar → `sonuclandi` (panel kapanır, liste yenilenir); başka işlem yazılmış
+ *   (M-A) → panel açık, ön-dolu tutar yeni bakiyeyle yenilenir (L-2); sonucu bilinmeyen denemenin tutarı
+ *   değiştirilmiş tekrarı (M-C) → "önceki denemeniz kaydedilmiş", tutar TEMİZLENİR, panel açık (yeni anahtar).
  * - **Yeniden deneme** (ağ/5xx/400 sonrası aynı panelden): gövde DAİMA aynı `tahsilatAnahtar`'ı taşır — anahtarsız
  *   tekrar yok (envanter "SPA sözleşmesi"). İlk deneme sunucuda yazıldıysa ikinci 409 alır, çift yazım olmaz.
  * - **2xx:** başarı toast'u + `sonuclandi` (liste yenilenir → satırın yeni anahtarı gelir).
@@ -93,7 +100,7 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
             [etiket]="'kiraListesi.tahsil.tutar' | transloco"
             [ipucu]="'kiraListesi.tahsil.tutarIpucu' | transloco"
           >
-            <rc-para-girdisi formControlName="tutar" [paraBirimi]="doviz()" odaktaSec />
+            <rc-para-girdisi formControlName="tutar" [paraBirimi]="doviz()" />
           </rc-alan>
           <rc-alan [etiket]="'kiraListesi.tahsil.hesap' | transloco">
             <rc-secim formControlName="hesap" [secenekler]="hesapTurleri" />
@@ -170,6 +177,11 @@ export class TahsilPaneli {
   readonly kapat = output<void>();
   /** 2xx ya da 409 `mukerrer`: işlem sonuçlandı, liste yeniden yüklenmeli (yeni anahtar). */
   readonly sonuclandi = output<void>();
+  /**
+   * 3. tur M-A: 409 + `mevcut` İÇERİĞİ FARKLI — başka bir tahsilat yazılmış, bu panelin tutarı YAZILMADI. Panel
+   * AÇIK KALIR (tutar korunur); sayfa listeyi yeniden yükleyip satırın YENİ anahtarını panele verir.
+   */
+  readonly anahtarTazele = output<void>();
 
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
@@ -177,6 +189,8 @@ export class TahsilPaneli {
   private readonly kok = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly gonderim = formGonderimi();
+  /** Sonucu bilinmeyen deneme izi (M-C) + L-2. */
+  private readonly deneme = new TahsilatDenemesi(inject(TahsilatDenemeKaydi));
   /** Sayfa, istek uçarken başka satırın panelini açmaz (uçan istek iptal edilip sonucu kaybolmasın). */
   readonly gonderiliyor = this.gonderim.gonderiliyor;
 
@@ -231,18 +245,28 @@ export class TahsilPaneli {
         this.form.controls.hesapId.setValue(null);
       }
     });
-    // Satır değişince (başka satırdan "Tahsil Et") form o satırın önerisiyle sıfırlanır.
+    // Satır değişince (başka satırdan "Tahsil Et") form o satırın önerisiyle sıfırlanır. AYNI kiranın güncel
+    // satırı (M-A: yeni anahtar) gelince form KORUNUR — kullanıcının yazdığı yazılmamış tutar kaybolmaz.
+    let sonKira: string | null = null;
     effect(() => {
       const s = this.satir();
-      untracked(() =>
+      untracked(() => {
+        if (s.id === sonKira) {
+          // L-2: "YAZILMADI" (başka işlem) sonrası dokunulmamış ön-dolu tutar yeni satırın önerisiyle yenilenir.
+          const tutar = this.form.controls.tutar;
+          if (this.deneme.tutarYenilensinMi(s.tahsilat?.anahtar) && tutar.pristine)
+            tutar.setValue(invariantOndalik(s.tahsilat?.varsayilanTutar, { kesir: 2 }));
+          return;
+        }
+        sonKira = s.id;
         this.form.reset({
           tutar: invariantOndalik(s.tahsilat?.varsayilanTutar, { kesir: 2 }),
           hesap: 'Kasa',
           hesapId: null,
-        }),
-      );
+        });
+      });
     });
-    // Açılışta odak önerilen tutarda ve metin SEÇİLİ (`odaktaSec`): doğrudan yazılan tutar önerinin yerine
+    // Açılışta odak önerilen tutarda ve metin SEÇİLİ (para girdisinin varsayılanı): doğrudan yazılan tutar önerinin yerine
     // geçer, sonuna eklenmez (adversarial F3: "1250,50" + "90" → "1250,5090" → 1 kuruş fazla tahsilat).
     afterNextRender(() => this.kok.nativeElement.querySelector<HTMLInputElement>('input')?.focus());
   }
@@ -252,6 +276,7 @@ export class TahsilPaneli {
     const tahsilat = s.tahsilat;
     if (tahsilat === null) return;
     const v = this.form.getRawValue();
+    let g: TahsilatGonderimi | null = null;
     const govde: TahsilatIstegi = {
       cariId: tahsilat.cariId,
       tutar: v.tutar ?? '',
@@ -266,20 +291,49 @@ export class TahsilPaneli {
     };
     this.gonderim.gonder(
       this.form,
-      (anahtar) =>
-        this.api.post<FinansIslemYaniti>('/api/ui/v1/finans/tahsilat', govde, {
+      (anahtar) => {
+        // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (Panel ile ortak kayıt).
+        g = this.deneme.basla(tahsilat.anahtar, {
+          tutar: govde.tutar,
+          doviz: tahsilat.doviz,
+          hesap: govde.hesap,
+        });
+        return this.api.post<FinansIslemYaniti>('/api/ui/v1/finans/tahsilat', govde, {
           islemAnahtari: anahtar,
-          // 409 mukerrer: tekrar gönderilmez; satır (liste) yeniden yüklenir. Sunucu anahtarı yeniden hesaplar
-          // (F4.4a): 409 çoğunlukla "kayıt bu ekran açıldıktan sonra değişti" demektir — toast sunucunun
-          // `detail`'ını "Kira kaydı değişmiş" başlığıyla gösterir, "mükerrer işlem kaydedildi" izlenimi vermez.
-          context: istekBaglami({
-            mukerrerdeYenile: () => this.sonuclandi.emit(),
-            mukerrerBasligi: this.t('kiraListesi.tahsil.kayitDegismis'),
-          }),
-        }),
+          // 409 mukerrer: tekrar gönderilmez; toast'u `hata` gösterir (sınıf tekrar bilgisine bağlı). Yeniden
+          // yükleme de `hata`'da: kapat + yükle ya da açık tut + yeni anahtar.
+          context: istekBaglami({ mukerrerCagiranGosterir: true }),
+        });
+      },
       {
         deterministikAnahtar: tahsilat.anahtar,
+        hata: (h) => {
+          if (!g) return;
+          const tur = this.deneme.hataGeldi(g, h);
+          if (tur === null) return;
+          tahsilatMukerrerBildir(this.toast, this.t, tur, h, {
+            gonderim: g,
+            bayatBaslik: this.t('kiraListesi.tahsil.kayitDegismis'),
+            ek: this.t('geriBildirim.mukerrerYenilendi'),
+          });
+          const tutar = this.form.controls.tutar;
+          switch (tur) {
+            case 'baskaIslemYazildi':
+              if (tutar.pristine && tutar.value !== null)
+                this.deneme.tutarYenilemesiIste(tahsilat.anahtar);
+              this.anahtarTazele.emit();
+              return;
+            case 'oncekiDenemeKaydedilmis':
+            case 'baskaIslemDenemeYazilmadi':
+              tutar.setValue(null);
+              this.anahtarTazele.emit();
+              return;
+            default:
+              this.sonuclandi.emit();
+          }
+        },
         basarili: () => {
+          if (g) this.deneme.basarili(g);
           this.toast.basari(
             this.t('kiraListesi.tahsil.basarili', {
               no: s.sozlesmeNo,
