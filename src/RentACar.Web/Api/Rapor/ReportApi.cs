@@ -35,6 +35,8 @@ public static partial class ReportApi
         MapLedger(vr);
         MapCustomer(vr);
         MapSales(vr);
+        MapFleet(vr);
+        MapOperations(ops);
         return g;
     }
 }

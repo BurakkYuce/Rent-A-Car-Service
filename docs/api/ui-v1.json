@@ -6646,6 +6646,961 @@
           }
         }
       }
+    },
+    "/api/ui/v1/raporlar/arac-karne/{id}": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSummaryResultOfVehicleScorecardReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/filo-analiz": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "siralama",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfFleetAnalysisSummaryAndFiloAnalizRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/filo": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSummaryResultOfFleetStatusReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/doluluk": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSummaryResultOfOccupancyReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/arac-gunluk-durum": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "gun",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grup",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sipp",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "aracSahibi",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfVehicleDailySummaryAndAracGunlukDurumRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/servis-ozet": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfServiceCostSummaryAndServiceCostRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/rezervasyon-kaynak": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tarihTipi",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grup",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "iptal",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSummaryResultOfIReadOnlyListOfRezervasyonKaynakRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/otomatik-servisler": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "job",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hatali",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfIReadOnlyListOfJobRunRowAndJobRunRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/arac-durum-takip": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "gorunum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sube",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "aracSahibi",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grup",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sipp",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfVehicleTrackingReportAndAracDurumTakipAracRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/km-detay": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfMileageSummaryAndKmDetayRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/periyodik-servis": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sube",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "esik",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfReportCountAndPeriyodikServisRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/sigorta-muayene": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "tur",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enGec",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sahip",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResultOfInsuranceInspectionSummaryAndSigortaMuayeneRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/karsilastirmali-analiz": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tablo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "veri",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kirilim",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSummaryResultOfComparativeReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/raporlar/personel-calisma": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "personelId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sube",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftReport"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7513,6 +8468,95 @@
           }
         }
       },
+      "AracDurumTakipAracRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "sipp",
+          "grup",
+          "sube",
+          "aracSahibi",
+          "toplamGun",
+          "doluGun",
+          "bakimGun",
+          "bafGun",
+          "bosGun"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "sipp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracSahibi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toplamGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "doluGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bakimGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bafGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bosGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "AracDurumTakipRow": {
         "required": [
           "gun",
@@ -8292,6 +9336,109 @@
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
               "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "AracGunlukDurumRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "sipp",
+          "grup",
+          "aracSahibi",
+          "rentalId",
+          "sozlesmeNo",
+          "musteri",
+          "cikisOfisi",
+          "basTar",
+          "bitTar",
+          "gun",
+          "gunlukKira",
+          "gunlukHizmet",
+          "gunlukToplam"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "sipp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracSahibi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "musteri": {
+            "type": "string"
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "basTar": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bitTar": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gunlukKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gunlukHizmet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gunlukToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
               "number",
               "string"
             ],
@@ -9721,6 +10868,36 @@
           }
         }
       },
+      "AracKirilimRow": {
+        "required": [
+          "kategori",
+          "tutar",
+          "yuzdeGelir"
+        ],
+        "type": "object",
+        "properties": {
+          "kategori": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yuzdeGelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "AracKmIstegi": {
         "required": [
           "km",
@@ -9768,6 +10945,176 @@
           },
           "kaynak": {
             "type": "string"
+          }
+        }
+      },
+      "AracKpiDto": {
+        "required": [
+          "sahiplikGun",
+          "kiralananGun",
+          "servisGun",
+          "bosGun",
+          "dolulukYuzde",
+          "revPacd",
+          "adr",
+          "kmBasinaMaliyet",
+          "netMarjYuzde",
+          "roiYuzde",
+          "geriOdemeAy",
+          "tco",
+          "gerceklesenAmortisman",
+          "aylikAmortisman",
+          "ekonomikKar",
+          "toplamKatedilenKm",
+          "kiraSayisi"
+        ],
+        "type": "object",
+        "properties": {
+          "sahiplikGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiralananGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "servisGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bosGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dolulukYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "revPacd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "adr": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kmBasinaMaliyet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "netMarjYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "roiYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "geriOdemeAy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tco": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gerceklesenAmortisman": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aylikAmortisman": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "ekonomikKar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamKatedilenKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -10289,6 +11636,40 @@
           }
         }
       },
+      "AracOlayRow": {
+        "required": [
+          "tarih",
+          "tur",
+          "aciklama",
+          "tutar",
+          "deftereYansir"
+        ],
+        "type": "object",
+        "properties": {
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tur": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "deftereYansir": {
+            "type": "boolean"
+          }
+        }
+      },
       "AracOzeti": {
         "required": [
           "toplam",
@@ -10486,6 +11867,49 @@
             "type": "string"
           },
           "toplamIscilik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "AracYilPnlRow": {
+        "required": [
+          "yil",
+          "gelir",
+          "gider",
+          "netKar"
+        ],
+        "type": "object",
+        "properties": {
+          "yil": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "netKar": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
               "number",
@@ -10931,6 +12355,92 @@
           }
         }
       },
+      "ComparativeReport": {
+        "required": [
+          "tablo",
+          "veriTuru",
+          "kirilim",
+          "ayAnahtarlari",
+          "satirlar",
+          "ayToplamlari",
+          "genelToplam"
+        ],
+        "type": "object",
+        "properties": {
+          "tablo": {
+            "type": "string"
+          },
+          "veriTuru": {
+            "type": "string"
+          },
+          "kirilim": {
+            "type": "string"
+          },
+          "ayAnahtarlari": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "satirlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparativeRow"
+            }
+          },
+          "ayToplamlari": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          "genelToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ComparativeRow": {
+        "required": [
+          "kirilim",
+          "aylar",
+          "toplam"
+        ],
+        "type": "object",
+        "properties": {
+          "kirilim": {
+            "type": "string"
+          },
+          "aylar": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "DepozitoAlIstegi": {
         "required": [
           "cariId",
@@ -11102,6 +12612,121 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "DolulukDto": {
+        "required": [
+          "aracSayisi",
+          "donemGun",
+          "aracGun",
+          "kiraGun",
+          "dolulukYuzde"
+        ],
+        "type": "object",
+        "properties": {
+          "aracSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donemGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aracGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dolulukYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "DolulukGunRow": {
+        "required": [
+          "gun",
+          "seri",
+          "aracSayisi",
+          "kiraGun",
+          "rezGun",
+          "kiraYuzde",
+          "rezYuzde"
+        ],
+        "type": "object",
+        "properties": {
+          "gun": {
+            "type": "string",
+            "format": "date"
+          },
+          "seri": {
+            "type": "string"
+          },
+          "aracSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rezGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rezYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -11930,6 +13555,210 @@
           }
         }
       },
+      "FiloAnalizRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "grup",
+          "segment",
+          "sube",
+          "gelir",
+          "gider",
+          "netKar",
+          "dolulukYuzde",
+          "roiYuzde",
+          "kmBasinaMaliyet",
+          "sahiplikGun",
+          "kiralananGun",
+          "yasAy"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "segment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "netKar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "dolulukYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "roiYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kmBasinaMaliyet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sahiplikGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiralananGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yasAy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tutSatSinyal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          },
+          "sinifEndeks": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "FiloHavuzKpiDto": {
+        "required": [
+          "sahiplikGun",
+          "kiralananGun",
+          "omurGelir",
+          "dolulukYuzde",
+          "revPacd",
+          "adr"
+        ],
+        "type": "object",
+        "properties": {
+          "sahiplikGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiralananGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "omurGelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "dolulukYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "revPacd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "adr": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "FiloKiralamaDto": {
         "required": [
           "id",
@@ -12323,6 +14152,46 @@
           }
         }
       },
+      "FiloKohortRow": {
+        "required": [
+          "kova",
+          "aracAdet",
+          "ortKmMaliyet",
+          "ortDoluluk"
+        ],
+        "type": "object",
+        "properties": {
+          "kova": {
+            "type": "string"
+          },
+          "aracAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ortKmMaliyet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "ortDoluluk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "FiloKunyeIstegi": {
         "type": "object",
         "properties": {
@@ -12603,6 +14472,175 @@
           }
         }
       },
+      "FiloSubeDto": {
+        "required": [
+          "satirlar",
+          "pencereGun"
+        ],
+        "type": "object",
+        "properties": {
+          "satirlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FiloSubeRow"
+            }
+          },
+          "pencereGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamFilo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "FiloSubeRow": {
+        "required": [
+          "sube",
+          "filo",
+          "bos",
+          "kirada",
+          "bakimda",
+          "pasif",
+          "satildi",
+          "satilik",
+          "baf",
+          "dolulukYuzde",
+          "cikislar",
+          "donusler",
+          "cikacaklar",
+          "donecekler",
+          "gidenRez"
+        ],
+        "type": "object",
+        "properties": {
+          "sube": {
+            "type": "string"
+          },
+          "filo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kirada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bakimda": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pasif": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "satildi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "satilik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "baf": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dolulukYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "cikislar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusler": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cikacaklar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donecekler": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gidenRez": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "FiloTaksitDto": {
         "required": [
           "sira",
@@ -12760,6 +14798,184 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "FleetAnalysisSummary": {
+        "required": [
+          "toplamGelir",
+          "toplamGider",
+          "toplamNetKar",
+          "atanmamisGelir",
+          "atanmamisGider",
+          "yasKohortu",
+          "havuzKpi",
+          "tutSatAday",
+          "vadeUyariSayilari"
+        ],
+        "type": "object",
+        "properties": {
+          "toplamGelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamGider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamNetKar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "atanmamisGelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "atanmamisGider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yasKohortu": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FiloKohortRow"
+            }
+          },
+          "havuzKpi": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FiloHavuzKpiDto"
+              }
+            ]
+          },
+          "tutSatAday": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TutSatAdayOzetDto"
+              }
+            ]
+          },
+          "vadeUyariSayilari": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "FleetStatusReport": {
+        "required": [
+          "durum",
+          "subeler"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "$ref": "#/components/schemas/FleetUtilizationDto"
+          },
+          "subeler": {
+            "$ref": "#/components/schemas/FiloSubeDto"
+          }
+        }
+      },
+      "FleetUtilizationDto": {
+        "required": [
+          "toplam",
+          "musait",
+          "kirada",
+          "serviste",
+          "pasif",
+          "satildi",
+          "aktifKira"
+        ],
+        "type": "object",
+        "properties": {
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "musait": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kirada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "serviste": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pasif": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "satildi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktifKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -12985,6 +15201,29 @@
         "type": "string",
         "format": "binary"
       },
+      "InsuranceInspectionSummary": {
+        "required": [
+          "adet",
+          "aracSahipleri"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aracSahipleri": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "InvoicePeriodSummary": {
         "required": [
           "adet",
@@ -13042,6 +15281,100 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "JobRunRow": {
+        "required": [
+          "id",
+          "jobAdi",
+          "baslangicUtc",
+          "bitisUtc",
+          "sureMs",
+          "basarili",
+          "sonucSayisi",
+          "detay"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobAdi": {
+            "type": "string"
+          },
+          "baslangicUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bitisUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sureMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "basarili": {
+            "type": "boolean"
+          },
+          "sonucSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KalintiProjeksiyonDto": {
+        "required": [
+          "yillikOran",
+          "oranGozlenen",
+          "deger12Ay",
+          "deger24Ay"
+        ],
+        "type": "object",
+        "properties": {
+          "yillikOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "oranGozlenen": {
+            "type": "boolean"
+          },
+          "deger12Ay": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "deger24Ay": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -16993,6 +19326,118 @@
           }
         }
       },
+      "KmDetayRow": {
+        "required": [
+          "rentalId",
+          "sozlesmeNo",
+          "plaka",
+          "cikisKm",
+          "donusKm",
+          "katedilenKm",
+          "kmLimit",
+          "fazlaKm",
+          "fazlaKmBedeli"
+        ],
+        "type": "object",
+        "properties": {
+          "rentalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "cikisKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donusKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "katedilenKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kmLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fazlaKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fazlaKmBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yakit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vites": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "basTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "bitTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "KurSecimOgesi": {
         "required": [
           "id",
@@ -17267,6 +19712,40 @@
           },
           "ayniIcerik": {
             "type": "boolean"
+          }
+        }
+      },
+      "MileageSummary": {
+        "required": [
+          "katedilenKm",
+          "fazlaKm",
+          "fazlaKmBedeli"
+        ],
+        "type": "object",
+        "properties": {
+          "katedilenKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fazlaKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fazlaKmBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -17824,6 +20303,70 @@
           }
         }
       },
+      "OccupancyDaily": {
+        "required": [
+          "satirlar",
+          "boyut",
+          "paydaAciklama",
+          "donemGun",
+          "toplamKiraGun",
+          "toplamRezGun"
+        ],
+        "type": "object",
+        "properties": {
+          "satirlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DolulukGunRow"
+            }
+          },
+          "boyut": {
+            "type": "string"
+          },
+          "paydaAciklama": {
+            "type": "string"
+          },
+          "donemGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamKiraGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamRezGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "OccupancyReport": {
+        "required": [
+          "ozet",
+          "gunluk"
+        ],
+        "type": "object",
+        "properties": {
+          "ozet": {
+            "$ref": "#/components/schemas/DolulukDto"
+          },
+          "gunluk": {
+            "$ref": "#/components/schemas/OccupancyDaily"
+          }
+        }
+      },
       "OdemeIstegi": {
         "required": [
           "cariId",
@@ -18318,6 +20861,116 @@
           }
         }
       },
+      "PeriyodikServisRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "guncelKm",
+          "sonrakiBakimKm",
+          "kalanKm"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "guncelKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonrakiBakimKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kalanKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modelYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yakit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vites": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sonServisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonServisKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktif": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -18754,6 +21407,22 @@
           }
         }
       },
+      "ReportCount": {
+        "required": [
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "ReportCurrencyTotal": {
         "required": [
           "doviz",
@@ -18967,6 +21636,80 @@
           }
         }
       },
+      "ReportResultOfFleetAnalysisSummaryAndFiloAnalizRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FleetAnalysisSummary"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfFiloAnalizRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportResultOfInsuranceInspectionSummaryAndSigortaMuayeneRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InsuranceInspectionSummary"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfSigortaMuayeneRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
       "ReportResultOfInvoicePeriodSummaryAndFaturaDonemRow": {
         "required": [
           "donem",
@@ -19004,6 +21747,42 @@
           }
         }
       },
+      "ReportResultOfIReadOnlyListOfJobRunRowAndJobRunRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/JobRunRow"
+            }
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfJobRunRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
       "ReportResultOfIReadOnlyListOfReportCurrencyTotalAndReportTransferRow": {
         "required": [
           "donem",
@@ -19027,6 +21806,43 @@
           },
           "satirlar": {
             "$ref": "#/components/schemas/SayfaOfReportTransferRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportResultOfMileageSummaryAndKmDetayRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MileageSummary"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfKmDetayRow"
           },
           "export": {
             "oneOf": [
@@ -19151,6 +21967,80 @@
           }
         }
       },
+      "ReportResultOfReportCountAndPeriyodikServisRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportCount"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfPeriyodikServisRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportResultOfServiceCostSummaryAndServiceCostRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ServiceCostSummary"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfServiceCostRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
       "ReportResultOfStatementReportSummaryAndExtreOzetiRowDto": {
         "required": [
           "donem",
@@ -19212,6 +22102,113 @@
           },
           "satirlar": {
             "$ref": "#/components/schemas/SayfaOfKdvGenisSatirDto"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportResultOfVehicleDailySummaryAndAracGunlukDurumRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VehicleDailySummary"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfAracGunlukDurumRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportResultOfVehicleTrackingReportAndAracDurumTakipAracRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "satirlar",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VehicleTrackingReport"
+              }
+            ]
+          },
+          "satirlar": {
+            "$ref": "#/components/schemas/SayfaOfAracDurumTakipAracRow"
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportSummaryResultOfComparativeReport": {
+        "required": [
+          "donem",
+          "ozet",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComparativeReport"
+              }
+            ]
           },
           "export": {
             "oneOf": [
@@ -19324,6 +22321,39 @@
           }
         }
       },
+      "ReportSummaryResultOfFleetStatusReport": {
+        "required": [
+          "donem",
+          "ozet",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FleetStatusReport"
+              }
+            ]
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
       "ReportSummaryResultOfGelirGiderDto": {
         "required": [
           "donem",
@@ -19377,6 +22407,38 @@
                 "$ref": "#/components/schemas/GunlukFaaliyetDto"
               }
             ]
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportSummaryResultOfIReadOnlyListOfRezervasyonKaynakRow": {
+        "required": [
+          "donem",
+          "ozet",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RezervasyonKaynakRow"
+            }
           },
           "export": {
             "oneOf": [
@@ -19456,6 +22518,39 @@
           }
         }
       },
+      "ReportSummaryResultOfOccupancyReport": {
+        "required": [
+          "donem",
+          "ozet",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccupancyReport"
+              }
+            ]
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
       "ReportSummaryResultOfTahsilatFaturaDto": {
         "required": [
           "donem",
@@ -19474,6 +22569,39 @@
               },
               {
                 "$ref": "#/components/schemas/TahsilatFaturaDto"
+              }
+            ]
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportExportLinks"
+              }
+            ]
+          }
+        }
+      },
+      "ReportSummaryResultOfVehicleScorecardReport": {
+        "required": [
+          "donem",
+          "ozet",
+          "export"
+        ],
+        "type": "object",
+        "properties": {
+          "donem": {
+            "$ref": "#/components/schemas/ReportPeriodDto"
+          },
+          "ozet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VehicleScorecardReport"
               }
             ]
           },
@@ -20536,6 +23664,53 @@
           }
         }
       },
+      "RezervasyonKaynakRow": {
+        "required": [
+          "kaynak",
+          "adet",
+          "toplamGun",
+          "toplamCiro"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynak": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamCiro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "iptalAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          }
+        }
+      },
       "RezervasyonListeSatiri": {
         "required": [
           "id",
@@ -21103,6 +24278,104 @@
           }
         }
       },
+      "SayfaOfAracDurumTakipAracRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracDurumTakipAracRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfAracGunlukDurumRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracGunlukDurumRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfAracListeSatiri": {
         "required": [
           "kayitlar",
@@ -21397,6 +24670,55 @@
           }
         }
       },
+      "SayfaOfFiloAnalizRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FiloAnalizRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfFiloListeSatiri": {
         "required": [
           "kayitlar",
@@ -21410,6 +24732,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FiloListeSatiri"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfJobRunRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobRunRow"
             }
           },
           "toplam": {
@@ -21642,6 +25013,55 @@
           }
         }
       },
+      "SayfaOfKmDetayRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KmDetayRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfLedgerLineDto": {
         "required": [
           "kayitlar",
@@ -21655,6 +25075,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LedgerLineDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfPeriyodikServisRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PeriyodikServisRow"
             }
           },
           "toplam": {
@@ -21936,6 +25405,104 @@
           }
         }
       },
+      "SayfaOfServiceCostRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceCostRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfSigortaMuayeneRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SigortaMuayeneRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfTeklifListeSatiri": {
         "required": [
           "kayitlar",
@@ -22027,6 +25594,323 @@
           "toplamSayfa": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ScorecardCostItem": {
+        "required": [
+          "ad",
+          "periyot",
+          "birim",
+          "donemTutar"
+        ],
+        "type": "object",
+        "properties": {
+          "ad": {
+            "type": "string"
+          },
+          "periyot": {
+            "type": "string"
+          },
+          "birim": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "donemTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ScorecardCostModel": {
+        "required": [
+          "residualDeger",
+          "netAmortisman",
+          "finansmanFaiz",
+          "finansmanVergi",
+          "damga",
+          "toplamGider",
+          "toplamMaliyet",
+          "basaBasAylik",
+          "kar",
+          "teklifNet",
+          "teklifAylikNet",
+          "teklifKdvli",
+          "kalemler"
+        ],
+        "type": "object",
+        "properties": {
+          "residualDeger": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "netAmortisman": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "finansmanFaiz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "finansmanVergi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "damga": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamGider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamMaliyet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "basaBasAylik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "teklifNet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "teklifAylikNet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "teklifKdvli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalemler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardCostItem"
+            }
+          }
+        }
+      },
+      "ScorecardDue": {
+        "required": [
+          "tur",
+          "bitis",
+          "kalanGun",
+          "kova"
+        ],
+        "type": "object",
+        "properties": {
+          "tur": {
+            "type": "string"
+          },
+          "bitis": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kalanGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kova": {
+            "type": "string"
+          }
+        }
+      },
+      "ScorecardHeader": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "marka",
+          "tip",
+          "grup",
+          "segment",
+          "sube",
+          "aracSahibi",
+          "durum",
+          "km",
+          "alimBedeli",
+          "alimTarihi",
+          "ikinciElDeger",
+          "filoGirisTarih",
+          "filoCikisTarih",
+          "sonBakimTarih",
+          "sonBakimKm"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "segment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracSahibi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": "string"
+          },
+          "km": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "alimBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alimTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ikinciElDeger": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "filoGirisTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "filoCikisTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonBakimTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonBakimKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -22130,6 +26014,414 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ServiceCostRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "tip",
+          "toplam",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "tip": {
+            "type": "string"
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ServiceCostSummary": {
+        "required": [
+          "toplam",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ShiftDay": {
+        "required": [
+          "gun",
+          "vardiyalar"
+        ],
+        "type": "object",
+        "properties": {
+          "gun": {
+            "type": "string",
+            "format": "date"
+          },
+          "vardiyalar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShiftRow"
+            }
+          }
+        }
+      },
+      "ShiftMatrixRow": {
+        "required": [
+          "personelId",
+          "personelAd",
+          "gunler",
+          "toplamDk",
+          "toplamSaatMetni"
+        ],
+        "type": "object",
+        "properties": {
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelAd": {
+            "type": "string"
+          },
+          "gunler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShiftDay"
+            }
+          },
+          "toplamDk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSaatMetni": {
+            "type": "string"
+          }
+        }
+      },
+      "ShiftReport": {
+        "required": [
+          "bas",
+          "bit",
+          "kirpildi",
+          "gunler",
+          "matris",
+          "toplamVardiya",
+          "toplamDk",
+          "liste"
+        ],
+        "type": "object",
+        "properties": {
+          "bas": {
+            "type": "string",
+            "format": "date"
+          },
+          "bit": {
+            "type": "string",
+            "format": "date"
+          },
+          "kirpildi": {
+            "type": "boolean"
+          },
+          "gunler": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "matris": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShiftMatrixRow"
+            }
+          },
+          "toplamVardiya": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamDk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "liste": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShiftRow"
+            }
+          }
+        }
+      },
+      "ShiftRow": {
+        "required": [
+          "id",
+          "personelId",
+          "personelAd",
+          "personelKadroSube",
+          "tarih",
+          "baslangicSaat",
+          "bitisSaat",
+          "sureDk",
+          "aralik",
+          "sube",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelAd": {
+            "type": "string"
+          },
+          "personelKadroSube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date"
+          },
+          "baslangicSaat": {
+            "type": "string",
+            "format": "time"
+          },
+          "bitisSaat": {
+            "type": "string",
+            "format": "time"
+          },
+          "sureDk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aralik": {
+            "type": "string"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SigortaMuayeneRow": {
+        "required": [
+          "vehicleId",
+          "plaka",
+          "marka",
+          "tip",
+          "modelYili",
+          "yakit",
+          "vites",
+          "sube",
+          "grup",
+          "sasiNo",
+          "motorNo",
+          "aracSahibi",
+          "belgeNo",
+          "kimde",
+          "trafikBitis",
+          "kaskoBitis",
+          "muayeneBitis",
+          "mtvVade",
+          "mtvOdendi",
+          "zIzni",
+          "zIzniBitis",
+          "seyrusiferBitis"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "marka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modelYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yakit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vites": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sasiNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "motorNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracSahibi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "belgeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kimde": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trafikBitis": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kaskoBitis": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "muayeneBitis": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mtvVade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mtvOdendi": {
+            "type": "boolean"
+          },
+          "zIzni": {
+            "type": "boolean"
+          },
+          "zIzniBitis": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "seyrusiferBitis": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -23117,6 +27409,54 @@
           }
         }
       },
+      "TutSatAdayOzetDto": {
+        "required": [
+          "aracSayisi",
+          "tahminiGeriKazanim12Ay"
+        ],
+        "type": "object",
+        "properties": {
+          "aracSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tahminiGeriKazanim12Ay": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "TutSatSinyalDto": {
+        "required": [
+          "sinyal",
+          "gerekceler"
+        ],
+        "type": "object",
+        "properties": {
+          "sinyal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gerekceler": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "UzatIstegi": {
         "type": "object",
         "properties": {
@@ -23253,6 +27593,216 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "VehicleDailySummary": {
+        "required": [
+          "gun",
+          "aracAdet",
+          "gunlukKira",
+          "gunlukHizmet",
+          "gunlukToplam"
+        ],
+        "type": "object",
+        "properties": {
+          "gun": {
+            "type": "string",
+            "format": "date"
+          },
+          "aracAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gunlukKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gunlukHizmet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gunlukToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "VehicleScorecardReport": {
+        "required": [
+          "baslik",
+          "toplamGelir",
+          "toplamGider",
+          "toplamNetKar",
+          "yillikPnl",
+          "gelirKaynak",
+          "giderKategori",
+          "olaylar",
+          "kpi",
+          "maliyetModel",
+          "tutSat",
+          "basaBasGunluk",
+          "kalinti",
+          "donemKm",
+          "donemKmMaliyet",
+          "vadeler",
+          "bakimKm"
+        ],
+        "type": "object",
+        "properties": {
+          "baslik": {
+            "$ref": "#/components/schemas/ScorecardHeader"
+          },
+          "toplamGelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamGider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamNetKar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yillikPnl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracYilPnlRow"
+            }
+          },
+          "gelirKaynak": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracKirilimRow"
+            }
+          },
+          "giderKategori": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracKirilimRow"
+            }
+          },
+          "olaylar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracOlayRow"
+            }
+          },
+          "kpi": {
+            "$ref": "#/components/schemas/AracKpiDto"
+          },
+          "maliyetModel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScorecardCostModel"
+              }
+            ]
+          },
+          "tutSat": {
+            "$ref": "#/components/schemas/TutSatSinyalDto"
+          },
+          "basaBasGunluk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalinti": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KalintiProjeksiyonDto"
+              }
+            ]
+          },
+          "donemKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donemKmMaliyet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "vadeler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardDue"
+            }
+          },
+          "bakimKm": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PeriyodikServisRow"
+              }
+            ]
+          }
+        }
+      },
+      "VehicleTrackingReport": {
+        "required": [
+          "gorunum",
+          "gunler"
+        ],
+        "type": "object",
+        "properties": {
+          "gorunum": {
+            "type": "string"
+          },
+          "gunler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AracDurumTakipRow"
+            }
           }
         }
       }
