@@ -18,4 +18,6 @@ public interface IFiloKiralamaRepository
     Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<FiloKiralama> apply, CancellationToken ct = default);
     /// <summary>F5.1 — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa <c>null</c>.</summary>
     Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
+    /// <summary>F5.1 adversarial M3 — aracın şubesi (FK + metin) kapsam guard'ı için; araç yoksa <c>null</c>.</summary>
+    Task<(Guid? SubeId, string? Sube)?> AracSubesiAsync(Guid vehicleId, CancellationToken ct = default);
 }

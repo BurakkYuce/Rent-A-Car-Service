@@ -58,7 +58,12 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.HasIndex(x => new { x.TenantId, x.VehicleId });
         // FAZ-48 — liste filtresi (durum + başlangıç tarihi aralığı) için kapsayıcı indeks.
         e.HasIndex(x => new { x.TenantId, x.Durum, x.BasTar });
+        // F5.1 adversarial H1 — bir teklif tek rezervasyon (eşzamanlı kabulün yapısal çiti; kilidin arkasındaki ağ).
+        e.HasIndex(x => new { x.TenantId, x.KaynakTeklifId }).IsUnique()
+            .HasFilter("\"KaynakTeklifId\" IS NOT NULL").HasDatabaseName(TeklifTekRezervasyonIndeksi);
     }
+
+    public const string TeklifTekRezervasyonIndeksi = "UX_Reservations_TenantId_KaynakTeklifId";
 }
 
 // ---- Quotation / Teklif (tenant-owned; operasyonel, güncellenebilir) ----
