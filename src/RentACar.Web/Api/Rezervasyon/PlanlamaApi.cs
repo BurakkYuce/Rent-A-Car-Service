@@ -79,7 +79,7 @@ public static class PlanlamaApi
             PageSize = TakvimAracSiniri,
         }, ct);
 
-        var gunBaslari = Enumerable.Range(0, gunSayisi + 1).Select(i => F5Ortak.GunBasi(ilk.AddDays(i))).ToArray();
+        var gunBaslari = Enumerable.Range(0, gunSayisi + 1).Select(i => F5Ortak.DayStartUtc(ilk.AddDays(i))).ToArray();
         var spans = await takvim.GetOccupancyAsync(gunBaslari[0], gunBaslari[^1], ct);
         var izgara = new Dictionary<Guid, string?[]>();
         foreach (var s in spans)

@@ -118,8 +118,8 @@ public static partial class AracApi
             AracSahibi = F5Ortak.Nz(AracSahibi),
             TarihTuru = F5Ortak.EnumAdi<AracTarihTuru>(TarihTuru, "tarihTuru") ?? AracTarihTuru.Yok,
             // Repo sözleşmesi: TarihBit = bitiş GÜNÜNÜN başlangıç anı (repo +1 gün, strict <). İstanbul günü.
-            TarihBas = TarihBas is { } b ? F5Ortak.GunBasi(b) : null,
-            TarihBit = TarihBit is { } t ? F5Ortak.GunBasi(t) : null,
+            TarihBas = TarihBas is { } b ? F5Ortak.GunBasi(b, "tarihBas") : null,
+            TarihBit = TarihBit is { } t ? F5Ortak.GunBasi(t, "tarihBit") : null,
         };
     }
 

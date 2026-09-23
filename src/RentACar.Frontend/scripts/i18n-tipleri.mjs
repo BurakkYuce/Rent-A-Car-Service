@@ -36,6 +36,8 @@ const BLOK_HARITASI = {
   musaitlikSayfasi: 'planlama',
   rezSartlari: 'planlama',
   filoKiralama: 'planlama',
+  // F6.2a araç ekranları (liste, detaylı liste, kart + foto, detay, durum panosu, tanımlar).
+  arac: 'arac',
 };
 
 const KOK = resolve(import.meta.dirname, '..');
