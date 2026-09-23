@@ -44,4 +44,7 @@ public sealed class AracSiparisInput
     public string Doviz { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
     public string? Aciklama { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı (Idempotency-Key'den türetilmiş). Doluysa siparişin
+    /// <b>Id</b>'si olur: aynı anahtarla ikinci oluşturma PK'ye çarpar → 409 <c>mukerrer</c>. Güncellemede yok sayılır.</summary>
+    public Guid? IslemAnahtari { get; set; }
 }

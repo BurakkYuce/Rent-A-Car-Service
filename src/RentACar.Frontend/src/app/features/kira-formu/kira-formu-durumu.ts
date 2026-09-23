@@ -316,15 +316,37 @@ export class KiraFormuDurumu {
   };
 
   // ─── türetilmiş durum ──────────────────────────────────────────────────────────────────────
-  readonly kira: Signal<KiraSozlesmesi | null> = computed(() => this.detay.veri()?.kira ?? null);
+  /** L5: son BAŞARILI detay okuması (yalnız `detayGeldi` yazar). */
+  private readonly sonIyiDetay = signal<KiraDetayYaniti | null>(null);
+  /**
+   * L5: ekranın gösterdiği detay. Tazeleme sonucu belirsiz bir hatayla (5xx, ağ) biterse form ve finans paneli
+   * KAYBOLMAZ — son iyi veriyle kalır, üstte hata bandı (`tazelemeHatasi`) çıkar. Kesin hatalarda (404 silinmiş,
+   * 403 kapsam dışı) eski veri gösterilmez: kayıt yoktur ya da artık görülemez.
+   */
+  readonly gorunenDetay: Signal<KiraDetayYaniti | null> = computed(() => {
+    const v = this.detay.veri();
+    if (v) return v;
+    const h = this.detay.hata();
+    // Yalnız 5xx ve ağ: kodsuz 404 istemcide `bilinmeyen` olur (silinmiş kayıt) — o eski veriyle GÖSTERİLMEZ.
+    return h && (h.kod === 'sunucu' || h.kod === 'ag') ? this.sonIyiDetay() : null;
+  });
+  /** L5 bandı: tazeleme belirsiz hatayla bitti ama ekran son iyi veriyle duruyor. */
+  readonly tazelemeHatasi = computed(() =>
+    this.detay.tur() === 'hata' && this.gorunenDetay() !== null
+      ? (this.detay.hata() ?? null)
+      : null,
+  );
+  readonly kira: Signal<KiraSozlesmesi | null> = computed(() => this.gorunenDetay()?.kira ?? null);
   /** Oturumun etkin izni (seçim/varsayılan uçları bunu ister); kayıtta asıl kapı sunucuda. */
   private readonly owIzni = this.oturum.izinVar('OperationsWrite');
   readonly operasyon = computed(() =>
-    this.yeni ? this.owIzni : (this.detay.veri()?.yetkiler.operasyon ?? this.owIzni),
+    this.yeni ? this.owIzni : (this.gorunenDetay()?.yetkiler.operasyon ?? this.owIzni),
   );
-  readonly silme = computed(() => this.detay.veri()?.yetkiler.silme ?? false);
+  readonly silme = computed(() => this.gorunenDetay()?.yetkiler.silme ?? false);
   readonly finans = computed(() =>
-    this.yeni ? this.oturum.izinVar('FinanceWrite') : (this.detay.veri()?.yetkiler.finans ?? false),
+    this.yeni
+      ? this.oturum.izinVar('FinanceWrite')
+      : (this.gorunenDetay()?.yetkiler.finans ?? false),
   );
   /** Risk onayı yalnız Yönetici/Admin (servis rolü AYRICA doğrular) — Blazor `AuthorizeView Roles`. */
   readonly riskOnayGorunur = computed(() => {
@@ -346,8 +368,13 @@ export class KiraFormuDurumu {
    * değiştirme onları geri alırdı — birleştirme detay yenilemesinde yapılır.
    */
   readonly kayitTazeleniyor = computed(() => !this.yeni && this.detay.yukleniyor());
+  /** L5: tazeleme başarısızken de Kaydet PASİF — ekrandaki veri (sürüm dahil) bayat olabilir; bant "yeniden dene" der. */
   readonly kaydedilebilir = computed(
-    () => this.operasyon() && !this.iptal() && !this.kayitTazeleniyor(),
+    () =>
+      this.operasyon() &&
+      !this.iptal() &&
+      !this.kayitTazeleniyor() &&
+      this.tazelemeHatasi() === null,
   );
 
   // Sabit seçenek listeleri (sunucudan; kayıtlı eski değer listede yoksa eklenir — kaybolmaz).
@@ -678,6 +705,7 @@ export class KiraFormuDurumu {
       const d = this.detay.veri();
       if (!d) return;
       untracked(() => {
+        if (this.detay.tur() === 'hazir') this.sonIyiDetay.set(d);
         this.detayGeldi(d, ilk);
         ilk = false;
       });
@@ -686,6 +714,14 @@ export class KiraFormuDurumu {
     // gönderim olmasın).
     effect(() => {
       if (this.detay.tur() === 'hata') this.otomatikYeniden = null;
+    });
+    // L5 (#280 KVKK L-3): a definitive error (403/401 with a code, 404 without one) drops the last good detail
+    // for good — otherwise a later 5xx/network failure would bring stale customer/vehicle/finance data back.
+    effect(() => {
+      const error = this.detay.hata();
+      if (error && error.kod !== 'sunucu' && error.kod !== 'ag') {
+        untracked(() => this.sonIyiDetay.set(null));
+      }
     });
     effect(() => {
       const v = this.varsayilanlar.veri();

@@ -1,0 +1,28 @@
+.kart {
+  min-width: 0;
+}
+
+.alan {
+  display: contents;
+}
+
+.alan--genis {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.yan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.yan__baslik {
+  margin: var(--rc-bosluk-2) 0 0;
+  font-size: var(--rc-yazi-sm);
+}
+
+section > .aciklama {
+  margin-block-end: var(--rc-bosluk-2);
+}

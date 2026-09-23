@@ -28,8 +28,28 @@ internal static class F5Ortak
 
     public static DateTimeOffset? Utc(DateTimeOffset? an) => an?.ToUniversalTime();
 
-    /// <summary>Takvim gününün İstanbul gece yarısı, UTC olarak (kira listesi süzgeciyle aynı kural).</summary>
-    public static DateTimeOffset GunBasi(DateOnly gun)
+    /// <summary>Sorgu tarihlerinde kabul edilen yıl aralığı (0001-01-01 gibi uç değerler 500 yerine 400 alan hatası).</summary>
+    public const int MinQueryYear = 1900, MaxQueryYear = 2100;
+
+    /// <summary>
+    /// Takvim gününün İstanbul gece yarısı, UTC olarak (kira listesi süzgeciyle aynı kural). Yıl
+    /// <see cref="MinQueryYear"/>…<see cref="MaxQueryYear"/> dışındaysa 400 <c>errors[field]</c> (#278 L1: 0001-01-01
+    /// offset çevriminde taşıp 500 veriyordu).
+    /// </summary>
+    public static DateTimeOffset GunBasi(DateOnly gun, string field = "tarih")
+    {
+        EnsureQueryYear(gun, field);
+        return DayStartUtc(gun);
+    }
+
+    private static void EnsureQueryYear(DateOnly gun, string field)
+    {
+        if (gun.Year is < MinQueryYear or > MaxQueryYear)
+            throw new ValidationException($"Tarih {MinQueryYear} ile {MaxQueryYear} yılları arasında olmalıdır.", field);
+    }
+
+    /// <summary>Doğrulamasız gün başı — yalnız aralığı ÖNCEDEN doğrulanmış günün komşusu için (ör. bitiş + 1 gün).</summary>
+    internal static DateTimeOffset DayStartUtc(DateOnly gun)
     {
         var yerel = gun.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
         return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
@@ -48,16 +68,22 @@ internal static class F5Ortak
     }
 
     /// <summary>Takvim günü aralığı: [gün başı, ertesi gün başı − 1 µs] (üst sınır GÜN DAHİL; repo &lt;= uygular).</summary>
-    public static (DateTimeOffset? Min, DateTimeOffset? Max) GunAraligi(DateOnly? min, DateOnly? max)
-        => (min is { } a ? GunBasi(a) : null, max is { } b ? GunBasi(b.AddDays(1)).AddMicroseconds(-1) : null);
+    public static (DateTimeOffset? Min, DateTimeOffset? Max) GunAraligi(
+        DateOnly? min, DateOnly? max, string minField = "bas", string maxField = "bit")
+    {
+        if (max is { } m) EnsureQueryYear(m, maxField);
+        return (min is { } a ? GunBasi(a, minField) : null, max is { } b ? DayStartUtc(b.AddDays(1)).AddMicroseconds(-1) : null);
+    }
 
     /// <summary>Enum ADI (büyük/küçük harf duyarsız); sayı ya da tanımsız ad 400 (sessizce "filtre yok"a düşmez).</summary>
     public static T? EnumAdi<T>(string? deger, string alan) where T : struct, Enum
     {
         if (string.IsNullOrWhiteSpace(deger)) return null;
         var d = deger.Trim();
-        if (!char.IsDigit(d[0]) && d[0] != '-' && Enum.TryParse<T>(d, ignoreCase: true, out var v) && Enum.IsDefined(v))
-            return v;
+        // Birebir ad eşleşmesi: Enum.TryParse virgüllü (flags) "Musait,Kirada" değerini de kabul ediyordu (#278 L2).
+        var exactName = Enum.GetNames<T>().FirstOrDefault(n => string.Equals(n, d, StringComparison.OrdinalIgnoreCase));
+        if (exactName is not null)
+            return Enum.Parse<T>(exactName);
         throw new ValidationException($"Geçersiz {alan} değeri. İzin verilenler: {string.Join(", ", Enum.GetNames<T>())}.", alan);
     }
 
