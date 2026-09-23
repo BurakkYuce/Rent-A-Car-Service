@@ -9,6 +9,7 @@ using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
 using RentACar.Web.Api.Panel;
+using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.TabloDuzenleri;
 
@@ -173,6 +174,11 @@ public static class UiApiExtensions
         v1.MapTabloDuzeniApi(); // F3.5
         v1.MapKiraApi();        // F4.1
         v1.MapPanelApi();       // F4.1
+        v1.MapRezervasyonApi(); // F5.1
+        v1.MapTeklifApi();      // F5.1
+        v1.MapPlanlamaApi();    // F5.1 — takvim + müsaitlik
+        v1.MapRezSartApi();     // F5.1
+        v1.MapFiloKiralamaApi(); // F5.1
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

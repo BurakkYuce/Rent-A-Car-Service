@@ -13,4 +13,14 @@ public sealed class EszamanliDegisiklikException(string mesaj) : ValidationExcep
 {
     public const string KiraMesaji =
         "Kira başka bir oturumda değişti; güncel hâli yüklendi, değişikliklerinizi kontrol edip yeniden kaydedin.";
+
+    /// <summary>F5.1 — kira dışı tam değiştirme uçları (rezervasyon, rez şartı, filo kiralama künyesi).</summary>
+    public const string KayitMesaji =
+        "Kayıt başka bir oturumda değişti; güncel hâli yüklendi, değişikliklerinizi kontrol edip yeniden kaydedin.";
+
+    /// <summary>F5.1 adversarial H1 — zaten kabul edilmiş teklife ikinci kabul (eşzamanlı ya da yanıtı kaybolan
+    /// tekrar): 409 <c>cakisma</c>, ikinci rezervasyon AÇILMAZ; SPA teklifi yeniden yükler (ilk kabulün rezervasyonu
+    /// detayda görünür).</summary>
+    public const string TeklifKabulMesaji =
+        "Teklif zaten kabul edildi ve rezervasyona çevrildi; ikinci rezervasyon açılmadı.";
 }

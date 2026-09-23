@@ -74,8 +74,9 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
         var cariIdler = son.Select(x => x.MusteriId).Distinct().ToList();
         var cariler = await db.Customers.AsNoTracking()
             .Where(c => cariIdler.Contains(c.Id))
-            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad })
+            .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.AnonimAd })
             .ToListAsync(ct);
+        var anonim = cariler.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet(); // F5.1 (KVKK bayrağı)
         var adlar = cariler.ToDictionary(
             c => c.Id,
             c => c.Tip == RentACar.Domain.Enums.CariType.Kurumsal
@@ -83,7 +84,7 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
                 : $"{c.Ad} {c.Soyad}".Trim());
 
         return son
-            .Select(x => new SonKullanimRow(x.VehicleId, x.Bit, adlar.GetValueOrDefault(x.MusteriId)))
+            .Select(x => new SonKullanimRow(x.VehicleId, x.Bit, adlar.GetValueOrDefault(x.MusteriId), anonim.Contains(x.MusteriId)))
             .ToList();
     }
 }

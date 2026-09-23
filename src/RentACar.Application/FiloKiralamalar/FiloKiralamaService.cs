@@ -23,6 +23,40 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
     public Task<FiloKiralama?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
+    // ------------------------------------------------------------ F5.1 adversarial M3 — şube kapsamı
+    // Sözleşmenin kendi şube alanı yok; kapsam ARACIN şubesinden (Vehicle.SubeId/Sube) türetilir — BranchScope TEK
+    // kuralı (FK iki tarafta doluysa FK, aksi metin). /api/ui yüzeyi bu yolları kullanır; Blazor yolları değişmedi.
+
+    /// <summary>Liste, çağıranın şube kapsamıyla süzülür (operatör yalnız kendi şubesinin araçlarının sözleşmeleri).</summary>
+    public Task<IReadOnlyList<FiloKiralama>> ListKapsamliAsync(FiloKiralamaFilter filter, CancellationToken ct = default)
+    {
+        filter.Kapsam = BranchScope.EffectiveFilter(_currentUser);
+        return _repository.ListAsync(filter, ct);
+    }
+
+    /// <summary>Tekil kayıt: bulunamazsa null; başka şubenin aracına aitse 403 <c>yetki_yok</c> — durum/içerikten ÖNCE.</summary>
+    public async Task<FiloKiralama?> GetKapsamliAsync(Guid id, CancellationToken ct = default)
+    {
+        var k = await _repository.FindAsync(id, ct);
+        if (k is not null) await AracKapsamiAsync(k.VehicleId, ct);
+        return k;
+    }
+
+    /// <summary>Araç şube kapsamı guard'ı. Araç bulunamazsa (silinmiş) kapsamlı kullanıcı için red (şubesi bilinemez).</summary>
+    public async Task AracKapsamiAsync(Guid vehicleId, CancellationToken ct = default)
+    {
+        var sube = await _repository.AracSubesiAsync(vehicleId, ct);
+        BranchScope.RequireInScope(_currentUser, sube?.SubeId, sube?.Sube);
+    }
+
+    /// <summary>Oluşturma, araç kapsamı GİRİŞ NOKTASINDA denetlenerek (başka şubenin aracına sözleşme açılamaz).</summary>
+    public async Task<Guid> CreateKapsamliAsync(FiloKiralamaInput input, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (input.VehicleId != Guid.Empty) await AracKapsamiAsync(input.VehicleId, ct);
+        return await CreateAsync(input, ct);
+    }
+
     public async Task<Guid> CreateAsync(FiloKiralamaInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
@@ -33,12 +67,17 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         if (input.KdvOrani is < 0m or > 1m) throw new ValidationException("KDV oranı 0-1 arası kesir olmalıdır.");
         if (input.Kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
         if (input.DamgaVergisi is < 0m) throw new ValidationException("Damga vergisi negatif olamaz.");
+        // F5.1 adversarial M2: tarih sınırları (taksit planı AddMonths taşması → tüm liste 500).
+        var basTar = input.BasTar ?? DateTimeOffset.UtcNow;
+        TarihPolitikasi.FiloBaslangic(basTar);
+        TarihPolitikasi.BelgeTarihi(input.SozlesmeTarihi, "sozlesmeTarihi", "Sözleşme tarihi");
+        TarihPolitikasi.BelgeTarihi(input.ImzaTarih, "imzaTarih", "İmza tarihi");
 
         var row = new FiloKiralama
         {
             MusteriId = input.MusteriId,
             VehicleId = input.VehicleId,
-            BasTar = input.BasTar ?? DateTimeOffset.UtcNow,
+            BasTar = basTar,
             SureAy = input.SureAy,
             AylikUcret = input.AylikUcret,
             KdvOrani = input.KdvOrani,
@@ -71,7 +110,12 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
     /// BULUNMAZ → taksit planı bu yoldan sessizce değiştirilemez (RentalUpdateInput deseni).
     /// İptal edilmiş sözleşme düzenlenemez: kapanmış bir belgenin künyesini değiştirmek geçmişi bozar.
     /// </summary>
-    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+    public Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+        => UpdateMetaAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F5.1 — <paramref name="beklenenSurum"/> doluysa satır kilidi altında sürüm karşılaştırmalı künye
+    /// güncellemesi; kilit ALTINDA "iptal edilmiş sözleşme düzenlenemez" yeniden denetlenir. null → Blazor yolu.</summary>
+    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.VadeGun is < 0) throw new ValidationException("Vade günü negatif olamaz.");
@@ -79,14 +123,18 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         if (input.ToplamKmLimiti is < 0) throw new ValidationException("KM limiti negatif olamaz.");
         if (input.CikisKm is { } c && input.ToplamKm is { } t && t < c)
             throw new ValidationException("Toplam KM, çıkış KM'sinden küçük olamaz.");
+        TarihPolitikasi.BelgeTarihi(input.SozlesmeTarihi, "sozlesmeTarihi", "Sözleşme tarihi");
+        TarihPolitikasi.BelgeTarihi(input.ImzaTarih, "imzaTarih", "İmza tarihi");
 
         var mevcut = await _repository.FindAsync(id, ct)
             ?? throw new ValidationException("Sözleşme bulunamadı.");
         if (mevcut.Durum == FiloKiraDurum.Iptal)
             throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
 
-        return await _repository.UpdateAsync(id, row =>
+        void Uygula(FiloKiralama row)
         {
+            if (beklenenSurum is not null && row.Durum == FiloKiraDurum.Iptal) // kilit altında (yarış penceresi)
+                throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
             row.SatisTemsilcisi = Metin(input.SatisTemsilcisi);
             row.FaturaTuru = Metin(input.FaturaTuru);
             row.SozlesmeTarihi = input.SozlesmeTarihi;
@@ -102,7 +150,11 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
             row.ToplamKmLimiti = input.ToplamKmLimiti;
             row.Aciklama = Metin(input.Aciklama);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+
+        return beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
     }
 
     private static string? Metin(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -133,13 +185,18 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         {
             var net = Round(k.AylikUcret);
             var kdv = Round(k.AylikUcret * k.KdvOrani);
-            taksitler.Add(new FiloKiraTaksit(i + 1, k.BasTar.AddMonths(i), net, kdv, net + kdv));
+            taksitler.Add(new FiloKiraTaksit(i + 1, Vade(k.BasTar, i), net, kdv, net + kdv));
         }
         var toplamNet = taksitler.Sum(t => t.Net);
         var toplamKdv = taksitler.Sum(t => t.Kdv);
         var damga = k.DamgaVergisi ?? 0m;
         return new FiloKiraOzet(toplamNet, toplamKdv, damga, toplamNet + toplamKdv + damga, taksitler);
     }
+
+    /// <summary>F5.1 adversarial M2 — savunmacı vade: sınırdan önce yazılmış bozuk bir satır (ör. BasTar 9999) takvim
+    /// taşmasında tüm listeyi 500'e düşürmesin; taşan vade takvimin son anına kırpılır (tutarlar etkilenmez).</summary>
+    private static DateTimeOffset Vade(DateTimeOffset bas, int ay)
+        => bas <= DateTimeOffset.MaxValue.AddMonths(-ay) ? bas.AddMonths(ay) : DateTimeOffset.MaxValue;
 
     private static decimal Round(decimal x) => Math.Round(x, 2, MidpointRounding.AwayFromZero);
 }
