@@ -44,6 +44,14 @@ public class RentalAddOn : ITenantOwned, IAuditable
     /// </summary>
     public Guid? PersonelId { get; set; }
 
+    /// <summary>
+    /// Low temizliği B — çift gönderim çiti: <c>/api/ui</c> ek hizmet ekleme ucunun <c>Idempotency-Key</c>
+    /// başlığından türetilen anahtar (UUIDv5(tenant|user|başlık)). Kısmi unique index
+    /// <c>(TenantId, IslemAnahtari) WHERE IslemAnahtari IS NOT NULL</c>. Blazor ve sistem (SYS-*) kalemleri
+    /// anahtarsızdır (null) — davranışları değişmez.
+    /// </summary>
+    public Guid? IslemAnahtari { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

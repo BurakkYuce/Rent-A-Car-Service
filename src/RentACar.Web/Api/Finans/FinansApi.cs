@@ -323,7 +323,9 @@ public static class FinansApi
             Hesap = hesapTuru,
             HesapId = hesapId,
             Kanal = kanal,           // boş → servis "Masaüstü"
-            Tarih = tarih,           // boş → servis "şimdi"
+            // boş → servis "şimdi". Low-B: DB'ye giden DateTimeOffset UTC olmalı (DEVIR §5) — "+03:00" ofsetli tarih
+            // Npgsql timestamptz yazımında 500 veriyordu (ofset≠0 reddi). Anı değiştirmez, yalnız ofseti 0 yapar.
+            Tarih = tarih?.ToUniversalTime(),
         }, kira);
     }
 

@@ -479,7 +479,8 @@ public static class KiraApi
         try
         {
             return TypedResults.Ok(await hesap.HesaplaAsync(new KiraHesapIstek(
-                VehicleId: vehicleId, BasTar: basTar, BitTar: bitTar, GunlukUcret: gunlukUcret,
+                // Low-B: oluşturma ucu UTC'ye çevirdiği için önizleme de AYNI anı UTC ile hesaplar (önizleme == kayıt).
+                VehicleId: vehicleId, BasTar: basTar.ToUniversalTime(), BitTar: bitTar.ToUniversalTime(), GunlukUcret: gunlukUcret,
                 FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
                 MusteriId: musteriId, KampanyaKodu: kampanyaKodu, IkinciSurucuId: ikinciSurucuId,
                 DonusOfisi: donusOfisi, DropUcreti: dropUcreti,
@@ -515,7 +516,7 @@ public static class KiraApi
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
         if (donusYakit is < 0 or > FormYakitEnFazla) // nazik önizleme sözleşmesi: ok:false (Blazor ile aynı)
             return TypedResults.Ok(KiraDonusOnizleme.Hatali($"Dönüş yakıt 0-{FormYakitEnFazla} aralığında olmalıdır."));
-        return TypedResults.Ok(await kiralar.PreviewReturnAsync(id, donusKm, donusYakit, gercekDonus, kmHediye ?? 0, ct));
+        return TypedResults.Ok(await kiralar.PreviewReturnAsync(id, donusKm, donusYakit, gercekDonus.ToUniversalTime(), kmHediye ?? 0, ct));
     }
 
     /// <summary>Ek hizmet kataloğu üst sınırı (kira başına kalem sınırı 50; katalog makul bir tavanla kesilir).</summary>
@@ -749,10 +750,10 @@ public static class KiraApi
             Email = KiraOlusturIstegi.Nz(istek.Email),
             Il = KiraOlusturIstegi.Nz(istek.Il),
             Ilce = KiraOlusturIstegi.Nz(istek.Ilce),
-            DogumTarihi = istek.DogumTarihi,
+            DogumTarihi = istek.DogumTarihi?.ToUniversalTime(), // Low-B: DB'ye UTC
             EhliyetNo = KiraOlusturIstegi.Nz(istek.EhliyetNo),
             EhliyetSinifi = KiraOlusturIstegi.Nz(istek.EhliyetSinifi),
-            EhliyetTarihi = istek.EhliyetTarihi,
+            EhliyetTarihi = istek.EhliyetTarihi?.ToUniversalTime(),
             EhliyetYeri = KiraOlusturIstegi.Nz(istek.EhliyetYeri),
         }, ct);
         return TypedResults.Ok(new MusteriHizliYaniti(id, unvan ?? $"{ad} {soyad}".Trim()));
@@ -785,7 +786,7 @@ public static class KiraApi
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
         if (!await kiralar.ReturnAsync(id, Zorunlu(istek.DonusKm, "donusKm", "Dönüş KM"),
-                Yakit(istek.DonusYakit, "donusYakit", "Dönüş yakıt"), Zorunlu(istek.GercekDonus, "gercekDonus", "Gerçek dönüş tarihi"),
+                Yakit(istek.DonusYakit, "donusYakit", "Dönüş yakıt"), Zorunlu(istek.GercekDonus, "gercekDonus", "Gerçek dönüş tarihi").ToUniversalTime(), // Low-B: DB'ye UTC
                 istek.KmHediye ?? 0, istek.BitisSebebi, istek.TeslimAlanPersonelId, ct))
             return Bulunamadi();
         return await Guncel(kiralar, depo, id, ct);
@@ -795,7 +796,8 @@ public static class KiraApi
         Guid id, UzatIstegi istek, RentalService kiralar, IBookingRepository depo, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        if (!await kiralar.ExtendAsync(id, Zorunlu(istek.YeniBitTar, "yeniBitTar", "Yeni bitiş tarihi"), ct)) return Bulunamadi();
+        if (!await kiralar.ExtendAsync(id, Zorunlu(istek.YeniBitTar, "yeniBitTar", "Yeni bitiş tarihi").ToUniversalTime(), ct)) // Low-B: DB'ye UTC
+            return Bulunamadi();
         return await Guncel(kiralar, depo, id, ct);
     }
 
@@ -839,12 +841,20 @@ public static class KiraApi
         return TypedResults.Ok(new KiraEkHizmetYaniti(kalemler, KiraSozlesmesiDto.From(c, surum)));
     }
 
+    /// <summary>
+    /// Low-B: <c>Idempotency-Key</c> ZORUNLU (kira tutarını değiştiren para yüzeyi; anahtarsız çift gönderim iki
+    /// kalem yazıyordu). Anahtar UUIDv5(tenant|user|başlık); aynı anahtarla ikinci istek 409 <c>mukerrer</c> +
+    /// <c>mevcut</c> (bu kiranın kalemiyse; <c>ayniIcerik</c> tanım + miktar). Sıra: kapsam → anahtar → iş kuralları.
+    /// </summary>
     private static async Task<Results<Ok<KiraEkHizmetYaniti>, ProblemHttpResult>> EkHizmetEkle(
-        Guid id, EkHizmetEkleIstegi istek, RentalService kiralar, IBookingRepository depo, RentalAddOnService ekler, CancellationToken ct)
+        Guid id, EkHizmetEkleIstegi istek, HttpContext http, RentalService kiralar, IBookingRepository depo,
+        RentalAddOnService ekler, CancellationToken ct)
     {
         if (await KapsamliAsync(kiralar, id, ct) is null) return Bulunamadi();
-        await ekler.AddAsync(id, Zorunlu(istek.EkHizmetTanimId, "ekHizmetTanimId", "Ek hizmet"),
-            Zorunlu(istek.Miktar, "miktar", "Miktar"), ct: ct);
+        var tanim = Zorunlu(istek.EkHizmetTanimId, "ekHizmetTanimId", "Ek hizmet");
+        var miktar = Zorunlu(istek.Miktar, "miktar", "Miktar");
+        var anahtar = RentACar.Web.Common.IdempotencyBasligi.ZorunluAnahtar(http);
+        await ekler.AddAsync(id, tanim, miktar, ct: ct, islemAnahtari: anahtar);
         return await EkHizmetYaniti(kiralar, depo, ekler, id, ct);
     }
 

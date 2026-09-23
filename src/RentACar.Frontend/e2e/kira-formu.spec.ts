@@ -188,6 +188,7 @@ test('kayıtlı kira: PUT 58 alanın hepsini + sürümü taşır; ek hizmet çif
 }) => {
   const putlar: Record<string, unknown>[] = [];
   let ekHizmetIstegi = 0;
+  const ekHizmetAnahtarlari: string[] = [];
   await sahteKiraApi(page, {
     yazma: async (route, istek) => {
       if (istek.method() === 'PUT') {
@@ -196,6 +197,7 @@ test('kayıtlı kira: PUT 58 alanın hepsini + sürümü taşır; ek hizmet çif
       }
       if (istek.url().endsWith('/ek-hizmetler')) {
         ekHizmetIstegi++;
+        ekHizmetAnahtarlari.push(istek.headers()['idempotency-key'] ?? '');
         await new Promise((r) => setTimeout(r, 400)); // istek sürerken ikinci tık
         return route.fulfill({ json: { kalemler: [], kira: KIRA } });
       }
@@ -227,6 +229,8 @@ test('kayıtlı kira: PUT 58 alanın hepsini + sürümü taşır; ek hizmet çif
   await ekle.getByRole('button', { name: 'Ekle' }).dblclick();
   await expect(page.getByRole('status').filter({ hasText: 'Ek hizmet eklendi.' })).toBeVisible();
   expect(ekHizmetIstegi).toBe(1);
+  // Low-B: sunucu Idempotency-Key ister (16–128 görünür ASCII); çift gönderim ikinci kalem yazamaz.
+  expect(ekHizmetAnahtarlari[0]?.length ?? 0).toBeGreaterThanOrEqual(16);
 });
 
 test('sözleşme linki: oluştur → adres kendi kökünden; yeni sürüm onay ister', async ({ page }) => {
