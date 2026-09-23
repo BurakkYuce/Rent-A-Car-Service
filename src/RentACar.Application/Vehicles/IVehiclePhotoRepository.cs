@@ -26,8 +26,9 @@ public interface IVehiclePhotoRepository
     Task<HashSet<Guid>> ListVehicleIdsWithPhotoAsync(IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
 
     /// <summary><paramref name="photo"/>.Sira YOK SAYILIR — mevcut max+1 repo içinde hesaplanır (boş
-    /// koleksiyonda patlamaması için nullable-cast Max).</summary>
-    Task AddAsync(VehiclePhoto photo, CancellationToken ct = default);
+    /// koleksiyonda patlamaması için nullable-cast Max). Araç satırı kilitlenir; <paramref name="maxPhotos"/> sayımı
+    /// KİLİT ALTINDA yapılır (eşzamanlı yüklemede sıra tekrarı ve sınır aşımı yok). Sınır doluysa false döner.</summary>
+    Task<bool> AddAsync(VehiclePhoto photo, int maxPhotos, CancellationToken ct = default);
 
     Task<bool> DeleteAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default);
 

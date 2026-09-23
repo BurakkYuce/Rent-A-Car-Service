@@ -196,6 +196,8 @@ public sealed class VehicleService(
         var t = tarih ?? DateTimeOffset.UtcNow;
         if (t > DateTimeOffset.UtcNow.AddMinutes(5))
             throw new ValidationException("KM tarihi gelecekte olamaz.");
+        if (t < MinReasonableDate)
+            throw new ValidationException("KM tarihi 01.01.1950'den önce olamaz.");
         if (!await _repository.ManuelKmEkleAsync(id, km, t, ct))
             throw new ValidationException("Araç bulunamadı.");
         _cache.Invalidate(CacheKey); // Km listede görünür — bayat kalmasın
@@ -222,9 +224,47 @@ public sealed class VehicleService(
             throw new ValidationException("Alım bedeli negatif olamaz.");
         if (input.IkinciElDeger is < 0m)
             throw new ValidationException("İkinci el değeri negatif olamaz.");
+        // #278 L4 — vergi/maliyet/kur alanlarında negatif değer anlamsız (karne/maliyet hesaplarını bozar).
+        foreach (var (value, label) in NonNegativeAmounts(input))
+            if (value is < 0m)
+                throw new ValidationException($"{label} negatif olamaz.");
+        // #278 L4 — tarihler makul aralıkta: 1950-01-01 … bugün + 30 yıl (typo'lu yıl 0026/20266 kayda girmesin).
+        foreach (var (value, label) in DateFields(input))
+            EnsureReasonableDate(value, label);
         // PR-11: üst sınır, "12" yerine "1200" yazan bir typo'nun vitrinde "1200 araç" basmasını önler.
         if (input.VitrinAdet is < 1 or > 999)
             throw new ValidationException("Vitrin adedi 1 ile 999 arasında olmalıdır (boş = 1).");
+    }
+
+    private static (decimal? Value, string Label)[] NonNegativeAmounts(VehicleInput i) =>
+    [
+        (i.AlisVergisiz, "Alış vergisiz tutarı"), (i.AlisOtv, "Alış ÖTV"), (i.AlisKdv, "Alış KDV"),
+        (i.AylikMaliyet, "Aylık maliyet"), (i.FiloYonetimMaliyeti, "Filo yönetim maliyeti"), (i.KiraFiyat, "Kira fiyatı"),
+        (i.TsbKaskoDegeri, "TSB kasko değeri"), (i.AlisEuroFiyat, "Alış EUR fiyatı"), (i.SatisEuroFiyat, "Satış EUR fiyatı"),
+        (i.AlimBedeliKur, "Alım bedeli kuru"), (i.Arac2FiyatKur, "Araç 2. fiyat kuru"), (i.SimdiKur, "Şimdiki kur"),
+        (i.AylikMaliyetDoviz, "Döviz aylık maliyet"),
+    ];
+
+    private static (DateTimeOffset? Value, string Label)[] DateFields(VehicleInput i) =>
+    [
+        (i.TescilTarihi, "Tescil tarihi"), (i.AlimTarihi, "Alım tarihi"), (i.FiloGirisTarih, "Filo giriş tarihi"),
+        (i.FiloCikisTarih, "Filo çıkış tarihi"), (i.SonTeslimTarihi, "Son teslim tarihi"), (i.KiraBitTar, "Kira bitiş tarihi"),
+        (i.KiraBekTar, "Kira beklenen tarihi"), (i.SonBakimTarih, "Son bakım tarihi"), (i.KapatmaTarih, "Kapatma tarihi"),
+        (i.CikmasiPlananTarih, "Çıkması planlanan tarih"),
+    ];
+
+    /// <summary>Araç tarihlerinin makul alt sınırı (model yılı alt sınırıyla aynı).</summary>
+    public static readonly DateTimeOffset MinReasonableDate = new(1950, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    /// <summary>Makul üst sınır: bugünden 30 yıl sonrası.</summary>
+    public const int MaxYearsAhead = 30;
+
+    private static void EnsureReasonableDate(DateTimeOffset? value, string label)
+    {
+        if (value is not { } d) return;
+        var max = DateTimeOffset.UtcNow.AddYears(MaxYearsAhead);
+        if (d < MinReasonableDate || d > max)
+            throw new ValidationException($"{label} 01.01.1950 ile {max.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)} arasında olmalıdır.");
     }
 
     private static string Normalize(string? plaka) => PlakaAnahtar(plaka);

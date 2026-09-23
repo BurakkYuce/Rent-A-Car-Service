@@ -92,13 +92,16 @@ public sealed class VehiclePhotoService(
 
         var thumb = ImageProcessing.TryCreateThumbnail(bytes); // başarısızsa null — upload yine de tamamlanır
 
-        await repository.AddAsync(new VehiclePhoto
+        // Yukarıdaki sayım hızlı ret içindir; bağlayıcı sınır repo'da araç satırı kilidi altında (yarış penceresi yok).
+        var added = await repository.AddAsync(new VehiclePhoto
         {
             VehicleId = vehicleId,
             Bytes = bytes,
             ContentType = ImageValidation.ContentType(kind),
             ThumbBytes = thumb
-        }, ct);
+        }, MaxPhotos, ct);
+        if (!added)
+            throw new ValidationException($"Araç başına en fazla {MaxPhotos} fotoğraf yüklenebilir.");
     }
 
     public async Task DeleteAsync(Guid vehicleId, Guid photoId, CancellationToken ct = default)
