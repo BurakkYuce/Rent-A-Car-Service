@@ -6,8 +6,24 @@ namespace RentACar.Application.Customers;
 /// <summary>Dropdown/seçim satırı — PII TAŞIMAZ (yalnız Id + görünen ad).</summary>
 public sealed record CariSecim(Guid Id, string Ad);
 
-/// <summary>F1.6 typeahead satırı — PII TAŞIMAZ (Id + görünen ad + tip). TC/telefon/e-posta/adres YOK.</summary>
-public sealed record CariSecimSatiri(Guid Id, string Ad, CariType Tip);
+/// <summary>F1.6 typeahead satırı — PII TAŞIMAZ (Id + görünen ad + tip). TC/telefon/e-posta/adres YOK.
+/// <c>AnonimAd</c>: KVKK bayrağı; <c>Ad</c> ham görünen addır, maskeyi TÜKETİCİ uygular
+/// (<see cref="CariAnonimlik.Ad"/>; Web yüzeyinde <c>MusteriGorunumu</c> aynı sabiti kullanır).</summary>
+public sealed record CariSecimSatiri(Guid Id, string Ad, CariType Tip, bool AnonimAd = false);
+
+/// <summary>
+/// KVKK <c>Customer.AnonimAd</c> görüntü kuralının Application katmanındaki TEK sabiti. Web'deki
+/// <c>Api/Kira/MusteriGorunumu.AnonimAdEtiketi</c> bu sabite bağlıdır (iki ayrı metin olamaz); Application
+/// servisleri (ör. <c>SecimService</c>) Web'e bağımlı olamadığı için sabit burada durur.
+/// </summary>
+public static class CariAnonimlik
+{
+    /// <summary>Adı anonimleştirilmiş carinin her yüzeydeki görünen adı.</summary>
+    public const string AdEtiketi = "Anonim müşteri";
+
+    /// <summary>Anonimse sabit etiket, değilse verilen ad.</summary>
+    public static string Ad(string ad, bool anonimAd) => anonimAd ? AdEtiketi : ad;
+}
 
 public interface ICustomerRepository
 {

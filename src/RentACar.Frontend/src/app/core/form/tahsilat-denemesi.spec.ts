@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import type { ApiHatasi } from '../api/api-hatasi';
 import { OturumServisi } from '../oturum/oturum-servisi';
 import {
+  TAHSILAT_DENEME_KANALI,
   TahsilatDenemeKaydi,
   TahsilatDenemesi,
   type TahsilatIcerigi,
@@ -27,6 +28,8 @@ function kur() {
   let cikis: (() => void) | undefined;
   TestBed.configureTestingModule({
     providers: [
+      // Sekme içi mantık: kanal kapalı (sekmeler arası davranış tahsilat-denemesi-sekmeler.spec.ts'te).
+      { provide: TAHSILAT_DENEME_KANALI, useValue: null },
       {
         provide: OturumServisi,
         useValue: {

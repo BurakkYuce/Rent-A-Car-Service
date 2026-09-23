@@ -207,7 +207,7 @@ import { KF_ORTAK } from './ortak';
               </tr>
             </thead>
             <tbody>
-              @for (k of d.detay.veri()?.ekHizmetler ?? []; track k.id) {
+              @for (k of d.gorunenDetay()?.ekHizmetler ?? []; track k.id) {
                 <tr>
                   <td>{{ k.ad }}</td>
                   <td class="num">{{ sayi(k.miktar) | sayi }}</td>

@@ -39,7 +39,8 @@ public static class TeklifApi
         g.MapPost("", Olustur).AlanlariEsle(YazmaKurallari);
         g.MapPost("/{id:guid}/gonder", Gonder);
         g.MapPost("/{id:guid}/reddet", Reddet);
-        g.MapPost("/{id:guid}/kabul", Kabul);
+        g.MapPost("/{id:guid}/kabul", Kabul)
+            .Produces<TeklifKabulCakismaProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         return g;
     }
 
@@ -151,11 +152,45 @@ public static class TeklifApi
         Guid id, QuotationService teklifler, ReservationService rezervasyonlar, CancellationToken ct)
     {
         if (await teklifler.GetAsync(id, ct) is null) return Bulunamadi();
-        var rezId = await teklifler.AcceptAsync(id, ct);
+        Guid rezId;
+        try
+        {
+            rezId = await teklifler.AcceptAsync(id, ct);
+        }
+        catch (EszamanliDegisiklikException ex) when (ex.Message == EszamanliDegisiklikException.TeklifKabulMesaji)
+        {
+            // #271 L3: tekrar (yanıtı kaybolan ya da eşzamanlı ikinci kabul) 409 cakisma alır; gövde ZATEN açılmış
+            // rezervasyonu söyler ki SPA kullanıcıyı ona götürsün (ikinci rezervasyon açılmaz — yapısal çit aynen).
+            // Rezervasyon kapsam dışıysa (ofisi sonradan değişmiş) kimliği de sızdırılmaz: mevcut'suz 409.
+            if (await MevcutRezervasyonAsync(id, teklifler, rezervasyonlar, ct) is { } m)
+                return UiHata.Problem(UiHata.Cakisma, ex.Message, new Dictionary<string, object?>
+                {
+                    ["rezervasyonId"] = m.Id, ["rezervasyonNo"] = m.No,
+                });
+            throw;
+        }
         var no = (await rezervasyonlar.GetAsync(rezId, ct))?.ReservationNo ?? "";
         return TypedResults.Ok(new TeklifKabulYaniti(rezId, no));
     }
+
+    private static async Task<(Guid Id, string No)?> MevcutRezervasyonAsync(
+        Guid teklifId, QuotationService teklifler, ReservationService rezervasyonlar, CancellationToken ct)
+    {
+        if ((await teklifler.GetAsync(teklifId, ct))?.ReservationId is not { } rid) return null;
+        try
+        {
+            return await rezervasyonlar.GetAsync(rid, ct) is { } r ? (r.Id, r.ReservationNo) : null;
+        }
+        catch (YetkiYokException) { return null; }
+    }
 }
+
+/// <summary>OpenAPI: <c>POST /teklifler/{id}/kabul</c> tekrarında 409 <c>cakisma</c> gövdesi — <c>mevcut</c> zaten
+/// açılmış rezervasyon (#271 L3). Yanıt gerçekte <c>UiHata.Problem(kod, detay, mevcut)</c> ile yazılır.</summary>
+public sealed record TeklifKabulCakismaProblemi(
+    string Type, string Title, int Status, string Detail, string Kod, TeklifKabulMevcut? Mevcut);
+
+public sealed record TeklifKabulMevcut(Guid RezervasyonId, string RezervasyonNo);
 
 /// <summary><c>POST /teklifler</c> — Blazor teklif formu + servis girdisinin (QuotationInput) tamamı.</summary>
 public sealed record TeklifIstegi

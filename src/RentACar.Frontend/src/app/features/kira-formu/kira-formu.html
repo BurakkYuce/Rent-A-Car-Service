@@ -38,7 +38,7 @@
   </nav>
 </header>
 
-@if (!d.yeni && d.detay.tur() === 'hata') {
+@if (!d.yeni && d.detay.tur() === 'hata' && !d.gorunenDetay()) {
   <div class="kf-kart" role="alert">
     <p>
       {{ (bulunamadi() ? 'kiraFormu.bulunamadi' : 'kiraFormu.yuklenemedi') | transloco }}
@@ -58,12 +58,21 @@
     <div class="rc-iskelet kf-iskelet"></div>
   </div>
 } @else {
+  @if (d.tazelemeHatasi(); as th) {
+    <!-- L5: tazeleme 5xx/ağ hatası — form ve finans paneli son iyi veriyle kalır. -->
+    <div class="rc-form-mesaji rc-form-mesaji--hata kf-tazeleme-hatasi" role="alert">
+      <p>{{ 'kiraFormu.tazelemeHatasi' | transloco }} {{ th.detay }}</p>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="d.yenile()">
+        {{ 'kiraFormu.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
   @if (k?.uyariAciklama; as uyari) {
     <p class="rc-form-mesaji rc-form-mesaji--uyari" role="note">
       <strong>{{ 'kiraFormu.uyari' | transloco }}</strong> {{ uyari }}
     </p>
   }
-  @if (d.detay.veri()?.doviz; as dv) {
+  @if (d.gorunenDetay()?.doviz; as dv) {
     <p class="kf-not">
       {{ dv.kod }} ·
       @if (dv.genelToplamTl !== null) {
@@ -175,7 +184,7 @@
         </section>
         <rc-kf-paylas-bari />
         <rc-kf-paylasim />
-        <rc-kira-finans-yuvasi [detay]="d.detay.veri() ?? null" (degisti)="d.yenile()" />
+        <rc-kira-finans-yuvasi [detay]="d.gorunenDetay() ?? null" (degisti)="d.yenile()" />
       </div>
     </rc-sekmeli-form>
   </div>
