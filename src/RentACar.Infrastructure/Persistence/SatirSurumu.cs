@@ -22,8 +22,18 @@ internal static class SatirSurumu
     public const string Segmentler = "Segmentler";
     public const string AracTipleri = "AracTipleri";
 
+    /// <summary>F11.1b — tanım ekranlarının (ikinci yarı) tam değiştirme PUT'ları.</summary>
+    public const string InsuranceCompanies = "SigortaSirketleri";
+    public const string KdvRates = "KdvOranlari";
+    public const string PenaltyTypes = "CezaTurleri";
+    public const string Locations = "Locations";
+    public const string Personnel = "Personeller";
+    public const string DocumentTemplates = "BelgeSablonlari";
+    public const string VehicleGroups = "AracGruplari";
+
     private static readonly HashSet<string> Tablolar =
-        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri];
+        [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri,
+         InsuranceCompanies, KdvRates, PenaltyTypes, Locations, Personnel, DocumentTemplates, VehicleGroups];
 
     private static string Dogrula(string tablo)
         => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));

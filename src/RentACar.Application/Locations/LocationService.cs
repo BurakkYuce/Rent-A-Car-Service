@@ -43,7 +43,14 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         return loc.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, LocationInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, LocationInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default) => _repository.RowVersionAsync(id, ct);
+
+    /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, LocationInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -51,11 +58,14 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
 
-        var ok = await _repository.UpdateAsync(id, loc =>
+        void ApplyAll(Location loc)
         {
             Apply(loc, n);
             loc.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        var ok = expectedVersion is null
+            ? await _repository.UpdateAsync(id, ApplyAll, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, ApplyAll, ct);
         _cache.Invalidate(CK);
         return ok;
     }

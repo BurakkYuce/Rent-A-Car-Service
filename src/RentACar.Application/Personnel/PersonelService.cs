@@ -106,7 +106,19 @@ public sealed class PersonelService(
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, PersonelInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, PersonelInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>. ManageUsers (sürüm tekil detayla birlikte döner).</summary>
+    public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        return await _repository.RowVersionAsync(id, ct);
+    }
+
+    /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.
+    /// PII (TC/maaş) BOŞ gelirse mevcut cipher korunur (tek yazma kuralı aşağıda).</summary>
+    public async Task<bool> UpdateAsync(Guid id, PersonelInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
@@ -115,14 +127,18 @@ public sealed class PersonelService(
         if (await _repository.KodExistsAsync(n.Kod!, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' sicilli personel zaten var.");
 
-        return await _repository.UpdateAsync(id, row =>
-        {
-            ApplyPlain(row, n);
-            // PII: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR.
-            if (!string.IsNullOrWhiteSpace(n.TcKimlik)) row.TcKimlikEnc = _secrets.Protect(n.TcKimlik);
-            if (n.Maas is not null) row.MaasEnc = _secrets.Protect(MaasToText(n.Maas));
-            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        return expectedVersion is null
+            ? await _repository.UpdateAsync(id, row => ApplyUpdate(row, n), ct)
+            : await _repository.UpdateAsync(id, expectedVersion, row => ApplyUpdate(row, n), ct);
+    }
+
+    private void ApplyUpdate(Personel row, PersonelInput n)
+    {
+        ApplyPlain(row, n);
+        // PII: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR.
+        if (!string.IsNullOrWhiteSpace(n.TcKimlik)) row.TcKimlikEnc = _secrets.Protect(n.TcKimlik);
+        if (n.Maas is not null) row.MaasEnc = _secrets.Protect(MaasToText(n.Maas));
+        row.UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

@@ -40,7 +40,14 @@ public sealed class KdvRateService(IKdvRateRepository repository, ICurrentUser c
         return rate.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, KdvRateInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, KdvRateInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default) => _repository.RowVersionAsync(id, ct);
+
+    /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, KdvRateInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -48,11 +55,14 @@ public sealed class KdvRateService(IKdvRateRepository repository, ICurrentUser c
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu KDV oranı zaten var.");
 
-        return await _repository.UpdateAsync(id, rate =>
+        void ApplyAll(KdvRate rate)
         {
             Apply(rate, n);
             rate.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        return expectedVersion is null
+            ? await _repository.UpdateAsync(id, ApplyAll, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, ApplyAll, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
