@@ -33,7 +33,8 @@
       }
       <a routerLink="/kiralar/yeni">{{ 'kiraFormu.baglanti.yeni' | transloco }}</a>
     }
-    <a href="/kiralar">{{ 'kiraFormu.baglanti.liste' | transloco }}</a>
+    <!-- F4.6: kira listesi artık SPA rotası (/app/kiralar) — tam sayfa dönüş yok. -->
+    <a routerLink="/kiralar">{{ 'kiraFormu.baglanti.liste' | transloco }}</a>
   </nav>
 </header>
 
@@ -174,7 +175,7 @@
         </section>
         <rc-kf-paylas-bari />
         <rc-kf-paylasim />
-        <rc-kira-finans-paneli [detay]="d.detay.veri() ?? null" (degisti)="d.yenile()" />
+        <rc-kira-finans-yuvasi [detay]="d.detay.veri() ?? null" (degisti)="d.yenile()" />
       </div>
     </rc-sekmeli-form>
   </div>

@@ -278,6 +278,7 @@ public static class KiraApi
         Guid id, HttpContext http, RentalService kiralar, CustomerService musteriler, VehicleService araclar,
         BranchService subeler, PersonelService personeller, RentalAddOnService ekler,
         SozlesmePaylasimService paylasim, KurService kurlar, IBookingRepository depo, PenaltyService cezalar,
+        CashService kasa,
         CancellationToken ct)
     {
         // F4.3 adversarial F2: sürüm alanlardan ÖNCE okunur — arada yazım olursa istemcinin sürümü alanlarından
@@ -336,6 +337,15 @@ public static class KiraApi
             .Where(p => p.Durum != CezaDurum.Iptal).Sum(p => p.Tutar);
         var toplamlar = new KiraToplamlari(kalemler.Sum(k => k.Toplam), cezaToplam);
 
+        // F4.4 sabit panel tahsilatı: deterministik anahtar SUNUCUDA (liste/pano ile aynı üretim). Yalnız
+        // FinanceWrite ve iptal olmayan kira (FinansApi iptal kiraya tahsilatı zaten reddeder).
+        TahsilatBilgisi? tahsilat = null;
+        if (yetki.Finans && c.Durum != RentalStatus.Iptal)
+        {
+            var sayilar = await kasa.GetRentalIslemSayilariAsync([c.Id], ct);
+            tahsilat = TahsilatVerisi(c.Id, c.MusteriId, c.Bakiye, c.Doviz, sayilar.GetValueOrDefault(c.Id));
+        }
+
         return TypedResults.Ok(new KiraDetayYaniti(
             KiraSozlesmesiDto.From(c, surum),
             new KiraTarafDto(c.MusteriId, MusteriGorunumu.TarafAdi(musteri)),
@@ -349,7 +359,8 @@ public static class KiraApi
             doviz,
             bar,
             yetki,
-            toplamlar));
+            toplamlar,
+            tahsilat));
     }
 
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");

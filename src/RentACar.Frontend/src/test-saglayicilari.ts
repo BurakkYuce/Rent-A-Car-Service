@@ -1,0 +1,17 @@
+/** OTOMATİK ÜRETİLDİ: scripts/i18n-tipleri.mjs. Elle düzenlemeyin. */
+import type { Provider } from '@angular/core';
+import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
+import kiraFormu from './i18n/bloklar/kira-formu.json';
+import kiralar from './i18n/bloklar/kiralar.json';
+import panel from './i18n/bloklar/panel.json';
+import vitrin from './i18n/bloklar/vitrin.json';
+
+/**
+ * Birim testleri (angular.json `test.providersFile`): bileşen/servis testleri rotadan geçmediği için tüm
+ * özellik çeviri blokları çekirdekle birlikte eşzamanlı yüklenir. Uygulama bu dosyayı İÇE AKTARMAZ; üretimde
+ * bloklar rotada `ceviriBlogu(...)` ile tembel gelir (yükleme davranışı `ceviri-blogu.spec.ts`'te).
+ */
+const saglayicilar: Provider[] = [
+  { provide: ONYUKLU_CEVIRI_BLOKLARI, useValue: [kiraFormu, kiralar, panel, vitrin] },
+];
+export default saglayicilar;

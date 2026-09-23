@@ -16,12 +16,15 @@ import {
 import { firstValueFrom, Observable, of, throwError } from 'rxjs';
 import tr from '../../../i18n/tr.json';
 import type { CeviriAnahtari } from './ceviri-anahtarlari';
+import { ONYUKLU_CEVIRI_BLOKLARI } from './onyuklu-ceviri';
 
 /**
  * i18n (Transloco). Bugün yalnız Türkçe var; anahtarlar ileride başka dil eklenebilecek şekilde
- * `src/i18n/<dil>.json`'da. Revlo HTTP ile yüklüyordu; burada `tr.json` pakete gömülür:
- * ilk çizimde anahtar yanıp sönmez, ek istek yok, CSP `connect-src` etkilenmez. Yeni dil eklenirse
- * `CEVIRILER`'e dinamik `import()` ile (ayrı parça) girer.
+ * `src/i18n/<dil>.json`'da. Revlo HTTP ile yüklüyordu; burada ÇEKİRDEK `tr.json` (kabuk/core/shared
+ * metinleri) pakete gömülür: ilk çizimde anahtar yanıp sönmez, ek istek yok, CSP `connect-src`
+ * etkilenmez. Özellik metinleri `src/i18n/bloklar/<blok>.json`'da; rota parçasıyla tembel yüklenir ve
+ * rota çözülmeden birleştirilir (`ceviriBlogu`, `ceviri-blogu.ts`). Yeni dil eklenirse `CEVIRILER`'e
+ * dinamik `import()` ile (ayrı parça) girer.
  */
 export const DILLER = ['tr'] as const;
 export type Dil = (typeof DILLER)[number];
@@ -31,9 +34,12 @@ const CEVIRILER: Readonly<Record<Dil, Translation>> = { tr };
 
 @Injectable({ providedIn: 'root' })
 export class GomuluCeviriYukleyici implements TranslocoLoader {
+  private readonly onyuklu = inject(ONYUKLU_CEVIRI_BLOKLARI);
+
   getTranslation(dil: string): Observable<Translation> {
     const ceviri = (CEVIRILER as Readonly<Record<string, Translation | undefined>>)[dil];
-    return ceviri ? of(ceviri) : throwError(() => new Error(`Çeviri dosyası yok: ${dil}`));
+    if (!ceviri) return throwError(() => new Error(`Çeviri dosyası yok: ${dil}`));
+    return of(this.onyuklu.reduce<Translation>((toplam, blok) => ({ ...toplam, ...blok }), ceviri));
   }
 }
 
@@ -63,7 +69,10 @@ export function provideCeviri(): EnvironmentProviders[] {
   ];
 }
 
-/** TS tarafında tipli çeviri: anahtar `tr.json`'da yoksa derleme hatası. Enjeksiyon bağlamında çağrılır. */
+/**
+ * TS tarafında tipli çeviri: anahtar `tr.json`'da ya da bir blokta yoksa derleme hatası. Enjeksiyon bağlamında
+ * çağrılır. Blok anahtarı yalnız o bloğu yükleyen rotanın altında çözülür (yüklenmemişse eksik anahtar davranışı).
+ */
 export function ceviriFonksiyonu(): (
   anahtar: CeviriAnahtari,
   parametreler?: Record<string, unknown>,

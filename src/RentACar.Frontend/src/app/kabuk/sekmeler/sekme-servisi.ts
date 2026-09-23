@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { NavigationEnd, Router, type Routes } from '@angular/router';
 
-import { kirliBilesenMi, ONAY_ISTEMI } from '@core/form/kaydedilmemis-degisiklik';
+import { kirliBilesenMi, ONAY_ISTEMI, terkMesaji } from '@core/form/kaydedilmemis-degisiklik';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
@@ -123,7 +123,13 @@ export class SekmeServisi {
    */
   async ayrilmaOnayi(): Promise<boolean> {
     if (!this.herhangiKirli()) return true;
-    return this.onayIstemi(this.t('form.kaydedilmemis.onay'));
+    const ozel = [
+      this.etkinBilesen,
+      ...this._sekmeler().map((s) => this.strateji.ayrikBilesen(s.anahtar)),
+    ]
+      .map((b) => terkMesaji(b))
+      .find((m) => m !== null);
+    return this.onayIstemi(ozel ?? this.t('form.kaydedilmemis.onay'));
   }
 
   /**
@@ -170,7 +176,9 @@ export class SekmeServisi {
     const sekme = liste[sira];
     if (!sekme) return;
     if (anahtar !== this.durum.etkinAnahtar()) {
-      if (this.kirliMi(anahtar) && !(await this.onayIstemi(this.t('form.kaydedilmemis.onay')))) {
+      const mesaj =
+        terkMesaji(this.strateji.ayrikBilesen(anahtar)) ?? this.t('form.kaydedilmemis.onay');
+      if (this.kirliMi(anahtar) && !(await this.onayIstemi(mesaj))) {
         return;
       }
       this.cikar(anahtar);

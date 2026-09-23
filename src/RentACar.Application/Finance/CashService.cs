@@ -79,6 +79,15 @@ public sealed class CashService(
         IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default)
         => _repository.GetRentalIslemSayilariAsync(rentalIds, ct);
 
+    /// <summary>F4.4 adversarial HIGH-1: verilen <c>IslemAnahtari</c> ile yazılmış kasa/banka işlemi (yoksa null;
+    /// kiracı RLS'i + tenant filtresi). Deterministik tahsilat anahtarının YENİDEN HESAPLANMASINDAN ÖNCE bakılır:
+    /// kaybolan yanıttan sonraki birebir tekrar "kayıt değişti" değil "zaten kaydedildi" almalı.</summary>
+    public Task<CashTransaction?> IslemAnahtariylaBulAsync(Guid islemAnahtari, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        return _repository.FindByIslemAnahtariAsync(islemAnahtari, ct);
+    }
+
     /// <summary>Tahsilat (cash in): Borç Hesap / Alacak Cari.</summary>
     public Task<Guid> CollectAsync(CashInput input, CancellationToken ct = default)
         => PostCashAsync(input, CashTransactionType.Tahsilat, ct);

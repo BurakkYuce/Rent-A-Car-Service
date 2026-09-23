@@ -289,6 +289,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/secim/kur': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KurSecimOgesi'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/secim/arac': {
     parameters: {
       query?: never;
@@ -668,44 +706,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ui/v1/secim/kur': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: {
-          q?: string;
-          limit?: number | string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['KurSecimOgesi'][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ui/v1/secim/sube': {
     parameters: {
       query?: never;
@@ -848,6 +848,15 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['FinansIslemYaniti'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
           };
         };
       };
@@ -2649,6 +2658,7 @@ export interface components {
       paylasim: null | components['schemas']['KiraPaylasimBari'];
       yetkiler: components['schemas']['KiraYetkileri'];
       toplamlar: components['schemas']['KiraToplamlari'];
+      tahsilat: null | components['schemas']['TahsilatBilgisi'];
     };
     KiraDisHizmetDto: {
       /** Format: uuid */
@@ -3317,6 +3327,24 @@ export interface components {
       rozetler: {
         [key: string]: number | string;
       };
+    };
+    MevcutIslem: {
+      /** Format: uuid */
+      id: string;
+      belgeNo: string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      ayniIcerik: boolean;
+    };
+    MukerrerProblemi: {
+      type: string;
+      title: string;
+      /** Format: int32 */
+      status: number | string;
+      detail: string;
+      kod: string;
+      mevcut: null | components['schemas']['MevcutIslem'];
     };
     MusaitAracDto: {
       /** Format: uuid */

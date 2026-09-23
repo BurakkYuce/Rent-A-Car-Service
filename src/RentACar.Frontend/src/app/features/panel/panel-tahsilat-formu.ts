@@ -7,10 +7,12 @@ import {
   OnInit,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -26,6 +28,12 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
+import {
+  TahsilatDenemeKaydi,
+  TahsilatDenemesi,
+  type TahsilatGonderimi,
+  tahsilatMukerrerBildir,
+} from '@core/form/tahsilat-denemesi';
 import type { FinansHesapOgesi, TahsilatBilgisi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
 import { invariantOndalik } from '@core/form/ondalik';
@@ -58,6 +66,9 @@ export const PANEL_TAHSILAT_KILIDI = new InjectionToken<GonderimKilidi>('PANEL_T
  * - Form bir SATIRA aittir: sayfa onu `rentalId` anahtarıyla oluşturur; başka satırın "Tahsil Et"i yeni örnek
  *   açar (tutar, hesap, hata — hiçbir durum satırlar arasında taşınmaz). Adversarial F1: aynı örnek korunduğunda
  *   A'nın tutarı B'nin kirasına yazılıyordu.
+ * - 409 `mukerrer` sınıfı/toast'u `TahsilatDenemesi` + `tahsilatMukerrerBildir` (sabit panel, kira listesiyle TEK
+ *   kural): başka işlem yazılmış (M-A) → form açık, ön-dolu tutar yeni bakiyeyle yenilenir (L-2); sonucu bilinmeyen
+ *   denemenin tutarı değiştirilmiş tekrarı (M-C) → "önceki denemeniz kaydedilmiş", tutar TEMİZLENİR, form açık.
  * - 409 `mukerrer`: otomatik yeniden gönderim YOK; `mukerrer` çıktısı panel yeniden yüklenir, form kapanır. Sunucu
  *   anahtarı yeniden hesaplar: bayat anahtar (ekran açıldıktan sonra kirada tahsilat/ters kayıt/bakiye değişti)
  *   de 409 `mukerrer` döner. Bu yüzden genel "Mükerrer işlem" bildirimi KULLANILMAZ (operatör parayı kaydedildi
@@ -86,8 +97,8 @@ export const PANEL_TAHSILAT_KILIDI = new InjectionToken<GonderimKilidi>('PANEL_T
           [etiket]="'panel.tahsilat.tutar' | transloco"
           [ipucu]="'panel.tahsilat.tutarIpucu' | transloco"
         >
-          <!-- odaktaSec: ön dolu öneri odakta (otomatik ya da Tab) tümüyle seçili; yazılan onun yerine geçer. -->
-          <rc-para-girdisi formControlName="tutar" [paraBirimi]="bilgi().doviz" odaktaSec />
+          <!-- Para girdisi varsayılanı: ön dolu öneri odakta (otomatik ya da Tab) tümüyle seçili; yazılan onun yerine geçer. -->
+          <rc-para-girdisi formControlName="tutar" [paraBirimi]="bilgi().doviz" />
         </rc-alan>
         <rc-alan [etiket]="'panel.tahsilat.hesap' | transloco">
           <rc-secim formControlName="hesap" [secenekler]="hesapTurleri" />
@@ -171,6 +182,11 @@ export class PanelTahsilatFormu implements OnInit {
   readonly tamamlandi = output();
   /** 409 `mukerrer` (çift gönderim ya da bayat anahtar): panel yeniden yüklenir; yeniden gönderim YOK. */
   readonly mukerrer = output();
+  /**
+   * 3. tur M-A: 409 + `mevcut` İÇERİĞİ FARKLI — başka bir tahsilat yazılmış, bu formun tutarı YAZILMADI. Form
+   * AÇIK KALIR (tutar korunur); sayfa paneli yeniden yükleyip satırın YENİ anahtarını forma verir.
+   */
+  readonly anahtarTazele = output();
   readonly vazgecildi = output();
 
   private static sayac = 0;
@@ -193,6 +209,10 @@ export class PanelTahsilatFormu implements OnInit {
   protected readonly gonderim = formGonderimi(
     inject(PANEL_TAHSILAT_KILIDI, { optional: true }) ?? new GonderimKilidi(),
   );
+  /** Sonucu bilinmeyen deneme izi (M-C) + L-2. */
+  private readonly deneme = new TahsilatDenemesi(inject(TahsilatDenemeKaydi));
+  /** Son gönderimin fotoğrafı (belirsiz denemeler + gönderilen içerik; M-C mesajı). */
+  private sonGonderim: TahsilatGonderimi | null = null;
   /** `sessiz` istekte genel bant/toast'a düşmeyen hatalar (yetki, çok istek, 5xx, ağ) formda. */
   private readonly ekHatalar = signal<readonly string[]>([]);
   protected readonly hatalar = computed(() => [
@@ -215,12 +235,22 @@ export class PanelTahsilatFormu implements OnInit {
   constructor() {
     const kok = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     // Adversarial F3: ön dolu tutarda imleç sonda kalınca "90" yazan kullanıcı "1250,5090" üretiyordu. Odakta tüm
-    // metni `rc-para-girdisi` `odaktaSec` seçer (otomatik odak da Tab da); fazla hane artık yuvarlanmaz, alan
+    // metni `rc-para-girdisi` (varsayılan) seçer (otomatik odak da Tab da); fazla hane artık yuvarlanmaz, alan
     // hatası olur (#260).
     afterNextRender(() => kok.querySelector<HTMLInputElement>('input')?.focus());
     // Tür değişince başka türün hesabı seçili kalmasın (sunucu da reddeder; burada sessizce temizlenir).
     this.form.controls.hesap.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       this.form.controls.hesapId.setValue(null);
+    });
+    // L-2: "YAZILMADI" (başka işlem) sonrası sayfa satırın GÜNCEL hâlini (yeni anahtar) verir; dokunulmamış ön-dolu
+    // tutar yeni bakiyeyle yenilenir, kullanıcının yazdığı tutar korunur.
+    effect(() => {
+      const b = this.bilgi();
+      untracked(() => {
+        const tutar = this.form.controls.tutar;
+        if (this.deneme.tutarYenilensinMi(b.anahtar) && tutar.pristine)
+          tutar.setValue(b.varsayilanTutar);
+      });
     });
   }
 
@@ -242,8 +272,14 @@ export class PanelTahsilatFormu implements OnInit {
     if (!this.gonderim.gonderiliyor()) this.ekHatalar.set([]);
     this.gonderim.gonder(
       this.form,
-      () =>
-        this.api.post<unknown>(
+      () => {
+        // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (kira listesiyle ortak kayıt).
+        this.sonGonderim = this.deneme.basla(bilgi.anahtar, {
+          tutar,
+          doviz: bilgi.doviz,
+          hesap: deger.hesap ?? 'Kasa',
+        });
+        return this.api.post<unknown>(
           '/api/ui/v1/finans/tahsilat',
           tahsilatGovdesi(
             bilgi,
@@ -252,10 +288,12 @@ export class PanelTahsilatFormu implements OnInit {
           ),
           // Sessiz: genel "Mükerrer işlem" toast'u yerine sunucunun detail'ı (bkz. `hataIsle`).
           { context: istekBaglami({ sessiz: true }) },
-        ),
+        );
+      },
       {
         deterministikAnahtar: bilgi.anahtar,
         basarili: () => {
+          if (this.sonGonderim) this.deneme.basarili(this.sonGonderim);
           this.toast.basari(
             this.t('panel.tahsilat.basarili', {
               tutar: paraBicimle(sayi(tutar), bilgi.doviz),
@@ -274,15 +312,34 @@ export class PanelTahsilatFormu implements OnInit {
    * yalnız `sessiz` yüzünden genel katmanın göstermediği kodlar ele alınır.
    */
   private hataIsle(hata: ApiHatasi): void {
+    const g = this.sonGonderim;
+    const tur = g ? this.deneme.hataGeldi(g, hata) : null;
+    if (g && tur !== null) {
+      // Sunucunun detail'ı (M-C dışında) AYNEN; başlık sınıfa göre. `mevcut` doluysa işlem ZATEN yazıldı; yoksa
+      // bayat anahtar: "kayıt değişti, tutarı yeniden girin" — nötr başlık, "kaydedildi" izlenimi vermez.
+      tahsilatMukerrerBildir(this.toast, this.t, tur, hata, {
+        gonderim: g,
+        bayatBaslik: this.t('panel.tahsilat.mukerrerBaslik'),
+        ek: this.t('panel.tahsilat.mukerrerYenilendi'),
+      });
+      const tutar = this.form.controls.tutar;
+      switch (tur) {
+        case 'baskaIslemYazildi':
+          // BU tutar yazılmadı → form korunur, yeni anahtar gelir; ön-dolu tutar yeni bakiyeyle yenilenir (L-2).
+          if (tutar.pristine && tutar.value !== null) this.deneme.tutarYenilemesiIste(g.anahtar);
+          this.anahtarTazele.emit();
+          return;
+        case 'oncekiDenemeKaydedilmis':
+        case 'baskaIslemDenemeYazilmadi':
+          tutar.setValue(null);
+          this.anahtarTazele.emit();
+          return;
+        default:
+          this.mukerrer.emit();
+          return;
+      }
+    }
     switch (hata.kod) {
-      case 'mukerrer':
-        // Sunucunun detail'ı AYNEN: bayat anahtarda "kayıt değişti, yeniden yükleyip tekrar deneyin", gerçek çift
-        // gönderimde "zaten kaydedilmiş". Başlık nötr — "kaydedildi" izlenimi vermez.
-        this.toast.uyari(`${hata.detay} ${this.t('panel.tahsilat.mukerrerYenilendi')}`, {
-          baslik: this.t('panel.tahsilat.mukerrerBaslik'),
-        });
-        this.mukerrer.emit();
-        return;
       case 'sunucu':
         this.ekHatalar.set([this.t('geriBildirim.sunucuHatasi')]);
         return;
