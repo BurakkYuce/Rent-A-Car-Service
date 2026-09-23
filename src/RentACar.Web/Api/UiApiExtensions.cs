@@ -10,6 +10,8 @@ using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Menu;
 using RentACar.Web.Api.Oturum;
 using RentACar.Web.Api.Panel;
+using RentACar.Web.Api.Platform;
+using RentACar.Web.Api.Rapor;
 using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.TabloDuzenleri;
@@ -49,16 +51,29 @@ public static class UiApiExtensions
         => yol.StartsWithSegments(V1 + "/oturum", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Giriş/çıkış: TenantActive bunları atlar (Blazor'daki <c>/auth</c> muafiyetinin karşılığı) —
-    /// kapalı firmanın bayat çerezini taşıyan kullanıcı başka firmaya giriş yapabilmeli, çıkış hep çalışmalı.</summary>
+    /// kapalı firmanın bayat çerezini taşıyan kullanıcı başka firmaya giriş yapabilmeli, çıkış hep çalışmalı.
+    /// F12.1: platform konsolunun giriş/çıkışı da (Blazor <c>/platform</c> muafiyetinin karşılığı).</summary>
     public static bool GirisCikisYolu(PathString yol)
         => yol.StartsWithSegments(V1 + "/oturum/giris", StringComparison.OrdinalIgnoreCase)
-           || yol.StartsWithSegments(V1 + "/oturum/cikis", StringComparison.OrdinalIgnoreCase);
+           || yol.StartsWithSegments(V1 + "/oturum/cikis", StringComparison.OrdinalIgnoreCase)
+           || yol.StartsWithSegments(PlatformPrefix + "/oturum/giris", StringComparison.OrdinalIgnoreCase)
+           || yol.StartsWithSegments(PlatformPrefix + "/oturum/cikis", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>F12.1: platform konsolu uçlarının öneki (ayrı yetki alanı — <c>PlatformAdmin</c> policy).</summary>
+    public const string PlatformPrefix = V1 + "/platform";
+
+    /// <summary>F12.1: platform konsolu API'si mi (segment sınırıyla: <c>/platformlar</c> eşleşmez). PlatformIsolation
+    /// bu yolu platform operatörüne açar; pilot kapısı uygulanmaz (platform oturumunun firması yok).</summary>
+    public static bool PlatformYolu(PathString yol)
+        => yol.StartsWithSegments(PlatformPrefix, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Pilot kapısından muaf rota: oturum (giriş yapılabilsin, "pilot değilsiniz" bandı için
-    /// <c>ben</c> okunabilsin) ve istemci hata raporu. Rota DESENİ üzerinden karar verilir.</summary>
+    /// <c>ben</c> okunabilsin), istemci hata raporu ve platform konsolu (F12.1 — firma bağlamı yok; erişimi
+    /// PlatformAdmin policy'si belirler). Rota DESENİ üzerinden karar verilir.</summary>
     public static bool PilotMuaf(string rota)
         => new PathString(rota.StartsWith('/') ? rota : "/" + rota) is var p
-           && (OturumYolu(p) || p.StartsWithSegments(V1 + "/istemci-hata", StringComparison.OrdinalIgnoreCase));
+           && (OturumYolu(p) || p.StartsWithSegments(V1 + "/istemci-hata", StringComparison.OrdinalIgnoreCase)
+               || PlatformYolu(p));
 
     /// <summary>RFC 9110 güvenli yöntemler — CSRF doğrulaması yalnız bunların DIŞINDA.</summary>
     public static bool GuvenliYontem(string yontem)
@@ -129,11 +144,14 @@ public static class UiApiExtensions
     public static Task YazAsync(HttpContext ctx, string kod, string detay)
         => UiHata.Problem(kod, detay).ExecuteAsync(ctx);
 
+    /// <summary>Bağlama hatasının (bozuk JSON, eksik gövde, çevrilemeyen parametre) tek mesajı — her ortamda aynı.</summary>
+    public const string BaglamaHatasiMesaji = "İstek gövdesi okunamadı ya da eksik.";
+
     /// <summary>İstisna → ProblemDetails. Bağlama hatası (bozuk JSON, eksik gövde) istemci hatasıdır, 500 değil.</summary>
     internal static ProblemHttpResult ProblemFor(Exception ex) => ex switch
     {
         BadHttpRequestException b when b.StatusCode == StatusCodes.Status400BadRequest
-            => UiHata.Problem(UiHata.Dogrulama, "İstek gövdesi okunamadı ya da eksik."),
+            => UiHata.Problem(UiHata.Dogrulama, BaglamaHatasiMesaji),
         BadHttpRequestException b => GenelProblem(b.StatusCode),
         _ => UiHata.Problem(ex),
     };
@@ -141,6 +159,10 @@ public static class UiApiExtensions
     /// <summary>Kod tablosunda karşılığı olmayan durumlar (404, 405, 415, 413…) — <c>kod</c>'suz ProblemDetails.</summary>
     private static ProblemHttpResult GenelProblem(int status) => status switch
     {
+        // Üretimde RouteHandlerOptions.ThrowOnBadRequest KAPALI (yalnız Development'ta açık): bağlama hatası istisna
+        // değil GÖVDESİZ 400 olarak döner. Development'taki ProblemFor ile AYNI sözleşme — SPA davranışı `kod`'a
+        // bağlı; kodsuz 400 alan hatası yerine genel hata bandına düşüyordu.
+        StatusCodes.Status400BadRequest => UiHata.Problem(UiHata.Dogrulama, BaglamaHatasiMesaji),
         StatusCodes.Status401Unauthorized => UiHata.Problem(UiHata.OturumYok, "Oturum açık değil."),
         StatusCodes.Status403Forbidden => UiHata.Problem(UiHata.YetkiYok, "Bu işlem için yetkiniz yok."),
         StatusCodes.Status429TooManyRequests => UiHata.Problem(UiHata.CokIstek, "Çok fazla istek; biraz sonra tekrar deneyin."),
@@ -150,11 +172,29 @@ public static class UiApiExtensions
     private static void Logla(HttpContext ctx, Exception ex)
     {
         var log = ctx.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RentACar.Web.Api.UiApi");
-        if (ex is BadHttpRequestException || UiHata.Esle(ex) is not null)
-            log.LogInformation(ex, "/api/ui istemci hatası: {Yol}", ctx.Request.Path);
-        else
-            log.LogError(ex, "/api/ui beklenmeyen hata: {Yol}", ctx.Request.Path);
+        switch (LogSeviyesi(ex))
+        {
+            case LogLevel.Warning:
+                log.LogWarning(ex, "/api/ui veri taşması güvenlik ağı (uç sınırı eksik): {Yol}", ctx.Request.Path);
+                break;
+            case LogLevel.Information:
+                log.LogInformation(ex, "/api/ui istemci hatası: {Yol}", ctx.Request.Path);
+                break;
+            default:
+                log.LogError(ex, "/api/ui beklenmeyen hata: {Yol}", ctx.Request.Path);
+                break;
+        }
     }
+
+    /// <summary>
+    /// Hata günlük seviyesi (SAF, public: test edilebilsin). 22001/22003 güvenlik ağı <b>Warning</b>: 400 dönse de
+    /// bir uçta sınır denetiminin EKSİK olduğunu gösterir (DEVIR §5 "uç sınırları") — Information'da kaybolmasın.
+    /// Diğer istemci hataları Information, eşlenmeyen istisna Error.
+    /// </summary>
+    public static LogLevel LogSeviyesi(Exception ex)
+        => UiHata.VeriTasmasi(ex) ? LogLevel.Warning
+            : ex is BadHttpRequestException || UiHata.Esle(ex) is not null ? LogLevel.Information
+            : LogLevel.Error;
 
     // ------------------------------------------------------------------ uçlar
 
@@ -183,6 +223,9 @@ public static class UiApiExtensions
         v1.MapFiloKiralamaApi(); // F5.1
         v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
         v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
+        AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
+        v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
+        v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
         v1.MapTanimApi();        // F11.1a — F11 tanımları (ilk yarı), genel tanım CRUD deseni
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);

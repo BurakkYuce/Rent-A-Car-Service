@@ -97,7 +97,7 @@ import type { SunucuSayisi } from '../kira-tipleri';
           <div>
             <dt>{{ 'kiraFormu.hesap.ekHizmet' | transloco }}</dt>
             <dd data-testid="kayitli-ek-hizmet">
-              {{ para(d.detay.veri()?.toplamlar?.ekHizmetToplam, k.doviz) }}
+              {{ para(d.gorunenDetay()?.toplamlar?.ekHizmetToplam, k.doviz) }}
             </dd>
           </div>
           @if (!kisa()) {

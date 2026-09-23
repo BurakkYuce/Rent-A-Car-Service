@@ -1,0 +1,248 @@
+<div class="sayfa">
+  @switch (store.detail.tur()) {
+    @case ('hata') {
+      <h1>{{ 'arac.detaySayfasi.baslik' | transloco }}</h1>
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        {{ store.detail.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.detail.yenile()">
+          {{ 'arac.yenidenDene' | transloco }}
+        </button>
+      </div>
+      <a routerLink="/araclar">{{ 'arac.detaySayfasi.listeyeDon' | transloco }}</a>
+    }
+    @default {
+      @if (detail(); as d) {
+        <header class="ust">
+          <h1>
+            {{ d.plaka }}
+            <span class="aciklama">{{ d.marka }}</span>
+          </h1>
+          <div class="ust__eylemler">
+            <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [routerLink]="['/araclar', d.id]">
+              <rc-ikon ad="edit" [boyut]="14" />
+              {{ 'arac.detaySayfasi.kart' | transloco }}
+            </a>
+            @if (canScorecard()) {
+              <a
+                class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                [href]="'/raporlar/arac-karne/' + d.id"
+              >
+                {{ 'arac.detaySayfasi.karne' | transloco }}
+              </a>
+            }
+          </div>
+        </header>
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'arac.alan.grup' | transloco }}</dt>
+            <dd>{{ d.grup }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'arac.alan.sube' | transloco }}</dt>
+            <dd>{{ d.sube }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'arac.alan.durum' | transloco }}</dt>
+            <dd>
+              <span [class]="badge(d.durum)">{{ statusLabel(d.durum) }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'arac.alan.km' | transloco }}</dt>
+            <dd>{{ num(d.km) | sayi: '1.0-0' }}</dd>
+          </div>
+        </dl>
+
+        <section class="bolum" aria-labelledby="arac-detay-kira">
+          <h2 id="arac-detay-kira">
+            {{ 'arac.detaySayfasi.kiralar' | transloco: { sayi: d.kiralar.length } }}
+          </h2>
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'arac.detaySayfasi.sozlesme' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.baslangic' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.bitis' | transloco }}</th>
+                  <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'arac.detaySayfasi.genelToplam' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of d.kiralar; track r.id) {
+                  <tr>
+                    <td>
+                      <a [routerLink]="['/kiralar', r.id]">{{ r.sozlesmeNo }}</a>
+                    </td>
+                    <td>{{ r.basTar | tarih }}</td>
+                    <td>{{ r.bitTar | tarih }}</td>
+                    <td>{{ r.durum }}</td>
+                    <td class="num">{{ num(r.genelToplam) | para }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bolum" aria-labelledby="arac-detay-servis">
+          <h2 id="arac-detay-servis">
+            {{ 'arac.detaySayfasi.servisler' | transloco: { sayi: d.servisler.length } }}
+          </h2>
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.tur' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.giris' | transloco }}</th>
+                  <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'arac.detaySayfasi.iscilik' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of d.servisler; track s.id) {
+                  <tr>
+                    <td>{{ s.no }}</td>
+                    <td>{{ s.tip }}</td>
+                    <td>{{ s.girisTarihi | tarih }}</td>
+                    <td>{{ s.durum }}</td>
+                    <td class="num">{{ num(s.toplamIscilik) | para }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bolum" aria-labelledby="arac-detay-ceza">
+          <h2 id="arac-detay-ceza">
+            {{ 'arac.detaySayfasi.cezalar' | transloco: { sayi: d.cezalar.length } }}
+          </h2>
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.tur' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.teblig' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'arac.detaySayfasi.tutar' | transloco }}</th>
+                  <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of d.cezalar; track p.id) {
+                  <tr>
+                    <td>{{ p.no }}</td>
+                    <td>{{ p.cezaTuru }}</td>
+                    <td>{{ p.tebligTarihi | tarih }}</td>
+                    <td class="num">{{ num(p.tutar) | para }}</td>
+                    <td>{{ p.durum }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bolum" aria-labelledby="arac-detay-km">
+          <h2 id="arac-detay-km">{{ 'arac.km.baslik' | transloco }}</h2>
+          @if (canWrite()) {
+            <form class="satir-form" [formGroup]="kmForm" (ngSubmit)="enterKm()">
+              <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+              <rc-alan [etiket]="'arac.km.yeni' | transloco" [ipucu]="'arac.km.ipucu' | transloco">
+                <rc-sayi-girdisi formControlName="km" />
+              </rc-alan>
+              <button
+                type="submit"
+                class="rc-dugme rc-dugme--kucuk"
+                [disabled]="submission.gonderiliyor()"
+              >
+                {{ 'arac.km.gir' | transloco }}
+              </button>
+            </form>
+          }
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'arac.km.tarih' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'arac.alan.km' | transloco }}</th>
+                  <th scope="col">{{ 'arac.km.kaynakBaslik' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (k of d.kmKayitlari; track $index) {
+                  <tr>
+                    <td>{{ k.tarih | tarihSaat }}</td>
+                    <td class="num">{{ num(k.km) | sayi: '1.0-0' }}</td>
+                    <td>{{ kmSourceKey(k.kaynak) | transloco }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bolum" aria-labelledby="arac-detay-hasar">
+          <h2 id="arac-detay-hasar">
+            {{ 'arac.detaySayfasi.hasarlar' | transloco: { sayi: d.hasarlar.length } }}
+          </h2>
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
+                  <th scope="col">{{ 'arac.detaySayfasi.acilis' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'arac.detaySayfasi.tahmini' | transloco }}</th>
+                  <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (h of d.hasarlar; track h.id) {
+                  <tr>
+                    <td>{{ h.no }}</td>
+                    <td>{{ h.acilisTarihi | tarih }}</td>
+                    <td class="num">
+                      @if (num(h.tahminiTutar) === null) {
+                        —
+                      } @else {
+                        {{ num(h.tahminiTutar) | para }}
+                      }
+                    </td>
+                    <td>{{ h.durum }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <p>
+          <a routerLink="/araclar">{{ 'arac.detaySayfasi.listeyeDon' | transloco }}</a>
+        </p>
+      } @else {
+        <p class="aciklama" role="status">{{ 'arac.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

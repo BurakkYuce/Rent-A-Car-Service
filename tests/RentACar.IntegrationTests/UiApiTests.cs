@@ -5,7 +5,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -318,6 +320,46 @@ public sealed class UiApiTests(WebFixture fx)
         Assert.Null(r.Headers.Location);
     }
 
+    /// <summary>
+    /// Low temizliği A: üretimde <c>ThrowOnBadRequest</c> KAPALI (varsayılanı yalnız Development'ta açık) — bağlama
+    /// hatası istisna değil gövdesiz 400 olur. Aynı host üretim ayarıyla kurulur; yanıt yine <c>kod: dogrulama</c>.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Bozuk_json_her_ortamda_400_kod_dogrulama(bool gelistirmeGibi)
+    {
+        await using var f = fx.Web.WithWebHostBuilder(b => b.ConfigureTestServices(s =>
+            s.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = gelistirmeGibi)));
+        var c = f.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var t = await XsrfAl(c);
+        var req = Istek(HttpMethod.Post, Giris, t);
+        req.Content = new StringContent("{bozuk", Encoding.UTF8, "application/json");
+        var r = await c.SendAsync(req);
+
+        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Equal("İstek gövdesi okunamadı ya da eksik.", (await Govde(r)).GetProperty("detail").GetString());
+    }
+
+    [Theory]
+    [InlineData("22001", LogLevel.Warning)]
+    [InlineData("22003", LogLevel.Warning)]
+    [InlineData("23505", LogLevel.Error)]   // tanınmayan DB hatası: 500 + Error (gizlenmez)
+    public void Veri_tasmasi_agi_Warning_loglanir(string sqlState, LogLevel beklenen)
+    {
+        var ex = new Microsoft.EntityFrameworkCore.DbUpdateException("x",
+            new PostgresException("taşma", "ERROR", "ERROR", sqlState));
+        Assert.Equal(beklenen, UiApiExtensions.LogSeviyesi(ex));
+    }
+
+    [Fact]
+    public void Istemci_hatasi_Information_beklenmeyen_Error()
+    {
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new RentACar.Application.Common.ValidationException("x")));
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new BadHttpRequestException("x")));
+        Assert.Equal(LogLevel.Error, UiApiExtensions.LogSeviyesi(new InvalidOperationException("x")));
+    }
+
     [Fact]
     public async Task Bilinmeyen_rota_ve_yanlis_yontem_json_html_degil()
     {
@@ -483,7 +525,42 @@ public sealed class UiApiYapisalTests(WebFixture fx)
                                           // F4.1: ana ekran her oturumun; kapılar İÇERİKTE (finans ViewReports, tahsilat
                                           // anahtarı FinanceWrite) — UiKiraPanelTests içerik kapılarını kilitler.
                                           || r == "/api/ui/v1/panel/ozet"
+                                          // F12.1: platform konsolu — firma izin matrisi yerine PlatformAdmin policy'si
+                                          // (aşağıdaki Platform_uclari_platform_policy_tasir kilitler).
+                                          || r.StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
+                                          // F11.1a: Blazor sayfaları yalnız [Authorize] — belge listesini/indirmeyi sahadaki
+                                          // her personel (muhasebe dahil) görür; firma belgelerinde yönetici bayrağı serviste.
+                                          // Yükleme/silme OperationsWrite taşır (bu listeye düşmez). UiTanimTests kilitler.
+                                          || r is "/api/ui/v1/dokumanlar" or "/api/ui/v1/dokumanlar/"
+                                          || r == "/api/ui/v1/firma-belgeleri"
+                                          // F11.1a: kullanıcının KENDİ takvim bağlantısı (oturum kullanıcısından; kimlik
+                                          // parametresi yok) — Blazor sayfası ve /takvim/yenile ucu yalnız oturum ister.
+                                          || r.StartsWith("/api/ui/v1/takvim-abonelik", StringComparison.Ordinal)
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
+    }
+
+    [Fact]
+    public void Platform_endpoints_carry_the_platform_policy_and_only_login_logout_are_anonymous()
+    {
+        // F12.1: every /api/ui/v1/platform endpoint is behind "PlatformAdmin"; the only anonymous ones are
+        // login/logout. A new platform endpoint without the policy would be reachable by any tenant user
+        // (IzinMuaf skips the tenant permission matrix) — this is the fence.
+        var platform = UiUclari().Where(e => Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(platform);
+        var anonymous = platform.Where(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is not null)
+            .Select(Rota).OrderBy(r => r, StringComparer.Ordinal).ToList();
+        Assert.Equal(new[] { "/api/ui/v1/platform/oturum/cikis", "/api/ui/v1/platform/oturum/giris" }, anonymous);
+        var missing = platform
+            .Where(e => !e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                .Any(a => a.Policy == "PlatformAdmin"))
+            .Select(Rota).ToList();
+        Assert.True(missing.Count == 0, "PlatformAdmin policy eksik: " + string.Join(", ", missing));
+        // And the policy is not used outside the platform area of the UI API.
+        var leaked = UiUclari().Where(e => !Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
+                                           && e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                                               .Any(a => a.Policy == "PlatformAdmin"))
+            .Select(Rota).ToList();
+        Assert.Empty(leaked);
     }
 
     [Fact]
@@ -517,6 +594,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     [InlineData("/api/ui/v1/kiralar", false)]
     [InlineData("/api/ui/v1/oturumlar", false)]      // segment sınırı: önek benzerliği muafiyet vermez
     [InlineData("/api/ui/v1/test/tamam", false)]
+    [InlineData("/api/ui/v1/platform/kiracilar", true)]   // F12.1: platform oturumunun firması yok
+    [InlineData("/api/ui/v1/platformx/kiracilar", false)] // segment sınırı
     public void Pilot_muafiyeti_rota_segmentine_gore(string rota, bool muaf)
         => Assert.Equal(muaf, UiApiExtensions.PilotMuaf(rota));
 

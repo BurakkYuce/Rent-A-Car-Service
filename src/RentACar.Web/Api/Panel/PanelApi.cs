@@ -106,7 +106,8 @@ public static class PanelApi
         List<PanelDonusSatiri> Donus(Func<DateOnly, bool> kosul) => acikKira
             .Where(r => kosul(TenantGun.Gun(r.BitTar)))
             .OrderBy(r => r.BitTar)
-            .Select(r => new PanelDonusSatiri(r.Id, r.SozlesmeNo, r.BitTar, r.MusteriAd, r.Plaka, r.DonusOfisi,
+            .Select(r => new PanelDonusSatiri(r.Id, r.SozlesmeNo, r.BitTar,
+                MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.DonusOfisi,
                 r.Bakiye, r.Doviz,
                 // Home.razor: finans yetkisi + bakiye > 0 (kayıtsız kira sayaç sözlüğünde yok → 0)
                 finansYazma && r.Bakiye > 0m
@@ -123,7 +124,8 @@ public static class PanelApi
         List<PanelCikisSatiri> Cikis(Func<DateOnly, bool> kosul) => acikRez
             .Where(r => kosul(TenantGun.Gun(r.Rez.BasTar)))
             .OrderBy(r => r.Rez.BasTar)
-            .Select(r => new PanelCikisSatiri(r.Rez.Id, r.Rez.ReservationNo, r.Rez.BasTar, r.MusteriAd, r.Plaka, r.Rez.CikisOfisi))
+            .Select(r => new PanelCikisSatiri(r.Rez.Id, r.Rez.ReservationNo, r.Rez.BasTar,
+                MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.Rez.CikisOfisi))
             .ToList();
         var cikisGec = Cikis(g => g < bugun);
         var cikisBugun = Cikis(g => g == bugun);
