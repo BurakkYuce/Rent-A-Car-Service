@@ -11,7 +11,7 @@ namespace RentACar.Web.Api.Menu;
 /// <see cref="MenuKaydi.KisaYollar"/> = hızlı bağlantılar).</item>
 /// <item><c>Sira</c>: menünün TAMAMINDA görüntülenme sırası (gruplar ilk öğelerinin sırasıyla dizilir).</item>
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
-/// (F4.6: Panel, Kiralar, Yeni Kira). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -61,9 +61,9 @@ public static class MenuKaydi
                 SpaBarindirmaYolu(rota) ? Spa : Blazor, izin, modul, rozet, hizli));
 
         // ---- Kısa yollar (MainLayout: Roles="Admin,Yonetici,Operator")
-        E(KisaYollar, "/rezervasyonlar", "Yeni Rezervasyon", OW, hizli: true);
+        E(KisaYollar, "/app/rezervasyonlar", "Yeni Rezervasyon", OW, hizli: true); // F5.4: spa
         E(KisaYollar, "/app/kiralar/yeni", "Yeni Kira", OW, hizli: true); // F4.6: spa
-        E(KisaYollar, "/musaitlik", "Müsaitlik-Rez Açma", OW, hizli: true);
+        E(KisaYollar, "/app/musaitlik", "Müsaitlik-Rez Açma", OW, hizli: true); // F5.4: spa
 
         E(Kok, "/app/panel", "Panel", null); // F4.6: spa
 
@@ -84,14 +84,14 @@ public static class MenuKaydi
 
         const string Kira = "Kira";
         E(Kira, "/app/kiralar", "Kiralar", OW); // F4.6: spa
-        E(Kira, "/teklifler", "Teklifler", OW);
-        E(Kira, "/filo-kiralama", "Filo Kiralama", OW);
+        E(Kira, "/app/teklifler", "Teklifler", OW); // F5.4: spa
+        E(Kira, "/app/filo-kiralama", "Filo Kiralama", OW); // F5.4: spa
 
         const string Rez = "Rezervasyon";
-        E(Rez, "/rezervasyonlar", "Rezervasyonlar", OW);
-        E(Rez, "/takvim", "Takvim", OW);
-        E(Rez, "/musaitlik", "Müsaitlik", OW);
-        E(Rez, "/rez-sartlari", "Rez Şartları", OW);
+        E(Rez, "/app/rezervasyonlar", "Rezervasyonlar", OW); // F5.4: grubun tamamı spa
+        E(Rez, "/app/takvim", "Takvim", OW);
+        E(Rez, "/app/musaitlik", "Müsaitlik", OW);
+        E(Rez, "/app/rez-sartlari", "Rez Şartları", OW);
 
         const string Cari = "Cariler & CRM";
         E(Cari, "/cariler", "Cariler", OW);

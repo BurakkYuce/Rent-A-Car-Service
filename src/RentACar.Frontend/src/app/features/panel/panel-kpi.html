@@ -12,16 +12,29 @@
       <div class="vade">
         <div class="vade__kutular">
           @for (kutu of kart.kutular; track kutu.etiket) {
-            <a
-              class="vade__kutu"
-              [class.vade__kutu--uyari]="kutu.ton === 'uyari'"
-              [class.vade__kutu--hata]="kutu.ton === 'hata'"
-              [href]="kutu.href"
-              [attr.title]="kutu.ipucu ?? null"
-            >
-              <span class="vade__sayi rc-sayi">{{ kutu.sayi | sayi }}</span>
-              <span class="vade__etiket">{{ kutu.etiket }}</span>
-            </a>
+            @if (kutu.rota) {
+              <a
+                class="vade__kutu"
+                [class.vade__kutu--uyari]="kutu.ton === 'uyari'"
+                [class.vade__kutu--hata]="kutu.ton === 'hata'"
+                [routerLink]="kutu.rota"
+                [attr.title]="kutu.ipucu ?? null"
+              >
+                <span class="vade__sayi rc-sayi">{{ kutu.sayi | sayi }}</span>
+                <span class="vade__etiket">{{ kutu.etiket }}</span>
+              </a>
+            } @else {
+              <a
+                class="vade__kutu"
+                [class.vade__kutu--uyari]="kutu.ton === 'uyari'"
+                [class.vade__kutu--hata]="kutu.ton === 'hata'"
+                [href]="kutu.href"
+                [attr.title]="kutu.ipucu ?? null"
+              >
+                <span class="vade__sayi rc-sayi">{{ kutu.sayi | sayi }}</span>
+                <span class="vade__etiket">{{ kutu.etiket }}</span>
+              </a>
+            }
           }
         </div>
         @if (kart.altBaslik) {

@@ -16,6 +16,11 @@ internal static class SatirSurumu
     public const string FiloKiralamalar = "FiloKiralamalar";
     /// <summary>F5.1 adversarial H1/L6 — teklif durum geçişleri ve kabul (rezervasyona çevirme) satır kilidi.</summary>
     public const string Teklifler = "Quotations";
+    /// <summary>F6.1a — araç kartı ve araç tanımları (sahip, segment, tip) tam değiştirme PUT'ları.</summary>
+    public const string Araclar = "Vehicles";
+    public const string AracSahipleri = "AracSahipleri";
+    public const string Segmentler = "Segmentler";
+    public const string AracTipleri = "AracTipleri";
 
     // F6.1b — araç finans/operasyon kayıtları: durum geçişleri kilit altında, tam değiştirme PUT'u sürümlü.
     public const string AracSiparisleri = "AracSiparisleri";
@@ -27,6 +32,7 @@ internal static class SatirSurumu
     private static readonly HashSet<string> Tablolar =
     [
         Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler,
+        Araclar, AracSahipleri, Segmentler, AracTipleri,
         AracSiparisleri, Baflar, HasarDosyalari, MusteriTaksitleri, FiloPlanHedefleri,
     ];
 

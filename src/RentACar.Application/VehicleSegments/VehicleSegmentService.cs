@@ -38,7 +38,14 @@ public sealed class VehicleSegmentService(IVehicleSegmentRepository repository, 
         return segment.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, VehicleSegmentInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, VehicleSegmentInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F6.1a — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+
+    /// <summary>F6.1a — <paramref name="beklenenSurum"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, VehicleSegmentInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -46,11 +53,14 @@ public sealed class VehicleSegmentService(IVehicleSegmentRepository repository, 
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu segment zaten var.");
 
-        return await _repository.UpdateAsync(id, segment =>
+        void Uygula(VehicleSegment segment)
         {
             Apply(segment, n);
             segment.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        return beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

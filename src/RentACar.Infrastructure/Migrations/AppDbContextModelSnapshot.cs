@@ -5596,6 +5596,9 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid>("EkHizmetTanimId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("IslemAnahtari")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("KdvOrani")
                         .HasColumnType("numeric(9,4)");
 
@@ -5626,6 +5629,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RentalId");
+
+                    b.HasIndex("TenantId", "IslemAnahtari")
+                        .IsUnique()
+                        .HasFilter("\"IslemAnahtari\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "RentalId");
 

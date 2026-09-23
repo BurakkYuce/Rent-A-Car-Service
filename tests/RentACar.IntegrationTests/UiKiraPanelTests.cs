@@ -141,6 +141,10 @@ public sealed class UiKiraPanelTests(WebFixture fx)
     {
         var req = new HttpRequestMessage(m, url);
         req.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
+        // Low-B: ek hizmet ekleme Idempotency-Key ister; buradaki senaryolar her gönderimi AYRI işlem sayar
+        // (mükerrer davranışı LowTemizligiBUiTests'te kilitli).
+        if (m == HttpMethod.Post && url.EndsWith("/ek-hizmetler", StringComparison.Ordinal))
+            req.Headers.Add("Idempotency-Key", "f41-" + Guid.NewGuid().ToString("N"));
         if (govde is not null) req.Content = JsonContent.Create(govde);
         return s.C.SendAsync(req);
     }
