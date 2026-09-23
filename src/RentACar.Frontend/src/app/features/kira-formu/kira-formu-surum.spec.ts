@@ -239,7 +239,9 @@ async function kur(put: (g: Record<string, unknown>, n: number) => Observable<un
   const detayHatasi = (status: number, kod?: string) => {
     const failed = detaylar;
     detaylar = new Subject<KiraDetayYaniti>();
-    failed.error(new HttpErrorResponse({ status, error: { status, kod, detail: 'Sunucu hatası' } }));
+    failed.error(
+      new HttpErrorResponse({ status, error: { status, kod, detail: 'Sunucu hatası' } }),
+    );
     TestBed.tick();
   };
   return { d, putlar, detayVer, detayHatasi, bant: TestBed.inject(UyariBandiServisi) };
