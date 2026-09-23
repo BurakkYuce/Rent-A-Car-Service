@@ -85,6 +85,28 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
         return true;
     }
 
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Location> apply, CancellationToken ct = default)
+    {
+        string? code = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Locations, id, expectedVersion,
+                (db, k, c) => db.Locations.FirstOrDefaultAsync(x => x.Id == k, c),
+                x => { apply(x); code = x.Kod; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{code}' kodlu ofis zaten var.");
+        }
+    }
+
+    public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Locations, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

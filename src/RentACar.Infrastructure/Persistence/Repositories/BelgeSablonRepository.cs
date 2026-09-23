@@ -68,6 +68,28 @@ public sealed class BelgeSablonRepository(IDbContextFactory<AppDbContext> factor
         return true;
     }
 
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Entity> apply, CancellationToken ct = default)
+    {
+        string? name = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.DocumentTemplates, id, expectedVersion,
+                (db, k, c) => db.BelgeSablonlari.FirstOrDefaultAsync(x => x.Id == k, c),
+                x => { apply(x); name = x.Ad; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{name}' adlı şablon bu belge türünde zaten var.");
+        }
+    }
+
+    public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.DocumentTemplates, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
