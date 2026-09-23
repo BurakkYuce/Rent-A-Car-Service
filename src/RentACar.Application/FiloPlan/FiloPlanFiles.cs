@@ -15,6 +15,12 @@ public interface IFiloPlanRepository
     Task CreateAsync(FiloPlanHedefi row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<FiloPlanHedefi> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır kilidi + (doluysa) xmin sürüm karşılaştırması altında güncelleme.</summary>
+    Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<FiloPlanHedefi> apply, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır sürümü (xmin); yoksa null.</summary>
+    Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>Filo plan hedefi giriş modeli.</summary>
@@ -133,9 +139,30 @@ public sealed class FiloPlanService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (delta == 0) return false;
-        return await _repository.UpdateAsync(id, r =>
+        // F6.1b: oku-değiştir-yaz satır kilidi altında — eşzamanlı iki "Artır" önce tek artış olarak kayboluyordu.
+        return await _repository.KilitliGuncelleAsync(id, null, r =>
         {
             r.HedefAdet = Math.Max(0, r.HedefAdet + delta);
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F6.1b — kayıt sürümü (xmin).</summary>
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.RequireAny(_currentUser, Permission.ViewReports, Permission.OperationsWrite);
+        return await _repository.SurumAsync(id, ct);
+    }
+
+    /// <summary>F6.1b — <see cref="UpdateAsync"/>'in sürümlü, kilitli karşılığı (/api/ui PUT; bayat → 409 cakisma).</summary>
+    public async Task<bool> UpdateSurumluAsync(Guid id, FiloPlanInput input, string surum, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        return await _repository.KilitliGuncelleAsync(id, surum, r =>
+        {
+            r.AracGrupAdi = n.Grup; r.Sipp = n.Sipp; r.Donem = n.Donem;
+            r.HedefAdet = input.HedefAdet; r.Aciklama = n.Aciklama;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }

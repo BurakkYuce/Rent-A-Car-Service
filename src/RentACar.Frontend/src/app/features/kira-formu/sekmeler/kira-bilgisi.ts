@@ -64,7 +64,7 @@ import { KF_ORTAK } from './ortak';
             <strong>{{
               d.yeni
                 ? ('kiraFormu.alan.subeTuretilir' | transloco)
-                : (d.detay.veri()?.islemSubeAdi ?? ('kiraFormu.alan.subeEslenmemis' | transloco))
+                : (d.gorunenDetay()?.islemSubeAdi ?? ('kiraFormu.alan.subeEslenmemis' | transloco))
             }}</strong>
           </div>
         </div>

@@ -12,4 +12,8 @@ public interface IDamageFileRepository
 
     /// <summary>Durum/alan güncelle (onay akışı). Mali belge değil → güncellenebilir.</summary>
     Task<bool> UpdateAsync(Guid id, Action<DamageFile> apply, CancellationToken ct = default);
+
+    /// <summary>F6.1b — satır kilidi (FOR UPDATE) altında güncelleme: onay akışı geçişleri eşzamanlı çift geçişe
+    /// (onayla + reddet ikisi de "Onayda" görür) kapalı.</summary>
+    Task<bool> KilitliGuncelleAsync(Guid id, Action<DamageFile> apply, CancellationToken ct = default);
 }

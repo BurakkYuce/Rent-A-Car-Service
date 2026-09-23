@@ -8,6 +8,7 @@
     "yukleniyor": "Kira yükleniyor…",
     "bulunamadi": "Kira sözleşmesi bulunamadı.",
     "yuklenemedi": "Kira yüklenemedi.",
+    "tazelemeHatasi": "Kayıt yenilenemedi; ekrandaki bilgiler son başarılı okumadan. Kaydetmeden önce yeniden deneyin.",
     "yenidenDene": "Yeniden dene",
     "uyari": "UYARI:",
     "dovizNotu": "güncel kurla ≈ {{tutar}}",
