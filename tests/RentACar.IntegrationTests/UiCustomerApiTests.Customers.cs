@@ -100,7 +100,7 @@ public sealed partial class UiCustomerApiTests
         Assert.Equal(JsonValueKind.Null, card.GetProperty("ehliyetNoMaske").ValueKind);
         Assert.Equal("ece@example.com", card.GetProperty("email").GetString()); // AnonimMail yok → görünür
 
-        var (list, listRaw) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}?q=Gizlioglu"));
+        var (list, listRaw) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}?q=Anonim"));
         var row = Assert.Single(Records(list));
         Assert.Equal("Anonim müşteri", row.GetProperty("ad").GetString());
         Assert.True(row.GetProperty("anonim").GetBoolean());

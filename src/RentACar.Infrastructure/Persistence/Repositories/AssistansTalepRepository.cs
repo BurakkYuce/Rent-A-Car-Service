@@ -34,13 +34,19 @@ public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> fac
         if (!string.IsNullOrWhiteSpace(filtre.Ara))
         {
             var a = filtre.Ara.Trim();
+            // #283 KVKK M1: the name/phone snapshot may have been copied from the linked rental's customer; when that
+            // customer is anonymised the snapshot is hidden on screen, so it must not be matchable either.
             q = q.Where(x => EF.Functions.ILike(x.Mesaj, $"%{a}%")
                           || (x.Sebep != null && EF.Functions.ILike(x.Sebep, $"%{a}%"))
-                          || (x.AdSoyad != null && EF.Functions.ILike(x.AdSoyad, $"%{a}%"))
-                          || (x.CepTel != null && EF.Functions.ILike(x.CepTel, $"%{a}%")));
+                          || (x.AdSoyad != null && EF.Functions.ILike(x.AdSoyad, $"%{a}%")
+                              && !db.Rentals.Any(r => r.Id == x.RentalId
+                                  && db.Customers.Any(c => c.Id == r.MusteriId && c.AnonimAd)))
+                          || (x.CepTel != null && EF.Functions.ILike(x.CepTel, $"%{a}%")
+                              && !db.Rentals.Any(r => r.Id == x.RentalId
+                                  && db.Customers.Any(c => c.Id == r.MusteriId && c.AnonimTelefon))));
         }
 
-        return await q.OrderByDescending(x => x.Zaman).ToListAsync(ct);
+        return await q.OrderByDescending(x => x.Zaman).Take(10_000).ToListAsync(ct); // #283 L2: upper bound
     }
 
     public async Task<AssistansTalep?> FindAsync(Guid id, CancellationToken ct = default)

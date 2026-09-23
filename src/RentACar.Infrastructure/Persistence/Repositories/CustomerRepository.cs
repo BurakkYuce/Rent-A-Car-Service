@@ -107,12 +107,17 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         {
             var term = $"%{filter.Query.Trim()}%";
             var tcHash = filter.TcHash;
+            // #283 KVKK M1: an anonymised name is searchable only by its displayed label (never by the real
+            // Ad/Soyad/Unvan — prefix probing would rebuild it); M3: an individual's tax number may be the TC, so
+            // it is never matched with ILIKE (TC search stays exact-match via the blind index).
+            var label = CariAnonimlik.AdEtiketi;
             q = q.Where(c =>
-                (c.Ad != null && EF.Functions.ILike(c.Ad, term))
-                || (c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
-                || (c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
+                (!c.AnonimAd && c.Ad != null && EF.Functions.ILike(c.Ad, term))
+                || (!c.AnonimAd && c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
+                || (!c.AnonimAd && c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
+                || (c.AnonimAd && EF.Functions.ILike(label, term))
                 || (tcHash != null && c.TcKimlikHash == tcHash)
-                || (c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
+                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
         }
         if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
         if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);
@@ -131,7 +136,10 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
 
         var total = await q.CountAsync(ct);
         var items = await q
-            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+            .OrderBy(c => c.Tip)
+            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan) // #283 M1: displayed-name order
+            .ThenBy(c => c.AnonimAd ? null : c.Ad)
+            .ThenBy(c => c.Id)
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
         foreach (var c in items) Decrypt(c);
@@ -144,7 +152,11 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var q = ApplyFilter(db.Customers.AsNoTracking(), filter);
 
         var total = await q.CountAsync(ct);
-        var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad); // F7.1
+        // F7.1 + #283 M1: the default order follows the DISPLAYED name (an anonymised row sorts by the label, ties by Id).
+        var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(c => c.Tip)
+            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+            .ThenBy(c => c.AnonimAd ? null : c.Ad)
+            .ThenBy(c => c.Id);
         var page = await sorted
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);

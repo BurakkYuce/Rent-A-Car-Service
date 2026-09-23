@@ -10997,6 +10997,7 @@ export interface components {
       tcKimlikVar?: boolean;
       ehliyetNoMaske?: null | string;
       pasaportNoMaske?: null | string;
+      vergiNoMaske?: null | string;
       sifreVar?: boolean;
       /** Format: date-time */
       createdAtUtc?: string;

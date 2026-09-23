@@ -111,6 +111,7 @@ public sealed class CustomerService(
 
         return await _repository.UpdateAsync(id, c =>
         {
+            RequireAnonymityKept(c, n);
             Apply(c, n);
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
@@ -130,9 +131,25 @@ public sealed class CustomerService(
 
         return await _repository.UpdateAsync(id, expectedVersion, c =>
         {
+            RequireAnonymityKept(c, n);
             Apply(c, n);
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>
+    /// #283 KVKK M4: LIFTING any KVKK anonymisation flag (true → false) re-exposes hidden personal data, so it needs
+    /// <see cref="Permission.ManageUsers"/>; setting a flag (false → true) stays open to OperationsWrite. Checked on the
+    /// row as loaded for the write (under the row lock on the versioned path), so the stored record is the reference.
+    /// Throws before any change is applied — nothing is written.
+    /// </summary>
+    private void RequireAnonymityKept(Customer current, CustomerInput n)
+    {
+        var lifted = (current.AnonimAd && !n.AnonimAd) || (current.AnonimTc && !n.AnonimTc)
+                     || (current.AnonimTelefon && !n.AnonimTelefon) || (current.AnonimMail && !n.AnonimMail)
+                     || (current.AnonimAdres && !n.AnonimAdres) || (current.AnonimBelge && !n.AnonimBelge);
+        if (lifted && !EffectivePermission.Has(_currentUser, Permission.ManageUsers))
+            throw new YetkiYokException("KVKK anonimleştirmesini kaldırmak için kullanıcı yönetimi yetkisi gerekir.");
     }
 
     /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
@@ -159,7 +176,15 @@ public sealed class CustomerService(
         {
             if (string.IsNullOrWhiteSpace(n.Unvan))
                 throw new ValidationException("Kurumsal/Servis cari için Ünvan zorunludur.");
-            if (!string.IsNullOrEmpty(n.VergiNo) && !TurkishIdentity.IsValidVergiNoFormat(n.VergiNo))
+        }
+
+        // #283 KVKK M3: tax number format is checked for EVERY type. It used to be checked only for companies, so an
+        // individual's TC could be typed into this plain-text column, bypassing encryption and the blind index.
+        if (!string.IsNullOrEmpty(n.VergiNo))
+        {
+            if (n.VergiNo.Length == 11)
+                throw new ValidationException("Vergi No 11 haneli olamaz; TC kimlik numarası için TC Kimlik alanını kullanın.");
+            if (!TurkishIdentity.IsValidVergiNoFormat(n.VergiNo))
                 throw new ValidationException("Vergi No 10 haneli olmalıdır.");
         }
 

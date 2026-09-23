@@ -97,8 +97,10 @@ internal static class CustomerInputMapper
             TcKimlik = r.TcKimlik ?? s?.TcKimlik,
             EhliyetNo = r.EhliyetNo ?? s?.EhliyetNo,
             PasaportNo = r.PasaportNo ?? s?.PasaportNo,
-            VergiDairesi = r.VergiDairesi, VergiNo = r.VergiNo,
-            CepTel = Keep(r.CepTel, phone, s?.CepTel), Gsm2 = r.Gsm2, Email = Keep(r.Email, mail, s?.Email),
+            VergiDairesi = r.VergiDairesi,
+            // #283 M3: an individual's tax number is returned masked only → null keeps the stored value, "" clears.
+            VergiNo = Keep(r.VergiNo, s?.Tip == CariType.Bireysel, s?.VergiNo),
+            CepTel = Keep(r.CepTel, phone, s?.CepTel), Gsm2 = Keep(r.Gsm2, phone, s?.Gsm2), Email = Keep(r.Email, mail, s?.Email),
             Il = Keep(r.Il, address, s?.Il), Ilce = Keep(r.Ilce, address, s?.Ilce), Adres = Keep(r.Adres, address, s?.Adres),
             Kaynak = r.Kaynak, MusteriTemsilcisi = r.MusteriTemsilcisi, IysIzinli = r.IysIzinli, Uyari = r.Uyari,
             UyariNedeni = r.UyariNedeni,
@@ -111,17 +113,22 @@ internal static class CustomerInputMapper
             RiskTarihi = F5Ortak.Utc(r.RiskTarihi), HgsYansitmaTuru = r.HgsYansitmaTuru, KaraListe = r.KaraListe, Pasif = r.Pasif,
             OzelCariTip = r.OzelCariTip, MusteriTipi = r.MusteriTipi, Dil = r.Dil, Doviz = r.Doviz,
             TevkifatDurum = r.TevkifatDurum, Sinif = r.Sinif, MailIzin = r.MailIzin, SmsIzin = r.SmsIzin,
-            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Ortak.Utc(r.DogumTarihi), BabaAdi = r.BabaAdi, AnaAdi = r.AnaAdi,
+            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Ortak.Utc(r.DogumTarihi),
+            BabaAdi = Keep(r.BabaAdi, name, s?.BabaAdi), AnaAdi = Keep(r.AnaAdi, name, s?.AnaAdi),
             FaturaDonemi = r.FaturaDonemi, TevkifatOrani = r.TevkifatOrani,
             Kisiler = (r.Kisiler ?? []).Select(k => new CustomerContactInput
             { AdSoyad = k.AdSoyad, Telefon = k.Telefon, Mail = k.Mail, Gorev = k.Gorev }).ToList(),
-            KvkkOnay = r.KvkkOnay, KvkkOnayTarih = F5Ortak.Utc(r.KvkkOnayTarih), EkAdres = r.EkAdres, BankaIban = r.BankaIban,
-            BankaAdi = r.BankaAdi, FaturaAdresi = r.FaturaAdresi, FaturaUnvan = r.FaturaUnvan, Ulke = r.Ulke, Tel2 = r.Tel2,
+            KvkkOnay = r.KvkkOnay, KvkkOnayTarih = F5Ortak.Utc(r.KvkkOnayTarih), EkAdres = Keep(r.EkAdres, address, s?.EkAdres),
+            BankaIban = r.BankaIban, BankaAdi = r.BankaAdi, FaturaAdresi = Keep(r.FaturaAdresi, address, s?.FaturaAdresi),
+            FaturaUnvan = Keep(r.FaturaUnvan, name, s?.FaturaUnvan), Ulke = r.Ulke, Tel2 = Keep(r.Tel2, phone, s?.Tel2),
             OzelKod = r.OzelKod, EntegrasyonKodu = r.EntegrasyonKodu, Aciklama = r.Aciklama, RiskIzin = r.RiskIzin,
-            DogumYeri = r.DogumYeri, KurumsalNo = r.KurumsalNo, UyariSerbest = r.UyariSerbest,
-            TevkifatKodu = r.TevkifatKodu, FaturaKiralayanIsim = r.FaturaKiralayanIsim, IsAdresi = r.IsAdresi,
-            IsTelefonu = r.IsTelefonu, KayitliIl = r.KayitliIl, KayitliIlce = r.KayitliIlce, MahalleKoy = r.MahalleKoy,
-            SeriNo = r.SeriNo, CiltNo = r.CiltNo, AileSira = r.AileSira, SiraNo = r.SiraNo,
+            DogumYeri = Keep(r.DogumYeri, document, s?.DogumYeri), KurumsalNo = r.KurumsalNo, UyariSerbest = r.UyariSerbest,
+            TevkifatKodu = r.TevkifatKodu, FaturaKiralayanIsim = Keep(r.FaturaKiralayanIsim, name, s?.FaturaKiralayanIsim),
+            IsAdresi = Keep(r.IsAdresi, address, s?.IsAdresi), IsTelefonu = Keep(r.IsTelefonu, phone, s?.IsTelefonu),
+            KayitliIl = Keep(r.KayitliIl, address, s?.KayitliIl), KayitliIlce = Keep(r.KayitliIlce, address, s?.KayitliIlce),
+            MahalleKoy = Keep(r.MahalleKoy, address, s?.MahalleKoy),
+            SeriNo = Keep(r.SeriNo, document, s?.SeriNo), CiltNo = Keep(r.CiltNo, document, s?.CiltNo),
+            AileSira = Keep(r.AileSira, document, s?.AileSira), SiraNo = Keep(r.SiraNo, document, s?.SiraNo),
             TcDogrulama = r.TcDogrulama, FaturaAdresFarkli = r.FaturaAdresFarkli, FaturaTekSatir = r.FaturaTekSatir,
             DogumGunuTakip = r.DogumGunuTakip, AnonimAd = r.AnonimAd, AnonimTc = r.AnonimTc, AnonimTelefon = r.AnonimTelefon,
             AnonimMail = r.AnonimMail, AnonimAdres = r.AnonimAdres, AnonimBelge = r.AnonimBelge, BakiyeGor = r.BakiyeGor,
@@ -134,9 +141,12 @@ internal static class CustomerInputMapper
     }
 
     /// <summary>
-    /// Kayıt (çözülmüş) → kart. TC ASLA; ehliyet/pasaport maskeli; <c>Anonim*</c> grupları <c>null</c>. Grup tanımı
-    /// <see cref="MusteriGorunumu"/> ile aynı (ad → ad/soyad/ünvan; telefon → cep; e-posta; adres → adres/il/ilçe;
-    /// belge → numaralar + sınıf/tarih/yer/ülke + pasaport yeri/tarihi).
+    /// Kayıt (çözülmüş) → kart. TC ASLA; ehliyet/pasaport (ve bireysel caride vergi no) maskeli; <c>Anonim*</c> grupları
+    /// <c>null</c>. Gruplar birincil alanlarda <see cref="MusteriGorunumu"/> ile aynı, kartta İKİNCİL alanları da kapsar
+    /// (#283 M2) — <see cref="ToInput"/> aynı alanları korur:
+    /// ad → ad/soyad/ünvan, fatura ünvanı, faturada kiralayan ismi, baba/ana adı; telefon → cep, GSM 2, telefon 2,
+    /// iş telefonu; e-posta; adres → adres/il/ilçe, ek adres, fatura adresi, iş adresi, kayıtlı il/ilçe, mahalle/köy;
+    /// belge → numaralar + sınıf/tarih/yer/ülke, pasaport yeri/tarihi, doğum yeri, nüfus seri/cilt/aile sıra/sıra no.
     /// </summary>
     public static CustomerCardDto ToCard(Customer c, string? version)
     {
@@ -150,8 +160,11 @@ internal static class CustomerInputMapper
             SifreVar = !string.IsNullOrEmpty(c.SifreHash),
             Tip = c.Tip.ToString(),
             Ad = name ? null : c.Ad, Soyad = name ? null : c.Soyad, Unvan = name ? null : c.Unvan,
-            VergiDairesi = c.VergiDairesi, VergiNo = c.VergiNo,
-            CepTel = phone ? null : c.CepTel, Gsm2 = c.Gsm2, Email = mail ? null : c.Email,
+            VergiDairesi = c.VergiDairesi,
+            // #283 M3: an individual's tax number may be the TC → only masked.
+            VergiNo = c.Tip == CariType.Bireysel ? null : c.VergiNo,
+            VergiNoMaske = c.Tip == CariType.Bireysel ? MusteriGorunumu.Maske(c.VergiNo) : null,
+            CepTel = phone ? null : c.CepTel, Gsm2 = phone ? null : c.Gsm2, Email = mail ? null : c.Email,
             Il = address ? null : c.Il, Ilce = address ? null : c.Ilce, Adres = address ? null : c.Adres,
             Kaynak = c.Kaynak, MusteriTemsilcisi = c.MusteriTemsilcisi, IysIzinli = c.IysIzinli, Uyari = c.Uyari,
             UyariNedeni = c.UyariNedeni,
@@ -162,16 +175,21 @@ internal static class CustomerInputMapper
             RiskTarihi = c.RiskTarihi, HgsYansitmaTuru = c.HgsYansitmaTuru, KaraListe = c.KaraListe, Pasif = c.Pasif,
             OzelCariTip = c.OzelCariTip, MusteriTipi = c.MusteriTipi, Dil = c.Dil, Doviz = c.Doviz,
             TevkifatDurum = c.TevkifatDurum, Sinif = c.Sinif, MailIzin = c.MailIzin, SmsIzin = c.SmsIzin,
-            TelefonIzin = c.TelefonIzin, DogumTarihi = c.DogumTarihi, BabaAdi = c.BabaAdi, AnaAdi = c.AnaAdi,
+            TelefonIzin = c.TelefonIzin, DogumTarihi = c.DogumTarihi,
+            BabaAdi = name ? null : c.BabaAdi, AnaAdi = name ? null : c.AnaAdi,
             FaturaDonemi = c.FaturaDonemi, TevkifatOrani = c.TevkifatOrani,
             Kisiler = c.Kisiler.OrderBy(k => k.Sira).Select(k => new CustomerContactDto(k.AdSoyad, k.Telefon, k.Mail, k.Gorev)).ToList(),
-            KvkkOnay = c.KvkkOnay, KvkkOnayTarih = c.KvkkOnayTarih, EkAdres = c.EkAdres, BankaIban = c.BankaIban,
-            BankaAdi = c.BankaAdi, FaturaAdresi = c.FaturaAdresi, FaturaUnvan = c.FaturaUnvan, Ulke = c.Ulke, Tel2 = c.Tel2,
+            KvkkOnay = c.KvkkOnay, KvkkOnayTarih = c.KvkkOnayTarih, EkAdres = address ? null : c.EkAdres,
+            BankaIban = c.BankaIban, BankaAdi = c.BankaAdi, FaturaAdresi = address ? null : c.FaturaAdresi,
+            FaturaUnvan = name ? null : c.FaturaUnvan, Ulke = c.Ulke, Tel2 = phone ? null : c.Tel2,
             OzelKod = c.OzelKod, EntegrasyonKodu = c.EntegrasyonKodu, Aciklama = c.Aciklama, RiskIzin = c.RiskIzin,
-            DogumYeri = c.DogumYeri, KurumsalNo = c.KurumsalNo, UyariSerbest = c.UyariSerbest, TevkifatKodu = c.TevkifatKodu,
-            FaturaKiralayanIsim = c.FaturaKiralayanIsim, IsAdresi = c.IsAdresi, IsTelefonu = c.IsTelefonu,
-            KayitliIl = c.KayitliIl, KayitliIlce = c.KayitliIlce, MahalleKoy = c.MahalleKoy, SeriNo = c.SeriNo,
-            CiltNo = c.CiltNo, AileSira = c.AileSira, SiraNo = c.SiraNo, TcDogrulama = c.TcDogrulama,
+            DogumYeri = document ? null : c.DogumYeri, KurumsalNo = c.KurumsalNo, UyariSerbest = c.UyariSerbest,
+            TevkifatKodu = c.TevkifatKodu, FaturaKiralayanIsim = name ? null : c.FaturaKiralayanIsim,
+            IsAdresi = address ? null : c.IsAdresi, IsTelefonu = phone ? null : c.IsTelefonu,
+            KayitliIl = address ? null : c.KayitliIl, KayitliIlce = address ? null : c.KayitliIlce,
+            MahalleKoy = address ? null : c.MahalleKoy, SeriNo = document ? null : c.SeriNo,
+            CiltNo = document ? null : c.CiltNo, AileSira = document ? null : c.AileSira, SiraNo = document ? null : c.SiraNo,
+            TcDogrulama = c.TcDogrulama,
             FaturaAdresFarkli = c.FaturaAdresFarkli, FaturaTekSatir = c.FaturaTekSatir, DogumGunuTakip = c.DogumGunuTakip,
             AnonimAd = c.AnonimAd, AnonimTc = c.AnonimTc, AnonimTelefon = c.AnonimTelefon, AnonimMail = c.AnonimMail,
             AnonimAdres = c.AnonimAdres, AnonimBelge = c.AnonimBelge, BakiyeGor = c.BakiyeGor, AracVerilmez = c.AracVerilmez,

@@ -143,6 +143,8 @@ public sealed record CustomerCardDto : CustomerFields
     public bool TcKimlikVar { get; init; }
     public string? EhliyetNoMaske { get; init; }
     public string? PasaportNoMaske { get; init; }
+    /// <summary>Bireysel caride vergi no yalnız maskeli döner (<c>vergiNo</c> null; PUT'ta null = koru, "" = temizle).</summary>
+    public string? VergiNoMaske { get; init; }
     /// <summary>Portal şifresi tanımlı mı (özet asla dönmez).</summary>
     public bool SifreVar { get; init; }
     public DateTimeOffset CreatedAtUtc { get; init; }

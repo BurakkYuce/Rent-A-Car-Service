@@ -31,7 +31,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
             var o = filtre.CikisOfisi.Trim();
             q = q.Where(x => x.CikisOfisi != null && x.CikisOfisi.Trim() == o);
         }
-        return await q.OrderByDescending(r => r.Tarih).ToListAsync(ct);
+        return await q.OrderByDescending(r => r.Tarih).Take(10_000).ToListAsync(ct); // #283 L2: upper bound
     }
 
     public async Task<Anket?> FindAsync(Guid id, CancellationToken ct = default)

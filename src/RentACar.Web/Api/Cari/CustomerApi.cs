@@ -60,11 +60,13 @@ public static partial class CustomerApi
     private static readonly SiralamaHaritasi<Customer> SortMap = SiralamaHaritasi<Customer>
         .Olustur(c => c.Id)
         .Alan("tip", c => c.Tip)
-        .Alan("ad", c => c.Ad)
-        .Alan("soyad", c => c.Soyad)
-        .Alan("unvan", c => c.Unvan)
-        .Alan("il", c => c.Il)
-        .Alan("ilce", c => c.Ilce)
+        // #283 KVKK M1: keys follow the DISPLAYED value — an anonymised name sorts at the label, a hidden
+        // address/soyad sorts as empty; otherwise the row position would leak the real value.
+        .Alan("ad", c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Ad)
+        .Alan("soyad", c => c.AnonimAd ? null : c.Soyad)
+        .Alan("unvan", c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+        .Alan("il", c => c.AnonimAdres ? null : c.Il)
+        .Alan("ilce", c => c.AnonimAdres ? null : c.Ilce)
         .Alan("kaynak", c => c.Kaynak)
         .Alan("sinif", c => c.Sinif)
         .Alan("vadeGun", c => c.VadeGun)
