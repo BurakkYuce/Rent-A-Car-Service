@@ -91,6 +91,13 @@ public static class DonemFaturaUretici
             db.ChangeTracker.Clear();
 
             var rental = await db.Rentals.AsNoTracking().FirstAsync(r => r.Id == rentalId, ct);
+            // N4 (Low temizliği B): aday listesi kilitsiz okundu. Arada kira İPTAL edildiyse (iptal AYNI advisory
+            // kilidi alır — KiraKilitleri.FaturaAsync — ve açık fatura varken reddeder), dönüş yapıldıysa, dönemsel
+            // faturalama kapatıldıysa ya da döviz değiştiyse, kilit ALTINDA okunan taze satır aday koşulunu artık
+            // sağlamaz → kesim YOK (tx dispose'da geri alınır; RunAsync atlananlara yazar). Önceden job iptal
+            // kiraya değişmez dönem faturası (+ ayar açıksa tahsilat) yazabiliyordu.
+            if (AdayDegilSebebi(rental) is { } sebep)
+                throw new RentACar.Application.Common.ValidationException(sebep);
             var donemler = await db.FaturaDonemleri
                 .Where(d => d.RentalId == rentalId).OrderBy(d => d.DonemSira).ToListAsync(ct);
             var donem = donemler.First(d => d.Id == donemId);
@@ -194,6 +201,18 @@ public static class DonemFaturaUretici
             db.ChangeTracker.Clear();
             throw;
         }
+    }
+
+    /// <summary>N4: aday koşulunun kilit altındaki yeniden denetimi — RunAsync aday sorgusu ve FX çitiyle AYNI kural
+    /// (Kirada ∧ DonemselFaturalama ∧ TRY). null = hâlâ aday.</summary>
+    internal static string? AdayDegilSebebi(RentalContract r)
+    {
+        if (r.Durum == RentalStatus.Iptal) return "kira bu sırada iptal edildi — dönem faturası kesilmedi";
+        if (r.Durum != RentalStatus.Kirada) return $"kira artık Kirada değil ({r.Durum}) — dönem faturası kesilmedi";
+        if (!r.DonemselFaturalama) return "kirada dönemsel faturalama kapatıldı — dönem faturası kesilmedi";
+        if (RentACar.Application.Kur.KurService.NormalizeKod(r.Doviz) != "TRY")
+            return $"kira dövizi {r.Doviz} — manuel kesim";
+        return null;
     }
 
     private static async Task KilitAsync(AppDbContext db, Guid tenantId, Guid rentalId, CancellationToken ct)
