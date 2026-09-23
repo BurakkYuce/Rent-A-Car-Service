@@ -413,7 +413,7 @@ public static class FinansApi
         => gelen is not { } g
            || kayit.UtcTicks / TimeSpan.TicksPerMicrosecond == g.UtcTicks / TimeSpan.TicksPerMicrosecond;
 
-    private static string? AciklamaNorm(string? a) => string.IsNullOrWhiteSpace(a) ? null : a.Trim();
+    internal static string? AciklamaNorm(string? a) => string.IsNullOrWhiteSpace(a) ? null : a.Trim();
 
     /// <summary>L-1: gelen isteğin kuru (açık ya da o an çözülecek) kayıttaki kurla aynı mı (6 hane).</summary>
     private static async Task<bool> AyniKurAsync(
@@ -430,14 +430,14 @@ public static class FinansApi
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>
-    private static async Task<RentalContract> KiraKapsamdaAsync(RentalService kiralar, Guid kiraId, CancellationToken ct)
+    internal static async Task<RentalContract> KiraKapsamdaAsync(RentalService kiralar, Guid kiraId, CancellationToken ct)
     {
         if (kiraId == Guid.Empty) throw new ValidationException("Kira seçilmelidir.", "kiraId");
         return await kiralar.GetAsync(kiraId, ct)
                ?? throw new ValidationException("Kira sözleşmesi bulunamadı.", "kiraId");
     }
 
-    private static void Cari(Guid cariId)
+    internal static void Cari(Guid cariId)
     {
         if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.", "cariId");
     }
@@ -449,7 +449,7 @@ public static class FinansApi
 
     /// <summary>Pozitif, kolonlara sığan (F4.4a adversarial MEDIUM-1: taşma 500 üretiyordu) ve 4 ondalığa
     /// yuvarlanınca sıfır kalmayan tutar (L2: 0,00004 kabul edilip 0 tutarlı belge yazılıyor, belge no tüketiyordu).</summary>
-    private static void Tutar(decimal tutar, string alan = "tutar")
+    internal static void Tutar(decimal tutar, string alan = "tutar")
     {
         if (tutar <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.", alan);
         if (tutar >= TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", alan);
@@ -465,7 +465,7 @@ public static class FinansApi
 
     /// <summary>Açık kur yalnız pozitif olabilir ve kolona sığmalı; TRY'de kur ≠ 1 reddi ve "elle kur kilidi"
     /// servisteki KurCozucu'da (Blazor yolu da kapansın diye).</summary>
-    private static void Kur(decimal? kur)
+    internal static void Kur(decimal? kur)
     {
         if (kur is <= 0m) throw new ValidationException("Kur pozitif olmalıdır (boş = otomatik).", "kur");
         if (kur >= KurUstSiniri) throw new ValidationException("Kur çok büyük.", "kur");
@@ -474,20 +474,20 @@ public static class FinansApi
     /// <summary>Açık kurla baz tutar (tutar × kur) kira Tahsilat/Bakiye kolonuna (<c>numeric(19,4)</c>) sığmalı.
     /// Tutar ve kur ayrı ayrı sınırlı olduğundan çarpım decimal'da taşmaz. Otomatik kurda kalan uç durumları
     /// /api/ui hata eşlemesindeki 22003 → 400 ağı karşılar.</summary>
-    private static void BazSiniri(decimal tutar, decimal? kur, string alan = "tutar")
+    internal static void BazSiniri(decimal tutar, decimal? kur, string alan = "tutar")
     {
         if (kur is { } k && tutar * k >= TutarUstSiniri) throw new ValidationException("Tutar × kur çok büyük.", alan);
     }
 
     /// <summary>Metin kolonun uzunluğunu aşmasın (EF yapılandırmasındaki <c>HasMaxLength</c>).</summary>
-    private static void Metin(string? deger, int enFazla, string alan)
+    internal static void Metin(string? deger, int enFazla, string alan)
     {
         if (deger is { Length: var n } && n > enFazla)
             throw new ValidationException($"En çok {enFazla} karakter olabilir.", alan);
     }
 
     /// <summary>Boş → TRY (Blazor formlarının varsayılanı); aksi halde ISO koda indirgenir, biçimsizse alan hatası.</summary>
-    private static string Doviz(string? doviz)
+    internal static string Doviz(string? doviz)
     {
         if (string.IsNullOrWhiteSpace(doviz)) return "TRY";
         string kod = "";
@@ -496,7 +496,7 @@ public static class FinansApi
     }
 
     /// <summary>"Kasa" | "Banka" — başka her değer (boş dahil) alan hatası; sessizce Kasa'ya DÜŞMEZ.</summary>
-    private static LedgerAccountType Hesap(string? hesap, string alan)
+    internal static LedgerAccountType Hesap(string? hesap, string alan)
         => hesap?.Trim() switch
         {
             { } h when string.Equals(h, "Kasa", StringComparison.OrdinalIgnoreCase) => LedgerAccountType.Kasa,
@@ -505,7 +505,7 @@ public static class FinansApi
         };
 
     /// <summary>Alan'sız doğrulama hatasını alan'lı yeniden fırlatır (alt tipler — yetki, mükerrer — korunur).</summary>
-    private static void Alanli(string alan, Action dogrula)
+    internal static void Alanli(string alan, Action dogrula)
     {
         try { dogrula(); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)

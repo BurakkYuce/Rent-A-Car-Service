@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.Kur;
@@ -77,5 +78,45 @@ public sealed class SabitKurRepository(IDbContextFactory<AppDbContext> factory) 
         db.SabitKurlar.Remove(s);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await ReadVersionAsync(db, id, ct);
+    }
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<SabitKur> apply, CancellationToken ct = default)
+        => PgRetry.RunAsync(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Satır OKUNMADAN önce kilitlenir; sürüm kilit altında karşılaştırılır (arada başka yazım giremez).
+            await db.Database.ExecuteSqlRawAsync("SELECT 1 FROM \"SabitKurlar\" WHERE \"Id\" = {0} FOR UPDATE", [id], ct);
+            var current = await ReadVersionAsync(db, id, ct);
+            if (current is null) return false;
+            if (!string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
+                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+            var row = await db.SabitKurlar.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (row is null) return false;
+            apply(row);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
+
+    /// <summary>xmin satıra dokunan her güncellemede değişir (SatirSurumu deseni; tablo adı sabit).</summary>
+    private static async Task<string?> ReadVersionAsync(AppDbContext db, Guid id, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await db.Database.OpenConnectionAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        cmd.CommandText = "SELECT xmin::text FROM \"SabitKurlar\" WHERE \"Id\" = @id";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "id";
+        p.Value = id;
+        cmd.Parameters.Add(p);
+        return await cmd.ExecuteScalarAsync(ct) as string;
     }
 }

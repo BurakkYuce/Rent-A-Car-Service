@@ -5351,6 +5351,1007 @@
           }
         }
       }
+    },
+    "/api/ui/v1/finans/cariler/{cariId}/ekstre": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "doviz",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kaynak",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kiraDurum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mod",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerStatement"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesScreen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar/cevir": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "tutar",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          {
+            "name": "kaynak",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hedef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kasa/ozet": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashboxSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kasa/islemler": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tip",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hesap",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hesapId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kanal",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashTransactionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kasa/virmanlar": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "hesapId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CashTransferRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kasa/virman": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashTransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kasa/islemler/{id}/ters": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/cariler/{cariId}/bakiye": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerBalance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/bakiye-duzeltme": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BalanceAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/cari-virmanlar": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerTransferRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/cari-virman": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerTransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/cariler/{cariId}/acik-kalemler": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerOpenItems"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/cariler/{cariId}/toplu-kapat": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloseItemsResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/toplu-tahsilat": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCollectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPostingResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/toplu-gider": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkExpenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPostingResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/depozito": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DepositBalanceRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/depozito/iade": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositRefundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/depozito/mahsup": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositOffsetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/donem-kapanis": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodCloseState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/donem-kapanis/kilitle": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodCloseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/donem-kapanis/ac": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/otomatik-tahsilat": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "sozlesmeNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vadeMin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "vadeMax",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bakiyeli",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoCollectionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/otomatik-tahsilat/calistir": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoCollectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoCollectionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar/yenile": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesRefreshResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar/sabit": {
+      "post": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixedRateCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar/sabit/{id}": {
+      "put": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixedRateUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9014,6 +10015,185 @@
           }
         }
       },
+      "AutoCollectionCandidate": {
+        "required": [
+          "kiraId",
+          "sozlesmeNo",
+          "donemSira",
+          "donemBas",
+          "donemBit",
+          "cariId",
+          "cariAd",
+          "sube",
+          "doviz",
+          "kiraTutar",
+          "cariBakiye"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "donemSira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "donemBas": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "donemBit": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kiraTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "cariBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "AutoCollectionList": {
+        "required": [
+          "jobAcik",
+          "adaylar",
+          "dovizToplamlari"
+        ],
+        "type": "object",
+        "properties": {
+          "jobAcik": {
+            "type": "boolean"
+          },
+          "adaylar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoCollectionCandidate"
+            }
+          },
+          "dovizToplamlari": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            }
+          }
+        }
+      },
+      "AutoCollectionRequest": {
+        "required": [
+          "secim",
+          "tahsilat",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "secim": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutoCollectionSelection"
+            }
+          },
+          "tahsilat": {
+            "type": "boolean"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AutoCollectionResult": {
+        "required": [
+          "kesilen",
+          "tahsilat",
+          "atlananlar"
+        ],
+        "type": "object",
+        "properties": {
+          "kesilen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tahsilat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "atlananlar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AutoCollectionSelection": {
+        "required": [
+          "kiraId",
+          "donemSira"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "donemSira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "AylikGelir": {
         "required": [
           "ayBas",
@@ -9032,6 +10212,75 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "BalanceAdjustmentRequest": {
+        "required": [
+          "cariId",
+          "yon",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "yon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "vade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "makbuzNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9160,6 +10409,1469 @@
           },
           "pilot": {
             "type": "boolean"
+          }
+        }
+      },
+      "BulkCollectionLine": {
+        "required": [
+          "cariId",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BulkCollectionRequest": {
+        "required": [
+          "satirlar",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "satirlar": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BulkCollectionLine"
+            }
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "kanal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BulkExpenseLine": {
+        "required": [
+          "netTutar"
+        ],
+        "type": "object",
+        "properties": {
+          "netTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "BulkExpenseRequest": {
+        "required": [
+          "satirlar",
+          "tip",
+          "odemeYontemi",
+          "kdvOrani"
+        ],
+        "type": "object",
+        "properties": {
+          "satirlar": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BulkExpenseLine"
+            }
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "odemeYontemi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kdvOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "vade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "finansalHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "BulkPostingResult": {
+        "required": [
+          "adet",
+          "toplam"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CashboxSummary": {
+        "required": [
+          "kasaGiris",
+          "kasaCikis",
+          "kasaBakiye",
+          "bankaGiris",
+          "bankaCikis",
+          "bankaBakiye"
+        ],
+        "type": "object",
+        "properties": {
+          "kasaGiris": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kasaCikis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kasaBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bankaGiris": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bankaCikis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bankaBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CashOperationResult": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CashTransactionList": {
+        "required": [
+          "liste",
+          "kesildi"
+        ],
+        "type": "object",
+        "properties": {
+          "liste": {
+            "$ref": "#/components/schemas/SayfaOfCashTransactionRow"
+          },
+          "kesildi": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CashTransactionRow": {
+        "required": [
+          "id",
+          "no",
+          "tarih",
+          "tip",
+          "tersKayit",
+          "tersAlinanId",
+          "hesap",
+          "hesapId",
+          "hesapAd",
+          "kanal",
+          "cariId",
+          "cariAd",
+          "cariKod",
+          "kiraId",
+          "tutar",
+          "doviz",
+          "kur",
+          "tutarTl",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "no": {
+            "type": "string"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tip": {
+            "type": "string"
+          },
+          "tersKayit": {
+            "type": "boolean"
+          },
+          "tersAlinanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "hesap": {
+            "type": "string"
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "hesapAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kanal": {
+            "type": "string"
+          },
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "cariKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tutarTl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CashTransferRequest": {
+        "required": [
+          "kaynak",
+          "hedef",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedef": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kaynakHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "hedefHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "makbuzNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CashTransferRow": {
+        "required": [
+          "id",
+          "tarih",
+          "kaynakTur",
+          "kaynakHesapId",
+          "kaynakHesapAd",
+          "hedefTur",
+          "hedefHesapId",
+          "hedefHesapAd",
+          "tutar",
+          "doviz",
+          "kur",
+          "tutarTl",
+          "makbuzNo",
+          "sube",
+          "islemYapan",
+          "aciklama",
+          "kunyeVar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kaynakTur": {
+            "type": "string"
+          },
+          "kaynakHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "kaynakHesapAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedefTur": {
+            "type": "string"
+          },
+          "hedefHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "hedefHesapAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tutarTl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "makbuzNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "islemYapan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kunyeVar": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CbrtRate": {
+        "required": [
+          "kod",
+          "ad",
+          "birim",
+          "forexAlis",
+          "forexSatis",
+          "efektifAlis",
+          "efektifSatis",
+          "tarih",
+          "sabitVar"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "birim": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "forexAlis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "forexSatis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "efektifAlis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "efektifSatis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date"
+          },
+          "sabitVar": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CloseItemSelection": {
+        "required": [
+          "kalemId"
+        ],
+        "type": "object",
+        "properties": {
+          "kalemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CloseItemsRequest": {
+        "required": [
+          "secim",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "secim": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CloseItemSelection"
+            }
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kanal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CloseItemsResult": {
+        "required": [
+          "id",
+          "belgeNo",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "belgeNo": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ConversionResult": {
+        "required": [
+          "tutar",
+          "kaynak",
+          "hedef",
+          "sonuc"
+        ],
+        "type": "object",
+        "properties": {
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kaynak": {
+            "type": "string"
+          },
+          "hedef": {
+            "type": "string"
+          },
+          "sonuc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CurrencyTotal": {
+        "required": [
+          "doviz",
+          "toplam"
+        ],
+        "type": "object",
+        "properties": {
+          "doviz": {
+            "type": "string"
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CustomerBalance": {
+        "required": [
+          "cariId",
+          "cariAd",
+          "bakiye",
+          "depozitoBakiye"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "depozitoBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CustomerOpenItem": {
+        "required": [
+          "id",
+          "tarih",
+          "kaynak",
+          "aciklama",
+          "tutar",
+          "doviz",
+          "baz",
+          "kapanan",
+          "kalan",
+          "kapali"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kaynak": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "baz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kapanan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kapali": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CustomerOpenItems": {
+        "required": [
+          "cariId",
+          "cariAd",
+          "bakiye",
+          "acikToplam",
+          "kalemler"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "acikToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalemler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerOpenItem"
+            }
+          }
+        }
+      },
+      "CustomerStatement": {
+        "required": [
+          "cariId",
+          "cariAd",
+          "bakiye",
+          "devir",
+          "yuruyenBakiyeMi",
+          "satirlar",
+          "ozet",
+          "toplamBorc",
+          "toplamAlacak",
+          "dovizler",
+          "kaynaklar"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "devir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yuruyenBakiyeMi": {
+            "type": "boolean"
+          },
+          "satirlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerStatementLine"
+            }
+          },
+          "ozet": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomerStatementSummaryLine"
+            }
+          },
+          "toplamBorc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamAlacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "dovizler": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kaynaklar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CustomerStatementLine": {
+        "required": [
+          "id",
+          "tarih",
+          "aciklama",
+          "kaynak",
+          "kaynakId",
+          "doviz",
+          "tutar",
+          "kur",
+          "borc",
+          "alacak",
+          "yuruyen",
+          "kasaIslemId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynak": {
+            "type": "string"
+          },
+          "kaynakId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "borc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yuruyen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kasaIslemId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CustomerStatementSummaryLine": {
+        "required": [
+          "ay",
+          "kaynak",
+          "adet",
+          "borc",
+          "alacak",
+          "net"
+        ],
+        "type": "object",
+        "properties": {
+          "ay": {
+            "type": "string"
+          },
+          "kaynak": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "borc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "net": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CustomerTransferRequest": {
+        "required": [
+          "kaynakCariId",
+          "hedefCariId",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynakCariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hedefCariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "vade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "makbuzNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CustomerTransferRow": {
+        "required": [
+          "id",
+          "tarih",
+          "vade",
+          "kaynakCariId",
+          "kaynakCariAd",
+          "hedefCariId",
+          "hedefCariAd",
+          "tutar",
+          "doviz",
+          "kur",
+          "tutarTl",
+          "makbuzNo",
+          "sube",
+          "islemYapan",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vade": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kaynakCariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kaynakCariAd": {
+            "type": "string"
+          },
+          "hedefCariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hedefCariAd": {
+            "type": "string"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tutarTl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "makbuzNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "islemYapan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DepositBalanceRow": {
+        "required": [
+          "cariId",
+          "cariAd",
+          "bakiye"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": "string"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "DepositOffsetRequest": {
+        "required": [
+          "cariId",
+          "tutar"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "DepositRefundRequest": {
+        "required": [
+          "cariId",
+          "tutar",
+          "hesap"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hesap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -10437,6 +13149,142 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "FixedRate": {
+        "required": [
+          "id",
+          "kod",
+          "kur",
+          "basTar",
+          "bitTar",
+          "aktif",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "basTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "bitTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FixedRateCreateRequest": {
+        "required": [
+          "kod",
+          "kur"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "basTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "bitTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "aktif": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "FixedRateUpdateRequest": {
+        "required": [
+          "kur",
+          "basTar",
+          "bitTar",
+          "aktif",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "kur": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "basTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "bitTar": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -15059,6 +17907,97 @@
           }
         }
       },
+      "PeriodCloseRequest": {
+        "required": [
+          "kapanisTarihi"
+        ],
+        "type": "object",
+        "properties": {
+          "kapanisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "PeriodCloseState": {
+        "required": [
+          "kapanisTarihi",
+          "mizan",
+          "toplamBorc",
+          "toplamAlacak",
+          "toplamBakiye",
+          "gelir",
+          "gider",
+          "donemSonucu"
+        ],
+        "type": "object",
+        "properties": {
+          "kapanisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "mizan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrialBalanceRow"
+            }
+          },
+          "toplamBorc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamAlacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamBakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gelir": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "gider": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "donemSonucu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -15112,6 +18051,54 @@
           "iade": {
             "type": "boolean",
             "default": false
+          }
+        }
+      },
+      "RatesRefreshResult": {
+        "required": [
+          "durum",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RatesScreen": {
+        "required": [
+          "tcmb",
+          "sabitler",
+          "dovizKodlari"
+        ],
+        "type": "object",
+        "properties": {
+          "tcmb": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CbrtRate"
+            }
+          },
+          "sabitler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FixedRate"
+            }
+          },
+          "dovizKodlari": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -16660,6 +19647,55 @@
           }
         }
       },
+      "SayfaOfCashTransactionRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CashTransactionRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfFiloListeSatiri": {
         "required": [
           "kayitlar",
@@ -18009,6 +21045,48 @@
           }
         }
       },
+      "TrialBalanceRow": {
+        "required": [
+          "hesap",
+          "ad",
+          "borc",
+          "alacak",
+          "bakiye"
+        ],
+        "type": "object",
+        "properties": {
+          "hesap": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "borc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "UzatIstegi": {
         "type": "object",
         "properties": {
@@ -18116,6 +21194,9 @@
     },
     {
       "name": "Ara\u00E7 Tan\u0131mlar\u0131"
+    },
+    {
+      "name": "Finans Hub"
     }
   ]
 }

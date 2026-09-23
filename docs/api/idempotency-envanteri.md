@@ -196,6 +196,30 @@ Servis düzeyinde (Blazor da kapsanır):
   `mevcut.ayniIcerik` ise form temizlenir, otomatik yeniden gönderim yok.
   Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
 
+### `/api/ui/v1/finans/*` uç eşlemesi (F8.1a — finans ekranları, 1. yarı)
+
+Kilit: `tests/RentACar.IntegrationTests/UiFinanceHubApiTests*.cs`. Uç kodu: `Web/Api/FinansHub/`. Envanter satırları
+DEĞİŞMEDİ; uçlar mevcut servisleri çağırır. Uç katmanı ekleri: tutar ≤ 4 ondalık (kuruşa yazan kalemlerde ≤ 2), kur ≤ 6
+ondalık, `numeric(19,4)` sınırı, metin kolon uzunlukları, gövdedeki var olmayan/başka kiracının cari kimliği 400
+(`errors[alan]`), yoldaki cari 404.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST finans/kasa/virman` | E06 | başlık zorunlu; yanıt `id` = türetilen anahtar | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/kasa/islemler/{id}/ters` | E08 | yok (yapısal; FinanceReverse) | 409 `mukerrer`. Kira bağlıysa kira şube kapsamı durumdan önce (403) |
+| `POST finans/bakiye-duzeltme` | E13 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/cari-virman` | E07 | başlık zorunlu; yanıt `id` = anahtar | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/cariler/{cariId}/toplu-kapat` | E05 | başlık zorunlu | 409 `mukerrer`. ÖNCE bu anahtarla yazılmış kayıt aranır: bu carinin kapatmasıysa `mevcut{id, belgeNo, tutar, doviz, ayniIcerik}` (hesap, kanal, açık tutarların toplamı, açıklama); başka işlemse `mevcut`suz 409 |
+| `POST finans/toplu-tahsilat` | E03 | başlık zorunlu → parti anahtarı; satır `RowKey(parti, i)` | 409 `mukerrer` + `mevcut` (ilk satırın belgesi, parti toplamı; `ayniIcerik` tüm satırlar birebir aynıysa) |
+| `POST finans/toplu-gider` | E22 | başlık zorunlu → parti anahtarı | 409 `mukerrer` (servis metni) |
+| `POST finans/depozito/iade` | E10 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/depozito/mahsup` | E11 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/otomatik-tahsilat/calistir` | E20 | yok (aday çiti + E19) | 200 `kesilen=0`, her dönem `atlananlar`da |
+| `POST finans/donem-kapanis/kilitle` | E36 | yok (yapısal) | 400 "Dönem zaten … kapalı". Tarih bugünden (İstanbul) ileri olamaz |
+
+Kasa/banka negatif bakiye guard'ı YOK (kasıtlı). Sabit kur (`PUT finans/kurlar/sabit/{id}`) para yazmaz ama çözülen
+kuru belirler: tam değiştirme zorunlu `surum` (xmin) ile, uyuşmazlık 409 `cakisma`.
+
 ## Açık işler
 
 - **LOW-2 (e-Fatura hayalet gönderimi):** dönem faturası yarışında kaybeden istek `eInvoice.SendAsync`'i (`InvoiceService.cs:353`) çağırıyor. Bu çağrı, `PostDonemAsync` mevcut id'yi dönmeden **önce** yapılıyor. Stub bugün `false` döndüğü için etkisi yok. Gerçek GİB bağlanınca yazılmayan bir fatura için ETTN alınır. **Gerçek e-Fatura açılmadan önce düzeltilmeli:** gönderimi commit'ten sonraya taşı ya da yalnız yazılan faturada yap. Aynı desen kira/fark faturası yarışında da (`CreateFromRentalAsync` / `PostFarkFaturasiAsync`) geçerli.

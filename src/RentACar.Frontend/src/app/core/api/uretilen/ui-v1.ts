@@ -4811,6 +4811,1080 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/finans/cariler/{cariId}/ekstre': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          doviz?: string;
+          kaynak?: string;
+          kiraDurum?: string;
+          mod?: string;
+        };
+        header?: never;
+        path: {
+          cariId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerStatement'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kurlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RatesScreen'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kurlar/cevir': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          tutar: number | string;
+          kaynak?: string;
+          hedef?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ConversionResult'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kasa/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashboxSummary'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kasa/islemler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          tip?: string;
+          hesap?: string;
+          hesapId?: string;
+          kanal?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashTransactionList'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kasa/virmanlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          bas?: string;
+          bit?: string;
+          hesapId?: string;
+          ara?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashTransferRow'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kasa/virman': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CashTransferRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kasa/islemler/{id}/ters': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/cariler/{cariId}/bakiye': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          cariId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerBalance'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/bakiye-duzeltme': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BalanceAdjustmentRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/cari-virmanlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          ara?: string;
+          bas?: string;
+          bit?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerTransferRow'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/cari-virman': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CustomerTransferRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/cariler/{cariId}/acik-kalemler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          cariId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CustomerOpenItems'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/cariler/{cariId}/toplu-kapat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          cariId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CloseItemsRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CloseItemsResult'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/toplu-tahsilat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BulkCollectionRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BulkPostingResult'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/toplu-gider': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BulkExpenseRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BulkPostingResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/depozito': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DepositBalanceRow'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/depozito/iade': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DepositRefundRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/depozito/mahsup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DepositOffsetRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/donem-kapanis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PeriodCloseState'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/donem-kapanis/kilitle': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PeriodCloseRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/donem-kapanis/ac': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/otomatik-tahsilat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sozlesmeNo?: string;
+          vadeMin?: string;
+          vadeMax?: string;
+          bakiyeli?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AutoCollectionList'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/otomatik-tahsilat/calistir': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AutoCollectionRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AutoCollectionResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kurlar/yenile': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RatesRefreshResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kurlar/sabit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FixedRateCreateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CashOperationResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/finans/kurlar/sabit/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FixedRateUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5583,11 +6657,70 @@ export interface components {
       /** Format: double */
       toplamIscilik: number | string;
     };
+    AutoCollectionCandidate: {
+      /** Format: uuid */
+      kiraId: string;
+      sozlesmeNo: string;
+      /** Format: int32 */
+      donemSira: number | string;
+      /** Format: date-time */
+      donemBas: string;
+      /** Format: date-time */
+      donemBit: string;
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      sube: null | string;
+      doviz: string;
+      /** Format: double */
+      kiraTutar: number | string;
+      /** Format: double */
+      cariBakiye: number | string;
+    };
+    AutoCollectionList: {
+      jobAcik: boolean;
+      adaylar: components['schemas']['AutoCollectionCandidate'][];
+      dovizToplamlari: components['schemas']['CurrencyTotal'][];
+    };
+    AutoCollectionRequest: {
+      secim: null | components['schemas']['AutoCollectionSelection'][];
+      tahsilat: boolean;
+      hesap: null | string;
+    };
+    AutoCollectionResult: {
+      /** Format: int32 */
+      kesilen: number | string;
+      /** Format: int32 */
+      tahsilat: number | string;
+      atlananlar: string[];
+    };
+    AutoCollectionSelection: {
+      /** Format: uuid */
+      kiraId: string;
+      /** Format: int32 */
+      donemSira: number | string;
+    };
     AylikGelir: {
       /** Format: date-time */
       ayBas: string;
       /** Format: double */
       gelir: number | string;
+    };
+    BalanceAdjustmentRequest: {
+      /** Format: uuid */
+      cariId: string;
+      yon: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      /** Format: date-time */
+      vade?: null | string;
+      makbuzNo?: null | string;
+      aciklama?: null | string;
     };
     BelgeTuru: number;
     BenKiraci: {
@@ -5622,6 +6755,352 @@ export interface components {
         [key: string]: string;
       };
       pilot: boolean;
+    };
+    BulkCollectionLine: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      aciklama?: null | string;
+    };
+    BulkCollectionRequest: {
+      satirlar: null | components['schemas']['BulkCollectionLine'][];
+      hesap: null | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      kanal?: null | string;
+    };
+    BulkExpenseLine: {
+      /** Format: double */
+      netTutar: number | string;
+      aciklama?: null | string;
+      /** Format: uuid */
+      aracId?: null | string;
+    };
+    BulkExpenseRequest: {
+      satirlar: null | components['schemas']['BulkExpenseLine'][];
+      tip: null | string;
+      odemeYontemi: null | string;
+      /** Format: double */
+      kdvOrani: number | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      /** Format: date-time */
+      vade?: null | string;
+      /** Format: uuid */
+      finansalHesapId?: null | string;
+    };
+    BulkPostingResult: {
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      toplam: number | string;
+    };
+    CashboxSummary: {
+      /** Format: double */
+      kasaGiris: number | string;
+      /** Format: double */
+      kasaCikis: number | string;
+      /** Format: double */
+      kasaBakiye: number | string;
+      /** Format: double */
+      bankaGiris: number | string;
+      /** Format: double */
+      bankaCikis: number | string;
+      /** Format: double */
+      bankaBakiye: number | string;
+    };
+    CashOperationResult: {
+      /** Format: uuid */
+      id: string;
+    };
+    CashTransactionList: {
+      liste: components['schemas']['SayfaOfCashTransactionRow'];
+      kesildi: boolean;
+    };
+    CashTransactionRow: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      /** Format: date-time */
+      tarih: string;
+      tip: string;
+      tersKayit: boolean;
+      /** Format: uuid */
+      tersAlinanId: null | string;
+      hesap: string;
+      /** Format: uuid */
+      hesapId: null | string;
+      hesapAd: null | string;
+      kanal: string;
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      cariKod: null | string;
+      /** Format: uuid */
+      kiraId: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      tutarTl: number | string;
+      aciklama: null | string;
+    };
+    CashTransferRequest: {
+      kaynak: null | string;
+      hedef: null | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: uuid */
+      kaynakHesapId?: null | string;
+      /** Format: uuid */
+      hedefHesapId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      makbuzNo?: null | string;
+      sube?: null | string;
+      aciklama?: null | string;
+    };
+    CashTransferRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      kaynakTur: string;
+      /** Format: uuid */
+      kaynakHesapId: null | string;
+      kaynakHesapAd: null | string;
+      hedefTur: string;
+      /** Format: uuid */
+      hedefHesapId: null | string;
+      hedefHesapAd: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      tutarTl: number | string;
+      makbuzNo: null | string;
+      sube: null | string;
+      islemYapan: null | string;
+      aciklama: null | string;
+      kunyeVar: boolean;
+    };
+    CbrtRate: {
+      kod: string;
+      ad: null | string;
+      /** Format: int32 */
+      birim: number | string;
+      /** Format: double */
+      forexAlis: null | number | string;
+      /** Format: double */
+      forexSatis: null | number | string;
+      /** Format: double */
+      efektifAlis: null | number | string;
+      /** Format: double */
+      efektifSatis: null | number | string;
+      /** Format: date */
+      tarih: string;
+      sabitVar: boolean;
+    };
+    CloseItemSelection: {
+      /** Format: uuid */
+      kalemId: string;
+      /** Format: double */
+      tutar?: null | number | string;
+    };
+    CloseItemsRequest: {
+      secim: null | components['schemas']['CloseItemSelection'][];
+      hesap: null | string;
+      kanal?: null | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      aciklama?: null | string;
+    };
+    CloseItemsResult: {
+      /** Format: uuid */
+      id: string;
+      belgeNo: string;
+      /** Format: double */
+      tutar: number | string;
+    };
+    ConversionResult: {
+      /** Format: double */
+      tutar: number | string;
+      kaynak: string;
+      hedef: string;
+      /** Format: double */
+      sonuc: number | string;
+    };
+    CurrencyTotal: {
+      doviz: string;
+      /** Format: double */
+      toplam: number | string;
+    };
+    CustomerBalance: {
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      /** Format: double */
+      bakiye: number | string;
+      /** Format: double */
+      depozitoBakiye: number | string;
+    };
+    CustomerOpenItem: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      kaynak: string;
+      aciklama: null | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      baz: number | string;
+      /** Format: double */
+      kapanan: number | string;
+      /** Format: double */
+      kalan: number | string;
+      kapali: boolean;
+    };
+    CustomerOpenItems: {
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      /** Format: double */
+      bakiye: number | string;
+      /** Format: double */
+      acikToplam: number | string;
+      kalemler: components['schemas']['CustomerOpenItem'][];
+    };
+    CustomerStatement: {
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      /** Format: double */
+      bakiye: number | string;
+      /** Format: double */
+      devir: number | string;
+      yuruyenBakiyeMi: boolean;
+      satirlar: components['schemas']['CustomerStatementLine'][];
+      ozet: null | components['schemas']['CustomerStatementSummaryLine'][];
+      /** Format: double */
+      toplamBorc: number | string;
+      /** Format: double */
+      toplamAlacak: number | string;
+      dovizler: string[];
+      kaynaklar: string[];
+    };
+    CustomerStatementLine: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      aciklama: null | string;
+      kaynak: string;
+      /** Format: uuid */
+      kaynakId: string;
+      doviz: string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      borc: number | string;
+      /** Format: double */
+      alacak: number | string;
+      /** Format: double */
+      yuruyen: number | string;
+      /** Format: uuid */
+      kasaIslemId: null | string;
+    };
+    CustomerStatementSummaryLine: {
+      ay: string;
+      kaynak: string;
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      borc: number | string;
+      /** Format: double */
+      alacak: number | string;
+      /** Format: double */
+      net: number | string;
+    };
+    CustomerTransferRequest: {
+      /** Format: uuid */
+      kaynakCariId: string;
+      /** Format: uuid */
+      hedefCariId: string;
+      /** Format: double */
+      tutar: number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      /** Format: date-time */
+      tarih?: null | string;
+      /** Format: date-time */
+      vade?: null | string;
+      makbuzNo?: null | string;
+      sube?: null | string;
+      aciklama?: null | string;
+    };
+    CustomerTransferRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: date-time */
+      vade: null | string;
+      /** Format: uuid */
+      kaynakCariId: string;
+      kaynakCariAd: string;
+      /** Format: uuid */
+      hedefCariId: string;
+      hedefCariAd: string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      tutarTl: number | string;
+      makbuzNo: null | string;
+      sube: null | string;
+      islemYapan: null | string;
+      aciklama: null | string;
+    };
+    DepositBalanceRow: {
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      /** Format: double */
+      bakiye: number | string;
+    };
+    DepositOffsetRequest: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+    };
+    DepositRefundRequest: {
+      /** Format: uuid */
+      cariId: string;
+      /** Format: double */
+      tutar: number | string;
+      hesap: null | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
     };
     DepozitoAlIstegi: {
       /** Format: uuid */
@@ -5927,6 +7406,40 @@ export interface components {
     FinansIslemYaniti: {
       /** Format: uuid */
       id: string;
+    };
+    FixedRate: {
+      /** Format: uuid */
+      id: string;
+      kod: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: date */
+      basTar: null | string;
+      /** Format: date */
+      bitTar: null | string;
+      aktif: boolean;
+      surum: null | string;
+    };
+    FixedRateCreateRequest: {
+      kod: null | string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: date */
+      basTar?: null | string;
+      /** Format: date */
+      bitTar?: null | string;
+      /** @default true */
+      aktif: boolean;
+    };
+    FixedRateUpdateRequest: {
+      /** Format: double */
+      kur: number | string;
+      /** Format: date */
+      basTar: null | string;
+      /** Format: date */
+      bitTar: null | string;
+      aktif: boolean;
+      surum: null | string;
     };
     GirisIstegi: {
       firma: null | string;
@@ -6944,6 +8457,27 @@ export interface components {
       /** Format: int32 */
       acikSikayet: number | string;
     };
+    PeriodCloseRequest: {
+      /** Format: date */
+      kapanisTarihi: null | string;
+    };
+    PeriodCloseState: {
+      /** Format: date */
+      kapanisTarihi: null | string;
+      mizan: components['schemas']['TrialBalanceRow'][];
+      /** Format: double */
+      toplamBorc: number | string;
+      /** Format: double */
+      toplamAlacak: number | string;
+      /** Format: double */
+      toplamBakiye: number | string;
+      /** Format: double */
+      gelir: number | string;
+      /** Format: double */
+      gider: number | string;
+      /** Format: double */
+      donemSonucu: number | string;
+    };
     ProblemDetails: {
       type?: null | string;
       title?: null | string;
@@ -6957,6 +8491,16 @@ export interface components {
       kapamaTutar?: null | number | string;
       /** @default false */
       iade: boolean;
+    };
+    RatesRefreshResult: {
+      durum: string;
+      /** Format: int32 */
+      adet: number | string;
+    };
+    RatesScreen: {
+      tcmb: components['schemas']['CbrtRate'][];
+      sabitler: components['schemas']['FixedRate'][];
+      dovizKodlari: string[];
     };
     RezervasyonDetayYaniti: {
       rezervasyon: components['schemas']['RezervasyonDto'];
@@ -7310,6 +8854,17 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfCashTransactionRow: {
+      kayitlar: components['schemas']['CashTransactionRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfFiloListeSatiri: {
       kayitlar: components['schemas']['FiloListeSatiri'][];
       /** Format: int32 */
@@ -7630,6 +9185,16 @@ export interface components {
       /** @default true */
       aktif: boolean;
       surum?: null | string;
+    };
+    TrialBalanceRow: {
+      hesap: string;
+      ad: string;
+      /** Format: double */
+      borc: number | string;
+      /** Format: double */
+      alacak: number | string;
+      /** Format: double */
+      bakiye: number | string;
     };
     UzatIstegi: {
       /** Format: date-time */
