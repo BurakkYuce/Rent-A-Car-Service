@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -22,14 +21,8 @@ public static class PlatformAuthEndpoints
             if (!creds.Verify(kullanici ?? "", sifre ?? ""))
                 return Results.Redirect("/platform/login?hata=1");
 
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name, creds.User),
-                new(PlatformClaims.PlatformAdmin, "true"),
-                // tenant_id / rol claim'i BİLİNÇLİ YOK → tenant verisine erişemez.
-            };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            // tenant_id / rol claim'i BİLİNÇLİ YOK → tenant verisine erişemez (PlatformClaims.CreatePrincipal).
+            await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, PlatformClaims.CreatePrincipal(creds.User));
             return Results.Redirect("/platform/tenants");
         }).AntiforgeryByEnv().RequireRateLimiting("login"); // brute-force koruması (operatör parolası)
 
