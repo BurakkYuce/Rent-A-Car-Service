@@ -84,7 +84,9 @@
     </ng-template>
 
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span [class]="rozet(satir.durum)">{{ durumEtiketi(satir.durum) }}</span>
+      <span [class]="rozet(satir.durum)" [class.opsiyonlu]="satir.durum === 'Rezerv'">{{
+        durumEtiketi(satir.durum)
+      }}</span>
     </ng-template>
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
