@@ -66,7 +66,9 @@ public sealed class VehicleSaleService(
             KdvOrani = input.KdvOrani,
             KdvTutar = kdv,
             GenelToplam = gross,
-            Currency = string.IsNullOrWhiteSpace(input.Doviz) ? "TRY" : input.Doviz.Trim().ToUpperInvariant(),
+            // #279 N1 sınıfı (gider düzeltmesiyle aynı): "TL" ham yazılınca kur TRY=1 çözülürken defter "TL"
+            // dövizinde kalıyordu (cari bakiyesi döviz bazında ayrışır). Saklanabilir ISO koda indirgenir.
+            Currency = RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz),
             Kur = cozulenKur,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,
