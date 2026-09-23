@@ -18,6 +18,14 @@ public interface IBookingRepository
     /// <summary>ReservationNo'yu boşluksuz tahsis edip ekler (transaction).</summary>
     Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default);
     Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default);
+    /// <summary>
+    /// F5.1 — yukarıdakiyle aynı; ek olarak satır <c>FOR UPDATE</c> ile kilitlenir ve <paramref name="beklenenSurum"/>
+    /// doluysa kilit ALTINDA okunan sürümle (<see cref="ReservationSurumuAsync"/>) karşılaştırılır; farklıysa
+    /// <see cref="Common.EszamanliDegisiklikException"/> — hiçbir şey yazılmaz.
+    /// </summary>
+    Task<bool> UpdateReservationAsync(Guid id, string? beklenenSurum, Action<Reservation> apply, CancellationToken ct = default);
+    /// <summary>F5.1 — rezervasyonun satır sürümü (Postgres <c>xmin</c>, opak). Yoksa / kapsamda değilse <c>null</c>.</summary>
+    Task<string?> ReservationSurumuAsync(Guid id, CancellationToken ct = default);
 
     // Kira
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>

@@ -71,7 +71,12 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
     /// BULUNMAZ → taksit planı bu yoldan sessizce değiştirilemez (RentalUpdateInput deseni).
     /// İptal edilmiş sözleşme düzenlenemez: kapanmış bir belgenin künyesini değiştirmek geçmişi bozar.
     /// </summary>
-    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+    public Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+        => UpdateMetaAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F5.1 — <paramref name="beklenenSurum"/> doluysa satır kilidi altında sürüm karşılaştırmalı künye
+    /// güncellemesi; kilit ALTINDA "iptal edilmiş sözleşme düzenlenemez" yeniden denetlenir. null → Blazor yolu.</summary>
+    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.VadeGun is < 0) throw new ValidationException("Vade günü negatif olamaz.");
@@ -85,8 +90,10 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         if (mevcut.Durum == FiloKiraDurum.Iptal)
             throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
 
-        return await _repository.UpdateAsync(id, row =>
+        void Uygula(FiloKiralama row)
         {
+            if (beklenenSurum is not null && row.Durum == FiloKiraDurum.Iptal) // kilit altında (yarış penceresi)
+                throw new ValidationException("İptal edilmiş sözleşme düzenlenemez.");
             row.SatisTemsilcisi = Metin(input.SatisTemsilcisi);
             row.FaturaTuru = Metin(input.FaturaTuru);
             row.SozlesmeTarihi = input.SozlesmeTarihi;
@@ -102,7 +109,11 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
             row.ToplamKmLimiti = input.ToplamKmLimiti;
             row.Aciklama = Metin(input.Aciklama);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+
+        return beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
     }
 
     private static string? Metin(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

@@ -2368,6 +2368,1128 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/rezervasyonlar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          durum?: string;
+          basMin?: string;
+          basMax?: string;
+          kaynak?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfRezervasyonListeSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RezervasyonIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonOlusturYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyonlar/form-secenekleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonFormSecenekleri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyonlar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonDetayYaniti'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RezervasyonGuncelleIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonDetayYaniti'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyonlar/{id}/onayla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonDetayYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyonlar/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezervasyonDetayYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rezervasyonlar/{id}/kiraya-cevir': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KirayaCevirYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/teklifler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          durum?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfTeklifListeSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TeklifIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TeklifOlusturYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/teklifler/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TeklifDetayYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/teklifler/{id}/gonder': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TeklifDetayYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/teklifler/{id}/reddet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TeklifDetayYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/teklifler/{id}/kabul': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TeklifKabulYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/takvim': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          ay?: string;
+          plaka?: string;
+          grup?: string;
+          sube?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TakvimYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/takvim/secenekler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TakvimSecenekleri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musaitlik': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          basGun?: string;
+          bitGun?: string;
+          gun?: number | string;
+          basSaat?: string;
+          bitSaat?: string;
+          grup?: string;
+          sube?: string;
+          rezKaynak?: string;
+          doviz?: string;
+          plaka?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusaitlikYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musaitlik/secenekler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusaitlikSecenekleri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rez-sartlari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          musteriId?: string;
+          durum?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfRezSartDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RezSartIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezSartDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rez-sartlari/gruplar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': string[];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rez-sartlari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezSartDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RezSartGuncelleIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezSartDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rez-sartlari/{id}/karsilandi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': null | components['schemas']['RezSartKarsilandiIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezSartDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/rez-sartlari/{id}/geri-al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RezSartDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-kiralama': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          musteriId?: string;
+          plaka?: string;
+          ara?: string;
+          durum?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfFiloListeSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FiloKiralamaIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloOlusturYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-kiralama/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloKiralamaDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-kiralama/{id}/kunye': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FiloKunyeIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloKiralamaDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-kiralama/{id}/tamamla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloKiralamaDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-kiralama/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloKiralamaDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2542,6 +3664,175 @@ export interface components {
       iadeMi: boolean;
       /** @default false */
       manuelMi: boolean;
+    };
+    FiloKiralamaDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      surum: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: int32 */
+      sureAy: number | string;
+      /** Format: double */
+      aylikUcret: number | string;
+      /** Format: double */
+      kdvOrani: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: int32 */
+      toplamKmLimiti: null | number | string;
+      /** Format: double */
+      damgaVergisi: null | number | string;
+      aciklama: null | string;
+      satisTemsilcisi: null | string;
+      faturaTuru: null | string;
+      /** Format: date-time */
+      sozlesmeTarihi: null | string;
+      /** Format: date-time */
+      imzaTarih: null | string;
+      makbuzNo: null | string;
+      dosyaNo: null | string;
+      sozlesmeNo: null | string;
+      /** Format: int32 */
+      vadeGun: null | number | string;
+      fiyatTuru: null | string;
+      kaynak: null | string;
+      /** Format: int32 */
+      cikisKm: null | number | string;
+      /** Format: int32 */
+      toplamKm: null | number | string;
+      ozet: components['schemas']['FiloOzetDto'];
+      yetkiler: components['schemas']['FiloYetkileri'];
+    };
+    FiloKiralamaIstegi: {
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar?: null | string;
+      /** Format: int32 */
+      sureAy?: null | number | string;
+      /** Format: double */
+      aylikUcret?: null | number | string;
+      /** Format: double */
+      kdvOrani?: null | number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      /** Format: int32 */
+      toplamKmLimiti?: null | number | string;
+      /** Format: double */
+      damgaVergisi?: null | number | string;
+      aciklama?: null | string;
+      satisTemsilcisi?: null | string;
+      faturaTuru?: null | string;
+      /** Format: date-time */
+      sozlesmeTarihi?: null | string;
+      /** Format: date-time */
+      imzaTarih?: null | string;
+      makbuzNo?: null | string;
+      dosyaNo?: null | string;
+      sozlesmeNo?: null | string;
+      /** Format: int32 */
+      vadeGun?: null | number | string;
+      fiyatTuru?: null | string;
+      kaynak?: null | string;
+      /** Format: int32 */
+      cikisKm?: null | number | string;
+      /** Format: int32 */
+      toplamKm?: null | number | string;
+    };
+    FiloKunyeIstegi: {
+      surum?: null | string;
+      satisTemsilcisi?: null | string;
+      faturaTuru?: null | string;
+      /** Format: date-time */
+      sozlesmeTarihi?: null | string;
+      /** Format: date-time */
+      imzaTarih?: null | string;
+      makbuzNo?: null | string;
+      dosyaNo?: null | string;
+      sozlesmeNo?: null | string;
+      /** Format: int32 */
+      vadeGun?: null | number | string;
+      fiyatTuru?: null | string;
+      kaynak?: null | string;
+      /** Format: int32 */
+      cikisKm?: null | number | string;
+      /** Format: int32 */
+      toplamKm?: null | number | string;
+      /** Format: int32 */
+      toplamKmLimiti?: null | number | string;
+      aciklama?: null | string;
+    };
+    FiloListeSatiri: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      sozlesmeNo: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: int32 */
+      sureAy: number | string;
+      /** Format: double */
+      aylikUcret: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      doviz: string;
+      satisTemsilcisi: null | string;
+      kaynak: null | string;
+      /** Format: int32 */
+      vadeGun: null | number | string;
+      durum: string;
+    };
+    FiloOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+    };
+    FiloOzetDto: {
+      /** Format: double */
+      toplamNet: number | string;
+      /** Format: double */
+      toplamKdv: number | string;
+      /** Format: double */
+      damga: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      taksitler: components['schemas']['FiloTaksitDto'][];
+    };
+    FiloTaksitDto: {
+      /** Format: int32 */
+      sira: number | string;
+      /** Format: date-time */
+      vade: string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      kdv: number | string;
+      /** Format: double */
+      toplam: number | string;
+    };
+    FiloYetkileri: {
+      kunye: boolean;
+      tamamla: boolean;
+      iptal: boolean;
     };
     FinansHesapOgesi: {
       /** Format: uuid */
@@ -2927,6 +4218,11 @@ export interface components {
       kalan: number | string;
       notlar?: null | string[];
     };
+    KiralaSorgusu: {
+      vfrom: string;
+      vto: string;
+      vgrup: null | string;
+    };
     KiraListeOzeti: {
       /** Format: int32 */
       toplam: number | string;
@@ -3287,6 +4583,11 @@ export interface components {
       /** Format: double */
       cezaToplam: number | string;
     };
+    KirayaCevirYaniti: {
+      /** Format: uuid */
+      kiraId: string;
+      sozlesmeNo: string;
+    };
     KiraYetkileri: {
       operasyon: boolean;
       silme: boolean;
@@ -3362,6 +4663,65 @@ export interface components {
       km: number | string;
       sube: null | string;
       konum: null | string;
+    };
+    MusaitlikFiyati: {
+      /** Format: double */
+      gunluk: number | string;
+      /** Format: double */
+      toplam: number | string;
+      paraBirimi: string;
+    };
+    MusaitlikSatiri: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      marka: null | string;
+      tip: null | string;
+      /** Format: int32 */
+      modelYili: null | number | string;
+      /** Format: int32 */
+      yas: null | number | string;
+      yakit: null | string;
+      vites: null | string;
+      renk: null | string;
+      sipp: null | string;
+      grup: null | string;
+      sube: null | string;
+      /** Format: int32 */
+      kmLimiti: null | number | string;
+      /** Format: int32 */
+      minSurucuYas: null | number | string;
+      /** Format: int32 */
+      minEhliyetYil: null | number | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      provizyonDoviz: null | string;
+      karLastigi: boolean;
+      temizlik: boolean;
+      ozelKod1: null | string;
+      /** Format: int32 */
+      km: number | string;
+      /** Format: int32 */
+      bostaGun: null | number | string;
+      sonMusteri: null | string;
+      fiyat: null | components['schemas']['MusaitlikFiyati'];
+    };
+    MusaitlikSecenekleri: {
+      subeler: string[];
+      gruplar: string[];
+      kaynaklar: string[];
+      dovizler: string[];
+    };
+    MusaitlikYaniti: {
+      /** Format: date-time */
+      pencereBas: string;
+      /** Format: date-time */
+      pencereBit: string;
+      araclar: components['schemas']['MusaitlikSatiri'][];
+      /** Format: int32 */
+      brokerElenen: number | string;
+      brokerGerekce: string[];
+      kiralaSorgusu: components['schemas']['KiralaSorgusu'];
     };
     MusteriHizliIstegi: {
       ad?: null | string;
@@ -3507,8 +4867,360 @@ export interface components {
       /** @default false */
       iade: boolean;
     };
+    RezervasyonDetayYaniti: {
+      rezervasyon: components['schemas']['RezervasyonDto'];
+      musteriAd: string;
+      plaka: string;
+      yetkiler: components['schemas']['RezervasyonYetkileri'];
+    };
+    RezervasyonDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      surum: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      cikisOfisi: null | string;
+      donusOfisi: null | string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: double */
+      gunlukUcret: number | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: int32 */
+      hediyeGun: null | number | string;
+      /** Format: int32 */
+      faturalananGun: null | number | string;
+      /** Format: double */
+      iskontoTutar: null | number | string;
+      /** Format: double */
+      haftaSonuFark: null | number | string;
+      fiyatTuru: null | string;
+      kampanyaKodu: null | string;
+      /** Format: double */
+      kdvOranSnapshot: null | number | string;
+      /** Format: int32 */
+      kmLimit: number | string;
+      /** Format: double */
+      fazlaKmUcret: number | string;
+      /** Format: double */
+      yakitBirimUcret: number | string;
+      /** Format: double */
+      provizyon: null | number | string;
+      /** Format: double */
+      depozito: null | number | string;
+      /** Format: double */
+      komisyonOran: null | number | string;
+      /** Format: double */
+      komisyonTutar: null | number | string;
+      /** Format: double */
+      dropUcreti: null | number | string;
+      /** Format: double */
+      sonraOdeOran: null | number | string;
+      kaynak: null | string;
+      aciklama: null | string;
+      /** Format: double */
+      otaKiraBedeli: null | number | string;
+      /** Format: double */
+      otaDropBedeli: null | number | string;
+      /** Format: double */
+      otaBebekKoltugu: null | number | string;
+      /** Format: double */
+      otaNavigasyon: null | number | string;
+      /** Format: double */
+      otaLcf: null | number | string;
+      /** Format: double */
+      otaCdw: null | number | string;
+      /** Format: double */
+      otaScdw: null | number | string;
+      /** Format: double */
+      otaEkSurucu: null | number | string;
+      talepTuru: null | string;
+      geldigiBirim: null | string;
+      onayKodu: null | string;
+      projeAdi: null | string;
+      /** Format: uuid */
+      kiraId: null | string;
+      /** Format: date-time */
+      olusturmaUtc: string;
+    };
+    RezervasyonFormSecenekleri: {
+      varsayilanFiyatTuru: null | string;
+      fiyatTurleri: string[];
+      talepTurleri: string[];
+    };
+    RezervasyonGuncelleIstegi: {
+      surum?: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: double */
+      gunlukUcret?: null | number | string;
+      fiyatTuru?: null | string;
+      kampanyaKodu?: null | string;
+      cikisOfisi?: null | string;
+      donusOfisi?: null | string;
+      kaynak?: null | string;
+      aciklama?: null | string;
+      /** Format: int32 */
+      kmLimit?: null | number | string;
+      /** Format: double */
+      fazlaKmUcret?: null | number | string;
+      /** Format: double */
+      yakitBirimUcret?: null | number | string;
+      /** Format: double */
+      provizyon?: null | number | string;
+      /** Format: double */
+      depozito?: null | number | string;
+      /** Format: double */
+      komisyonOran?: null | number | string;
+      /** Format: double */
+      komisyonTutar?: null | number | string;
+      /** Format: double */
+      dropUcreti?: null | number | string;
+      /** Format: double */
+      sonraOdeOran?: null | number | string;
+      /** Format: double */
+      otaKiraBedeli?: null | number | string;
+      /** Format: double */
+      otaDropBedeli?: null | number | string;
+      /** Format: double */
+      otaBebekKoltugu?: null | number | string;
+      /** Format: double */
+      otaNavigasyon?: null | number | string;
+      /** Format: double */
+      otaLcf?: null | number | string;
+      /** Format: double */
+      otaCdw?: null | number | string;
+      /** Format: double */
+      otaScdw?: null | number | string;
+      /** Format: double */
+      otaEkSurucu?: null | number | string;
+      talepTuru?: null | string;
+      geldigiBirim?: null | string;
+      onayKodu?: null | string;
+      projeAdi?: null | string;
+    };
+    RezervasyonIstegi: {
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: double */
+      gunlukUcret?: null | number | string;
+      fiyatTuru?: null | string;
+      kampanyaKodu?: null | string;
+      cikisOfisi?: null | string;
+      donusOfisi?: null | string;
+      kaynak?: null | string;
+      aciklama?: null | string;
+      /** Format: int32 */
+      kmLimit?: null | number | string;
+      /** Format: double */
+      fazlaKmUcret?: null | number | string;
+      /** Format: double */
+      yakitBirimUcret?: null | number | string;
+      /** Format: double */
+      provizyon?: null | number | string;
+      /** Format: double */
+      depozito?: null | number | string;
+      /** Format: double */
+      komisyonOran?: null | number | string;
+      /** Format: double */
+      komisyonTutar?: null | number | string;
+      /** Format: double */
+      dropUcreti?: null | number | string;
+      /** Format: double */
+      sonraOdeOran?: null | number | string;
+      /** Format: double */
+      otaKiraBedeli?: null | number | string;
+      /** Format: double */
+      otaDropBedeli?: null | number | string;
+      /** Format: double */
+      otaBebekKoltugu?: null | number | string;
+      /** Format: double */
+      otaNavigasyon?: null | number | string;
+      /** Format: double */
+      otaLcf?: null | number | string;
+      /** Format: double */
+      otaCdw?: null | number | string;
+      /** Format: double */
+      otaScdw?: null | number | string;
+      /** Format: double */
+      otaEkSurucu?: null | number | string;
+      talepTuru?: null | string;
+      geldigiBirim?: null | string;
+      onayKodu?: null | string;
+      projeAdi?: null | string;
+    };
+    RezervasyonListeSatiri: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      cepTel: null | string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      cikisOfisi: null | string;
+      donusOfisi: null | string;
+      kaynak: null | string;
+      talepTuru: null | string;
+      geldigiBirim: null | string;
+      projeAdi: null | string;
+      onayKodu: null | string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: double */
+      tutar: number | string;
+      durum: string;
+    };
+    RezervasyonOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+    };
+    RezervasyonYetkileri: {
+      duzenle: boolean;
+      onayla: boolean;
+      kirayaCevir: boolean;
+      iptal: boolean;
+    };
+    RezSartDto: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      sart: string;
+      grup: null | string;
+      /** Format: date-time */
+      basTar: null | string;
+      /** Format: date-time */
+      bitTar: null | string;
+      /** Format: date-time */
+      talepTarihi: string;
+      /** Format: date-time */
+      karsilamaTarihi: null | string;
+      karsilandi: boolean;
+      teslimEden: null | string;
+      /** Format: uuid */
+      reservationId: null | string;
+      /** Format: uuid */
+      quotationId: null | string;
+      surum: null | string;
+    };
+    RezSartGuncelleIstegi: {
+      surum?: null | string;
+      /** Format: uuid */
+      musteriId: string;
+      sart?: null | string;
+      grup?: null | string;
+      /** Format: date-time */
+      basTar?: null | string;
+      /** Format: date-time */
+      bitTar?: null | string;
+      /** Format: date-time */
+      talepTarihi?: null | string;
+      /** Format: date-time */
+      karsilamaTarihi?: null | string;
+      teslimEden?: null | string;
+      /** Format: uuid */
+      reservationId?: null | string;
+      /** Format: uuid */
+      quotationId?: null | string;
+    };
+    RezSartIstegi: {
+      /** Format: uuid */
+      musteriId: string;
+      sart?: null | string;
+      grup?: null | string;
+      /** Format: date-time */
+      basTar?: null | string;
+      /** Format: date-time */
+      bitTar?: null | string;
+      /** Format: date-time */
+      talepTarihi?: null | string;
+      /** Format: date-time */
+      karsilamaTarihi?: null | string;
+      teslimEden?: null | string;
+      /** Format: uuid */
+      reservationId?: null | string;
+      /** Format: uuid */
+      quotationId?: null | string;
+    };
+    RezSartKarsilandiIstegi: {
+      teslimEden: null | string;
+    };
+    SayfaOfFiloListeSatiri: {
+      kayitlar: components['schemas']['FiloListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfKiraListeSatiri: {
       kayitlar: components['schemas']['KiraListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfRezervasyonListeSatiri: {
+      kayitlar: components['schemas']['RezervasyonListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfRezSartDto: {
+      kayitlar: components['schemas']['RezSartDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfTeklifListeSatiri: {
+      kayitlar: components['schemas']['TeklifListeSatiri'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -3580,6 +5292,141 @@ export interface components {
       tarih?: null | string;
       /** Format: uuid */
       tahsilatAnahtar?: null | string;
+    };
+    TakvimAraci: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      gunler: string[];
+    };
+    TakvimSecenekleri: {
+      subeler: string[];
+      gruplar: string[];
+    };
+    TakvimYaniti: {
+      ay: string;
+      /** Format: int32 */
+      gunSayisi: number | string;
+      oncekiAy: string;
+      sonrakiAy: string;
+      araclar: components['schemas']['TakvimAraci'][];
+      /** Format: int32 */
+      aracToplam: number | string;
+    };
+    TeklifDetayYaniti: {
+      teklif: components['schemas']['TeklifDto'];
+      musteriAd: string;
+      plaka: string;
+      yetkiler: components['schemas']['TeklifYetkileri'];
+    };
+    TeklifDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      cikisOfisi: null | string;
+      donusOfisi: null | string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: double */
+      gunlukUcret: number | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: int32 */
+      hediyeGun: null | number | string;
+      /** Format: int32 */
+      faturalananGun: null | number | string;
+      /** Format: double */
+      iskontoTutar: null | number | string;
+      /** Format: double */
+      haftaSonuFark: null | number | string;
+      fiyatTuru: null | string;
+      /** Format: double */
+      kdvOranSnapshot: null | number | string;
+      /** Format: int32 */
+      kmLimit: number | string;
+      /** Format: double */
+      fazlaKmUcret: number | string;
+      /** Format: double */
+      yakitBirimUcret: number | string;
+      /** Format: date-time */
+      gecerlilikTarihi: null | string;
+      aciklama: null | string;
+      /** Format: uuid */
+      rezervasyonId: null | string;
+      /** Format: date-time */
+      olusturmaUtc: string;
+    };
+    TeklifIstegi: {
+      /** Format: uuid */
+      musteriId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: double */
+      gunlukUcret?: null | number | string;
+      fiyatTuru?: null | string;
+      cikisOfisi?: null | string;
+      donusOfisi?: null | string;
+      /** Format: date-time */
+      gecerlilikTarihi?: null | string;
+      aciklama?: null | string;
+      /** Format: int32 */
+      kmLimit?: null | number | string;
+      /** Format: double */
+      fazlaKmUcret?: null | number | string;
+      /** Format: double */
+      yakitBirimUcret?: null | number | string;
+    };
+    TeklifKabulYaniti: {
+      /** Format: uuid */
+      rezervasyonId: string;
+      rezervasyonNo: string;
+    };
+    TeklifListeSatiri: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      /** Format: uuid */
+      musteriId: string;
+      musteriAd: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: date-time */
+      basTar: string;
+      /** Format: date-time */
+      bitTar: string;
+      /** Format: int32 */
+      gun: number | string;
+      /** Format: double */
+      tutar: number | string;
+      /** Format: date-time */
+      gecerlilikTarihi: null | string;
+      durum: string;
+      /** Format: uuid */
+      rezervasyonId: null | string;
+    };
+    TeklifOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+    };
+    TeklifYetkileri: {
+      gonder: boolean;
+      kabul: boolean;
+      reddet: boolean;
     };
     TeslimIstegi: {
       /** Format: int32 */

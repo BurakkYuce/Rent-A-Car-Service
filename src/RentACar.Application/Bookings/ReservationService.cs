@@ -103,7 +103,16 @@ public sealed class ReservationService(
     /// Rezervasyon düzenleme (roadmap I2): yalnız Rezerv/Onaylı durumda — tarih/araç/fiyat/ek alanlar/kaynak
     /// güncellenir, fiyat yeniden hesaplanır, aktif kira çakışması yeniden kontrol edilir. Defter etkilemez.
     /// </summary>
-    public async Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>
+    /// F5.1 — yukarıdakiyle aynı iş kuralları; <paramref name="beklenenSurum"/> doluysa (yeni arayüzün tam
+    /// değiştirme PUT'u) yazma satır kilidi ALTINDA sürüm karşılaştırmasıyla yapılır — bayat form başka oturumun
+    /// değişikliğini (fiyat, tarih) sessizce ezemez (<see cref="EszamanliDegisiklikException"/>). null → Blazor yolu
+    /// (davranış DEĞİŞMEDİ).
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, BookingInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
@@ -182,7 +191,7 @@ public sealed class ReservationService(
         var onayKodu = BookingMath.Kirp(input.OnayKodu, 64, "Onay kodu");
         var projeAdi = BookingMath.Kirp(input.ProjeAdi, 128, "Proje adı");
 
-        return await _repository.UpdateReservationAsync(id, r =>
+        void Uygula(Reservation r)
         {
             BranchScope.RequireInScope(_currentUser, r.CikisSubeId, r.CikisOfisi); // adversarial M3
             if (r.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
@@ -227,7 +236,11 @@ public sealed class ReservationService(
             r.OnayKodu = onayKodu;
             r.ProjeAdi = projeAdi;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+
+        return beklenenSurum is null
+            ? await _repository.UpdateReservationAsync(id, Uygula, ct)
+            : await _repository.UpdateReservationAsync(id, beklenenSurum, Uygula, ct);
     }
 
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)

@@ -129,6 +129,16 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
+    public Task<bool> UpdateReservationAsync(Guid id, string? beklenenSurum, Action<Reservation> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum,
+            (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public async Task<string?> ReservationSurumuAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Rezervasyonlar, id, ct);
+    }
+
     // ---- Kira ----
 
     public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)

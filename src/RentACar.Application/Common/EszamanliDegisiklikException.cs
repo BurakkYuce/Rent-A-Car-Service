@@ -13,4 +13,8 @@ public sealed class EszamanliDegisiklikException(string mesaj) : ValidationExcep
 {
     public const string KiraMesaji =
         "Kira başka bir oturumda değişti; güncel hâli yüklendi, değişikliklerinizi kontrol edip yeniden kaydedin.";
+
+    /// <summary>F5.1 — kira dışı tam değiştirme uçları (rezervasyon, rez şartı, filo kiralama künyesi).</summary>
+    public const string KayitMesaji =
+        "Kayıt başka bir oturumda değişti; güncel hâli yüklendi, değişikliklerinizi kontrol edip yeniden kaydedin.";
 }

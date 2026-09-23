@@ -39,21 +39,30 @@ public sealed class RezSartService(
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, RezSartInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, RezSartInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F5.1 — <paramref name="beklenenSurum"/> doluysa satır kilidi altında sürüm karşılaştırmalı tam
+    /// değiştirme (<see cref="EszamanliDegisiklikException"/>); null → Blazor yolu (davranış değişmedi).</summary>
+    public async Task<bool> UpdateAsync(Guid id, RezSartInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
         await MusteriVarMi(n.MusteriId, ct);
 
-        return await _repository.UpdateAsync(id, row =>
+        void Uygula(RezSart row)
         {
             // TalepTarihi boş gelirse MEVCUT değer korunur (form onu göndermiyor olabilir) — create'te
             // UtcNow'a düşer. Kayıt tarihini sessizce "şimdi"ye kaydırmak geçmişi bozardı.
             if (n.TalepTarihi is { } tt) row.TalepTarihi = tt;
             Apply(row, n);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+
+        return beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
     }
 
     /// <summary>Talebi karşılandı işaretler (tek tıklık akış). Zaten karşılanmışsa tarihi DEĞİŞTİRMEZ —

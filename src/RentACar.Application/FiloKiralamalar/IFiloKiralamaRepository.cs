@@ -14,4 +14,8 @@ public interface IFiloKiralamaRepository
 
     /// <summary>Künye alanlarını günceller (para/süre alanları çağıran tipte YOK — bkz. FiloKiralamaMetaInput).</summary>
     Task<bool> UpdateAsync(Guid id, Action<FiloKiralama> apply, CancellationToken ct = default);
+    /// <summary>F5.1 — satır kilidi + iyimser sürüm karşılaştırması (bkz. <c>IBookingRepository.UpdateReservationAsync</c>).</summary>
+    Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<FiloKiralama> apply, CancellationToken ct = default);
+    /// <summary>F5.1 — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa <c>null</c>.</summary>
+    Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
 }
