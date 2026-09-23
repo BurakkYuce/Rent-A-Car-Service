@@ -357,13 +357,17 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         var o = await OrtamKurAsync();
 
         var (admin, adminGovde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
-        foreach (var r in new[] { "/", "/kiralar/yeni", "/vehicles", "/vehicles/detayli", "/kasa", "/raporlar/karlilik", "/tarife-aktar", "/ayarlar", "/vade", "/bildirimler" })
+        // F4.6: Panel, Kiralar, Yeni Kira yeni arayüzün (sahip spa, rota /app/…).
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/vehicles", "/vehicles/detayli", "/kasa", "/raporlar/karlilik", "/tarife-aktar", "/ayarlar", "/vade", "/bildirimler" })
             Assert.Contains(r, admin);
         Assert.DoesNotContain("/web-sitesi", admin);   // modül kapalı
         Assert.DoesNotContain("/site-icerik", admin);
         var ogeler = adminGovde.GetProperty("ogeler").EnumerateArray().ToList();
         AlanKumesi(adminGovde.GetProperty("ogeler"), "rota", "etiket", "grup", "sira", "sahip", "rozetKodu", "hizliBaglanti");
-        Assert.All(ogeler, e => Assert.Equal("blazor", e.GetProperty("sahip").GetString()));
+        Assert.All(ogeler, e => Assert.Equal(
+            e.GetProperty("rota").GetString()!.StartsWith("/app/", StringComparison.Ordinal) ? "spa" : "blazor",
+            e.GetProperty("sahip").GetString()));
+        Assert.Equal(3, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
         Assert.Equal(3, ogeler.Count(e => e.GetProperty("hizliBaglanti").GetBoolean()));
         var siralar = ogeler.Select(e => e.GetProperty("sira").GetInt32()).ToList();
         Assert.Equal(siralar.Order(), siralar);         // sıralı döner
@@ -373,15 +377,15 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.False(adminGovde.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
         var (op, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorA));
-        foreach (var r in new[] { "/", "/kiralar/yeni", "/rezervasyonlar", "/vehicles", "/kiralar", "/cariler", "/vade", "/dokumanlar" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/rezervasyonlar", "/vehicles", "/app/kiralar", "/cariler", "/vade", "/dokumanlar" })
             Assert.Contains(r, op);
         foreach (var r in new[] { "/vehicles/detayli", "/musteri-taksit", "/crm", "/maliyet-hesapla", "/tarife-aktar", "/kasa", "/kurlar", "/raporlar/gunluk", "/ayarlar", "/subeler" })
             Assert.DoesNotContain(r, op);
 
         var (muh, _) = await MenuAsync(await GirisAsync(o, Kim.Muhasebe));
-        foreach (var r in new[] { "/", "/kasa", "/faturalar", "/raporlar/gunluk", "/vehicles/detayli", "/crm", "/maliyet-hesapla", "/musteri-taksit", "/vade" })
+        foreach (var r in new[] { "/app/panel", "/kasa", "/faturalar", "/raporlar/gunluk", "/vehicles/detayli", "/crm", "/maliyet-hesapla", "/musteri-taksit", "/vade" })
             Assert.Contains(r, muh);
-        foreach (var r in new[] { "/kiralar/yeni", "/kiralar", "/vehicles", "/cariler", "/tarife-aktar", "/ayarlar" })
+        foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/vehicles", "/cariler", "/tarife-aktar", "/ayarlar" })
             Assert.DoesNotContain(r, muh);
     }
 

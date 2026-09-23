@@ -27,8 +27,9 @@ export const SAYFALAR: Routes = [
     canActivate: [ceviriBlogu('vitrin')],
   },
   {
-    // F4.5 Panel (Blazor `/`). Kök yerine `/panel`: kök F3 vitrin/e2e/görsel tabanlarının çapası; giriş
-    // sonrası iniş ve menü "Panel" kaydı F4.6 kesişinde bu rotaya bağlanır. İzin kapısı içerikte (sunucu).
+    // F4.5 Panel (Blazor `/`). Kök yerine `/panel`: kök F3 vitrin/e2e/görsel tabanlarının çapası. F4.6: pilot
+    // girişinin varsayılan inişi (`PILOT_INIS`), menü "Panel" kaydı (`/app/panel`, sahip spa) ve Blazor `/`'ın
+    // pilot yönlendirmesi bu rota. İzin kapısı içerikte (sunucu).
     path: 'panel',
     title: 'Panel — RentACar',
     loadComponent: () => import('@features/panel/panel-sayfasi').then((m) => m.PanelSayfasi),

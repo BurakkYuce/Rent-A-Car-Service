@@ -73,6 +73,10 @@ describe('OturumServisi', () => {
     expect(oturum.ben()?.kullanici.kullaniciAdi).toBe('ayse');
     expect(oturum.izinVar('OperationsWrite')).toBe(true);
     expect(oturum.izinVar('FinanceWrite')).toBe(false);
+    // Düğme kapısı: izinlerin HEPSİ (grup + dar izin) gerekir.
+    expect(oturum.izinlerVar(['OperationsWrite'])).toBe(true);
+    expect(oturum.izinlerVar(['OperationsWrite', 'FinanceWrite'])).toBe(false);
+    expect(oturum.izinlerVar([])).toBe(true);
     expect(oturum.baglam()).toEqual({ anahtar: 't-1|u-1|s-9' });
     expect(kok.style.getPropertyValue('--rc-kiraci-renk-gecikenler')).toBe('#c0392b');
     expect(kok.style.getPropertyValue('--rc-kiraci-renk-opsiyonlu')).toBe('');

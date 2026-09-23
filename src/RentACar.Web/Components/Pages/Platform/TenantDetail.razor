@@ -146,6 +146,24 @@ else
             yalnız erişim ve site kapanır. Değişiklik en geç 60 saniyede tüm süreçlere yansır.</p>
     </div>
 
+    @* ---- F4.6: YENİ ARAYÜZ PİLOTU (TenantSettings.YeniArayuzPilot). Firma kendi Ayarlar'ından
+       açamaz; yalnız platform operatörü. Kapatmak ANINDA eski arayüze döndürür (bayrak önbelleksiz). ---- *@
+    <h2>Yeni Arayüz</h2>
+    <div class="kf-panel">
+        <form method="post" action="/platform/tenants/yeni-arayuz-pilot" class="tahsil-mini"
+              data-confirm="@(_d.YeniArayuzPilot ? $"{_d.Code} için yeni arayüz pilotu KAPATILSIN mı? (Panel ve Kira ekranları eski arayüze döner)" : $"{_d.Code} için yeni arayüz pilotu açılsın mı? (Panel ve Kira ekranları /app'e yönlenir)")">
+            <AntiforgeryToken />
+            <input type="hidden" name="id" value="@_d.Id" />
+            <input type="hidden" name="aktif" value="@(_d.YeniArayuzPilot ? "false" : "true")" />
+            <strong>Yeni Arayüz Pilotu</strong>
+            <span class="badge @(_d.YeniArayuzPilot ? "ok" : "warn")">@(_d.YeniArayuzPilot ? "Açık" : "Kapalı")</span>
+            <button type="submit" class="kf-btn">@(_d.YeniArayuzPilot ? "Kapat" : "Aç")</button>
+        </form>
+        <p class="muted small">Açıkken firmanın Panel ve Kira ekranları (liste, sözleşme formu, yazdırma) yeni
+            arayüzde (<code>/app</code>) açılır; eski adresler oraya yönlenir. PDF, dışa aktarma ve diğer modüller
+            değişmez. Kapatınca bir sonraki istekte eski arayüz döner. İşlem firmanın denetim kaydına yazılır.</p>
+    </div>
+
     @* ---- PR-9: halka açık site görünürlüğü (SALT-OKUNUR). Site açma/kapama tenant'ın kendi
        "Sitemi Aç" self-servisinde kalır — platform admin'in zorla kapatması AYRI bir özellik. ---- *@
     <h2>Halka Açık Site</h2>

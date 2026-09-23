@@ -461,6 +461,9 @@ app.UseMiddleware<RentACar.Web.Observability.RequestEnrichment.Middleware>();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
 app.UseMiddleware<PlatformIsolationMiddleware>(); // platform operatörü tenant UI'ına giremez (konsola yönlendir)
+// F4.6 ilk kesiş: GET /login → /app/giris (tek giriş) + pilot kiracıda F4 sayfaları → /app (yalnız GET, açık
+// şablon listesi — PDF/hesap/export yönlenmez). Kapalı firma ve platform ayrımı ÖNCE çalışsın diye onlardan sonra.
+app.UseMiddleware<RentACar.Web.Spa.IlkKesisMiddleware>();
 app.UseAntiforgery();
 
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir

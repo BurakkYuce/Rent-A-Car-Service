@@ -89,15 +89,33 @@ public sealed class UcIzinKapsamaTests
         return sonuc;
     }
 
+    /// <summary>
+    /// F4 kesişinde silinecek Blazor POST uçları (docs/roadmap/F4.md envanteri, "F4 (bu faz)" satırları). F4.6b bu
+    /// uçları (ör. <c>/kiralar/cancel</c>) sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
+    /// </summary>
+    private static HashSet<string> F4KesisindeSilinecekUclar(string kok)
+        => Regex.Matches(File.ReadAllText(Path.Combine(kok, "docs/roadmap/F4.md")),
+                @"^\|\s*`(?<uc>/[^`]+)`\s*\|[^|]*\|\s*F4 \(bu faz\)\s*\|", RegexOptions.Multiline)
+            .Select(m => m.Groups["uc"].Value).ToHashSet(StringComparer.Ordinal);
+
     [Fact]
     public void Tarama_calisiyor()
     {
         // Kendi kendini doğrulayan ön koşul: tarama bozulursa aşağıdaki kilit SESSİZCE boş küme
         // üzerinde çalışır ve sonsuza dek yeşil kalırdı.
-        var dar = DarUclar(RepoKok());
-        Assert.True(dar.Count >= 10, $"Beklenenden az dar uç bulundu ({dar.Count}) — tarama bozulmuş olabilir.");
-        Assert.Contains(dar, u => u.Rota == "/kiralar/cancel" && u.Etkin == Permission.OperationsDelete);
-        Assert.Contains(dar, u => u.Etkin == Permission.FinanceReverse);
+        // F4.6 devri: çapa artık TEK rota (/kiralar/cancel — F4.6b'de silinir) değil; F4 kesişinden SONRA da
+        // yaşayacak dar uçlar sayılır ve üç dar-izin türünün her biri en az bir kez aranır. /kiralar/cancel'in
+        // (canlı hatanın kaynağı) SPA karşılığı UiDugmeIzinTests'te (kiraIptal: OperationsWrite + OperationsDelete).
+        var kok = RepoKok();
+        var silinecek = F4KesisindeSilinecekUclar(kok);
+        Assert.Contains("/kiralar/cancel", silinecek); // envanter ayrıştırması çalışıyor
+        Assert.True(silinecek.Count >= 15, $"F4 envanteri şüpheli: {silinecek.Count} uç.");
+
+        var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
+        Assert.True(kalici.Count >= 10, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
+        Assert.Contains(kalici, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite);
+        Assert.Contains(kalici, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
+        Assert.Contains(kalici, u => u.Etkin == Permission.FinanceReverse);
     }
 
     [Fact]

@@ -167,12 +167,18 @@ public sealed class SpaBarindirmaHostTests(SpaWebFixture fx)
     }
 
     [Fact]
-    public async Task Mevcut_Blazor_girisi_bozulmadi()
+    public async Task Tek_giris_Blazor_login_SPA_girisine_yonlenir_ve_acilir()
     {
         var c = Istemci(fx.Kurulu);
 
+        // F4.6: GET /login artık form çizmez → /app/giris (anonim; SPA kurulu host'ta kabuk 200).
         var giris = await c.GetAsync("/login");
-        Assert.Equal(HttpStatusCode.OK, giris.StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, giris.StatusCode);
+        Assert.Equal("/app/giris", giris.Headers.Location?.OriginalString);
+        var spaGiris = await c.GetAsync("/app/giris");
+        Assert.Equal(HttpStatusCode.OK, spaGiris.StatusCode);
+        Assert.Null(spaGiris.Headers.Location);
+        Assert.Contains(KabukIsareti, await spaGiris.Content.ReadAsStringAsync());
 
         // Korumalı Blazor sayfası anonim istekte hâlâ /login'e gider (challenge yalnız /app'ten kalktı).
         var ana = await c.GetAsync("/");

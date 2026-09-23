@@ -1,0 +1,134 @@
+# F4.6 ONCESI MainLayout menusu (dondurulmus oracle) — grup<TAB>rota<TAB>etiket<TAB>rozet, gorunum sirasiyla.
+# MainLayout artik menuyu MenuKaydi'ndan cizer; bu dosya kaydin rol->izin gecisi DISINDA kaymadigini kilitler.
+# ELLE DUZENLEMEYIN: menuye oge ekleyen kaydi ve bu dosyayi AYNI PR'da, gerekcesiyle degistirir.
+Kısa Yollar	/rezervasyonlar	Yeni Rezervasyon	
+Kısa Yollar	/kiralar/yeni	Yeni Kira	
+Kısa Yollar	/musaitlik	Müsaitlik-Rez Açma	
+	/	Panel	
+Araçlar	/vehicles	Araç Listesi	
+Araçlar	/vehicles/detayli	Detaylı Araç Listesi	
+Araçlar	/arac-durum	Araç Durum	
+Araçlar	/arac-siparis	Araç Sipariş	
+Araçlar	/filo-plan	Filo Plan Hedefi	
+Araçlar	/arac-kredi	Araç Kredisi	
+Araçlar	/musteri-taksit	Müşteri Taksitleri	
+Araçlar	/baf	BAF (Tahsis)	
+Araçlar	/hasar	Hasar	
+Araçlar	/arac-tipleri	Araç Tipleri	
+Araçlar	/arac-sahipleri	Araç Sahipleri	
+Araçlar	/segmentler	Segmentler	
+Kira	/kiralar	Kiralar	
+Kira	/teklifler	Teklifler	
+Kira	/filo-kiralama	Filo Kiralama	
+Rezervasyon	/rezervasyonlar	Rezervasyonlar	
+Rezervasyon	/takvim	Takvim	
+Rezervasyon	/musaitlik	Müsaitlik	
+Rezervasyon	/rez-sartlari	Rez Şartları	
+Cariler & CRM	/cariler	Cariler	
+Cariler & CRM	/crm	CRM Analiz	
+Cariler & CRM	/sikayetler	Şikayetler	
+Cariler & CRM	/assistans	Assistans Talepleri	
+Cariler & CRM	/hukuk	Hukuk	
+Cariler & CRM	/anketler	Anketler	
+Cariler & CRM	/blog-yonetim	Blog	
+Cariler & CRM	/gelen-talepler	Gelen Talepler	yeni-talep
+Web Sitesi	/web-sitesi	İlanlar	
+Web Sitesi	/site-icerik	Site İçeriği	
+Web Sitesi	/gelen-talepler	Gelen Talepler	yeni-talep
+Web Sitesi	/blog-yonetim	Blog	
+Servis & Sigorta	/servisler	Servis	
+Servis & Sigorta	/servis-tanimlari	Servis Tanımları	
+Servis & Sigorta	/regulasyon	Sigorta / MTV / Muayene	
+Fiyat & Tarife	/tarifeler	Tarifeler	
+Fiyat & Tarife	/tarife-matris	Tarife Matrisi	
+Fiyat & Tarife	/tarife-gruplari	Tarife Grupları	
+Fiyat & Tarife	/tarife-aktar	Tarife İçe Aktar	
+Fiyat & Tarife	/sigorta-urunleri	Sigorta Ürünleri	
+Fiyat & Tarife	/kira-kurallari	Kiralama Kuralları	
+Fiyat & Tarife	/broker-yasaklari	Broker Yasakları	
+Fiyat & Tarife	/fiyat-hesapla	Fiyat Hesapla	
+Fiyat & Tarife	/maliyet-hesapla	Maliyet Hesapla	
+Fiyat & Tarife	/maliyet-teklifleri	Maliyet Teklifleri	
+Fiyat & Tarife	/ek-hizmetler	Ek Hizmetler	
+Tanımlar	/markalar	Markalar	
+Tanımlar	/arac-gruplari	Araç Grupları	
+Tanımlar	/arac-tipleri	Araç Tipleri	
+Tanımlar	/lokasyonlar	Lokasyonlar	
+Tanımlar	/yakit-turleri	Yakıt Türleri	
+Tanımlar	/vites-turleri	Vites Türleri	
+Tanımlar	/renkler	Renkler	
+Tanımlar	/segmentler	Segmentler	
+Tanımlar	/musteri-gruplari	Müşteri Grupları	
+Tanımlar	/sigorta-sirketleri	Sigorta Şirketleri	
+Tanımlar	/bankalar	Bankalar	
+Tanımlar	/departmanlar	Departmanlar	
+Tanımlar	/odeme-tipleri	Ödeme Tipleri	
+Tanımlar	/ulkeler	Ülkeler	
+Tanımlar	/aksesuarlar	Aksesuarlar	
+Tanımlar	/iptal-sebepleri	İptal Sebepleri	
+Tanımlar	/rezervasyon-kaynaklari	Rez. Kaynakları	
+Tanımlar	/ceza-turleri	Ceza Türleri	
+Tanımlar	/kdv-oranlari	KDV Oranları	
+Tanımlar	/gider-turleri	Gider Türleri	
+Tanımlar	/hesaplar	Hesaplar	
+Tanımlar	/hesap-kodlari	Hesap Kodları	
+Tanımlar	/ozel-kodlar	Özel Kodlar	
+Tanımlar	/dovizler	Dövizler	
+Tanımlar	/drop-tanimlari	Drop Matris	
+Tanımlar	/doluluk-kurallari	Doluluk Fiyat Kuralları	
+Finans	/kasa	Kasa / Banka	
+Finans	/finans/nakit-islem	Nakit İşlem	
+Finans	/finans/bakiye-duzeltme	Bakiye Düzeltme	
+Finans	/kurlar	Döviz Kurları	
+Finans	/faturalar	Faturalar	
+Finans	/faturalar/detay-listesi	Fatura Detay Listesi	
+Finans	/gelen-efatura	Gelen e-Fatura	
+Finans	/giderler	Giderler	
+Finans	/satislar	Satışlar	
+Finans	/cari-virman	Cari Virman	
+Finans	/depozito	Depozito	
+Finans	/toplu-tahsilat	Toplu Tahsilat	
+Finans	/tek-cari-toplu	Tek Cari Toplu Kapatma	
+Finans	/otomatik-tahsilat	Otomatik Tahsilat	
+Finans	/toplu-gider	Toplu Gider	
+Finans	/cezalar	Cezalar	
+Finans	/donem-kapanis	Dönem Kapanışı	
+Raporlar	/raporlar/finans-analiz	Finans Analiz	
+Raporlar	/raporlar/gelir-gider	Gelir-Gider	
+Raporlar	/raporlar/karlilik	Kârlılık	
+Raporlar	/raporlar/filo-analiz	Filo Analiz	
+Raporlar	/raporlar/gunluk	Günlük	
+Raporlar	/raporlar/cari-bakiye	Cari Bakiye	
+Raporlar	/raporlar/extre-ozeti	Extre Özeti	
+Raporlar	/raporlar/filo	Filo	
+Raporlar	/raporlar/doluluk	Doluluk	
+Raporlar	/raporlar/tahsilat-fatura	Tahsilat-Fatura	
+Raporlar	/raporlar/kdv-listesi	KDV Listesi	
+Raporlar	/raporlar/ek-hizmet	Ek Hizmet	
+Raporlar	/raporlar/periyodik-servis	Periyodik Servis	
+Raporlar	/raporlar/km-detay	KM Detay	
+Raporlar	/raporlar/rezervasyon-kaynak	Rezervasyon Kaynak	
+Raporlar	/raporlar/karsilastirmali-analiz	Karşılaştırmalı Analiz	
+Raporlar	/raporlar/fatura-donem	Fatura Dönem	
+Raporlar	/raporlar/arac-durum-takip	Araç Durum Takip	
+Raporlar	/raporlar/arac-gunluk-durum	Araç Günlük Durum	
+Raporlar	/raporlar/personel-calisma	Personel Çalışma (Vardiya)	
+Raporlar	/raporlar/sigorta-muayene	Sigorta / Muayene Envanteri	
+Raporlar	/raporlar/kasa-banka	Kasa-Banka Defteri	
+Raporlar	/raporlar/virman-gecmisi	Virman Geçmişi	
+Raporlar	/raporlar/servis-ozet	Servis Özet	
+Raporlar	/raporlar/otomatik-servisler	Otomatik Servisler	
+	/vade	Vade Panosu	
+	/bildirimler	Bildirimler	okunmamis-bildirim
+	/takvim-abonelik	Takvim Aboneliği	
+	/firma-belgeleri	Firma Belgeleri	
+	/dokumanlar	Dokümanlar	
+Sistem	/subeler	Şubeler	
+Sistem	/kullanicilar	Kullanıcılar	
+Sistem	/personel	Personel	
+Sistem	/ayarlar	Ayarlar	
+Sistem	/mesaj-sablonlari	Mesaj Şablonları	
+Sistem	/belge-sablonlari	Belge Şablonları	
+Sistem	/yetki	Ekran Yetkileri	
+Sistem	/denetim	Denetim	
+Sistem	/ice-aktar	Veri İçe Aktar	

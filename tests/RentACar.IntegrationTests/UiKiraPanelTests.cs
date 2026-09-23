@@ -518,6 +518,18 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         async Task<JsonElement> ListeSatiri(Oturum s)
             => (await Json(await s.C.GetAsync(Kira))).GetProperty("kayitlar").EnumerateArray().Single(r => r.GetProperty("id").GetGuid() == id);
 
+        // F4.6: pilot firmada Blazor /kiralar ve / yeni arayüze yönlenir (IlkKesisMiddleware). Blazor paritesini
+        // ölçmek için sayfa pilot KAPALIYKEN okunur (bayrak önbelleksiz — bir sonraki istekte geçerli), sonra açılır.
+        async Task<string> BlazorHtml(Oturum s, string yol)
+        {
+            var yon = await s.C.GetAsync(yol);
+            Assert.Equal(HttpStatusCode.Redirect, yon.StatusCode);
+            Assert.StartsWith("/app/", yon.Headers.Location?.OriginalString);
+            await fx.PilotYapAsync(o.TenantId, false);
+            try { return await (await s.C.GetAsync(yol)).Content.ReadAsStringAsync(); }
+            finally { await fx.PilotYapAsync(o.TenantId, true); }
+        }
+
         var satir = await ListeSatiri(ad);
         var th = satir.GetProperty("tahsilat");
         var k1 = th.GetProperty("anahtar").GetGuid();
@@ -527,9 +539,9 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal(360m, Dec(th, "varsayilanTutar"));
 
         // Blazor kira listesi ve panosu AYNI anahtarı basıyor.
-        var listeHtml = await (await ad.C.GetAsync("/kiralar")).Content.ReadAsStringAsync();
+        var listeHtml = await BlazorHtml(ad, "/kiralar");
         Assert.Contains(k1.ToString(), IslemAnahtari.Matches(listeHtml).Select(m => m.Groups[1].Value));
-        var panoHtml = await (await ad.C.GetAsync("/")).Content.ReadAsStringAsync();
+        var panoHtml = await BlazorHtml(ad, "/");
         Assert.Contains(k1.ToString(), IslemAnahtari.Matches(panoHtml).Select(m => m.Groups[1].Value));
 
         var panel = await Json(await ad.C.GetAsync(V1 + "/panel/ozet"));
@@ -555,7 +567,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal(260m, Dec(sonra, "bakiye"));
         var k2 = sonra.GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
         Assert.NotEqual(k1, k2);
-        var listeHtml2 = await (await ad.C.GetAsync("/kiralar")).Content.ReadAsStringAsync();
+        var listeHtml2 = await BlazorHtml(ad, "/kiralar");
         Assert.Contains(k2.ToString(), IslemAnahtari.Matches(listeHtml2).Select(m => m.Groups[1].Value));
 
         // Finans yetkisi olmayan operatörde tahsilat verisi ve finans özeti YOK.

@@ -3,15 +3,18 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using RentACar.Application.Authorization;
+using RentACar.Domain.Enums;
 using RentACar.Web.Api.Menu;
 
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// F1.6 — menü kaydının (<see cref="MenuKaydi"/>) KAYMA ÇİTİ. Blazor F4.6'ya dek kendi menüsünü çizer; bu testler
-/// kaydın MainLayout'la birebir kalmasını ve her öğenin izninin SAYFANIN KENDİ yetkisinden türemesini kilitler.
-/// BAĞIMSIZ ORACLE: MainLayout.razor metni (bağlantılar, gruplar, sıra, rozetler) ve sayfa [Authorize] öznitelikleri —
-/// kayıt kodundan değil.
+/// F1.6 — menü kaydının (<see cref="MenuKaydi"/>) KAYMA ÇİTİ. F4.6'dan beri Blazor <c>MainLayout</c> da menüyü kayıttan
+/// çizer; bu testler kaydın F4.6 ÖNCESİ MainLayout menüsüyle (dondurulmuş kopya: <c>Oracle/menu-f46-oncesi.tsv</c>)
+/// birebir kalmasını, her öğenin izninin SAYFANIN KENDİ yetkisinden türemesini ve rol → izin geçişinin KASITLI
+/// farkını (önce/sonra) kilitler.
+/// BAĞIMSIZ ORACLE: dondurulmuş MainLayout menüsü (bağlantılar, gruplar, sıra, rozetler), sayfa [Authorize]
+/// öznitelikleri ve elle yazılmış rol farkı tablosu — kayıt kodundan değil.
 /// </summary>
 public sealed class MenuKaydiTests
 {
@@ -51,10 +54,25 @@ public sealed class MenuKaydiTests
         return Regex.Replace(s, @"\s+", " ").Trim();
     }
 
-    /// <summary>MainLayout'un kenar çubuğu menüsü (kısa yollar + nav) — sırasıyla (grup, rota, etiket, rozet).</summary>
+    /// <summary>
+    /// F4.6 öncesi MainLayout menüsü (kısa yollar + nav) — sırasıyla (grup, rota, etiket, rozet). MainLayout artık
+    /// menüyü kayıttan çizdiği için oracle onun o günkü DONDURULMUŞ kopyasıdır (<see cref="EskiLayoutMenusu"/> bu
+    /// dosyayı üretmek için kullanılan ayrıştırıcıdır; bkz. <c>Oracle/menu-f46-oncesi.tsv</c> başlığı).
+    /// </summary>
     private static List<LayoutOgesi> LayoutMenusu()
+        => File.ReadAllLines(Path.Combine(RepoKok(), "tests", "RentACar.IntegrationTests", "Oracle", "menu-f46-oncesi.tsv"))
+            .Where(l => l.Length > 0 && !l.StartsWith('#'))
+            .Select(l => l.Split('\t'))
+            .Select(p => new LayoutOgesi(p[0], p[1], p[2], p[3].Length == 0 ? null : p[3]))
+            .ToList();
+
+    /// <summary>Kaydın, F4.6 öncesi menüyle karşılaştırılabilir hâli: <c>spa</c> öğesinin rotası Blazor karşılığına çevrilir.</summary>
+    private static string EskiRota(MenuOgesi o)
+        => o.Sahip == MenuKaydi.Spa ? RentACar.Web.Spa.IlkKesis.BlazorKarsiligi(o.Rota) ?? o.Rota : o.Rota;
+
+    /// <summary>F4.6 ÖNCESİ MainLayout'u ayrıştıran kod (oracle dosyası bununla üretildi; bugün MainLayout'ta sabit bağlantı yok).</summary>
+    private static List<LayoutOgesi> EskiLayoutMenusu(string metin)
     {
-        var metin = File.ReadAllText(Path.Combine(RepoKok(), "src", "RentACar.Web", "Components", "Layout", "MainLayout.razor"));
         metin = Regex.Replace(metin, @"@\*.*?\*@", "", RegexOptions.Singleline); // Razor yorumları
         var bas = metin.IndexOf("<div class=\"sb-quick\">", StringComparison.Ordinal);
         var son = metin.IndexOf("</nav>", StringComparison.Ordinal);
@@ -83,11 +101,11 @@ public sealed class MenuKaydiTests
     }
 
     [Fact]
-    public void Kayit_MainLayout_ile_birebir_ayni_sirada()
+    public void Kayit_F46_oncesi_MainLayout_menusuyle_birebir_ayni_sirada()
     {
         var layout = LayoutMenusu();
         var kayit = MenuKaydi.Ogeler.OrderBy(o => o.Sira)
-            .Select(o => new LayoutOgesi(o.Grup, o.Rota, o.Etiket, o.RozetKodu)).ToList();
+            .Select(o => new LayoutOgesi(o.Grup, EskiRota(o), o.Etiket, o.RozetKodu)).ToList();
 
         Assert.True(layout.Count > 100, $"MainLayout ayrıştırması şüpheli: {layout.Count} bağlantı.");
         var eksik = layout.Except(kayit).Select(x => $"{x.Grup}|{x.Rota}|{x.Etiket}|{x.Rozet}").ToList();
@@ -103,7 +121,10 @@ public sealed class MenuKaydiTests
         var ogeler = MenuKaydi.Ogeler;
         Assert.Equal(ogeler.Count, ogeler.Select(o => (o.Grup, o.Rota)).Distinct().Count());
         Assert.Equal(ogeler.Count, ogeler.Select(o => o.Sira).Distinct().Count());
-        Assert.All(ogeler, o => Assert.Equal(MenuKaydi.Blazor, o.Sahip));
+        // F4.6: F4 sayfaları (Panel, Kiralar, Yeni Kira) yeni arayüzün; sahip rotadan türer (/app → spa).
+        Assert.Equal(new[] { "/app/kiralar", "/app/kiralar/yeni", "/app/panel" },
+            ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
+        Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
         Assert.All(ogeler, o => Assert.Equal(o.Grup == KisaYollar, o.HizliBaglanti));
         // Modül bayrağı yalnız MainLayout'un @if (_webSitesiModulu) bloğundaki "Web Sitesi" grubunda.
         Assert.All(ogeler, o => Assert.Equal(o.Grup == "Web Sitesi" ? "WebSitesi" : null, o.Modul));
@@ -129,7 +150,12 @@ public sealed class MenuKaydiTests
         var hatalar = new List<string>();
         foreach (var o in MenuKaydi.Ogeler)
         {
-            if (!sayfalar.TryGetValue(o.Rota, out var auth)) { hatalar.Add($"{o.Rota}: sayfa yok"); continue; }
+            // spa öğesi: Blazor karşılığı yaşadıkça (F4.6b'ye dek) onun yetkisi; sayfa silinince grup kapısı.
+            if (!sayfalar.TryGetValue(EskiRota(o), out var auth))
+            {
+                if (o.Sahip == MenuKaydi.Spa) auth = null;
+                else { hatalar.Add($"{o.Rota}: sayfa yok"); continue; }
+            }
             Permission? beklenen;
             if (auth?.Policy is { } pol && pol.StartsWith("izin:", StringComparison.Ordinal))
                 beklenen = Enum.Parse<Permission>(pol["izin:".Length..]);
@@ -140,5 +166,77 @@ public sealed class MenuKaydiTests
             if (beklenen != o.Izin) hatalar.Add($"{o.Grup}|{o.Rota}: beklenen {beklenen?.ToString() ?? "(herkes)"}, kayıtta {o.Izin?.ToString() ?? "(herkes)"}");
         }
         Assert.True(hatalar.Count == 0, "Menü izni sayfa yetkisiyle uyuşmuyor:\n" + string.Join("\n", hatalar));
+    }
+
+    [Fact]
+    public void MainLayout_menuyu_kayittan_cizer_sabit_menu_baglantisi_yok()
+    {
+        var metin = File.ReadAllText(Path.Combine(RepoKok(), "src", "RentACar.Web", "Components", "Layout", "MainLayout.razor"));
+        Assert.Contains("MenuApi.Gorunur(", metin, StringComparison.Ordinal);   // yeni arayüzle AYNI süzgeç (etkin izin + modül)
+        Assert.Contains("MenuGorunumu.Kur(", metin, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AuthorizeView Roles=", metin, StringComparison.Ordinal); // rol kapısı kalmadı
+        var sabit = MenuKaydi.Ogeler.Select(o => o.Rota).Concat(MenuKaydi.Ogeler.Select(EskiRota)).Distinct()
+            .Where(r => r != "/" && metin.Contains($"href=\"{r}\"", StringComparison.Ordinal)).ToList();
+        Assert.True(sabit.Count == 0, "MainLayout'ta elle yazılmış menü bağlantısı: " + string.Join(", ", sabit));
+        Assert.Empty(EskiLayoutMenusu(metin).Where(x => x.Rota.StartsWith('/'))); // menü bölgesinde sabit (literal) href kalmadı
+    }
+
+    // ---- F4.6 rol → izin geçişi (KASITLI davranış değişikliği; PR'daki önce/sonra tablosunun kilidi)
+
+    private static readonly string[] OperasyonGruplari =
+        [KisaYollar, "Araçlar", "Kira", "Rezervasyon", "Cariler & CRM", "Web Sitesi", "Servis & Sigorta", "Fiyat & Tarife", "Tanımlar"];
+
+    /// <summary>F4.6 ÖNCESİ MainLayout görünürlüğü (AuthorizeView Roles) — elle yazılmış oracle.</summary>
+    private static bool EskidenGorunur(LayoutOgesi o, UserRole rol)
+    {
+        if (o.Rota == "/tarife-aktar") return rol == UserRole.Admin;                         // iç içe Roles="Admin"
+        if (OperasyonGruplari.Contains(o.Grup)) return rol is UserRole.Admin or UserRole.Yonetici or UserRole.Operator;
+        if (o.Grup is "Finans" or "Raporlar") return rol is UserRole.Admin or UserRole.Yonetici or UserRole.Muhasebe;
+        if (o.Grup == "Sistem") return rol == UserRole.Admin;
+        return true;                                                                            // grupsuz: tüm roller
+    }
+
+    private static System.Security.Claims.ClaimsPrincipal Kullanici(UserRole rol, string[]? ek = null, string[]? yasak = null)
+    {
+        var claims = new List<System.Security.Claims.Claim> { new(System.Security.Claims.ClaimTypes.Role, rol.ToString()) };
+        claims.AddRange((ek ?? []).Select(i => new System.Security.Claims.Claim(RentACar.Web.Identity.IdentityClaims.IzinEk, i)));
+        claims.AddRange((yasak ?? []).Select(i => new System.Security.Claims.Claim(RentACar.Web.Identity.IdentityClaims.IzinYasak, i)));
+        return new(new System.Security.Claims.ClaimsIdentity(claims, "test"));
+    }
+
+    private static HashSet<string> YeniGorunur(System.Security.Claims.ClaimsPrincipal u)
+        => MenuApi.Gorunur(u, webSitesiModulu: true).Select(o => $"{o.Grup}|{EskiRota(o)}").ToHashSet();
+
+    [Theory]
+    [InlineData(UserRole.Admin, "", "")]
+    [InlineData(UserRole.Yonetici, "", "")]
+    [InlineData(UserRole.Operator,
+        "", "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri")]
+    [InlineData(UserRole.Muhasebe,
+        "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri", "")]
+    public void Rol_bazinda_menu_farki_F46_oncesine_gore(UserRole rol, string kazanir, string kaybeder)
+    {
+        var eski = LayoutMenusu().Where(o => EskidenGorunur(o, rol)).Select(o => $"{o.Grup}|{o.Rota}").ToHashSet();
+        var yeni = YeniGorunur(Kullanici(rol));
+        static string[] Liste(string s) => s.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(Liste(kazanir).OrderBy(x => x), yeni.Except(eski).OrderBy(x => x));
+        Assert.Equal(Liste(kaybeder).OrderBy(x => x), eski.Except(yeni).OrderBy(x => x));
+    }
+
+    [Fact]
+    public void Kullanici_bazli_istisna_menuye_yansir()
+    {
+        // Operatöre EK FinanceWrite: Finans grubu (+ FinanceWrite'lı operasyon öğeleri) görünür olur.
+        var ek = YeniGorunur(Kullanici(UserRole.Operator, ek: ["FinanceWrite"]));
+        Assert.Contains("Finans|/kasa", ek);
+        Assert.Contains("Araçlar|/musteri-taksit", ek);
+        Assert.DoesNotContain("Raporlar|/raporlar/gelir-gider", ek);
+
+        // Operatöre YASAK OperationsWrite: operasyon grupları ve kısa yollar (Yeni Kira dahil) gizlenir.
+        var yasak = YeniGorunur(Kullanici(UserRole.Operator, yasak: ["OperationsWrite"]));
+        Assert.DoesNotContain(yasak, x => x.StartsWith("Araçlar|", StringComparison.Ordinal) || x.StartsWith(KisaYollar + "|", StringComparison.Ordinal));
+        Assert.DoesNotContain("Kira|/kiralar", yasak);
+        Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
+        Assert.Contains("|/vade", yasak);
     }
 }
