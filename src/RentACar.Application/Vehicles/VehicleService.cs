@@ -124,7 +124,18 @@ public sealed class VehicleService(
         return vehicle.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, VehicleInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, VehicleInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, beklenenSurum: null, ct);
+
+    /// <summary>F6.1a — satır sürümü (Postgres <c>xmin</c>, opak); yoksa <c>null</c>. Kapsam kontrolü ÇAĞIRANDA
+    /// (<see cref="GetAsync"/>) — sürüm tek başına veri sızdırmaz.</summary>
+    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+
+    /// <summary>
+    /// F6.1a — <paramref name="beklenenSurum"/> doluysa satır kilidi altında sürüm karşılaştırmalı tam değiştirme
+    /// (uyuşmazlık → <see cref="EszamanliDegisiklikException"/>, hiçbir şey yazılmaz). Null → eski davranış (Blazor).
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, VehicleInput input, string? beklenenSurum, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         var plaka = Normalize(input.Plaka);
@@ -134,7 +145,7 @@ public sealed class VehicleService(
             throw new DuplicatePlakaException(plaka);
 
         var subeId = await ResolveSubeAsync(input.Sube, ct);
-        var ok = await _repository.UpdateAsync(id, v =>
+        void Uygula(Vehicle v)
         {
             BranchScope.RequireInScope(_currentUser, v.SubeId, v.Sube); // adversarial M3 + C3 FK (reassign ÖNCESİ)
             v.Plaka = plaka;
@@ -156,7 +167,10 @@ public sealed class VehicleService(
             v.Yakit = input.Yakit;
             ApplyExtended(v, input);
             v.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        var ok = beklenenSurum is null
+            ? await _repository.UpdateAsync(id, Uygula, ct)
+            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
         _cache.Invalidate(CacheKey);
         return ok;
     }
