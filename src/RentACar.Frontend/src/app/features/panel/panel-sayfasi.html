@@ -6,7 +6,10 @@
       <a class="rc-dugme rc-dugme--kucuk" href="/rezervasyonlar">{{
         'panel.yeniRezervasyon' | transloco
       }}</a>
-      <a class="rc-dugme rc-dugme--kucuk" href="/kiralar">{{ 'panel.yeniKira' | transloco }}</a>
+      <!-- F4.6: kira listesi SPA rotası; kalan ikisi hâlâ Blazor ekranı (F5 kesişinde döner). -->
+      <a class="rc-dugme rc-dugme--kucuk" routerLink="/kiralar">{{
+        'panel.yeniKira' | transloco
+      }}</a>
       <a class="rc-dugme rc-dugme--kucuk" href="/musaitlik">{{ 'panel.musaitlik' | transloco }}</a>
       <button
         type="button"

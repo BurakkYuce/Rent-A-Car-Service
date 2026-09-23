@@ -23,7 +23,9 @@ public sealed record PlatformTenantDetay(
     int UserCount, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun,
     bool PublicSiteEnabled, IReadOnlyList<PlatformTenantDomain> Domainler,
     /// <summary>PR-12: "Web Sitesi" modülü satın alındı mı (platform kararı).</summary>
-    bool WebSitesiModulu = false)
+    bool WebSitesiModulu = false,
+    /// <summary>F4.6: yeni arayüz (Angular <c>/app</c>) pilotu açık mı (<c>TenantSettings.YeniArayuzPilot</c>).</summary>
+    bool YeniArayuzPilot = false)
 {
     public string Durum => KapanisTarihiUtc is not null ? "Kapalı" : IsActive ? "Aktif" : "Pasif";
 }
@@ -127,9 +129,11 @@ public sealed class PlatformAdminService(
             .OrderBy(d => d.Kind).ThenBy(d => d.CreatedAtUtc)
             .Select(d => new { d.Host, d.Kind, d.Status })
             .ToListAsync(ct);
-        var siteAcik = await TenantKapsaminda(db, tenantId, async () =>
+        var ayarlar = await TenantKapsaminda(db, tenantId, async () =>
             await db.TenantSettings.AsNoTracking().IgnoreQueryFilters()
-                .Where(x => x.TenantId == tenantId).Select(x => x.PublicSiteEnabled).FirstOrDefaultAsync(ct), ct);
+                .Where(x => x.TenantId == tenantId)
+                .Select(x => new { x.PublicSiteEnabled, x.YeniArayuzPilot }).FirstOrDefaultAsync(ct), ct);
+        var siteAcik = ayarlar?.PublicSiteEnabled == true;
 
         return new PlatformTenantDetay(t.Id, t.Code, t.Name, t.IsActive, t.KapanisTarihiUtc,
             t.CreatedAtUtc, t.UpdatedAtUtc, t.YetkiliAd, t.Eposta, t.Telefon, t.Notlar, t.Plan,
@@ -144,7 +148,8 @@ public sealed class PlatformAdminService(
                     TenantDomainStatus.Failed => "Başarısız",
                     _ => d.Status.ToString()
                 })).ToList(),
-            t.WebSitesiModulu); // PR-12
+            t.WebSitesiModulu, // PR-12
+            ayarlar?.YeniArayuzPilot == true); // F4.6
     }
 
     /// <summary>Bilgi alanlarını günceller. Code DEĞİŞMEZ (login anahtarı). Kolon sınırları burada
@@ -377,6 +382,53 @@ public sealed class PlatformAdminService(
         statusCache.Invalidate(tenantId);
         log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) Web Sitesi modülü {Durum} — operatör {Operator}.",
             tenant.Code, tenantId, aktif ? "AÇILDI" : "KAPATILDI", operatorName);
+    }
+
+    /// <summary>
+    /// F4.6: yeni arayüz (Angular <c>/app</c>) PİLOT anahtarı. Açıkken firmanın <c>/api/ui/v1</c> uçları çalışır ve
+    /// Blazor Panel/Kira sayfaları (GET) <c>/app</c>'e yönlenir; kapatınca ANINDA eski arayüz (bayrak önbelleksiz okunur).
+    /// Yalnız platform konsolundan: <c>TenantSettings</c> ekranı bu alanı yazmaz (firma kendi kendine pilota giremez).
+    /// Ayar satırı yoksa (yeni firma) oluşturulur. Denetim: firmanın <c>AuditLogs</c>'una açık satır (owner bağlamında
+    /// denetim interceptor'ı yok) + platform uyarı logu. Aynı değere yazmak no-op (denetim satırı da yazılmaz).
+    /// </summary>
+    public async Task SetYeniArayuzPilotAsync(Guid tenantId, bool aktif, string operatorName, CancellationToken ct = default)
+    {
+        await using var db = OwnerDb();
+        var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, ct)
+            ?? throw new ValidationException("Tenant bulunamadı.");
+
+        var degisti = await TenantKapsaminda(db, tenantId, async () =>
+        {
+            var ayar = await db.TenantSettings.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
+            if (ayar is null)
+            {
+                if (!aktif) return false; // satır yok = pilot değil; kapatmak için satır açmaya gerek yok
+                ayar = new RentACar.Domain.Entities.TenantSettings { TenantId = tenantId };
+                db.TenantSettings.Add(ayar);
+            }
+            else if (ayar.YeniArayuzPilot == aktif) return false;
+
+            var eski = ayar.YeniArayuzPilot;
+            ayar.YeniArayuzPilot = aktif;
+            ayar.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                EntityName = nameof(RentACar.Domain.Entities.TenantSettings),
+                EntityId = ayar.Id.ToString(),
+                Action = AuditAction.Update,
+                UserName = "platform:" + operatorName,
+                TimestampUtc = DateTimeOffset.UtcNow,
+                OldValues = $"{{\"YeniArayuzPilot\":{(eski ? "true" : "false")}}}",
+                NewValues = $"{{\"YeniArayuzPilot\":{(aktif ? "true" : "false")}}}",
+            });
+            await db.SaveChangesAsync(ct);
+            return true;
+        }, ct);
+
+        if (degisti)
+            log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) yeni arayüz pilotu {Durum} — operatör {Operator}.",
+                tenant.Code, tenantId, aktif ? "AÇILDI" : "KAPATILDI", operatorName);
     }
 
     /// <summary>Tenant erişimini aç/kapa — PASİF geçici askıya alma (+ anlık kesme).

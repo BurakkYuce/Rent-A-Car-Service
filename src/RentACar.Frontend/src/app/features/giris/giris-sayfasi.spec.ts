@@ -6,6 +6,7 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
 import { provideCeviri } from '@core/i18n/ceviri';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import type { Ben, GirisBilgileri } from '@core/oturum/oturum-tipleri';
@@ -24,9 +25,13 @@ function yaz(kok: HTMLElement, secici: string, deger: string): void {
 
 describe('GirisSayfasi (/app/giris)', () => {
   const girisYap = vi.fn<(b: GirisBilgileri) => Promise<Ben>>();
+  const gezin = vi.fn<(adres: string) => void>();
+  const pilot = { pilot: true } as Ben;
+  const pilotDegil = { pilot: false } as Ben;
 
   beforeEach(async () => {
     girisYap.mockReset();
+    gezin.mockReset();
     TestBed.configureTestingModule({
       providers: [
         ...provideCeviri(),
@@ -35,6 +40,7 @@ describe('GirisSayfasi (/app/giris)', () => {
           { path: '**', children: [] },
         ]),
         { provide: OturumServisi, useValue: { girisYap } },
+        { provide: TAM_SAYFA_GEZINMESI, useValue: gezin },
       ],
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
@@ -80,21 +86,55 @@ describe('GirisSayfasi (/app/giris)', () => {
     expect(kok.querySelector('#rc-giris-firma')?.getAttribute('aria-invalid')).toBe('true');
   });
 
-  it('başarılı girişte returnUrl’e (yalnız iç yol) gider', async () => {
-    girisYap.mockResolvedValue({} as Ben);
-    const kok = await ac('/giris?returnUrl=%2Fkiralar%2F5%3Fsekme%3Dodeme');
+  it('pilot: /app returnUrl’e SPA içinde gider (tam sayfa geçiş yok)', async () => {
+    girisYap.mockResolvedValue(pilot);
+    const kok = await ac('/giris?returnUrl=%2Fapp%2Fkiralar%2F5%3Fsekme%3Dodeme');
     await gonder(kok);
     const router = TestBed.inject(Router);
     await vi.waitFor(() => expect(router.url).toBe('/kiralar/5?sekme=odeme'));
+    expect(gezin).not.toHaveBeenCalled();
   });
 
-  it('dış returnUrl yok sayılır → ana sayfa; ?neden=kiraci_kapali mesajı gösterilir', async () => {
-    girisYap.mockResolvedValue({} as Ben);
+  it('pilot: dönüş yoksa Panel', async () => {
+    girisYap.mockResolvedValue(pilot);
+    const kok = await ac('/giris');
+    await gonder(kok);
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/panel'));
+  });
+
+  it('pilot: dış returnUrl yok sayılır → Panel; ?neden=kiraci_kapali mesajı gösterilir', async () => {
+    girisYap.mockResolvedValue(pilot);
     const kok = await ac('/giris?neden=kiraci_kapali&returnUrl=%2F%2Fkotu.example');
     expect(kok.querySelector('[role="status"]')?.textContent?.trim()).toBe(
       'Firma hesabı kapalı. Yöneticinizle iletişime geçin.',
     );
     await gonder(kok);
-    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/'));
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/panel'));
+    expect(gezin).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['pilot', pilot],
+    ['pilot değil', pilotDegil],
+  ])(
+    'Blazor returnUrl (%s) sunucunun /login kapısına verilir — istemci açmaz',
+    async (_ad, ben) => {
+      girisYap.mockResolvedValue(ben);
+      const kok = await ac('/giris?returnUrl=%2Fkiralar%3Fvarac%3D5');
+      await gonder(kok);
+      await vi.waitFor(() =>
+        expect(gezin).toHaveBeenCalledWith('/login?ReturnUrl=%2Fkiralar%3Fvarac%3D5'),
+      );
+    },
+  );
+
+  it.each([['/giris'], ['/giris?returnUrl=%2Fapp%2Fkiralar']])(
+    'pilot DEĞİL (%s): Blazor Panel (/) — tam sayfa',
+    async (url) => {
+      girisYap.mockResolvedValue(pilotDegil);
+      const kok = await ac(url);
+      await gonder(kok);
+      await vi.waitFor(() => expect(gezin).toHaveBeenCalledWith('/'));
+    },
+  );
 });

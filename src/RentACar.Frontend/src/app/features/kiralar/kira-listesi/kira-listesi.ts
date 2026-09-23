@@ -21,6 +21,7 @@ import type { KiraListeSatiri } from '@core/api/ui-tipleri';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI, type DugmeAdi } from '@core/oturum/dugme-izinleri';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { sayiBicimle } from '@core/bicim/bicim';
@@ -113,10 +114,18 @@ export class KiraListesi {
   protected readonly kimlik = (r: KiraListeSatiri) => r.id;
   protected readonly filtreAcik = signal(false);
 
-  // ---- izinler (görünürlük; asıl kapı sunucuda)
-  protected readonly operasyon = computed(() => this.oturum.izinVar('OperationsWrite'));
-  protected readonly silme = computed(() => this.oturum.izinVar('OperationsDelete'));
-  private readonly rapor = computed(() => this.oturum.izinVar('ViewReports'));
+  // ---- izinler (görünürlük; asıl kapı sunucuda). Her kapı DUGME_IZINLERI'nden — UiDugmeIzinTests her girişi
+  // tetiklediği ucun izin kapısıyla karşılaştırır (düğme görünür ⇔ uç izin verir).
+  private readonly izin = (ad: DugmeAdi) =>
+    computed(() => this.oturum.izinlerVar(DUGME_IZINLERI[ad].izinler));
+  protected readonly yeniKiraIzni = this.izin('kiraYeni');
+  protected readonly ornekSozlesmeIzni = this.izin('kiraOrnekSozlesme');
+  protected readonly pdfIzni = this.izin('kiraPdf');
+  protected readonly iptalIzni = this.izin('kiraIptal');
+  protected readonly lokasyonSecimIzni = this.izin('kiraSecimLokasyon');
+  protected readonly kaynakSecimIzni = this.izin('kiraSecimKaynak');
+  protected readonly personelSecimIzni = this.izin('kiraSecimPersonel');
+  private readonly rapor = this.izin('kiraDisaAktar');
 
   /** Dışa aktarma: Blazor liste export ucu; ekrandaki süzgeçler taşınır (sayfa taşınmaz). */
   protected readonly disaAktarma = computed<DisaAktarma | null>(() =>

@@ -6,6 +6,7 @@
  *   node scripts/mobil-tasma.mjs --site              # halka açık site
  *   node scripts/mobil-tasma.mjs --genislik 320      # başka genişlik
  *   node scripts/mobil-tasma.mjs --json              # makine okunur çıktı
+ *   node scripts/mobil-tasma.mjs --spa               # yeni arayüz (/app) sayfalarını da ölç (SPA kurulu olmalı)
  *
  * Neden var: yatay kaydırma mobilde en görünür ve en sinsi kusur — masaüstünde HİÇ belli olmaz.
  * Guard olmadan her faz kendi kendini onaylar. Koşum taşan sayfa bulursa çıkış kodu 1 döner.
@@ -28,6 +29,14 @@ const GENISLIK = Number(deger('--genislik', '390'));
 const YUKSEKLIK = Number(deger('--yukseklik', '844'));
 const KOK = deger('--kok', SITE ? 'http://localhost:5230' : 'http://localhost:5220');
 const JSON_CIKTI = bayrak('--json');
+const SPA = bayrak('--spa');
+
+/**
+ * Yeni arayüz (F4 pilot sayfaları). Yalnız `--spa` ile ve SPA sunucuda kuruluyken (`Spa:Dizin`) anlamlı; pilot
+ * OLMAYAN firmada da çizilir (veri yerine "pilot değil" bandı — kabuk/düzen yine ölçülür). Pilot firmada ERP
+ * yollarındaki `/`, `/kiralar`, `/kiralar/yeni` zaten buraya yönlenir (F4.6 haritası).
+ */
+const SPA_YOLLARI = ['/app/panel', '/app/kiralar', '/app/kiralar/yeni'];
 
 /** ERP: her klasörden en yoğun kullanılan temsilciler + taşması bilinen üç sayfa. */
 const ERP_YOLLARI = [
@@ -55,29 +64,46 @@ if (bayrak('--tum') && !SITE) {
     .map((x) => x.trim())
     .filter((x) => x && !x.startsWith('#'));
 }
+if (SPA && !SITE) yollar = [...yollar, ...SPA_YOLLARI];
 
 /** ERP giriş gerektirir; seed kimliği (CLAUDE.md §7). Parola ORTAMDAN — repoda sabit parola yok:
  *  RACAR_GIRIS_SIFRE (CI her koşuda rastgele üretip uygulamaya Seed__Parola olarak da verir).
- *  Firma/kullanıcı varsayılanı seed: RACAR_GIRIS_FIRMA=yucerent, RACAR_GIRIS_KULLANICI=umit. */
+ *  Firma/kullanıcı varsayılanı seed: RACAR_GIRIS_FIRMA=yucerent, RACAR_GIRIS_KULLANICI=umit.
+ *
+ *  F4.6 TEK GİRİŞ: `/login` artık form çizmez, yeni arayüzün giriş sayfasına (`/app/giris`) yönlenir. Koşum
+ *  o sayfanın formunun çağırdığı AYNI uçla girer (`GET /api/ui/v1/oturum/xsrf` → `POST …/oturum/giris`,
+ *  aynı `racar.session` çerezi) — SPA bu sunucuda kurulu olmasa da (CI mobil-tasma işi SPA derlemez) çalışır.
+ *  Başarısız giriş gürültülü hatadır: yoksa her sayfa girişe düşer ve koşum YALAN yeşil verir. */
 async function girisYap(page) {
   const sifre = process.env.RACAR_GIRIS_SIFRE;
   if (!sifre) {
     throw new Error('RACAR_GIRIS_SIFRE yok — ERP giriş parolasını ortamdan ver (seed: Seed:Parola ya da açılış logu).');
   }
-  await page.goto(`${KOK}/login`, { waitUntil: 'domcontentloaded' });
-  // Açıkça doldur (form ön-dolu olsa bile — seed değişirse sessizce giriş yapamamış olmayalım;
-  // o durumda tüm sayfalar /login'e düşer ve koşum YALAN yeşil verir).
-  await page.fill('input[name="firma"]', process.env.RACAR_GIRIS_FIRMA || 'yucerent').catch(() => {});
-  await page.fill('input[name="kullanici"]', process.env.RACAR_GIRIS_KULLANICI || 'umit').catch(() => {});
-  await page.fill('input[name="sifre"]', sifre).catch(() => {});
-  await Promise.all([
-    page.waitForLoadState('domcontentloaded'),
-    page.click('button[type="submit"]'),
-  ]);
-  if (page.url().includes('/login')) {
-    throw new Error('Giriş başarısız — koşum anlamsız olurdu (her sayfa /login döner).');
+  const baglam = page.context();
+  const xsrf = await baglam.request.get(`${KOK}/api/ui/v1/oturum/xsrf`);
+  if (xsrf.status() !== 204) throw new Error(`XSRF belirteci alınamadı (HTTP ${xsrf.status()}).`);
+  const belirtec = (await baglam.cookies(KOK)).find((c) => c.name === 'XSRF-TOKEN');
+  if (!belirtec) throw new Error('XSRF-TOKEN çerezi yazılmadı.');
+  const yanit = await baglam.request.post(`${KOK}/api/ui/v1/oturum/giris`, {
+    headers: { 'X-XSRF-TOKEN': decodeURIComponent(belirtec.value) },
+    data: {
+      firma: process.env.RACAR_GIRIS_FIRMA || 'yucerent',
+      kullanici: process.env.RACAR_GIRIS_KULLANICI || 'umit',
+      sifre,
+    },
+  });
+  if (!yanit.ok()) {
+    throw new Error(`Giriş başarısız (HTTP ${yanit.status()}) — koşum anlamsız olurdu (her sayfa girişe döner).`);
   }
+  const ben = await yanit.json();
+  if (!JSON_CIKTI) {
+    console.log(`Giriş: ${ben?.kiraci?.kod ?? '?'} / ${ben?.kullanici?.kullaniciAdi ?? '?'} — ${ben?.pilot ? 'PİLOT (/, /kiralar, /kiralar/yeni yeni arayüze yönlenir)' : 'pilot değil (Blazor)'}`);
+  }
+  return ben;
 }
+
+/** Oturum düşmüş ya da giriş sayfasına yönlenmiş mi (eski Blazor girişi ya da tek giriş /app/giris). */
+const giriseDustu = (url) => { const p = new URL(url).pathname; return p === '/login' || p.startsWith('/app/giris'); };
 
 /** Sayfadaki taşmayı, suçluyu ve tablo satır sayısını ölçer. */
 async function olc(page, W) {
@@ -155,7 +181,7 @@ try {
           const kod = yanit?.status() ?? 0;
           // 4xx/5xx sayfaları ölçüme girmez: olmayan bir sayfanın taşmaması başarı değildir.
           if (kod >= 400) { sonuclar.push({ yol, kod, atlandi: true }); continue; }
-          if (page.url().includes('/login')) { sonuclar.push({ yol, kod, atlandi: true, not: 'girişe düştü' }); continue; }
+          if (giriseDustu(page.url())) { sonuclar.push({ yol, kod, atlandi: true, not: 'girişe düştü' }); continue; }
           const { tasma, suclular, satir, tabloVar } = await olc(page, GENISLIK);
           sonuclar.push({ yol, kod, tasma, suclular, satir, tabloVar });
         } catch (e) {

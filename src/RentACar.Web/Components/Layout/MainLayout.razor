@@ -31,246 +31,45 @@
                     <input name="q" placeholder="Evrak No / Plaka ara…" />
                 </form>
 
-                @* Kısa yollar (operasyon) *@
-                <AuthorizeView Roles="Admin,Yonetici,Operator" Context="qCtx">
+                @* F4.6: menü KAYITTAN çizilir (Api/Menu/MenuKaydi.cs — yeni arayüzle TEK kaynak). Görünürlük
+                   ROLDEN değil ETKİN İZİNDEN (MenuApi.Gorunur: rol matrisi + kullanıcı-bazlı ek/yasak) ve modül
+                   bayrağından. KASITLI davranış değişikliği (F4.6 PR'ındaki önce/sonra tablosu): açılamayacak öğe
+                   gösterilmez, kullanıcıya verilmiş ek izin menüye yansır. `spa` öğeleri pilot firmada yeni
+                   arayüzü (/app) açar, pilot olmayanda Blazor karşılığını (IlkKesis.BlazorKarsiligi). *@
+                @if (_menu.Hizli.Count > 0)
+                {
                     <div class="sb-quick">
-                        <a href="/rezervasyonlar"><span class="ic"></span> Yeni Rezervasyon</a>
-                        <a href="/kiralar/yeni"><span class="ic"></span> Yeni Kira</a>
-                        <a href="/musaitlik"><span class="ic"></span> Müsaitlik-Rez Açma</a>
+                        @foreach (var o in _menu.Hizli)
+                        {
+                            <a href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)"><span class="ic"></span> @o.Etiket</a>
+                        }
                     </div>
-                </AuthorizeView>
+                }
 
                 <nav class="sb-nav">
-                    <a class="nav-solo" href="/" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Panel
-                    </a>
-                    @* ---- Operasyon modülleri ---- *@
-                    <AuthorizeView Roles="Admin,Yonetici,Operator" Context="opCtx">
-                        <details class="nav-group" open="@Acik("/vehicles","/arac-durum","/arac-siparis","/arac-kredi","/baf","/hasar","/arac-tipleri","/arac-sahipleri","/segmentler")">
-                            <summary><span class="ic"></span> Araçlar <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/vehicles">Araç Listesi</a>
-                                <a href="/vehicles/detayli">Detaylı Araç Listesi</a>
-                                <a href="/arac-durum">Araç Durum</a>
-                                <a href="/arac-siparis">Araç Sipariş</a>
-                                <a href="/filo-plan">Filo Plan Hedefi</a>
-                                <a href="/arac-kredi">Araç Kredisi</a>
-                                <a href="/musteri-taksit">Müşteri Taksitleri</a>
-                                <a href="/baf">BAF (Tahsis)</a>
-                                <a href="/hasar">Hasar</a>
-                                <a href="/arac-tipleri">Araç Tipleri</a>
-                                <a href="/arac-sahipleri">Araç Sahipleri</a>
-                                <a href="/segmentler">Segmentler</a>
-                            </div>
-                        </details>
-                        <details class="nav-group" open="@Acik("/kiralar","/teklifler","/filo-kiralama")">
-                            <summary><span class="ic"></span> Kira <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/kiralar">Kiralar</a>
-                                <a href="/teklifler">Teklifler</a>
-                                <a href="/filo-kiralama">Filo Kiralama</a>
-                            </div>
-                        </details>
-                        <details class="nav-group" open="@Acik("/rezervasyonlar","/takvim","/musaitlik","/rez-sartlari")">
-                            <summary><span class="ic"></span> Rezervasyon <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/rezervasyonlar">Rezervasyonlar</a>
-                                <a href="/takvim">Takvim</a>
-                                <a href="/musaitlik">Müsaitlik</a>
-                                <a href="/rez-sartlari">Rez Şartları</a>
-                            </div>
-                        </details>
-                        <details class="nav-group" open="@Acik("/cariler","/crm","/sikayetler","/hukuk","/anketler","/blog-yonetim","/gelen-talepler")">
-                            <summary><span class="ic"></span> Cariler & CRM <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/cariler">Cariler</a>
-                                <a href="/crm">CRM Analiz</a>
-                                <a href="/sikayetler">Şikayetler</a>
-                                <a href="/assistans">Assistans Talepleri</a>
-                                <a href="/hukuk">Hukuk</a>
-                                <a href="/anketler">Anketler</a>
-                                <a href="/blog-yonetim">Blog</a>
-                                <a href="/gelen-talepler">Gelen Talepler @if (_yeniTalep > 0) { <span class="badge warn">@_yeniTalep</span> }</a>
-                            </div>
-                        </details>
-                        @* PR-12: yalnız "Web Sitesi" modülünü satın almış firmada görünür. Bu KAPI
-                           GÖRSELDİR — asıl koruma uçlarda (`RequireWebSitesiModulu`) ve sayfada. *@
-                        @if (_webSitesiModulu)
+                    @foreach (var blok in _menu.Bloklar)
+                    {
+                        if (blok.Grup.Length == 0)
                         {
-                            <details class="nav-group" open="@Acik("/web-sitesi","/site-icerik")">
-                                <summary><span class="ic"></span> Web Sitesi <span class="chev"></span></summary>
+                            var o = blok.Ogeler[0];
+                            <a class="nav-solo" href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                                <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> @o.Etiket
+                                @if (Rozet(o) is > 0 and var n) { <span class="badge-unread">@n</span> }
+                            </a>
+                        }
+                        else
+                        {
+                            <details class="nav-group" open="@GrupAcik(blok)">
+                                <summary><span class="ic"></span> @blok.Grup <span class="chev"></span></summary>
                                 <div class="sub">
-                                    <a href="/web-sitesi">İlanlar</a>
-                                    <a href="/site-icerik">Site İçeriği</a>
-                                    @* PR-17: cevaplanmamış talep sayacı — lead sessizce beklemesin.
-                                       DİKKAT: `Talepler@if` yazmak İŞE YARAMAZ — Razor, boşluksuz `@`yı
-                                       e-posta adresi sanıp `@if (...)` metnini EKRANA BASIYOR (canlıda
-                                       görüldü). `@` önünde boşluk ZORUNLU. *@
-                                    <a href="/gelen-talepler">Gelen Talepler @if (_yeniTalep > 0) { <span class="badge warn">@_yeniTalep</span> }</a>
-                                    <a href="/blog-yonetim">Blog</a>
+                                    @foreach (var o in blok.Ogeler)
+                                    {
+                                        <a href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)">@o.Etiket @if (Rozet(o) is > 0 and var n) { <span class="badge warn">@n</span> }</a>
+                                    }
                                 </div>
                             </details>
                         }
-                        <details class="nav-group" open="@Acik("/servisler","/servis-tanimlari","/regulasyon")">
-                            <summary><span class="ic"></span> Servis & Sigorta <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/servisler">Servis</a>
-                                <a href="/servis-tanimlari">Servis Tanımları</a>
-                                <a href="/regulasyon">Sigorta / MTV / Muayene</a>
-                            </div>
-                        </details>
-                        <details class="nav-group" open="@Acik("/tarifeler","/tarife-matris","/tarife-aktar","/sigorta-urunleri","/kira-kurallari","/broker-yasaklari","/fiyat-hesapla","/maliyet-hesapla","/maliyet-teklifleri","/ek-hizmetler")">
-                            <summary><span class="ic"></span> Fiyat & Tarife <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/tarifeler">Tarifeler</a>
-                                <a href="/tarife-matris">Tarife Matrisi</a>
-                                <a href="/tarife-gruplari">Tarife Grupları</a>
-                                <AuthorizeView Roles="Admin" Context="taCtx"><a href="/tarife-aktar">Tarife İçe Aktar</a></AuthorizeView>
-                                <a href="/sigorta-urunleri">Sigorta Ürünleri</a>
-                                <a href="/kira-kurallari">Kiralama Kuralları</a>
-                                <a href="/broker-yasaklari">Broker Yasakları</a>
-                                <a href="/fiyat-hesapla">Fiyat Hesapla</a>
-                                <a href="/maliyet-hesapla">Maliyet Hesapla</a>
-                                <a href="/maliyet-teklifleri">Maliyet Teklifleri</a>
-                                <a href="/ek-hizmetler">Ek Hizmetler</a>
-                            </div>
-                        </details>
-                        <details class="nav-group" open="@Acik("/markalar","/arac-gruplari","/ceza-turleri","/kdv-oranlari","/lokasyonlar","/yakit-turleri","/vites-turleri","/renkler","/musteri-gruplari","/sigorta-sirketleri","/bankalar","/departmanlar","/odeme-tipleri","/ulkeler","/aksesuarlar","/iptal-sebepleri","/rezervasyon-kaynaklari","/gider-turleri","/hesaplar","/ozel-kodlar","/dovizler","/hesap-kodlari","/drop-tanimlari")">
-                            <summary><span class="ic"></span> Tanımlar <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/markalar">Markalar</a>
-                                <a href="/arac-gruplari">Araç Grupları</a>
-                                <a href="/arac-tipleri">Araç Tipleri</a>
-                                <a href="/lokasyonlar">Lokasyonlar</a>
-                                <a href="/yakit-turleri">Yakıt Türleri</a>
-                                <a href="/vites-turleri">Vites Türleri</a>
-                                <a href="/renkler">Renkler</a>
-                                <a href="/segmentler">Segmentler</a>
-                                <a href="/musteri-gruplari">Müşteri Grupları</a>
-                                <a href="/sigorta-sirketleri">Sigorta Şirketleri</a>
-                                <a href="/bankalar">Bankalar</a>
-                                <a href="/departmanlar">Departmanlar</a>
-                                <a href="/odeme-tipleri">Ödeme Tipleri</a>
-                                <a href="/ulkeler">Ülkeler</a>
-                                <a href="/aksesuarlar">Aksesuarlar</a>
-                                <a href="/iptal-sebepleri">İptal Sebepleri</a>
-                                <a href="/rezervasyon-kaynaklari">Rez. Kaynakları</a>
-                                <a href="/ceza-turleri">Ceza Türleri</a>
-                                <a href="/kdv-oranlari">KDV Oranları</a>
-                                <a href="/gider-turleri">Gider Türleri</a>
-                                <a href="/hesaplar">Hesaplar</a>
-                                <a href="/hesap-kodlari">Hesap Kodları</a>
-                                <a href="/ozel-kodlar">Özel Kodlar</a>
-                                <a href="/dovizler">Dövizler</a>
-                                <a href="/drop-tanimlari">Drop Matris</a>
-                                <a href="/doluluk-kurallari">Doluluk Fiyat Kuralları</a>
-                            </div>
-                        </details>
-                    </AuthorizeView>
-
-                    @* ---- Finans ---- *@
-                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
-                        <details class="nav-group" open="@Acik("/kasa","/cari-virman","/depozito","/toplu-tahsilat","/tek-cari-toplu","/otomatik-tahsilat","/toplu-gider","/giderler","/satislar","/faturalar","/gelen-efatura","/donem-kapanis","/cezalar","/kurlar")">
-                            <summary><span class="ic"></span> Finans <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/kasa">Kasa / Banka</a>
-                                <a href="/finans/nakit-islem">Nakit İşlem</a>
-                                <a href="/finans/bakiye-duzeltme">Bakiye Düzeltme</a>
-                                <a href="/kurlar">Döviz Kurları</a>
-                                <a href="/faturalar">Faturalar</a>
-                                <a href="/faturalar/detay-listesi">Fatura Detay Listesi</a>
-                                <a href="/gelen-efatura">Gelen e-Fatura</a>
-                                <a href="/giderler">Giderler</a>
-                                <a href="/satislar">Satışlar</a>
-                                <a href="/cari-virman">Cari Virman</a>
-                                <a href="/depozito">Depozito</a>
-                                <a href="/toplu-tahsilat">Toplu Tahsilat</a>
-                                <a href="/tek-cari-toplu">Tek Cari Toplu Kapatma</a>
-                                <a href="/otomatik-tahsilat">Otomatik Tahsilat</a>
-                                <a href="/toplu-gider">Toplu Gider</a>
-                                <a href="/cezalar">Cezalar</a>
-                                <a href="/donem-kapanis">Dönem Kapanışı</a>
-                            </div>
-                        </details>
-                    </AuthorizeView>
-
-                    @* ---- Raporlar ---- *@
-                    <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="repCtx">
-                        <details class="nav-group" open="@Acik("/raporlar")">
-                            <summary><span class="ic"></span> Raporlar <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/raporlar/finans-analiz">Finans Analiz</a>
-                                <a href="/raporlar/gelir-gider">Gelir-Gider</a>
-                                <a href="/raporlar/karlilik">Kârlılık</a>
-                                <a href="/raporlar/filo-analiz">Filo Analiz</a>
-                                <a href="/raporlar/gunluk">Günlük</a>
-                                <a href="/raporlar/cari-bakiye">Cari Bakiye</a>
-                                <a href="/raporlar/extre-ozeti">Extre Özeti</a>
-                                <a href="/raporlar/filo">Filo</a>
-                                <a href="/raporlar/doluluk">Doluluk</a>
-                                <a href="/raporlar/tahsilat-fatura">Tahsilat-Fatura</a>
-                                <a href="/raporlar/kdv-listesi">KDV Listesi</a>
-                                <a href="/raporlar/ek-hizmet">Ek Hizmet</a>
-                                <a href="/raporlar/periyodik-servis">Periyodik Servis</a>
-                                <a href="/raporlar/km-detay">KM Detay</a>
-                                <a href="/raporlar/rezervasyon-kaynak">Rezervasyon Kaynak</a>
-                                <a href="/raporlar/karsilastirmali-analiz">Karşılaştırmalı Analiz</a>
-                                <a href="/raporlar/fatura-donem">Fatura Dönem</a>
-                                <a href="/raporlar/arac-durum-takip">Araç Durum Takip</a>
-                                <a href="/raporlar/arac-gunluk-durum">Araç Günlük Durum</a>
-                                <a href="/raporlar/personel-calisma">Personel Çalışma (Vardiya)</a>
-                                <a href="/raporlar/sigorta-muayene">Sigorta / Muayene Envanteri</a>
-                                @* 2026-08-06 parite koşusu: bu ikisi yazılmış, rotalı ve çalışır
-                                   durumdaydı ama menüye hiç eklenmemişti → kullanıcı ulaşamıyordu. *@
-                                <a href="/raporlar/kasa-banka">Kasa-Banka Defteri</a>
-                                <a href="/raporlar/virman-gecmisi">Virman Geçmişi</a>
-                                <a href="/raporlar/servis-ozet">Servis Özet</a>
-                                <a href="/raporlar/otomatik-servisler">Otomatik Servisler</a>
-                            </div>
-                        </details>
-                    </AuthorizeView>
-
-                    @* ---- Vade + Bildirim (tüm roller) ---- *@
-                    <a class="nav-solo" href="/vade" style="display:block;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Vade Panosu
-                    </a>
-                    <a class="nav-solo" href="/bildirimler" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Bildirimler
-                        @if (_okunmamis > 0) { <span class="badge-unread">@_okunmamis</span> }
-                    </a>
-                    <a class="nav-solo" href="/takvim-abonelik" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Takvim Aboneliği
-                    </a>
-                    @* PR-B: RentPro'nun firmayla paylaştığı belgeler. Admin bloğunun DIŞINDA — oturum
-                       açmış tüm personel görmeli (KVKK metnini muhasebeci de görür). "Belge Şablonları"
-                       (Sistem grubunda) ile KARIŞTIRILMAMALI: o metin şablonu, bu dosya dağıtımı. *@
-                    <a class="nav-solo" href="/firma-belgeleri" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Firma Belgeleri
-                    </a>
-                    @* Firmanın KENDİ yüklediği PDF'ler (yukarıdakinin TERSİ yön: orası RentPro→firma,
-                       burası firmanın kendi dosyası). Okuma oturum açmış herkese açık — yükleme/silme
-                       yüzeyi sayfanın kendisinde OperationsWrite ile kapılı. *@
-                    <a class="nav-solo" href="/dokumanlar" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
-                        <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> Dokümanlar
-                    </a>
-
-                    @* ---- Sistem (yalnız Admin) ---- *@
-                    <AuthorizeView Roles="Admin" Context="adminCtx">
-                        <details class="nav-group" open="@Acik("/subeler","/kullanicilar","/personel","/ayarlar","/mesaj-sablonlari","/belge-sablonlari","/yetki","/denetim","/ice-aktar")">
-                            <summary><span class="ic"></span> Sistem <span class="chev"></span></summary>
-                            <div class="sub">
-                                <a href="/subeler">Şubeler</a>
-                                <a href="/kullanicilar">Kullanıcılar</a>
-                                <a href="/personel">Personel</a>
-                                <a href="/ayarlar">Ayarlar</a>
-                                <a href="/mesaj-sablonlari">Mesaj Şablonları</a>
-                                <a href="/belge-sablonlari">Belge Şablonları</a>
-                                <a href="/yetki">Ekran Yetkileri</a>
-                                <a href="/denetim">Denetim</a>
-                                <a href="/ice-aktar">Veri İçe Aktar</a>
-                            </div>
-                        </details>
-                    </AuthorizeView>
+                    }
                 </nav>
             </aside>
 
@@ -349,6 +148,57 @@
     private string? _bilgi;
     private bool _webSitesiModulu; // PR-12
     private int _yeniTalep;        // PR-17 cevaplanmamış site talebi sayacı
+    private bool _pilot;           // F4.6: yeni arayüz pilotu (spa menü öğeleri /app'i açar)
+    private MenuGorunumu _menu = MenuGorunumu.Bos;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    /// <summary>Görünür menü: hızlı bağlantılar + (grup | tekil öğe) blokları, kayıt sırasıyla (SPA menü modeliyle aynı kural).</summary>
+    private sealed record MenuBlogu(string Grup, List<RentACar.Web.Api.Menu.MenuOgesi> Ogeler);
+    private sealed record MenuGorunumu(IReadOnlyList<RentACar.Web.Api.Menu.MenuOgesi> Hizli, IReadOnlyList<MenuBlogu> Bloklar)
+    {
+        public static readonly MenuGorunumu Bos = new([], []);
+
+        public static MenuGorunumu Kur(IEnumerable<RentACar.Web.Api.Menu.MenuOgesi> gorunur)
+        {
+            var sirali = gorunur.OrderBy(o => o.Sira).ToList();
+            var bloklar = new List<MenuBlogu>();
+            var gruplar = new Dictionary<string, MenuBlogu>(StringComparer.Ordinal);
+            foreach (var o in sirali.Where(o => !o.HizliBaglanti))
+            {
+                if (o.Grup.Length == 0) { bloklar.Add(new MenuBlogu("", [o])); continue; }
+                if (!gruplar.TryGetValue(o.Grup, out var g))
+                {
+                    g = new MenuBlogu(o.Grup, []);
+                    gruplar[o.Grup] = g;
+                    bloklar.Add(g);
+                }
+                g.Ogeler.Add(o);
+            }
+            return new MenuGorunumu(sirali.Where(o => o.HizliBaglanti).ToList(), bloklar);
+        }
+    }
+
+    /// <summary>Öğenin açacağı adres: `spa` öğesi pilot firmada /app rotası, pilot olmayanda Blazor karşılığı.</summary>
+    private string Adres(RentACar.Web.Api.Menu.MenuOgesi o)
+        => o.Sahip == RentACar.Web.Api.Menu.MenuKaydi.Spa && !_pilot
+            ? RentACar.Web.Spa.IlkKesis.BlazorKarsiligi(o.Rota) ?? o.Rota
+            : o.Rota;
+
+    /// <summary>/app bağlantısı Blazor enhanced navigation'a girmez (tam sayfa geçiş; SPA kendi kabuğunu yükler).</summary>
+    private string? EnhanceNav(RentACar.Web.Api.Menu.MenuOgesi o)
+        => RentACar.Web.Spa.IlkKesis.SpaYoluMu(Adres(o)) ? "false" : null;
+
+    private int Rozet(RentACar.Web.Api.Menu.MenuOgesi o) => o.RozetKodu switch
+    {
+        RentACar.Web.Api.Menu.MenuKaydi.RozetOkunmamisBildirim => _okunmamis,
+        RentACar.Web.Api.Menu.MenuKaydi.RozetYeniTalep => _yeniTalep,
+        _ => 0,
+    };
+
+    /// <summary>Grup, mevcut sayfa öğelerinden birinin altındaysa AÇIK (Raporlar: tüm /raporlar/* — drill-down dahil).</summary>
+    private bool GrupAcik(MenuBlogu blok)
+        => Acik(blok.Ogeler.Select(Adres).Concat(blok.Grup == "Raporlar" ? new[] { "/raporlar" } : Array.Empty<string>()).ToArray());
 
     protected override async Task OnInitializedAsync()
     {
@@ -380,9 +230,24 @@
         }
 
         // FAZ-81: tenant renk kodları. Hata hiçbir koşulda layout'u düşürmemeli → boş bırakılır,
-        // CSS fallback zinciri eski sabit renkleri kullanır.
-        try { _renkler = Tenant.TenantId is null ? "" : RenkBildirimleri(await AyarRepo.GetAsync()); }
-        catch { _renkler = ""; }
+        // CSS fallback zinciri eski sabit renkleri kullanır. F4.6: aynı satırdan pilot bayrağı (menü adresleri).
+        try
+        {
+            var ayar = Tenant.TenantId is null ? null : await AyarRepo.GetAsync();
+            _renkler = RenkBildirimleri(ayar);
+            _pilot = ayar?.YeniArayuzPilot == true;
+        }
+        catch { _renkler = ""; _pilot = false; }
+
+        // F4.6: menü kayıttan, etkin izne + modüle göre (yeni arayüzün GET /api/ui/v1/menu'süyle AYNI süzgeç).
+        try
+        {
+            var user = AuthState is null ? null : (await AuthState).User;
+            _menu = user?.Identity?.IsAuthenticated == true
+                ? MenuGorunumu.Kur(RentACar.Web.Api.Menu.MenuApi.Gorunur(user, _webSitesiModulu))
+                : MenuGorunumu.Bos;
+        }
+        catch { _menu = MenuGorunumu.Bos; }
     }
 
     /// <summary>

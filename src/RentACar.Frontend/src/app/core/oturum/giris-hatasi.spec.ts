@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { girisHataMesaji, guvenliDonusAdresi } from './giris-hatasi';
+import { girisHataMesaji, girisSonrasiHedef, guvenliDonusAdresi } from './giris-hatasi';
 
 const hata = (status: number, kod?: string, detail = 'Sunucu ayrıntısı') =>
   new HttpErrorResponse({ status, error: kod ? { status, kod, detail } : null });
@@ -47,4 +47,30 @@ describe('guvenliDonusAdresi (yalnız uygulama içi yol)', () => {
     expect(guvenliDonusAdresi(null)).toBe('/');
     expect(guvenliDonusAdresi(['/kiralar'])).toBe('/');
   });
+});
+
+describe('girisSonrasiHedef (F4.6 tek giriş)', () => {
+  const spa = (yol: string) => ({ tur: 'spa', yol });
+  const sunucu = (adres: string) => ({ tur: 'sunucu', adres });
+
+  it.each([
+    // pilot: /app dönüşü SPA içinde; dönüş yok / kök / dış adres / giriş döngüsü → Panel
+    [true, null, spa('/panel')],
+    [true, '/', spa('/panel')],
+    [true, '/app', spa('/panel')],
+    [true, '/app/kiralar/5?sekme=odeme', spa('/kiralar/5?sekme=odeme')],
+    [true, '/app/giris?returnUrl=%2Fapp', spa('/panel')],
+    [true, '//kotu.example', spa('/panel')],
+    [true, 'javascript:alert(1)', spa('/panel')],
+    // pilot: Blazor dönüşü sunucu kapısından (harita/GuvenliDonus sunucuda)
+    [true, '/kiralar/yeni?varac=5', sunucu('/login?ReturnUrl=%2Fkiralar%2Fyeni%3Fvarac%3D5')],
+    [true, '/vehicles', sunucu('/login?ReturnUrl=%2Fvehicles')],
+    // pilot değil: yeni arayüz kapalı → Blazor
+    [false, null, sunucu('/')],
+    [false, '/app/kiralar', sunucu('/')],
+    [false, '//kotu.example', sunucu('/')],
+    [false, '/vehicles?x=1', sunucu('/login?ReturnUrl=%2Fvehicles%3Fx%3D1')],
+  ])('pilot=%s, dönüş=%s', (pilot, donus, beklenen) =>
+    expect(girisSonrasiHedef(pilot, donus)).toEqual(beklenen),
+  );
 });

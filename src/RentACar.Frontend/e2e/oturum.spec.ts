@@ -215,7 +215,7 @@ test('giriş: oturumsuz adres girişe döner; 400 genel mesaj + alanlar korunur;
   });
 
   await page.goto(`${VITRIN}?x=1`);
-  await expect(page).toHaveURL(/\/app\/giris\?returnUrl=%2Fvitrin%2Fgeri-bildirim%3Fx%3D1$/);
+  await expect(page).toHaveURL(/\/app\/giris\?returnUrl=%2Fapp%2Fvitrin%2Fgeri-bildirim%3Fx%3D1$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Giriş yap' })).toBeVisible();
   expect(await ciddiIhlaller(page)).toEqual([]);
 

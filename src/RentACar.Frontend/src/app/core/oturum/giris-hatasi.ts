@@ -42,3 +42,47 @@ export function guvenliDonusAdresi(deger: unknown): string {
   if (adres === '/giris' || adres.startsWith('/giris?') || adres.startsWith('/giris/')) return '/';
   return adres;
 }
+
+/** Girişten sonraki hedef: SPA rotası (router, `/app` önekisiz) ya da sunucu adresi (tam sayfa geçiş). */
+export type GirisHedefi =
+  | { readonly tur: 'spa'; readonly yol: string }
+  | { readonly tur: 'sunucu'; readonly adres: string };
+
+const SPA_ONEKI = '/app';
+/** Pilot kiracının varsayılan inişi (SPA Panel). */
+export const PILOT_INIS = '/panel';
+/** Blazor giriş kapısı: GİRİŞLİ kullanıcıyı `ReturnUrl`'e (sunucunun açık yönlendirme çitinden geçirerek) gönderir. */
+const SUNUCU_GIRIS = '/login';
+
+function spaAdresiMi(adres: string): boolean {
+  return (
+    adres === SPA_ONEKI ||
+    adres.startsWith(`${SPA_ONEKI}/`) ||
+    adres.startsWith(`${SPA_ONEKI}?`) ||
+    adres.startsWith(`${SPA_ONEKI}#`)
+  );
+}
+
+/**
+ * F4.6 tek giriş — girişten (ya da girişliyken giriş sayfası açılınca) nereye gidilir. `returnUrl` bir SİTE
+ * yoludur: `/app/…` yeni arayüz, diğerleri Blazor ekranı (sunucunun `/login` → `/app/giris` yönlendirmesi ve
+ * `oturumGuard` böyle yazar).
+ * - Pilot + (dönüş yok | `/app` dönüşü) → SPA rotası; varsayılan Panel, `/app/giris` (döngü) → Panel.
+ * - Pilot DEĞİL + (dönüş yok | `/app` dönüşü) → Blazor Panel (`/`): yeni arayüz bu firmada kapalı.
+ * - Blazor dönüşü (pilot olsun olmasın) → `/login?ReturnUrl=…`. Sunucu girişli kullanıcıyı
+ *   `YetkiYonlendirme.GuvenliDonus` çitinden geçirir, pilotsa haritadaki SPA karşılığına çevirir. Açık
+ *   yönlendirme kararı TEK yerde (sunucuda) kalır; istemci Blazor adresini kendisi açmaz.
+ */
+export function girisSonrasiHedef(pilot: boolean, donus: unknown): GirisHedefi {
+  const ham = typeof donus === 'string' ? donus.trim() : '';
+  if (ham && ham !== '/' && !spaAdresiMi(ham)) {
+    if (ham.startsWith('/') && !ham.startsWith('//') && !ham.includes('\\')) {
+      return { tur: 'sunucu', adres: `${SUNUCU_GIRIS}?ReturnUrl=${encodeURIComponent(ham)}` };
+    }
+    // Kök-göreli olmayan (dış adres, şema) dönüş hiç taşınmaz.
+    return pilot ? { tur: 'spa', yol: PILOT_INIS } : { tur: 'sunucu', adres: '/' };
+  }
+  if (!pilot) return { tur: 'sunucu', adres: '/' };
+  const yol = spaAdresiMi(ham) ? guvenliDonusAdresi(ham) : '/';
+  return { tur: 'spa', yol: yol === '/' ? PILOT_INIS : yol };
+}
