@@ -30,6 +30,12 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
         return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
     }
 
+    public async Task<RentalAddOn?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == islemAnahtari, ct);
+    }
+
     public async Task<bool> IsRentalInvoicedAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -57,6 +63,13 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
             await KiraKilitleri.SatirAsync(db, addOn.RentalId, ct);
 
+            // Low-B: eşzamanlı çift gönderim (aynı anahtar, aynı kira) kira satır kilidiyle serileşir → ikinci istek
+            // ilkinin commit'ini burada görür ve deterministik 409 mükerrer + mevcut alır. Durum çitlerinden ÖNCE
+            // (DEVIR §5). Farklı kiralarla aynı anahtar yarışı kısmi unique index'te yakalanır (catch aşağıda).
+            if (addOn.IslemAnahtari is { } anahtar
+                && await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == anahtar, ct) is { } onceki)
+                throw RentalAddOnService.Mukerrer(onceki, addOn.RentalId, addOn.EkHizmetTanimId, addOn.Miktar);
+
             var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
             // F4.1: iptal edilmiş kiraya ek hizmet eklenemez (kilit ALTINDA; iptal de aynı satır kilidini alır).
@@ -71,7 +84,16 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
                 throw new ValidationException("Dövizli kirada ek hizmet v1'de desteklenmiyor (tutar birimleri karışır).");
 
             db.RentalAddOns.Add(addOn);
-            await db.SaveChangesAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException
+                { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation } pg
+                && IdempotencyKisiti.MukerrerKisitiMi(pg.ConstraintName))
+            {
+                throw new MukerrerIslemException(MukerrerIslemException.FarkliIcerikMesaji);
+            }
 
             await RecomputeAsync(db, rental, ct);
             await tx.CommitAsync(ct);

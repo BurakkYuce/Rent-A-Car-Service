@@ -82,7 +82,8 @@ public sealed record KiraOlusturIstegi
     /// <summary>Blazor <c>BookingEndpoints</c> create eşlemesinin (ApplyOdemeDerinlik + ApplyKiraDetay) aynısı.</summary>
     public BookingInput ToInput() => new()
     {
-        MusteriId = MusteriId, VehicleId = VehicleId, BasTar = BasTar, BitTar = BitTar,
+        // Low-B: DB'ye giden DateTimeOffset UTC (DEVIR §5) — "+03:00" ofsetli tarih Npgsql timestamptz'de 500 veriyordu.
+        MusteriId = MusteriId, VehicleId = VehicleId, BasTar = BasTar.ToUniversalTime(), BitTar = BitTar.ToUniversalTime(),
         IkinciSurucuId = IkinciSurucuId,
         GunlukUcret = GunlukUcret ?? 0m, CikisOfisi = Nz(CikisOfisi), DonusOfisi = Nz(DonusOfisi), Aciklama = Nz(Aciklama),
         Provizyon = Provizyon, Depozito = Depozito, KomisyonOran = KomisyonOran, KomisyonTutar = KomisyonTutar,
@@ -91,7 +92,7 @@ public sealed record KiraOlusturIstegi
         FiyatTuru = Nz(FiyatTuru), Doviz = Nz(Doviz),
         Kaynak = Nz(Kaynak), KampanyaKodu = Nz(KampanyaKodu), UyariAciklama = Nz(UyariAciklama),
         OzelFaturaAciklama = Nz(OzelFaturaAciklama), FaturaListesindeGizle = FaturaListesindeGizle,
-        UcusNo = Nz(UcusNo), ProvizyonNo = Nz(ProvizyonNo), ProvizyonTarih = ProvizyonTarih,
+        UcusNo = Nz(UcusNo), ProvizyonNo = Nz(ProvizyonNo), ProvizyonTarih = ProvizyonTarih?.ToUniversalTime(),
         OnayKodu = Nz(OnayKodu), FirmaKodu = Nz(FirmaKodu), ProjeAdi = Nz(ProjeAdi), OzelKod = Nz(OzelKod),
         OzelKdvOran = OzelKdvOran, DamgaVergisi = DamgaVergisi,
         TalepTuru = Nz(TalepTuru), GeldigiBirim = Nz(GeldigiBirim), KefilBilgisi = Nz(KefilBilgisi),
