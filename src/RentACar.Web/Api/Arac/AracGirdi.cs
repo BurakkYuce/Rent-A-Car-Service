@@ -28,6 +28,16 @@ internal static class AracGirdi
         ("Alım bedeli negatif", "alimBedeli"),
         ("İkinci el değeri negatif", "ikinciElDeger"),
         ("Vitrin adedi", "vitrinAdet"),
+        // #278 L4 — negatif vergi/maliyet/kur ve makul tarih aralığı (VehicleService.Validate mesajları).
+        ("Alış vergisiz tutarı", "alisVergisiz"), ("Alış ÖTV", "alisOtv"), ("Alış KDV", "alisKdv"),
+        ("Aylık maliyet", "aylikMaliyet"), ("Filo yönetim maliyeti", "filoYonetimMaliyeti"), ("Kira fiyatı", "kiraFiyat"),
+        ("TSB kasko değeri", "tsbKaskoDegeri"), ("Alış EUR fiyatı", "alisEuroFiyat"), ("Satış EUR fiyatı", "satisEuroFiyat"),
+        ("Alım bedeli kuru", "alimBedeliKur"), ("Araç 2. fiyat kuru", "arac2FiyatKur"), ("Şimdiki kur", "simdiKur"),
+        ("Döviz aylık maliyet", "aylikMaliyetDoviz"),
+        ("Tescil tarihi", "tescilTarihi"), ("Alım tarihi", "alimTarihi"), ("Filo giriş tarihi", "filoGirisTarih"),
+        ("Filo çıkış tarihi", "filoCikisTarih"), ("Son teslim tarihi", "sonTeslimTarihi"), ("Kira bitiş tarihi", "kiraBitTar"),
+        ("Kira beklenen tarihi", "kiraBekTar"), ("Son bakım tarihi", "sonBakimTarih"), ("Kapatma tarihi", "kapatmaTarih"),
+        ("Çıkması planlanan tarih", "cikmasiPlananTarih"),
     ];
 
     /// <summary>Metin kolonları: (değer seçici, uzunluk, alan, etiket). Config'te sınırı olmayan metinler 256'da kesilir.</summary>

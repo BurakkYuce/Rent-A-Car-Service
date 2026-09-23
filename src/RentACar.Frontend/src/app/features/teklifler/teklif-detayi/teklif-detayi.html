@@ -53,11 +53,16 @@
   }
 
   @if (teklif(); as k) {
-    @if (k.rezervasyonId) {
+    <!-- #271 L3: kabul tekrarında sunucu açılmış rezervasyonu (no dahil) bildirir; bağlantı numarayı gösterir. -->
+    @let tekrar = islemler.kabulMevcudu()?.teklifId === k.id ? islemler.kabulMevcudu() : null;
+    @let rezId = k.rezervasyonId ?? tekrar?.rezervasyonId;
+    @if (rezId) {
       <p class="rc-form-mesaji" data-testid="olusan-rezervasyon">
         {{ 'teklif.ozet.rezervasyon' | transloco }}:
-        <a [routerLink]="['/rezervasyonlar', k.rezervasyonId]">{{
-          'teklif.ozet.rezervasyonAc' | transloco
+        <a [routerLink]="['/rezervasyonlar', rezId]">{{
+          tekrar
+            ? ('teklif.ozet.rezervasyonNoAc' | transloco: { rez: tekrar.rezervasyonNo })
+            : ('teklif.ozet.rezervasyonAc' | transloco)
         }}</a>
       </p>
     }

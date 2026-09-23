@@ -323,6 +323,13 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         await using var db = await _factory.CreateDbContextAsync(ct);
         var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == id, ct);
         if (vehicle is null) return false;
+        // #271 L2 ("kirada kullanılan cari silinemez" deseni): kira ya da filo sözleşmesinde kullanılan araç
+        // silinemez. Rentals/FiloKiralamalar'da Vehicles'a FK YOK — silinen araç sözleşmede yetim kimlik bırakıyor,
+        // şube kapsamı araçtan türetildiği için filo sözleşmesi şube operatörüne görünmez oluyordu.
+        if (await db.Rentals.AnyAsync(r => r.VehicleId == id, ct))
+            throw new ValidationException("Bu araç bir kira sözleşmesinde kullanılıyor; silinemez.", "arac");
+        if (await db.FiloKiralamalar.AnyAsync(f => f.VehicleId == id, ct))
+            throw new ValidationException("Bu araç bir filo kiralama sözleşmesinde kullanılıyor; silinemez.", "arac");
 
         db.Vehicles.Remove(vehicle);
         await db.SaveChangesAsync(ct);

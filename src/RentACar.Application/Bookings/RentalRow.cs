@@ -9,6 +9,9 @@ public sealed class RentalRow
     public string SozlesmeNo { get; init; } = string.Empty;
     public Guid MusteriId { get; init; }          // hızlı tahsilat formu (cariId) için
     public string MusteriAd { get; init; } = string.Empty;
+    /// <summary>KVKK: carinin <c>AnonimAd</c> bayrağı. <c>MusteriAd</c> ham addır; /api/ui yüzeyleri
+    /// <c>MusteriGorunumu.ListeAdi</c> ile maskeler, repo arama terimini anonim carinin gerçek adıyla eşleştirmez.</summary>
+    public bool MusteriAnonimAd { get; init; }
     public string? Doviz { get; init; }           // kira dövizi — tahsilat kira dövizinde olmalı (K2)
     public string Plaka { get; init; } = string.Empty;
     public DateTimeOffset BasTar { get; init; }

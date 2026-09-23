@@ -24,6 +24,7 @@ public sealed class DamageFileService(IDamageFileRepository repository)
 
         var file = new DamageFile
         {
+            Id = input.IslemAnahtari is { } ia && ia != Guid.Empty ? ia : Guid.NewGuid(), // F6.1b idempotent oluşturma
             VehicleId = input.VehicleId,
             RentalId = input.RentalId,
             CariId = input.CariId,
@@ -54,7 +55,9 @@ public sealed class DamageFileService(IDamageFileRepository repository)
 
     private Task<bool> Transition(
         Guid id, HasarDurum to, HasarDurum[] from, string? note, CancellationToken ct)
-        => _repository.UpdateAsync(id, f =>
+        // F6.1b: geçiş çiti satır kilidinin ALTINDA (önce kilitsiz UpdateAsync — eşzamanlı onayla + reddet ikisi de
+        // "Onayda" görüp son yazan kazanıyordu). Semantik aynı; Blazor yolu da bu kilitten yararlanır.
+        => _repository.KilitliGuncelleAsync(id, f =>
         {
             if (Array.IndexOf(from, f.Durum) < 0)
                 throw new ValidationException($"'{f.Durum}' durumundan '{to}' durumuna geçilemez.");

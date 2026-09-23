@@ -30,7 +30,7 @@ import { KiraFormuDurumu } from '../kira-formu-durumu';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe, ...BICIM_PIPELARI],
   template: `
-    @if (d.detay.veri()?.paylasim; as bar) {
+    @if (d.gorunenDetay()?.paylasim; as bar) {
       <section class="kf-kart" [attr.aria-label]="'kiraFormu.paylasim.baslik' | transloco">
         <h2 class="kf-kart__baslik">{{ 'kiraFormu.paylasim.baslik' | transloco }}</h2>
         @if (bar.link; as link) {
@@ -113,7 +113,7 @@ export class Paylasim {
   protected readonly kopyalandi = signal(false);
   /** Mutlak adres sayfanın kendi kökünden kurulur (sunucu yalnız göreli yol verir). */
   protected readonly adres = computed(() => {
-    const yol = this.d.detay.veri()?.paylasim?.link?.yol ?? '';
+    const yol = this.d.gorunenDetay()?.paylasim?.link?.yol ?? '';
     return `${this.belge.location?.origin ?? ''}${yol}`;
   });
 
