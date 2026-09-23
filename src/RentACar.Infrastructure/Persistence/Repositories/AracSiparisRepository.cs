@@ -91,6 +91,11 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
                 await tx.RollbackAsync(ct);
                 throw new ValidationException(SecimBulunamadi);
             }
+            catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
+            {
+                await tx.RollbackAsync(ct);
+                throw new MukerrerIslemException(PkIhlali.Mesaj);
+            }
             await tx.CommitAsync(ct);
         }, ct);
     }
@@ -122,6 +127,26 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<AracSiparis> apply,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.AracSiparisleri, id, beklenenSurum,
+                (db, k, c) => db.AracSiparisleri.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+        }
+        catch (DbUpdateException ex) when (FkIhlali(ex))
+        {
+            throw new ValidationException(SecimBulunamadi);
+        }
+    }
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.AracSiparisleri, id, ct);
     }
 
     private const string SecimBulunamadi =

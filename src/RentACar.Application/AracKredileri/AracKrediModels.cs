@@ -16,6 +16,9 @@ public sealed class AracKrediInput
     public string Doviz { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
     public string? Aciklama { get; set; }
+    /// <summary>F6.1b — <c>/api/ui</c> çift gönderim anahtarı (Idempotency-Key'den türetilmiş UUIDv5). Doluysa kredinin
+    /// <b>Id</b>'si olur: aynı anahtarla ikinci kayıt PK'ye çarpar → 409 <c>mukerrer</c> (ikinci kredi yazılmaz).</summary>
+    public Guid? IslemAnahtari { get; set; }
 }
 
 /// <summary>Kredi taksit planı satırı.</summary>
