@@ -141,7 +141,7 @@ export class HizliGiris {
       return {
         tahsilat: para(k.tahsilat, doviz),
         kalan: para(k.bakiye, doviz),
-        ceza: para(this.d.detay.veri()?.toplamlar?.cezaToplam, 'TRY'),
+        ceza: para(this.d.gorunenDetay()?.toplamlar?.cezaToplam, 'TRY'),
       };
     }
     const h = this.d.hesap.veri();
