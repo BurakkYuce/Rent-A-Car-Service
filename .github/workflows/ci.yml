@@ -9,8 +9,68 @@ on:
 permissions:
   contents: read
 
+# Actions dakika bütçesi (private repo, aylık 3.000 dk): aynı PR'a yeni push gelince eski koşu
+# İPTAL edilir. main'de iptal yok: her main SHA'sı kendi spa-<sha> artifact'ını üretmeli.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Değişiklik tespiti: her ağır iş yalnız kendi alanına dokunulduysa koşar. Workflow dosyası
+  # değişirse hepsi koşar (CI'ın kendisi test edilir). Yanlış negatif riski: bir alanın dosyası
+  # başka alanın listesinde unutulursa o iş atlanır — yeni kök dizin eklerken bu listeyi güncelle.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.f.outputs.backend }}
+      frontend: ${{ steps.f.outputs.frontend }}
+      blazor: ${{ steps.f.outputs.blazor }}
+      deploy: ${{ steps.f.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            ci: &ci
+              - '.github/workflows/**'
+            backend:
+              - *ci
+              - 'src/RentACar.Domain/**'
+              - 'src/RentACar.Application/**'
+              - 'src/RentACar.Infrastructure/**'
+              - 'src/RentACar.Web/**'
+              - 'src/RentACar.Api/**'
+              - 'src/RentACar.PublicSite/**'
+              - 'tests/**'
+              - 'docs/api/**'
+              - 'scripts/db-init-roles.sql'
+              - 'RentACar.slnx'
+              - 'Directory.*.props'
+              - 'global.json'
+              - '.editorconfig'
+            frontend:
+              - *ci
+              - 'src/RentACar.Frontend/**'
+              - 'docs/api/ui-v1.json'
+            blazor:
+              - *ci
+              - 'src/RentACar.Web/Components/**'
+              - 'src/RentACar.Web/wwwroot/**'
+              - 'scripts/mobil-tasma.mjs'
+              - 'package.json'
+              - 'package-lock.json'
+            deploy:
+              - *ci
+              - 'deploy/**'
+
   build-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     # Entegrasyon testleri gerçek PostgreSQL ister (RLS rol/policy doğrulaması).
@@ -64,7 +124,10 @@ jobs:
   # tohumlamaz. Boş bir liste taşmadığı için kart görünümü kuralları burada ÖLÇÜLMEZ; koşum
   # bunu "tablo var ama satır YOK" satırıyla açıkça bildirir. Burada yakalanan sınıf kabuk,
   # form, ızgara ve filtre çubuğu taşmalarıdır — ki 145 sayfayı birden bozan sınıf tam da budur.
+  # Blazor arayüzü dondurulmuş (Angular'a geçiş): yalnız Blazor sayfalarına/stiline dokunulursa koşar.
   mobil-tasma:
+    needs: changes
+    if: needs.changes.outputs.blazor == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -146,10 +209,20 @@ jobs:
   # ---------------------------------------------------------------------------
   # Yeni arayüz (Angular, src/RentACar.Frontend) kalite kapıları.
   #
-  # Yol filtresi YOK (bilinçli): kapılar her PR'da koşar, "frontend'e dokunmadım" varsayımı
-  # kırmızıyı gizlemez. .NET işlerinden bağımsızdır; Node 22 sabit (.nvmrc / engines).
+  # Yol filtresi VAR (Actions dakika bütçesi): frontend'e ya da OpenAPI anlık görüntüsüne dokunan
+  # PR'da koşar. Kalite kapıları + e2e TEK işte: npm ci ve production derlemesi bir kez yapılır
+  # (`npm run e2e` = `ng build` + Playwright; bütçeler bu derlemede denetlenir).
+  #
+  # Neden KONTEYNER (F3.7): ekran görüntüsü tabanları piksel düzeyinde işletim sistemine/fonta/tarayıcı
+  # derlemesine bağlı. İş, tabanların üretildiği imajın AYNISINDA koşar (yerelde `npm run e2e:gorsel`
+  # aynı imajı linux/amd64 ile çalıştırır). İmaj etiketi @playwright/test sürümüyle AYNI olmalı.
   frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
 
     defaults:
       run:
@@ -160,6 +233,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Konteynerde çalışma dizininin sahibi farklı: git (tipler:kontrol'deki git diff) "dubious ownership" der.
+      - name: git safe.directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/setup-node@v4
         with:
@@ -187,44 +264,9 @@ jobs:
       - name: Birim testleri (Vitest)
         run: npm test
 
-      - name: Production derlemesi (bütçeler)
-        run: npm run build
-
-  # ---------------------------------------------------------------------------
-  # Yeni arayüz e2e: production derlemesi /app/ altında, üretim CSP'siyle; işlev + axe (iki tema) +
-  # 320–1440 px gövde taşması (`--project=chromium`) ve görsel regresyon (`--project=gorsel`).
-  #
-  # Neden KONTEYNER (F3.7): ekran görüntüsü tabanları piksel düzeyinde işletim sistemine/fonta/tarayıcı
-  # derlemesine bağlı. İş, tabanların üretildiği imajın AYNISINDA koşar (yerelde `npm run e2e:gorsel`
-  # aynı imajı linux/amd64 ile çalıştırır). Tarayıcı imajda hazır: indirme/önbellek adımı yok.
-  # İmaj etiketi @playwright/test sürümüyle AYNI olmalı; değilse Playwright tarayıcıyı bulamayıp
-  # "Executable doesn't exist" ile kırılır (sürüm kayması sessiz geçmez).
-  e2e:
-    runs-on: ubuntu-latest
-
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-
-    defaults:
-      run:
-        working-directory: src/RentACar.Frontend
-
-    env:
-      NG_CLI_ANALYTICS: "false"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: src/RentACar.Frontend/package-lock.json
-
-      - name: Bağımlılıklar
-        run: npm ci
-
-      - name: e2e (derleme + Playwright + axe + taşma)
+      # Production derlemesi /app/ altında, üretim CSP'siyle (bütçeler dahil); işlev + axe (iki tema) +
+      # 320–1440 px gövde taşması (`--project=chromium`) ve görsel regresyon (`--project=gorsel`).
+      - name: e2e (production derlemesi + Playwright + axe + taşma)
         run: npm run e2e
 
       # Tabanlar e2e/gorsel-tabanlari/ (commit'li). CI eksik tabanı yazmaz, kırmızı verir.
@@ -245,6 +287,8 @@ jobs:
   # API'sine karşı: checksum/yanlış SHA/eksik artifact reddi, chunk taşıma sınırı, token sızmazlığı).
   # Sunucuya hiçbir şey gitmez; Linux araçlarıyla (GNU tar/cp) koşması asıl değeri.
   deploy-betikleri:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -263,9 +307,13 @@ jobs:
   # SPA sürüm artifact'ı: main'e her push'ta, TÜM kapılar yeşilse. Sunucu (deploy/yayinla.sh)
   # checkout ettiği SHA'nın `spa-<sha>` release'ini salt-okur token'la indirir → "artifact var" ==
   # "o commit'in CI'ı yeşil". PR'larda koşmaz; yazma yetkisi yalnız bu işte.
+  # Yol filtresiyle atlanan işler "skipped" olur; artifact yine üretilir ama koşan işlerden biri
+  # bile başarısız ya da iptalse ÜRETİLMEZ ("artifact var" == "o commit'in koşan kapıları yeşil").
   spa-surum:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-test, mobil-tasma, frontend, e2e, deploy-betikleri]
+    if: >-
+      always() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    needs: [changes, build-test, mobil-tasma, frontend, deploy-betikleri]
     runs-on: ubuntu-latest
 
     permissions:
