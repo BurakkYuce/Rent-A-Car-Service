@@ -9370,6 +9370,703 @@
           }
         }
       }
+    },
+    "/api/ui/v1/platform/oturum/giris": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/oturum/cikis": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/oturum/ben": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/ozet": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfPlatformTenantRowDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformTenantCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/secim": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformTenantOptionDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/{id}": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformTenantUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/{id}/durum": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformTenantStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSwitchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/{id}/web-sitesi-modulu": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSwitchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/kiracilar/{id}/logo": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "logo": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/belgeler": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformDocumentDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformDocumentUploadForm"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformDocumentUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/belgeler/{id}/surum": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dosya": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/belgeler/{id}/durum": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformDocumentStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/belgeler/{id}": {
+      "delete": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/platform/belgeler/{id}/icerik": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -24722,6 +25419,698 @@
           }
         }
       },
+      "PlatformDocumentDto": {
+        "required": [
+          "id",
+          "baslik",
+          "aciklama",
+          "dosyaAdi",
+          "boyut",
+          "surum",
+          "durum",
+          "yalnizYoneticiler",
+          "guncelleme",
+          "yukleyenOperator",
+          "hedefKodlar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baslik": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaAdi": {
+            "type": "string"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "surum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "yalnizYoneticiler": {
+            "type": "boolean"
+          },
+          "guncelleme": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "yukleyenOperator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedefKodlar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PlatformDocumentStatusRequest": {
+        "required": [
+          "durum"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlatformDocumentUploadForm": {
+        "type": "object",
+        "properties": {
+          "baslik": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosya": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IFormFile"
+              }
+            ]
+          },
+          "yalnizYoneticiler": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedef": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PlatformDomainDto": {
+        "required": [
+          "host",
+          "tur",
+          "durum"
+        ],
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "tur": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformLoginRequest": {
+        "required": [
+          "kullanici",
+          "sifre"
+        ],
+        "type": "object",
+        "properties": {
+          "kullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlatformLogoDto": {
+        "required": [
+          "var",
+          "bayt",
+          "genislik",
+          "yukseklik",
+          "baskiyaUygun",
+          "uyari"
+        ],
+        "type": "object",
+        "properties": {
+          "var": {
+            "type": "boolean"
+          },
+          "bayt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "genislik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yukseklik": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "baskiyaUygun": {
+            "type": "boolean"
+          },
+          "uyari": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlatformSessionResponse": {
+        "required": [
+          "kullanici"
+        ],
+        "type": "object",
+        "properties": {
+          "kullanici": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformSummary": {
+        "required": [
+          "toplamKiraci",
+          "aktif",
+          "pasif",
+          "kapali",
+          "toplamKullanici",
+          "toplamArac",
+          "aktifKira",
+          "son30GunYeniKiraci"
+        ],
+        "type": "object",
+        "properties": {
+          "toplamKiraci": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktif": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pasif": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kapali": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamKullanici": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamArac": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktifKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "son30GunYeniKiraci": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PlatformSwitchRequest": {
+        "required": [
+          "aktif"
+        ],
+        "type": "object",
+        "properties": {
+          "aktif": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "PlatformTenantCreateRequest": {
+        "required": [
+          "kod",
+          "ad",
+          "adminKullanici",
+          "adminSifre"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminKullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminSifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlatformTenantDetailDto": {
+        "required": [
+          "id",
+          "kod",
+          "ad",
+          "durum",
+          "kapanisTarihi",
+          "olusturma",
+          "guncelleme",
+          "surum",
+          "yetkiliAd",
+          "eposta",
+          "telefon",
+          "notlar",
+          "plan",
+          "kullaniciSayisi",
+          "aracSayisi",
+          "aktifKira",
+          "toplamKira",
+          "sonGiris",
+          "gelir30Gun",
+          "webSitesiModulu",
+          "yeniArayuzPilot",
+          "halkaAcikSite",
+          "domainler",
+          "logo"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "kapanisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "olusturma": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "guncelleme": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "surum": {
+            "type": "string"
+          },
+          "yetkiliAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eposta": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notlar": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "plan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kullaniciSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aracSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktifKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonGiris": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "gelir30Gun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "webSitesiModulu": {
+            "type": "boolean"
+          },
+          "yeniArayuzPilot": {
+            "type": "boolean"
+          },
+          "halkaAcikSite": {
+            "type": "boolean"
+          },
+          "domainler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformDomainDto"
+            }
+          },
+          "logo": {
+            "$ref": "#/components/schemas/PlatformLogoDto"
+          }
+        }
+      },
+      "PlatformTenantOptionDto": {
+        "required": [
+          "id",
+          "kod",
+          "ad",
+          "durum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformTenantRowDto": {
+        "required": [
+          "id",
+          "kod",
+          "ad",
+          "durum",
+          "kapanisTarihi",
+          "olusturma",
+          "kullaniciSayisi",
+          "aracSayisi",
+          "aktifKira",
+          "sonGiris"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "kapanisTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "olusturma": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kullaniciSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aracSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aktifKira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonGiris": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PlatformTenantStatusRequest": {
+        "required": [
+          "durum",
+          "onayKod"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "onayKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlatformTenantUpdateRequest": {
+        "required": [
+          "ad",
+          "yetkiliAd",
+          "eposta",
+          "telefon",
+          "notlar",
+          "plan",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkiliAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eposta": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notlar": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "plan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -29205,6 +30594,55 @@
           }
         }
       },
+      "SayfaOfPlatformTenantRowDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformTenantRowDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfReconciliationReportRow": {
         "required": [
           "kayitlar",
@@ -32251,6 +33689,9 @@
     },
     {
       "name": "Rapor"
+    },
+    {
+      "name": "Platform"
     }
   ]
 }
