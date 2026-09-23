@@ -56,6 +56,16 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
         return true;
     }
 
+    public Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<FiloKiralama> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.FiloKiralamalar, id, beklenenSurum,
+            (db, k, c) => db.FiloKiralamalar.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.FiloKiralamalar, id, ct);
+    }
+
     public async Task<FiloKiralama?> FindAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

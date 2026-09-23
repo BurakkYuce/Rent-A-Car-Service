@@ -22,5 +22,7 @@ public interface IAvailabilityRepository
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
 }
 
-/// <summary>Aracın son tamamlanmış kirası: efektif dönüş + müşteri adı (FAZ-19).</summary>
-public sealed record SonKullanimRow(Guid VehicleId, DateTimeOffset SonDonus, string? MusteriAd);
+/// <summary>Aracın son tamamlanmış kirası: efektif dönüş + müşteri adı (FAZ-19).
+/// <para><paramref name="AnonimAd"/> (F5.1, eklemeli): carinin KVKK "ad anonim" bayrağı — yeni arayüz adı
+/// <c>MusteriGorunumu</c> kuralıyla gizler; Blazor ekranı bu alanı okumaz (davranışı değişmedi).</para></summary>
+public sealed record SonKullanimRow(Guid VehicleId, DateTimeOffset SonDonus, string? MusteriAd, bool AnonimAd = false);
