@@ -2896,6 +2896,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeklifKabulCakismaProblemi"
+                }
+              }
+            }
           }
         }
       }
@@ -11978,6 +11988,65 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "TeklifKabulCakismaProblemi": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "kod",
+          "mevcut"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "mevcut": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TeklifKabulMevcut"
+              }
+            ]
+          }
+        }
+      },
+      "TeklifKabulMevcut": {
+        "required": [
+          "rezervasyonId",
+          "rezervasyonNo"
+        ],
+        "type": "object",
+        "properties": {
+          "rezervasyonId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rezervasyonNo": {
+            "type": "string"
           }
         }
       },

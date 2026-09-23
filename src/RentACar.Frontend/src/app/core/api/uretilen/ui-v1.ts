@@ -2846,6 +2846,15 @@ export interface paths {
             'application/json': components['schemas']['TeklifKabulYaniti'];
           };
         };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['TeklifKabulCakismaProblemi'];
+          };
+        };
       };
     };
     delete?: never;
@@ -5388,6 +5397,20 @@ export interface components {
       fazlaKmUcret?: null | number | string;
       /** Format: double */
       yakitBirimUcret?: null | number | string;
+    };
+    TeklifKabulCakismaProblemi: {
+      type: string;
+      title: string;
+      /** Format: int32 */
+      status: number | string;
+      detail: string;
+      kod: string;
+      mevcut: null | components['schemas']['TeklifKabulMevcut'];
+    };
+    TeklifKabulMevcut: {
+      /** Format: uuid */
+      rezervasyonId: string;
+      rezervasyonNo: string;
     };
     TeklifKabulYaniti: {
       /** Format: uuid */

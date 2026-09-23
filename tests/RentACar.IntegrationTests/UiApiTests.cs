@@ -5,7 +5,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -316,6 +318,46 @@ public sealed class UiApiTests(WebFixture fx)
         Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
         Assert.Null(r.Headers.Location);
+    }
+
+    /// <summary>
+    /// Low temizliği A: üretimde <c>ThrowOnBadRequest</c> KAPALI (varsayılanı yalnız Development'ta açık) — bağlama
+    /// hatası istisna değil gövdesiz 400 olur. Aynı host üretim ayarıyla kurulur; yanıt yine <c>kod: dogrulama</c>.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Bozuk_json_her_ortamda_400_kod_dogrulama(bool gelistirmeGibi)
+    {
+        await using var f = fx.Web.WithWebHostBuilder(b => b.ConfigureTestServices(s =>
+            s.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = gelistirmeGibi)));
+        var c = f.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var t = await XsrfAl(c);
+        var req = Istek(HttpMethod.Post, Giris, t);
+        req.Content = new StringContent("{bozuk", Encoding.UTF8, "application/json");
+        var r = await c.SendAsync(req);
+
+        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Equal("İstek gövdesi okunamadı ya da eksik.", (await Govde(r)).GetProperty("detail").GetString());
+    }
+
+    [Theory]
+    [InlineData("22001", LogLevel.Warning)]
+    [InlineData("22003", LogLevel.Warning)]
+    [InlineData("23505", LogLevel.Error)]   // tanınmayan DB hatası: 500 + Error (gizlenmez)
+    public void Veri_tasmasi_agi_Warning_loglanir(string sqlState, LogLevel beklenen)
+    {
+        var ex = new Microsoft.EntityFrameworkCore.DbUpdateException("x",
+            new PostgresException("taşma", "ERROR", "ERROR", sqlState));
+        Assert.Equal(beklenen, UiApiExtensions.LogSeviyesi(ex));
+    }
+
+    [Fact]
+    public void Istemci_hatasi_Information_beklenmeyen_Error()
+    {
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new RentACar.Application.Common.ValidationException("x")));
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new BadHttpRequestException("x")));
+        Assert.Equal(LogLevel.Error, UiApiExtensions.LogSeviyesi(new InvalidOperationException("x")));
     }
 
     [Fact]

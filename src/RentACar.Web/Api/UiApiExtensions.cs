@@ -127,11 +127,14 @@ public static class UiApiExtensions
     public static Task YazAsync(HttpContext ctx, string kod, string detay)
         => UiHata.Problem(kod, detay).ExecuteAsync(ctx);
 
+    /// <summary>Bağlama hatasının (bozuk JSON, eksik gövde, çevrilemeyen parametre) tek mesajı — her ortamda aynı.</summary>
+    public const string BaglamaHatasiMesaji = "İstek gövdesi okunamadı ya da eksik.";
+
     /// <summary>İstisna → ProblemDetails. Bağlama hatası (bozuk JSON, eksik gövde) istemci hatasıdır, 500 değil.</summary>
     internal static ProblemHttpResult ProblemFor(Exception ex) => ex switch
     {
         BadHttpRequestException b when b.StatusCode == StatusCodes.Status400BadRequest
-            => UiHata.Problem(UiHata.Dogrulama, "İstek gövdesi okunamadı ya da eksik."),
+            => UiHata.Problem(UiHata.Dogrulama, BaglamaHatasiMesaji),
         BadHttpRequestException b => GenelProblem(b.StatusCode),
         _ => UiHata.Problem(ex),
     };
@@ -139,6 +142,10 @@ public static class UiApiExtensions
     /// <summary>Kod tablosunda karşılığı olmayan durumlar (404, 405, 415, 413…) — <c>kod</c>'suz ProblemDetails.</summary>
     private static ProblemHttpResult GenelProblem(int status) => status switch
     {
+        // Üretimde RouteHandlerOptions.ThrowOnBadRequest KAPALI (yalnız Development'ta açık): bağlama hatası istisna
+        // değil GÖVDESİZ 400 olarak döner. Development'taki ProblemFor ile AYNI sözleşme — SPA davranışı `kod`'a
+        // bağlı; kodsuz 400 alan hatası yerine genel hata bandına düşüyordu.
+        StatusCodes.Status400BadRequest => UiHata.Problem(UiHata.Dogrulama, BaglamaHatasiMesaji),
         StatusCodes.Status401Unauthorized => UiHata.Problem(UiHata.OturumYok, "Oturum açık değil."),
         StatusCodes.Status403Forbidden => UiHata.Problem(UiHata.YetkiYok, "Bu işlem için yetkiniz yok."),
         StatusCodes.Status429TooManyRequests => UiHata.Problem(UiHata.CokIstek, "Çok fazla istek; biraz sonra tekrar deneyin."),
@@ -148,11 +155,29 @@ public static class UiApiExtensions
     private static void Logla(HttpContext ctx, Exception ex)
     {
         var log = ctx.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RentACar.Web.Api.UiApi");
-        if (ex is BadHttpRequestException || UiHata.Esle(ex) is not null)
-            log.LogInformation(ex, "/api/ui istemci hatası: {Yol}", ctx.Request.Path);
-        else
-            log.LogError(ex, "/api/ui beklenmeyen hata: {Yol}", ctx.Request.Path);
+        switch (LogSeviyesi(ex))
+        {
+            case LogLevel.Warning:
+                log.LogWarning(ex, "/api/ui veri taşması güvenlik ağı (uç sınırı eksik): {Yol}", ctx.Request.Path);
+                break;
+            case LogLevel.Information:
+                log.LogInformation(ex, "/api/ui istemci hatası: {Yol}", ctx.Request.Path);
+                break;
+            default:
+                log.LogError(ex, "/api/ui beklenmeyen hata: {Yol}", ctx.Request.Path);
+                break;
+        }
     }
+
+    /// <summary>
+    /// Hata günlük seviyesi (SAF, public: test edilebilsin). 22001/22003 güvenlik ağı <b>Warning</b>: 400 dönse de
+    /// bir uçta sınır denetiminin EKSİK olduğunu gösterir (DEVIR §5 "uç sınırları") — Information'da kaybolmasın.
+    /// Diğer istemci hataları Information, eşlenmeyen istisna Error.
+    /// </summary>
+    public static LogLevel LogSeviyesi(Exception ex)
+        => UiHata.VeriTasmasi(ex) ? LogLevel.Warning
+            : ex is BadHttpRequestException || UiHata.Esle(ex) is not null ? LogLevel.Information
+            : LogLevel.Error;
 
     // ------------------------------------------------------------------ uçlar
 

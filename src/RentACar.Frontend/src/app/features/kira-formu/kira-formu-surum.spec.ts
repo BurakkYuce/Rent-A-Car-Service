@@ -234,7 +234,12 @@ async function kur(put: (g: Record<string, unknown>, n: number) => Observable<un
     await Promise.resolve(); // sessiz yeniden gönderim mikro görevde
     TestBed.tick();
   };
-  return { d, putlar, detayVer, bant: TestBed.inject(UyariBandiServisi) };
+  /** Süren detay okumasını HTTP hatasıyla bitirir (kodsuz gövde: 5xx → `sunucu`, 404 → `bilinmeyen`). */
+  const detayHatasi = (status: number) => {
+    detaylar.error(new HttpErrorResponse({ status, error: { status, detail: 'Sunucu hatası' } }));
+    TestBed.tick();
+  };
+  return { d, putlar, detayVer, detayHatasi, bant: TestBed.inject(UyariBandiServisi) };
 }
 
 describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
@@ -247,6 +252,29 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
     expect(d.kaydedilebilir()).toBe(false);
     await detayVer(detay({ surum: 'v2', provizyonDurum: 'Alindi' }));
     expect(d.kaydedilebilir()).toBe(true);
+  });
+
+  it('L5: tazeleme 5xx → form ve finans paneli son iyi veriyle kalır, hata bandı çıkar, Kaydet pasif', async () => {
+    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const iyi = detay({ surum: 'v1' });
+    await detayVer(iyi);
+    d.yenile();
+    detayHatasi(503);
+    expect(d.detay.tur()).toBe('hata');
+    expect(d.gorunenDetay()).toBe(iyi); // panel girdisi (`[detay]`) aynı nesne — kaybolmaz
+    expect(d.kira()?.surum).toBe('v1');
+    expect(d.tazelemeHatasi()?.kod).toBe('sunucu');
+    expect(d.kaydedilebilir()).toBe(false);
+  });
+
+  it('L5: tazeleme 404 (kayıt silinmiş) → eski veri GÖSTERİLMEZ, bant yok', async () => {
+    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    await detayVer(detay({ surum: 'v1' }));
+    d.yenile();
+    detayHatasi(404);
+    expect(d.gorunenDetay()).toBeNull();
+    expect(d.kira()).toBeNull();
+    expect(d.tazelemeHatasi()).toBeNull();
   });
 
   it('N2: başka oturum dokunulmayan alanı değiştirdi → TEK sefer sessiz yeniden gönderim, yeni sürümle', async () => {
