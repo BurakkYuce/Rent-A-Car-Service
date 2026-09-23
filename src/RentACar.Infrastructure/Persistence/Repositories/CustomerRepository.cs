@@ -71,7 +71,13 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                     ? CariAnonimlik.AdEtiketi
                     : (c.Ad ?? "") + " " + (c.Soyad ?? "") + " " + (c.Unvan ?? ""), katlanmisTerim));
         var rows = await q
-            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad).ThenBy(c => c.Soyad).ThenBy(c => c.Id)
+            // #280 KVKK L-1: the sort key follows the DISPLAYED name — an anonymised customer sorts by the label
+            // (ties by Id), never by its real Unvan/Ad/Soyad; otherwise its position leaks the real name.
+            .OrderBy(c => c.Tip)
+            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+            .ThenBy(c => c.AnonimAd ? null : c.Ad)
+            .ThenBy(c => c.AnonimAd ? null : c.Soyad)
+            .ThenBy(c => c.Id)
             .Take(limit)
             .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.AnonimAd })
             .ToListAsync(ct);

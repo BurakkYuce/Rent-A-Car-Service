@@ -181,7 +181,8 @@ interface Put {
 }
 
 async function kur(put: (g: Record<string, unknown>, n: number) => Observable<unknown>) {
-  const detaylar = new Subject<KiraDetayYaniti>();
+  // A failed read completes its subject; the next read gets a fresh one (several failures in a row).
+  let detaylar = new Subject<KiraDetayYaniti>();
   const putlar: Put[] = [];
   const api = {
     get: (yol: string) => {
@@ -235,8 +236,10 @@ async function kur(put: (g: Record<string, unknown>, n: number) => Observable<un
     TestBed.tick();
   };
   /** Süren detay okumasını HTTP hatasıyla bitirir (kodsuz gövde: 5xx → `sunucu`, 404 → `bilinmeyen`). */
-  const detayHatasi = (status: number) => {
-    detaylar.error(new HttpErrorResponse({ status, error: { status, detail: 'Sunucu hatası' } }));
+  const detayHatasi = (status: number, kod?: string) => {
+    const failed = detaylar;
+    detaylar = new Subject<KiraDetayYaniti>();
+    failed.error(new HttpErrorResponse({ status, error: { status, kod, detail: 'Sunucu hatası' } }));
     TestBed.tick();
   };
   return { d, putlar, detayVer, detayHatasi, bant: TestBed.inject(UyariBandiServisi) };
@@ -266,6 +269,26 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
     expect(d.tazelemeHatasi()?.kod).toBe('sunucu');
     expect(d.kaydedilebilir()).toBe(false);
   });
+
+  it.each([
+    [403, 'yetki_yok', 503],
+    [404, undefined, 502],
+  ])(
+    '#280 L-3: definitive %i (%s) then transient %i → stale detail never returns',
+    async (definitive, kod, transient) => {
+      const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+      await detayVer(detay({ surum: 'v1' }));
+      d.yenile();
+      detayHatasi(definitive, kod);
+      expect(d.gorunenDetay()).toBeNull();
+      d.yenile();
+      detayHatasi(transient);
+      expect(d.detay.hata()?.kod).toBe('sunucu');
+      expect(d.gorunenDetay()).toBeNull();
+      expect(d.kira()).toBeNull();
+      expect(d.tazelemeHatasi()).toBeNull();
+    },
+  );
 
   it('L5: tazeleme 404 (kayıt silinmiş) → eski veri GÖSTERİLMEZ, bant yok', async () => {
     const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
