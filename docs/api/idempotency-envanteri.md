@@ -196,6 +196,23 @@ Servis düzeyinde (Blazor da kapsanır):
   `mevcut.ayniIcerik` ise form temizlenir, otomatik yeniden gönderim yok.
   Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
 
+### `/api/ui/v1` araç finans uç eşlemesi (F6.1b)
+
+Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/Api/AracFinans/`.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST arac-kredileri/{id}/taksit-ode` | E32 | başlık zorunlu; gövdede `sira` (ödenecek taksit) | Önce aynı anahtarla yazılmış gider aranır → 409 `mukerrer` + `mevcut{…, ayniIcerik}` (sıra, hesap türü, hesap, açık tarih). SONRA bayatlık: `sira ≠ OdenenTaksit+1` kilit altında → 409 `cakisma` (iki sekme iki taksit ödemez). Anahtar başka işlemin ise `mevcut`suz 409 |
+| `POST arac-kredileri` | yeni | başlık zorunlu → kredi **Id** | aynı içerik 409 `mevcut.ayniIcerik=true`; farklı içerik `false`; yarışta PK ihlali → 409 |
+| `POST musteri-taksitleri`, `…/plan` | yeni (deftere yazmaz) | başlık zorunlu → Id; planda Id'ler anahtardan türetilir (`MusteriTaksitService.PlanSatirId`) | 409 `mukerrer` + `mevcut` (planda tutar = plan toplamı); yarım plan yazılmaz |
+| `POST musteri-taksitleri/{id}/odendi` | kapsam dışı satırın kilitli hali | yok (yapısal) | ödenmiş taksit → 409 `mukerrer` + `mevcut` (tarih sessizce ezilmez) |
+| `POST arac-siparisleri` | yeni (deftere yazmaz) | başlık zorunlu → Id | 409 `mukerrer` + `mevcut` (tutar = adet × birim fiyat) |
+| `POST baflar`, `POST hasar-dosyalari` | yeni (para yok) | başlık isteğe bağlı → Id | başlıkla 409; başlıksız bağımsız kayıt |
+| durum geçişleri (sipariş, BAF, hasar, filo delta) | yapısal | yok | satır kilidi altında durum çiti (`SatirSurumu`); PUT'lar zorunlu `surum` → 409 `cakisma` |
+
+TRY işlemde açık kur ≠ 1 uçta 400 (`errors.kur`); dövizde boş kur `KurCozucu` ile çözülür. Taksit ödemesinde hesap-döviz
+çiti artık uygulanıyor (`HesapCozucu.CozAsync(…, kredi.Currency)`).
+
 ## Açık işler
 
 - **LOW-2 (e-Fatura hayalet gönderimi):** dönem faturası yarışında kaybeden istek `eInvoice.SendAsync`'i (`InvoiceService.cs:353`) çağırıyor. Bu çağrı, `PostDonemAsync` mevcut id'yi dönmeden **önce** yapılıyor. Stub bugün `false` döndüğü için etkisi yok. Gerçek GİB bağlanınca yazılmayan bir fatura için ETTN alınır. **Gerçek e-Fatura açılmadan önce düzeltilmeli:** gönderimi commit'ten sonraya taşı ya da yalnız yazılan faturada yap. Aynı desen kira/fark faturası yarışında da (`CreateFromRentalAsync` / `PostFarkFaturasiAsync`) geçerli.

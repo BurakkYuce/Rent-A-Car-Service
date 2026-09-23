@@ -4820,6 +4820,1489 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/arac-kredileri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          plaka?: string;
+          dosyaNo?: string;
+          durum?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfAracKrediListeSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AracKrediIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracKrediOlusturYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-kredileri/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          plaka?: string;
+          dosyaNo?: string;
+          durum?: string;
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracKrediPano'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-kredileri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracKrediDetayYaniti'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-kredileri/{id}/taksit-ode': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TaksitOdeIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TaksitOdeYaniti'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-kredileri/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-kredileri/toplu-iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KrediTopluIptalIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KrediTopluIptalYaniti'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          vehicleId?: string;
+          durum?: string;
+          vadeMin?: string;
+          vadeMax?: string;
+          gecikmis?: boolean;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfMusteriTaksitSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MusteriTaksitIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriTaksitOlusturYaniti'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          vehicleId?: string;
+          durum?: string;
+          vadeMin?: string;
+          vadeMax?: string;
+          gecikmis?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TaksitOzet'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriTaksitSatiri'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MusteriTaksitIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriTaksitSatiri'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri/plan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TaksitPlanIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TaksitPlanYaniti'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri/{id}/odendi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': null | components['schemas']['TaksitOdendiIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriTaksitSatiri'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/musteri-taksitleri/{id}/geri-al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MusteriTaksitSatiri'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-siparisleri': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cariId?: string;
+          ara?: string;
+          arac?: string;
+          dosyaNo?: string;
+          durum?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfAracSiparisSatiri'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AracSiparisIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisOlusturYaniti'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-siparisleri/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AracSiparisIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-siparisleri/{id}/onayla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-siparisleri/{id}/teslim-al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/arac-siparisleri/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSiparisDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/baflar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          personelId?: string;
+          plaka?: string;
+          durum?: string;
+          kullanimAmaci?: string;
+          lokasyon?: string;
+          ofis?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfBafDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BafIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BafDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/baflar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BafDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/baflar/{id}/teslim-al': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BafTeslimIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BafDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/baflar/{id}/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BafDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          durum?: string;
+          vehicleId?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfHasarDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['HasarIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari/{id}/onaya-gonder': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari/{id}/onayla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': null | components['schemas']['HasarNotIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari/{id}/reddet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': null | components['schemas']['HasarNotIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hasar-dosyalari/{id}/kapat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HasarDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-plan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfFiloPlanDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FiloPlanIstegi'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloPlanDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-plan/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloPlanDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FiloPlanIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloPlanDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/filo-plan/{id}/delta': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FiloPlanDeltaIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FiloPlanDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/platform/oturum/giris': {
     parameters: {
       query?: never;
@@ -6186,6 +7669,139 @@ export interface components {
       km: number | string;
       kaynak: string;
     };
+    AracKrediDetayYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      bankaAdi: string;
+      /** Format: uuid */
+      vehicleId: null | string;
+      plaka: null | string;
+      /** Format: uuid */
+      cariId: null | string;
+      cariAd: null | string;
+      dosyaNo: null | string;
+      /** Format: double */
+      krediTutari: number | string;
+      /** Format: double */
+      faizOran: number | string;
+      /** Format: int32 */
+      taksitSayisi: number | string;
+      /** Format: int32 */
+      odenenTaksit: number | string;
+      /** Format: date-time */
+      baslangicTarihi: string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      durum: string;
+      aciklama: null | string;
+      ozet: components['schemas']['AracKrediOzet'];
+      sonrakiTaksit: null | components['schemas']['SonrakiTaksit'];
+      yetkiler: components['schemas']['AracKrediYetkileri'];
+    };
+    AracKrediIstegi: {
+      bankaAdi?: null | string;
+      /** Format: uuid */
+      vehicleId?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      dosyaNo?: null | string;
+      /** Format: double */
+      krediTutari?: number | string;
+      /** Format: double */
+      faizOran?: number | string;
+      /** Format: int32 */
+      taksitSayisi?: number | string;
+      /** Format: date-time */
+      baslangicTarihi?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      aciklama?: null | string;
+    };
+    AracKrediListeSatiri: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      bankaAdi: string;
+      /** Format: uuid */
+      vehicleId: null | string;
+      plaka: null | string;
+      /** Format: uuid */
+      cariId: null | string;
+      cariAd: null | string;
+      dosyaNo: null | string;
+      /** Format: double */
+      krediTutari: number | string;
+      /** Format: double */
+      faizOran: number | string;
+      /** Format: int32 */
+      taksitSayisi: number | string;
+      /** Format: int32 */
+      odenenTaksit: number | string;
+      /** Format: date-time */
+      baslangicTarihi: string;
+      doviz: string;
+      durum: string;
+      /** Format: double */
+      toplamGeriOdeme: number | string;
+      /** Format: double */
+      aylikTaksit: number | string;
+      /** Format: double */
+      kalanBakiye: number | string;
+      /** Format: date-time */
+      sonVadeGunu: null | string;
+    };
+    AracKrediOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+    };
+    AracKrediOzet: {
+      /** Format: double */
+      toplamFaiz: number | string;
+      /** Format: double */
+      toplamGeriOdeme: number | string;
+      /** Format: double */
+      aylikTaksit: number | string;
+      /** Format: double */
+      odenenTutar: number | string;
+      /** Format: double */
+      kalanBakiye: number | string;
+      taksitler: components['schemas']['AracKrediTaksit'][];
+      /** Format: date-time */
+      sonVadeGunu: null | string;
+      /** Format: double */
+      sonTaksitTutari: number | string;
+      /** Format: double */
+      buAyToplamTaksit: number | string;
+    };
+    AracKrediPano: {
+      /** Format: double */
+      toplamFaiz: number | string;
+      /** Format: date-time */
+      sonVadeGunu: null | string;
+      /** Format: double */
+      sonTaksitTutari: number | string;
+      /** Format: double */
+      buAyToplamTaksit: number | string;
+      /** Format: double */
+      toplamKrediBorcu: number | string;
+    };
+    AracKrediTaksit: {
+      /** Format: int32 */
+      sira: number | string;
+      /** Format: date-time */
+      vade: string;
+      /** Format: double */
+      tutar: number | string;
+      odendi: boolean;
+    };
+    AracKrediYetkileri: {
+      taksitOde: boolean;
+      iptal: boolean;
+    };
     AracListeSatiri: {
       /** Format: uuid */
       id: string;
@@ -6336,11 +7952,204 @@ export interface components {
       /** Format: double */
       toplamIscilik: number | string;
     };
+    AracSiparisDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      surum: null | string;
+      tedarikci: string;
+      /** Format: uuid */
+      tedarikciCariId: null | string;
+      tedarikciCariAd: null | string;
+      /** Format: date-time */
+      siparisTarihi: string;
+      /** Format: date-time */
+      beklenenTeslim: null | string;
+      /** Format: date-time */
+      imzaTarih: null | string;
+      dosyaNo: null | string;
+      satisTemsilci: null | string;
+      ozelTemsilci: null | string;
+      marka: null | string;
+      tip: null | string;
+      grup: null | string;
+      versiyon: null | string;
+      opsiyon: null | string;
+      renk: null | string;
+      icRenk: null | string;
+      kaynakTip: null | string;
+      satisTipi: null | string;
+      tsbKayitNo: null | string;
+      /** Format: uuid */
+      krediId: null | string;
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      birimFiyat: number | string;
+      /** Format: double */
+      toplam: number | string;
+      /** Format: double */
+      piyasaFiyat: null | number | string;
+      /** Format: double */
+      opsFiyat: null | number | string;
+      /** Format: double */
+      filoFiyat: null | number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      aciklama: null | string;
+      yetkiler: components['schemas']['AracSiparisYetkileri'];
+    };
+    AracSiparisIstegi: {
+      tedarikci?: null | string;
+      /** Format: uuid */
+      tedarikciCariId?: null | string;
+      /** Format: date-time */
+      siparisTarihi?: null | string;
+      /** Format: date-time */
+      beklenenTeslim?: null | string;
+      /** Format: date-time */
+      imzaTarih?: null | string;
+      dosyaNo?: null | string;
+      satisTemsilci?: null | string;
+      ozelTemsilci?: null | string;
+      marka?: null | string;
+      tip?: null | string;
+      grup?: null | string;
+      versiyon?: null | string;
+      opsiyon?: null | string;
+      renk?: null | string;
+      icRenk?: null | string;
+      kaynakTip?: null | string;
+      satisTipi?: null | string;
+      tsbKayitNo?: null | string;
+      /** Format: uuid */
+      krediId?: null | string;
+      /** Format: int32 */
+      adet?: null | number | string;
+      /** Format: double */
+      birimFiyat?: number | string;
+      /** Format: double */
+      piyasaFiyat?: null | number | string;
+      /** Format: double */
+      opsFiyat?: null | number | string;
+      /** Format: double */
+      filoFiyat?: null | number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      aciklama?: null | string;
+      surum?: null | string;
+    };
+    AracSiparisOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+    };
+    AracSiparisSatiri: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      tedarikci: string;
+      tedarikciCariAd: null | string;
+      /** Format: date-time */
+      siparisTarihi: string;
+      /** Format: date-time */
+      beklenenTeslim: null | string;
+      dosyaNo: null | string;
+      marka: null | string;
+      tip: null | string;
+      grup: null | string;
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      birimFiyat: number | string;
+      /** Format: double */
+      toplam: number | string;
+      doviz: string;
+      /** Format: uuid */
+      krediId: null | string;
+    };
+    AracSiparisYetkileri: {
+      duzenle: boolean;
+      onayla: boolean;
+      teslimAl: boolean;
+      iptal: boolean;
+    };
     AylikGelir: {
       /** Format: date-time */
       ayBas: string;
       /** Format: double */
       gelir: number | string;
+    };
+    BafDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      /** Format: uuid */
+      personelId: string;
+      personelAd: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: date-time */
+      cikisTarihi: string;
+      /** Format: time */
+      cikisSaat: null | string;
+      /** Format: int32 */
+      cikisKm: number | string;
+      /** Format: int32 */
+      cikisYakit: null | number | string;
+      sube: null | string;
+      /** Format: date-time */
+      donusTarihi: null | string;
+      /** Format: time */
+      donusSaat: null | string;
+      /** Format: int32 */
+      donusKm: null | number | string;
+      /** Format: int32 */
+      donusYakit: null | number | string;
+      donusSube: null | string;
+      kullanimAmaci: null | string;
+      /** Format: uuid */
+      onaylayan: null | string;
+      onaylayanAd: null | string;
+      kirayaVer: boolean;
+      aciklama: null | string;
+    };
+    BafIstegi: {
+      /** Format: uuid */
+      personelId?: string;
+      /** Format: uuid */
+      vehicleId?: string;
+      /** Format: date-time */
+      cikisTarihi?: null | string;
+      /** Format: int32 */
+      cikisKm?: number | string;
+      /** Format: int32 */
+      cikisYakit?: null | number | string;
+      sube?: null | string;
+      aciklama?: null | string;
+      kullanimAmaci?: null | string;
+      /** Format: uuid */
+      onaylayan?: null | string;
+      kirayaVer?: boolean;
+      /** Format: time */
+      cikisSaat?: null | string;
+    };
+    BafTeslimIstegi: {
+      /** Format: int32 */
+      donusKm: number | string;
+      /** Format: int32 */
+      donusYakit?: null | number | string;
+      /** Format: date-time */
+      donusTarihi?: null | string;
+      donusSube?: null | string;
+      /** Format: time */
+      donusSaat?: null | string;
     };
     BelgeTuru: number;
     BenKiraci: {
@@ -6651,6 +8460,36 @@ export interface components {
       genelToplam: number | string;
       taksitler: components['schemas']['FiloTaksitDto'][];
     };
+    FiloPlanDeltaIstegi: {
+      yon: null | string;
+    };
+    FiloPlanDto: {
+      /** Format: uuid */
+      id: string;
+      aracGrupAdi: null | string;
+      sipp: null | string;
+      donem: null | string;
+      /** Format: int32 */
+      hedefAdet: number | string;
+      aciklama: null | string;
+      /** Format: int32 */
+      gerceklesen: number | string;
+      /** Format: int32 */
+      toplamKayitli: number | string;
+      /** Format: int32 */
+      fark: number | string;
+      durum: string;
+      surum: null | string;
+    };
+    FiloPlanIstegi: {
+      aracGrupAdi: null | string;
+      sipp: null | string;
+      donem: null | string;
+      /** Format: int32 */
+      hedefAdet: number | string;
+      aciklama?: null | string;
+      surum?: null | string;
+    };
     FiloTaksitDto: {
       /** Format: int32 */
       sira: number | string;
@@ -6685,6 +8524,49 @@ export interface components {
       firma: null | string;
       kullanici: null | string;
       sifre: null | string;
+    };
+    HasarDto: {
+      /** Format: uuid */
+      id: string;
+      no: string;
+      durum: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      /** Format: uuid */
+      rentalId: null | string;
+      /** Format: uuid */
+      cariId: null | string;
+      cariAd: null | string;
+      /** Format: date-time */
+      acilisTarihi: string;
+      aciklama: null | string;
+      /** Format: double */
+      tahminiTutar: null | number | string;
+      onayNotu: null | string;
+      yetkiler: components['schemas']['HasarYetkileri'];
+    };
+    HasarIstegi: {
+      /** Format: uuid */
+      vehicleId?: string;
+      /** Format: uuid */
+      rentalId?: null | string;
+      /** Format: uuid */
+      cariId?: null | string;
+      /** Format: date-time */
+      acilisTarihi?: null | string;
+      aciklama?: null | string;
+      /** Format: double */
+      tahminiTutar?: null | number | string;
+    };
+    HasarNotIstegi: {
+      not?: null | string;
+    };
+    HasarYetkileri: {
+      onayaGonder: boolean;
+      onayla: boolean;
+      reddet: boolean;
+      kapat: boolean;
     };
     HgsGecisDto: {
       /** Format: date-time */
@@ -7429,6 +9311,13 @@ export interface components {
       silme: boolean;
       finans: boolean;
     };
+    KrediTopluIptalIstegi: {
+      ids: string[];
+    };
+    KrediTopluIptalYaniti: {
+      /** Format: int32 */
+      iptalEdilen: number | string;
+    };
     KurSecimOgesi: {
       id: string;
       etiket: string;
@@ -7586,6 +9475,59 @@ export interface components {
       id: string;
       etiket: string;
       tip: string;
+    };
+    MusteriTaksitIstegi: {
+      /** Format: uuid */
+      cariId?: string;
+      /** Format: uuid */
+      vehicleId?: null | string;
+      /** Format: uuid */
+      vehicleSaleId?: null | string;
+      /** Format: date-time */
+      vade?: null | string;
+      /** Format: double */
+      taksitTutari?: number | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      durum?: null | string;
+      /** Format: date-time */
+      odemeTarihi?: null | string;
+      aciklama?: null | string;
+      surum?: null | string;
+    };
+    MusteriTaksitOlusturYaniti: {
+      /** Format: uuid */
+      id: string;
+    };
+    MusteriTaksitSatiri: {
+      /** Format: uuid */
+      id: string;
+      /** Format: int32 */
+      sira: number | string;
+      /** Format: uuid */
+      cariId: string;
+      cariAd: string;
+      /** Format: uuid */
+      vehicleId: null | string;
+      plaka: null | string;
+      /** Format: uuid */
+      vehicleSaleId: null | string;
+      /** Format: date-time */
+      vade: string;
+      /** Format: double */
+      taksitTutari: number | string;
+      doviz: string;
+      /** Format: double */
+      kur: number | string;
+      /** Format: double */
+      tutarBaz: number | string;
+      durum: string;
+      gecikti: boolean;
+      /** Format: date-time */
+      odemeTarihi: null | string;
+      aciklama: null | string;
+      surum: null | string;
     };
     OdemeIstegi: {
       /** Format: uuid */
@@ -8193,6 +10135,17 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfAracKrediListeSatiri: {
+      kayitlar: components['schemas']['AracKrediListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfAracListeSatiri: {
       kayitlar: components['schemas']['AracListeSatiri'][];
       /** Format: int32 */
@@ -8215,6 +10168,28 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfAracSiparisSatiri: {
+      kayitlar: components['schemas']['AracSiparisSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfBafDto: {
+      kayitlar: components['schemas']['BafDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfFiloListeSatiri: {
       kayitlar: components['schemas']['FiloListeSatiri'][];
       /** Format: int32 */
@@ -8226,8 +10201,41 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfFiloPlanDto: {
+      kayitlar: components['schemas']['FiloPlanDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfHasarDto: {
+      kayitlar: components['schemas']['HasarDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfKiraListeSatiri: {
       kayitlar: components['schemas']['KiraListeSatiri'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfMusteriTaksitSatiri: {
+      kayitlar: components['schemas']['MusteriTaksitSatiri'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */
@@ -8332,6 +10340,14 @@ export interface components {
       /** Format: int32 */
       enEskiGun: null | number | string;
     };
+    SonrakiTaksit: {
+      /** Format: int32 */
+      sira: number | string;
+      /** Format: date-time */
+      vade: string;
+      /** Format: double */
+      tutar: number | string;
+    };
     TabloDuzeniVerisi: {
       sutunlar: components['schemas']['TabloSutunDuzeni'][];
       siralama: components['schemas']['TabloSiralamaDuzeni'][];
@@ -8382,6 +10398,67 @@ export interface components {
       tarih?: null | string;
       /** Format: uuid */
       tahsilatAnahtar?: null | string;
+    };
+    TaksitOdeIstegi: {
+      /** Format: int32 */
+      sira: number | string;
+      hesap: null | string;
+      /** Format: uuid */
+      hesapId?: null | string;
+      /** Format: date-time */
+      odemeTarihi?: null | string;
+    };
+    TaksitOdendiIstegi: {
+      /** Format: date-time */
+      odemeTarihi?: null | string;
+    };
+    TaksitOdeYaniti: {
+      /** Format: uuid */
+      giderId: string;
+      giderNo: string;
+      /** Format: int32 */
+      sira: number | string;
+      /** Format: double */
+      tutar: number | string;
+      doviz: string;
+      kredi: components['schemas']['AracKrediDetayYaniti'];
+    };
+    TaksitOzet: {
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: int32 */
+      odenenAdet: number | string;
+      /** Format: int32 */
+      gecikenAdet: number | string;
+      /** Format: double */
+      toplamBaz: number | string;
+      /** Format: double */
+      odenenBaz: number | string;
+      /** Format: double */
+      kalanBaz: number | string;
+    };
+    TaksitPlanIstegi: {
+      /** Format: uuid */
+      cariId?: string;
+      /** Format: uuid */
+      vehicleId?: null | string;
+      /** Format: uuid */
+      vehicleSaleId?: null | string;
+      /** Format: double */
+      toplamTutar?: number | string;
+      /** Format: int32 */
+      taksitSayisi?: number | string;
+      /** Format: date-time */
+      ilkVade?: null | string;
+      doviz?: null | string;
+      /** Format: double */
+      kur?: null | number | string;
+      aciklama?: null | string;
+    };
+    TaksitPlanYaniti: {
+      /** Format: int32 */
+      adet: number | string;
+      ids: string[];
     };
     TakvimAraci: {
       /** Format: uuid */
