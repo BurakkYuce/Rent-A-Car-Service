@@ -66,13 +66,22 @@ test('şube kapsamı: başka şubeye atanmış operatör Merkez rezervasyonunu v
   await expect(op.getByText('Araç: 0')).toBeVisible();
   await op.close();
 
-  const rez = await apiGet<{ rezervasyon: { durum: string } }>(page, `/api/ui/v1/rezervasyonlar/${rezId}`);
+  const rez = await apiGet<{ rezervasyon: { durum: string } }>(
+    page,
+    `/api/ui/v1/rezervasyonlar/${rezId}`,
+  );
   expect(rez.rezervasyon.durum).toBe('Rezerv');
   const iptal = await apiPost(page, `/api/ui/v1/rezervasyonlar/${rezId}/iptal`);
   expect(iptal.ok(), `rez iptal: ${iptal.status()}`).toBe(true);
 });
 
-for (const yol of ['/app/takvim', '/app/musaitlik', '/app/rez-sartlari', '/app/filo-kiralama', '/app/teklifler']) {
+for (const yol of [
+  '/app/takvim',
+  '/app/musaitlik',
+  '/app/rez-sartlari',
+  '/app/filo-kiralama',
+  '/app/teklifler',
+]) {
   test(`sayfa izni: Muhasebe ${yol} açamaz (uyarı bandı + ana sayfa)`, async ({ page }) => {
     await gir(page, ORTAM.gercekMuhasebe);
     await page.goto(`${KOK}${yol}`);

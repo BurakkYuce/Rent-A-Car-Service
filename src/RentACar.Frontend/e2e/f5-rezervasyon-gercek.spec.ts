@@ -38,9 +38,8 @@ interface RezOzeti {
 }
 
 async function rezervasyon(page: Page, id: string): Promise<RezOzeti> {
-  return (
-    await apiGet<{ rezervasyon: RezOzeti }>(page, `/api/ui/v1/rezervasyonlar/${id}`)
-  ).rezervasyon;
+  return (await apiGet<{ rezervasyon: RezOzeti }>(page, `/api/ui/v1/rezervasyonlar/${id}`))
+    .rezervasyon;
 }
 
 async function takvimHucreleri(page: Page, ay: string, plaka: string, tur: 'Rezervasyon' | 'Kira') {
