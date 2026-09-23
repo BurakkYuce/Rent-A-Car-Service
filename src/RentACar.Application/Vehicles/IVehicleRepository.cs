@@ -39,6 +39,13 @@ public interface IVehicleRepository
     /// <summary>Aracı yükler, <paramref name="apply"/> ile mutasyonu uygular, kaydeder. Yoksa false.</summary>
     Task<bool> UpdateAsync(Guid id, Action<Vehicle> apply, CancellationToken ct = default);
 
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<paramref name="beklenenSurum"/> null → yalnız
+    /// kilit); uyuşmazlık <c>EszamanliDegisiklikException</c>. Plaka çakışması <c>DuplicatePlakaException</c>.</summary>
+    Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<Vehicle> apply, CancellationToken ct = default);
+
+    /// <summary>F6.1a — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa / RLS dışında <c>null</c>.</summary>
+    Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
+
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>FAZ 2.5 — manuel odometre girişi: Vehicle.Km + km log satırı AYNI transaction'da.
