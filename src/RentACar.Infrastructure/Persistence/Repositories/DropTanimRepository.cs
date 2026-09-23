@@ -88,4 +88,12 @@ public sealed class DropTanimRepository(IDbContextFactory<AppDbContext> factory)
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.1a — IVersionedRepository<DropTanim> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<DropTanim>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<DropTanim>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<DropTanim> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, r => $"'{r.Lokasyon} → {r.Sube}' drop tanımı zaten var.", ct);
 }

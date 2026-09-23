@@ -11,9 +11,9 @@ using RentACar.Infrastructure.Persistence;
 namespace RentACar.Web.Api.Tanim;
 
 /// <summary>
-/// F11.1a — definition screens of F11 (first alphabetical half) on the generic contract
-/// (<see cref="DefinitionEndpoints"/>). Permissions equal the Blazor page policies (all <c>OperationsWrite</c>).
-/// Routes equal the Blazor page routes.
+/// F11.1a — F11 screens of the first alphabetical half (inventory path order, settings/web site/blog excluded;
+/// audit <c>/denetim</c> and screen permissions <c>/yetki</c> are F11.1b's system endpoints) on the generic contract
+/// (<see cref="DefinitionEndpoints"/>). Permissions equal the Blazor page policies; routes equal the Blazor page routes.
 /// </summary>
 public static partial class TanimApi
 {
@@ -21,7 +21,10 @@ public static partial class TanimApi
 
     public static void MapTanimApi(this RouteGroupBuilder v1)
     {
-        MapSimpleDefinitions(v1);   // own-service definitions (Aksesuar, Banka, Döviz, Özel kod, Gider türü)
+        MapSimpleDefinitions(v1);   // own-service definitions (Aksesuar, Banka, Döviz, Özel kod, Gider türü, Hesap, Drop, Doluluk)
+        v1.MapDocumentApi();        // /dokumanlar, /firma-belgeleri
+        v1.MapCalendarApi();        // /takvim-abonelik
+        v1.MapBranchApi();          // /subeler (+ hizmetler, birleştir)
 
         // ---- Kod + Ad + Aktif masters (MasterTanimService family)
         v1.MapDefinition(MasterDefinitions.For<Brand, BrandService>("/markalar", Tag, "marka",

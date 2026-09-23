@@ -124,5 +124,4 @@ public sealed partial class UiTanimTests(WebFixture fx)
     }
 
     private static List<string> Values(JsonElement array, string field)
-        => array.EnumerateArray().Select(x => x.GetProperty(field).GetString()!).ToList();
-}
+        => array.EnumerateArray().Select(x => x.GetProperty(field).GetString()!).ToList();}

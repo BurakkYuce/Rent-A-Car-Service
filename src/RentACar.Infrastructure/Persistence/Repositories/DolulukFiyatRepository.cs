@@ -67,6 +67,14 @@ public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> 
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.1a — IVersionedRepository<DolulukFiyatKural> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<DolulukFiyatKural>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<DolulukFiyatKural>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<DolulukFiyatKural> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, r => $"'{r.Kod}' kodlu doluluk kuralı zaten var.", ct);
 }
 
 /// <summary>

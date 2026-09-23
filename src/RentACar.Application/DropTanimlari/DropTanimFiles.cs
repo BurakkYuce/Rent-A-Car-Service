@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.DropTanimlari;
 
 /// <summary>Drop matris kalıcılığı (roadmap N2).</summary>
-public interface IDropTanimRepository
+public interface IDropTanimRepository : IVersionedRepository<DropTanim>
 {
     Task<IReadOnlyList<DropTanim>> ListAsync(CancellationToken ct = default);
     /// <summary>FAZ-22 filtreli liste (dönüş lokasyonu / çıkış lokasyonu / şube / durum).</summary>
@@ -79,12 +79,25 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, DropTanimInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, DropTanimInput input, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1a — full replacement with optimistic concurrency (stale version → 409 <c>cakisma</c>).</summary>
+    public Task<bool> UpdateAsync(Guid id, DropTanimInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion, ct);
+
+    /// <summary>F11.1a — opaque row version.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.1a — versions of every row.</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => _repository.GetVersionsAsync(ct);
+
+    private async Task<bool> UpdateCoreAsync(Guid id, DropTanimInput input, string? expectedVersion, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Sayilar(input);
-        return await _repository.UpdateAsync(id, r =>
+        void Update(DropTanim r)
         {
             r.Lokasyon = n.Lokasyon; r.Sube = n.Sube;
             r.KarsilamaSekli = n.KarsilamaSekli; r.CalismaSekli = n.CalismaSekli; r.OzelIletisim = n.OzelIletisim;
@@ -93,7 +106,10 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
             r.CikisLokasyon = n.CikisLokasyon; r.MinGun = input.MinGun;
             r.ManSuresi = input.ManSuresi; r.Drop2 = input.Drop2;
             r.Aktif = input.Aktif; r.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        return expectedVersion is null
+            ? await _repository.UpdateAsync(id, Update, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, Update, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

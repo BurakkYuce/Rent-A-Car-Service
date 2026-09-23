@@ -142,6 +142,28 @@
         }
       }
     },
+    "/api/ui/v1/firma-belgeleri": {
+      "get": {
+        "tags": [
+          "Dok\u00FCmanlar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformDocumentDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/secim/musteri": {
       "get": {
         "tags": [
@@ -6714,6 +6736,1023 @@
         }
       }
     },
+    "/api/ui/v1/drop-tanimlari": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DropDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DropDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/drop-tanimlari/sayfa": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfDropDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/drop-tanimlari/{id}": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DropDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DropDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/doluluk-kurallari": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OccupancyRuleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccupancyRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccupancyRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/doluluk-kurallari/sayfa": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfOccupancyRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/doluluk-kurallari/{id}": {
+      "get": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccupancyRuleDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccupancyRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccupancyRuleDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/doluluk-kurallari/toplu": {
+      "post": {
+        "tags": [
+          "Tan\u0131mlar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccupancyBulkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccupancyBulkResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/dokumanlar": {
+      "get": {
+        "tags": [
+          "Dok\u00FCmanlar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompanyDocumentDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Dok\u00FCmanlar"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dosya": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "baslik": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "aciklama": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/dokumanlar/{id}": {
+      "delete": {
+        "tags": [
+          "Dok\u00FCmanlar"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/takvim-abonelik": {
+      "get": {
+        "tags": [
+          "Takvim"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarLinkDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/takvim-abonelik/yenile": {
+      "post": {
+        "tags": [
+          "Takvim"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarLinkDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler": {
+      "get": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BranchDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/sayfa": {
+      "get": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "aktif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfBranchDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/{id}": {
+      "get": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/{id}/hizmetler": {
+      "get": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BranchServiceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchServiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchServiceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/{id}/hizmetler/{hizmetId}": {
+      "delete": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hizmetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/birlestir/onizleme": {
+      "get": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "parameters": [
+          {
+            "name": "kaynakId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hedefId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchMergePreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/subeler/birlestir": {
+      "post": {
+        "tags": [
+          "\u015Eubeler"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchMergeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchMergeResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/markalar": {
       "get": {
         "tags": [
@@ -11736,6 +12775,693 @@
           }
         }
       },
+      "BranchDto": {
+        "required": [
+          "id",
+          "kod",
+          "ad",
+          "adres",
+          "telefon",
+          "eposta",
+          "il",
+          "ilce",
+          "yetkili",
+          "calismaSaatleri",
+          "komisyonOran",
+          "evrakNoOnek",
+          "webIsim",
+          "firmaUnvani",
+          "webRezOncesiSaat",
+          "enlem",
+          "boylam",
+          "hizmetKomisyonOran",
+          "rezervasyonRengi",
+          "alisSubesiDegilMi",
+          "webSira",
+          "webOtoparkId",
+          "bayiCariKod",
+          "bayiOfisId",
+          "komisyonHesabi",
+          "onlineRezId",
+          "sozlesmeNoFormati",
+          "nakitHesapId",
+          "bankaHesapId",
+          "entegrasyonKodu",
+          "resimDosyasi",
+          "haftalikCalismaSaatleri",
+          "aktif",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "adres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eposta": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkili": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calismaSaatleri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "komisyonOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "evrakNoOnek": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "webIsim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firmaUnvani": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "webRezOncesiSaat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enlem": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "boylam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hizmetKomisyonOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rezervasyonRengi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alisSubesiDegilMi": {
+            "type": "boolean"
+          },
+          "webSira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "webOtoparkId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bayiCariKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bayiOfisId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "komisyonHesabi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "onlineRezId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sozlesmeNoFormati": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nakitHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "bankaHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resimDosyasi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "haftalikCalismaSaatleri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BranchMergeCountDto": {
+        "required": [
+          "tablo",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "tablo": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BranchMergePreviewDto": {
+        "required": [
+          "kaynakAd",
+          "hedefAd",
+          "etkilenen",
+          "toplam"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynakAd": {
+            "type": "string"
+          },
+          "hedefAd": {
+            "type": "string"
+          },
+          "etkilenen": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchMergeCountDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BranchMergeRequest": {
+        "required": [
+          "kaynakId",
+          "hedefId",
+          "onay"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynakId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "hedefId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "onay": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "BranchMergeResultDto": {
+        "required": [
+          "tasinanKayit"
+        ],
+        "type": "object",
+        "properties": {
+          "tasinanKayit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BranchRequest": {
+        "required": [
+          "kod",
+          "ad"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eposta": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkili": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calismaSaatleri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "komisyonOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "evrakNoOnek": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "webIsim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firmaUnvani": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "webRezOncesiSaat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enlem": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "boylam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hizmetKomisyonOran": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rezervasyonRengi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alisSubesiDegilMi": {
+            "type": "boolean",
+            "default": false
+          },
+          "webSira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "webOtoparkId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bayiCariKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bayiOfisId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "komisyonHesabi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "onlineRezId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sozlesmeNoFormati": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nakitHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "bankaHesapId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resimDosyasi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "haftalikCalismaSaatleri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aktif": {
+            "type": "boolean",
+            "default": true
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BranchServiceDto": {
+        "required": [
+          "id",
+          "hizmetAdi",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hizmetAdi": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BranchServiceRequest": {
+        "required": [
+          "hizmetAdi",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "hizmetAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CalendarLinkDto": {
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "CompanyDocumentDto": {
+        "required": [
+          "id",
+          "baslik",
+          "aciklama",
+          "dosyaAdi",
+          "boyut",
+          "sira",
+          "yukleyenKullanici",
+          "olusturma",
+          "indirmeYolu"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baslik": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaAdi": {
+            "type": "string"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "sira": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yukleyenKullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "olusturma": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "indirmeYolu": {
+            "type": "string"
+          }
+        }
+      },
       "CurrencyDto": {
         "required": [
           "id",
@@ -12255,6 +13981,207 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "DropDto": {
+        "required": [
+          "id",
+          "lokasyon",
+          "sube",
+          "cikisLokasyon",
+          "karsilamaSekli",
+          "calismaSekli",
+          "ozelIletisim",
+          "ucret",
+          "minGun",
+          "manSuresi",
+          "drop2",
+          "aktif",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lokasyon": {
+            "type": "string"
+          },
+          "sube": {
+            "type": "string"
+          },
+          "cikisLokasyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "karsilamaSekli": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calismaSekli": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelIletisim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ucret": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "minGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "manSuresi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "drop2": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DropRequest": {
+        "required": [
+          "lokasyon",
+          "sube",
+          "cikisLokasyon",
+          "karsilamaSekli",
+          "calismaSekli",
+          "ozelIletisim",
+          "ucret",
+          "minGun",
+          "manSuresi",
+          "drop2",
+          "aktif"
+        ],
+        "type": "object",
+        "properties": {
+          "lokasyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisLokasyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "karsilamaSekli": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calismaSekli": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelIletisim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ucret": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "minGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "manSuresi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "drop2": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "aktif": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -17636,6 +19563,279 @@
           }
         }
       },
+      "OccupancyBulkRequest": {
+        "required": [
+          "kodOnEk",
+          "adOnEk",
+          "aracGrupKod",
+          "sube",
+          "sadeceKendiSubeleri",
+          "gecerlilikBas",
+          "gecerlilikBit",
+          "kademeler"
+        ],
+        "type": "object",
+        "properties": {
+          "kodOnEk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adOnEk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracGrupKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sadeceKendiSubeleri": {
+            "type": "boolean"
+          },
+          "gecerlilikBas": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "gecerlilikBit": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "kademeler": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/OccupancyStep"
+            }
+          },
+          "aktif": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "OccupancyBulkResult": {
+        "required": [
+          "kimlikler"
+        ],
+        "type": "object",
+        "properties": {
+          "kimlikler": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "OccupancyRuleDto": {
+        "required": [
+          "id",
+          "kod",
+          "ad",
+          "aracGrupKod",
+          "esikYuzde",
+          "carpanYuzde",
+          "sube",
+          "sadeceKendiSubeleri",
+          "gecerlilikBas",
+          "gecerlilikBit",
+          "aktif",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kod": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "aracGrupKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "esikYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "carpanYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sadeceKendiSubeleri": {
+            "type": "boolean"
+          },
+          "gecerlilikBas": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "gecerlilikBit": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OccupancyRuleRequest": {
+        "required": [
+          "kod",
+          "ad",
+          "aracGrupKod",
+          "esikYuzde",
+          "carpanYuzde",
+          "sube"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracGrupKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "esikYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "carpanYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sadeceKendiSubeleri": {
+            "type": "boolean",
+            "default": false
+          },
+          "gecerlilikBas": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "gecerlilikBit": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "aktif": {
+            "type": "boolean",
+            "default": true
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OccupancyStep": {
+        "required": [
+          "esikYuzde",
+          "carpanYuzde"
+        ],
+        "type": "object",
+        "properties": {
+          "esikYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "carpanYuzde": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "OdemeIstegi": {
         "required": [
           "cariId",
@@ -18127,6 +20327,60 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "PlatformDocumentDto": {
+        "required": [
+          "id",
+          "baslik",
+          "aciklama",
+          "surum",
+          "guncelleme",
+          "boyut",
+          "yeni",
+          "indirmeYolu"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baslik": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "guncelleme": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "yeni": {
+            "type": "boolean"
+          },
+          "indirmeYolu": {
+            "type": "string"
           }
         }
       },
@@ -19780,6 +22034,55 @@
           }
         }
       },
+      "SayfaOfBranchDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfCurrencyDto": {
         "required": [
           "kayitlar",
@@ -19891,6 +22194,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DefinitionDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfDropDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DropDto"
             }
           },
           "toplam": {
@@ -20087,6 +22439,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/KiraListeSatiri"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfOccupancyRuleDto": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OccupancyRuleDto"
             }
           },
           "toplam": {
@@ -21447,6 +23848,9 @@
       "name": "Panel"
     },
     {
+      "name": "Dok\u00FCmanlar"
+    },
+    {
       "name": "Se\u00E7im"
     },
     {
@@ -21484,6 +23888,9 @@
     },
     {
       "name": "Tan\u0131mlar"
+    },
+    {
+      "name": "\u015Eubeler"
     }
   ]
 }

@@ -98,6 +98,7 @@ public static partial class TanimApi
 
         MapCodeDefinitions(v1);
         MapAccountDefinitions(v1);
+        MapPricingDefinitions(v1);
     }
 
     private static AccessoryInput AccessoryInputOf(AccessoryRequest b)
