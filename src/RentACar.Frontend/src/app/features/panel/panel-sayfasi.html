@@ -2,15 +2,16 @@
   <header class="ust">
     <h1>{{ 'panel.baslik' | transloco }}</h1>
     <nav class="ust__eylemler" [attr.aria-label]="'panel.eylemler' | transloco">
-      <!-- Blazor ekranları (tam sayfa); F5+ kesişlerinde menü kaydıyla SPA'ya döner. -->
-      <a class="rc-dugme rc-dugme--kucuk" href="/rezervasyonlar">{{
+      <!-- F4.6 / F5.4: üçü de SPA rotası (tam sayfa dönüş + sunucu yönlendirmesi yok). -->
+      <a class="rc-dugme rc-dugme--kucuk" routerLink="/rezervasyonlar/yeni">{{
         'panel.yeniRezervasyon' | transloco
       }}</a>
-      <!-- F4.6: kira listesi SPA rotası; kalan ikisi hâlâ Blazor ekranı (F5 kesişinde döner). -->
       <a class="rc-dugme rc-dugme--kucuk" routerLink="/kiralar">{{
         'panel.yeniKira' | transloco
       }}</a>
-      <a class="rc-dugme rc-dugme--kucuk" href="/musaitlik">{{ 'panel.musaitlik' | transloco }}</a>
+      <a class="rc-dugme rc-dugme--kucuk" routerLink="/musaitlik">{{
+        'panel.musaitlik' | transloco
+      }}</a>
       <button
         type="button"
         class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"

@@ -189,6 +189,41 @@ test('finans yetkisi yoksa (yanıtta finans/tahsilat yok) finans bloğu ve Tahsi
   await expect(page.getByRole('button', { name: /tahsil et/i })).toHaveCount(0);
 });
 
+test('F5.4 kesiş: panelin rezervasyon/müsaitlik bağlantıları SPA rotası (Blazor sayfasına düşmez)', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  await paneliSahtele(page, () => ozet(true));
+  await page.goto(PANEL);
+  await hazir(page);
+
+  // Sayfa içeriğinde kesiş haritasındaki bir Blazor sayfasına (F4 + F5) giden bağlantı kalmadı.
+  const blazora = await page.locator('main a[href]').evaluateAll((ogeler) =>
+    ogeler
+      .map((o) => new URL((o as HTMLAnchorElement).href, location.href))
+      .filter((u) => u.origin === location.origin)
+      .map((u) => u.pathname.replace(/\/$/, '') || '/')
+      .filter((yol) =>
+        /^\/(|kiralar(\/.*)?|rezervasyonlar|teklifler|takvim|musaitlik|rez-sartlari|filo-kiralama)$/i.test(
+          yol,
+        ),
+      ),
+  );
+  expect(blazora).toEqual([]);
+
+  const main = page.locator('main');
+  await expect(main.getByRole('link', { name: /Görülmeyen rez\./ })).toHaveAttribute(
+    'href',
+    '/app/rezervasyonlar',
+  );
+  await expect(main.getByRole('link', { name: 'Müsaitlik', exact: true })).toHaveAttribute(
+    'href',
+    '/app/musaitlik',
+  );
+  await main.getByRole('link', { name: '+ Rezervasyon', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === '/app/rezervasyonlar/yeni');
+});
+
 test('Tahsil Et: sunucu anahtarı aynen gider, gönderim kilitli, 2xx sonrası panel tazelenir', async ({
   page,
 }) => {

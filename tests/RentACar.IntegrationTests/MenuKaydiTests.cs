@@ -122,7 +122,12 @@ public sealed class MenuKaydiTests
         Assert.Equal(ogeler.Count, ogeler.Select(o => (o.Grup, o.Rota)).Distinct().Count());
         Assert.Equal(ogeler.Count, ogeler.Select(o => o.Sira).Distinct().Count());
         // F4.6: F4 sayfaları (Panel, Kiralar, Yeni Kira) yeni arayüzün; sahip rotadan türer (/app → spa).
-        Assert.Equal(new[] { "/app/kiralar", "/app/kiralar/yeni", "/app/panel" },
+        // F5.4: Rezervasyon grubu (4), Kira grubundan Teklifler + Filo Kiralama, iki kısa yol (Yeni Rezervasyon, Müsaitlik).
+        Assert.Equal(new[]
+            {
+                "/app/filo-kiralama", "/app/kiralar", "/app/kiralar/yeni", "/app/musaitlik", "/app/musaitlik", "/app/panel",
+                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/takvim", "/app/teklifler",
+            },
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
         Assert.All(ogeler, o => Assert.Equal(o.Grup == KisaYollar, o.HizliBaglanti));

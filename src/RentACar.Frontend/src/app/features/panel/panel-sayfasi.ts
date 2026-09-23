@@ -327,7 +327,7 @@ export class PanelSayfasi {
       {
         sayi: gorulmeyen,
         etiket: this.t('panel.vade.gorulmeyenRezervasyon'),
-        href: '/rezervasyonlar',
+        rota: '/rezervasyonlar', // F5.4: SPA rotası (sunucu yönlendirmesine düşmez)
         ton: gorulmeyen > 0 ? 'uyari' : 'notr',
       },
     ];
