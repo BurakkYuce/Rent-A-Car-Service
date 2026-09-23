@@ -88,11 +88,15 @@ export function ayEtiketi(ayBas: string): string {
 
 export type Ton = 'notr' | 'uyari' | 'hata';
 
-/** KPI kartı altındaki vade/uyarı kutusu (Blazor `VadeTier` + ek kutular). `href` Blazor ekranı. */
+/**
+ * KPI kartı altındaki vade/uyarı kutusu (Blazor `VadeTier` + ek kutular). `href` Blazor ekranı (tam sayfa);
+ * `rota` verilmişse ekran yeni arayüzdedir (F5.4: rezervasyonlar) ve bağlantı SPA içinde (`routerLink`) açılır.
+ */
 export interface VadeKutusu {
   readonly sayi: number;
   readonly etiket: string;
-  readonly href: string;
+  readonly href?: string;
+  readonly rota?: string;
   readonly ton: Ton;
   readonly ipucu?: string;
 }
