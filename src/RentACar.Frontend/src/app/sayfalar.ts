@@ -3,6 +3,7 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
+import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 
 /**
  * Kabuk içindeki sayfalar (oturum şart; `canMatch: [oturumGuard]` kabuk rotasında). Hepsi tembel.
@@ -140,4 +141,6 @@ export const SAYFALAR: Routes = [
   ]),
   // F4.3 kira formu: /kiralar/yeni, /kiralar/:id, /kiralar/:id/yazdir.
   ...KIRA_FORMU_ROTALARI,
+  // F5.2a rezervasyonlar + teklifler: liste, /yeni, /:id (teklif kaydı salt okunur + eylemler).
+  ...REZERVASYON_ROTALARI,
 ];
