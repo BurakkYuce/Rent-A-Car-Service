@@ -86,7 +86,8 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
 
         var total = await q.CountAsync(ct);
-        var items = await q.OrderBy(v => v.Plaka)
+        var sirali = filter.Siralama is { } s ? s(q) : q.OrderBy(v => v.Plaka); // F6.1a: beyaz liste sıralama
+        var items = await sirali
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
         return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
@@ -164,7 +165,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
                 from c in cg.DefaultIfEmpty()
                 select new
                 {
-                    r.VehicleId, r.BitTar, r.SozlesmeNo, r.BasTar,
+                    r.VehicleId, r.BitTar, r.SozlesmeNo, r.BasTar, r.MusteriId,
                     Musteri = c == null ? null : (c.Tip == CariType.Bireysel
                         ? ((c.Ad ?? "") + " " + (c.Soyad ?? "")) : c.Unvan)
                 }).ToListAsync(ct))
@@ -183,7 +184,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
                 trafik.TryGetValue(v.Id, out var tb) ? tb : null,
                 sat?.HedefFiyat, sat?.IhaleTarihi, sat?.IhaleFirmasi, sat?.NoterSatisTarihi,
                 string.IsNullOrWhiteSpace(kira?.Musteri) ? null : kira!.Musteri!.Trim(),
-                kira?.BitTar, kira?.SozlesmeNo);
+                kira?.BitTar, kira?.SozlesmeNo, kira?.MusteriId);
         }).ToList();
     }
 
@@ -293,6 +294,28 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             throw new DuplicatePlakaException(vehicle.Plaka);
         }
         return true;
+    }
+
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<Vehicle> apply, CancellationToken ct = default)
+    {
+        string? plaka = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Araclar, id, beklenenSurum,
+                (db, k, c) => db.Vehicles.FirstOrDefaultAsync(v => v.Id == k, c),
+                v => { apply(v); plaka = v.Plaka; }, ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            throw new DuplicatePlakaException(plaka ?? string.Empty);
+        }
+    }
+
+    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Araclar, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
