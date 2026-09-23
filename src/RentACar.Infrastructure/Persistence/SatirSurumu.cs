@@ -34,13 +34,22 @@ internal static class SatirSurumu
     public const string DocumentTemplates = "BelgeSablonlari";
     public const string VehicleGroups = "AracGruplari";
 
+    /// <summary>F11.1b — web sitesi yönetimi tam değiştirme PUT'ları (blog, site sayfası, SSS, ilan fiyat/özellik).</summary>
+    public const string BlogYazilari = "BlogYazilari";
+    public const string SayfaIcerikler = "SayfaIcerikler";
+    public const string SssKayitlari = "SssKayitlari";
+    public const string WebIlanlar = "WebIlanlar";
+
     private static readonly HashSet<string> Tablolar =
         [Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler, Araclar, AracSahipleri, Segmentler, AracTipleri,
          FirmaAyarlari, MesajSablonlari,
          InsuranceCompanies, KdvRates, PenaltyTypes, Locations, Personnel, DocumentTemplates, VehicleGroups];
 
+    /// <summary>F11.1b tabloları ayrı kümede (paralel dallarla aynı satırda birleşme çakışması olmasın).</summary>
+    private static readonly HashSet<string> WebsiteTables = [BlogYazilari, SayfaIcerikler, SssKayitlari, WebIlanlar];
+
     private static string Dogrula(string tablo)
-        => Tablolar.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));
+        => Tablolar.Contains(tablo) || WebsiteTables.Contains(tablo) ? tablo : throw new ArgumentException($"Sürüm tablosu beyaz listede değil: {tablo}", nameof(tablo));
 
     /// <summary>Satırı OKUMADAN önce kilitler (aynı işlemde; çağıran işlemi açmış olmalı).</summary>
     public static Task KilitleAsync(AppDbContext db, string tablo, Guid id, CancellationToken ct)

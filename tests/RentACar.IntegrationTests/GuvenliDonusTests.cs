@@ -319,6 +319,10 @@ public sealed class GuvenliDonusTests
             // F11.1b — PDF logosu (/api/ui/v1/ayarlar/logo): indirme DEĞİL (dosya adı yok → Content-Disposition yok, satır
             // içi görsel), nosniff; /api/ui 401'i yönlendirmesiz JSON. UiSystemAdminTests.Logo_upload_...'da kilitli.
             "Api/Sistem/SystemAdminApi.Settings.cs",
+            // F11.1b — blog kapağı içeriği (/api/ui/v1/blog-yonetim/{id}/kapak[/kucuk]): araç fotoğrafıyla aynı gerekçe —
+            // dosya adı yok (satır içi görsel, indirme değil), /api/ui 401'i yönlendirmesiz JSON. Tür yüklemede İÇERİKTEN
+            // tespit edilir, nosniff boru hattında. UiWebsiteApiTests.Blog_cover_* kilitler.
+            "Api/Sistem/WebsiteApi.Blog.cs",
             "Documents/FirmaBelgeEndpoints.cs",
             "Documents/FirmaDokumanEndpoints.cs",
             "Reports/ListExportEndpoints.cs",
