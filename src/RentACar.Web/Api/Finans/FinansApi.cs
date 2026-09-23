@@ -113,7 +113,9 @@ public static class FinansApi
             .WithTags("Finans");
 
         g.MapGet("/hesaplar", Hesaplar);
-        g.MapPost("/tahsilat", Tahsilat);
+        g.MapPost("/tahsilat", Tahsilat)
+            // 409 mukerrer gövdesi belgelenir: SPA `mevcut` (aynı anahtarla zaten yazılmış kayıt) tipini buradan alır.
+            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         g.MapPost("/odeme", Odeme);
         g.MapPost("/fatura", Fatura);
         g.MapPost("/donem-fatura", DonemFatura);
@@ -139,7 +141,8 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> Tahsilat(
-        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, CancellationToken ct)
+        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, KurCozucu kurCozucu,
+        CancellationToken ct)
     {
         // Deterministik anahtar kiraya özgüdür (kira + bakiye + işlem sayısı); kirasız ya da boş gelmesi istemci hatası.
         if (istek.TahsilatAnahtar is { } ta && (ta == Guid.Empty || istek.KiraId is null))
@@ -148,8 +151,20 @@ public static class FinansApi
 
         var (girdi, kira) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: true, kiralar, ct);
+        // 5. tur LOW-3: açık kurun kuralları (elle giriş kilidi, pozitiflik, TRY'de kur=1) anahtar/mükerrer
+        // kontrolünden ÖNCE: TRY'de kur≠1 tekrarı "farklı içerik" 409'u değil, yazılabilir olmayan istek olarak 400.
+        if (istek.Kur is not null)
+            await kurCozucu.CozAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
         if (istek.TahsilatAnahtar is { } gelen)
+        {
+            // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
+            // tekrar (aynı anahtar) yeniden hesaplamada "kayıt değişti" alıyor, kullanıcı yeni anahtarla İKİNCİ
+            // tahsilatı yazıyordu. Kayıt varsa 409 "zaten kaydedildi" + mevcut (tekrar denemeye yönlendirmez).
+            // Yalnız BU kiranın tahsilatıysa bildirilir (kapsam kapısı NakitGirdisiAsync'te geçildi; başka kiranın
+            // anahtarı bilgi sızdırmaz, aşağıdaki yeniden hesaplamada "ait değil" 409'u alır).
+            await ZatenKaydedildiyseAsync(gelen, kira!, girdi, kasa, kurCozucu, ct);
             await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
+        }
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.CollectAsync(girdi, ct)));
     }
@@ -323,6 +338,12 @@ public static class FinansApi
     /// <para>Bakiye DB'den <c>numeric(19,4)</c> ölçeğiyle ("300.0000") gelir; ondalık sıfırları atılmış biçim
     /// ("300") de kabul edilir — anahtarı üreten taraf bakiyeyi başka kaynaktan (ör. hesaplanmış DTO) alabilir.</para>
     /// </summary>
+    /// <summary>Bayat/yabancı anahtar: hiçbir şey yazılmadı. "Tekrar deneyin" DENMEZ (HIGH-1): kullanıcı güncel
+    /// bakiyeyi görüp tutarı BİLİNÇLİ yeniden girmeli.</summary>
+    public const string BayatAnahtarMesaji =
+        "Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu kiraya " +
+        "ait değil; tahsilat yazılmadı. Güncel bakiyeyi kontrol edip tutarı yeniden girin.";
+
     private static async Task TahsilatAnahtariGuncelAsync(Guid gelen, RentalContract kira, CashService kasa, CancellationToken ct)
     {
         var sayilar = await kasa.GetRentalIslemSayilariAsync([kira.Id], ct);
@@ -331,9 +352,79 @@ public static class FinansApi
             CultureInfo.InvariantCulture);
         if (gelen != TahsilatAnahtar.Uret(kira.Id, kira.Bakiye, islemSayisi)
             && gelen != TahsilatAnahtar.Uret(kira.Id, sade, islemSayisi))
-            throw new MukerrerIslemException(
-                "Kiranın bakiyesi ya da kasa işlemleri bu ekran açıldıktan sonra değişti ya da tahsilat anahtarı bu " +
-                "kiraya ait değil; kaydı yeniden yükleyip tekrar deneyin.");
+            throw new MukerrerIslemException(BayatAnahtarMesaji);
+    }
+
+    /// <summary>Kaybolan yanıttan sonraki tekrar: aynı <c>tahsilatAnahtar</c> ile bu kiraya yazılmış tahsilat.</summary>
+    public const string ZatenKaydedildiMesaji =
+        "Bu tahsilat zaten kaydedildi (No {0}, {1} {2}); yeni tahsilat yazılmadı.";
+
+    /// <summary>
+    /// 3. tur M-A: aynı anahtarla yazılmış kayıt gelen istekten FARKLI (tutar/döviz/hesap) — iki sekme/iki kullanıcı
+    /// aynı ekranı açıp biri tahsil etti. İkinci kişinin tutarı YAZILMADI; "zaten kaydedildi" demek (ve formu
+    /// silmek) kasiyere parasını kaydedildi sandırırdı.
+    /// </summary>
+    public const string BaskaTahsilatYazildiMesaji =
+        "Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No {0}, {1} {2}); girdiğiniz {3} {4} YAZILMADI. " +
+        "Güncel bakiyeyi kontrol edin.";
+
+    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+
+    /// <summary>
+    /// Aynı anahtarla BU KİRAYA yazılmış tahsilat varsa 409. <c>AyniIcerik</c>: kayıt gelen istekle birebir aynı mı
+    /// (tutar <c>decimal</c> eşitliği, döviz, hesap türü, spesifik hesap, kur, açıklama, kanal, açık tarih) — aynıysa kaybolan
+    /// yanıttan sonraki kendi tekrarı ("zaten kaydedildi"); farklıysa başkasının (ya da içeriği değiştirilmiş) işlemi
+    /// ("… YAZILMADI").
+    /// <para>F4.4 L-1: kur/açıklama/kanal da karşılaştırılır — yalnız tutar/hesap aynı diye kurunu ya da açıklamasını
+    /// değiştirmiş tekrar "zaten kaydedildi" deyip formu silmesin (yazılan kayıt kullanıcının son niyeti DEĞİL).
+    /// Kur boşsa sunucunun o an çözeceği kur (<see cref="KurCozucu"/>; TRY=1) karşılaştırılır; çözülemezse güvenli
+    /// taraf "aynı değil". Kur <c>numeric(19,6)</c> saklandığı için karşılaştırma 6 haneye yuvarlanmış değerle.
+    /// Açıklama boş/boşluk = yok; kenar boşlukları yok sayılır. Kanal servisle aynı kuralla normalize edilir.</para>
+    /// </summary>
+    private static async Task ZatenKaydedildiyseAsync(
+        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, KurCozucu kurCozucu, CancellationToken ct)
+    {
+        if (await kasa.IslemAnahtariylaBulAsync(anahtar, ct) is not { } t
+            || t.RentalId != kira.Id || t.Tip != CashTransactionType.Tahsilat)
+            return;
+        var gelenDoviz = KurService.NormalizeKodStrict(gelen.Doviz);
+        var ayni = t.Amount.Amount == gelen.Tutar
+                   && string.Equals(t.Amount.Currency, gelenDoviz, StringComparison.OrdinalIgnoreCase)
+                   && t.KarsiHesap == gelen.Hesap
+                   && t.HesapId == (gelen.HesapId is { } h && h != Guid.Empty ? h : null)
+                   && string.Equals(AciklamaNorm(t.Aciklama), AciklamaNorm(gelen.Aciklama), StringComparison.Ordinal)
+                   && string.Equals(t.Kanal ?? CashKanal.Masaustu, CashKanal.TryNormalize(gelen.Kanal), StringComparison.Ordinal)
+                   && AyniTarih(t.Tarih, gelen.Tarih)
+                   && await AyniKurAsync(t.Amount.Rate, gelenDoviz, gelen, kurCozucu, ct);
+        var mevcutTutar = t.Amount.Amount.ToString("N2", Tr);
+        var mesaj = ayni
+            ? string.Format(Tr, ZatenKaydedildiMesaji, t.No, mevcutTutar, t.Amount.Currency)
+            : string.Format(Tr, BaskaTahsilatYazildiMesaji, t.No, mevcutTutar, t.Amount.Currency,
+                gelen.Tutar.ToString("N2", Tr), gelenDoviz);
+        throw new MukerrerIslemException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
+    }
+
+    /// <summary>5. tur LOW-3: açık işlem tarihi kayıttakiyle aynı mı. Boş tarih = "şimdi" (servis yazım anını koyar) —
+    /// tekrarın kendisinden bilinemez, içerik farkı sayılmaz. PG <c>timestamptz</c> mikrosaniye tutar (.NET 100 ns):
+    /// karşılaştırma mikrosaniyeye kırpılmış değerle.</summary>
+    private static bool AyniTarih(DateTimeOffset kayit, DateTimeOffset? gelen)
+        => gelen is not { } g
+           || kayit.UtcTicks / TimeSpan.TicksPerMicrosecond == g.UtcTicks / TimeSpan.TicksPerMicrosecond;
+
+    private static string? AciklamaNorm(string? a) => string.IsNullOrWhiteSpace(a) ? null : a.Trim();
+
+    /// <summary>L-1: gelen isteğin kuru (açık ya da o an çözülecek) kayıttaki kurla aynı mı (6 hane).</summary>
+    private static async Task<bool> AyniKurAsync(
+        decimal kayitKuru, string doviz, CashInput gelen, KurCozucu kurCozucu, CancellationToken ct)
+    {
+        decimal kur;
+        if (gelen.Kur is { } acik) kur = acik;
+        else
+        {
+            try { kur = await kurCozucu.CozAsync(doviz, null, gelen.Tarih, ct); }
+            catch (ValidationException) { return false; } // çözülemeyen kur: güvenli taraf (form silinmez)
+        }
+        return Math.Round(kur, 6, MidpointRounding.AwayFromZero) == Math.Round(kayitKuru, 6, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Kira var mı ve çağıranın şube kapsamında mı (<see cref="RentalService.GetAsync"/> → 403).</summary>

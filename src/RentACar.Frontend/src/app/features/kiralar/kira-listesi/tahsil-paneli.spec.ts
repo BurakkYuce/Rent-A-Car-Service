@@ -71,12 +71,14 @@ const SATIR: KiraListeSatiri = {
     [satir]="satir()"
     (kapat)="kapanislar = kapanislar + 1"
     (sonuclandi)="sonuclar = sonuclar + 1"
+    (anahtarTazele)="tazelemeler = tazelemeler + 1"
   />`,
 })
 class Deneme {
   readonly satir = signal<KiraListeSatiri>(SATIR);
   kapanislar = 0;
   sonuclar = 0;
+  tazelemeler = 0;
 }
 
 class SahteXsrf implements HttpXsrfTokenExtractor {
@@ -215,6 +217,137 @@ describe('TahsilPaneli (PARA)', () => {
     // "Mükerrer işlem kaydedildi" izlenimi yok: ne başarı ne "Mükerrer işlem" başlığı.
     expect(toast.toastlar().some((t) => t.durum === 'basari')).toBe(false);
     expect(toast.toastlar().some((t) => t.baslik === 'Mükerrer işlem')).toBe(false);
+  });
+
+  it('409 mukerrer + mevcut (işlem ZATEN yazıldı — kaybolan yanıt) → "İşlem zaten kaydedildi" bilgisi; tekrar yok', async () => {
+    const { fixture, d, gonder } = await kur();
+    await gonder();
+    const DETAY =
+      'Bu tahsilat zaten kaydedildi (No T-000042, 500,00 TRY); yeni tahsilat yazılmadı.';
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail: DETAY,
+      mevcut: { id: 'x', belgeNo: 'T-000042', tutar: 500, doviz: 'TRY', ayniIcerik: true },
+    });
+    http.expectOne(TAHSIL_UCU).flush(govde, secenek);
+    await fixture.whenStable();
+
+    http.expectNone(TAHSIL_UCU);
+    expect(d.sonuclar).toBe(1);
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'bilgi',
+        baslik: 'İşlem zaten kaydedildi',
+        mesaj: `${DETAY} Kayıt yeniden yüklendi.`,
+      }),
+    ]);
+  });
+
+  it('3. tur M-A + L-2: 409 + mevcut İÇERİK FARKLI → "Başka bir tahsilat yazıldı" UYARISI; panel AÇIK; dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir; yeni anahtarla gönderilir', async () => {
+    const { fixture, d, gonder, tutarGirdisi } = await kur();
+    await gonder();
+    const DETAY =
+      'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-9, 100,00 TRY); girdiğiniz 1.234,50 TRY YAZILMADI. Güncel bakiyeyi kontrol edin.';
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail: DETAY,
+      mevcut: { id: 'a', belgeNo: 'T-9', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+    });
+    http.expectOne(TAHSIL_UCU).flush(govde, secenek);
+    await fixture.whenStable();
+
+    http.expectNone(TAHSIL_UCU);
+    expect(d.sonuclar).toBe(0); // panel kapanmadı
+    expect(d.tazelemeler).toBe(1); // sayfa listeyi yeniden yükler
+    expect(toast.toastlar()).toEqual([
+      expect.objectContaining({
+        durum: 'uyari',
+        baslik: 'Başka bir tahsilat yazıldı — tutarınız kaydedilmedi',
+        mesaj: `${DETAY} Kayıt yeniden yüklendi.`,
+      }),
+    ]);
+    // Sayfa aynı kiranın güncel satırını (yeni anahtar, yeni öneri) verir: form SIFIRLANMAZ, ama tutar elle
+    // yazılmadığı için eski bakiye (1.234,50) yerine yeni öneri (1.134,50) gelir (L-2: fazla tahsilat gitmesin).
+    const YENI = '44444444-4444-4444-8444-444444444444';
+    d.satir.set({
+      ...SATIR,
+      bakiye: 1134.5,
+      tahsilat: { ...SATIR.tahsilat!, anahtar: YENI, varsayilanTutar: 1134.5 },
+    });
+    await fixture.whenStable();
+    expect(tutarGirdisi().value).toMatch(/^1\.?134,50$/);
+    await gonder();
+    const ikinci = http.expectOne(TAHSIL_UCU);
+    expect(ikinci.request.body.tahsilatAnahtar).toBe(YENI);
+    expect(ikinci.request.body.tutar).toBe('1134.50');
+    ikinci.flush({ id: 'y' });
+    await fixture.whenStable();
+    expect(d.sonuclar).toBe(1);
+  });
+
+  it('L-2: M-A sonrası kullanıcının ELLE yazdığı tutar yeni satırın önerisiyle EZİLMEZ', async () => {
+    const { fixture, d, gonder, tutarGirdisi } = await kur();
+    tutarGirdisi().value = '700';
+    tutarGirdisi().dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    await gonder();
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail: 'başka bir tahsilat yazıldı; girdiğiniz 700,00 TRY YAZILMADI.',
+      mevcut: { id: 'a', belgeNo: 'T-9', tutar: 100, doviz: 'TRY', ayniIcerik: false },
+    });
+    http.expectOne(TAHSIL_UCU).flush(govde, secenek);
+    await fixture.whenStable();
+    const YENI = '44444444-4444-4444-8444-444444444444';
+    d.satir.set({
+      ...SATIR,
+      tahsilat: { ...SATIR.tahsilat!, anahtar: YENI, varsayilanTutar: 1134.5 },
+    });
+    await fixture.whenStable();
+    expect(tutarGirdisi().value).toMatch(/^700(,00)?$/);
+    toast.temizle();
+  });
+
+  it('4. tur M-C: kaybolan yanıt → tutar değiştirilip AYNI anahtarla tekrar → "Önceki denemeniz kaydedilmiş", tutar TEMİZLENİR, panel açık; ikinci basış istek göndermez', async () => {
+    const { fixture, d, gonder, tutarGirdisi } = await kur();
+    tutarGirdisi().value = '500';
+    tutarGirdisi().dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    await gonder();
+    http.expectOne(TAHSIL_UCU).error(new ProgressEvent('error')); // yazıldı, yanıt kayboldu
+    await fixture.whenStable();
+    toast.temizle(); // ağ hatası toast'u (interceptor)
+
+    tutarGirdisi().value = '600';
+    tutarGirdisi().dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    await gonder();
+    const ikinci = http.expectOne(TAHSIL_UCU);
+    expect(ikinci.request.body.tahsilatAnahtar).toBe(ANAHTAR); // donmuş anahtar
+    expect(ikinci.request.body.tutar).toBe('600.00');
+    const { govde, secenek } = problem('mukerrer', 409, {
+      detail:
+        'Bu ekran açıldıktan sonra başka bir tahsilat yazıldı (No T-42, 500,00 TRY); girdiğiniz 600,00 TRY YAZILMADI.',
+      mevcut: { id: 'c1', belgeNo: 'T-42', tutar: 500, doviz: 'TRY', ayniIcerik: false },
+    });
+    ikinci.flush(govde, secenek);
+    await fixture.whenStable();
+
+    expect(d.sonuclar).toBe(0);
+    expect(d.tazelemeler).toBe(1);
+    const t = toast.toastlar();
+    expect(t).toHaveLength(1);
+    expect(t[0]).toEqual(
+      expect.objectContaining({
+        durum: 'uyari',
+        baslik: 'Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı',
+      }),
+    );
+    expect(t[0]?.mesaj).toMatch(
+      /^Önceki denemeniz kaydedilmiş \(No T-42, 500,00 ₺\); girdiğiniz 600,00 ₺ YAZILMADI\./,
+    );
+    expect(tutarGirdisi().value).toBe('');
+
+    await gonder(); // boş tutar → istemci doğrulaması
+    http.expectNone(TAHSIL_UCU);
+    toast.temizle();
   });
 
   it('ağ hatasından sonra yeniden deneme AYNI tahsilatAnahtar’ı taşır (anahtarsız tekrar yok)', async () => {

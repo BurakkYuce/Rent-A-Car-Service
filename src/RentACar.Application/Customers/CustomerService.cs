@@ -40,13 +40,14 @@ public sealed class CustomerService(
     /// <summary>
     /// F1.6 SINIRLI + YETKİLİ seçim araması (yeni arayüz typeahead'i). <see cref="ListSecimAsync"/>'in
     /// KVKK açığını (yetkisiz, sınırsız → tüm müşteri adları; ad kişisel veridir) yeni yüzeyde taşımaz:
-    /// OperationsWrite ister, en çok <paramref name="limit"/> (1–20) satır döner, PII kolonu okumaz.
+    /// OperationsWrite VEYA FinanceWrite ister (F4.4: Muhasebe sabit finans panelinde dış hizmet tedarikçisini
+    /// arar), en çok <paramref name="limit"/> (1–20) satır döner, PII kolonu okumaz.
     /// Blazor çağıranları davranış değişmesin diye <see cref="ListSecimAsync"/>'i kullanmaya devam eder.
     /// Arama Türkçe katlamalıdır (<see cref="TurkishText.Normalize"/>): "ışık" = "IŞIK" = "isik".
     /// </summary>
     public Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string? q, int limit, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.RequireAny(_currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
         var t = q?.Trim() ?? string.Empty;
         if (t.Length > 100) t = t[..100];
         return _repository.SecimAraAsync(TurkishText.Normalize(t), Math.Clamp(limit, 1, 20), ct);

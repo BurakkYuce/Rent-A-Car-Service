@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import type { Sema } from './ui-tipleri';
 
 /**
  * Sunucunun `/api/ui/v1` ProblemDetails'inde döndüğü `kod` değerleri (backend `UiHata.cs` kod tablosu).
@@ -29,6 +30,13 @@ export type IstemciHataKodu = 'ag' | 'sunucu' | 'bilinmeyen';
 
 export type ApiHataKodu = SunucuHataKodu | IstemciHataKodu;
 
+/**
+ * 409 `mukerrer`'de aynı işlem anahtarıyla ZATEN yazılmış kayıt (F4.4 adversarial HIGH-1; OpenAPI `MevcutIslem`).
+ * `ayniIcerik` true → kendi tekrarı: "zaten kaydedildi", form temizlenir. false → BAŞKA bir işlem yazılmış, gönderilen
+ * tutar YAZILMADI: uyarı, form korunur, kayıt yenilenir, kullanıcı bilinçli yeniden gönderir (3. tur M-A).
+ */
+export type MevcutIslem = Sema<'MevcutIslem'>;
+
 /** Alan adı → o alanın hata mesajları (ProblemDetails `errors`). */
 export type AlanHatalari = Readonly<Record<string, readonly string[]>>;
 
@@ -40,6 +48,8 @@ export interface ApiHatasiBilgisi {
   readonly detay: string;
   /** Yalnız sunucu alan bazlı hata verdiyse (ör. `dogrulama`, `Idempotency-Key`). */
   readonly alanlar?: AlanHatalari;
+  /** Yalnız 409 `mukerrer`'de, işlem zaten yazılmışsa (bkz. {@link MevcutIslem}). */
+  readonly mevcut?: MevcutIslem;
 }
 
 const VARSAYILAN_DETAY: Readonly<Record<IstemciHataKodu, string>> = {
@@ -61,6 +71,7 @@ export class ApiHatasi extends Error implements ApiHatasiBilgisi {
   readonly kod: ApiHataKodu;
   readonly detay: string;
   readonly alanlar?: AlanHatalari;
+  readonly mevcut?: MevcutIslem;
 
   constructor(bilgi: ApiHatasiBilgisi, neden?: unknown) {
     super(bilgi.detay, neden === undefined ? undefined : { cause: neden });
@@ -68,6 +79,7 @@ export class ApiHatasi extends Error implements ApiHatasiBilgisi {
     this.kod = bilgi.kod;
     this.detay = bilgi.detay;
     if (bilgi.alanlar !== undefined) this.alanlar = bilgi.alanlar;
+    if (bilgi.mevcut !== undefined) this.mevcut = bilgi.mevcut;
   }
 }
 
@@ -97,11 +109,30 @@ export function apiHatasinaCevir(hata: unknown): ApiHatasi {
     doluMetin(govde?.['title']) ??
     VARSAYILAN_DETAY[kod === 'sunucu' ? 'sunucu' : 'bilinmeyen'];
   const alanlar = alanHatalari(govde?.['errors']);
+  const mevcut = kod === 'mukerrer' ? mevcutIslem(govde?.['mevcut']) : undefined;
 
   return new ApiHatasi(
-    alanlar === undefined ? { status, kod, detay } : { status, kod, detay, alanlar },
+    {
+      status,
+      kod,
+      detay,
+      ...(alanlar === undefined ? {} : { alanlar }),
+      ...(mevcut === undefined ? {} : { mevcut }),
+    },
     hata,
   );
+}
+
+/** `mevcut` uzantısı → tipli kayıt; biçimsizse `undefined` (uydurma "zaten kaydedildi" yok). */
+function mevcutIslem(deger: unknown): MevcutIslem | undefined {
+  if (!nesneMi(deger)) return undefined;
+  const { id, belgeNo, tutar, doviz, ayniIcerik } = deger;
+  if (typeof id !== 'string' || typeof belgeNo !== 'string' || typeof doviz !== 'string')
+    return undefined;
+  if (typeof tutar !== 'number' && typeof tutar !== 'string') return undefined;
+  // Güvenli taraf: bilinmiyorsa "aynı içerik DEĞİL" — form silinmez, "YAZILMADI" uyarısı (kasiyer parasını
+  // kaydedildi sanmasın).
+  return { id, belgeNo, tutar, doviz, ayniIcerik: ayniIcerik === true };
 }
 
 /** Tip korumalı: değer bilinen bir sunucu kodu mu? */

@@ -125,7 +125,9 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   aralıklar), `rc-tarih-saat-secici` (değer UTC anı; İstanbul saatiyle gösterilir). Tarih günü `Date`
   / `toISOString` yoluna SOKULMAZ; an yerel saate çevrilip UTC sayılmaz.
 - **Para girdisi kuralı (F4.2 adversarial):** KULLANICININ yazdığı tutarda 2'den (`kesir`) fazla anlamlı ondalık
-  YUVARLANMAZ → `paraFazlaHane` ("En fazla 2 ondalık hane girilebilir."); önceden dolu + otomatik odaklı tutar `odaktaSec`.
+  YUVARLANMAZ → `paraFazlaHane` ("En fazla 2 ondalık hane girilebilir."). Odakta (Tab, programatik, otomatik
+  doldurma) metnin TAMAMI seçilir ve düzenleme yazımı DOM'a eşzamanlı yazılır — HER para girdisinde varsayılan
+  (F4.4; eski `odaktaSec` seçeneği kalktı): yazılan önceden dolu tutarın sonuna eklenmez, yerine geçer.
 - **Alan:** her kontrol `<rc-alan etiket="…" ipucu="…">` içinde: etiket `for`, zorunlu `*` (doğrulayıcıdan),
   hata yuvası, `aria-invalid`/`aria-describedby`/`aria-required`. Radyo grubunda `grup`.
 - **Gönderim yalnız `formGonderimi()`** (`@shared/form/form-gonderimi`): çift tık tek istek, istemci
@@ -157,7 +159,9 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   dokunulan korunur, ikisi de değiştiyse alan işaretlenir). İşlem sonrası ve sekmeye dönüşte de aynı yol.
   Dokunulmayan provizyon tarihi sunucunun orijinal anıyla geri gider (gün yuvarlaması yok).
 - Sayfada `<form>` yok (iç içe form + Enter'la yanlış gönderim olmasın); mini işlemler düğmeyle.
-- Sabit yan paneldeki finans yuvası `rc-kira-finans-paneli` (F4.4 doldurur; sözleşme dosyada).
+- Sabit yan paneldeki finans paneli (F4.4) `finans-paneli/`: tembel parça (`rc-kira-finans-yuvasi` dinamik
+  `import()`; `@defer` ilk pakete ~7 kB defer çalışma zamanı ekliyordu), durum/eylemler `KiraFinansDurumu`'nda.
+  Para kuralları `docs/api/idempotency-envanteri.md` "SPA uygulaması" (tahsilat satır kopyası, 409 `mukerrerBasligi`).
 - **F4.3b parite ekleri:**
   - Müşteri sekmesi cari özeti `GET /kiralar/{id}/musteri-ozet`. Müşteri PII'sinin TEK sunucu kuralı
     `MusteriGorunumu` (özet + detay taraf adı + paylaşım barı + hazır mesaj): TC kimlik HİÇ dönmez (Blazor gibi
