@@ -40703,22 +40703,26 @@
       },
       "DueItemDto": {
         "required": [
-          "aracId",
+          "vehicleId",
+          "plaka",
           "tur",
-          "bitisUtc",
+          "bitis",
           "kalanGun",
-          "gecmis"
+          "kova"
         ],
         "type": "object",
         "properties": {
-          "aracId": {
+          "vehicleId": {
             "type": "string",
             "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
           },
           "tur": {
             "type": "string"
           },
-          "bitisUtc": {
+          "bitis": {
             "type": "string",
             "format": "date-time"
           },
@@ -40730,8 +40734,8 @@
             ],
             "format": "int32"
           },
-          "gecmis": {
-            "type": "boolean"
+          "kova": {
+            "type": "string"
           }
         }
       },
@@ -52687,6 +52691,40 @@
           }
         }
       },
+      "MessageDueItemDto": {
+        "required": [
+          "aracId",
+          "tur",
+          "bitisUtc",
+          "kalanGun",
+          "gecmis"
+        ],
+        "type": "object",
+        "properties": {
+          "aracId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tur": {
+            "type": "string"
+          },
+          "bitisUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kalanGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gecmis": {
+            "type": "boolean"
+          }
+        }
+      },
       "MessageTemplateDto": {
         "required": [
           "tur",
@@ -53764,7 +53802,7 @@
           "vadeler": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DueItemDto"
+              "$ref": "#/components/schemas/MessageDueItemDto"
             }
           },
           "sikayetler": {

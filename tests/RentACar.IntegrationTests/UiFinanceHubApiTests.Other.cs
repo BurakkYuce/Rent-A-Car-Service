@@ -36,6 +36,80 @@ public sealed partial class UiFinanceHubApiTests
         await AllLedgerBalancedAsync(e);
     }
 
+    // #299 L2 — depozito anahtarı TÜM depozito türlerinde tekil: al'ın anahtarıyla iade/mahsup/irat 409 mukerrer
+    // (mevcut = al kaydı, ayniIcerik=false) ve HİÇBİR ŞEY yazılmaz; ters yönde (iade anahtarıyla al) de aynı.
+    [Fact]
+    public async Task Deposit_key_is_unique_across_deposit_operation_types()
+    {
+        var e = await SetupAsync();
+        var s = await LoginAsync(e, Who.Accountant);
+        var takeKey = NewKey();
+        var takeId = await IdOf(await PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 300m, hesap = "Kasa" }, takeKey));
+
+        var refund = await Problem(await PostAsync(s, "/depozito/iade", new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        var existing = refund.GetProperty("mevcut");
+        Assert.Equal(takeId, existing.GetProperty("id").GetGuid());
+        Assert.False(existing.GetProperty("ayniIcerik").GetBoolean());
+        Assert.Equal(300m, existing.GetProperty("tutar").GetDecimal());
+        Assert.Equal("TRY", existing.GetProperty("doviz").GetString());
+        await Problem(await PostAsync(s, "/depozito/mahsup", new { cariId = e.CustomerA, tutar = 50m }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        await Problem(await PostAsync(s, "/depozito/irat", new { cariId = e.CustomerA, tutar = 20m }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        // Başka carinin aynı anahtarlı iadesi de (farklı cari kilidi) aynı kayda çarpar.
+        await Problem(await PostAsync(s, "/depozito/iade", new { cariId = e.CustomerB, tutar = 1m, hesap = "Kasa" }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+
+        // Oracle: yalnız al kümesi yazıldı (2 satır, 300 TL); tutulan depozito 300.
+        var rows = await LedgerAsync(e, takeId);
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, r => Assert.Equal("DepozitoAl", r.SourceType));
+        var list = await Ok(await GetAsync(s, "/depozito"));
+        Assert.Equal(300m, list.EnumerateArray().Single(x => x.GetProperty("cariId").GetGuid() == e.CustomerA).GetProperty("bakiye").GetDecimal());
+
+        // Ters yön: iade anahtarıyla al → 409; aynı iadenin birebir tekrarı sessiz (200 aynı id).
+        var refundKey = NewKey();
+        var refundBody = new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" };
+        var refundId = await IdOf(await PostAsync(s, "/depozito/iade", refundBody, refundKey));
+        await Problem(await PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" }, refundKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(refundId, await IdOf(await PostAsync(s, "/depozito/iade", refundBody, refundKey)));
+        // Oracle: 300 − 100 = 200.
+        list = await Ok(await GetAsync(s, "/depozito"));
+        Assert.Equal(200m, list.EnumerateArray().Single(x => x.GetProperty("cariId").GetGuid() == e.CustomerA).GetProperty("bakiye").GetDecimal());
+        await AllLedgerBalancedAsync(e);
+    }
+
+    // r314 P1 — aynı anahtarla EŞZAMANLI beş farklı depozito işlemi (al, iade, mahsup, irat, başka carinin iadesi): tam
+    // olarak biri yazılır (2 satırlık tek küme), kalanlar 409; 500 yok. Anahtar kilidi (cari kilidinden önce) bunu sağlar.
+    [Fact]
+    public async Task Concurrent_cross_type_requests_with_one_key_write_exactly_once()
+    {
+        var e = await SetupAsync();
+        var s = await LoginAsync(e, Who.Accountant);
+        await IdOf(await PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 1000m, hesap = "Kasa" }, NewKey()));
+        for (var round = 0; round < 4; round++)
+        {
+            var before = await DbAsync(e, db => db.AccountLedgerEntries.AsNoTracking().CountAsync());
+            var k = NewKey();
+            var rs = await Task.WhenAll(
+                PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 30m, hesap = "Kasa" }, k),
+                PostAsync(s, "/depozito/iade", new { cariId = e.CustomerA, tutar = 10m, hesap = "Kasa" }, k),
+                PostAsync(s, "/depozito/mahsup", new { cariId = e.CustomerA, tutar = 5m }, k),
+                PostAsync(s, "/depozito/irat", new { cariId = e.CustomerA, tutar = 2m }, k),
+                PostAsync(s, "/depozito/iade", new { cariId = e.CustomerB, tutar = 1m, hesap = "Kasa" }, k));
+            var codes = rs.Select(r => (int)r.StatusCode).ToList();
+            Assert.Equal(1, codes.Count(c => c == 200));
+            Assert.All(codes.Take(4), c => Assert.Contains(c, new[] { 200, 409 }));
+            // B'nin depozitosu yok: ilk kilidi o alırsa bakiye çitinde 400, sonra gelirse 409 — ama asla yazmaz.
+            Assert.Contains(codes[4], new[] { 400, 409 });
+            // ELLE: her tür tek kümede 2 satır yazar (borç + alacak).
+            Assert.Equal(2, await DbAsync(e, db => db.AccountLedgerEntries.AsNoTracking().CountAsync()) - before);
+        }
+        await AllLedgerBalancedAsync(e);
+    }
+
     // ------------------------------------------------------------ ekstre + ters kayıt (E08)
 
     [Fact]

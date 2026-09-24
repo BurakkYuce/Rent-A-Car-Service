@@ -25616,13 +25616,14 @@ export interface components {
     };
     DueItemDto: {
       /** Format: uuid */
-      aracId: string;
+      vehicleId: string;
+      plaka: string;
       tur: string;
       /** Format: date-time */
-      bitisUtc: string;
+      bitis: string;
       /** Format: int32 */
       kalanGun: number | string;
-      gecmis: boolean;
+      kova: string;
     };
     DueSummary: {
       /** Format: int32 */
@@ -28324,6 +28325,16 @@ export interface components {
         [key: string]: number | string;
       };
     };
+    MessageDueItemDto: {
+      /** Format: uuid */
+      aracId: string;
+      tur: string;
+      /** Format: date-time */
+      bitisUtc: string;
+      /** Format: int32 */
+      kalanGun: number | string;
+      gecmis: boolean;
+    };
     MessageTemplateDto: {
       tur: string;
       kanal: string;
@@ -28563,7 +28574,7 @@ export interface components {
       acikSikayet: number | string;
       /** Format: date-time */
       donemKapanis: null | string;
-      vadeler: components['schemas']['DueItemDto'][];
+      vadeler: components['schemas']['MessageDueItemDto'][];
       sikayetler: components['schemas']['OpenComplaintDto'][];
       bildirimler: components['schemas']['NotificationDto'][];
       /** Format: int32 */
