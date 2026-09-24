@@ -1,0 +1,190 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'aracFinans.baf.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [attr.aria-expanded]="createOpen()"
+        aria-controls="rc-yeni-tahsis"
+        (click)="toggleCreate()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'aracFinans.baf.yeni' | transloco }}
+      </button>
+    </div>
+  </header>
+  <p class="aciklama">{{ 'aracFinans.baf.aciklama' | transloco }}</p>
+
+  @if (createOpen()) {
+    <section id="rc-yeni-tahsis" class="bolum" aria-labelledby="rc-yeni-tahsis-baslik">
+      <h2 id="rc-yeni-tahsis-baslik">{{ 'aracFinans.baf.yeni' | transloco }}</h2>
+      <form class="form" [formGroup]="form" (ngSubmit)="create()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'aracFinans.baf.personel' | transloco">
+            <rc-arama-secim formControlName="personel" [kaynak]="staff" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.arac' | transloco">
+            <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.cikisTarihi' | transloco">
+            <rc-tarih-secici formControlName="cikisTarihi" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'aracFinans.baf.cikisSaat' | transloco"
+            [ipucu]="'aracFinans.baf.saatIpucu' | transloco"
+          >
+            <rc-metin-girdisi formControlName="cikisSaat" [azamiUzunluk]="5" yerTutucu="ss:dd" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.cikisKm' | transloco">
+            <rc-sayi-girdisi formControlName="cikisKm" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.cikisYakit' | transloco">
+            <rc-sayi-girdisi formControlName="cikisYakit" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.sube' | transloco">
+            <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="100" liste="dl-baf-sube" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.kullanimAmaci' | transloco">
+            <rc-secim formControlName="kullanimAmaci" [secenekler]="purposeOptions" bosEtiket="—" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.onaylayan' | transloco">
+            <rc-arama-secim formControlName="onaylayan" [kaynak]="staff" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.baf.kirayaVer' | transloco">
+            <rc-onay-kutusu formControlName="kirayaVer" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="submission.gonderiliyor()"
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('aracFinans.baf.tahsisEt' | transloco)
+            }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'aracFinans.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'aracFinans.baf.personel' | transloco">
+        <rc-arama-secim formControlName="personel" [kaynak]="staff" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="20" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'aracFinans.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.baf.kullanimAmaci' | transloco">
+        <rc-secim
+          formControlName="kullanimAmaci"
+          [secenekler]="purposeOptions"
+          [bosEtiket]="'aracFinans.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.baf.lokasyon' | transloco">
+        <rc-secim
+          formControlName="lokasyon"
+          [secenekler]="locationOptions"
+          [bosEtiket]="'aracFinans.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.baf.ofis' | transloco">
+        <rc-metin-girdisi formControlName="ofis" [azamiUzunluk]="100" liste="dl-baf-sube" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.baf.cikisMin' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.baf.cikisMax' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'aracFinans.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'aracFinans.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @for (r of returning(); track r.id) {
+    <rc-allocation-return-panel [row]="r" (closed)="returning.set([])" (returned)="returnDone()" />
+  }
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="baf.liste"
+    [etiket]="'aracFinans.baf.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rc-rozet" [class.rc-rozet--bilgi]="satir.durum === 'Acik'">{{
+        statusLabel(satir.durum)
+      }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.durum === 'Acik') {
+        <span class="satir-eylem">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="openReturn(satir)"
+          >
+            {{ 'aracFinans.baf.teslimAl' | transloco }}
+          </button>
+          @if (canCancel()) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              [disabled]="busy() !== null"
+              (click)="cancel(satir)"
+            >
+              {{ 'aracFinans.baf.iptal' | transloco }}
+            </button>
+          }
+        </span>
+      }
+    </ng-template>
+  </rc-tablo>
+
+  <datalist id="dl-baf-sube">
+    @for (s of branchSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+</div>

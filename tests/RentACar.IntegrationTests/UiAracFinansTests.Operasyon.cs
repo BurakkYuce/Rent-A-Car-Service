@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.IntegrationTests.Infrastructure;
 using RentACar.Web.Identity;
 
 namespace RentACar.IntegrationTests;
@@ -38,6 +39,50 @@ public sealed partial class UiAracFinansTests
         await ProblemBekle(await Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/onayla"), HttpStatusCode.Conflict, "cakisma"); // M1: izinsiz geçiş
         await ProblemBekle(await Gonder(s, HttpMethod.Put, $"{Siparis}/{id}", new { tedarikci = "Y", birimFiyat = 1m,
             surum = (await Json(await s.C.GetAsync($"{Siparis}/{id}"))).GetProperty("surum").GetString() }), HttpStatusCode.BadRequest, "dogrulama");
+    }
+
+    [Fact]
+    public async Task Siparis_listesi_bilgi_alanlarini_tasir()
+    {
+        // F6.2b: Blazor liste sütunları (renk, kaynak/satış tipi, bilgi fiyatları, imza, TSB) liste satırında.
+        var o = await OrtamKurAsync();
+        var s = await GirisAsync(o, Kim.OperatorA);
+        var imza = new DateTimeOffset(TestZaman.GunSonra(-3).UtcDateTime.Date, TimeSpan.Zero);
+        var govde = new
+        {
+            tedarikci = "Liste Bayi " + Guid.NewGuid().ToString("N")[..6], adet = 3, birimFiyat = 100m, versiyon = "1.4 Urban",
+            renk = "Beyaz", icRenk = "Siyah", kaynakTip = "Filo", satisTipi = "Sıfır", piyasaFiyat = 120m, opsFiyat = 110m,
+            filoFiyat = 95.5m, imzaTarih = imza, tsbKayitNo = "TSB-9",
+        };
+        await Json(await Gonder(s, HttpMethod.Post, Siparis, govde, Anahtar()), HttpStatusCode.Created);
+        var liste = await Json(await s.C.GetAsync($"{Siparis}?ara={Uri.EscapeDataString(govde.tedarikci)}"));
+        var r = Assert.Single(liste.GetProperty("kayitlar").EnumerateArray());
+        Assert.Equal(300m, r.GetProperty("toplam").GetDecimal()); // 3 × 100 — bilgi fiyatları toplama girmez
+        Assert.Equal("1.4 Urban", r.GetProperty("versiyon").GetString());
+        Assert.Equal("Beyaz", r.GetProperty("renk").GetString());
+        Assert.Equal("Siyah", r.GetProperty("icRenk").GetString());
+        Assert.Equal("Filo", r.GetProperty("kaynakTip").GetString());
+        Assert.Equal("Sıfır", r.GetProperty("satisTipi").GetString());
+        Assert.Equal(120m, r.GetProperty("piyasaFiyat").GetDecimal());
+        Assert.Equal(110m, r.GetProperty("opsFiyat").GetDecimal());
+        Assert.Equal(95.5m, r.GetProperty("filoFiyat").GetDecimal());
+        Assert.Equal(imza, r.GetProperty("imzaTarih").GetDateTimeOffset());
+        Assert.Equal("TSB-9", r.GetProperty("tsbKayitNo").GetString());
+        // Satır düğmeleri detayla aynı geçiş tablosundan: Bekliyor → onay/teslim/iptal açık, düzenleme açık.
+        var y = r.GetProperty("yetkiler");
+        Assert.True(y.GetProperty("duzenle").GetBoolean());
+        Assert.True(y.GetProperty("onayla").GetBoolean());
+        Assert.True(y.GetProperty("teslimAl").GetBoolean());
+        Assert.True(y.GetProperty("iptal").GetBoolean());
+
+        var id = r.GetProperty("id").GetGuid();
+        await Json(await Gonder(s, HttpMethod.Post, $"{Siparis}/{id}/iptal"));
+        var sonra = Assert.Single((await Json(await s.C.GetAsync($"{Siparis}?ara={Uri.EscapeDataString(govde.tedarikci)}")))
+            .GetProperty("kayitlar").EnumerateArray()).GetProperty("yetkiler");
+        Assert.False(sonra.GetProperty("duzenle").GetBoolean()); // iptal terminal: hiçbir düğme
+        Assert.False(sonra.GetProperty("onayla").GetBoolean());
+        Assert.False(sonra.GetProperty("teslimAl").GetBoolean());
+        Assert.False(sonra.GetProperty("iptal").GetBoolean());
     }
 
     [Fact]

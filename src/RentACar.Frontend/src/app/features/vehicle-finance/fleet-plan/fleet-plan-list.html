@@ -1,0 +1,156 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'aracFinans.plan.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">
+    {{ 'aracFinans.plan.aciklama' | transloco }}
+    <a routerLink="/arac-siparis">{{ 'aracFinans.siparis.baslik' | transloco }}</a>
+  </p>
+
+  @if (canWrite()) {
+    <section class="bolum duzenleyici" aria-labelledby="rc-plan-formu">
+      <h2 id="rc-plan-formu" tabindex="-1">
+        {{
+          (editing().kind === 'new'
+            ? 'aracFinans.plan.ekleBaslik'
+            : 'aracFinans.plan.duzenleBaslik'
+          ) | transloco
+        }}
+      </h2>
+      <form class="form" [formGroup]="form" (ngSubmit)="save()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'aracFinans.plan.grup' | transloco">
+            <rc-metin-girdisi
+              formControlName="aracGrupAdi"
+              [azamiUzunluk]="64"
+              liste="dl-plan-grup"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.plan.sipp' | transloco">
+            <rc-metin-girdisi formControlName="sipp" [azamiUzunluk]="16" yerTutucu="EDMR" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.plan.donem' | transloco">
+            <rc-metin-girdisi formControlName="donem" [azamiUzunluk]="32" yerTutucu="2026-Q1" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.plan.hedefAdet' | transloco">
+            <rc-sayi-girdisi formControlName="hedefAdet" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <p class="not">{{ 'aracFinans.plan.enAzBiri' | transloco }}</p>
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="
+              submission.gonderiliyor() || (editing().kind === 'record' && base() === null)
+            "
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ((editing().kind === 'new' ? 'aracFinans.ekle' : 'aracFinans.kaydet') | transloco)
+            }}
+          </button>
+          @if (editing().kind === 'record') {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              (click)="cancelEdit()"
+            >
+              {{ 'aracFinans.vazgec' | transloco }}
+            </button>
+          }
+        </div>
+      </form>
+      <datalist id="dl-plan-grup">
+        @for (g of groupSuggestions(); track g) {
+          <option [value]="g"></option>
+        }
+      </datalist>
+    </section>
+  }
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="filo-plan.liste"
+    [etiket]="'aracFinans.plan.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [boyutSecenekleri]="[200]"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span [class]="statusClass(satir)">{{ satir.durum }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (canWrite()) {
+        <span class="satir-eylem">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="'aracFinans.plan.artirEtiket' | transloco"
+            (click)="delta(satir, 'artir')"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="'aracFinans.plan.azaltEtiket' | transloco"
+            (click)="delta(satir, 'azalt')"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="edit(satir)"
+          >
+            {{ 'aracFinans.duzenle' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="remove(satir)"
+          >
+            {{ 'aracFinans.sil' | transloco }}
+          </button>
+        </span>
+      }
+    </ng-template>
+  </rc-tablo>
+
+  @if (totals(); as tp) {
+    <dl class="ozet-serit" [attr.aria-label]="'aracFinans.plan.toplamSatiri' | transloco">
+      <div>
+        <dt>{{ 'aracFinans.plan.toplamHedef' | transloco }}</dt>
+        <dd>{{ tp.hedef | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.plan.toplamGerceklesen' | transloco }}</dt>
+        <dd>{{ tp.gerceklesen | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.plan.toplamKayitli' | transloco }}</dt>
+        <dd>{{ tp.kayitli | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.plan.toplamFark' | transloco }}</dt>
+        <dd>{{ signed(tp.fark) }}</dd>
+      </div>
+    </dl>
+    <p class="not">{{ 'aracFinans.plan.toplamNotu' | transloco }}</p>
+  }
+</div>

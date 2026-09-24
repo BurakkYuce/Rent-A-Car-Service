@@ -1,0 +1,230 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>
+      @if (isNew) {
+        {{ 'aracFinans.siparis.yeni' | transloco }}
+      } @else if (base(); as d) {
+        {{ 'aracFinans.siparis.duzenleBaslik' | transloco: { no: d.no } }}
+        <span class="rc-rozet">{{ statusLabel(d.durum) }}</span>
+      } @else {
+        {{ 'aracFinans.siparis.kayit' | transloco }}
+      }
+    </h1>
+    <div class="ust__eylemler">
+      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/arac-siparis">
+        {{ 'aracFinans.siparis.listeyeDon' | transloco }}
+      </a>
+      @if (base(); as d) {
+        @if (d.yetkiler.onayla) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="transitioning()"
+            (click)="transition('onayla')"
+          >
+            {{ 'aracFinans.siparis.onayla' | transloco }}
+          </button>
+        }
+        @if (d.yetkiler.teslimAl) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="transitioning()"
+            (click)="transition('teslim-al')"
+          >
+            {{ 'aracFinans.siparis.teslimAl' | transloco }}
+          </button>
+        }
+        @if (d.yetkiler.iptal) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+            [disabled]="transitioning()"
+            (click)="transition('iptal')"
+          >
+            {{ 'aracFinans.siparis.iptal' | transloco }}
+          </button>
+        }
+      }
+    </div>
+  </header>
+  <p class="aciklama">{{ 'aracFinans.siparis.aciklama1' | transloco }}</p>
+  <p class="aciklama">{{ 'aracFinans.siparis.aciklama2' | transloco }}</p>
+
+  @if (store.order.tur() === 'hata' && !isNew) {
+    <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      {{ store.order.hata()?.detay }}
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.order.yenile()">
+        {{ 'aracFinans.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+
+  @if (base(); as d) {
+    <dl class="kunye">
+      <div>
+        <dt>{{ 'aracFinans.siparis.resmiToplam' | transloco }}</dt>
+        <dd>{{ num(d.toplam) | para: d.doviz }}</dd>
+      </div>
+    </dl>
+  }
+
+  <form class="form bolum" [formGroup]="form" (ngSubmit)="save()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'aracFinans.siparis.tedarikci' | transloco">
+        <rc-metin-girdisi
+          formControlName="tedarikci"
+          [azamiUzunluk]="200"
+          liste="dl-sp-tedarikci"
+        />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.tedarikciCari' | transloco"
+        [ipucu]="'aracFinans.siparis.cariIpucu' | transloco"
+      >
+        <rc-arama-secim formControlName="tedarikciCari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.dosyaNo' | transloco">
+        <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.siparisTarihi' | transloco">
+        <rc-tarih-secici formControlName="siparisTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.imzaTarihi' | transloco">
+        <rc-tarih-secici formControlName="imzaTarih" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.beklenenTeslim' | transloco">
+        <rc-tarih-secici formControlName="beklenenTeslim" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.satisTemsilci' | transloco">
+        <rc-metin-girdisi formControlName="satisTemsilci" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.ozelTemsilci' | transloco">
+        <rc-metin-girdisi formControlName="ozelTemsilci" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.marka' | transloco">
+        <rc-metin-girdisi formControlName="marka" [azamiUzunluk]="100" liste="dl-sp-marka" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.tip' | transloco">
+        <rc-metin-girdisi formControlName="tip" [azamiUzunluk]="100" liste="dl-sp-tip" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.grup' | transloco">
+        <rc-metin-girdisi formControlName="grup" [azamiUzunluk]="100" liste="dl-sp-grup" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.versiyon' | transloco">
+        <rc-metin-girdisi formControlName="versiyon" [azamiUzunluk]="100" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.renk' | transloco">
+        <rc-metin-girdisi formControlName="renk" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.icRenk' | transloco">
+        <rc-metin-girdisi formControlName="icRenk" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.kaynakTip' | transloco">
+        <rc-metin-girdisi formControlName="kaynakTip" [azamiUzunluk]="32" liste="dl-sp-kaynaktip" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.satisTipi' | transloco">
+        <rc-metin-girdisi formControlName="satisTipi" [azamiUzunluk]="32" liste="dl-sp-satistipi" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.opsiyon' | transloco">
+        <rc-metin-girdisi formControlName="opsiyon" [azamiUzunluk]="512" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.tsbKayitNo' | transloco">
+        <rc-metin-girdisi formControlName="tsbKayitNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.kredi' | transloco"
+        [ipucu]="'aracFinans.siparis.krediIpucu' | transloco"
+      >
+        <rc-secim
+          formControlName="krediId"
+          [secenekler]="loanOptions()"
+          [bosEtiket]="'aracFinans.siparis.krediYok' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.siparis.adet' | transloco">
+        <rc-sayi-girdisi formControlName="adet" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.birimFiyat' | transloco"
+        [ipucu]="'aracFinans.siparis.birimIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="birimFiyat" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.piyasaFiyat' | transloco"
+        [ipucu]="'aracFinans.siparis.bilgiIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="piyasaFiyat" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.opsFiyat' | transloco"
+        [ipucu]="'aracFinans.siparis.bilgiIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="opsFiyat" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'aracFinans.siparis.filoFiyat' | transloco"
+        [ipucu]="'aracFinans.siparis.bilgiIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="filoFiyat" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.doviz' | transloco">
+        <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.kur' | transloco" [ipucu]="'aracFinans.kurIpucu' | transloco">
+        <rc-sayi-girdisi formControlName="kur" [kesir]="6" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    @if (editable()) {
+      <div class="form__eylemler">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="submission.gonderiliyor() || (!isNew && base() === null)"
+        >
+          {{
+            submission.gonderiliyor()
+              ? ('form.gonderiliyor' | transloco)
+              : ((isNew ? 'aracFinans.kaydet' : 'aracFinans.guncelle') | transloco)
+          }}
+        </button>
+      </div>
+    }
+  </form>
+
+  <datalist id="dl-sp-tedarikci">
+    @for (s of supplierSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+  <datalist id="dl-sp-marka">
+    @for (s of brandSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+  <datalist id="dl-sp-tip">
+    @for (s of typeSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+  <datalist id="dl-sp-grup">
+    @for (s of groupSuggestions(); track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+  <datalist id="dl-sp-kaynaktip">
+    @for (s of sourceTypes; track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+  <datalist id="dl-sp-satistipi">
+    @for (s of saleTypes; track s) {
+      <option [value]="s"></option>
+    }
+  </datalist>
+</div>

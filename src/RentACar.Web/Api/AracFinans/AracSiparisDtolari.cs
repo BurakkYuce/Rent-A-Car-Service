@@ -56,10 +56,15 @@ public sealed record AracSiparisDto(
         s.PiyasaFiyat, s.OpsFiyat, s.FiloFiyat, s.Currency, s.Kur, s.Aciklama, y);
 }
 
+/// <summary>Liste satırı. F6.2b: Blazor tablosunun sütunları için bilgi alanları EKLENDİ (versiyon, renk, kaynak/satış
+/// tipi, piyasa/ops/filo fiyatı [bilgi — toplama girmez], imza tarihi, TSB no) ve satır düğmeleri için detayla AYNI
+/// <c>yetkiler</c> (durum geçiş tablosu + OperationsWrite).</summary>
 public sealed record AracSiparisSatiri(
     Guid Id, string No, string Durum, string Tedarikci, string? TedarikciCariAd, DateTimeOffset SiparisTarihi,
     DateTimeOffset? BeklenenTeslim, string? DosyaNo, string? Marka, string? Tip, string? Grup, int Adet,
-    decimal BirimFiyat, decimal Toplam, string Doviz, Guid? KrediId);
+    decimal BirimFiyat, decimal Toplam, string Doviz, Guid? KrediId, string? Versiyon, string? Renk, string? IcRenk,
+    string? KaynakTip, string? SatisTipi, decimal? PiyasaFiyat, decimal? OpsFiyat, decimal? FiloFiyat,
+    DateTimeOffset? ImzaTarih, string? TsbKayitNo, AracSiparisYetkileri Yetkiler);
 
 internal static class AracSiparisEsleme
 {
