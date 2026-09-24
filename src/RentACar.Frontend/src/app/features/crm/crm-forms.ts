@@ -212,6 +212,9 @@ export interface AssistanceFormValue {
   readonly kapandi: boolean;
   readonly mesaj: string | null;
   readonly cozum: string | null;
+  /** #295 L1: KVKK ile gizlenen ad/telefonu bilinçli temizle → `""` (boş = `null` = dokunma). */
+  readonly clearName: boolean;
+  readonly clearPhone: boolean;
 }
 
 export function emptyAssistance(): AssistanceFormValue {
@@ -227,6 +230,8 @@ export function emptyAssistance(): AssistanceFormValue {
     kapandi: false,
     mesaj: null,
     cozum: null,
+    clearName: false,
+    clearPhone: false,
   };
 }
 
@@ -243,7 +248,18 @@ export function assistanceToForm(a: Assistance): AssistanceFormValue {
     kapandi: a.kapandi,
     mesaj: a.mesaj,
     cozum: a.cozum,
+    clearName: false,
+    clearPhone: false,
   };
+}
+
+/** Kayıttaki ad/telefon KVKK ile gizli olabilir mi (bağlı kira var ve yanıt değeri boş). */
+export function assistanceHiddenContact(a: Assistance | null): {
+  readonly name: boolean;
+  readonly phone: boolean;
+} {
+  const linked = a !== null && a.rentalId !== null;
+  return { name: linked && a.adSoyad === null, phone: linked && a.cepTel === null };
 }
 
 export function assistanceRequest(
@@ -253,8 +269,9 @@ export function assistanceRequest(
   return {
     rentalId: v.kira?.id ?? null,
     plaka: text(v.plaka),
-    adSoyad: text(v.adSoyad),
-    cepTel: text(v.cepTel),
+    // Sunucu sözleşmesi (#295 L1): null = dokunma (gizliyse korunur, boşsa sözleşmeden doldurulur), "" = temizle.
+    adSoyad: v.clearName ? '' : text(v.adSoyad),
+    cepTel: v.clearPhone ? '' : text(v.cepTel),
     zaman: v.zaman,
     mesaj: text(v.mesaj),
     sebep: text(v.sebep),

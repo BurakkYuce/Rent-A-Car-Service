@@ -51,6 +51,7 @@ public static partial class CustomerApi
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         CustomerInputMapper.Limit(request);
         RequireReadableSecrets(stored, request);
+        CustomerInputMapper.RequireTaxNumberOnTypeChange(stored, request);
         var input = CustomerInputMapper.ToInput(request, stored);
         if (!await DuplicateFieldAsync(() => customers.UpdateAsync(id, input, request.Surum, ct))) return NotFound();
         return await CardAsync(id, customers, ct) is { } card ? TypedResults.Ok(card) : NotFound();

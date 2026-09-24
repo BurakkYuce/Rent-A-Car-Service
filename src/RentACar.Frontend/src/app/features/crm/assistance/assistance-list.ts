@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  untracked,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -28,7 +35,12 @@ import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
 import { assistanceColumns } from '../crm-columns';
-import { assistanceRequest, assistanceToForm, emptyAssistance } from '../crm-forms';
+import {
+  assistanceHiddenContact,
+  assistanceRequest,
+  assistanceToForm,
+  emptyAssistance,
+} from '../crm-forms';
 import {
   ASSISTANCE,
   ASSISTANCE_LIST,
@@ -136,8 +148,14 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
     kapandi: new FormControl<boolean>(false, { nonNullable: true }),
     mesaj: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(2048)]),
     cozum: new FormControl<string | null>(null, Validators.maxLength(1024)),
+    clearName: new FormControl<boolean>(false, { nonNullable: true }),
+    clearPhone: new FormControl<boolean>(false, { nonNullable: true }),
   });
   protected readonly submission = formGonderimi();
+  /** Düzenlenen kayıtta KVKK ile gizlenen ad/telefon ("Temizle" kutusu yalnız bunlarda). */
+  protected readonly hiddenContact = computed(() =>
+    assistanceHiddenContact(this.editor.base()?.talep ?? null),
+  );
 
   protected readonly editor = new RecordEditor<Assistance, AssistanceCard>({
     path: ASSISTANCE,

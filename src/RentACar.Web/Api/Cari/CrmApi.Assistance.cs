@@ -129,6 +129,9 @@ public static partial class CrmApi
             RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Ortak.Utc(r.Zaman),
             Mesaj = r.Mesaj, Sebep = r.Sebep, YedekLastikMi = r.YedekLastikMi, AracHareketMi = r.AracHareketMi,
             Kapandi = r.Kapandi, Cozum = r.Cozum,
+            // #295 L1: null = dokunma (boşsa sözleşmeden doldurulur), "" = temizle (yeniden doldurulmaz).
+            ClearContactName = r.AdSoyad is not null && string.IsNullOrWhiteSpace(r.AdSoyad),
+            ClearContactPhone = r.CepTel is not null && string.IsNullOrWhiteSpace(r.CepTel),
         };
     }
 
@@ -160,16 +163,17 @@ public static partial class CrmApi
     /// <summary>
     /// KVKK: anonim müşteriye bağlı talepte ad/telefon yanıtta <c>null</c> döner; tam PUT bu <c>null</c>'ı geri
     /// gönderince kayıtlı değer silinmemeli ya da servis onu anonim müşterinin kartından yeniden doldurmamalı.
-    /// Kira değişmediyse ve alan gizliyse boş gelen değer "dokunma" demektir (TC/ehliyet ile aynı yazma-yalnız kural).
+    /// Alan gizliyse <c>null</c> "dokunma" demektir, kira DEĞİŞSE de saklı değer korunur (#295 L2); <c>""</c> "temizle"
+    /// (TC/ehliyet ile aynı yazma-yalnız sözleşme — <see cref="AssistansInput.ClearContactName"/>).
     /// </summary>
     private static async Task KeepHiddenContactAsync(
         IDbContextFactory<AppDbContext> dbf, AssistansTalep current, AssistansInput input, CancellationToken ct)
     {
-        if (current.RentalId is null || input.RentalId != current.RentalId) return;
+        if (current.RentalId is null) return;
         var shown = (await AssistanceRowsAsync(dbf, [current], ct))[0];
-        if (shown.AdSoyad is null && current.AdSoyad is not null && string.IsNullOrWhiteSpace(input.AdSoyad))
+        if (shown.AdSoyad is null && current.AdSoyad is not null && input.AdSoyad is null && !input.ClearContactName)
             input.AdSoyad = current.AdSoyad;
-        if (shown.CepTel is null && current.CepTel is not null && string.IsNullOrWhiteSpace(input.CepTel))
+        if (shown.CepTel is null && current.CepTel is not null && input.CepTel is null && !input.ClearContactPhone)
             input.CepTel = current.CepTel;
     }
 

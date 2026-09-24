@@ -89,12 +89,15 @@
                 <div class="yigin">
                   <rc-alan
                     [etiket]="label('vergiNo')"
+                    [zorunlu]="taxRequired()"
                     [ipucu]="
-                      taxSecret()
-                        ? base()?.vergiNoMaske
-                          ? ('cari.gizli.maskeli' | transloco: { maske: base()?.vergiNoMaske })
-                          : ('cari.gizli.vergiBireysel' | transloco)
-                        : ''
+                      taxRequired()
+                        ? ('cari.gizli.vergiTurDegisti' | transloco)
+                        : taxSecret()
+                          ? base()?.vergiNoMaske
+                            ? ('cari.gizli.maskeli' | transloco: { maske: base()?.vergiNoMaske })
+                            : ('cari.gizli.vergiBireysel' | transloco)
+                          : ''
                     "
                   >
                     <rc-metin-girdisi formControlName="vergiNo" [azamiUzunluk]="10" />

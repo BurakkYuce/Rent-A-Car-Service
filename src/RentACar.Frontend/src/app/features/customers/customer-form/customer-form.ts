@@ -8,7 +8,8 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { FormArray, ReactiveFormsModule, type FormControl } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormArray, ReactiveFormsModule, Validators, type FormControl } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -66,7 +67,10 @@ import {
   formToRequest,
   liftedPrivacyFlags,
   newCustomerValue,
+  TAX_NUMBER_FIELD,
+  TYPE_FIELD,
   taxNumberIsSecret,
+  taxNumberRequiredOnTypeChange,
 } from './customer-form-model';
 
 /**
@@ -132,6 +136,8 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
   protected readonly canLiftPrivacy = computed(() => this.session.izinVar('ManageUsers'));
   protected readonly taxSecret = computed(() => taxNumberIsSecret(this.base()));
+  /** Tür değişikliğinde gizli vergi no yeniden girilmeli (#295 H1). */
+  protected readonly taxRequired = signal(false);
   protected readonly typeOptions: readonly SecenekOgesi<string>[] = CUSTOMER_TYPES.map((x) => ({
     deger: x,
     etiket: this.t(`cari.tipler.${x}`),
@@ -184,6 +190,10 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (!this.canWrite()) untracked(() => this.form.disable({ emitEvent: false }));
     });
+    for (const name of [TYPE_FIELD, clearFlag('vergiNo')])
+      (this.form.controls[name] as FormControl<unknown> | undefined)?.valueChanges
+        .pipe(takeUntilDestroyed())
+        .subscribe(() => this.updateTaxRequirement());
     sayfaTerkKorumasi(() => this.form.dirty);
   }
 
@@ -286,6 +296,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
     this.form.reset({ ...cardToForm(card) });
     this.resetContacts(card);
     this.applyLocks(card);
+    this.updateTaxRequirement();
   }
 
   private resetContacts(card: CustomerCard | null): void {
@@ -346,5 +357,21 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
     }
     this.base.set(card);
     this.applyLocks(card);
+    this.updateTaxRequirement();
+  }
+
+  /** #295 H1: gizli bireysel vergi no + tür değişikliği → vergi no zorunlu (ya da "Temizle"). */
+  private updateTaxRequirement(): void {
+    const required = taxNumberRequiredOnTypeChange(
+      this.base(),
+      this.form.controls[TYPE_FIELD]?.value,
+      this.form.controls[clearFlag('vergiNo')]?.value,
+    );
+    this.taxRequired.set(required);
+    const c = this.form.controls[TAX_NUMBER_FIELD];
+    if (!c || c.hasValidator(Validators.required) === required) return;
+    if (required) c.addValidators(Validators.required);
+    else c.removeValidators(Validators.required);
+    c.updateValueAndValidity({ emitEvent: false });
   }
 }

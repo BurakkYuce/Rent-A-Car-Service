@@ -108,6 +108,7 @@
       "bos": "Kayıtlı değil.",
       "temizle": "Kayıtlı değeri temizle",
       "vergiBireysel": "Bireysel caride vergi no gizlidir. Boş bırakılırsa korunur.",
+      "vergiTurDegisti": "Tür değişikliğinde vergi no yeniden girilmeli (ya da kayıtlı değeri temizleyin).",
       "sifreVar": "Tanımlı. Boş bırakılırsa değişmez.",
       "sifreYok": "Tanımlı değil.",
       "tcDetay": "Şifreli — cari kartında"

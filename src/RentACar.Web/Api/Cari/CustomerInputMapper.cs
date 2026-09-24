@@ -82,6 +82,33 @@ internal static class CustomerInputMapper
     /// korunur: TC/ehliyet/pasaport <c>null</c> → mevcut değer; <c>Anonim*</c> bayrağı KAYITLI grubun alanı <c>null</c>
     /// → mevcut değer (kart o alanı göstermediği için PUT'un onu sessizce silmesi engellenir).
     /// </summary>
+    /// <summary>
+    /// #295 H1: vergi no yanıtta DÜZ gösterilmez — bireysel caride (şahıs vergi no = TC olabilir) ya da tipten bağımsız
+    /// 11 haneli tamamı rakam değerde (eski kayıtta VergiNo alanına yazılmış TC). Böyle bir değer yalnız maskeli döner.
+    /// </summary>
+    public static bool TaxNumberHidden(CariType type, string? taxNumber)
+        => type == CariType.Bireysel || LooksLikeTc(taxNumber);
+
+    public static bool TaxNumberHidden(Customer c) => TaxNumberHidden(c.Tip, c.VergiNo);
+
+    public static bool LooksLikeTc(string? value)
+    {
+        var v = value?.Trim();
+        return v is { Length: 11 } && v.All(char.IsAsciiDigit);
+    }
+
+    /// <summary>
+    /// #295 H1: Bireysel → Kurumsal/Servis geçişinde saklı vergi no gizliydi (kart göstermedi). İstek yeni değer ya da
+    /// "" (temizle) getirmezse "koru" kararı gizli değeri yeni tipte düz gösterime taşırdı → 400 <c>errors[vergiNo]</c>.
+    /// </summary>
+    public static void RequireTaxNumberOnTypeChange(Customer stored, CustomerRequest r)
+    {
+        var newType = F5Ortak.EnumAdi<CariType>(r.Tip, "tip") ?? CariType.Bireysel;
+        if (stored.Tip == CariType.Bireysel && newType != CariType.Bireysel && !string.IsNullOrEmpty(stored.VergiNo)
+            && r.VergiNo is null)
+            throw new ValidationException("Tür değişikliğinde vergi no yeniden girilmeli.", "vergiNo");
+    }
+
     public static CustomerInput ToInput(CustomerRequest r, Customer? stored)
     {
         string? Keep(string? value, bool hidden, string? old) => value is null && hidden ? old : value;
@@ -99,7 +126,7 @@ internal static class CustomerInputMapper
             PasaportNo = r.PasaportNo ?? s?.PasaportNo,
             VergiDairesi = r.VergiDairesi,
             // #283 M3: an individual's tax number is returned masked only → null keeps the stored value, "" clears.
-            VergiNo = Keep(r.VergiNo, s?.Tip == CariType.Bireysel, s?.VergiNo),
+            VergiNo = Keep(r.VergiNo, s is not null && TaxNumberHidden(s), s?.VergiNo),
             CepTel = Keep(r.CepTel, phone, s?.CepTel), Gsm2 = Keep(r.Gsm2, phone, s?.Gsm2), Email = Keep(r.Email, mail, s?.Email),
             Il = Keep(r.Il, address, s?.Il), Ilce = Keep(r.Ilce, address, s?.Ilce), Adres = Keep(r.Adres, address, s?.Adres),
             Kaynak = r.Kaynak, MusteriTemsilcisi = r.MusteriTemsilcisi, IysIzinli = r.IysIzinli, Uyari = r.Uyari,
@@ -162,8 +189,8 @@ internal static class CustomerInputMapper
             Ad = name ? null : c.Ad, Soyad = name ? null : c.Soyad, Unvan = name ? null : c.Unvan,
             VergiDairesi = c.VergiDairesi,
             // #283 M3: an individual's tax number may be the TC → only masked.
-            VergiNo = c.Tip == CariType.Bireysel ? null : c.VergiNo,
-            VergiNoMaske = c.Tip == CariType.Bireysel ? MusteriGorunumu.Maske(c.VergiNo) : null,
+            VergiNo = TaxNumberHidden(c) ? null : c.VergiNo,
+            VergiNoMaske = TaxNumberHidden(c) ? MusteriGorunumu.Maske(c.VergiNo) : null,
             CepTel = phone ? null : c.CepTel, Gsm2 = phone ? null : c.Gsm2, Email = mail ? null : c.Email,
             Il = address ? null : c.Il, Ilce = address ? null : c.Ilce, Adres = address ? null : c.Adres,
             Kaynak = c.Kaynak, MusteriTemsilcisi = c.MusteriTemsilcisi, IysIzinli = c.IysIzinli, Uyari = c.Uyari,

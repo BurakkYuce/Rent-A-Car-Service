@@ -22,7 +22,7 @@ import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
-import { balanceSide, type CustomerProfile } from '../customer-model';
+import { balanceSide, canSeeStatement, type CustomerProfile } from '../customer-model';
 import { CustomerDetailStore } from '../customer.store';
 
 /** Kayıttaki eski döviz adları (`TL`, `EURO`) → ISO kodu; tanınmayan TRY gösterilir. */
@@ -69,11 +69,21 @@ export class CustomerDetail {
   protected readonly currency = currencyCode;
   protected readonly canCreateRental = computed(() => this.session.izinVar('OperationsWrite'));
 
-  protected readonly tabs: readonly SekmeTanimi[] = [
+  /**
+   * #295 M1: ekstre (bakiye + tüm şubelerin hareketleri) yalnız detay ucunun bakiyeyi açtığı izinlerle —
+   * FinanceWrite ∨ ViewReports. Operatöre sekme de istek de yok (uç kararı ayrı kuyrukta).
+   */
+  protected readonly canSeeStatement = computed(() =>
+    canSeeStatement((p) => this.session.izinVar(p)),
+  );
+
+  protected readonly tabs = computed<readonly SekmeTanimi[]>(() => [
     { kimlik: 'ozet', etiket: this.t('cari.detayBolum.ozet') },
     { kimlik: 'kiralar', etiket: this.t('cari.detayBolum.kiralar') },
-    { kimlik: 'ekstre', etiket: this.t('cari.detayBolum.ekstre') },
-  ];
+    ...(this.canSeeStatement()
+      ? [{ kimlik: 'ekstre', etiket: this.t('cari.detayBolum.ekstre') }]
+      : []),
+  ]);
 
   protected readonly name = computed(() => {
     const d = this.store.detail.veri();
@@ -101,7 +111,7 @@ export class CustomerDetail {
       parametre: signal(this.id).asReadonly(),
       yukle: (x) => {
         this.store.detail.yukle(x);
-        this.store.statement.yukle({ id: x, ...this.statementRange() });
+        if (this.canSeeStatement()) this.store.statement.yukle({ id: x, ...this.statementRange() });
       },
       sifirla: () => {
         this.store.detail.sifirla();
@@ -121,6 +131,7 @@ export class CustomerDetail {
   }
 
   protected showStatement(): void {
+    if (!this.canSeeStatement()) return;
     const v = this.statementForm.getRawValue();
     this.statementRange.set({ bas: v.bas, bit: v.bit });
     this.store.statement.yukle({ id: this.id, bas: v.bas, bit: v.bit });

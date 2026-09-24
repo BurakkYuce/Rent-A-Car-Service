@@ -55,6 +55,10 @@ public sealed class AssistansInput
     public bool AracHareketMi { get; set; }
     public bool Kapandi { get; set; }
     public string? Cozum { get; set; }
+    /// <summary>#295 L1: ad soyad bilinçli temizlendi → boş kalır, sözleşmeden yeniden DOLDURULMAZ.</summary>
+    public bool ClearContactName { get; set; }
+    /// <summary>#295 L1: telefon bilinçli temizlendi → boş kalır, sözleşmeden yeniden DOLDURULMAZ.</summary>
+    public bool ClearContactPhone { get; set; }
 }
 
 /// <summary>
@@ -155,11 +159,15 @@ public sealed class AssistansTalepService(
 
             // KULLANICI DEĞERİ ÖNCELİKLİ — yalnız BOŞ alanlar sözleşmeden doldurulur.
             plaka ??= (await _vehicles.FindAsync(kira.VehicleId, ct))?.Plaka;
-            if (ad is null || tel is null)
+            // #295 L2: KVKK ile anonimleştirilmiş müşterinin adı/telefonu snapshot'a KOPYALANMAZ (ekranda gizli olacak bir
+            // değeri çoğaltmak anonimleştirmeyi delerdi); bilinçli temizlenen alan da yeniden doldurulmaz.
+            var fillName = ad is null && !input.ClearContactName;
+            var fillPhone = tel is null && !input.ClearContactPhone;
+            if (fillName || fillPhone)
             {
                 var m = await _customers.FindAsync(kira.MusteriId, ct);
-                ad ??= m?.DisplayName;
-                tel ??= m?.CepTel;
+                if (fillName && m is { AnonimAd: false }) ad = m.DisplayName;
+                if (fillPhone && m is { AnonimTelefon: false }) tel = m.CepTel;
             }
         }
         else row.RentalId = null;

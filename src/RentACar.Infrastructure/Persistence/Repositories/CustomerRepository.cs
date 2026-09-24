@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
@@ -117,7 +118,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 || (!c.AnonimAd && c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
                 || (c.AnonimAd && EF.Functions.ILike(label, term))
                 || (tcHash != null && c.TcKimlikHash == tcHash)
-                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
+                // #295 H1: an 11-digit tax number (legacy TC written into VergiNo) is shown masked → not ILIKE-probeable.
+                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)
+                    && !Regex.IsMatch(c.VergiNo, "^[0-9]{11}$")));
         }
         if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
         if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);

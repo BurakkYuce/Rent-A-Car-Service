@@ -36,8 +36,10 @@ import { customerColumns } from '../customer-columns';
 import {
   CUSTOMER_LIST,
   CUSTOMER_TYPES,
+  canSeeStatement,
   customerPath,
   rowBadges,
+  splitSearch,
   type CustomerRow,
   type CustomerType,
 } from '../customer-model';
@@ -89,6 +91,21 @@ export class CustomerList {
   protected readonly canCreate = computed(() => this.session.izinVar('OperationsWrite'));
   protected readonly canDelete = computed(() => this.session.izinVar('OperationsDelete'));
   protected readonly busy = signal<string | null>(null);
+  protected readonly canSeeStatement = computed(() =>
+    canSeeStatement((p) => this.session.izinVar(p)),
+  );
+
+  /**
+   * #295 M2: TC benzeri (11 hane rakam) arama URL'ye/geçmişe/sekme deposuna YAZILMAZ; yalnız bellekte tutulur ve
+   * API isteğine buradan eklenir.
+   */
+  private readonly memorySearch = signal<string | null>(null);
+  protected readonly hasMemorySearch = computed(() => this.memorySearch() !== null);
+  protected readonly parameters = computed(() => {
+    const p = this.query.apiParametreleri();
+    const q = this.memorySearch();
+    return q === null ? p : { ...p, q };
+  });
 
   protected readonly typeOptions: readonly SecenekOgesi<CustomerType>[] = CUSTOMER_TYPES.map(
     (x) => ({ deger: x, etiket: this.t(`cari.tipler.${x}`) }),
@@ -128,7 +145,7 @@ export class CustomerList {
   constructor() {
     const policy = inject(FetchPolicy);
     policy.baglan({
-      parametre: this.query.apiParametreleri,
+      parametre: this.parameters,
       yukle: (p) => this.store.list.yukle(p),
       sifirla: () => this.store.list.sifirla(),
       sekmeyeDonunce: 'yenile',
@@ -137,7 +154,7 @@ export class CustomerList {
       const f = this.query.sorgu().filtreler;
       untracked(() =>
         this.filterForm.reset({
-          q: f.q ?? null,
+          q: f.q ?? this.memorySearch(),
           tip: f.tip ?? null,
           iysIzinli: tri(f.iysIzinli),
           uyari: f.uyari ? 'true' : null,
@@ -151,10 +168,12 @@ export class CustomerList {
 
   protected filter(): void {
     const v = this.filterForm.getRawValue();
+    const search = splitSearch(v.q);
+    this.memorySearch.set(search.memory);
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        q: v.q?.trim() || undefined,
+        q: search.url,
         tip: v.tip ?? undefined,
         iysIzinli: fromTri(v.iysIzinli),
         uyari: fromTri(v.uyari),
@@ -166,6 +185,8 @@ export class CustomerList {
   }
 
   protected clear(): void {
+    this.memorySearch.set(null);
+    this.filterForm.controls.q.reset(null);
     void this.query.sifirla();
   }
 

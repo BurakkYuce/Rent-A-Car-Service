@@ -127,12 +127,32 @@
         >
           <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
         </rc-alan>
-        <rc-alan [etiket]="'crm.assistans.adSoyad' | transloco">
-          <rc-metin-girdisi formControlName="adSoyad" [azamiUzunluk]="256" />
-        </rc-alan>
-        <rc-alan [etiket]="'crm.assistans.cepTel' | transloco">
-          <rc-metin-girdisi formControlName="cepTel" tur="tel" [azamiUzunluk]="32" />
-        </rc-alan>
+        <div class="yigin">
+          <rc-alan
+            [etiket]="'crm.assistans.adSoyad' | transloco"
+            [ipucu]="hiddenContact().name ? ('crm.assistans.gizliIpucu' | transloco) : ''"
+          >
+            <rc-metin-girdisi formControlName="adSoyad" [azamiUzunluk]="256" />
+          </rc-alan>
+          @if (hiddenContact().name) {
+            <rc-onay-kutusu formControlName="clearName">{{
+              'crm.assistans.adTemizle' | transloco
+            }}</rc-onay-kutusu>
+          }
+        </div>
+        <div class="yigin">
+          <rc-alan
+            [etiket]="'crm.assistans.cepTel' | transloco"
+            [ipucu]="hiddenContact().phone ? ('crm.assistans.gizliIpucu' | transloco) : ''"
+          >
+            <rc-metin-girdisi formControlName="cepTel" tur="tel" [azamiUzunluk]="32" />
+          </rc-alan>
+          @if (hiddenContact().phone) {
+            <rc-onay-kutusu formControlName="clearPhone">{{
+              'crm.assistans.telTemizle' | transloco
+            }}</rc-onay-kutusu>
+          }
+        </div>
         <rc-alan [etiket]="'crm.assistans.zaman' | transloco">
           <rc-tarih-saat-secici formControlName="zaman" />
         </rc-alan>

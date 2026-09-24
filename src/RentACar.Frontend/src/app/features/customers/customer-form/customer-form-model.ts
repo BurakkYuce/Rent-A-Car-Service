@@ -154,7 +154,28 @@ export function contactsOf(card: CustomerCard | null): readonly CustomerContact[
 
 /** Kayıtlı bireysel caride vergi no yalnız maskeli döner → gizli alan kuralı (boş = koru, temizle = ""). */
 export function taxNumberIsSecret(base: CustomerCard | null): boolean {
-  return (base?.tip ?? null) === ('Bireysel' satisfies CustomerType);
+  if (base === null) return false;
+  // Kurumsal kayıtta 11 haneli (eski TC) vergi no da yalnız maskeli döner (#295 H1).
+  return base.tip === ('Bireysel' satisfies CustomerType) || (base.vergiNoMaske ?? null) !== null;
+}
+
+/**
+ * #295 H1: kayıtlı bireysel carinin gizli vergi no'su varken tür Kurumsal/Servis'e çevrilirse vergi no YENİDEN girilmeli
+ * (ya da "Temizle" işaretlenmeli). Aksi hâlde sunucu 400 `errors[vergiNo]` döner — form bunu önceden zorunlu yapar.
+ */
+export function taxNumberRequiredOnTypeChange(
+  base: CustomerCard | null,
+  type: unknown,
+  clear: unknown,
+): boolean {
+  return (
+    base !== null &&
+    base.tip === ('Bireysel' satisfies CustomerType) &&
+    (base.vergiNoMaske ?? null) !== null &&
+    typeof type === 'string' &&
+    type !== 'Bireysel' &&
+    clear !== true
+  );
 }
 
 /** Gizli alan gövdesi: yazılan değer > temizle (`""`) > değiştirme (`null`). */

@@ -1,5 +1,32 @@
 import type { Sema } from '@core/api/ui-tipleri';
+import type { Izin } from '@core/oturum/oturum-tipleri';
 import { listeTanimi } from '@core/veri/liste-sorgusu';
+
+/**
+ * #295 M1: cari ekstre (bakiye + firma geneli hareketler) yalnız detay ucunun bakiyeyi açtığı izinlerle görünür —
+ * FinanceWrite ∨ ViewReports. Detay sekmesi ve listedeki bağlantı bu kuraldan geçer.
+ */
+export function canSeeStatement(has: (p: Izin) => boolean): boolean {
+  return has('FinanceWrite') || has('ViewReports');
+}
+
+/** 11 haneli, tamamı rakam arama metni (TC olabilir) — KVKK: adres çubuğuna/geçmişe YAZILMAZ (#295 M2). */
+export function looksLikeTc(value: string | null | undefined): boolean {
+  return /^\d{11}$/.test(value?.trim() ?? '');
+}
+
+/**
+ * Arama metnini URL'ye yazılacak ve yalnız bellekte tutulacak parçaya ayırır: TC benzeri değer URL'ye gitmez
+ * (sorgu parametresi olarak yalnız API isteğinde, bellekten taşınır).
+ */
+export function splitSearch(q: string | null | undefined): {
+  readonly url: string | undefined;
+  readonly memory: string | null;
+} {
+  const v = q?.trim() ?? '';
+  if (v === '') return { url: undefined, memory: null };
+  return looksLikeTc(v) ? { url: undefined, memory: v } : { url: v, memory: null };
+}
 
 // ---- Cari (`/api/ui/v1/cariler`)
 export type CustomerRow = Sema<'CustomerListRow'>;

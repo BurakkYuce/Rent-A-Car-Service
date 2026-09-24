@@ -295,6 +295,73 @@ test('detay: finans yetkisi yoksa bakiye/hareket yerine not; ekstre sekmesi sunu
   await expect(page.getByRole('cell', { name: '2.750,00 ₺' }).first()).toBeVisible();
 });
 
+test('#295 M1: operatör (FinanceWrite/ViewReports yok) ekstre bağlantısı ve sekmesi görmez, ekstre istemez', async ({
+  page,
+}) => {
+  await oturumAc(page, { ...BEN, rol: 'Operator', izinler: ['OperationsWrite'] });
+  await customerCrmEndpoints(page, { finance: false });
+  const statementCalls: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/ekstre')) statementCalls.push(r.url());
+  });
+  await page.goto(LIST.yol);
+  await hazirBekle(page, LIST);
+  await expect(page.getByRole('link', { name: 'Detay' }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ekstre' })).toHaveCount(0);
+  await page.goto(`${DETAIL.yol}#sekme=ekstre`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ayşe Yılmaz');
+  await expect(page.getByRole('tab', { name: 'Özet' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Ekstre' })).toHaveCount(0);
+  expect(statementCalls).toEqual([]);
+});
+
+test('#295 M2: 11 haneli TC araması adres çubuğuna yazılmaz, istek yine gider', async ({
+  page,
+}) => {
+  await customerCrmEndpoints(page);
+  const searches: string[] = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url());
+    if (u.pathname === '/api/ui/v1/cariler') searches.push(u.searchParams.get('q') ?? '');
+  });
+  await page.goto(LIST.yol);
+  await hazirBekle(page, LIST);
+  const box = page.getByRole('searchbox', { name: 'Ara' });
+  await box.fill('10000000146');
+  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await expect.poll(() => searches.includes('10000000146')).toBe(true);
+  expect(page.url()).not.toContain('10000000146');
+  await expect(box).toHaveValue('10000000146');
+  await box.fill('Ayşe');
+  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(page).toHaveURL(/q=Ay%C5%9Fe/);
+});
+
+test('#295 H1: tür değişince gizli vergi no zorunlu — istek gitmez; temizle ile gider', async ({
+  page,
+}) => {
+  const written = await customerCrmEndpoints(page, {
+    card: () => card({ vergiNoMaske: '******6780' }),
+  });
+  await openCard(page);
+  await page.getByRole('combobox', { name: 'Tür' }).selectOption('Kurumsal');
+  await expect(
+    page.getByText(
+      'Tür değişikliğinde vergi no yeniden girilmeli (ya da kayıtlı değeri temizleyin).',
+    ),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Kaydet' }).click();
+  await expect(page.getByRole('textbox', { name: /Vergi No/ })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(written).toHaveLength(0);
+  await page.getByRole('checkbox', { name: 'Kayıtlı değeri temizle' }).first().check();
+  await page.getByRole('button', { name: 'Kaydet' }).click();
+  await expect(page.getByText('Ayşe Yılmaz carisi kaydedildi.')).toBeVisible();
+  expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({ tip: 'Kurumsal', vergiNo: '' });
+});
+
 for (const s of CUSTOMER_PAGES) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

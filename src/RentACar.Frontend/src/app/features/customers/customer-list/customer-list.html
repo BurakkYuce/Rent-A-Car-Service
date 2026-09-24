@@ -73,7 +73,7 @@
         <rc-ikon ad="filter" [boyut]="14" />
         {{ 'cari.filtrele' | transloco }}
       </button>
-      @if (query.etkinFiltreSayisi() > 0) {
+      @if (query.etkinFiltreSayisi() > 0 || hasMemorySearch()) {
         <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
           {{ 'cari.temizle' | transloco }}
         </button>
@@ -120,9 +120,11 @@
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="satir-eylem">
         <a [routerLink]="['/cariler', satir.id, 'detay']">{{ 'cari.detay' | transloco }}</a>
-        <a [routerLink]="['/cariler', satir.id, 'detay']" fragment="sekme=ekstre">{{
-          'cari.ekstre' | transloco
-        }}</a>
+        @if (canSeeStatement()) {
+          <a [routerLink]="['/cariler', satir.id, 'detay']" fragment="sekme=ekstre">{{
+            'cari.ekstre' | transloco
+          }}</a>
+        }
         @if (canDelete()) {
           <button
             type="button"
