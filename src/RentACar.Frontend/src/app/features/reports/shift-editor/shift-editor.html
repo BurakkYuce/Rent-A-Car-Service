@@ -1,0 +1,128 @@
+<section class="bolum" aria-labelledby="rc-vardiya-formu">
+  <h2 id="rc-vardiya-formu" tabindex="-1">
+    {{
+      (editing().kind === 'new' ? 'rapor.vardiya.ekleBaslik' : 'rapor.vardiya.duzenleBaslik')
+        | transloco
+    }}
+  </h2>
+  <form class="form" [formGroup]="form" (ngSubmit)="save()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'rapor.vardiya.personel' | transloco">
+        <rc-arama-secim formControlName="personel" [kaynak]="staff" />
+      </rc-alan>
+      <rc-alan [etiket]="'rapor.vardiya.tarih' | transloco">
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'rapor.vardiya.baslangic' | transloco"
+        [ipucu]="'rapor.vardiya.saatIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="baslangicSaat" [azamiUzunluk]="5" yerTutucu="08:00" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'rapor.vardiya.bitis' | transloco"
+        [ipucu]="'rapor.vardiya.geceIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="bitisSaat" [azamiUzunluk]="5" yerTutucu="18:00" />
+      </rc-alan>
+      <rc-alan [etiket]="'rapor.vardiya.sube' | transloco">
+        <rc-secim
+          formControlName="sube"
+          [secenekler]="branchOptions()"
+          [bosEtiket]="'rapor.vardiya.subeYok' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'rapor.vardiya.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <p class="not">{{ 'rapor.vardiya.kural' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="submission.gonderiliyor() || (editing().kind === 'record' && base() === null)"
+      >
+        {{
+          submission.gonderiliyor()
+            ? ('form.gonderiliyor' | transloco)
+            : ((editing().kind === 'new' ? 'rapor.vardiya.ekle' : 'rapor.vardiya.kaydet')
+              | transloco)
+        }}
+      </button>
+      @if (editing().kind === 'record') {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="cancelEdit()"
+        >
+          {{ 'rapor.vardiya.vazgec' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+</section>
+
+<section class="bolum" aria-labelledby="rc-vardiya-listesi">
+  <h2 id="rc-vardiya-listesi">{{ 'rapor.bolum.vardiyalar' | transloco }}</h2>
+  @if (rows().length === 0) {
+    <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
+  } @else {
+    <div class="tablo-kap" tabindex="0" [attr.aria-label]="'rapor.bolum.vardiyalar' | transloco">
+      <table class="duz-tablo">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'rapor.alan.tarih' | transloco }}</th>
+            <th scope="col">{{ 'rapor.alan.personelAd' | transloco }}</th>
+            <th scope="col">{{ 'rapor.alan.personelKadroSube' | transloco }}</th>
+            <th scope="col">{{ 'rapor.alan.aralik' | transloco }}</th>
+            <th scope="col" class="num">{{ 'rapor.vardiya.sureBaslik' | transloco }}</th>
+            <th scope="col">{{ 'rapor.alan.sube' | transloco }}</th>
+            <th scope="col">{{ 'rapor.alan.aciklama' | transloco }}</th>
+            <th scope="col">{{ 'rapor.vardiya.islemler' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r.id) {
+            <tr>
+              <td>{{ day(r.tarih) }}</td>
+              <td>{{ r.personelAd }}</td>
+              <td>{{ r.personelKadroSube ?? '—' }}</td>
+              <td>{{ r.aralik }}</td>
+              <td class="num">{{ duration(r.sureDk) }}</td>
+              <td>{{ r.sube ?? '—' }}</td>
+              <td>{{ r.aciklama ?? '—' }}</td>
+              <td>
+                <span class="satir-eylem">
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [attr.aria-label]="
+                      'rapor.vardiya.duzenleEtiket'
+                        | transloco: { ad: r.personelAd, gun: day(r.tarih) }
+                    "
+                    (click)="edit(r)"
+                  >
+                    {{ 'rapor.vardiya.duzenle' | transloco }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [disabled]="busy() !== null"
+                    [attr.aria-label]="
+                      'rapor.vardiya.silEtiket' | transloco: { ad: r.personelAd, gun: day(r.tarih) }
+                    "
+                    (click)="remove(r)"
+                  >
+                    {{ 'rapor.vardiya.sil' | transloco }}
+                  </button>
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

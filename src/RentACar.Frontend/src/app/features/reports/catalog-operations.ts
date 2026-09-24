@@ -16,7 +16,7 @@ import {
 /**
  * F10.2 — operasyon raporları (uç `ReportApi.Operations`/`Inventory`; OperationsWrite ∨ ViewReports): periyodik
  * servis (şube zorlanır), sigorta-muayene (satır kapsamı), karşılaştırmalı analiz (firma geneli), personel çalışma
- * (kapsam serviste). Vardiya yazma uçları API'de yok → ekran salt okunur (parite farkı).
+ * (kapsam serviste). Vardiya yazma (F10.3) `duzenleyici` bölümüyle: OperationsWrite'ta ekle/düzenle/sil.
  */
 const R = '/api/ui/v1/raporlar';
 
@@ -238,6 +238,8 @@ export const STAFF_SHIFTS = defineReport({
   gorunumler: [
     defineView(`${R}/personel-calisma`, {
       zarfsiz: true,
+      // F10.3: OperationsWrite'ta vardiya listesi ekle/düzenle/sil bölümüyle çizilir (`/api/ui/v1/vardiyalar`).
+      duzenleyici: { tur: 'vardiya', bolum: 'liste', izin: 'OperationsWrite' },
       filtreler: [
         { tur: 'donem', ipucu: 'rapor.ipucu.vardiyaPencere' },
         { tur: 'arama', ad: 'personelId', baslik: 'rapor.alan.personel', kaynak: 'personel' },

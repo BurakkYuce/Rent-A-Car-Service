@@ -148,6 +148,15 @@ export interface ReportView {
   readonly satirlar: ReportRows | null;
   /** Yanıt zarfsız (`{ donem, ozet, satirlar, export }` değil). */
   readonly zarfsiz: boolean;
+  /** Yazma bölümü (F10.3 vardiya); izin varsa `bolum` kodlu özet tablosunun yerine çizilir. */
+  readonly duzenleyici?: ReportEditor;
+}
+
+/** Rapor ekranına gömülü yazma bölümü: `izin` yoksa rapor salt okunur kalır ve `bolum` olduğu gibi çizilir. */
+export interface ReportEditor {
+  readonly tur: 'vardiya';
+  readonly bolum: string;
+  readonly izin: Izin;
 }
 
 export type ReportGroup = 'finans' | 'cari' | 'satis' | 'filo' | 'operasyon';
@@ -293,6 +302,7 @@ export function defineView<P extends ReportPath>(
           readonly satirKimligi: (row: RowOf<P>) => string;
         };
     readonly zarfsiz?: boolean;
+    readonly duzenleyici?: ReportEditor;
   },
 ): (reportCode: string) => ReportView {
   return (reportCode) => {
@@ -315,6 +325,7 @@ export function defineView<P extends ReportPath>(
       uyarilar: (def.uyarilar ?? []) as readonly ReportNotice<unknown>[],
       satirlar: rows ? { ...rows, tabloKodu: `rapor.${reportCode}.${kod}` } : null,
       zarfsiz: def.zarfsiz ?? false,
+      duzenleyici: def.duzenleyici,
     };
   };
 }
