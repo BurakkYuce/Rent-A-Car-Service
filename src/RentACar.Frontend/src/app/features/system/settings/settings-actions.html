@@ -1,0 +1,219 @@
+@if (actionError()) {
+  <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
+}
+
+<section class="bolum" aria-labelledby="ayar-logo">
+  <h2 id="ayar-logo">{{ 'sistem.ayarlar.logo.baslik' | transloco }}</h2>
+  @if (dto().logoVar) {
+    <div class="kutu">
+      <p class="aciklama">{{ 'sistem.ayarlar.logo.onizleme' | transloco }}</p>
+      <img class="gorsel logo" [src]="logoSrc()" [alt]="'sistem.ayarlar.logo.alt' | transloco" />
+    </div>
+  } @else {
+    <p class="bos">{{ 'sistem.ayarlar.logo.yok' | transloco }}</p>
+  }
+  <div class="eylemler">
+    <div class="dosya">
+      <label for="ayar-logo-dosya">{{ 'sistem.ayarlar.logo.dosya' | transloco }}</label>
+      <input
+        #logoInput
+        id="ayar-logo-dosya"
+        type="file"
+        accept="image/png"
+        [attr.aria-invalid]="logoError() ? 'true' : null"
+        [attr.aria-describedby]="logoError() ? 'ayar-logo-hata' : null"
+      />
+    </div>
+    <button type="button" class="rc-dugme" [disabled]="busy() !== null" (click)="uploadLogo()">
+      {{ 'sistem.ayarlar.logo.yukle' | transloco }}
+    </button>
+    @if (dto().logoVar) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--hayalet"
+        [disabled]="busy() !== null"
+        (click)="removeLogo()"
+      >
+        {{ 'sistem.ayarlar.logo.kaldir' | transloco }}
+      </button>
+    }
+  </div>
+  @if (logoError()) {
+    <span id="ayar-logo-hata" class="hata" role="alert">{{ logoError() }}</span>
+  }
+  <p class="aciklama">{{ 'sistem.ayarlar.logo.kural' | transloco }}</p>
+</section>
+
+<section class="bolum" aria-labelledby="ayar-site">
+  <h2 id="ayar-site">{{ 'sistem.ayarlar.site.baslik' | transloco }}</h2>
+  @if (dto().webSitesiAcik) {
+    <p>
+      {{ 'sistem.ayarlar.site.acik' | transloco }}
+      <span class="kod-metin">{{ dto().webSitesiAdresi }}</span>
+    </p>
+  } @else {
+    <p class="aciklama">{{ 'sistem.ayarlar.site.kapali' | transloco }}</p>
+    <div class="eylemler">
+      <button type="button" class="rc-dugme" [disabled]="busy() !== null" (click)="openSite()">
+        {{ 'sistem.ayarlar.site.ac' | transloco }}
+      </button>
+    </div>
+  }
+
+  @if ((dto().domainler ?? []).length > 0) {
+    <div class="kaydirma">
+      <table class="tablo">
+        <caption class="rc-gorunmez">
+          {{
+            'sistem.ayarlar.domain.tablo' | transloco
+          }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'sistem.ayarlar.domain.host' | transloco }}</th>
+            <th scope="col">{{ 'sistem.ayarlar.domain.tur' | transloco }}</th>
+            <th scope="col">{{ 'sistem.ayarlar.domain.durumBaslik' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of dto().domainler ?? []; track d.host) {
+            <tr>
+              <td class="kod">{{ d.host }}</td>
+              <td>{{ domainKind(d) }}</td>
+              <td>{{ domainStatus(d) }}</td>
+            </tr>
+            @if (needsTxtRecord(d)) {
+              <tr>
+                <td colspan="3">
+                  <div class="kutu">
+                    <p>{{ 'sistem.ayarlar.domain.txtTalimat' | transloco }}</p>
+                    <p>
+                      {{ 'sistem.ayarlar.domain.txtAd' | transloco }}
+                      <span class="kod-metin">{{ d.dogrulamaKaydi }}</span>
+                    </p>
+                    <p>
+                      {{ 'sistem.ayarlar.domain.txtDeger' | transloco }}
+                      <span class="kod-metin">{{ d.dogrulamaDegeri }}</span>
+                    </p>
+                    <p class="aciklama">{{ 'sistem.ayarlar.domain.txtNot' | transloco }}</p>
+                    <div class="eylemler">
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--kucuk"
+                        [disabled]="busy() !== null"
+                        (click)="verifyDomain(d)"
+                      >
+                        {{ 'sistem.ayarlar.domain.dogrula' | transloco: { host: d.host } }}
+                      </button>
+                    </div>
+                    @if (domainErrors()[d.host]) {
+                      <span class="hata" role="alert">{{ domainErrors()[d.host] }}</span>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <h3>{{ 'sistem.ayarlar.domain.ekleBaslik' | transloco }}</h3>
+  <p class="aciklama">{{ 'sistem.ayarlar.domain.ekleAciklama' | transloco }}</p>
+  <rc-form-hatalari [hatalar]="domainSubmit.genelHatalar()" />
+  <div class="rc-form-izgara" [formGroup]="domainForm">
+    <rc-alan [etiket]="'sistem.ayarlar.domain.host' | transloco">
+      <rc-metin-girdisi
+        formControlName="host"
+        yerTutucu="kirala.firmaniz.com"
+        [azamiUzunluk]="253"
+      />
+    </rc-alan>
+    <div class="eylemler">
+      <button
+        type="button"
+        class="rc-dugme"
+        [disabled]="domainSubmit.gonderiliyor()"
+        (click)="addDomain()"
+      >
+        {{ 'sistem.ayarlar.domain.ekle' | transloco }}
+      </button>
+    </div>
+  </div>
+</section>
+
+@for (kind of testKinds; track kind) {
+  <section class="bolum" [attr.aria-labelledby]="'ayar-test-' + kind">
+    <h2 [id]="'ayar-test-' + kind">{{ 'sistem.ayarlar.test.' + kind + '.baslik' | transloco }}</h2>
+    <p class="aciklama">{{ 'sistem.ayarlar.test.' + kind + '.aciklama' | transloco }}</p>
+    @if (kind !== 'eposta' && !dto().twilioTanimli) {
+      <p class="rc-form-mesaji rc-form-mesaji--uyari">
+        {{ 'sistem.ayarlar.test.twilioYok' | transloco }}
+      </p>
+    }
+    <rc-form-hatalari [hatalar]="testSubmits[kind].genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="testForms[kind]">
+      @if (kind === 'eposta') {
+        <rc-alan [etiket]="'sistem.ayarlar.test.alici' | transloco">
+          <rc-metin-girdisi formControlName="alici" tur="email" [azamiUzunluk]="254" />
+        </rc-alan>
+      } @else {
+        <rc-alan [etiket]="'sistem.ayarlar.test.telefon' | transloco">
+          <rc-metin-girdisi
+            formControlName="telefon"
+            tur="tel"
+            [azamiUzunluk]="16"
+            yerTutucu="+905321112233"
+          />
+        </rc-alan>
+      }
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="testSubmits[kind].gonderiliyor()"
+          (click)="sendTest(kind)"
+        >
+          {{ 'sistem.ayarlar.test.' + kind + '.dugme' | transloco }}
+        </button>
+      </div>
+    </div>
+    @if (testResults()[kind]; as r) {
+      <p class="rc-form-mesaji" [class.rc-form-mesaji--uyari]="!r.basarili" role="status">
+        {{ r.mesaj }}
+      </p>
+    }
+  </section>
+}
+
+@if ((dto().whatsAppGonderimleri ?? []).length > 0) {
+  <section class="bolum" aria-labelledby="ayar-wa-gecmis">
+    <h2 id="ayar-wa-gecmis">{{ 'sistem.ayarlar.whatsappGecmis' | transloco }}</h2>
+    <div class="kaydirma">
+      <table class="tablo">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'sistem.ayarlar.gun' | transloco }}</th>
+            <th scope="col">{{ 'sistem.ayarlar.durum' | transloco }}</th>
+            <th scope="col">{{ 'sistem.ayarlar.not' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (g of dto().whatsAppGonderimleri ?? []; track $index) {
+            <tr>
+              <td>{{ g.gun | tarih }}</td>
+              <td>
+                {{
+                  (g.basarili ? 'sistem.ayarlar.gonderildi' : 'sistem.ayarlar.basarisiz')
+                    | transloco
+                }}
+              </td>
+              <td>{{ g.basarili ? '' : g.hataMesaji }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

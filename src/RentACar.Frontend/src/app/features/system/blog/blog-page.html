@@ -1,0 +1,73 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.blog.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.blog.aciklama' | transloco }}</p>
+  <rc-tanim-crud
+    [baslik]="'sistem.blog.yazilar' | transloco"
+    [alanlar]="fields"
+    [kaynak]="source"
+    layout="panel"
+  />
+
+  <section class="bolum" aria-labelledby="blog-kapak">
+    <h2 id="blog-kapak">{{ 'sistem.blog.kapak.baslik' | transloco }}</h2>
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'sistem.blog.yazi' | transloco">
+        <rc-secim [formControl]="selectedId" [secenekler]="postOptions()" />
+      </rc-alan>
+    </div>
+    @if (selected(); as post) {
+      <div class="kutu">
+        <p>
+          <a [routerLink]="['/blog-yonetim', post.id, 'onizleme']">
+            {{ 'sistem.blog.onizle' | transloco }}
+          </a>
+        </p>
+        @if (post['kapakVar']) {
+          <img
+            class="gorsel kucuk-foto"
+            [src]="coverSrc(post.id)"
+            [alt]="'sistem.blog.kapak.alt' | transloco"
+          />
+        } @else {
+          <p class="bos">{{ 'sistem.blog.kapak.yok' | transloco }}</p>
+        }
+        <div class="eylemler">
+          <div class="dosya">
+            <label for="blog-kapak-dosya">{{ 'sistem.blog.kapak.dosya' | transloco }}</label>
+            <input
+              #coverInput
+              id="blog-kapak-dosya"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              [attr.aria-invalid]="coverError() ? 'true' : null"
+              [attr.aria-describedby]="coverError() ? 'blog-kapak-hata' : null"
+            />
+          </div>
+          <button
+            type="button"
+            class="rc-dugme"
+            [disabled]="coverBusy()"
+            (click)="uploadCover(post.id)"
+          >
+            {{ 'sistem.blog.kapak.yukle' | transloco }}
+          </button>
+          @if (post['kapakVar']) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet"
+              [disabled]="coverBusy()"
+              (click)="removeCover(post.id)"
+            >
+              {{ 'sistem.blog.kapak.kaldir' | transloco }}
+            </button>
+          }
+        </div>
+        @if (coverError()) {
+          <span id="blog-kapak-hata" class="hata" role="alert">{{ coverError() }}</span>
+        }
+      </div>
+    } @else {
+      <p class="bos">{{ 'sistem.blog.yaziSec' | transloco }}</p>
+    }
+  </section>
+</div>

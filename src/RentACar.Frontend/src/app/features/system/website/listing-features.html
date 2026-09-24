@@ -1,0 +1,172 @@
+<div class="sayfa">
+  @if (!module()) {
+    <h1>{{ 'sistem.web.baslik' | transloco }}</h1>
+    <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
+  } @else if (loadError()) {
+    <h1>{{ 'sistem.web.ozellik.baslik' | transloco }}</h1>
+    <div class="rc-form-hatalari" role="alert">
+      {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ loadError() }}
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="load()">
+        {{ 'sistem.ortak.yenidenDene' | transloco }}
+      </button>
+    </div>
+  } @else if (detail(); as d) {
+    <h1>{{ d.baslik }} — {{ 'sistem.web.ozellik.adim' | transloco }}</h1>
+    <p class="aciklama">
+      <a routerLink="/web-sitesi">{{ 'sistem.web.geri' | transloco }}</a>
+      ·
+      <a [routerLink]="['/web-sitesi/ilan', id, 'fiyat']">{{ 'sistem.web.fiyat' | transloco }}</a>
+    </p>
+
+    <section class="bolum" aria-labelledby="ilan-foto">
+      <h2 id="ilan-foto">{{ 'sistem.web.ozellik.fotograflar' | transloco }}</h2>
+      @if (d.fotograflar.length === 0) {
+        <p class="rc-form-mesaji rc-form-mesaji--uyari">
+          {{ 'sistem.web.ozellik.fotoYok' | transloco }}
+        </p>
+      } @else {
+        <div class="kaydirma">
+          <table class="tablo">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'sistem.web.ozellik.foto' | transloco }}</th>
+                <th scope="col">{{ 'sistem.web.ekle.plaka' | transloco }}</th>
+                <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of d.fotograflar; track p.fotoId) {
+                <tr>
+                  <td>
+                    <img
+                      class="gorsel kucuk-foto"
+                      [src]="photoSrc(p)"
+                      [alt]="'sistem.web.ozellik.fotoAlt' | transloco: { plaka: p.plaka }"
+                    />
+                  </td>
+                  <td class="kod">{{ p.plaka }}</td>
+                  <td class="islemler">
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      [disabled]="photoBusy()"
+                      (click)="removePhoto(p)"
+                    >
+                      {{ 'sistem.ortak.sil' | transloco }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      <div class="eylemler">
+        <div class="dosya">
+          <label for="ilan-foto-dosya">{{ 'sistem.web.ozellik.fotoDosya' | transloco }}</label>
+          <input
+            #photoInput
+            id="ilan-foto-dosya"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            [attr.aria-invalid]="photoError() ? 'true' : null"
+            [attr.aria-describedby]="photoError() ? 'ilan-foto-hata' : null"
+          />
+        </div>
+        <button type="button" class="rc-dugme" [disabled]="photoBusy()" (click)="uploadPhoto()">
+          {{ 'sistem.web.ozellik.fotoYukle' | transloco }}
+        </button>
+      </div>
+      @if (photoError()) {
+        <span id="ilan-foto-hata" class="hata" role="alert">{{ photoError() }}</span>
+      }
+      @if (d.araclar.length > 1) {
+        <p class="aciklama">
+          {{ 'sistem.web.ozellik.cokArac' | transloco: { adet: d.araclar.length } }}
+        </p>
+      }
+    </section>
+
+    <section class="bolum" aria-labelledby="ilan-ozellik">
+      <h2 id="ilan-ozellik">{{ 'sistem.web.ozellik.ozellikler' | transloco }}</h2>
+      <p class="aciklama">{{ 'sistem.web.ozellik.aciklama' | transloco }}</p>
+      @if (serverRows(); as fresh) {
+        <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+          {{ 'sistem.web.ozellik.cakisma' | transloco: { adet: fresh.length } }}
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="loadServerRows()">
+            {{ 'sistem.web.ozellik.gunceliYukle' | transloco }}
+          </button>
+        </div>
+      }
+      <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
+      <div class="kaydirma" [formGroup]="form">
+        <table class="tablo" formArrayName="satirlar">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'sistem.web.ozellik.gorunur' | transloco }}</th>
+              <th scope="col">{{ 'sistem.web.ozellik.etiket' | transloco }}</th>
+              <th scope="col">{{ 'sistem.web.ozellik.deger' | transloco }}</th>
+              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows.controls; track row; let i = $index) {
+              <tr [formGroupName]="i">
+                <td>
+                  <rc-onay-kutusu
+                    formControlName="gorunur"
+                    [ariaEtiketi]="'sistem.web.ozellik.gorunurSatir' | transloco: { sira: i + 1 }"
+                  />
+                </td>
+                <td>
+                  <rc-metin-girdisi
+                    formControlName="etiket"
+                    [azamiUzunluk]="60"
+                    [ariaEtiketi]="'sistem.web.ozellik.etiketSatir' | transloco: { sira: i + 1 }"
+                  />
+                </td>
+                <td>
+                  <rc-metin-girdisi
+                    formControlName="deger"
+                    [azamiUzunluk]="160"
+                    [ariaEtiketi]="'sistem.web.ozellik.degerSatir' | transloco: { sira: i + 1 }"
+                  />
+                </td>
+                <td class="islemler">
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    (click)="removeRow(i)"
+                  >
+                    {{ 'sistem.ortak.sil' | transloco }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="rows.length >= maxRows"
+          (click)="addRow()"
+        >
+          {{ 'sistem.web.ozellik.satirEkle' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="submit.gonderiliyor()"
+          (click)="save()"
+        >
+          {{ 'sistem.web.ozellik.kaydet' | transloco }}
+        </button>
+      </div>
+    </section>
+  } @else {
+    <h1>{{ 'sistem.web.ozellik.baslik' | transloco }}</h1>
+    <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+  }
+</div>

@@ -189,6 +189,14 @@
       @case ('date') {
         <rc-tarih-secici [formControl]="controlOf(alan)" />
       }
+      @case ('textarea') {
+        <rc-metin-alani
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+          [satir]="6"
+        />
+      }
       @case ('datalist') {
         <rc-metin-girdisi
           [formControl]="controlOf(alan)"

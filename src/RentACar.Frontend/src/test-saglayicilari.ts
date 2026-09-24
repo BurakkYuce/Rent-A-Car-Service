@@ -10,6 +10,7 @@ import planlama from './i18n/bloklar/planlama.json';
 import platform from './i18n/bloklar/platform.json';
 import rapor from './i18n/bloklar/rapor.json';
 import rezervasyon from './i18n/bloklar/rezervasyon.json';
+import sistem from './i18n/bloklar/sistem.json';
 import tanimlar from './i18n/bloklar/tanimlar.json';
 import vitrin from './i18n/bloklar/vitrin.json';
 
@@ -31,6 +32,7 @@ const saglayicilar: Provider[] = [
       platform,
       rapor,
       rezervasyon,
+      sistem,
       tanimlar,
       vitrin,
     ],

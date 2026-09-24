@@ -1,0 +1,243 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.kullanici.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.kullanici.aciklama' | transloco }}</p>
+  @if (actorRole() !== 'Admin') {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari">
+      {{ 'sistem.kullanici.adminNotu' | transloco }}
+    </p>
+  }
+
+  <section class="bolum" aria-labelledby="kullanici-yeni">
+    <h2 id="kullanici-yeni">{{ 'sistem.kullanici.yeni' | transloco }}</h2>
+    <rc-form-hatalari [hatalar]="createSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="createForm">
+      <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
+        <rc-metin-girdisi formControlName="kullaniciAdi" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.kullanici.gorunenAd' | transloco">
+        <rc-metin-girdisi formControlName="gorunenAd" [azamiUzunluk]="256" />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.kullanici.rolBaslik' | transloco">
+        <rc-secim formControlName="rol" [secenekler]="roleOptions()" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'sistem.kullanici.sube' | transloco"
+        [ipucu]="'sistem.kullanici.subeIpucu' | transloco"
+      >
+        <rc-secim
+          formControlName="atanmisSube"
+          [secenekler]="branches()"
+          [bosEtiket]="'sistem.kullanici.tumSubeler' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.kullanici.parola' | transloco">
+        <rc-metin-girdisi
+          formControlName="sifre"
+          tur="password"
+          otomatikTamamlama="new-password"
+          [azamiUzunluk]="128"
+        />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="createSubmit.gonderiliyor()"
+          (click)="create()"
+        >
+          {{ 'sistem.kullanici.olustur' | transloco }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  @if (rowError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ rowError() }}</p>
+  }
+
+  <section class="bolum" aria-labelledby="kullanici-liste">
+    <h2 id="kullanici-liste">{{ 'sistem.kullanici.liste' | transloco }}</h2>
+    @switch (list.tur()) {
+      @case ('hata') {
+        <div class="rc-form-hatalari" role="alert">
+          {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+            {{ 'sistem.ortak.yenidenDene' | transloco }}
+          </button>
+        </div>
+      }
+      @case ('hazir') {
+        <div class="kaydirma">
+          <table class="tablo">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'sistem.kullanici.kullaniciAdi' | transloco }}</th>
+                <th scope="col">{{ 'sistem.kullanici.gorunenAd' | transloco }}</th>
+                <th scope="col">{{ 'sistem.kullanici.rolBaslik' | transloco }}</th>
+                <th scope="col">{{ 'sistem.kullanici.sube' | transloco }}</th>
+                <th scope="col">{{ 'sistem.kullanici.durum' | transloco }}</th>
+                <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of users(); track u.id) {
+                <tr>
+                  <td>{{ u.kullaniciAdi }}</td>
+                  <td>{{ u.gorunenAd }}</td>
+                  <td>{{ roleLabel(u.rol) }}</td>
+                  <td>{{ u.atanmisSube ?? ('sistem.kullanici.tumSubeler' | transloco) }}</td>
+                  <td>{{ (u.aktif ? 'sistem.ortak.aktif' : 'sistem.ortak.pasif') | transloco }}</td>
+                  <td class="islemler">
+                    @if (canManage(u) && u.id !== actorId()) {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="busy() !== null"
+                        (click)="toggleActive(u)"
+                      >
+                        {{
+                          (u.aktif
+                            ? 'sistem.kullanici.pasiflestir'
+                            : 'sistem.kullanici.aktiflestir'
+                          ) | transloco
+                        }}
+                      </button>
+                    }
+                    @if (canManage(u)) {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        (click)="openReset(u)"
+                      >
+                        {{ 'sistem.kullanici.parolaSifirla' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+                @if (resetting()?.id === u.id) {
+                  <tr>
+                    <td colspan="6">
+                      <div class="kutu">
+                        <rc-form-hatalari [hatalar]="resetSubmit.genelHatalar()" />
+                        <div class="rc-form-izgara" [formGroup]="resetForm">
+                          <rc-alan
+                            [etiket]="
+                              'sistem.kullanici.yeniParola' | transloco: { ad: u.kullaniciAdi }
+                            "
+                          >
+                            <rc-metin-girdisi
+                              formControlName="sifre"
+                              tur="password"
+                              otomatikTamamlama="new-password"
+                              [azamiUzunluk]="128"
+                            />
+                          </rc-alan>
+                          <div class="eylemler">
+                            <button
+                              type="button"
+                              class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                              [disabled]="resetSubmit.gonderiliyor()"
+                              (click)="resetPassword()"
+                            >
+                              {{ 'sistem.kullanici.parolaKaydet' | transloco }}
+                            </button>
+                            <button
+                              type="button"
+                              class="rc-dugme rc-dugme--kucuk"
+                              (click)="resetting.set(null); resetForm.reset()"
+                            >
+                              {{ 'sistem.ortak.vazgec' | transloco }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      @default {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  </section>
+
+  <section class="bolum" aria-labelledby="kullanici-istisna">
+    <h2 id="kullanici-istisna">{{ 'sistem.kullanici.istisna.baslik' | transloco }}</h2>
+    <p class="aciklama">{{ 'sistem.kullanici.istisna.aciklama' | transloco }}</p>
+    @if (exceptions().length === 0) {
+      <p class="bos">{{ 'sistem.kullanici.istisna.bos' | transloco }}</p>
+    } @else {
+      <div class="kaydirma">
+        <table class="tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'sistem.kullanici.kullaniciAdi' | transloco }}</th>
+              <th scope="col">{{ 'sistem.kullanici.istisna.izin' | transloco }}</th>
+              <th scope="col">{{ 'sistem.kullanici.istisna.tur' | transloco }}</th>
+              <th scope="col">{{ 'sistem.kullanici.istisna.tanimlayan' | transloco }}</th>
+              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (x of exceptions(); track x.kullaniciId + x.izin) {
+              <tr>
+                <td>{{ x.kullaniciAdi }}</td>
+                <td>{{ x.izin }}</td>
+                <td>
+                  {{
+                    (x.ver
+                      ? 'sistem.kullanici.istisna.ekIzin'
+                      : 'sistem.kullanici.istisna.yasakEtiket'
+                    ) | transloco
+                  }}
+                </td>
+                <td>
+                  {{ x.tanimlayan ?? '—' }}
+                  <span class="alt-metin">{{ x.tarihUtc | tarih }}</span>
+                </td>
+                <td class="islemler">
+                  @if (x.duzenlenebilir) {
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      [disabled]="busy() !== null"
+                      (click)="removeException(x)"
+                    >
+                      {{ 'sistem.kullanici.istisna.kaldir' | transloco }}
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <rc-form-hatalari [hatalar]="exceptionSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="exceptionForm">
+      <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
+        <rc-secim formControlName="kullaniciId" [secenekler]="targetOptions()" />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.kullanici.istisna.izin' | transloco">
+        <rc-secim formControlName="izin" [secenekler]="permissionOptions()" />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.kullanici.istisna.tur' | transloco">
+        <rc-secim formControlName="ver" [secenekler]="kindOptions" />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="exceptionSubmit.gonderiliyor()"
+          (click)="saveException()"
+        >
+          {{ 'sistem.kullanici.istisna.kaydet' | transloco }}
+        </button>
+      </div>
+    </div>
+  </section>
+</div>

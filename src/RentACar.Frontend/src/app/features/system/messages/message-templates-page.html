@@ -1,0 +1,106 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.mesaj.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.mesaj.aciklama' | transloco }}</p>
+  <p class="aciklama">
+    {{ 'sistem.mesaj.yerTutucular' | transloco }}
+    @for (p of placeholders; track p) {
+      <code class="kod-metin">{{ p }}</code
+      >{{ ' ' }}
+    }
+  </p>
+  <p class="aciklama">{{ 'sistem.mesaj.yerTutucuNotu' | transloco }}</p>
+
+  @switch (list.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+          {{ 'sistem.ortak.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('hazir') {
+      <div class="kaydirma">
+        <table class="tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'sistem.mesaj.olay' | transloco }}</th>
+              <th scope="col">{{ 'sistem.mesaj.kanal' | transloco }}</th>
+              <th scope="col">{{ 'sistem.mesaj.konu' | transloco }}</th>
+              <th scope="col">{{ 'sistem.mesaj.durum' | transloco }}</th>
+              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of list.veri() ?? []; track m.tur + m.kanal) {
+              <tr>
+                <td>{{ typeLabel(m.tur) }}</td>
+                <td>{{ channelLabel(m.kanal) }}</td>
+                <td>{{ m.konu ?? '—' }}</td>
+                <td>
+                  @if (!m.kayitli) {
+                    <span class="bos">{{ 'sistem.mesaj.tanimsiz' | transloco }}</span>
+                  } @else {
+                    {{ (m.aktif ? 'sistem.ortak.aktif' : 'sistem.mesaj.kapali') | transloco }}
+                  }
+                </td>
+                <td class="islemler">
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [disabled]="editing() !== null"
+                    (click)="open(m)"
+                  >
+                    {{ (m.kayitli ? 'sistem.mesaj.duzenle' : 'sistem.mesaj.tanimla') | transloco }}
+                  </button>
+                </td>
+              </tr>
+              @if (isEditing(m)) {
+                <tr>
+                  <td colspan="5">
+                    <div class="kutu">
+                      <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
+                      <div class="rc-form-izgara" [formGroup]="form">
+                        @if (m.kanal === 'Eposta') {
+                          <rc-alan [etiket]="'sistem.mesaj.konu' | transloco">
+                            <rc-metin-girdisi formControlName="konu" [azamiUzunluk]="256" />
+                          </rc-alan>
+                        }
+                        <rc-alan [etiket]="'sistem.mesaj.govde' | transloco">
+                          <rc-metin-alani
+                            formControlName="govde"
+                            [azamiUzunluk]="8192"
+                            [satir]="m.kanal === 'Eposta' ? 8 : 4"
+                          />
+                        </rc-alan>
+                        <rc-onay-kutusu formControlName="aktif">
+                          {{ 'sistem.ortak.aktif' | transloco }}
+                        </rc-onay-kutusu>
+                        <div class="eylemler">
+                          <button
+                            type="button"
+                            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                            [disabled]="submit.gonderiliyor()"
+                            (click)="save()"
+                          >
+                            {{ 'sistem.ortak.kaydet' | transloco }}
+                          </button>
+                          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="close()">
+                            {{ 'sistem.ortak.vazgec' | transloco }}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    @default {
+      <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+    }
+  }
+</div>

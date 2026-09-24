@@ -1,0 +1,170 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.bildirim.baslik' | transloco }}</h1>
+  @if (actionError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
+  }
+  @switch (center.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ center.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="center.yenile()">
+          {{ 'sistem.ortak.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('bos') {}
+    @default {
+      @if (center.veri(); as c) {
+        <p class="aciklama">
+          {{
+            'sistem.bildirim.ozet'
+              | transloco: { gecmis: c.vadeGecmis, yakin: c.vadeYakin, sikayet: c.acikSikayet }
+          }}
+          @if (c.donemKapanis) {
+            · {{ 'sistem.bildirim.donem' | transloco }} {{ c.donemKapanis | tarih }}
+          }
+        </p>
+
+        <section class="bolum" aria-labelledby="bildirim-liste">
+          <h2 id="bildirim-liste">
+            {{ 'sistem.bildirim.bildirimler' | transloco: { adet: c.okunmamis } }}
+          </h2>
+          <div class="eylemler">
+            <div
+              class="rc-dugme-grubu"
+              role="group"
+              [attr.aria-label]="'sistem.bildirim.suzgec' | transloco"
+            >
+              @for (f of filters; track f) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--kucuk"
+                  [class.rc-dugme--birincil]="filter() === f"
+                  [attr.aria-pressed]="filter() === f"
+                  (click)="setFilter(f)"
+                >
+                  {{ 'sistem.bildirim.filtre.' + f | transloco }}
+                </button>
+              }
+            </div>
+            @if (+c.okunmamis > 0) {
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--kucuk"
+                [disabled]="busy()"
+                (click)="markAll()"
+              >
+                {{ 'sistem.bildirim.hepsiniOku' | transloco }}
+              </button>
+            }
+          </div>
+          @if (c.bildirimler.length === 0) {
+            <p class="bos">{{ 'sistem.bildirim.bos' | transloco }}</p>
+          } @else {
+            <div class="kaydirma">
+              <table class="tablo">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'sistem.bildirim.tur' | transloco }}</th>
+                    <th scope="col">{{ 'sistem.bildirim.mesaj' | transloco }}</th>
+                    <th scope="col">{{ 'sistem.bildirim.vade' | transloco }}</th>
+                    <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (n of c.bildirimler; track n.id) {
+                    <tr>
+                      <td>{{ n.tur }}</td>
+                      <td>
+                        {{ n.mesaj }}
+                        <span class="alt-metin">{{ n.olusturmaUtc | tarihSaat }}</span>
+                      </td>
+                      <td>{{ n.vadeTarihiUtc | tarih }}</td>
+                      <td class="islemler">
+                        <a
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [routerLink]="['/araclar', n.aracId, 'detay']"
+                        >
+                          {{ 'sistem.bildirim.arac' | transloco }}
+                        </a>
+                        @if (!n.okundu) {
+                          <button
+                            type="button"
+                            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                            [disabled]="busy()"
+                            (click)="markRead(n)"
+                          >
+                            {{ 'sistem.bildirim.oku' | transloco }}
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        <section class="bolum" aria-labelledby="bildirim-vade">
+          <h2 id="bildirim-vade">{{ 'sistem.bildirim.vadeler' | transloco }}</h2>
+          @if (c.vadeler.length === 0) {
+            <p class="bos">{{ 'sistem.bildirim.vadeYok' | transloco }}</p>
+          } @else {
+            <div class="kaydirma">
+              <table class="tablo">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'sistem.bildirim.tur' | transloco }}</th>
+                    <th scope="col">{{ 'sistem.bildirim.bitis' | transloco }}</th>
+                    <th scope="col" class="sayi">{{ 'sistem.bildirim.kalanGun' | transloco }}</th>
+                    <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (v of c.vadeler; track $index) {
+                    <tr>
+                      <td>
+                        {{ v.tur }}
+                        @if (v.gecmis) {
+                          <span class="rc-rozet rc-rozet--hata">{{
+                            'sistem.bildirim.gecmis' | transloco
+                          }}</span>
+                        }
+                      </td>
+                      <td>{{ v.bitisUtc | tarih }}</td>
+                      <td class="sayi">{{ v.kalanGun }}</td>
+                      <td class="islemler">
+                        <a
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [routerLink]="['/araclar', v.aracId, 'detay']"
+                        >
+                          {{ 'sistem.bildirim.arac' | transloco }}
+                        </a>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        @if (c.sikayetler.length > 0) {
+          <section class="bolum" aria-labelledby="bildirim-sikayet">
+            <h2 id="bildirim-sikayet">{{ 'sistem.bildirim.sikayetler' | transloco }}</h2>
+            <ul>
+              @for (s of c.sikayetler; track s.id) {
+                <li>
+                  {{ s.konu }} <span class="alt-metin">{{ s.tarihUtc | tarih }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      } @else {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,110 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.denetim.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.denetim.aciklama' | transloco }}</p>
+
+  <div class="rc-form-izgara" [formGroup]="filters">
+    <rc-alan [etiket]="'sistem.denetim.tablo' | transloco">
+      <rc-metin-girdisi formControlName="tablo" [azamiUzunluk]="128" />
+    </rc-alan>
+    <rc-alan [etiket]="'sistem.denetim.kullanici' | transloco">
+      <rc-metin-girdisi formControlName="kullanici" [azamiUzunluk]="128" />
+    </rc-alan>
+    <rc-alan [etiket]="'sistem.denetim.islemBaslik' | transloco">
+      <rc-secim
+        formControlName="islem"
+        [secenekler]="actions"
+        [bosEtiket]="'sistem.denetim.tumu' | transloco"
+      />
+    </rc-alan>
+    <div class="eylemler">
+      <button type="button" class="rc-dugme rc-dugme--birincil" (click)="search()">
+        {{ 'sistem.denetim.ara' | transloco }}
+      </button>
+      <button type="button" class="rc-dugme" (click)="clear()">
+        {{ 'sistem.denetim.temizle' | transloco }}
+      </button>
+    </div>
+  </div>
+
+  @switch (list.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+          {{ 'sistem.ortak.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('bos') {}
+    @default {
+      @if (list.veri(); as d) {
+        @if (d.kayitlar.length === 0) {
+          <p class="bos">{{ 'sistem.denetim.bos' | transloco }}</p>
+        } @else {
+          <div class="kaydirma">
+            <table class="tablo" [attr.aria-busy]="list.yukleniyor()">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'sistem.denetim.zaman' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.denetim.kullanici' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.denetim.tablo' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.denetim.islemBaslik' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.denetim.degisiklik' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (a of d.kayitlar; track a.id) {
+                  <tr>
+                    <td>{{ a.tarihUtc | tarihSaat }}</td>
+                    <td>{{ a.kullanici ?? '—' }}</td>
+                    <td>
+                      {{ a.tablo }}
+                      <span class="alt-metin kod-metin">{{ a.kayitId }}</span>
+                    </td>
+                    <td>{{ actionLabel(a.islem) }}</td>
+                    <td>
+                      @if (a.eskiDegerler) {
+                        <span class="alt-metin">{{ 'sistem.denetim.eski' | transloco }}</span>
+                        <span class="kod-metin">{{ a.eskiDegerler }}</span>
+                      }
+                      @if (a.yeniDegerler) {
+                        <span class="alt-metin">{{ 'sistem.denetim.yeni' | transloco }}</span>
+                        <span class="kod-metin">{{ a.yeniDegerler }}</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <nav class="sayfalama" [attr.aria-label]="'sistem.denetim.sayfalama' | transloco">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="page() <= 1 || list.yukleniyor()"
+              (click)="go(-1)"
+            >
+              {{ 'sistem.ortak.onceki' | transloco }}
+            </button>
+            <span role="status">
+              {{
+                'sistem.ortak.sayfa'
+                  | transloco: { sayfa: page(), toplam: pages(), kayit: d.toplam }
+              }}
+            </span>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="page() >= pages() || list.yukleniyor()"
+              (click)="go(1)"
+            >
+              {{ 'sistem.ortak.sonraki' | transloco }}
+            </button>
+          </nav>
+        }
+      } @else {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>
