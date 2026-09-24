@@ -15,7 +15,8 @@ namespace RentACar.Application.TarifeGruplari;
 /// <para>Saf tanım — deftere kayıt POSTLAMAZ, fiyat motoru bu tabloyu OKUMAZ.</para>
 /// </summary>
 public sealed class TarifeGrubuService(
-    ITarifeGrubuRepository repository, ICurrentUser currentUser, IPasswordHasher hasher)
+    ITarifeGrubuRepository repository, ICurrentUser currentUser, IPasswordHasher hasher,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly ITarifeGrubuRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -60,6 +61,28 @@ public sealed class TarifeGrubuService(
             if (!string.IsNullOrWhiteSpace(n.Sifre)) row.SifreHash = _hasher.Hash(n.Sifre!);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<TarifeGrubu>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check. Empty
+    /// password keeps the stored hash (same as the Blazor path).</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, TarifeGrubuInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        if (await _repository.KodExistsAsync(n.Kod, id, ct))
+            throw new ValidationException($"'{n.Kod}' kodlu tarife grubu zaten var.");
+        var hash = string.IsNullOrWhiteSpace(n.Sifre) ? null : _hasher.Hash(n.Sifre!);
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<TarifeGrubu>(id, expectedVersion, row =>
+        {
+            Apply(row, n);
+            if (hash is not null) row.SifreHash = hash;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, $"'{n.Kod}' kodlu tarife grubu zaten var.", ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

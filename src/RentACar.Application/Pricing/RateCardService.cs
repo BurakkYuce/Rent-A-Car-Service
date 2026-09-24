@@ -12,7 +12,8 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class RateCardService(
     IRateCardRepository repository, ICurrentUser currentUser,
-    RentACar.Application.TarifeGruplari.ITarifeGrubuRepository tarifeGruplari)
+    RentACar.Application.TarifeGruplari.ITarifeGrubuRepository tarifeGruplari,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly IRateCardRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -71,6 +72,27 @@ public sealed class RateCardService(
             Apply(rc, n);
             rc.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<RateCard>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/>, applied under a row lock with a version check
+    /// (mismatch → 409 <c>cakisma</c>).</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, RateCardInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
+        Validate(n);
+        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+            throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<RateCard>(id, expectedVersion, rc =>
+        {
+            Apply(rc, n);
+            rc.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, $"'{n.Kod}' kodlu tarife zaten var.", ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
