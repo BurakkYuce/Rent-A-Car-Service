@@ -1,0 +1,57 @@
+// F7.2 CRM ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet, bölüm, düz tablo) aynen kullanılır.
+@use '../vehicles/vehicles';
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.yigin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+}
+
+.genis {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.bayraklar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
+}
+
+.duzenleyici {
+  scroll-margin-top: var(--rc-bosluk-4);
+
+  > h2:focus {
+    outline: none;
+  }
+}
+
+.soru-tablosu {
+  td {
+    white-space: normal;
+  }
+
+  .rc-girdi {
+    width: 100%;
+    min-width: 8rem;
+  }
+}
+
+.kalan-kutusu {
+  margin: 0;
+
+  dd {
+    margin: 0;
+  }
+}
+
+.kalan {
+  font-variant-numeric: tabular-nums;
+}

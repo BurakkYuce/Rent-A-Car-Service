@@ -3,6 +3,8 @@ import type { Provider } from '@angular/core';
 import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
 import arac from './i18n/bloklar/arac.json';
 import aracFinans from './i18n/bloklar/arac-finans.json';
+import cari from './i18n/bloklar/cari.json';
+import crm from './i18n/bloklar/crm.json';
 import fiyatTarife from './i18n/bloklar/fiyat-tarife.json';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
@@ -26,6 +28,8 @@ const saglayicilar: Provider[] = [
     useValue: [
       arac,
       aracFinans,
+      cari,
+      crm,
       fiyatTarife,
       kiraFormu,
       kiralar,

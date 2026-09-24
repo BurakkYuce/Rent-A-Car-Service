@@ -55,6 +55,10 @@ public sealed class AssistansInput
     public bool AracHareketMi { get; set; }
     public bool Kapandi { get; set; }
     public string? Cozum { get; set; }
+    /// <summary>#295 L1: ad soyad bilinçli temizlendi → boş kalır, sözleşmeden yeniden DOLDURULMAZ.</summary>
+    public bool ClearContactName { get; set; }
+    /// <summary>#295 L1: telefon bilinçli temizlendi → boş kalır, sözleşmeden yeniden DOLDURULMAZ.</summary>
+    public bool ClearContactPhone { get; set; }
 }
 
 /// <summary>
@@ -85,7 +89,7 @@ public sealed class AssistansTalepService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var row = new AssistansTalep();
-        await UygulaAsync(row, input, ct);
+        await UygulaAsync(row, input, fillContact: true, ct);
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
@@ -97,7 +101,7 @@ public sealed class AssistansTalepService(
         if (mevcut is null) return false;
 
         var kopya = new AssistansTalep { Id = mevcut.Id };
-        await UygulaAsync(kopya, input, ct);
+        await UygulaAsync(kopya, input, RentalChanged(mevcut.RentalId, input.RentalId), ct);
 
         return await _repository.UpdateAsync(id, r =>
         {
@@ -113,8 +117,10 @@ public sealed class AssistansTalepService(
     public async Task<bool> UpdateAsync(Guid id, AssistansInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var current = await _repository.FindAsync(id, ct);
+        if (current is null) return false;
         var copy = new AssistansTalep { Id = id };
-        await UygulaAsync(copy, input, ct);
+        await UygulaAsync(copy, input, RentalChanged(current.RentalId, input.RentalId), ct);
         return await _repository.UpdateAsync(id, expectedVersion, r =>
         {
             r.RentalId = copy.RentalId;
@@ -134,8 +140,14 @@ public sealed class AssistansTalepService(
         return await _repository.DeleteAsync(id, ct);
     }
 
+    private static bool RentalChanged(Guid? stored, Guid? requested)
+    {
+        static Guid? Norm(Guid? g) => g == Guid.Empty ? null : g;
+        return Norm(stored) != Norm(requested);
+    }
+
     /// <summary>Doğrulama + snapshot doldurma. Yeni alan eklenirse UpdateAsync'e de eklenmeli.</summary>
-    private async Task UygulaAsync(AssistansTalep row, AssistansInput input, CancellationToken ct)
+    private async Task UygulaAsync(AssistansTalep row, AssistansInput input, bool fillContact, CancellationToken ct)
     {
         var mesaj = (input.Mesaj ?? "").Trim();
         if (string.IsNullOrWhiteSpace(mesaj)) throw new ValidationException("Mesaj zorunludur.");
@@ -155,11 +167,17 @@ public sealed class AssistansTalepService(
 
             // KULLANICI DEĞERİ ÖNCELİKLİ — yalnız BOŞ alanlar sözleşmeden doldurulur.
             plaka ??= (await _vehicles.FindAsync(kira.VehicleId, ct))?.Plaka;
-            if (ad is null || tel is null)
+            // #295 L2: KVKK ile anonimleştirilmiş müşterinin adı/telefonu snapshot'a KOPYALANMAZ (ekranda gizli olacak bir
+            // değeri çoğaltmak anonimleştirmeyi delerdi); bilinçli temizlenen alan da yeniden doldurulmaz.
+            // #295b L-C: ad/telefon sözleşmeden YALNIZ oluşturmada ya da kira değişince doldurulur; aynı kiradaki
+            // güncellemede boş alan boş kalır (temizlenen alan geri dolmaz).
+            var fillName = fillContact && ad is null && !input.ClearContactName;
+            var fillPhone = fillContact && tel is null && !input.ClearContactPhone;
+            if (fillName || fillPhone)
             {
                 var m = await _customers.FindAsync(kira.MusteriId, ct);
-                ad ??= m?.DisplayName;
-                tel ??= m?.CepTel;
+                if (fillName && m is { AnonimAd: false }) ad = m.DisplayName;
+                if (fillPhone && m is { AnonimTelefon: false }) tel = m.CepTel;
             }
         }
         else row.RentalId = null;
