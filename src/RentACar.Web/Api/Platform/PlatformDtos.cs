@@ -54,8 +54,11 @@ public sealed record PlatformTenantStatusRequest(string? Durum, string? OnayKod)
 /// <summary>On/off switch body (pilot, web-site module).</summary>
 public sealed record PlatformSwitchRequest(bool? Aktif);
 
-/// <summary>Document Center row — PDF bytes are NOT part of the list. <c>Durum</c>: <c>Taslak</c> | <c>Yayinda</c> | <c>Arsiv</c>.</summary>
-public sealed record PlatformDocumentDto(
+/// <summary>Document Center row — PDF bytes are NOT part of the list. <c>Durum</c>: <c>Taslak</c> | <c>Yayinda</c> | <c>Arsiv</c>.
+/// F12.2: renamed from <c>PlatformDocumentDto</c> — the tenant-side <c>Api.Tanim.PlatformDocumentDto</c> (F11.1a) has the
+/// same simple name, and OpenAPI schema ids are simple names: the console list was published with the TENANT shape
+/// (no <c>durum</c>, <c>hedefKodlar</c>…), so the generated SPA types were wrong.</summary>
+public sealed record PlatformConsoleDocumentDto(
     Guid Id, string Baslik, string? Aciklama, string DosyaAdi, long Boyut, int Surum, string Durum,
     bool YalnizYoneticiler, DateTimeOffset Guncelleme, string? YukleyenOperator, IReadOnlyList<string> HedefKodlar);
 

@@ -16920,7 +16920,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['PlatformDocumentDto'][];
+            'application/json': components['schemas']['PlatformConsoleDocumentDto'][];
           };
         };
       };
@@ -16946,7 +16946,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['PlatformDocumentDto'];
+            'application/json': components['schemas']['PlatformConsoleDocumentDto'];
           };
         };
       };
@@ -16989,7 +16989,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['PlatformDocumentDto'];
+            'application/json': components['schemas']['PlatformConsoleDocumentDto'];
           };
         };
       };
@@ -17030,7 +17030,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['PlatformDocumentDto'];
+            'application/json': components['schemas']['PlatformConsoleDocumentDto'];
           };
         };
       };
@@ -27804,6 +27804,23 @@ export interface components {
     };
     PhoneTestRequest: {
       telefon: null | string;
+    };
+    PlatformConsoleDocumentDto: {
+      /** Format: uuid */
+      id: string;
+      baslik: string;
+      aciklama: null | string;
+      dosyaAdi: string;
+      /** Format: int64 */
+      boyut: number | string;
+      /** Format: int32 */
+      surum: number | string;
+      durum: string;
+      yalnizYoneticiler: boolean;
+      /** Format: date-time */
+      guncelleme: string;
+      yukleyenOperator: null | string;
+      hedefKodlar: string[];
     };
     PlatformDocumentDto: {
       /** Format: uuid */

@@ -40,6 +40,8 @@ const BLOK_HARITASI = {
   arac: 'arac',
   // F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan).
   aracFinans: 'arac-finans',
+  // F12.2 platform konsolu (giriş, özet, firmalar, firma detayı, belge merkezi) — firma kabuğundan ayrı.
+  platform: 'platform',
 };
 
 const KOK = resolve(import.meta.dirname, '..');

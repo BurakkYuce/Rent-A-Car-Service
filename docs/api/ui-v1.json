@@ -19417,7 +19417,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PlatformDocumentDto"
+                    "$ref": "#/components/schemas/PlatformConsoleDocumentDto"
                   }
                 }
               }
@@ -19450,7 +19450,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                  "$ref": "#/components/schemas/PlatformConsoleDocumentDto"
                 }
               }
             }
@@ -19495,7 +19495,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                  "$ref": "#/components/schemas/PlatformConsoleDocumentDto"
                 }
               }
             }
@@ -19535,7 +19535,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlatformDocumentDto"
+                  "$ref": "#/components/schemas/PlatformConsoleDocumentDto"
                 }
               }
             }
@@ -54708,6 +54708,78 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PlatformConsoleDocumentDto": {
+        "required": [
+          "id",
+          "baslik",
+          "aciklama",
+          "dosyaAdi",
+          "boyut",
+          "surum",
+          "durum",
+          "yalnizYoneticiler",
+          "guncelleme",
+          "yukleyenOperator",
+          "hedefKodlar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baslik": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaAdi": {
+            "type": "string"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "surum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "yalnizYoneticiler": {
+            "type": "boolean"
+          },
+          "guncelleme": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "yukleyenOperator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hedefKodlar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
