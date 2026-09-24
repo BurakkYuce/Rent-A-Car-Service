@@ -4,10 +4,10 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -54,6 +54,11 @@ public static class IlkKesis
     /// TEK <c>@page</c> (liste; Blazor'da kayıt formu listenin içindeydi). SPA'nın <c>/yeni</c> ve <c>/:id</c>
     /// rotalarının Blazor karşılığı yok, haritaya girmez. <c>/takvim-abonelik</c>, <c>/rezervasyon-kaynaklari</c>
     /// ayrı sayfalardır (segment eşitliği; önek eşleşmesi yok).</item>
+    /// <item><b>F6</b> (F6.4): 14 araç sayfası. SPA adı farklı olan dört şablon: <c>/vehicles</c> →
+    /// <c>/app/araclar</c>, <c>/vehicles/detayli</c> → <c>/app/araclar/detayli</c>, <c>/vehicles/{id}</c> (kart) →
+    /// <c>/app/araclar/{id}</c>, <c>/araclar/{id}</c> (detay) → <c>/app/araclar/{id}/detay</c>; diğer on sayfa aynı adla
+    /// <c>/app</c> altına. Fotoğraf GET'leri (<c>/vehicles/{id}/photos/{p}[/thumb]</c>), export ve Blazor POST'ları
+    /// segment sayısı ya da yöntem farkıyla dışarıda; <c>/arac-gruplari</c> F11'in sayfasıdır.</item>
     /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Harita { get; } =
@@ -71,6 +76,21 @@ public static class IlkKesis
         new("/musaitlik", SpaBarindirma.Onek + "/musaitlik"),
         new("/rez-sartlari", SpaBarindirma.Onek + "/rez-sartlari"),
         new("/filo-kiralama", SpaBarindirma.Onek + "/filo-kiralama"),
+        // F6
+        new("/vehicles", SpaBarindirma.Onek + "/araclar"),
+        new("/vehicles/detayli", SpaBarindirma.Onek + "/araclar/detayli"),
+        new("/vehicles/{id:guid}", SpaBarindirma.Onek + "/araclar/{id}"),
+        new("/araclar/{id:guid}", SpaBarindirma.Onek + "/araclar/{id}/detay"),
+        new("/arac-durum", SpaBarindirma.Onek + "/arac-durum"),
+        new("/arac-sahipleri", SpaBarindirma.Onek + "/arac-sahipleri"),
+        new("/segmentler", SpaBarindirma.Onek + "/segmentler"),
+        new("/arac-tipleri", SpaBarindirma.Onek + "/arac-tipleri"),
+        new("/arac-kredi", SpaBarindirma.Onek + "/arac-kredi"),
+        new("/musteri-taksit", SpaBarindirma.Onek + "/musteri-taksit"),
+        new("/arac-siparis", SpaBarindirma.Onek + "/arac-siparis"),
+        new("/baf", SpaBarindirma.Onek + "/baf"),
+        new("/hasar", SpaBarindirma.Onek + "/hasar"),
+        new("/filo-plan", SpaBarindirma.Onek + "/filo-plan"),
     ];
 
     private const string GuidParametre = "{id:guid}";
