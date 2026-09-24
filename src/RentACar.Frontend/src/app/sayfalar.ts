@@ -4,6 +4,7 @@ import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisikli
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
+import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
 import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
@@ -158,4 +159,6 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F10.2 raporlar: /raporlar/<kod> (tek ortak rapor ekranı; araç karnesi /raporlar/arac-karne/:id).
+  ...REPORT_ROUTES,
 ];
