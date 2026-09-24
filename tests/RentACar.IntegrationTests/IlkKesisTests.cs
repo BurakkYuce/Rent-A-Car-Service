@@ -68,6 +68,18 @@ public sealed class IlkKesisKararTests
     [InlineData("/BAF/", "/app/baf")]
     [InlineData("/hasar", "/app/hasar")]
     [InlineData("/filo-plan", "/app/filo-plan")]
+    // F7.3 cari/CRM kesişi: sekiz sayfa aynı adla /app altına
+    [InlineData("/cariler", "/app/cariler")]
+    [InlineData("/Cariler/", "/app/cariler")]
+    [InlineData("/cariler/" + G, "/app/cariler/" + G)]                          // cari kartı
+    [InlineData("/cariler/3F2504E0-4F89-11D3-9A0C-0305E82C3301", "/app/cariler/" + G)]
+    [InlineData("/cariler/" + G + "/detay", "/app/cariler/" + G + "/detay")]    // cari 360°
+    [InlineData("/anketler", "/app/anketler")]
+    [InlineData("/sikayetler", "/app/sikayetler")]
+    [InlineData("/assistans", "/app/assistans")]
+    [InlineData("/hukuk", "/app/hukuk")]
+    [InlineData("/HUKUK/", "/app/hukuk")]
+    [InlineData("/crm", "/app/crm")]
     public void Haritadaki_sablon_SPA_yoluna_esler(string yol, string beklenen)
         => Assert.Equal(beklenen, IlkKesis.SpaYolu(yol));
 
@@ -89,6 +101,27 @@ public sealed class IlkKesisKararTests
     [InlineData("/raporlar/export/kiralar")]
     [InlineData("/kasa/makbuz/" + G + "/pdf")]
     [InlineData("/faturalar/" + G + "/pdf")]
+    // F7: cari ekstresi (F8 sayfası), POST uçlarının GET'i, Blazor karşılığı olmayan SPA rotası, aynı gruptaki F7 dışı
+    // sayfalar (Blog, Gelen Talepler), benzer adlar, export
+    [InlineData("/cariler/" + G + "/ekstre")]
+    [InlineData("/cariler/yeni")]
+    [InlineData("/cariler/5")]                             // Guid değil
+    [InlineData("/cariler/create")]
+    [InlineData("/cariler/update")]
+    [InlineData("/cariler/delete")]
+    [InlineData("/cariler/" + G + "/detay/x")]
+    [InlineData("/carilerx")]
+    [InlineData("/anketler/create")]
+    [InlineData("/sikayetler/update")]
+    [InlineData("/assistans/delete")]
+    [InlineData("/hukuk/create")]
+    [InlineData("/crm/secim/kira")]
+    [InlineData("/cari-virman")]                           // F8
+    [InlineData("/blog-yonetim")]
+    [InlineData("/gelen-talepler")]
+    [InlineData("/listeler/export/cariler")]
+    [InlineData("/app/cariler")]
+    [InlineData("/api/ui/v1/cariler")]
     // F6: fotoğraf GET'leri, POST uçlarının GET'i, Blazor karşılığı olmayan SPA alt rotaları, benzer adlı sayfalar, export
     [InlineData("/vehicles/" + G + "/photos/" + G)]
     [InlineData("/vehicles/" + G + "/photos/" + G + "/thumb")]
@@ -214,7 +247,10 @@ public sealed class IlkKesisKararTests
     [InlineData(true, "/rezervasyonlar?durum=Rezerv", "/app/rezervasyonlar?durum=Rezerv")] // F5.4
     [InlineData(true, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04")]
     [InlineData(true, "/takvim-abonelik", "/takvim-abonelik")]                          // F5 dışı benzer ad Blazor'da
-    [InlineData(true, "/cariler?x=1", "/cariler?x=1")]                                  // taşınmamış modül Blazor'da
+    [InlineData(true, "/kasa?x=1", "/kasa?x=1")]                                        // taşınmamış modül Blazor'da
+    [InlineData(true, "/cariler?x=1", "/app/cariler?x=1")]                              // F7.3
+    [InlineData(true, "/cariler/" + G + "/detay#sekme=ekstre", "/app/cariler/" + G + "/detay#sekme=ekstre")]
+    [InlineData(true, "/cariler/" + G + "/ekstre", "/cariler/" + G + "/ekstre")]        // F8 sayfası Blazor'da
     [InlineData(true, "/vehicles?x=1", "/app/araclar?x=1")]                             // F6.4
     [InlineData(true, "/araclar/" + G + "#km", "/app/araclar/" + G + "/detay#km")]
     [InlineData(true, "/kiralar/" + G + "/pdf", "/kiralar/" + G + "/pdf")]              // PDF yönlenmez
@@ -230,6 +266,8 @@ public sealed class IlkKesisKararTests
     [InlineData(false, "/app/rezervasyonlar", "/")]
     [InlineData(false, "/vehicles", "/vehicles")]
     [InlineData(false, "/app/araclar", "/")]
+    [InlineData(false, "/cariler?x=1", "/cariler?x=1")]
+    [InlineData(false, "/app/cariler", "/")]
     [InlineData(false, "//evil.com", "/")]
     [InlineData(false, "/platform/tenants", "/")]
     public void Oturumlu_giris_sonrasi_hedef(bool pilot, string? donus, string beklenen)
@@ -260,6 +298,13 @@ public sealed class IlkKesisKararTests
     [InlineData("/app/arac-sahipleri", "/arac-sahipleri")]
     [InlineData("/app/segmentler", "/segmentler")]
     [InlineData("/app/araclar/yeni", null)]                // Blazor'da ayrı "yeni araç" sayfası yoktu
+    [InlineData("/app/cariler", "/cariler")]               // F7.3 menü öğeleri (Cariler & CRM grubunun F7 sayfaları)
+    [InlineData("/app/crm", "/crm")]
+    [InlineData("/app/sikayetler", "/sikayetler")]
+    [InlineData("/app/assistans", "/assistans")]
+    [InlineData("/app/hukuk", "/hukuk")]
+    [InlineData("/app/anketler", "/anketler")]
+    [InlineData("/app/cariler/yeni", null)]                // Blazor'da yeni cari liste içi formdu
     [InlineData("/vehicles", null)]
     public void Menu_icin_Blazor_karsiligi(string spa, string? beklenen)
         => Assert.Equal(beklenen, IlkKesis.BlazorKarsiligi(spa));
@@ -313,8 +358,16 @@ public sealed class IlkKesisKararTests
             },
             f6.OrderBy(x => x, StringComparer.Ordinal));
         Assert.Empty(f6.Intersect(f4.Concat(f5)));
+        var f7 = EnvanterRotalari("F7", 8);
+        Assert.Equal(new[]
+            {
+                "/anketler", "/assistans", "/cariler", "/cariler/{id:guid}", "/cariler/{id:guid}/detay", "/crm", "/hukuk",
+                "/sikayetler",
+            },
+            f7.OrderBy(x => x, StringComparer.Ordinal));
+        Assert.Empty(f7.Intersect(f4.Concat(f5).Concat(f6)));
 
-        Assert.Equal(f4.Concat(f5).Concat(f6).OrderBy(x => x), IlkKesis.Harita.Select(e => e.Kaynak).OrderBy(x => x));
+        Assert.Equal(f4.Concat(f5).Concat(f6).Concat(f7).OrderBy(x => x), IlkKesis.Harita.Select(e => e.Kaynak).OrderBy(x => x));
         Assert.All(IlkKesis.Harita, e => Assert.StartsWith("/app/", e.Hedef));
         Assert.Equal(IlkKesis.Harita.Count, IlkKesis.Harita.Select(e => e.Hedef).Distinct().Count());
     }
@@ -356,13 +409,41 @@ public sealed class IlkKesisKararTests
             Assert.Contains(yol, metin);
 
         // Harita hedefleri (SPA'da /app öneki olmadan, {id} → :id) bu listeyle birebir.
-        var f6Hedefleri = IlkKesis.Harita.Skip(11).Select(e => e.Hedef["/app/".Length..].Replace("{id}", ":id")).OrderBy(x => x, StringComparer.Ordinal);
+        var f6Hedefleri = IlkKesis.Harita.Skip(11).Take(14).Select(e => e.Hedef["/app/".Length..].Replace("{id}", ":id")).OrderBy(x => x, StringComparer.Ordinal);
         Assert.Equal(new[]
             {
                 "arac-durum", "arac-kredi", "arac-sahipleri", "arac-siparis", "arac-tipleri", "araclar", "araclar/:id",
                 "araclar/:id/detay", "araclar/detayli", "baf", "filo-plan", "hasar", "musteri-taksit", "segmentler",
             },
             f6Hedefleri);
+    }
+
+    /// <summary>
+    /// F7 haritasının hedefleri SPA'da GERÇEK rota (Angular rota dosyaları metin olarak). Hedefler elle yazılmıştır.
+    /// </summary>
+    [Fact]
+    public void F7_targets_are_defined_in_SPA_route_files()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app");
+        var pages = File.ReadAllText(Path.Combine(app, "sayfalar.ts"));
+        Assert.Contains("CUSTOMER_ROUTES", pages);
+        Assert.Contains("CRM_ROUTES", pages);
+        var text = pages
+            + File.ReadAllText(Path.Combine(app, "features/customers/customers.routes.ts"))
+            + File.ReadAllText(Path.Combine(app, "features/crm/crm.routes.ts"));
+        foreach (var path in new[] { "cariler", "cariler/:id", "cariler/:id/detay", "anketler", "sikayetler", "assistans", "hukuk", "crm" })
+            Assert.Contains($"path: '{path}',", text);
+
+        // Harita hedefleri (SPA'da /app öneki olmadan, {id} → :id) bu listeyle birebir.
+        // Konumla değil kaynakla seçilir: başka fazın bloğu araya girse de (paralel kesiş PR'ları) test kaymaz.
+        string[] f7Sources =
+        [
+            "/cariler", "/cariler/{id:guid}", "/cariler/{id:guid}/detay", "/anketler", "/sikayetler", "/assistans", "/hukuk",
+            "/crm",
+        ];
+        var f7Targets = IlkKesis.Harita.Where(e => f7Sources.Contains(e.Kaynak)).Select(e => e.Hedef["/app/".Length..].Replace("{id}", ":id")).OrderBy(x => x, StringComparer.Ordinal);
+        Assert.Equal(new[] { "anketler", "assistans", "cariler", "cariler/:id", "cariler/:id/detay", "crm", "hukuk", "sikayetler" },
+            f7Targets);
     }
 }
 
@@ -514,6 +595,27 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await YonlenirAsync(op, "/arac-durum", "/app/arac-durum");
     }
 
+    /// <summary>F7.3: cari/CRM modülünün 8 Blazor sayfası pilot firmada SPA'ya; Blazor sorgusu AYNEN taşınır.</summary>
+    [Fact]
+    public async Task Pilot_F7_pages_redirect_302_to_SPA_query_kept()
+    {
+        var c = await OturumAsync(fx.PilotAdmin);
+        await YonlenirAsync(c, "/cariler", "/app/cariler");
+        await YonlenirAsync(c, "/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi", "/app/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi");
+        await YonlenirAsync(c, "/cariler/" + G, "/app/cariler/" + G);
+        await YonlenirAsync(c, "/cariler/" + G + "/detay", "/app/cariler/" + G + "/detay");
+        await YonlenirAsync(c, "/anketler", "/app/anketler");
+        await YonlenirAsync(c, "/sikayetler?durum=Acik", "/app/sikayetler?durum=Acik");
+        await YonlenirAsync(c, "/assistans", "/app/assistans");
+        await YonlenirAsync(c, "/hukuk/", "/app/hukuk");
+        await YonlenirAsync(c, "/crm", "/app/crm");
+        await YonlenirAsync(c, "/cariler", "/app/cariler", HttpMethod.Head);
+
+        var op = await OturumAsync(fx.PilotOperator);
+        await YonlenirAsync(op, "/cariler", "/app/cariler");
+        await YonlenirAsync(op, "/sikayetler", "/app/sikayetler");
+    }
+
     [Fact]
     public async Task Pilot_olmayan_firma_yonlenmez_Blazor_sayfasi_acilir()
     {
@@ -524,6 +626,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/rezervasyonlar", "/teklifler", "/takvim", "/musaitlik", "/rez-sartlari", "/filo-kiralama",
                      "/vehicles", "/vehicles/detayli", "/arac-durum", "/arac-sahipleri", "/segmentler", "/arac-tipleri",
                      "/arac-kredi", "/musteri-taksit", "/arac-siparis", "/baf", "/hasar", "/filo-plan",
+                     "/cariler", "/anketler", "/sikayetler", "/assistans", "/hukuk", "/crm",
                  })
         {
             var r = await c.GetAsync(url);
@@ -563,7 +666,12 @@ public sealed class IlkKesisHostTests(WebFixture fx)
             "/raporlar/export/gelir-gider",
             "/kasa/makbuz/" + G + "/pdf",
             "/faturalar/" + G + "/pdf",
-            "/cariler",
+            "/kasa",
+            // F7: cari ekstresi (F8 sayfası), export, aynı menü grubundaki F7 dışı sayfalar
+            "/cariler/" + G + "/ekstre",
+            "/listeler/export/cariler?format=excel",
+            "/blog-yonetim",
+            "/gelen-talepler",
             // F6: fotoğraf (tam boy + küçük resim), export, araç karnesi, benzer adlı Blazor sayfası (F11)
             "/vehicles/" + G + "/photos/" + G,
             "/vehicles/" + G + "/photos/" + G + "/thumb",
@@ -608,6 +716,11 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/arac-kredi/create", "/arac-kredi/taksit-ode", "/musteri-taksit/odeme", "/arac-siparis/onayla",
                      "/baf/create", "/hasar/onayla", "/filo-plan/delta", "/segmentler/create", "/arac-tipleri/update",
                      "/arac-sahipleri/delete", "/vehicles", "/vehicles/" + G, "/arac-durum", "/baf",
+                     // F7 Blazor POST uçları (hedefsiz; bu PR'da silinmedi) + sayfa yollarına POST
+                     "/cariler/create", "/cariler/update", "/cariler/delete", "/anketler/create", "/anketler/update",
+                     "/anketler/delete", "/sikayetler/create", "/sikayetler/update", "/sikayetler/delete",
+                     "/assistans/create", "/assistans/update", "/assistans/delete", "/hukuk/create", "/hukuk/update",
+                     "/hukuk/delete", "/cariler", "/cariler/" + G, "/crm", "/hukuk",
                  })
         {
             var r = await c.PostAsync(url, new FormUrlEncodedContent([]));
@@ -672,7 +785,8 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fkiralar%3Fvarac%3Dx", "/app/kiralar?varac=x");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fkiralar%3Fq%3Da", "/app/kiralar?q=a");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fvehicles", "/app/araclar");            // F6.4
-        await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fcariler", "/cariler");                 // taşınmamış modül
+        await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fkasa", "/kasa");                       // taşınmamış modül
+        await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fcariler", "/app/cariler");             // F7.3
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Frezervasyonlar%3Fdurum%3DRezerv", "/app/rezervasyonlar?durum=Rezerv"); // F5.4
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2F%2Fevil.com", "/app/panel");
         await YonlenirAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fgiris", "/app/panel");
@@ -701,6 +815,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/vehicles", "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
                      "/rezervasyonlar", "/musaitlik?from=2026-10-01", "/filo-kiralama",
                      "/vehicles/" + G, "/araclar/" + G, "/arac-kredi",
+                     "/cariler", "/cariler/" + G + "/detay", "/crm",
                  })
         {
             var zincir = await ZincirAsync(c, baslangic);

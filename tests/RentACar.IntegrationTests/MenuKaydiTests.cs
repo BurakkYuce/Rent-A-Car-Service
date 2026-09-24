@@ -124,14 +124,15 @@ public sealed class MenuKaydiTests
         // F4.6: F4 sayfaları (Panel, Kiralar, Yeni Kira) yeni arayüzün; sahip rotadan türer (/app → spa).
         // F5.4: Rezervasyon grubu (4), Kira grubundan Teklifler + Filo Kiralama, iki kısa yol (Yeni Rezervasyon, Müsaitlik).
         // F6.4: Araçlar grubunun tamamı (12) + Tanımlar'daki Araç Tipleri ve Segmentler (F6 sayfaları; iki grupta birer kez).
+        // F7.3: Cariler & CRM grubunun F7 sayfaları (6; Blog ve Gelen Talepler Blazor'da kalır).
         Assert.Equal(new[]
             {
-                "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
-                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/baf",
-                "/app/filo-kiralama", "/app/filo-plan", "/app/hasar", "/app/kiralar", "/app/kiralar/yeni", "/app/musaitlik",
-                "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
+                "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
+                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/cariler",
+                "/app/crm", "/app/filo-kiralama", "/app/filo-plan", "/app/hasar", "/app/hukuk", "/app/kiralar",
+                "/app/kiralar/yeni", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
                 "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/segmentler", "/app/segmentler",
-                "/app/takvim", "/app/teklifler",
+                "/app/sikayetler", "/app/takvim", "/app/teklifler",
             },
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
@@ -247,6 +248,10 @@ public sealed class MenuKaydiTests
         Assert.DoesNotContain(yasak, x => x.StartsWith("Araçlar|", StringComparison.Ordinal) || x.StartsWith(KisaYollar + "|", StringComparison.Ordinal));
         Assert.DoesNotContain("Kira|/kiralar", yasak);
         Assert.DoesNotContain("Tanımlar|/segmentler", yasak);  // F6.4: spa öğesi de izinle gizlenir
+        Assert.DoesNotContain("Cariler & CRM|/cariler", yasak); // F7.3: aynı kural
+        // F7.3: CRM Analiz spa öğesi ViewReports'a bağlı — operatöre ek ViewReports ile görünür, Muhasebe'ye yasakla gizlenir.
+        Assert.Contains("Cariler & CRM|/crm", YeniGorunur(Kullanici(UserRole.Operator, ek: ["ViewReports"])));
+        Assert.DoesNotContain("Cariler & CRM|/crm", YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["ViewReports"])));
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
         Assert.Contains("|/vade", yasak);
     }

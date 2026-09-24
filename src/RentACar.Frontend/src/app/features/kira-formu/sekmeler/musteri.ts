@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { KiraFormuDurumu } from '../kira-formu-durumu';
 import { sayiya } from '../kira-formu-modeli';
 import { KF_ORTAK } from './ortak';
@@ -12,7 +13,7 @@ import { KF_ORTAK } from './ortak';
 @Component({
   selector: 'rc-kf-musteri',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_ORTAK, RouterLink],
   template: `
     <div [formGroup]="d.form">
       <section class="kf-kart">
@@ -34,12 +35,14 @@ import { KF_ORTAK } from './ortak';
           </button>
         } @else if (d.kira(); as k) {
           <p class="kf-baglantilar">
-            <a [href]="'/cariler/' + k.musteriId">{{
+            <a [routerLink]="['/cariler', k.musteriId]">{{
               'kiraFormu.baglanti.cariKarti' | transloco
             }}</a>
-            <a [href]="'/cariler/' + k.musteriId + '/ekstre'">{{
-              'kiraFormu.baglanti.ekstre' | transloco
-            }}</a>
+            @if (d.canSeeCustomerStatement()) {
+              <a [routerLink]="['/cariler', k.musteriId, 'ekstre']">{{
+                'kiraFormu.baglanti.ekstre' | transloco
+              }}</a>
+            }
           </p>
         }
         @if (ozet(); as m) {

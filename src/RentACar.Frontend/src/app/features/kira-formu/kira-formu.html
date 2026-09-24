@@ -26,8 +26,8 @@
         {{ 'kiraFormu.baglanti.yazdir' | transloco }}
       </button>
       <a [href]="pdf + '?indir=1'">{{ 'kiraFormu.baglanti.indir' | transloco }}</a>
-      @if (k) {
-        <a [href]="'/cariler/' + k.musteriId + '/ekstre'">{{
+      @if (k && d.canSeeCustomerStatement()) {
+        <a [routerLink]="['/cariler', k.musteriId, 'ekstre']">{{
           'kiraFormu.baglanti.ekstre' | transloco
         }}</a>
       }
