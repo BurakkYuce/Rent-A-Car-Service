@@ -32,6 +32,8 @@ public sealed class PlatformIsolationTests
     [InlineData("/kiralar/yeni")]     // kira formu
     [InlineData("/cariler/x/ekstre")] // cari ekstre
     [InlineData("/gibberish-yol")]    // olmayan tenant yolu da konsola (404 yerine)
+    [InlineData("/app/panel")]        // F12.2: yeni arayüzün FİRMA ekranları kapalı kalır
+    [InlineData("/app/platformx")]    // F12.2: /app/platform muafiyeti segment eşleşmesidir, önek değil
     public async Task Platform_admin_tenant_sayfasindan_konsola_yonlendirilir(string path)
     {
         var (status, location, nextCalled) = await CalistirAsync(path, Platform);
@@ -48,6 +50,9 @@ public sealed class PlatformIsolationTests
     [InlineData("/app.css")]               // statik varlık
     [InlineData("/js/rc-ui.js")]
     [InlineData("/_framework/blazor.web.js")]
+    [InlineData("/app/platform")]                 // F12.2: SPA platform ekranları (derin bağlantı/yenileme)
+    [InlineData("/app/platform/kiracilar")]
+    [InlineData("/app/Platform/kiracilar/abc")]   // ASP.NET yönlendirmesi gibi büyük/küçük harf duyarsız
     public async Task Platform_admin_altyapi_yollarina_erisebilir(string path)
     {
         var (_, location, nextCalled) = await CalistirAsync(path, Platform);

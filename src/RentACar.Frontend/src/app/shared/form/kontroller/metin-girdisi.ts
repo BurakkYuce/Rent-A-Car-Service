@@ -28,7 +28,8 @@ import { TemelKontrol, kontrolSaglayicilari } from './temel-kontrol';
   `,
 })
 export class MetinGirdisi extends TemelKontrol<string> {
-  readonly tur = input<'text' | 'email' | 'tel' | 'search' | 'url'>('text');
+  /** `password`: yeni hesap parolası (F12.2 firma oluşturma) — `otomatikTamamlama="new-password"` ile. */
+  readonly tur = input<'text' | 'email' | 'tel' | 'search' | 'url' | 'password'>('text');
   readonly yerTutucu = input('');
   readonly azamiUzunluk = input<number | undefined, unknown>(undefined, {
     transform: (v: unknown) => (v === undefined || v === null ? undefined : numberAttribute(v)),
