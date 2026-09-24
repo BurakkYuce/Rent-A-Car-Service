@@ -427,6 +427,74 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task E09_E11_Depozito_anahtari_TURLER_ARASI_tekil_baska_turde_mukerrer_ve_yazim_yok()
+    {
+        // #299 L2 (servis düzeyi — Blazor yolu ham anahtarı doğrudan geçirir): al'ın anahtarıyla iade/mahsup/irat
+        // MukerrerIslemException (mevcut = al, ayniIcerik=false) ve HİÇBİR satır yazılmaz; ters yön de aynı.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var dep = sp.GetRequiredService<DepozitoService>();
+        var cari = await CariOlustur(sp);
+        var k = Guid.NewGuid();
+        Assert.Equal(k, await dep.AlAsync(cari, 500m, LedgerAccountType.Kasa, islemAnahtari: k));
+
+        var iade = await Assert.ThrowsAsync<MukerrerIslemException>(
+            () => dep.IadeAsync(cari, 100m, LedgerAccountType.Kasa, islemAnahtari: k));
+        Assert.NotNull(iade.Mevcut);
+        Assert.Equal(k, iade.Mevcut!.Id);
+        Assert.Equal(500m, iade.Mevcut.Tutar);
+        Assert.Equal("TRY", iade.Mevcut.Doviz);
+        Assert.False(iade.Mevcut.AyniIcerik);
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.MahsupAsync(cari, 50m, islemAnahtari: k));
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.IratAsync(cari, 20m, islemAnahtari: k));
+
+        Assert.Equal(500m, await dep.GetBakiyeAsync(cari));               // ELLE: yalnız al 500
+        Assert.Equal(2, await DefterSatir(sp, "DepozitoAl"));
+        Assert.Equal(0, await DefterSatir(sp, "DepozitoIade"));
+        Assert.Equal(0, await DefterSatir(sp, "DepozitoMahsup"));
+        Assert.Equal(0, await DefterSatir(sp, "DepozitoIrat"));
+        Assert.Equal(0, await Say(sp, db => db.DepozitoIratlar));
+
+        // Ters yön: mahsup anahtarıyla al → 409; mahsubun birebir tekrarı sessiz.
+        var m = Guid.NewGuid();
+        await dep.MahsupAsync(cari, 100m, islemAnahtari: m);
+        await Assert.ThrowsAsync<MukerrerIslemException>(() => dep.AlAsync(cari, 100m, LedgerAccountType.Kasa, islemAnahtari: m));
+        await dep.MahsupAsync(cari, 100m, islemAnahtari: m);
+        Assert.Equal(400m, await dep.GetBakiyeAsync(cari));               // ELLE: 500 − 100
+        await DengeAsync(sp);
+    }
+
+    [Fact]
+    public async Task E12_Depozito_irat_BASKA_KIRACININ_anahtariyla_400_mukerrer_degil_ve_yazim_yok()
+    {
+        // r314 P5: DepozitoIrat.Id = anahtar, PK kiracılar arası tekil. Başka kiracının kullandığı ham anahtar bu
+        // kiracıda "görünmez" → mükerrer (409) DEĞİL, net 400 ve hiçbir satır yazılmaz.
+        using var host = new TestHost(fx.AppConnectionString);
+        var k = Guid.NewGuid();
+        using (var other = host.ScopeFor(Guid.NewGuid()))
+        {
+            var sp0 = other.ServiceProvider;
+            var dep0 = sp0.GetRequiredService<DepozitoService>();
+            var cari0 = await CariOlustur(sp0);
+            await dep0.AlAsync(cari0, 50m, LedgerAccountType.Kasa);
+            Assert.Equal(k, await dep0.IratAsync(cari0, 5m, islemAnahtari: k));
+        }
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var dep = sp.GetRequiredService<DepozitoService>();
+        var cari = await CariOlustur(sp);
+        await dep.AlAsync(cari, 50m, LedgerAccountType.Kasa);
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => dep.IratAsync(cari, 5m, islemAnahtari: k));
+        Assert.IsNotType<MukerrerIslemException>(ex);
+        Assert.Equal(50m, await dep.GetBakiyeAsync(cari));                // ELLE: irat yazılmadı
+        Assert.Equal(0, await DefterSatir(sp, "DepozitoIrat"));
+        Assert.Equal(0, await Say(sp, db => db.DepozitoIratlar));
+        await DengeAsync(sp);
+    }
+
+    [Fact]
     public async Task E12_Depozito_irat_tamami_ikinci_gonderim_sessiz_ayni_id()
     {
         using var host = new TestHost(fx.AppConnectionString);

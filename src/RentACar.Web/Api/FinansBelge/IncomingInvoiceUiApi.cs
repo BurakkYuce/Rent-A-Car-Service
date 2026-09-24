@@ -107,12 +107,25 @@ public static class IncomingInvoiceUiApi
     {
         var plates = await F5Ortak.PlakalarAsync(dbf, rows.Where(r => r.VehicleId is not null).Select(r => r.VehicleId!.Value), ct);
         var names = await F5Ortak.CarilerAsync(dbf, rows.Where(r => r.CariId is not null).Select(r => r.CariId!.Value), ct);
+        var categories = await CategoryNamesAsync(dbf, rows.Where(r => r.ExpenseCategoryId is not null).Select(r => r.ExpenseCategoryId!.Value), ct);
         return rows.Select(r => new IncomingInvoiceRow(
             r.Id, r.Ettn, r.GonderenVkn, r.GonderenUnvan, r.Tarih, r.NetTutar, r.KdvTutar, r.GenelToplam, r.Currency,
             r.Durum.ToString(), r.RedNedeni, r.Aciklama, r.Kdv20Matrah, r.Kdv20, r.Kdv10Matrah, r.Kdv10, r.Kdv1Matrah,
             r.Kdv1, r.Kdv0Matrah, r.VehicleId, r.VehicleId is { } v ? F5Ortak.Plaka(plates, v) : null,
             r.ExpenseCategoryId, r.CariId, r.CariId is { } c ? F5Ortak.CariAdi(names, c) : null, r.GiderTipi?.ToString(),
-            r.GiderlestirilmeUtc is not null, r.GiderlestirilmeUtc)).ToList();
+            r.GiderlestirilmeUtc is not null, r.GiderlestirilmeUtc,
+            r.ExpenseCategoryId is { } k ? categories.GetValueOrDefault(k) : null)).ToList();
+    }
+
+    /// <summary>Gider kategorisi adları (bağlama formunun seçim etiketi; kategori FK'sız — silinmişse boş).</summary>
+    private static async Task<Dictionary<Guid, string>> CategoryNamesAsync(
+        IDbContextFactory<AppDbContext> dbf, IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.ExpenseCategories.AsNoTracking().Where(x => list.Contains(x.Id))
+            .Select(x => new { x.Id, x.Ad }).ToDictionaryAsync(x => x.Id, x => x.Ad, ct);
     }
 
     private static async Task<Ok<DocumentResult>> Create(

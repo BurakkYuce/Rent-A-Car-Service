@@ -54,7 +54,8 @@ import {
   VAT_RATES,
   type VatRate,
 } from '../document-model';
-import { INVOICES, InvoiceStore, recordPath } from '../document.store';
+import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
+import { pruneSelection } from './batch-selection';
 import { ManualInvoiceForm } from './manual-invoice-form';
 
 /**
@@ -156,9 +157,26 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
     const policy = inject(FetchPolicy);
     policy.baglan({
       parametre: this.query.apiParametreleri,
-      yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      yukle: (p) => {
+        this.store.list.yukle(p);
+        this.store.summary.yukle(summaryParameters(p));
+      },
+      sifirla: () => {
+        this.store.list.sifirla();
+        this.store.summary.sifirla();
+      },
       sekmeyeDonunce: 'yenile',
+    });
+    // Yeniden yüklenen aday listesinde görünmeyen kira seçimde kalmaz (#300 L5): yalnız HAZIR veriyle budanır
+    // (yükleme ya da hata anında seçim korunur).
+    effect(() => {
+      if (this.store.unbilled.durum().tur !== 'hazir') return;
+      const visible = this.candidates().map((r) => r.id);
+      untracked(() => {
+        const current = this.batchSelection();
+        const next = pruneSelection(current, visible);
+        if (next !== current) this.batchSelection.set(next);
+      });
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
@@ -244,7 +262,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
         next: (r) => {
           this.toast.basari(this.t('finansBelge.fatura.iadeKesildi', { no: r.no }));
           this.store.detail.yukle(d.id);
-          this.store.list.yenile();
+          this.reloadList();
         },
         error: (raw: unknown) => this.failed(raw, () => this.store.detail.yukle(d.id)),
       });
@@ -253,7 +271,13 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   // ------------------------------------------------------------------ manuel fatura sonrası
 
   protected manualSaved(): void {
+    this.reloadList();
+  }
+
+  /** Liste ve döviz toplamı birlikte yenilenir (toplam listeden ayrı düşmesin). */
+  protected reloadList(): void {
     this.store.list.yenile();
+    this.store.summary.yenile();
   }
 
   // ------------------------------------------------------------------ toplu
@@ -272,7 +296,12 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected async batch(): Promise<void> {
-    const ids = [...this.batchSelection()];
+    const ids = [
+      ...pruneSelection(
+        this.batchSelection(),
+        this.candidates().map((r) => r.id),
+      ),
+    ];
     if (ids.length === 0 || this.busy() || !this.canWrite()) return;
     const yes = await this.confirm.sor({
       baslik: this.t('finansBelge.fatura.topluBaslik'),
@@ -298,7 +327,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
           this.toast.basari(this.t('finansBelge.fatura.topluKesildi', { adet: r.kesilen.length }));
           this.batchSelection.set(new Set());
           this.store.unbilled.yenile();
-          this.store.list.yenile();
+          this.reloadList();
         },
         error: (raw: unknown) => this.failed(raw, () => this.store.unbilled.yenile()),
       });
@@ -308,6 +337,6 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
     const error = apiHatasinaCevir(raw);
     if (!genelGosterilir(error)) this.toast.hata(error.detay);
     reload();
-    this.store.list.yenile();
+    this.reloadList();
   }
 }

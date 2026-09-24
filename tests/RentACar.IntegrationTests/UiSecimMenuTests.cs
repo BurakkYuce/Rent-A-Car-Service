@@ -221,9 +221,9 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         await ProblemBekle(anonim, HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
-    /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c> ve <c>kur</c>
-    /// arama uçları "OperationsWrite veya FinanceWrite"; geri kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite
-    /// (genişleme sessizce yayılmasın).</summary>
+    /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c>, <c>kur</c> ve
+    /// <c>gider-kategorisi</c> arama uçları "OperationsWrite veya FinanceWrite"; <c>satilabilir-arac</c> FinanceWrite; geri
+    /// kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite (genişleme sessizce yayılmasın).</summary>
     [Fact]
     public void Secim_uclari_izin_haritasi()
     {
@@ -236,17 +236,24 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         //   sigorta-sirketi → Blazor poliçe formu (/regulasyon/sigorta, OW grubu) firma listesi;
         //   tarife-grubu → Blazor tarife formu (/tarifeler, izin:OperationsWrite) grup listesi;
         //   sigorta-policesi → Blazor zeyil formu (/regulasyon/zeyil, OW grubu) poliçe listesi (araç şubesi kapsamlı).
-        Assert.Equal(17, uclar.Count);
+        // + #300 eksik uçlar: gider-kategorisi (OW ∨ FW — gelen e-faturadan gider, Muhasebe) ve satilabilir-arac
+        //   (FinanceWrite — araç satışıyla aynı izin).
+        Assert.Equal(19, uclar.Count);
         foreach (var f91 in new[] { "sigorta-sirketi", "tarife-grubu", "sigorta-policesi" })
             Assert.Contains(V1 + "/secim/" + f91, uclar.Keys);
         foreach (var (rota, e) in uclar)
         {
             var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
             var tek = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinMetadata>();
-            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur")
+            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur" or V1 + "/secim/gider-kategorisi")
             {
                 Assert.Null(tek);
                 Assert.Equal(new[] { Permission.OperationsWrite, Permission.FinanceWrite }, biri!.Izinler);
+            }
+            else if (rota == V1 + "/secim/satilabilir-arac")
+            {
+                Assert.Null(biri);
+                Assert.Equal(Permission.FinanceWrite, tek!.Izin);
             }
             else
             {
@@ -365,18 +372,22 @@ public sealed class UiSecimMenuTests(WebFixture fx)
 
         var (admin, adminGovde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
         // F4.6: Panel, Kiralar, Yeni Kira yeni arayüzün (sahip spa, rota /app/…).
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/araclar", "/app/araclar/detayli", "/app/cariler", "/app/crm", "/app/hukuk", "/app/kasa", "/app/faturalar", "/app/raporlar/karlilik", "/app/raporlar/personel-calisma", "/app/tarife-aktar", "/app/servisler", "/app/regulasyon", "/app/maliyet-teklifleri", "/ayarlar", "/app/vade", "/bildirimler" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/araclar", "/app/araclar/detayli", "/app/cariler", "/app/crm", "/app/hukuk", "/app/kasa", "/app/faturalar", "/app/raporlar/karlilik", "/app/raporlar/personel-calisma", "/app/tarife-aktar", "/app/servisler", "/app/regulasyon", "/app/maliyet-teklifleri", "/app/ayarlar", "/app/vade", "/app/bildirimler", "/app/markalar", "/app/subeler", "/app/blog-yonetim" })
             Assert.Contains(r, admin);
-        Assert.DoesNotContain("/web-sitesi", admin);   // modül kapalı
-        Assert.DoesNotContain("/site-icerik", admin);
+        Assert.DoesNotContain("/app/web-sitesi", admin);   // modül kapalı
+        Assert.DoesNotContain("/app/site-icerik", admin);
         var ogeler = adminGovde.GetProperty("ogeler").EnumerateArray().ToList();
         AlanKumesi(adminGovde.GetProperty("ogeler"), "rota", "etiket", "grup", "sira", "sahip", "rozetKodu", "hizliBaglanti");
         Assert.All(ogeler, e => Assert.Equal(
             e.GetProperty("rota").GetString()!.StartsWith("/app/", StringComparison.Ordinal) ? "spa" : "blazor",
             e.GetProperty("sahip").GetString()));
         // F4.6: 3, F5.4: +8, F6.4: +14 (Araçlar 12 + Tanımlar 2), F7.3: +6 (Cariler & CRM), F10.3: +25 (Raporlar), F9.3: +15 (Servis & Sigorta 3, Fiyat & Tarife 11, Vade Panosu),
-        // F8.3: +17 (Finans)
-        Assert.Equal(88, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        // F8.3: +17 (Finans), F11.3: +39 (Tanımlar 24 + Sistem 9 + grupsuz 4 + Blog/Gelen Talepler 2; Web Sitesi grubu
+        // modül kapalı → gizli) = 127
+        Assert.Equal(127, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/markalar" or "/ayarlar" or "/bildirimler" or "/gelen-talepler" or "/blog-yonetim");
+        Assert.All(ogeler.Where(e => e.GetProperty("grup").GetString() is "Tanımlar" or "Sistem"),
+            e => Assert.Equal("spa", e.GetProperty("sahip").GetString()));
         Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/cariler" or "/crm" or "/anketler" or "/sikayetler" or "/assistans" or "/hukuk");
         Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/kasa" or "/faturalar" or "/kurlar" or "/cezalar" or "/giderler" or "/satislar" or "/donem-kapanis");
         Assert.Equal(17, ogeler.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
@@ -389,21 +400,22 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         var siralar = ogeler.Select(e => e.GetProperty("sira").GetInt32()).ToList();
         Assert.Equal(siralar.Order(), siralar);         // sıralı döner
         // Gelen Talepler CRM grubunda modülden bağımsız görünür; Web Sitesi grubundaki kopyası gizli.
-        Assert.Single(ogeler, e => e.GetProperty("rota").GetString() == "/gelen-talepler");
+        Assert.Single(ogeler, e => e.GetProperty("rota").GetString() == "/app/gelen-talepler");
         Assert.True(adminGovde.GetProperty("rozetler").TryGetProperty("okunmamis-bildirim", out _));
         Assert.False(adminGovde.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
         var (op, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorA));
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/dokumanlar" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/app/dokumanlar", "/app/markalar", "/app/lokasyonlar", "/app/bildirimler" })
             Assert.Contains(r, op);
-        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/ayarlar", "/subeler" })
+        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/app/ayarlar", "/app/subeler", "/app/personel", "/app/belge-sablonlari", "/app/ice-aktar" })
             Assert.DoesNotContain(r, op);
 
         var (muh, _) = await MenuAsync(await GirisAsync(o, Kim.Muhasebe));
         foreach (var r in new[] { "/app/panel", "/app/kasa", "/app/faturalar", "/app/donem-kapanis", "/app/raporlar/gunluk", "/app/raporlar/kasa-banka", "/app/araclar/detayli", "/app/crm", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musteri-taksit", "/app/vade" })
             Assert.Contains(r, muh);
-        foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/app/araclar", "/vehicles", "/raporlar/gunluk", "/app/cariler", "/cariler", "/tarife-aktar", "/app/tarife-aktar", "/app/tarifeler", "/app/servisler", "/ayarlar", "/kasa", "/faturalar" })
+        foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/app/araclar", "/vehicles", "/raporlar/gunluk", "/app/cariler", "/cariler", "/tarife-aktar", "/app/tarife-aktar", "/app/tarifeler", "/app/servisler", "/app/ayarlar", "/app/markalar", "/markalar", "/kasa", "/faturalar" })
             Assert.DoesNotContain(r, muh);
+        Assert.Contains("/app/bildirimler", muh);         // F11.3: grupsuz spa öğesi her rolde
     }
 
     [Fact]
@@ -418,14 +430,17 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.DoesNotContain("/app/kasa", ek);        // F8.3: Finans spa, FinanceWrite ister
 
         var (yasakli, _) = await MenuAsync(await GirisAsync(o, Kim.AdminYasakli)); // Admin − ManageUsers
-        Assert.DoesNotContain("/ayarlar", yasakli);
+        Assert.DoesNotContain("/app/ayarlar", yasakli);
+        Assert.DoesNotContain("/app/kullanicilar", yasakli);
         Assert.DoesNotContain("/app/tarife-aktar", yasakli);
         Assert.Contains("/app/kasa", yasakli);         // F8.3: Finans spa
 
         var (admin, govde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
-        Assert.Contains("/web-sitesi", admin);
-        Assert.Contains("/site-icerik", admin);
-        Assert.Equal(2, govde.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("rota").GetString() == "/gelen-talepler"));
+        Assert.Contains("/app/web-sitesi", admin);        // F11.3: Web Sitesi grubu spa
+        Assert.Contains("/app/site-icerik", admin);
+        Assert.Equal(2, govde.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("rota").GetString() == "/app/gelen-talepler"));
+        // Modül açık: 127 + Web Sitesi grubu 4 = 131 spa öğe.
+        Assert.Equal(131, govde.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("sahip").GetString() == "spa"));
         Assert.Equal(0, govde.GetProperty("rozetler").GetProperty("yeni-talep").GetInt32());
     }
 }

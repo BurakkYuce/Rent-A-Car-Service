@@ -13,7 +13,8 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
 /// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
 /// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları; F10.3: Raporlar
-/// grubu; F9.3: Servis &amp; Sigorta ve Fiyat &amp; Tarife grupları + Vade Panosu; F8.3: Finans grubu). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// grubu; F9.3: Servis &amp; Sigorta ve Fiyat &amp; Tarife grupları + Vade Panosu; F8.3: Finans grubu; F11.3: Tanımlar,
+/// Web Sitesi ve Sistem grupları, Blog, Gelen Talepler ve kalan grupsuz öğeler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -96,20 +97,20 @@ public static class MenuKaydi
         E(Rez, "/app/rez-sartlari", "Rez Şartları", OW);
 
         const string Cari = "Cariler & CRM";
-        E(Cari, "/app/cariler", "Cariler", OW); // F7.3: F7 sayfaları spa (Blog, Gelen Talepler F11/F12'nin)
+        E(Cari, "/app/cariler", "Cariler", OW); // F7.3: F7 sayfaları spa; F11.3: Blog ve Gelen Talepler de spa
         E(Cari, "/app/crm", "CRM Analiz", VR);
         E(Cari, "/app/sikayetler", "Şikayetler", OW);
         E(Cari, "/app/assistans", "Assistans Talepleri", OW);
         E(Cari, "/app/hukuk", "Hukuk", OW);
         E(Cari, "/app/anketler", "Anketler", OW);
-        E(Cari, "/blog-yonetim", "Blog", OW);
-        E(Cari, "/gelen-talepler", "Gelen Talepler", OW, rozet: RozetYeniTalep);
+        E(Cari, "/app/blog-yonetim", "Blog", OW);
+        E(Cari, "/app/gelen-talepler", "Gelen Talepler", OW, rozet: RozetYeniTalep);
 
-        const string Web = "Web Sitesi"; // PR-12: yalnız modülü satın almış firmada
-        E(Web, "/web-sitesi", "İlanlar", OW, WS);
-        E(Web, "/site-icerik", "Site İçeriği", OW, WS);
-        E(Web, "/gelen-talepler", "Gelen Talepler", OW, WS, RozetYeniTalep);
-        E(Web, "/blog-yonetim", "Blog", OW, WS);
+        const string Web = "Web Sitesi"; // PR-12: yalnız modülü satın almış firmada. F11.3: grubun tamamı spa.
+        E(Web, "/app/web-sitesi", "İlanlar", OW, WS);
+        E(Web, "/app/site-icerik", "Site İçeriği", OW, WS);
+        E(Web, "/app/gelen-talepler", "Gelen Talepler", OW, WS, RozetYeniTalep);
+        E(Web, "/app/blog-yonetim", "Blog", OW, WS);
 
         const string Servis = "Servis & Sigorta";
         E(Servis, "/app/servisler", "Servis", OW); // F9.3: Servis & Sigorta ve Fiyat & Tarife gruplarının tamamı spa
@@ -129,33 +130,33 @@ public static class MenuKaydi
         E(Fiyat, "/app/maliyet-teklifleri", "Maliyet Teklifleri", FW);
         E(Fiyat, "/app/ek-hizmetler", "Ek Hizmetler", OW);
 
-        const string Tanim = "Tanımlar";
-        E(Tanim, "/markalar", "Markalar", OW);
-        E(Tanim, "/arac-gruplari", "Araç Grupları", OW);
+        const string Tanim = "Tanımlar"; // F11.3: grubun tamamı spa (Araç Tipleri ve Segmentler F6.4'ten beri)
+        E(Tanim, "/app/markalar", "Markalar", OW);
+        E(Tanim, "/app/arac-gruplari", "Araç Grupları", OW);
         E(Tanim, "/app/arac-tipleri", "Araç Tipleri", OW); // F6.4: spa (F6 sayfası)
-        E(Tanim, "/lokasyonlar", "Lokasyonlar", OW);
-        E(Tanim, "/yakit-turleri", "Yakıt Türleri", OW);
-        E(Tanim, "/vites-turleri", "Vites Türleri", OW);
-        E(Tanim, "/renkler", "Renkler", OW);
+        E(Tanim, "/app/lokasyonlar", "Lokasyonlar", OW);
+        E(Tanim, "/app/yakit-turleri", "Yakıt Türleri", OW);
+        E(Tanim, "/app/vites-turleri", "Vites Türleri", OW);
+        E(Tanim, "/app/renkler", "Renkler", OW);
         E(Tanim, "/app/segmentler", "Segmentler", OW); // F6.4: spa (F6 sayfası)
-        E(Tanim, "/musteri-gruplari", "Müşteri Grupları", OW);
-        E(Tanim, "/sigorta-sirketleri", "Sigorta Şirketleri", OW);
-        E(Tanim, "/bankalar", "Bankalar", OW);
-        E(Tanim, "/departmanlar", "Departmanlar", OW);
-        E(Tanim, "/odeme-tipleri", "Ödeme Tipleri", OW);
-        E(Tanim, "/ulkeler", "Ülkeler", OW);
-        E(Tanim, "/aksesuarlar", "Aksesuarlar", OW);
-        E(Tanim, "/iptal-sebepleri", "İptal Sebepleri", OW);
-        E(Tanim, "/rezervasyon-kaynaklari", "Rez. Kaynakları", OW);
-        E(Tanim, "/ceza-turleri", "Ceza Türleri", OW);
-        E(Tanim, "/kdv-oranlari", "KDV Oranları", OW);
-        E(Tanim, "/gider-turleri", "Gider Türleri", OW);
-        E(Tanim, "/hesaplar", "Hesaplar", OW);
-        E(Tanim, "/hesap-kodlari", "Hesap Kodları", OW);
-        E(Tanim, "/ozel-kodlar", "Özel Kodlar", OW);
-        E(Tanim, "/dovizler", "Dövizler", OW);
-        E(Tanim, "/drop-tanimlari", "Drop Matris", OW);
-        E(Tanim, "/doluluk-kurallari", "Doluluk Fiyat Kuralları", OW);
+        E(Tanim, "/app/musteri-gruplari", "Müşteri Grupları", OW);
+        E(Tanim, "/app/sigorta-sirketleri", "Sigorta Şirketleri", OW);
+        E(Tanim, "/app/bankalar", "Bankalar", OW);
+        E(Tanim, "/app/departmanlar", "Departmanlar", OW);
+        E(Tanim, "/app/odeme-tipleri", "Ödeme Tipleri", OW);
+        E(Tanim, "/app/ulkeler", "Ülkeler", OW);
+        E(Tanim, "/app/aksesuarlar", "Aksesuarlar", OW);
+        E(Tanim, "/app/iptal-sebepleri", "İptal Sebepleri", OW);
+        E(Tanim, "/app/rezervasyon-kaynaklari", "Rez. Kaynakları", OW);
+        E(Tanim, "/app/ceza-turleri", "Ceza Türleri", OW);
+        E(Tanim, "/app/kdv-oranlari", "KDV Oranları", OW);
+        E(Tanim, "/app/gider-turleri", "Gider Türleri", OW);
+        E(Tanim, "/app/hesaplar", "Hesaplar", OW);
+        E(Tanim, "/app/hesap-kodlari", "Hesap Kodları", OW);
+        E(Tanim, "/app/ozel-kodlar", "Özel Kodlar", OW);
+        E(Tanim, "/app/dovizler", "Dövizler", OW);
+        E(Tanim, "/app/drop-tanimlari", "Drop Matris", OW);
+        E(Tanim, "/app/doluluk-kurallari", "Doluluk Fiyat Kuralları", OW);
 
         // ---- Finans (MainLayout: Roles="Admin,Yonetici,Muhasebe" → FinanceWrite)
         const string Finans = "Finans";
@@ -205,24 +206,24 @@ public static class MenuKaydi
         E(Rapor, "/app/raporlar/servis-ozet", "Servis Özet", VR);
         E(Rapor, "/app/raporlar/otomatik-servisler", "Otomatik Servisler", VR);
 
-        // ---- Tüm roller (grupsuz)
-        E(Kok, "/app/vade", "Vade Panosu", null); // F9.3: spa
-        E(Kok, "/bildirimler", "Bildirimler", null, rozet: RozetOkunmamisBildirim);
-        E(Kok, "/takvim-abonelik", "Takvim Aboneliği", null);
-        E(Kok, "/firma-belgeleri", "Firma Belgeleri", null);
-        E(Kok, "/dokumanlar", "Dokümanlar", null);
+        // ---- Tüm roller (grupsuz). F9.3: Vade Panosu spa; F11.3: diğerleri spa.
+        E(Kok, "/app/vade", "Vade Panosu", null);
+        E(Kok, "/app/bildirimler", "Bildirimler", null, rozet: RozetOkunmamisBildirim);
+        E(Kok, "/app/takvim-abonelik", "Takvim Aboneliği", null);
+        E(Kok, "/app/firma-belgeleri", "Firma Belgeleri", null);
+        E(Kok, "/app/dokumanlar", "Dokümanlar", null);
 
-        // ---- Sistem (MainLayout: Roles="Admin" → ManageUsers)
+        // ---- Sistem (MainLayout: Roles="Admin" → ManageUsers). F11.3: grubun tamamı spa.
         const string Sistem = "Sistem";
-        E(Sistem, "/subeler", "Şubeler", MU);
-        E(Sistem, "/kullanicilar", "Kullanıcılar", MU);
-        E(Sistem, "/personel", "Personel", MU);
-        E(Sistem, "/ayarlar", "Ayarlar", MU);
-        E(Sistem, "/mesaj-sablonlari", "Mesaj Şablonları", MU);
-        E(Sistem, "/belge-sablonlari", "Belge Şablonları", MU);
-        E(Sistem, "/yetki", "Ekran Yetkileri", MU);
-        E(Sistem, "/denetim", "Denetim", MU);
-        E(Sistem, "/ice-aktar", "Veri İçe Aktar", MU);
+        E(Sistem, "/app/subeler", "Şubeler", MU);
+        E(Sistem, "/app/kullanicilar", "Kullanıcılar", MU);
+        E(Sistem, "/app/personel", "Personel", MU);
+        E(Sistem, "/app/ayarlar", "Ayarlar", MU);
+        E(Sistem, "/app/mesaj-sablonlari", "Mesaj Şablonları", MU);
+        E(Sistem, "/app/belge-sablonlari", "Belge Şablonları", MU);
+        E(Sistem, "/app/yetki", "Ekran Yetkileri", MU);
+        E(Sistem, "/app/denetim", "Denetim", MU);
+        E(Sistem, "/app/ice-aktar", "Veri İçe Aktar", MU);
         return l;
     }
 

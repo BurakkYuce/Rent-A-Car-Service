@@ -136,6 +136,8 @@ export interface ExpenseForm {
   readonly tip: ExpenseType | null;
   readonly arac: SecimSecenegi | null;
   readonly cari: SecimSecenegi | null;
+  /** Bağlı kira sözleşmesi (isteğe bağlı; sunucu varlık + şube kapsamını denetler). */
+  readonly kira: SecimSecenegi | null;
   readonly netTutar: string | null;
   readonly kdvOrani: VatRate | null;
   readonly odemeYontemi: PaymentMethod | null;
@@ -169,7 +171,7 @@ export function expenseRequest(v: ExpenseForm): ExpenseCreateRequest {
     hesapId: v.hesapId,
     odemeTarihi: day(v.odemeTarihi),
     hazirAciklama: metinDegeri(v.hazirAciklama),
-    kiraId: null,
+    kiraId: v.kira?.id ?? null,
     vade: day(v.vade),
   };
 }
@@ -285,7 +287,8 @@ export interface IncomingLinkForm {
   readonly kdv1: string | null;
   readonly kdv0Matrah: string | null;
   readonly arac: SecimSecenegi | null;
-  readonly giderKategoriId: string | null;
+  /** Gider kategorisi (`/secim/gider-kategorisi` aranabilir seçimi; etiket kaydın `giderKategoriAd`'ından). */
+  readonly kategori: SecimSecenegi | null;
   readonly cari: SecimSecenegi | null;
   readonly giderTipi: ExpenseType | null;
 }
@@ -307,7 +310,9 @@ export function incomingToLinkForm(r: IncomingInvoiceRow): IncomingLinkForm {
     kdv1: kept(r.kdv1),
     kdv0Matrah: kept(r.kdv0Matrah),
     arac: r.aracId ? { id: r.aracId, etiket: r.plaka ?? r.aracId } : null,
-    giderKategoriId: r.giderKategoriId,
+    kategori: r.giderKategoriId
+      ? { id: r.giderKategoriId, etiket: r.giderKategoriAd ?? r.giderKategoriId }
+      : null,
     cari: r.cariId ? { id: r.cariId, etiket: r.cariAd ?? r.cariId } : null,
     giderTipi: tip,
   };
@@ -328,7 +333,7 @@ export function incomingLinkRequest(
     kdv1: amount(v.kdv1),
     kdv0Matrah: amount(v.kdv0Matrah),
     aracId: v.arac?.id ?? null,
-    giderKategoriId: v.giderKategoriId,
+    giderKategoriId: v.kategori?.id ?? null,
     cariId: v.cari?.id ?? null,
     giderTipi: v.giderTipi,
   };

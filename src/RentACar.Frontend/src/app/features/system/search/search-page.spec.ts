@@ -1,4 +1,4 @@
-import { safeHitUrl } from './search-page';
+import { hitRoute, safeHitUrl } from './search-page';
 
 /**
  * F11.2b güvenlik L1 (r304 probe'undan kalıcı): tarayıcı URL ayrıştırıcısı TAB/LF/CR'yi siler → "/\t/evil.com"
@@ -34,5 +34,31 @@ describe('safeHitUrl', () => {
     '/faturalar',
   ])('arama sonucunun kendi yolu kabul edilir: %j', (u) => {
     expect(safeHitUrl(u)).toBe(u);
+  });
+});
+
+/** F11.3: arama hedefinin SPA rotası (elle yazılmış beklenenler; araç hedefi Blazor'da detay sayfasıdır). */
+describe('hitRoute', () => {
+  const V = '6f1c2c8e-0000-4000-8000-000000000001';
+  it.each([
+    [`/araclar/${V}`, `/araclar/${V}/detay`],
+    [`/cariler/${V}`, `/cariler/${V}`],
+    [`/kiralar/${V}`, `/kiralar/${V}`],
+    ['/rezervasyonlar', '/rezervasyonlar'],
+    ['/faturalar', '/faturalar'],
+  ])('%j → %j', (url, route) => {
+    expect(hitRoute(url)).toBe(route);
+  });
+
+  it.each([
+    '/araclar',
+    `/araclar/${V}/detay`,
+    '/araclar/5',
+    `/cariler/${V}?x=1`,
+    `/kiralar/${V}#sekme=odeme`,
+    '/rezervasyonlar/yeni',
+    '/kasa',
+  ])('karşılığı yok (düz adres kalır): %j', (url) => {
+    expect(hitRoute(url)).toBeNull();
   });
 });
