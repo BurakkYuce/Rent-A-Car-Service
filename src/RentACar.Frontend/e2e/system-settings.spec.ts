@@ -63,6 +63,33 @@ test('ayarlar: sır yalnız yazılabilir, PUT surum taşır, kayıttan sonra sı
   expect(errors).toEqual([]);
 });
 
+test('ayarlar: kayıtlı sır yalnız işaretli kutu + onayla silinir; vazgeçince istek gitmez', async ({
+  page,
+}) => {
+  const errors = hatalariTopla(page);
+  const writes = await settingsEndpoints(page);
+  await open(page);
+  // Kutu yalnız kayıtlı sırda görünür (sahte yanıtta yalnız SMTP şifresi kayıtlı).
+  const clear = page.getByRole('checkbox', { name: 'Kayıtlı değeri sil' });
+  await expect(clear).toHaveCount(1);
+  await clear.check();
+
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('SMTP şifre');
+  await dialog.getByRole('button', { name: 'Vazgeç' }).click();
+  expect(writes.length).toBe(0);
+
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Sil ve kaydet' }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  const sent = body(writes[0]);
+  expect(sent['smtpSifreTemizle']).toBe(true);
+  expect(sent['smsApiKeyTemizle']).toBe(false);
+  expect(sent['smtpSifre']).toBeNull();
+  expect(errors).toEqual([]);
+});
+
 test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın altında)', async ({
   page,
 }) => {

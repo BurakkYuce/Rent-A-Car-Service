@@ -3,6 +3,7 @@ import {
   SETTINGS_FIELDS,
   type SettingsDto,
   needsTxtRecord,
+  secretsToClear,
   settingsBody,
   settingsFormValue,
   settingsServerValues,
@@ -40,7 +41,24 @@ describe('ayarlar modeli', () => {
     expect(body['eFaturaSifre']).toBeNull();
     expect(body['posApiKey']).toBe('yeni-anahtar');
     expect(body['surum']).toBe('v7');
-    expect(Object.keys(body).length).toBe(SETTINGS_FIELDS.length + 1);
+    expect(Object.keys(body).length).toBe(SETTINGS_FIELDS.length + 4 + 1); // + 4 silme bayrağı
+  });
+
+  it('silme bayrakları: form DAİMA kapalı kurar, yalnız işaretlenen true gider, birleştirmede yok', () => {
+    const v = settingsFormValue(DTO);
+    expect(v.smtpSifreTemizle).toBe(false);
+    expect(secretsToClear(v)).toEqual([]);
+
+    const value = { ...v, smtpSifreTemizle: true, posApiKeyTemizle: true };
+    expect(secretsToClear(value)).toEqual(['posApiKey', 'smtpSifre']);
+    const body = settingsBody(value, 'v7');
+    expect(body['smtpSifreTemizle']).toBe(true);
+    expect(body['posApiKeyTemizle']).toBe(true);
+    expect(body['eFaturaSifreTemizle']).toBe(false);
+    expect(body['smsApiKeyTemizle']).toBe(false);
+    expect(body['smtpSifre']).toBeNull(); // boş sır + bayrak → sunucu siler
+
+    expect('smtpSifreTemizle' in settingsServerValues(DTO)).toBe(false);
   });
 
   it('zorunlu bool alanlar null gönderilmez', () => {

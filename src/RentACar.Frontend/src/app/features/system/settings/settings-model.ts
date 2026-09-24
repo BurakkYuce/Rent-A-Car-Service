@@ -20,6 +20,19 @@ export const SECRET_FLAGS: Readonly<Record<SecretField, keyof SettingsDto>> = {
   smtpSifre: 'smtpSifreTanimli',
 };
 
+/**
+ * Sır → "kayıtlı değeri sil" bayrağı (PUT). Boş sır alanı "koru" demektir; kayıtlı sırrı silmek yalnız bu açık bayrakla
+ * olur (onay diyaloğundan sonra). Aynı istekte sır alanı doluysa sunucuda dolu değer kazanır.
+ */
+export const SECRET_CLEAR_FLAGS = {
+  eFaturaSifre: 'eFaturaSifreTemizle',
+  smsApiKey: 'smsApiKeyTemizle',
+  posApiKey: 'posApiKeyTemizle',
+  smtpSifre: 'smtpSifreTemizle',
+} as const satisfies Readonly<Record<SecretField, keyof SettingsRequest>>;
+export type SecretClearFlag = (typeof SECRET_CLEAR_FLAGS)[SecretField];
+const CLEAR_FLAG_NAMES: readonly SecretClearFlag[] = Object.values(SECRET_CLEAR_FLAGS);
+
 /** Renk kodu alanları (boş = koddaki varsayılan renk; dolu ise `#rrggbb`, sunucu doğrular). */
 export const COLOR_FIELDS = [
   'renkGecikenler',
@@ -116,25 +129,35 @@ export function settingsBody(
       body[name] = v;
     }
   }
+  for (const flag of CLEAR_FLAG_NAMES) body[flag] = value[flag] === true;
   body['surum'] = version ?? null;
   return body;
 }
 
-/** GET yanıtı → form değerleri (sır alanları DAİMA boş). */
-export function settingsFormValue(dto: SettingsDto): Record<SettingsField, unknown> {
+/** GET yanıtı → form değerleri (sır alanları DAİMA boş, silme bayrakları DAİMA kapalı). */
+export function settingsFormValue(
+  dto: SettingsDto,
+): Record<SettingsField | SecretClearFlag, unknown> {
   const source = dto as unknown as Readonly<Record<string, unknown>>;
-  const out = {} as Record<SettingsField, unknown>;
+  const out = {} as Record<SettingsField | SecretClearFlag, unknown>;
   for (const name of SETTINGS_FIELDS) {
     out[name] = (SECRET_FIELDS as readonly string[]).includes(name) ? null : (source[name] ?? null);
   }
+  for (const flag of CLEAR_FLAG_NAMES) out[flag] = false;
   return out;
 }
 
-/** 409/işlem sonrası birleştirme için sunucu değerleri: sır alanları HİÇ yok (yanıtta yoklar; yazılan sır korunur). */
+/** 409/işlem sonrası birleştirme için sunucu değerleri: sır alanları ve silme bayrakları HİÇ yok (kullanıcının girdisi). */
 export function settingsServerValues(dto: SettingsDto): Record<string, unknown> {
   const out: Record<string, unknown> = { ...settingsFormValue(dto) };
   for (const s of SECRET_FIELDS) delete out[s];
+  for (const flag of CLEAR_FLAG_NAMES) delete out[flag];
   return out;
+}
+
+/** Silme bayrağı işaretli sırlar (onay diyaloğu için). */
+export function secretsToClear(value: Readonly<Record<string, unknown>>): SecretField[] {
+  return SECRET_FIELDS.filter((f) => value[SECRET_CLEAR_FLAGS[f]] === true);
 }
 
 /** Bekleyen özel alan adı: DNS'e eklenecek TXT kaydı var mı (yalnız kiracının kendi satırı için döner). */

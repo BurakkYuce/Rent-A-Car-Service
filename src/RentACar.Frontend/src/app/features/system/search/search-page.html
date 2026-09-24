@@ -33,7 +33,11 @@
               <li>
                 <span class="rc-rozet">{{ h.tur }}</span>
                 @if (safeHitUrl(h.url); as url) {
-                  <a [href]="url">{{ h.baslik }}</a>
+                  @if (hitRoute(url); as route) {
+                    <a [routerLink]="route">{{ h.baslik }}</a>
+                  } @else {
+                    <a [href]="url">{{ h.baslik }}</a>
+                  }
                 } @else {
                   {{ h.baslik }}
                 }

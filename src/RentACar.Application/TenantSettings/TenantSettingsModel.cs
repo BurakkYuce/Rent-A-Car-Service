@@ -20,6 +20,13 @@ public sealed class TenantSettingsModel
     public string? PosMerchantId { get; set; }
     public string? PosApiKey { get; set; }
 
+    // Sır silme bayrakları: boş/null sır alanı "koru" demektir; kayıtlı sırrı SİLMEK yalnız açık bayrakla olur.
+    // Aynı istekte sır alanı doluysa dolu değer bayraktan üstündür (yeni değer yazılır).
+    public bool EFaturaSifreTemizle { get; set; }
+    public bool SmsApiKeyTemizle { get; set; }
+    public bool PosApiKeyTemizle { get; set; }
+    public bool SmtpSifreTemizle { get; set; }
+
     // Görünüm + operasyon kuralları + SMTP (roadmap M1)
     public string? LogoUrl { get; set; }
     public byte[]? LogoBytes { get; set; } // PR-C: PDF başlığı için firma logosu (Ayarlar'dan yüklenir)

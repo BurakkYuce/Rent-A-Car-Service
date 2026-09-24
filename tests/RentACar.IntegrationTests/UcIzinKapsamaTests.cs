@@ -90,7 +90,7 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10, F9, F8) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
+    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10, F9, F8, F11) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
     /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
     /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
@@ -153,6 +153,15 @@ public sealed class UcIzinKapsamaTests
         Assert.Equal(36, f8.Count);
         Assert.Contains("/finans/tahsilat/ters", f8);
         silinecek.UnionWith(f8);
+        // F11.3 devri: F11 envanterinin 136 ucu (tanım CRUD'ları, ayarlar, kullanıcılar, yetki, web sitesi, blog, gelen
+        // talepler, içe aktar…) da sayılmaz; SPA karşılıkları /api/ui/v1 tanım/sistem/web uçları (UiTanimTests,
+        // UiSystemAdminTests, UiSystemDefinitionsTests, UiWebsiteApiTests izin testleri). Taban değişmez (2): F11
+        // envanterinde kalıcı sayılan dar uç yoktu.
+        var f11 = KesisteSilinecekUclar(kok, "F11");
+        Assert.Equal(136, f11.Count);
+        Assert.Contains("/kullanicilar/sifre", f11);
+        Assert.Contains("/ice-aktar/cari", f11);
+        silinecek.UnionWith(f11);
 
         var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
         // Taban F6.4'te 10 → 8: F6'nın dar uçları (kredi/müşteri taksit) artık silinecek kümede; bugün 9 kalıcı dar uç

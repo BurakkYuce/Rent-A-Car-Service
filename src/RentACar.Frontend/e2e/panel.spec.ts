@@ -197,14 +197,14 @@ test('F5.4 kesiş: panelin rezervasyon/müsaitlik bağlantıları SPA rotası (B
   await page.goto(PANEL);
   await hazir(page);
 
-  // Sayfa içeriğinde kesiş haritasındaki bir Blazor sayfasına (F4 + F5) giden bağlantı kalmadı.
+  // Sayfa içeriğinde kesiş haritasındaki bir Blazor sayfasına (F4 + F5 + F11 gelen talepler) giden bağlantı kalmadı.
   const blazora = await page.locator('main a[href]').evaluateAll((ogeler) =>
     ogeler
       .map((o) => new URL((o as HTMLAnchorElement).href, location.href))
       .filter((u) => u.origin === location.origin)
       .map((u) => u.pathname.replace(/\/$/, '') || '/')
       .filter((yol) =>
-        /^\/(|kiralar(\/.*)?|rezervasyonlar|teklifler|takvim|musaitlik|rez-sartlari|filo-kiralama)$/i.test(
+        /^\/(|kiralar(\/.*)?|rezervasyonlar|teklifler|takvim|musaitlik|rez-sartlari|filo-kiralama|gelen-talepler)$/i.test(
           yol,
         ),
       ),
@@ -212,6 +212,11 @@ test('F5.4 kesiş: panelin rezervasyon/müsaitlik bağlantıları SPA rotası (B
   expect(blazora).toEqual([]);
 
   const main = page.locator('main');
+  // F11.3: site talebi kutusu SPA gelen talepler ekranına "Yeni" süzgeciyle gider.
+  await expect(main.getByRole('link', { name: /Site talebi/ })).toHaveAttribute(
+    'href',
+    '/app/gelen-talepler?durum=Yeni',
+  );
   await expect(main.getByRole('link', { name: /Görülmeyen rez\./ })).toHaveAttribute(
     'href',
     '/app/rezervasyonlar',

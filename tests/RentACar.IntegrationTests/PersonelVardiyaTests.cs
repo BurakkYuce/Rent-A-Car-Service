@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Application.Personnel;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
@@ -225,6 +226,93 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
         // Kendi şubesine yazabilir.
         await opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A"));
+    }
+
+    // #302 L2 — satır ve sürüm TEK tutarlı çift: satır okunurken araya giren yazım yeni sürümü eski alanlarla eşleştiremez.
+    [Fact]
+    public async Task Satir_ve_surum_arada_yazim_olsa_da_tutarli_cift_doner()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var sp = s.ServiceProvider;
+        var day = DateOnly.FromDateTime(TestZaman.GunSonra(12).UtcDateTime);
+        var p = await PersonelAsync(sp, "P1", "Ali");
+        var id = await sp.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(p, day, "08:00", "12:00"));
+
+        var inner = sp.GetRequiredService<IRowVersionStore>();
+        // İlk sürüm okumasının BAŞINDA başka bir oturum vardiyayı 10:00'a çeker (yarış penceresi deterministik kurulur).
+        var racing = new WriteOnFirstVersionRead(inner, id);
+        var svc = new PersonelVardiyaService(
+            sp.GetRequiredService<IPersonelVardiyaRepository>(), sp.GetRequiredService<IPersonelRepository>(),
+            sp.GetRequiredService<IBranchRepository>(), sp.GetRequiredService<ICurrentUser>(), racing);
+
+        var pair = await svc.GetWithStaffAndVersionAsync(id);
+        Assert.NotNull(pair);
+        var (row, version) = pair!.Value;
+        Assert.True(racing.Wrote);
+        // ELLE: yarışan yazım başlangıcı 10:00 yaptı → dönen alanlar ve sürüm ikisi de yazım SONRASI.
+        Assert.Equal(new TimeOnly(10, 0), row.Vardiya.BaslangicSaat);
+        Assert.Equal(await inner.GetVersionAsync<PersonelVardiya>(id), version);
+    }
+
+    private sealed class WriteOnFirstVersionRead(IRowVersionStore inner, Guid target) : IRowVersionStore
+    {
+        public bool Wrote { get; private set; }
+
+        public async Task<string?> GetVersionAsync<T>(Guid id, CancellationToken ct = default) where T : class
+        {
+            if (!Wrote && id == target && typeof(T) == typeof(PersonelVardiya))
+            {
+                Wrote = true;
+                var v = await inner.GetVersionAsync<PersonelVardiya>(id, ct);
+                await inner.UpdateAsync<PersonelVardiya>(id, v!, r => r.BaslangicSaat = new TimeOnly(10, 0), "dup", ct);
+            }
+            return await inner.GetVersionAsync<T>(id, ct);
+        }
+
+        public Task<bool> UpdateAsync<T>(Guid id, string expectedVersion, Action<T> apply, string duplicateMessage,
+            CancellationToken ct = default) where T : class
+            => inner.UpdateAsync(id, expectedVersion, apply, duplicateMessage, ct);
+    }
+
+    // #302 L1 — çakışan vardiya operatörün kapsamı dışındaki şubedeyse mesaj tarih/saat taşımaz; kapsam içindeyse taşır.
+    [Fact]
+    public async Task Cakisma_mesaji_kapsam_disi_subenin_saatini_sizdirmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        var day = DateOnly.FromDateTime(TestZaman.GunSonra(10).UtcDateTime);
+        Guid ali;
+        using (var admin = host.ScopeFor(tenant))
+        {
+            var sp = admin.ServiceProvider;
+            await SubeAsync(sp, "Sube A");
+            await SubeAsync(sp, "Sube B");
+            ali = await PersonelAsync(sp, "P1", "Ali");
+            var svc = sp.GetRequiredService<PersonelVardiyaService>();
+            await svc.CreateAsync(V(ali, day, "09:30", "13:15", "Sube B"));   // kapsam dışı (operatör A'da)
+            await svc.CreateAsync(V(ali, day, "15:00", "17:45", "Sube A"));   // kapsam içi
+        }
+
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Sube A");
+        var opSvc = op.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+
+        var hidden = await Assert.ThrowsAsync<ValidationException>(() => opSvc.CreateAsync(V(ali, day, "12:00", "14:00", "Sube A")));
+        Assert.Equal("Bu personelin bu saatlerde başka bir şubede vardiyası var.", hidden.Message);
+        Assert.DoesNotContain("09:30", hidden.Message);
+        Assert.DoesNotContain("13:15", hidden.Message);
+        Assert.DoesNotContain(day.ToString("dd.MM.yyyy"), hidden.Message);
+
+        var visible = await Assert.ThrowsAsync<ValidationException>(() => opSvc.CreateAsync(V(ali, day, "17:00", "19:00", "Sube A")));
+        Assert.Contains("çakışan vardiya", visible.Message);
+        Assert.Contains(day.ToString("dd.MM.yyyy"), visible.Message);
+        Assert.Contains("15:00", visible.Message);
+
+        // Admin (kapsamsız) kapsam dışı yok: B'deki satır için de ayrıntılı mesaj.
+        using var admin2 = host.ScopeFor(tenant);
+        var full = await Assert.ThrowsAsync<ValidationException>(() => admin2.ServiceProvider
+            .GetRequiredService<PersonelVardiyaService>().CreateAsync(V(ali, day, "12:00", "14:00", "Sube A")));
+        Assert.Contains("09:30", full.Message);
     }
 
     [Fact]

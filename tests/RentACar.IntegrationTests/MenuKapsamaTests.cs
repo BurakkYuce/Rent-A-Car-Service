@@ -78,6 +78,32 @@ public sealed class MenuKapsamaTests
     }
 
     /// <summary>
+    /// F11.3: tanım ve sistem SPA rota dosyalarındaki her parametresiz ekran menüde spa öğesi olarak var. Genel tanım
+    /// ekranları tek eşlemden (<c>definition-paths.ts</c> <c>DEFINITION_PATHS</c>) üretilir. Menü DIŞI bilinçli
+    /// alt akışlar: ilan sihirbazının ilk adımı (<c>web-sitesi/arac-ekle</c>, İlanlar ekranından açılır), genel arama
+    /// (<c>ara</c>, üst çubuk arama kutusu) ve kendi parolası (<c>profil/sifre-degistir</c>, kullanıcı menüsü).
+    /// </summary>
+    [Fact]
+    public void F11_SPA_routes_are_all_in_menu()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var routes = File.ReadAllText(Path.Combine(app, "definitions/definitions.routes.ts"))
+            + File.ReadAllText(Path.Combine(app, "system/system.routes.ts"));
+        var definitionPaths = File.ReadAllText(Path.Combine(app, "definitions/definition-paths.ts"));
+        var mapBlock = definitionPaths[definitionPaths.IndexOf("DEFINITION_PATHS", StringComparison.Ordinal)..];
+        mapBlock = mapBlock[..mapBlock.IndexOf("};", StringComparison.Ordinal)];
+        string[] outsideMenu = ["web-sitesi/arac-ekle", "ara", "profil/sifre-degistir"];
+        var paths = Regex.Matches(routes, @"path: '(?<p>[a-z-/:]+)',").Select(m => m.Groups["p"].Value)
+            .Concat(Regex.Matches(mapBlock, @"^\s*\w+: '(?<p>[a-z-]+)',", RegexOptions.Multiline).Select(m => m.Groups["p"].Value))
+            .Where(p => !p.Contains(':') && !outsideMenu.Contains(p))
+            .ToList();
+        Assert.Equal(41, paths.Count); // 47 sayfa − 3 kimlikli − 3 menü dışı alt akış
+        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        var missing = paths.Where(p => !menu.Contains("/app/" + p)).ToList();
+        Assert.True(missing.Count == 0, "Menüde spa öğesi olmayan F11 ekranı: " + string.Join(", ", missing));
+    }
+
+    /// <summary>
     /// F8.3: finans SPA rota dosyalarındaki (<c>finance.routes.ts</c>, <c>finance-documents.routes.ts</c>) her
     /// parametresiz ekran menüde spa öğesi olarak var (<c>:id</c>'li ekstre ve fatura yazdır drill-down). Blazor
     /// sayfaları silindiğinde (pilot sonrası) kapsama SPA tarafında korunur.

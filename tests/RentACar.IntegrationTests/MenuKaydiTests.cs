@@ -126,6 +126,21 @@ public sealed class MenuKaydiTests
         // F6.4: Araçlar grubunun tamamı (12) + Tanımlar'daki Araç Tipleri ve Segmentler (F6 sayfaları; iki grupta birer kez).
         // F7.3: Cariler & CRM grubunun F7 sayfaları (6; Blog ve Gelen Talepler Blazor'da kalır).
         // F10.3: Raporlar grubunun tamamı (25; araç karnesi kimlikli olduğu için menüde yok).
+        // F11.3: Tanımlar (24), Web Sitesi (4), Sistem (9), Cariler & CRM'deki Blog ve Gelen Talepler (2), grupsuz
+        // Bildirimler/Takvim Aboneliği/Firma Belgeleri/Dokümanlar (4) — 43 öğe (Blog ve Gelen Talepler iki grupta).
+        string[] f11 =
+        [
+            "/app/aksesuarlar", "/app/arac-gruplari", "/app/ayarlar", "/app/bankalar", "/app/belge-sablonlari",
+            "/app/bildirimler", "/app/blog-yonetim", "/app/blog-yonetim", "/app/ceza-turleri", "/app/denetim",
+            "/app/departmanlar", "/app/dokumanlar", "/app/doluluk-kurallari", "/app/dovizler", "/app/drop-tanimlari",
+            "/app/firma-belgeleri", "/app/gelen-talepler", "/app/gelen-talepler", "/app/gider-turleri",
+            "/app/hesap-kodlari", "/app/hesaplar", "/app/ice-aktar", "/app/iptal-sebepleri", "/app/kdv-oranlari",
+            "/app/kullanicilar", "/app/lokasyonlar", "/app/markalar", "/app/mesaj-sablonlari", "/app/musteri-gruplari",
+            "/app/odeme-tipleri", "/app/ozel-kodlar", "/app/personel", "/app/renkler", "/app/rezervasyon-kaynaklari",
+            "/app/sigorta-sirketleri", "/app/site-icerik", "/app/subeler", "/app/takvim-abonelik", "/app/ulkeler",
+            "/app/vites-turleri", "/app/web-sitesi", "/app/yakit-turleri", "/app/yetki",
+        ];
+        Assert.Equal(43, f11.Length);
         // F9.3: Servis & Sigorta (3) + Fiyat & Tarife (11) gruplarının tamamı + grupsuz Vade Panosu (15).
         // F8.3: Finans grubunun tamamı (17; cari ekstresi ve fatura yazdır kimlikli olduğu için menüde yok).
         Assert.Equal(new[]
@@ -150,7 +165,7 @@ public sealed class MenuKaydiTests
                 "/app/segmentler", "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler",
                 "/app/takvim", "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler",
                 "/app/tek-cari-toplu", "/app/teklifler", "/app/toplu-gider", "/app/toplu-tahsilat", "/app/vade",
-            },
+            }.Concat(f11).OrderBy(r => r, StringComparer.Ordinal),
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
         Assert.All(ogeler, o => Assert.Equal(o.Grup == KisaYollar, o.HizliBaglanti));
@@ -283,7 +298,14 @@ public sealed class MenuKaydiTests
         Assert.DoesNotContain("Fiyat & Tarife|/tarifeler", yasak);
         Assert.Contains("Fiyat & Tarife|/maliyet-hesapla", ek);
         Assert.DoesNotContain("Fiyat & Tarife|/tarife-aktar", ek);   // ManageUsers
+        // F11.3: Tanımlar spa öğeleri OperationsWrite'a, Sistem spa öğeleri ManageUsers'a bağlı.
+        Assert.DoesNotContain("Tanımlar|/markalar", yasak);
+        Assert.Contains("Tanımlar|/markalar", YeniGorunur(Kullanici(UserRole.Muhasebe, ek: ["OperationsWrite"])));
+        Assert.Contains("Sistem|/ayarlar", YeniGorunur(Kullanici(UserRole.Yonetici, ek: ["ManageUsers"])));
+        Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Admin, yasak: ["ManageUsers"])),
+            x => x.StartsWith("Sistem|", StringComparison.Ordinal));
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
         Assert.Contains("|/vade", yasak);            // F9.3: Vade Panosu spa öğesi grupsuz, izinsiz kalır
+        Assert.Contains("|/bildirimler", yasak);     // F11.3: grupsuz spa öğesi izinsiz
     }
 }

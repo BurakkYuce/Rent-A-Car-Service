@@ -69829,6 +69829,18 @@
               "string"
             ]
           },
+          "eFaturaSifreTemizle": {
+            "type": "boolean"
+          },
+          "smsApiKeyTemizle": {
+            "type": "boolean"
+          },
+          "posApiKeyTemizle": {
+            "type": "boolean"
+          },
+          "smtpSifreTemizle": {
+            "type": "boolean"
+          },
           "logoUrl": {
             "type": [
               "null",
