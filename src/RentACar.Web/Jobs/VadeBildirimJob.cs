@@ -42,7 +42,9 @@ public sealed class VadeBildirimJob(
     {
         var appConn = config.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default eksik.");
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(appConn).Options;
+        // F8.1a R2-L2: iş context'i de defter baz tutarı son savunmasını alır (DI dışı seçenek kurucusu).
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(appConn)
+            .AddInterceptors(new RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor()).Options;
 
         // Tenant listesi (platform tablosu; racar_app SELECT açık).
         List<Guid> tenantIds;

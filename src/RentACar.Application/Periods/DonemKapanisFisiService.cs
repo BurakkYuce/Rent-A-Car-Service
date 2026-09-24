@@ -46,8 +46,8 @@ public sealed class DonemKapanisFisiService(
 
         // Zaten kapalı mı? (aynı/önceki tarih kilitliyse yeniden kapatma — UX; asıl güvence repo'daki serialization.)
         var mevcut = await donem.GetClosingDateAsync(ct);
-        if (mevcut is { } m && kapanisTarihi.Date <= m.Date)
-            throw new ValidationException($"Dönem zaten {m:yyyy-MM-dd} tarihine kapalı. Yeniden kapatmak için önce kilidi kaldırın.");
+        if (mevcut is { } m && PeriodLock.LocalDay(kapanisTarihi) <= PeriodLock.LocalDay(m))
+            throw new ValidationException($"Dönem zaten {PeriodLock.LocalDay(m):yyyy-MM-dd} tarihine kapalı. Yeniden kapatmak için önce kilidi kaldırın.");
 
         await repo.KapatAsync(kapanisTarihi, ct);
     }
@@ -62,7 +62,7 @@ public sealed class DonemKapanisFisiService(
         return (Signed(LedgerAccountType.Gelir), Signed(LedgerAccountType.Gider));
     }
 
-    /// <summary>Kapanış tarihinin UTC gün SONU (23:59:59.9999999) — repo ile AYNI (o günün tüm kayıtları dahil).</summary>
+    /// <summary>Kapanış gününün İSTANBUL gün sonu, UTC — repo ve <see cref="PeriodLock"/> ile AYNI gün kuralı.</summary>
     private static DateTimeOffset KapanisAni(DateTimeOffset kapanisTarihi)
-        => new DateTimeOffset(kapanisTarihi.UtcDateTime.Date, TimeSpan.Zero).AddDays(1).AddTicks(-1);
+        => PeriodLock.DayEndUtc(PeriodLock.LocalDay(kapanisTarihi));
 }

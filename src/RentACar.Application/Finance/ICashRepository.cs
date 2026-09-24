@@ -52,6 +52,10 @@ public interface ICashRepository
     /// <summary>Cari'nin elde tutulan depozito bakiyesi (roadmap I3): Σ Depozito (Alacak:+ Borç:−) = tutulan tutar.</summary>
     Task<decimal> GetDepozitoBakiyeAsync(Guid cariId, CancellationToken ct = default);
 
+    /// <summary>F8.1a — depozito bakiyesi SIFIR OLMAYAN carilerin bakiyeleri (tek sorgu; <see cref="GetDepozitoBakiyeAsync"/>
+    /// ile AYNI işaret kuralı: Alacak +, Borç −, baz para).</summary>
+    Task<Dictionary<Guid, decimal>> GetDepozitoBakiyeleriAsync(CancellationToken ct = default);
+
     /// <summary>Depozito işlemi (Al/İade/Mahsup/İrat) — TEK transaction + (tenant,cari) danışma kilidi.
     /// kontrolEt: bakiye kontrolü KİLİDİN ARKASINDA tx-İÇİNDE yapılır (TOCTOU çiti — adversarial 1.2 Medium:
     /// eşzamanlı iki işlem tutulanı aşamaz). izKaydi (yalnız İrat) verilirse aynı tx'te yazılır; RentalId

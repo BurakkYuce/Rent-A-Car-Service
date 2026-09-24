@@ -505,6 +505,20 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
     }
 
+    public async Task<Dictionary<Guid, decimal>> GetDepozitoBakiyeleriAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        // GetDepozitoBakiyeAsync ile AYNI kural (Alacak +, Borç −, AmountInBase), cari başına tek geçişte.
+        var rows = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef != null)
+            .Select(e => new { e.AccountRef, e.Direction, e.Amount })
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.AccountRef!.Value)
+            .Select(g => (g.Key, Bakiye: g.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase)))
+            .Where(x => x.Bakiye != 0m)
+            .ToDictionary(x => x.Key, x => x.Bakiye);
+    }
+
     /// <summary>
     /// FAZ-59 — cari virman geçmişi. Künye tablosu sürücüdür; TUTAR defterin DEBIT bacağından
     /// okunur (künye para taşımaz → listedeki rakam ile carinin ekstresi ayrışamaz).

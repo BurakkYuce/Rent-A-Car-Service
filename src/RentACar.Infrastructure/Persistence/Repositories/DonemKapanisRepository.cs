@@ -26,8 +26,10 @@ public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> facto
 
     public async Task KapatAsync(DateTimeOffset kapanisTarihi, CancellationToken ct = default)
     {
-        // Kapanış anı = kapanış gününün UTC SONU (o günün tüm kayıtları dahil).
-        var kapanisAni = new DateTimeOffset(kapanisTarihi.UtcDateTime.Date, TimeSpan.Zero).AddDays(1).AddTicks(-1);
+        // Kapanış anı = kapanış gününün İSTANBUL gün sonu, UTC (o günün tüm kayıtları dahil). F8.1a adversarial M2:
+        // kilit karşılaştırması (PeriodLock) İstanbul günüyle yapılır; fiş aynı günün sonunu kapatmalı.
+        var closingDay = PeriodLock.LocalDay(kapanisTarihi);
+        var kapanisAni = PeriodLock.DayEndUtc(closingDay);
 
         await PgRetry.RunAsync(async () =>
         {
@@ -43,9 +45,9 @@ public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> facto
             // → aynı geliri İKİNCİ kez kapatır (Gelir +1000, DonemSonucu −2000, iki DonemSonucu fişi).
             // Bakiye-delta savunması yalnız İLERİ tarih sırasında çalışır; geriye kapanışı burada reddediyoruz.
             var kilit = await db.DonemKilitleri.FirstOrDefaultAsync(ct);
-            if (kilit?.KapanisTarihi is { } mevcut && kapanisTarihi.Date <= mevcut.Date)
+            if (kilit?.KapanisTarihi is { } mevcut && closingDay <= PeriodLock.LocalDay(mevcut))
                 throw new ValidationException(
-                    $"Dönem zaten {mevcut:yyyy-MM-dd} tarihine kapalı. Yeniden kapatmak için önce kilidi kaldırın.");
+                    $"Dönem zaten {PeriodLock.LocalDay(mevcut):yyyy-MM-dd} tarihine kapalı. Yeniden kapatmak için önce kilidi kaldırın.");
 
             // Güncel Gelir/Gider SignedBase bakiyeleri (önceki kapanışlar DAHİL → delta). Base = Amount×Rate.
             var rows = await db.AccountLedgerEntries.AsNoTracking()
@@ -73,7 +75,7 @@ public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> facto
                     AccountRef = null,
                     Direction = hedefSignedBase > 0m ? LedgerDirection.Debit : LedgerDirection.Credit,
                     Amount = new Money(Math.Abs(hedefSignedBase), "TRY", 1m),
-                    Description = $"Dönem kapanışı {kapanisAni:yyyy-MM-dd}",
+                    Description = $"Dönem kapanışı {closingDay:yyyy-MM-dd}",
                     SourceType = "DonemKapanis",
                     SourceId = sourceId
                 });

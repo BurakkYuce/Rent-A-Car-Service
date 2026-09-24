@@ -33,7 +33,9 @@ public sealed class DonemFaturaJob(IConfiguration config, ILogger<DonemFaturaJob
     {
         var appConn = config.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default eksik.");
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(appConn).Options;
+        // F8.1a R2-L2: iş context'i de defter baz tutarı son savunmasını alır (DI dışı seçenek kurucusu).
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(appConn)
+            .AddInterceptors(new RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor()).Options;
 
         List<Guid> tenantIds;
         await using (var db0 = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance))

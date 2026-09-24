@@ -6,6 +6,7 @@ using RentACar.Domain.Common;
 using RentACar.Web.Api.Arac;
 using RentACar.Web.Api.Finans;
 using RentACar.Web.Api.FinansBelge;
+using RentACar.Web.Api.FinansHub;
 using RentACar.Web.Api.IstemciHata;
 using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Menu;
@@ -224,6 +225,7 @@ public static class UiApiExtensions
         v1.MapFiloKiralamaApi(); // F5.1
         v1.MapAracApi();         // F6.1a — araç liste/kart/detay/durum/foto + seçim
         v1.MapAracTanimApi();    // F6.1a — araç sahipleri, segmentler, araç tipleri
+        v1.MapFinanceHubApi();   // F8.1a — finans ekranları 1. yarı (kasa, cari, depozito, dönem, kurlar)
         v1.MapInvoiceUiApi();         // F8.1b — faturalar (liste/detay/satırlar/manuel/iade/toplu)
         v1.MapPenaltyUiApi();         // F8.1b — cezalar
         v1.MapExpenseUiApi();         // F8.1b — giderler
