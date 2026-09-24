@@ -64,10 +64,11 @@ public static class AracSiparisApi
         .Alan("beklenenTeslim", s => s.BeklenenTeslim).Alan("toplam", s => s.Toplam).Alan("durum", s => s.Durum);
 
     private static async Task<Ok<Sayfa<AracSiparisSatiri>>> Liste(
-        AracSiparisService svc, IDbContextFactory<AppDbContext> dbf, Guid? cariId, string? ara, string? arac,
-        string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala,
-        CancellationToken ct)
+        HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf, Guid? cariId, string? ara,
+        string? arac, string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut,
+        string? sirala, CancellationToken ct)
     {
+        var yaz = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
         var liste = await svc.SearchAsync(new AracSiparisFilter
         {
@@ -78,9 +79,19 @@ public static class AracSiparisApi
             liste.Where(s => s.TedarikciCariId is not null).Select(s => s.TedarikciCariId!.Value), ct);
         var satirlar = liste.Select(s => new AracSiparisSatiri(s.Id, s.No, s.Durum.ToString(), s.Tedarikci,
             s.TedarikciCariId is { } c ? F5Ortak.CariAdi(cariler, c) : null, s.SiparisTarihi, s.BeklenenTeslim, s.DosyaNo,
-            s.Marka, s.Tip, s.Grup, s.Adet, s.BirimFiyat, s.Adet * s.BirimFiyat, s.Currency, s.KrediId)).ToList();
+            s.Marka, s.Tip, s.Grup, s.Adet, s.BirimFiyat, s.Adet * s.BirimFiyat, s.Currency, s.KrediId, s.Versiyon,
+            s.Renk, s.IcRenk, s.KaynakTip, s.SatisTipi, s.PiyasaFiyat, s.OpsFiyat, s.FiloFiyat, s.ImzaTarih,
+            s.TsbKayitNo, Yetkiler(s.Durum, yaz))).ToList();
         return TypedResults.Ok(F5Ortak.Sayfala(satirlar, Harita, sayfa, boyut, sirala));
     }
+
+    /// <summary>Durum bayrakları servisin TEK geçiş tablosundan (adversarial M1: ayrı kopya teslim sonrası "onayla"yı
+    /// açık bırakmıştı). Liste satırı (F6.2b) ve detay AYNI kuralı kullanır.</summary>
+    private static AracSiparisYetkileri Yetkiler(SiparisDurum durum, bool yaz) => new(
+        yaz && durum != SiparisDurum.Iptal,
+        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.Onaylandi),
+        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.TeslimAlindi),
+        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.Iptal));
 
     private static async Task<AracSiparisDto?> DtoAsync(Guid id, HttpContext http, AracSiparisService svc,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
@@ -90,13 +101,7 @@ public static class AracSiparisApi
         if (s is null) return null;
         var cari = s.TedarikciCariId is { } c ? F5Ortak.CariAdi(await F5Ortak.CarilerAsync(dbf, [c], ct), c) : null;
         var yaz = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
-        // Durum bayrakları servisin TEK geçiş tablosundan (adversarial M1: ayrı kopya teslim sonrası "onayla"yı açık bırakmıştı).
-        var y = new AracSiparisYetkileri(
-            yaz && s.Durum != SiparisDurum.Iptal,
-            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.Onaylandi),
-            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.TeslimAlindi),
-            yaz && AracSiparisService.IsTransitionAllowed(s.Durum, SiparisDurum.Iptal));
-        return AracSiparisDto.From(s, surum, cari, y);
+        return AracSiparisDto.From(s, surum, cari, Yetkiler(s.Durum, yaz));
     }
 
     private static async Task<Results<Ok<AracSiparisDto>, ProblemHttpResult>> Detay(

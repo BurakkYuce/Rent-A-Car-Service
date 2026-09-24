@@ -26522,7 +26522,18 @@
           "birimFiyat",
           "toplam",
           "doviz",
-          "krediId"
+          "krediId",
+          "versiyon",
+          "renk",
+          "icRenk",
+          "kaynakTip",
+          "satisTipi",
+          "piyasaFiyat",
+          "opsFiyat",
+          "filoFiyat",
+          "imzaTarih",
+          "tsbKayitNo",
+          "yetkiler"
         ],
         "type": "object",
         "properties": {
@@ -26613,6 +26624,79 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "versiyon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "renk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "icRenk": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynakTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "satisTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "piyasaFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "opsFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "filoFiyat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "imzaTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "tsbKayitNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yetkiler": {
+            "$ref": "#/components/schemas/AracSiparisYetkileri"
           }
         }
       },

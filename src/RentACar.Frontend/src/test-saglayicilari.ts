@@ -2,6 +2,7 @@
 import type { Provider } from '@angular/core';
 import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
 import arac from './i18n/bloklar/arac.json';
+import aracFinans from './i18n/bloklar/arac-finans.json';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
@@ -17,7 +18,7 @@ import vitrin from './i18n/bloklar/vitrin.json';
 const saglayicilar: Provider[] = [
   {
     provide: ONYUKLU_CEVIRI_BLOKLARI,
-    useValue: [arac, kiraFormu, kiralar, panel, planlama, rezervasyon, vitrin],
+    useValue: [arac, aracFinans, kiraFormu, kiralar, panel, planlama, rezervasyon, vitrin],
   },
 ];
 export default saglayicilar;

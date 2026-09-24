@@ -1,0 +1,270 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'aracFinans.taksit.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">
+    {{ 'aracFinans.taksit.aciklama1' | transloco }}
+    <a routerLink="/arac-kredi">{{ 'aracFinans.kredi.baslik' | transloco }}</a>
+  </p>
+  <p class="aciklama">{{ 'aracFinans.taksit.aciklama2' | transloco }}</p>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'aracFinans.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'aracFinans.taksit.musteri' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.taksit.arac' | transloco">
+        <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'aracFinans.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.taksit.vadeMin' | transloco">
+        <rc-tarih-secici formControlName="vadeMin" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.taksit.vadeMax' | transloco">
+        <rc-tarih-secici formControlName="vadeMax" />
+      </rc-alan>
+      <rc-alan [etiket]="'aracFinans.taksit.yalnizGeciken' | transloco">
+        <rc-onay-kutusu formControlName="gecikmis" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'aracFinans.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'aracFinans.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (store.summary.veri(); as o) {
+    <dl class="ozet-serit" [attr.aria-label]="'aracFinans.taksit.ozet' | transloco">
+      <div>
+        <dt>{{ 'aracFinans.taksit.adet' | transloco }}</dt>
+        <dd>{{ num(o.adet) | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.taksit.odenen' | transloco }}</dt>
+        <dd>{{ num(o.odenenAdet) | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.taksit.geciken' | transloco }}</dt>
+        <dd>{{ num(o.gecikenAdet) | sayi: '1.0-0' }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.taksit.toplam' | transloco }}</dt>
+        <dd>{{ num(o.toplamBaz) | para }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'aracFinans.taksit.kalan' | transloco }}</dt>
+        <dd>{{ num(o.kalanBaz) | para }}</dd>
+      </div>
+    </dl>
+  }
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="musteri-taksit.liste"
+    [etiket]="'aracFinans.taksit.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.durum === 'Odendi') {
+        <span class="rc-rozet rc-rozet--basari">{{
+          'aracFinans.taksit.durumlar.Odendi' | transloco
+        }}</span>
+      } @else if (satir.gecikti) {
+        <span class="rc-rozet rc-rozet--uyari">{{ 'aracFinans.taksit.gecikti' | transloco }}</span>
+      } @else {
+        <span class="rc-rozet">{{ 'aracFinans.taksit.durumlar.Bekliyor' | transloco }}</span>
+      }
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (canWrite()) {
+        <span class="satir-eylem">
+          @if (satir.durum === 'Odendi') {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              [disabled]="busy() !== null"
+              (click)="undoPaid(satir)"
+            >
+              {{ 'aracFinans.taksit.geriAl' | transloco }}
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="busy() !== null"
+              (click)="markPaid(satir)"
+            >
+              {{ 'aracFinans.taksit.odendi' | transloco }}
+            </button>
+          }
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="edit(satir)"
+          >
+            {{ 'aracFinans.duzenle' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="'aracFinans.taksit.silEtiket' | transloco: { sira: satir.sira }"
+            (click)="remove(satir)"
+          >
+            {{ 'aracFinans.sil' | transloco }}
+          </button>
+        </span>
+      }
+    </ng-template>
+  </rc-tablo>
+
+  @if (canWrite()) {
+    <section class="bolum duzenleyici" aria-labelledby="rc-taksit-formu">
+      <h2 id="rc-taksit-formu" tabindex="-1">
+        {{
+          (editing().kind === 'new'
+            ? 'aracFinans.taksit.tekEkle'
+            : 'aracFinans.taksit.duzenleBaslik'
+          ) | transloco
+        }}
+      </h2>
+      <form class="form" [formGroup]="form" (ngSubmit)="save()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'aracFinans.taksit.musteri' | transloco">
+            <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.aracOps' | transloco">
+            <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.vade' | transloco">
+            <rc-tarih-secici formControlName="vade" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.tutar' | transloco">
+            <rc-para-girdisi
+              formControlName="taksitTutari"
+              [paraBirimi]="formCurrency() || 'TRY'"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.doviz' | transloco">
+            <rc-metin-girdisi formControlName="doviz" [azamiUzunluk]="3" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'aracFinans.kur' | transloco"
+            [ipucu]="'aracFinans.kurIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="kur" [kesir]="4" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.durum' | transloco">
+            <rc-secim formControlName="durum" [secenekler]="statusOptions" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.odemeTarihi' | transloco">
+            <rc-tarih-secici formControlName="odemeTarihi" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="
+              submission.gonderiliyor() || (editing().kind === 'record' && base() === null)
+            "
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ((editing().kind === 'new' ? 'aracFinans.ekle' : 'aracFinans.kaydet') | transloco)
+            }}
+          </button>
+          @if (editing().kind === 'record') {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              (click)="cancelEdit()"
+            >
+              {{ 'aracFinans.vazgec' | transloco }}
+            </button>
+          }
+        </div>
+      </form>
+    </section>
+
+    <section class="bolum" aria-labelledby="rc-taksit-plani">
+      <h2 id="rc-taksit-plani">{{ 'aracFinans.taksit.planBaslik' | transloco }}</h2>
+      <p class="aciklama">{{ 'aracFinans.taksit.planAciklama' | transloco }}</p>
+      <form class="form" [formGroup]="planForm" (ngSubmit)="generatePlan()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'aracFinans.taksit.musteri' | transloco">
+            <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.aracOps' | transloco">
+            <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.toplamTutar' | transloco">
+            <rc-para-girdisi formControlName="toplamTutar" [paraBirimi]="planCurrency() || 'TRY'" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.taksitSayisi' | transloco">
+            <rc-sayi-girdisi formControlName="taksitSayisi" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.taksit.ilkVade' | transloco">
+            <rc-tarih-secici formControlName="ilkVade" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.doviz' | transloco">
+            <rc-metin-girdisi formControlName="doviz" [azamiUzunluk]="3" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'aracFinans.kur' | transloco"
+            [ipucu]="'aracFinans.kurIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="kur" [kesir]="4" />
+          </rc-alan>
+          <rc-alan [etiket]="'aracFinans.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="planSubmission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="planSubmission.gonderiliyor()"
+          >
+            {{
+              planSubmission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('aracFinans.taksit.planUret' | transloco)
+            }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+</div>

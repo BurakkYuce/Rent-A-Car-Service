@@ -1,0 +1,158 @@
+<div class="sayfa">
+  @switch (store.detail.tur()) {
+    @case ('hata') {
+      <h1>{{ 'aracFinans.kredi.detayBaslik' | transloco }}</h1>
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        {{ store.detail.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
+          {{ 'aracFinans.yenidenDene' | transloco }}
+        </button>
+      </div>
+      <a routerLink="/arac-kredi">{{ 'aracFinans.kredi.listeyeDon' | transloco }}</a>
+    }
+    @default {
+      @if (store.detail.veri(); as d) {
+        <header class="ust">
+          <h1>
+            {{ 'aracFinans.kredi.detayBasligi' | transloco: { no: d.no } }}
+            <span class="rc-rozet">{{ 'aracFinans.kredi.durumlar.' + d.durum | transloco }}</span>
+          </h1>
+          <div class="ust__eylemler">
+            <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/arac-kredi">
+              {{ 'aracFinans.kredi.listeyeDon' | transloco }}
+            </a>
+            @if (d.yetkiler.iptal) {
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+                [disabled]="cancelling()"
+                (click)="cancel()"
+              >
+                {{ 'aracFinans.kredi.iptal' | transloco }}
+              </button>
+            }
+          </div>
+        </header>
+        <p class="aciklama">{{ 'aracFinans.kredi.defterNotu' | transloco }}</p>
+
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'aracFinans.kredi.banka' | transloco }}</dt>
+            <dd>{{ d.bankaAdi }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.dosyaNo' | transloco }}</dt>
+            <dd>{{ d.dosyaNo ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.cari' | transloco }}</dt>
+            <dd>{{ d.cariAd ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.arac' | transloco }}</dt>
+            <dd>
+              @if (d.vehicleId) {
+                <a [routerLink]="['/araclar', d.vehicleId, 'detay']">{{ d.plaka }}</a>
+              } @else {
+                {{ 'aracFinans.kredi.filoGeneli' | transloco }}
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.krediTutari' | transloco }}</dt>
+            <dd>{{ num(d.krediTutari) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.faiz' | transloco }}</dt>
+            <dd>%{{ faizYuzde(d.faizOran) | sayi: '1.0-2' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.odenenToplam' | transloco }}</dt>
+            <dd>{{ d.odenenTaksit }} / {{ d.taksitSayisi }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.baslangic' | transloco }}</dt>
+            <dd>{{ d.baslangicTarihi | tarih }}</dd>
+          </div>
+        </dl>
+        @if (d.aciklama) {
+          <p class="aciklama">{{ d.aciklama }}</p>
+        }
+
+        <dl class="ozet-serit" [attr.aria-label]="'aracFinans.kredi.ozet' | transloco">
+          <div>
+            <dt>{{ 'aracFinans.kredi.toplamFaiz' | transloco }}</dt>
+            <dd>{{ num(d.ozet.toplamFaiz) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.toplamGeriOdeme' | transloco }}</dt>
+            <dd>{{ num(d.ozet.toplamGeriOdeme) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.aylikTaksit' | transloco }}</dt>
+            <dd>{{ num(d.ozet.aylikTaksit) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.odenenTutar' | transloco }}</dt>
+            <dd>{{ num(d.ozet.odenenTutar) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'aracFinans.kredi.kalanBakiye' | transloco }}</dt>
+            <dd>{{ num(d.ozet.kalanBakiye) | para: d.doviz }}</dd>
+          </div>
+        </dl>
+
+        @if (d.yetkiler.taksitOde) {
+          <rc-installment-payment-panel
+            [loan]="d"
+            [accounts]="accounts()"
+            [refreshing]="store.detail.yukleniyor()"
+            (settled)="reload()"
+          />
+        }
+
+        <section class="bolum" aria-labelledby="rc-kredi-plan">
+          <h2 id="rc-kredi-plan">{{ 'aracFinans.kredi.plan' | transloco }}</h2>
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <caption class="rc-gorunmez">
+                {{
+                  'aracFinans.kredi.plan' | transloco
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="num">{{ 'aracFinans.kredi.sira' | transloco }}</th>
+                  <th scope="col">{{ 'aracFinans.kredi.vade' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'aracFinans.kredi.tutar' | transloco }}</th>
+                  <th scope="col">{{ 'aracFinans.kredi.odemeDurumu' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of d.ozet.taksitler; track p.sira) {
+                  <tr>
+                    <td class="num">{{ p.sira }}</td>
+                    <td>{{ p.vade | tarih }}</td>
+                    <td class="num">{{ num(p.tutar) | para: d.doviz }}</td>
+                    <td>
+                      @if (p.odendi) {
+                        <span class="rc-rozet rc-rozet--basari">{{
+                          'aracFinans.kredi.odendiRozet' | transloco
+                        }}</span>
+                      } @else {
+                        <span class="rc-rozet">{{ 'aracFinans.kredi.bekliyor' | transloco }}</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else {
+        <h1>{{ 'aracFinans.kredi.detayBaslik' | transloco }}</h1>
+        <div class="rc-iskelet" aria-busy="true"></div>
+      }
+    }
+  }
+</div>
