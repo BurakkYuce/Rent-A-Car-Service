@@ -1,0 +1,30 @@
+// F7.2 cari ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo) aynen
+// kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
+@use '../vehicles/vehicles';
+
+.rozetler {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-1);
+}
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.borclu {
+  color: var(--rc-hata-metin);
+}
+
+.alacakli {
+  color: var(--rc-basari-metin);
+}
+
+.yan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
