@@ -141,10 +141,40 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     }
 
     /// <summary>
-    /// #308 L1 — girdi XML mi? BOM ve baştaki boşluk atlanır; ilk anlamlı bayt <c>&lt;</c> ise (ya da UTF-16 BOM varsa)
-    /// XML sayılır. XML görünen ama bozuk/DTD'li girdi taramada <see cref="System.Xml.XmlException"/> verir → red
-    /// (atlanmaz); yalnız hiç XML olmayan ikili girdiler (png, bin) atlanır — ClosedXML onları sayfa olarak okuyamaz.
+    /// #308 L1 — girdi XML mi? XmlReader kodlamayı BOM'suz da ilk baytlardan tanır (UTF-16 BE/LE, UCS-4) — r314 M1:
+    /// yalnız UTF-8 bakılınca BOM'suz UTF-16BE sayfa (<c>00 3C 00 3F</c>) taramayı atlayıp 501.000 hücreyle ClosedXML'e
+    /// ulaşıyordu. Bu yüzden: herhangi bir BOM (UTF-8/16/32) → XML; değilse UTF-8, UTF-16 LE/BE ve UCS-4 LE/BE kod
+    /// birimlerinin HER BİRİNDE baştaki boşluk atlanıp ilk birim <c>&lt;</c> ise (diğer baytları 0) → XML. Yanlış pozitif
+    /// güvenli yöndedir: XML sanılan ikili girdi taramada <see cref="System.Xml.XmlException"/> verir → red. Yalnız hiçbir
+    /// kodlamada <c>&lt;</c> ile başlamayan ikili girdiler (png, jpeg, emf, printerSettings.bin…) atlanır — XmlReader ve
+    /// dolayısıyla ClosedXML onları sayfa olarak okuyamaz.
     /// </summary>
+    private static bool LooksLikeXml(ReadOnlySpan<byte> head)
+    {
+        if (head.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) || head.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xFE])
+            || head.StartsWith((ReadOnlySpan<byte>)[0xFE, 0xFF]) || head.StartsWith((ReadOnlySpan<byte>)[0x00, 0x00, 0xFE, 0xFF]))
+            return true;
+        foreach (var (width, bigEndian) in new[] { (1, false), (2, false), (2, true), (4, false), (4, true) })
+            if (StartsWithTag(head, width, bigEndian)) return true;
+        return false;
+    }
+
+    /// <summary>Verilen kod birimi genişliği/sırasında baştaki XML boşluğu atlanınca ilk birim '&lt;' mi (ya da tümü boşluk mu).</summary>
+    private static bool StartsWithTag(ReadOnlySpan<byte> head, int width, bool bigEndian)
+    {
+        var i = 0;
+        for (; i + width <= head.Length; i += width)
+        {
+            var unit = head.Slice(i, width);
+            var low = bigEndian ? unit[width - 1] : unit[0];
+            var rest = bigEndian ? unit[..(width - 1)] : unit[1..];
+            if (rest.IndexOfAnyExcept((byte)0) >= 0) return false; // ASCII dışı birim: bu kodlamada '<' ya da boşluk değil
+            if (low == (byte)'<') return true;
+            if (low is not ((byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n')) return false;
+        }
+        return true; // tamamen boşluk (ya da boş) → taransın, zararsız
+    }
+
     private static bool LooksLikeXml(System.IO.Compression.ZipArchiveEntry entry)
     {
         using var s = entry.Open();
@@ -152,10 +182,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         var read = 0;
         int n;
         while (read < buf.Length && (n = s.Read(buf, read, buf.Length - read)) > 0) read += n;
-        if (read >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF))) return true;
-        var i = read >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF ? 3 : 0;
-        while (i < read && buf[i] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') i++;
-        return i == read || buf[i] == (byte)'<'; // tamamen boşluk (ya da boş) → taransın, zararsız
+        return LooksLikeXml(buf.AsSpan(0, read));
     }
 
     private static readonly HashSet<string> SpreadsheetNamespaces = new(StringComparer.Ordinal)
