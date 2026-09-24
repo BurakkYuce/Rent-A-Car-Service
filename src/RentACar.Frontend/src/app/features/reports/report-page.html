@@ -202,59 +202,67 @@
         </dl>
       }
       @for (b of view().bolumler; track b.kod) {
-        <section class="bolum" [attr.aria-labelledby]="'rc-rapor-b-' + b.kod">
-          <h2 [id]="'rc-rapor-b-' + b.kod">{{ b.baslik | transloco }}</h2>
-          @if (b.satirlar(s); as satirlar) {
-            @if (satirlar.length === 0) {
-              <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
-            } @else {
-              <div class="tablo-kap" tabindex="0" [attr.aria-label]="b.baslik | transloco">
-                <table class="duz-tablo">
-                  <thead>
-                    <tr>
-                      @for (c of b.sutunlar(s); track c.kod) {
-                        <th scope="col" [class.num]="numeric(c)">{{ header(c) }}</th>
-                      }
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (r of satirlar; track $index) {
+        @if (editor()?.bolum === b.kod) {
+          <rc-shift-editor
+            [rows]="shiftRows(s)"
+            [firstDay]="shiftFirstDay(s)"
+            (changed)="store.yenile()"
+          />
+        } @else {
+          <section class="bolum" [attr.aria-labelledby]="'rc-rapor-b-' + b.kod">
+            <h2 [id]="'rc-rapor-b-' + b.kod">{{ b.baslik | transloco }}</h2>
+            @if (b.satirlar(s); as satirlar) {
+              @if (satirlar.length === 0) {
+                <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
+              } @else {
+                <div class="tablo-kap" tabindex="0" [attr.aria-label]="b.baslik | transloco">
+                  <table class="duz-tablo">
+                    <thead>
                       <tr>
                         @for (c of b.sutunlar(s); track c.kod) {
-                          <td
-                            [class.num]="numeric(c)"
-                            [class.eksi]="numeric(c) && negative(c.deger(r))"
-                          >
-                            @if (c.bag?.(r); as link) {
-                              <a [routerLink]="link">{{ cell(c, r) }}</a>
-                            } @else {
-                              {{ cell(c, r) }}
-                            }
-                          </td>
+                          <th scope="col" [class.num]="numeric(c)">{{ header(c) }}</th>
                         }
                       </tr>
+                    </thead>
+                    <tbody>
+                      @for (r of satirlar; track $index) {
+                        <tr>
+                          @for (c of b.sutunlar(s); track c.kod) {
+                            <td
+                              [class.num]="numeric(c)"
+                              [class.eksi]="numeric(c) && negative(c.deger(r))"
+                            >
+                              @if (c.bag?.(r); as link) {
+                                <a [routerLink]="link">{{ cell(c, r) }}</a>
+                              } @else {
+                                {{ cell(c, r) }}
+                              }
+                            </td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                    @if (b.toplam?.(s); as t) {
+                      <tfoot>
+                        <tr class="toplam-satiri">
+                          @for (c of b.sutunlar(s); track c.kod; let first = $first) {
+                            <td [class.num]="numeric(c)">
+                              @if (first) {
+                                {{ 'rapor.toplam' | transloco }}
+                              } @else if (t[c.kod] !== undefined) {
+                                {{ format(c.tur, t[c.kod]) }}
+                              }
+                            </td>
+                          }
+                        </tr>
+                      </tfoot>
                     }
-                  </tbody>
-                  @if (b.toplam?.(s); as t) {
-                    <tfoot>
-                      <tr class="toplam-satiri">
-                        @for (c of b.sutunlar(s); track c.kod; let first = $first) {
-                          <td [class.num]="numeric(c)">
-                            @if (first) {
-                              {{ 'rapor.toplam' | transloco }}
-                            } @else if (t[c.kod] !== undefined) {
-                              {{ format(c.tur, t[c.kod]) }}
-                            }
-                          </td>
-                        }
-                      </tr>
-                    </tfoot>
-                  }
-                </table>
-              </div>
+                  </table>
+                </div>
+              }
             }
-          }
-        </section>
+          </section>
+        }
       }
     } @else if (store.tur() === 'hazir' && !view().satirlar) {
       <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>

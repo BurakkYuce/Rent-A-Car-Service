@@ -1,0 +1,33 @@
+// F10.3 vardiya yazma bölümü: rapor ekranının yerleşim sözlüğü (bölüm, düz tablo) aynen; yalnız form eklemeleri.
+@use '../report-page';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.bolum > h2:focus {
+  outline: none;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.form__eylemler,
+.satir-eylem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
