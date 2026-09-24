@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.CustomCodes;
 
-public interface ICustomCodeRepository
+public interface ICustomCodeRepository : Common.IVersionedRepository<CustomCode>
 {
     Task<IReadOnlyList<CustomCode>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<CustomCode>> ListActiveAsync(CancellationToken ct = default);

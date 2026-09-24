@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Accessories;
 
-public interface IAccessoryRepository
+public interface IAccessoryRepository : Common.IVersionedRepository<Accessory>
 {
     Task<IReadOnlyList<Accessory>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Accessory>> ListActiveAsync(CancellationToken ct = default);

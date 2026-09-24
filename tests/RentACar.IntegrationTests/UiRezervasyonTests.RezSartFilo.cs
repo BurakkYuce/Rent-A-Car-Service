@@ -134,8 +134,12 @@ public sealed partial class UiRezervasyonTests
     public void Izin_haritasi_Blazor_ile_ayni()
     {
         string[] onekler = [Rez, Teklif, V1 + "/takvim", V1 + "/musaitlik", Sart, Filo];
+        // Önek SEGMENT sınırında eşleşir: F11.1a'nın /takvim-abonelik (kişisel iCal bağlantısı, F5 değil) uçları
+        // çıplak StartsWith ile "/takvim" önekine takılıp haritayı şişiriyordu.
+        static bool Altinda(string yol, string onek)
+            => yol.StartsWith(onek, StringComparison.Ordinal) && (yol.Length == onek.Length || yol[onek.Length] == '/');
         var uclar = fx.Web.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(e => onekler.Any(p => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith(p, StringComparison.Ordinal)))
+            .Where(e => onekler.Any(p => Altinda("/" + (e.RoutePattern.RawText ?? "").TrimStart('/'), p)))
             .ToDictionary(e => (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Single() ?? "?") + " /" + e.RoutePattern.RawText!.Trim('/'),
                 e => e.Metadata.GetMetadata<IzinMetadata>()?.Izin.ToString());
         var dar = new[] { $"POST {Rez}/{{id:guid}}/iptal", $"POST {Filo}/{{id:guid}}/iptal" };

@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Banks;
 
-public interface IBankRepository
+public interface IBankRepository : Common.IVersionedRepository<Bank>
 {
     Task<IReadOnlyList<Bank>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Bank>> ListActiveAsync(CancellationToken ct = default);

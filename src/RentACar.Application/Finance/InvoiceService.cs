@@ -451,6 +451,9 @@ public sealed class InvoiceService(
 
         var (kdv, gross) = KdvMath.FromNet(input.NetTutar, input.KdvOrani);
         var net = KdvMath.RoundGross(input.NetTutar);
+        // #286 adversarial M2: kontrol YUVARLAMADAN SONRA — 0,001 net önce kabul edilip 0,00 tutarlı, seri
+        // numaralı ve değiştirilemez fatura kesiliyordu (Blazor manuel fatura formu da bu yoldan geçer).
+        if (net <= 0) throw new ValidationException("Net tutar kuruşa yuvarlandığında pozitif olmalıdır.");
 
         // İdempotency: anahtar verilmiş + zaten kesilmişse aynı faturayı döndür (çift-submit güvenli).
         // F1.4 (adversarial MEDIUM-1): YALNIZ aynı cari + aynı tutarlar için. Aynı anahtar başka cari/tutarla
