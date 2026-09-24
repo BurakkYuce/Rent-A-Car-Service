@@ -3,6 +3,7 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
+import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
@@ -158,4 +159,6 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F11.2a tanımlar (1. yarı): genel tanım CRUD'u + şubeler, doluluk kuralları, dokümanlar, takvim aboneliği.
+  ...DEFINITION_ROUTES,
 ];

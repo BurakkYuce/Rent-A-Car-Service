@@ -52,7 +52,6 @@ export class VehicleDefinitions {
   protected readonly source = definitionSource(
     ROOTS[this.kind],
     this.fields.map((f) => f.ad),
-    this.t('arac.tanim.cakisma'),
   );
 
   constructor() {
