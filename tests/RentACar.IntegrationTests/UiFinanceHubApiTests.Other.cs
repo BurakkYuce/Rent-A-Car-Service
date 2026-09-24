@@ -36,6 +36,51 @@ public sealed partial class UiFinanceHubApiTests
         await AllLedgerBalancedAsync(e);
     }
 
+    // #299 L2 — depozito anahtarı TÜM depozito türlerinde tekil: al'ın anahtarıyla iade/mahsup/irat 409 mukerrer
+    // (mevcut = al kaydı, ayniIcerik=false) ve HİÇBİR ŞEY yazılmaz; ters yönde (iade anahtarıyla al) de aynı.
+    [Fact]
+    public async Task Deposit_key_is_unique_across_deposit_operation_types()
+    {
+        var e = await SetupAsync();
+        var s = await LoginAsync(e, Who.Accountant);
+        var takeKey = NewKey();
+        var takeId = await IdOf(await PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 300m, hesap = "Kasa" }, takeKey));
+
+        var refund = await Problem(await PostAsync(s, "/depozito/iade", new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        var existing = refund.GetProperty("mevcut");
+        Assert.Equal(takeId, existing.GetProperty("id").GetGuid());
+        Assert.False(existing.GetProperty("ayniIcerik").GetBoolean());
+        Assert.Equal(300m, existing.GetProperty("tutar").GetDecimal());
+        Assert.Equal("TRY", existing.GetProperty("doviz").GetString());
+        await Problem(await PostAsync(s, "/depozito/mahsup", new { cariId = e.CustomerA, tutar = 50m }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        await Problem(await PostAsync(s, "/depozito/irat", new { cariId = e.CustomerA, tutar = 20m }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        // Başka carinin aynı anahtarlı iadesi de (farklı cari kilidi) aynı kayda çarpar.
+        await Problem(await PostAsync(s, "/depozito/iade", new { cariId = e.CustomerB, tutar = 1m, hesap = "Kasa" }, takeKey),
+            HttpStatusCode.Conflict, "mukerrer");
+
+        // Oracle: yalnız al kümesi yazıldı (2 satır, 300 TL); tutulan depozito 300.
+        var rows = await LedgerAsync(e, takeId);
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, r => Assert.Equal("DepozitoAl", r.SourceType));
+        var list = await Ok(await GetAsync(s, "/depozito"));
+        Assert.Equal(300m, list.EnumerateArray().Single(x => x.GetProperty("cariId").GetGuid() == e.CustomerA).GetProperty("bakiye").GetDecimal());
+
+        // Ters yön: iade anahtarıyla al → 409; aynı iadenin birebir tekrarı sessiz (200 aynı id).
+        var refundKey = NewKey();
+        var refundBody = new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" };
+        var refundId = await IdOf(await PostAsync(s, "/depozito/iade", refundBody, refundKey));
+        await Problem(await PostAsync(s, "/depozito/al", new { cariId = e.CustomerA, tutar = 100m, hesap = "Kasa" }, refundKey),
+            HttpStatusCode.Conflict, "mukerrer");
+        Assert.Equal(refundId, await IdOf(await PostAsync(s, "/depozito/iade", refundBody, refundKey)));
+        // Oracle: 300 − 100 = 200.
+        list = await Ok(await GetAsync(s, "/depozito"));
+        Assert.Equal(200m, list.EnumerateArray().Single(x => x.GetProperty("cariId").GetGuid() == e.CustomerA).GetProperty("bakiye").GetDecimal());
+        await AllLedgerBalancedAsync(e);
+    }
+
     // ------------------------------------------------------------ ekstre + ters kayıt (E08)
 
     [Fact]

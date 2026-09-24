@@ -117,12 +117,14 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             // #308 ikinci tur: ClosedXML tüm çalışma kitabını belleğe kurar (127 KB'lık 20.000×100 dosya 3,5 GB ayırdı).
             // Satır/sütun/hücre sınırları bu yüzden yüklemeden ÖNCE, sayfa XML'i akışla okunarak denetlenir. ClosedXML
             // TÜM sayfaları yüklediği için yalnız ilk sayfa değil her sayfa sayılır (toplam hücre tüm kitap için).
+            // #308 L1: sayfanın yolu serbesttir (workbook.xml.rels hedefi; ör. "xl/tasinmis/veri.dat") — yol süzgeci
+            // taşınmış sayfayı saymıyordu. Bu yüzden XML olan HER girdi taranır; yalnız SpreadsheetML ad alanındaki
+            // <row>/<c> sayılır (başka parçalardaki aynı adlı öğeler sayılmaz). XML olmayan girdi (görsel vb.) atlanır.
             long cells = 0;
             foreach (var entry in zip.Entries)
             {
-                if (!entry.FullName.StartsWith("xl/worksheets/", StringComparison.OrdinalIgnoreCase)
-                    || !entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
-                    || entry.FullName.Contains("/_rels/", StringComparison.OrdinalIgnoreCase)) continue;
+                if (entry.FullName.EndsWith('/')) continue; // klasör girdisi
+                if (!LooksLikeXml(entry)) continue;
                 using var es = entry.Open();
                 cells = ScanSheet(es, cells);
             }
@@ -137,6 +139,30 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         }
         ms.Position = 0;
     }
+
+    /// <summary>
+    /// #308 L1 — girdi XML mi? BOM ve baştaki boşluk atlanır; ilk anlamlı bayt <c>&lt;</c> ise (ya da UTF-16 BOM varsa)
+    /// XML sayılır. XML görünen ama bozuk/DTD'li girdi taramada <see cref="System.Xml.XmlException"/> verir → red
+    /// (atlanmaz); yalnız hiç XML olmayan ikili girdiler (png, bin) atlanır — ClosedXML onları sayfa olarak okuyamaz.
+    /// </summary>
+    private static bool LooksLikeXml(System.IO.Compression.ZipArchiveEntry entry)
+    {
+        using var s = entry.Open();
+        var buf = new byte[4096];
+        var read = 0;
+        int n;
+        while (read < buf.Length && (n = s.Read(buf, read, buf.Length - read)) > 0) read += n;
+        if (read >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF))) return true;
+        var i = read >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF ? 3 : 0;
+        while (i < read && buf[i] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') i++;
+        return i == read || buf[i] == (byte)'<'; // tamamen boşluk (ya da boş) → taransın, zararsız
+    }
+
+    private static readonly HashSet<string> SpreadsheetNamespaces = new(StringComparer.Ordinal)
+    {
+        "http://schemas.openxmlformats.org/spreadsheetml/2006/main", // Transitional
+        "http://purl.oclc.org/ooxml/spreadsheetml/main",              // Strict
+    };
 
     /// <summary>Sayfa XML'inde <c>&lt;row&gt;</c> ve <c>&lt;c&gt;</c> öğelerini akışla sayar (DOM yok, DTD yasak); satır
     /// (başlık dahil) &gt; MaxRows+1, satırda hücre &gt; MaxColumns ya da toplam hücre &gt; MaxCells → anında red.</summary>
@@ -153,6 +179,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         while (reader.Read())
         {
             if (reader.NodeType != System.Xml.XmlNodeType.Element) continue;
+            if (!SpreadsheetNamespaces.Contains(reader.NamespaceURI)) continue;
             if (reader.LocalName == "row")
             {
                 if (++rows > ImportLimits.MaxRows + 1) throw TooManyRows();

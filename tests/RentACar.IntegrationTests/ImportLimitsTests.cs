@@ -135,6 +135,73 @@ public sealed class ImportLimitsTests
         Assert.Contains("okunamadı", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 2, 2)), "bozuk.xlsx")).Message);
     }
 
+    /// <summary>
+    /// Geçerli bir ClosedXML kitabının ilk sayfasını <c>xl/worksheets/</c> dışına (<paramref name="movedPath"/>) taşır:
+    /// workbook.xml.rels hedefi ve [Content_Types] geçersiz kılması güncellenir. <paramref name="writeSheetData"/> null
+    /// ise sayfa içeriği aynen korunur, değilse elle yazılmış <c>&lt;sheetData&gt;</c> ile değiştirilir.
+    /// </summary>
+    private static MemoryStream MovedSheetXlsx(string movedPath, Action<StreamWriter>? writeSheetData)
+    {
+        var source = new MemoryStream();
+        using (var wb = new ClosedXML.Excel.XLWorkbook())
+        {
+            var ws = wb.AddWorksheet("Araçlar");
+            ws.Cell(1, 1).Value = "Plaka";
+            ws.Cell(2, 1).Value = "34TAS1";
+            wb.SaveAs(source);
+        }
+        source.Position = 0;
+        var result = new MemoryStream();
+        using (var input = new ZipArchive(source, ZipArchiveMode.Read))
+        using (var output = new ZipArchive(result, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in input.Entries)
+            {
+                string text;
+                using (var r = new StreamReader(entry.Open())) text = r.ReadToEnd();
+                var name = entry.FullName;
+                if (name == "xl/worksheets/sheet1.xml")
+                {
+                    name = movedPath;
+                    if (writeSheetData is not null)
+                    {
+                        using var w = new StreamWriter(output.CreateEntry(name, CompressionLevel.SmallestSize).Open());
+                        w.Write("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+                        writeSheetData(w);
+                        w.Write("</sheetData></worksheet>");
+                        continue;
+                    }
+                }
+                else if (name == "xl/_rels/workbook.xml.rels")
+                    text = text.Replace("/xl/worksheets/sheet1.xml", "/" + movedPath, StringComparison.Ordinal)
+                        .Replace("\"worksheets/sheet1.xml", "\"/" + movedPath, StringComparison.Ordinal);
+                else if (name == "[Content_Types].xml")
+                    text = text.Replace("/xl/worksheets/sheet1.xml", "/" + movedPath, StringComparison.Ordinal);
+                using var ow = new StreamWriter(output.CreateEntry(name).Open());
+                ow.Write(text);
+            }
+        }
+        result.Position = 0;
+        return result;
+    }
+
+    [Fact]
+    public void Moved_worksheet_outside_the_worksheets_folder_is_still_counted()
+    {
+        // Senaryo gerçek: taşınmış sayfa ClosedXML tarafından okunuyor (sınır atlatılabilirdi).
+        var ok = ImportService.Parse(MovedSheetXlsx("xl/tasinmis/veri.dat", null), "tasinmis.xlsx");
+        Assert.Equal("34TAS1", Assert.Single(ok)["plaka"]);
+
+        // 5.000 × 100 + 1 = 500.001 hücre taşınmış yolda → akış sayımıyla red (eskiden yol süzgecine takılmıyordu).
+        var cells = Refused(() => ImportService.Parse(
+            MovedSheetXlsx("xl/tasinmis/veri.dat", w => { Rows(w, 5_000, 100); Rows(w, 1, 1); }), "hucre.xlsx"));
+        Assert.Equal("Dosya en çok 500.000 dolu hücre içerebilir.", cells.Message);
+        Assert.Contains("20.000 satır", Refused(() => ImportService.Parse(
+            MovedSheetXlsx("veri/sayfa.xml", w => Rows(w, 25_000, 1)), "satir.xlsx")).Message);
+        Assert.Contains("100 sütun", Refused(() => ImportService.Parse(
+            MovedSheetXlsx("xl/tasinmis/veri.dat", w => Rows(w, 1, 101)), "sutun.xlsx")).Message);
+    }
+
     [Fact]
     public void Valid_small_xlsx_still_parses()
     {
