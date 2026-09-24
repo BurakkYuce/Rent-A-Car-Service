@@ -123,7 +123,9 @@ export class SaleCreateForm {
   /** Para simgesi form değerinden (donmuş deneme `emitEvent:false` ile geri yüklenir — r300b N2). */
   protected readonly currency = signal<string | null>(EMPTY.doviz);
   /** Yapısal idempotency (araç başına tek satış) + aynı yaşam döngüsü: uçuşta kilit, belirsizde donmuş gövde. */
-  protected readonly submission = moneySubmission<VehicleSaleRequest>({ scope: () => 'yeni-satis' });
+  protected readonly submission = moneySubmission<VehicleSaleRequest>({
+    scope: () => 'yeni-satis',
+  });
 
   constructor() {
     const destroyRef = inject(DestroyRef);
