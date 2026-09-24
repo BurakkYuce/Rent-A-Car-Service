@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  computed,
   inject,
   input,
   type OnInit,
@@ -31,7 +30,6 @@ import { Secim } from '@shared/form/kontroller/secim';
 
 import {
   EXPENSE_TYPES,
-  type ExpenseCategory,
   type ExpenseType,
   type IncomingInvoiceDetail,
   type IncomingInvoiceLinkResult,
@@ -64,20 +62,18 @@ export class IncomingLinkForm implements OnInit {
   private readonly t = ceviriFonksiyonu();
 
   readonly invoiceId = input.required<string>();
-  readonly categories = input<readonly ExpenseCategory[] | undefined>(undefined);
   readonly saved = output<IncomingInvoiceLinkResult>();
   readonly closed = output<void>();
   readonly dirtyChange = output<boolean>();
 
   protected readonly vehicles = sunucuSecimKaynagi('arac');
   protected readonly customers = sunucuSecimKaynagi('musteri');
+  /** Aktif gider kategorileri (`/secim/gider-kategorisi`: OperationsWrite VEYA FinanceWrite; #300). */
+  protected readonly categories = sunucuSecimKaynagi('gider-kategorisi');
   protected readonly typeOptions: readonly SecenekOgesi<ExpenseType>[] = EXPENSE_TYPES.map((x) => ({
     deger: x,
     etiket: this.t(`finansBelge.gider.turler.${x}`),
   }));
-  protected readonly categoryOptions = computed<readonly SecenekOgesi<string>[]>(() =>
-    (this.categories() ?? []).map((c) => ({ deger: c.id, etiket: c.ad })),
-  );
   /** Okunan kayıt (sürüm + birleştirme tabanı). `null` iken Kaydet pasif (sürüm okunmadan PUT gitmez). */
   protected readonly base = signal<IncomingInvoiceDetail | null>(null);
 
@@ -90,7 +86,7 @@ export class IncomingLinkForm implements OnInit {
     kdv1: new FormControl<string | null>(null),
     kdv0Matrah: new FormControl<string | null>(null),
     arac: new FormControl<SecimSecenegi | null>(null),
-    giderKategoriId: new FormControl<string | null>(null),
+    kategori: new FormControl<SecimSecenegi | null>(null),
     cari: new FormControl<SecimSecenegi | null>(null),
     giderTipi: new FormControl<ExpenseType | null>(null),
   });
@@ -121,7 +117,7 @@ export class IncomingLinkForm implements OnInit {
           },
         ),
       {
-        esleme: { aracId: 'arac', cariId: 'cari' },
+        esleme: { aracId: 'arac', cariId: 'cari', giderKategoriId: 'kategori' },
         basarili: (r) => {
           this.toast.basari(this.t('finansBelge.gelen.baglandi'));
           this.dirtyChange.emit(false);

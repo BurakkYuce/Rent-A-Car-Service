@@ -1,14 +1,14 @@
 namespace RentACar.Web.Api.FinansBelge;
 
 /// <summary>Gelen e-fatura satırı (tedarikçi belgesi; VKN kurumsal vergi no'dur). <c>giderlestirildi</c>: deftere
-/// yansıdı (kırılım/bağlama artık değişmez).</summary>
+/// yansıdı (kırılım/bağlama artık değişmez). <c>giderKategoriAd</c>: bağlı kategorinin adı (seçim etiketi; #300).</summary>
 public sealed record IncomingInvoiceRow(
     Guid Id, string Ettn, string GonderenVkn, string GonderenUnvan, DateTimeOffset Tarih,
     decimal NetTutar, decimal KdvTutar, decimal GenelToplam, string Doviz, string Durum, string? RedNedeni,
     string? Aciklama, decimal? Kdv20Matrah, decimal? Kdv20, decimal? Kdv10Matrah, decimal? Kdv10,
     decimal? Kdv1Matrah, decimal? Kdv1, decimal? Kdv0Matrah, Guid? AracId, string? Plaka,
     Guid? GiderKategoriId, Guid? CariId, string? CariAd, string? GiderTipi, bool Giderlestirildi,
-    DateTimeOffset? GiderlestirilmeTarihi);
+    DateTimeOffset? GiderlestirilmeTarihi, string? GiderKategoriAd);
 
 /// <summary>Elle gelen fatura girişi (entegrasyon yokken). net + KDV = genel toplam olmalı.</summary>
 public sealed record IncomingInvoiceCreateRequest(

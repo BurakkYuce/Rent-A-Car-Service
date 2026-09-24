@@ -32,6 +32,14 @@ public static class SecimApi
         kok.MapGet("/kur", async Task<Ok<IReadOnlyList<KurSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
             => TypedResults.Ok(await s.KurAsync(q, limit, ct)))
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+        // #300: gelen e-faturadan gider (Muhasebe) — yalnız aktif gider türleri; tanım ekranının yazması değişmedi.
+        kok.MapGet("/gider-kategorisi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ExpenseCategoryAsync(q, limit, ct)))
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+        // #300: araç satış formu — satılmamış araçlar, şube kapsamlı; satışla aynı izin (FinanceWrite).
+        kok.MapGet("/satilabilir-arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
+            => TypedResults.Ok(await s.SellableVehicleAsync(q, limit, ct)))
+            .RequirePermission(Permission.FinanceWrite);
 
         var g = kok.MapGroup("").RequirePermission(Permission.OperationsWrite);
         g.MapGet("/arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)

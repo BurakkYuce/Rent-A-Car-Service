@@ -119,6 +119,7 @@ describe('finans belge gövdeleri', () => {
       tip: 'Arac',
       arac: ARAC,
       cari: CARI,
+      kira: null,
       netTutar: '1000',
       kdvOrani: '0.20',
       odemeYontemi: 'AcikHesap',
@@ -142,10 +143,14 @@ describe('finans belge gövdeleri', () => {
       kur: null,
       aracId: ARAC.id,
       cariId: CARI.id,
+      kiraId: null,
       sube: 'Merkez',
       vade: '2026-10-14T21:00:00.000Z',
     });
     expect(expenseRequest({ ...base, kur: '35.1234' }).kur).toBe('35.1234');
+    // Sözleşme alanı (#300): seçilen kiranın kimliği gider; etiket gövdeye girmez.
+    const kira = { id: 'b2b2b2b2-0000-4000-8000-000000000001', etiket: 'K-100 — 34ABC123' };
+    expect(expenseRequest({ ...base, kira }).kiraId).toBe('b2b2b2b2-0000-4000-8000-000000000001');
     expect(
       expensePaymentRequest({ tutar: null, tarih: null, makbuzNo: null, aciklama: null }),
     ).toEqual({ tutar: null, tarih: null, makbuzNo: null, aciklama: null });
@@ -174,14 +179,20 @@ describe('finans belge gövdeleri', () => {
       kdv0Matrah: null,
       aracId: null,
       plaka: null,
-      giderKategoriId: null,
+      giderKategoriId: 'k0k0k0k0-0000-4000-8000-000000000001',
       cariId: CARI.id,
       cariAd: CARI.etiket,
       giderTipi: null,
       giderlestirildi: false,
       giderlestirilmeTarihi: null,
+      giderKategoriAd: 'Yakıt',
     });
-    expect(incomingLinkRequest({ ...form, kdv20: '' }, 'v-7')).toEqual({
+    // Kategori aranabilir seçim: etiket kaydın adından (#300); gövdeye yalnız kimlik gider.
+    expect(form.kategori).toEqual({ id: 'k0k0k0k0-0000-4000-8000-000000000001', etiket: 'Yakıt' });
+    expect(incomingLinkRequest(form, 'v-7').giderKategoriId).toBe(
+      'k0k0k0k0-0000-4000-8000-000000000001',
+    );
+    expect(incomingLinkRequest({ ...form, kdv20: '', kategori: null }, 'v-7')).toEqual({
       surum: 'v-7',
       kdv20Matrah: '1000',
       kdv20: null,

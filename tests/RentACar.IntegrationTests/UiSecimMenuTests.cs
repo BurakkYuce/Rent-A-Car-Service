@@ -221,9 +221,9 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         await ProblemBekle(anonim, HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
-    /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c> ve <c>kur</c>
-    /// arama uçları "OperationsWrite veya FinanceWrite"; geri kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite
-    /// (genişleme sessizce yayılmasın).</summary>
+    /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c>, <c>kur</c> ve
+    /// <c>gider-kategorisi</c> arama uçları "OperationsWrite veya FinanceWrite"; <c>satilabilir-arac</c> FinanceWrite; geri
+    /// kalan hepsi (kimlikle etiket uçları dahil) OperationsWrite (genişleme sessizce yayılmasın).</summary>
     [Fact]
     public void Secim_uclari_izin_haritasi()
     {
@@ -236,17 +236,24 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         //   sigorta-sirketi → Blazor poliçe formu (/regulasyon/sigorta, OW grubu) firma listesi;
         //   tarife-grubu → Blazor tarife formu (/tarifeler, izin:OperationsWrite) grup listesi;
         //   sigorta-policesi → Blazor zeyil formu (/regulasyon/zeyil, OW grubu) poliçe listesi (araç şubesi kapsamlı).
-        Assert.Equal(17, uclar.Count);
+        // + #300 eksik uçlar: gider-kategorisi (OW ∨ FW — gelen e-faturadan gider, Muhasebe) ve satilabilir-arac
+        //   (FinanceWrite — araç satışıyla aynı izin).
+        Assert.Equal(19, uclar.Count);
         foreach (var f91 in new[] { "sigorta-sirketi", "tarife-grubu", "sigorta-policesi" })
             Assert.Contains(V1 + "/secim/" + f91, uclar.Keys);
         foreach (var (rota, e) in uclar)
         {
             var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
             var tek = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinMetadata>();
-            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur")
+            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur" or V1 + "/secim/gider-kategorisi")
             {
                 Assert.Null(tek);
                 Assert.Equal(new[] { Permission.OperationsWrite, Permission.FinanceWrite }, biri!.Izinler);
+            }
+            else if (rota == V1 + "/secim/satilabilir-arac")
+            {
+                Assert.Null(biri);
+                Assert.Equal(Permission.FinanceWrite, tek!.Izin);
             }
             else
             {

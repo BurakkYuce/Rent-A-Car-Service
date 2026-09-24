@@ -26,6 +26,20 @@
   gap: var(--rc-bosluk-2);
 }
 
+.doviz-toplamlari {
+  display: grid;
+  gap: var(--rc-bosluk-1);
+
+  > ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rc-bosluk-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
 .atlananlar {
   margin: 0;
   padding-inline-start: var(--rc-bosluk-4);
