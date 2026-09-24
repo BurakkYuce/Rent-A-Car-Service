@@ -48,6 +48,10 @@ const BLOK_HARITASI = {
   // F7.2 cari ekranları (liste, kart, 360° detay + ekstre) ve CRM (anket, şikayet, assistans, hukuk, analiz).
   cari: 'cari',
   crm: 'crm',
+  // F9.2 servis / sigorta / vade ekranları.
+  servisSigorta: 'servis-sigorta',
+  // F9.2 fiyat / tarife ekranları (tanımlar, fiyat hesapla, maliyet, tarife aktar).
+  fiyatTarife: 'fiyat-tarife',
   // F10.2 rapor ekranları (26 rapor; tek ortak rapor ekranı).
   rapor: 'rapor',
   // F11.2a tanım ekranları (genel tanımlar, şubeler, doluluk kuralları, dokümanlar, takvim aboneliği).

@@ -4,10 +4,10 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F10.3 rapor kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F10) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -59,6 +59,10 @@ public static class IlkKesis
     /// <c>/app/araclar/{id}</c>, <c>/araclar/{id}</c> (detay) → <c>/app/araclar/{id}/detay</c>; diğer on sayfa aynı adla
     /// <c>/app</c> altına. Fotoğraf GET'leri (<c>/vehicles/{id}/photos/{p}[/thumb]</c>), export ve Blazor POST'ları
     /// segment sayısı ya da yöntem farkıyla dışarıda; <c>/arac-gruplari</c> F11'in sayfasıdır.</item>
+    /// <item><b>F10</b> (F10.3): 26 rapor sayfası, hepsi AYNI adla <c>/app</c> altına (tek ortak rapor ekranı; araç
+    /// karnesi <c>/raporlar/arac-karne/{id}</c>). Rapor export'ları (<c>/raporlar/export/{rapor}</c>) segment farkıyla
+    /// dışarıda; personel çalışma Blazor POST'ları (<c>/raporlar/personel-calisma/create|update|delete</c>) yöntem
+    /// farkıyla dışarıda.</item>
     /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Harita { get; } =
@@ -91,6 +95,33 @@ public static class IlkKesis
         new("/baf", SpaBarindirma.Onek + "/baf"),
         new("/hasar", SpaBarindirma.Onek + "/hasar"),
         new("/filo-plan", SpaBarindirma.Onek + "/filo-plan"),
+        // F10
+        new("/raporlar/arac-durum-takip", SpaBarindirma.Onek + "/raporlar/arac-durum-takip"),
+        new("/raporlar/arac-gunluk-durum", SpaBarindirma.Onek + "/raporlar/arac-gunluk-durum"),
+        new("/raporlar/arac-karne/{id:guid}", SpaBarindirma.Onek + "/raporlar/arac-karne/{id}"),
+        new("/raporlar/cari-bakiye", SpaBarindirma.Onek + "/raporlar/cari-bakiye"),
+        new("/raporlar/doluluk", SpaBarindirma.Onek + "/raporlar/doluluk"),
+        new("/raporlar/ek-hizmet", SpaBarindirma.Onek + "/raporlar/ek-hizmet"),
+        new("/raporlar/extre-ozeti", SpaBarindirma.Onek + "/raporlar/extre-ozeti"),
+        new("/raporlar/fatura-donem", SpaBarindirma.Onek + "/raporlar/fatura-donem"),
+        new("/raporlar/filo-analiz", SpaBarindirma.Onek + "/raporlar/filo-analiz"),
+        new("/raporlar/filo", SpaBarindirma.Onek + "/raporlar/filo"),
+        new("/raporlar/finans-analiz", SpaBarindirma.Onek + "/raporlar/finans-analiz"),
+        new("/raporlar/gelir-gider", SpaBarindirma.Onek + "/raporlar/gelir-gider"),
+        new("/raporlar/gunluk", SpaBarindirma.Onek + "/raporlar/gunluk"),
+        new("/raporlar/karlilik", SpaBarindirma.Onek + "/raporlar/karlilik"),
+        new("/raporlar/karsilastirmali-analiz", SpaBarindirma.Onek + "/raporlar/karsilastirmali-analiz"),
+        new("/raporlar/kasa-banka", SpaBarindirma.Onek + "/raporlar/kasa-banka"),
+        new("/raporlar/kdv-listesi", SpaBarindirma.Onek + "/raporlar/kdv-listesi"),
+        new("/raporlar/km-detay", SpaBarindirma.Onek + "/raporlar/km-detay"),
+        new("/raporlar/otomatik-servisler", SpaBarindirma.Onek + "/raporlar/otomatik-servisler"),
+        new("/raporlar/periyodik-servis", SpaBarindirma.Onek + "/raporlar/periyodik-servis"),
+        new("/raporlar/personel-calisma", SpaBarindirma.Onek + "/raporlar/personel-calisma"),
+        new("/raporlar/rezervasyon-kaynak", SpaBarindirma.Onek + "/raporlar/rezervasyon-kaynak"),
+        new("/raporlar/servis-ozet", SpaBarindirma.Onek + "/raporlar/servis-ozet"),
+        new("/raporlar/sigorta-muayene", SpaBarindirma.Onek + "/raporlar/sigorta-muayene"),
+        new("/raporlar/tahsilat-fatura", SpaBarindirma.Onek + "/raporlar/tahsilat-fatura"),
+        new("/raporlar/virman-gecmisi", SpaBarindirma.Onek + "/raporlar/virman-gecmisi"),
     ];
 
     private const string GuidParametre = "{id:guid}";

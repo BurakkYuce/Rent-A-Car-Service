@@ -1,0 +1,262 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ config.title | transloco }}</h1>
+    @if (canWrite()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="editing()?.kind === 'new'"
+          (click)="startNew()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ config.newTitle | transloco }}
+        </button>
+      </div>
+    }
+  </header>
+  <p class="aciklama">{{ config.description | transloco }}</p>
+
+  @if (config.key === 'tarife-matris') {
+    <rc-rate-price-query />
+  }
+  @if (config.key === 'servis-tanimlari' && canWrite()) {
+    <rc-service-definition-suggestions (accepted)="reload()" />
+  }
+
+  @if (editing(); as e) {
+    <section
+      id="rc-tanim-duzenleyici"
+      class="bolum duzenleyici"
+      aria-labelledby="rc-tanim-duzenleyici-baslik"
+    >
+      <h2 id="rc-tanim-duzenleyici-baslik" tabindex="-1">
+        {{ (e.kind === 'new' ? config.newTitle : config.editTitle) | transloco }}
+      </h2>
+      @if (e.kind === 'record' && base() === null) {
+        <p class="aciklama" role="status">{{ 'fiyatTarife.kayitOkunuyor' | transloco }}</p>
+      }
+      <form class="form" [formGroup]="form" (ngSubmit)="save()">
+        @for (g of groups; track $index) {
+          @if (g.legend) {
+            <fieldset class="grup">
+              <legend>{{ g.legend | transloco }}</legend>
+              <div class="rc-form-izgara">
+                @for (f of g.fields; track f.name) {
+                  <ng-container *ngTemplateOutlet="field; context: { $implicit: f }" />
+                }
+              </div>
+            </fieldset>
+          } @else {
+            <div class="rc-form-izgara">
+              @for (f of g.fields; track f.name) {
+                <ng-container *ngTemplateOutlet="field; context: { $implicit: f }" />
+              }
+            </div>
+          }
+        }
+        @for (f of readonlyFields; track f.name) {
+          <p class="aciklama">{{ f.label | transloco }}: {{ readonlyText(f) }}</p>
+        }
+        @for (f of editableFields; track f.name) {
+          @if (f.suggestion) {
+            <datalist [id]="listId(f)">
+              @for (s of suggestions()[f.name] ?? []; track s) {
+                <option [value]="s"></option>
+              }
+            </datalist>
+          }
+        }
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="submission.gonderiliyor() || (e.kind === 'record' && base() === null)"
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('fiyatTarife.kaydet' | transloco)
+            }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="cancel()"
+          >
+            {{ 'fiyatTarife.vazgec' | transloco }}
+          </button>
+        </div>
+
+        <!-- Alan şablonu formun İÇİNDE bildirilir: formControlName üst FormGroup'u bildirildiği yerden çözer. -->
+        <ng-template #field let-f>
+          @switch (f.kind) {
+            @case ('textarea') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-metin-alani [formControlName]="f.name" [azamiUzunluk]="f.maxLength" />
+              </rc-alan>
+            }
+            @case ('int') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-sayi-girdisi [formControlName]="f.name" [negatif]="f.negative ?? false" />
+              </rc-alan>
+            }
+            @case ('ratio') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-sayi-girdisi
+                  [formControlName]="f.name"
+                  [kesir]="4"
+                  [negatif]="f.negative ?? false"
+                />
+              </rc-alan>
+            }
+            @case ('money') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-para-girdisi
+                  [formControlName]="f.name"
+                  [kesir]="decimalsOf(f)"
+                  [negatif]="f.negative ?? false"
+                />
+              </rc-alan>
+            }
+            @case ('date') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-tarih-secici [formControlName]="f.name" />
+              </rc-alan>
+            }
+            @case ('bool') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-onay-kutusu [formControlName]="f.name" />
+              </rc-alan>
+            }
+            @case ('weekdays') {
+              <rc-alan
+                grup
+                [etiket]="f.label | transloco"
+                [ipucu]="f.hint ? (f.hint | transloco) : ''"
+              >
+                <rc-weekday-picker [formControlName]="f.name" />
+              </rc-alan>
+            }
+            @case ('password') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <input
+                  class="rc-girdi"
+                  type="password"
+                  autocomplete="new-password"
+                  [attr.aria-label]="f.label | transloco"
+                  [attr.maxlength]="f.maxLength ?? null"
+                  [formControlName]="f.name"
+                />
+              </rc-alan>
+            }
+            @case ('select') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-secim
+                  [formControlName]="f.name"
+                  [secenekler]="optionsOf(f)"
+                  [bosEtiket]="f.nullable ? '—' : ''"
+                />
+              </rc-alan>
+            }
+            @case ('lookup') {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-secim [formControlName]="f.name" [secenekler]="optionsOf(f)" bosEtiket="—" />
+              </rc-alan>
+            }
+            @default {
+              <rc-alan [etiket]="f.label | transloco" [ipucu]="f.hint ? (f.hint | transloco) : ''">
+                <rc-metin-girdisi
+                  [formControlName]="f.name"
+                  [azamiUzunluk]="f.maxLength"
+                  [liste]="listId(f)"
+                />
+              </rc-alan>
+            }
+          }
+        </ng-template>
+      </form>
+    </section>
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'fiyatTarife.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'fiyatTarife.ara' | transloco">
+        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
+      </rc-alan>
+      @for (f of config.filters ?? []; track f.name) {
+        <rc-alan [etiket]="f.label | transloco">
+          @switch (f.kind) {
+            @case ('date') {
+              <rc-tarih-secici [formControlName]="f.name" />
+            }
+            @case ('text') {
+              <rc-metin-girdisi [formControlName]="f.name" [azamiUzunluk]="100" />
+            }
+            @default {
+              <rc-secim
+                [formControlName]="f.name"
+                [secenekler]="filterOptions(f.name)"
+                [bosEtiket]="'fiyatTarife.tumu' | transloco"
+              />
+            }
+          }
+        </rc-alan>
+      }
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'fiyatTarife.filtrele' | transloco }}
+      </button>
+      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+        {{ 'fiyatTarife.temizle' | transloco }}
+      </button>
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    [tabloKodu]="'fiyat.' + config.key"
+    [etiket]="config.title | transloco"
+    [sutunlar]="columns"
+    [kaynak]="list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="list.yenile()"
+  >
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          [disabled]="busy() !== null"
+          (click)="edit(satir)"
+        >
+          <rc-ikon ad="edit" [boyut]="14" />
+          {{ 'fiyatTarife.duzenle' | transloco }}
+        </button>
+        @if (!config.lockFlag || satir[config.lockFlag] !== true) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="remove(satir)"
+          >
+            <rc-ikon ad="trash" [boyut]="14" />
+            {{ 'fiyatTarife.sil' | transloco }}
+          </button>
+        }
+      </span>
+    </ng-template>
+  </rc-tablo>
+</div>

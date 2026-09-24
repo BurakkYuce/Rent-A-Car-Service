@@ -7,6 +7,7 @@ import cari from './i18n/bloklar/cari.json';
 import crm from './i18n/bloklar/crm.json';
 import finans from './i18n/bloklar/finans.json';
 import finansBelge from './i18n/bloklar/finans-belge.json';
+import fiyatTarife from './i18n/bloklar/fiyat-tarife.json';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
@@ -14,6 +15,7 @@ import planlama from './i18n/bloklar/planlama.json';
 import platform from './i18n/bloklar/platform.json';
 import rapor from './i18n/bloklar/rapor.json';
 import rezervasyon from './i18n/bloklar/rezervasyon.json';
+import servisSigorta from './i18n/bloklar/servis-sigorta.json';
 import sistem from './i18n/bloklar/sistem.json';
 import tanimlar from './i18n/bloklar/tanimlar.json';
 import vitrin from './i18n/bloklar/vitrin.json';
@@ -33,6 +35,7 @@ const saglayicilar: Provider[] = [
       crm,
       finans,
       finansBelge,
+      fiyatTarife,
       kiraFormu,
       kiralar,
       panel,
@@ -40,6 +43,7 @@ const saglayicilar: Provider[] = [
       platform,
       rapor,
       rezervasyon,
+      servisSigorta,
       sistem,
       tanimlar,
       vitrin,
