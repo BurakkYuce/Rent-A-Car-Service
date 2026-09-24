@@ -1,7 +1,5 @@
-import { DestroyRef, Injectable, type Signal, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DestroyRef, Injectable, type Signal, computed, inject, signal } from '@angular/core';
 import type { FormGroup } from '@angular/forms';
-import { finalize } from 'rxjs';
 
 import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
@@ -13,7 +11,7 @@ import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 
 import { type FormNotice, recordedNotice } from './document-requests';
 
-/** Sonucu bilinmeyen (ya da yarışı kaybetmiş) gönderimin DONMUŞ kopyası: aynı yol + anahtar + birebir aynı gövde. */
+/** Sonucu bilinmeyen (uçuşta, belirsiz ya da yarışı kaybetmiş) gönderimin kopyası: aynı yol + anahtar + gövde. */
 export interface FrozenDocumentAttempt {
   readonly path: ApiYolu;
   readonly key: string;
@@ -21,32 +19,43 @@ export interface FrozenDocumentAttempt {
   readonly notice: FormNotice;
   /** Formun o anki değeri (kayda geri dönülünce form aynı içerikle kilitli açılır). */
   readonly formValue: unknown;
+  /** İstek hâlâ uçuşta (yanıt gelmedi). */
+  readonly inFlight: boolean;
 }
 
+const UNCERTAIN: FormNotice = { tone: 'uyari', key: 'belirsiz', params: {} };
+
 /**
- * Sayfa düzeyinde donmuş denemeler (sayfanın `providers`'ı). Kayıt başına kurulan ödeme formu başka satıra geçilince
- * yok olur; belirsiz denemenin ANAHTARI ve gövdesi burada kalır, kayda dönülünce form kilitli geri gelir (r300 L4).
- * Yalnız bellekte (anahtar + tutar gövdesi; tarayıcı deposuna yazılmaz).
+ * Sayfa düzeyinde sonucu kesinleşmemiş denemeler (sayfanın `providers`'ı). Deneme GÖNDERİLMEDEN ÖNCE "uçuşta" olarak
+ * yazılır ve yalnız KESİN sonuçta (2xx, `mevcut`lu 409, kesin red) silinir (r300b N1): form uçuştayken yok edilse de
+ * anahtar ve gövde burada kalır, kayda dönülünce form kilitli, AYNI gövde + anahtarla açılır — yeni anahtarla ikinci
+ * ödeme yazılmaz. Yalnız bellekte (anahtar + tutar gövdesi; tarayıcı deposuna yazılmaz).
  */
 @Injectable()
 export class PendingDocumentAttempts {
-  private readonly attempts = new Map<string, FrozenDocumentAttempt>();
-  private readonly count = signal(0);
-  /** Donmuş deneme var mı (sayfa terk koruması). */
-  readonly any: Signal<number> = this.count.asReadonly();
+  private readonly attempts = signal<ReadonlyMap<string, FrozenDocumentAttempt>>(new Map());
+  /** Kesinleşmemiş deneme sayısı (sayfa terk koruması). */
+  readonly any: Signal<number> = computed(() => this.attempts().size);
+  /** Yanıtı beklenen gönderim var mı (Kapat / Detay / başka satırın Öde düğmesi pasif). */
+  readonly inFlight: Signal<boolean> = computed(() =>
+    [...this.attempts().values()].some((a) => a.inFlight),
+  );
 
   get(scope: string): FrozenDocumentAttempt | undefined {
-    return this.attempts.get(scope);
+    return this.attempts().get(scope);
   }
 
   set(scope: string, attempt: FrozenDocumentAttempt): void {
-    this.attempts.set(scope, attempt);
-    this.count.set(this.attempts.size);
+    const next = new Map(this.attempts());
+    next.set(scope, attempt);
+    this.attempts.set(next);
   }
 
   delete(scope: string): void {
-    this.attempts.delete(scope);
-    this.count.set(this.attempts.size);
+    if (!this.attempts().has(scope)) return;
+    const next = new Map(this.attempts());
+    next.delete(scope);
+    this.attempts.set(next);
   }
 }
 
@@ -59,29 +68,28 @@ export interface DocumentSubmitHandlers<T> {
   readonly reload?: () => void;
   /** İstemci doğrulaması ya da sunucu alan hatası (sekme/alan odaklama). */
   readonly invalid?: () => void;
+  /** Kesin red; `retry`: donmuş (sonucu bilinmeyen) denemenin tekrarı reddedildi (bağlam notu için). */
+  readonly rejected?: (error: ApiHatasi, retry: boolean) => void;
 }
 
 /**
- * Başlık anahtarlı PARA gönderimi (manuel fatura, gider, gider ödemesi, ceza ödemesi) — DEVIR §5 "Para formu yaşam
- * döngüsü", kardeş #299 `MoneyOperation` sözleşmesiyle aynı (kopya değil; bu ekranların `mevcut` kuralları farklı):
+ * Başlık anahtarlı PARA gönderimi (manuel fatura, gider, gider ödemesi, ceza ödemesi, araç satışı) — DEVIR §5 "Para
+ * formu yaşam döngüsü", kardeş #299 `MoneyOperation` sözleşmesiyle aynı (birleştirme ayrı iş):
  *
- * - İşlem başına bir `Idempotency-Key`; kesin redde (doğrulama, yetki, dönem kilidi) KORUNUR — düzeltilmiş gövde aynı
- *   işlemdir ve önceki deneme yazıldıysa sunucu önce anahtarı arar (409, ikinci belge yok).
- * - İstek uçarken form KİLİTLİ (gönderilen gövde ile ekrandaki değer ayrışmasın — r300 M1).
- * - Sonucu bilinmeyen hata (ağ/5xx): gövde DONAR, form kilitli kalır; tekrar YALNIZ donmuş gövde + aynı anahtarla
- *   (r300 HIGH-1: düzeltilmiş tutar aynı anahtarla gidip "başka kayıt" sanılıyor, ikinci belge yazılıyordu).
- * - 409 `mukerrer` + `mevcut` (aynı ya da farklı içerik): "önceki denemeniz kaydedildi (No, tutar); değiştirdiğiniz
- *   içerik yazılmadı" — anahtar yenilenir, form sıfırlanır; düzeltme iade/iptalle.
- * - 409 `mukerrer`, `mevcut` YOK (yarış kaybı; ilk istek hâlâ işleniyor olabilir): anahtar YENİLENMEZ, gövde donar,
- *   kayıt yenilenir; tekrar aynı anahtarla gider ve sunucu kesin sonucu verir (r300 M3).
+ * - İşlem başına bir `Idempotency-Key`; kesin redde KORUNUR (düzeltilmiş gövde aynı işlemdir).
+ * - Gönderimden ÖNCE deneme sayfaya "uçuşta" yazılır; istek uçarken form KİLİTLİ (r300 M1) ve bileşen yok edilse de
+ *   istek İPTAL EDİLMEZ — sonuç sayfadaki kaydı günceller (r300b N1).
+ * - Sonucu bilinmeyen hata (ağ/5xx): gövde DONAR, form kilitli; tekrar YALNIZ donmuş gövde + aynı anahtarla (r300 H1).
+ * - 409 `mukerrer` + `mevcut`: önceki deneme kayıtlı — anahtar yenilenir, form sıfırlanır.
+ * - 409 `mukerrer`, `mevcut` YOK (yarış): anahtar YENİLENMEZ, gövde donar, kayıt yenilenir (r300 M3).
  * - 409 `cakisma`: kayıt değişti, yeni anahtar, form korunur.
- * - Toast'u interceptor değil form notu gösterir (`mukerrerCagiranGosterir`; aynı metin iki yerde çıkmasın — r300 L1).
+ * - Toast'u interceptor değil form notu gösterir (`mukerrerCagiranGosterir` — r300 L1).
  */
 export class DocumentSubmission {
   private readonly api = inject(ApiIstemcisi);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly pending = inject(PendingDocumentAttempts);
   private key: string | null = null;
+  private destroyed = false;
 
   private readonly sendingState = signal(false);
   private readonly frozenState = signal<FrozenDocumentAttempt | null>(null);
@@ -99,19 +107,29 @@ export class DocumentSubmission {
     private readonly scope: () => string,
     private readonly mapping: Readonly<Record<string, string>> = {},
     private readonly newKey: () => string = yeniIslemAnahtari,
-  ) {}
+  ) {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
 
-  /** Kayda dönülünce: bu kapsamın donmuş denemesi varsa form aynı içerikle KİLİTLİ açılır. */
+  /**
+   * Kayda dönülünce: bu kapsamın kesinleşmemiş denemesi (uçuşta ya da belirsiz) varsa form aynı içerikle KİLİTLİ açılır.
+   * Uçuştaki istek bu bileşenden değilse sonucu burada bilinmez: "sonucu bilinmiyor" sayılır; tekrar aynı anahtarla.
+   */
   restore(): void {
     const f = this.pending.get(this.scope());
     if (!f) return;
     this.form.reset(f.formValue as never, { emitEvent: false });
-    this.lock(f);
+    this.lock(f.inFlight ? { ...f, notice: UNCERTAIN } : f);
   }
 
   /** Bir sonraki gönderimin anahtarı (test/teşhis). */
   get currentKey(): string | null {
     return this.frozenState()?.key ?? this.key;
+  }
+
+  /** Çağıranın bağlam notu (ör. satışta "araç zaten satılmış" = önceki deneme yazıldı). */
+  showNotice(notice: FormNotice): void {
+    this.noticeState.set(notice);
   }
 
   submit<T>(path: ApiYolu, build: () => unknown, h: DocumentSubmitHandlers<T>): void {
@@ -134,24 +152,34 @@ export class DocumentSubmission {
       attempt = { path, key: this.key, body: build() };
       formValue = this.form.getRawValue();
     }
+    const scope = this.scope();
+    const retry = frozen !== null;
+    // r300b N1: gönderimden ÖNCE sayfaya yaz — bileşen yok edilse de deneme kaybolmaz.
+    this.pending.set(scope, { ...attempt, notice: UNCERTAIN, formValue, inFlight: true });
     this.noticeState.set(null);
     this.sendingState.set(true);
     this.form.disable({ emitEvent: false });
+    // Bileşen yok edilse de istek İPTAL EDİLMEZ (sunucu yazmış olabilir); sonuç sayfadaki kaydı günceller.
     this.api
       .post<T>(attempt.path, attempt.body, {
         islemAnahtari: attempt.key,
         context: istekBaglami({ mukerrerCagiranGosterir: true }),
       })
-      .pipe(
-        finalize(() => this.sendingState.set(false)),
-        takeUntilDestroyed(this.destroyRef),
-      )
       .subscribe({
         next: (result) => {
+          this.pending.delete(scope);
+          if (this.destroyed) return;
+          this.sendingState.set(false);
           this.clear();
           h.succeeded(result);
         },
-        error: (raw: unknown) => this.failed(apiHatasinaCevir(raw), attempt, formValue, h),
+        error: (raw: unknown) => {
+          const error = apiHatasinaCevir(raw);
+          this.settle(scope, error, attempt, formValue);
+          if (this.destroyed) return;
+          this.sendingState.set(false);
+          this.failed(error, attempt, h, retry);
+        },
       });
   }
 
@@ -167,14 +195,35 @@ export class DocumentSubmission {
     this.key = null;
   }
 
-  private failed<T>(
+  /** Sayfadaki kaydı sonuca göre günceller (bileşen yok edilmiş olsa da). */
+  private settle(
+    scope: string,
     error: ApiHatasi,
     attempt: { path: ApiYolu; key: string; body: unknown },
     formValue: unknown,
-    h: DocumentSubmitHandlers<T>,
   ): void {
-    if (sonucuBilinmeyenHata(error)) {
-      this.freeze(attempt, formValue, { tone: 'uyari', key: 'belirsiz', params: {} });
+    if (sonucuBilinmeyenHata(error))
+      this.pending.set(scope, { ...attempt, notice: UNCERTAIN, formValue, inFlight: false });
+    else if (error.kod === 'mukerrer' && !error.mevcut)
+      this.pending.set(scope, {
+        ...attempt,
+        notice: { tone: 'uyari', key: 'olabilir', params: {} },
+        formValue,
+        inFlight: false,
+      });
+    else this.pending.delete(scope);
+  }
+
+  private failed<T>(
+    error: ApiHatasi,
+    attempt: { path: ApiYolu; key: string; body: unknown },
+    h: DocumentSubmitHandlers<T>,
+    retry: boolean,
+  ): void {
+    const stored = this.pending.get(this.scope());
+    if (stored) {
+      this.lock(stored);
+      if (error.kod === 'mukerrer') h.reload?.();
       return;
     }
     if (error.kod === 'mukerrer' && error.mevcut) {
@@ -184,33 +233,19 @@ export class DocumentSubmission {
       h.reload?.();
       return;
     }
-    if (error.kod === 'mukerrer') {
-      this.freeze(attempt, formValue, { tone: 'uyari', key: 'olabilir', params: {} });
-      h.reload?.();
-      return;
-    }
-    // Kesin red: yazılmadı. Donmuş kopya varsa o gövde de reddedildi (önceki deneme yazılmamıştı).
-    this.unfreeze();
+    // Kesin red: yazılmadı. Donmuş kopya varsa o gövde de reddedildi.
+    this.unlock();
     if (error.kod === 'cakisma') {
       this.key = null;
       h.reload?.();
       return;
     }
+    this.key = attempt.key;
     const unmatched = sunucuHatalariniUygula(this.form, error.alanlar, this.mapping);
     if (error.alanlar === undefined && !genelGosterilir(error)) this.errorsState.set([error.detay]);
     else if (unmatched.length > 0) this.errorsState.set(unmatched);
     if (error.alanlar !== undefined) h.invalid?.();
-  }
-
-  private freeze(
-    attempt: { path: ApiYolu; key: string; body: unknown },
-    formValue: unknown,
-    notice: FormNotice,
-  ): void {
-    const f: FrozenDocumentAttempt = { ...attempt, notice, formValue };
-    this.key = attempt.key;
-    this.pending.set(this.scope(), f);
-    this.lock(f);
+    h.rejected?.(error, retry);
   }
 
   private lock(f: FrozenDocumentAttempt): void {
@@ -220,14 +255,14 @@ export class DocumentSubmission {
     this.form.disable({ emitEvent: false });
   }
 
-  private unfreeze(): void {
+  private unlock(): void {
     this.frozenState.set(null);
     this.pending.delete(this.scope());
     this.form.enable({ emitEvent: false });
   }
 
   private clear(): void {
-    this.unfreeze();
+    this.unlock();
     this.key = null;
   }
 }

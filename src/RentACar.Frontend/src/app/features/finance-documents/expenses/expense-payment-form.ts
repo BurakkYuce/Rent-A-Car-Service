@@ -91,6 +91,7 @@ export const expensePaymentScope = (id: string) => `gider-odeme:${id}`;
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="submission.sending()"
             (click)="closed.emit()"
           >
             {{ 'finansBelge.kapat' | transloco }}

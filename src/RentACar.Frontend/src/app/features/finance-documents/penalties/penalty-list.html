@@ -101,7 +101,12 @@
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="satir-eylem">
-        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="open(satir)">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="pending.inFlight()"
+          (click)="open(satir)"
+        >
           {{ 'finansBelge.detay' | transloco }}
         </button>
         @if (canReflect(satir)) {
@@ -240,6 +245,7 @@
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="pending.inFlight()"
             (click)="closeDetail()"
           >
             {{ 'finansBelge.kapat' | transloco }}

@@ -211,8 +211,9 @@ describe('finans belge gövdeleri', () => {
       },
     });
     // r300 HIGH-1: ayniIcerik true ya da false AYNI not — önceki deneme kayıtlı, değiştirilen içerik yazılmadı.
+    // r300b N3: aynı içerik → yalnız "kaydedildi" (bilgi); farklı içerik → iade/iptal çağrılı uyarı.
     expect(formNotice(same)).toEqual({
-      tone: 'uyari',
+      tone: 'bilgi',
       key: 'kaydedildi',
       params: { no: 'RNT2026000000007', tutar: '1.800,60 ₺' },
     });
@@ -224,7 +225,7 @@ describe('finans belge gövdeleri', () => {
     });
     expect(formNotice(other)).toEqual({
       tone: 'uyari',
-      key: 'kaydedildi',
+      key: 'kaydedildiFarkli',
       params: { no: 'GD-1', tutar: '50,00 €' },
     });
     // r300 M3: mevcut'suz 409 → "kaydedilmiş olabilir" (yazılmadı DEĞİL).

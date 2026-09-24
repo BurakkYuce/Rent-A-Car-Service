@@ -6,8 +6,9 @@ import {
   inject,
   input,
   output,
+  signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -130,9 +131,11 @@ export class ExpenseCreateForm {
     evrakNo: new FormControl<string | null>(null, Validators.maxLength(64)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
-    initialValue: this.form.controls.doviz.value,
-  });
+  /**
+   * Tutar girdisinin para simgesi: FORM DEĞERİNDEN (r300b N2). Donmuş deneme `emitEvent:false` ile geri yüklenir;
+   * yalnız `valueChanges`'e bağlı sinyal eski dövizi (₺) gösteriyordu.
+   */
+  protected readonly currency = signal<string | null>('TRY');
   protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-gider', {
     aracId: 'arac',
     cariId: 'cari',
@@ -144,9 +147,13 @@ export class ExpenseCreateForm {
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
     this.form.controls.doviz.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((doviz) => this.currencyChanged(doviz));
+      .subscribe((doviz) => {
+        this.currency.set(doviz);
+        this.currencyChanged(doviz);
+      });
     this.reset();
     this.submission.restore();
+    this.currency.set(this.form.controls.doviz.value);
   }
 
   protected submit(): void {

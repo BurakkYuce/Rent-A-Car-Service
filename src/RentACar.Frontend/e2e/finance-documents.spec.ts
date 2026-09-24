@@ -268,11 +268,9 @@ test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gö
   await expect(account).toBeDisabled();
   await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
 
-  await expect(
-    form.getByText(
-      'Önceki denemeniz kaydedildi (1, 900,00 ₺); değiştirdiğiniz içerik yazılmadı. Düzeltme için iade/iptal edin.',
-    ),
-  ).toBeVisible();
+  // r300b N3: aynı içerik → yalnız "kaydedildi" (iade/iptal çağrısı yok).
+  await expect(form.getByText('Önceki denemeniz kaydedildi (1, 900,00 ₺).')).toBeVisible();
+  await expect(form.getByText('iade/iptal')).toHaveCount(0);
   expect(written).toHaveLength(2);
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
   expect(written[1]?.govde).toBe(written[0]?.govde);
@@ -556,6 +554,127 @@ test('r300 P5 gelen e-fatura: kirli kırılım onaysız atılmaz; giderleştirme
   await expect(dialog).toContainText('%20: 1.000,00 ₺ + KDV 200,00 ₺');
   await dialog.getByRole('button', { name: 'Vazgeç' }).click();
   expect(written).toHaveLength(0);
+});
+
+test('r300b A gider ödemesi: istek uçarken Kapat / başka Öde / Yeni Gider pasif; yanıt gelince tek ödeme', async ({
+  page,
+}) => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((res) => (release = res));
+  const written = await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== `/api/ui/v1/giderler/${EXPENSE_1}/odeme`) return false;
+      await gate;
+      await r.fulfill({
+        json: {
+          id: 'p1',
+          sira: 1,
+          tutar: 600,
+          kalanSonrasi: 0,
+          tarih: '2026-09-03T00:00:00Z',
+          makbuzNo: null,
+          aciklama: null,
+          islemYapan: 'u',
+        },
+      });
+      return true;
+    },
+  });
+  await page.goto(EXPENSES.yol);
+  await hazirBekle(page, EXPENSES);
+  await page.getByRole('button', { name: 'Öde', exact: true }).first().click();
+  const form = page.getByRole('region', { name: /Gider Ödemesi/ });
+  await form.getByRole('button', { name: 'Öde', exact: true }).click();
+  await expect(form.getByRole('button', { name: /Gönderiliyor/ })).toBeVisible();
+  // r300b N1: uçuştaki gönderim form kapatılarak iptal edilemez, başka satıra geçilemez.
+  await expect(form.getByRole('button', { name: 'Kapat' })).toBeDisabled();
+  await expect(
+    page.getByRole('gridcell').getByRole('button', { name: 'Öde', exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Yeni Gider' })).toBeDisabled();
+  release();
+  await expect(page.getByText(/Gider ödemesi kaydedildi \(600,00 ₺\)/)).toBeVisible();
+  await expect(form.getByRole('button', { name: 'Kapat' })).toBeEnabled();
+  expect(written).toHaveLength(1);
+});
+
+test('r300b B gider (USD, kur 35): belirsiz → form kapat (onaylı) / aç → kilitli form USD ve 35 kurla, aynı gövde', async ({
+  page,
+}) => {
+  let n = 0;
+  const written = await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/giderler') return false;
+      if (++n === 1) await r.abort('failed');
+      else await r.fulfill({ json: { id: 'g2', no: 'GD-000002' } });
+      return true;
+    },
+  });
+  await page.goto(EXPENSES.yol);
+  await hazirBekle(page, EXPENSES);
+  const toggle = page.getByRole('button', { name: 'Yeni Gider' });
+  await toggle.click();
+  let form = page.getByRole('region', { name: 'Yeni Gider' });
+  await form.getByRole('textbox', { name: 'Net Tutar' }).fill('100');
+  await form.getByRole('combobox', { name: 'Döviz' }).selectOption('USD');
+  await form.getByRole('textbox', { name: 'Kur' }).fill('35');
+  await form.getByRole('button', { name: 'Kaydet' }).click();
+  await expect(form.getByText('İşlemin sonucu bilinmiyor')).toBeVisible();
+
+  await toggle.click();
+  const dialog = page.locator('rc-onay-diyalogu');
+  await expect(dialog).toContainText('sonucu bilinmiyor');
+  await dialog.getByRole('button', { name: 'Onayla' }).click();
+  await expect(form).toBeHidden();
+  await toggle.click();
+  form = page.getByRole('region', { name: 'Yeni Gider' });
+  await expect(form.getByRole('combobox', { name: 'Döviz' }).locator('option:checked')).toHaveText(
+    'USD',
+  );
+  await expect(form.getByRole('textbox', { name: 'Kur' })).toHaveValue('35,0000');
+  const net = form.getByRole('textbox', { name: 'Net Tutar' });
+  await expect(net).toBeDisabled();
+  // r300b N2: para simgesi form değerinden (USD), eski ₺ değil.
+  await expect(form.locator('rc-para-girdisi').first()).toContainText('$');
+  await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
+  await expect(page.getByText(/Gider kaydedildi/)).toBeVisible();
+  expect(written).toHaveLength(2);
+  expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
+  expect(written[1]?.govde).toBe(written[0]?.govde);
+  expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({ doviz: 'USD', kur: '35.0000' });
+});
+
+test('r300b C araç satışı: belirsiz → tekrar → "Araç zaten satılmış" → önceki deneme yazılmış olabilir notu', async ({
+  page,
+}) => {
+  let n = 0;
+  const written = await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/satislar') return false;
+      if (++n === 1) await r.abort('failed');
+      else await problem(r, 400, 'dogrulama', 'Araç zaten satılmış.');
+      return true;
+    },
+  });
+  await page.goto(SALES.yol);
+  await hazirBekle(page, SALES);
+  await page.getByRole('button', { name: 'Yeni Satış' }).click();
+  const form = page.getByRole('region', { name: 'Yeni Satış' });
+  await form.getByRole('combobox', { name: 'Araç' }).fill('34');
+  await page.getByRole('option', { name: '34ABC123' }).click();
+  await form.getByRole('combobox', { name: /Alıcı/ }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('textbox', { name: 'Satış Net' }).fill('500000');
+  const dialog = page.locator('rc-onay-diyalogu');
+  await form.getByRole('button', { name: 'Sat', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Onayla' }).click();
+  await expect(form.getByText('İşlemin sonucu bilinmiyor')).toBeVisible();
+  await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
+  await dialog.getByRole('button', { name: 'Onayla' }).click();
+  await expect(form.getByText('Araç zaten satılmış.')).toBeVisible();
+  await expect(form.getByText(/önceki denemeniz satışı yazmış olabilir/i)).toBeVisible();
+  expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
+  expect(written[1]?.govde).toBe(written[0]?.govde);
 });
 
 test('r300 L3 şubeye bağlı kullanıcı: manuel fatura ve gelen e-fatura eylemleri yok; gider şubesi ön-dolu', async ({

@@ -86,7 +86,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   private readonly api = inject(ApiIstemcisi);
   private readonly session = inject(OturumServisi);
   private readonly confirm = inject(OnayServisi);
-  private readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingDocumentAttempts);
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
@@ -207,6 +207,8 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected async open(row: PenaltyRow): Promise<void> {
+    // r300b N1: ödeme uçuştayken başka cezaya geçilmez / detay yenilenmez (form yok edilmesin).
+    if (this.pending.inFlight()) return;
     if (this.selectedId() === row.id) {
       this.store.detail.yukle(row.id);
       return;
@@ -217,7 +219,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected async closeDetail(): Promise<void> {
-    if (!(await this.releasePayment())) return;
+    if (this.pending.inFlight() || !(await this.releasePayment())) return;
     this.selectedId.set(null);
     this.store.detail.sifirla();
   }

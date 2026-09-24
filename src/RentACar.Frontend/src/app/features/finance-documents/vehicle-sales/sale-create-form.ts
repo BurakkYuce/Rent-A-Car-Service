@@ -5,8 +5,9 @@ import {
   inject,
   input,
   output,
+  signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -112,9 +113,8 @@ export class SaleCreateForm {
     kirayaVerme: new FormControl<boolean | null>(EMPTY.kirayaVerme),
     satisiVerildi: new FormControl<boolean | null>(EMPTY.satisiVerildi),
   });
-  protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
-    initialValue: this.form.controls.doviz.value,
-  });
+  /** Para simgesi form değerinden (donmuş deneme `emitEvent:false` ile geri yüklenir — r300b N2). */
+  protected readonly currency = signal<string | null>(EMPTY.doviz);
   /** Yapısal idempotency (araç başına tek satış) + aynı yaşam döngüsü: uçuşta kilit, belirsizde donmuş gövde. */
   protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-satis', {
     aracId: 'arac',
@@ -127,9 +127,13 @@ export class SaleCreateForm {
       .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
     // Açık kur yalnız seçildiği dövize aittir (r300 M2: USD kuru EUR satışına gidiyordu).
-    this.form.controls.doviz.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+    this.form.controls.doviz.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe((d) => {
+      this.currency.set(d);
       if (this.form.controls.kur.value !== null) this.form.controls.kur.reset(null);
     });
+    // r300b N4: sonucu bilinmeyen satış denemesi form yeniden açılınca kilitli, aynı gövde + anahtarla gelir.
+    this.submission.restore();
+    this.currency.set(this.form.controls.doviz.value);
   }
 
   protected async submit(): Promise<void> {
@@ -157,6 +161,14 @@ export class SaleCreateForm {
         },
         recorded: () => this.reset(),
         reload: () => this.saved.emit(null),
+        // r300b N4: satış yapısal idempotenttir (araç başına tek satış). Belirsiz denemenin tekrarı reddedildiyse
+        // ("Araç zaten satılmış") bu büyük olasılıkla İLK denemenin yazıldığı anlamına gelir.
+        rejected: (_error, retry) => {
+          if (retry) {
+            this.submission.showNotice({ tone: 'uyari', key: 'satisVar', params: {} });
+            this.saved.emit(null);
+          }
+        },
       },
     );
   }

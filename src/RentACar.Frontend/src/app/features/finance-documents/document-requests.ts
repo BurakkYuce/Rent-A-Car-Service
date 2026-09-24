@@ -358,7 +358,7 @@ export function incomingExpenseRequest(v: IncomingExpenseForm): IncomingInvoiceE
  */
 export interface FormNotice {
   readonly tone: 'bilgi' | 'uyari';
-  readonly key: 'kaydedildi' | 'belirsiz' | 'olabilir';
+  readonly key: 'kaydedildi' | 'kaydedildiFarkli' | 'belirsiz' | 'olabilir' | 'satisVar';
   readonly params: Readonly<Record<string, string>>;
 }
 
@@ -368,11 +368,11 @@ export interface FormNotice {
  * belgeye yönlendiriyordu. Düzeltme iade/iptalle yapılır.
  */
 export function recordedNotice(m: MevcutIslem): FormNotice {
-  return {
-    tone: 'uyari',
-    key: 'kaydedildi',
-    params: { no: m.belgeNo ?? '', tutar: paraBicimle(toNumber(m.tutar), m.doviz || 'TRY') },
-  };
+  const params = { no: m.belgeNo ?? '', tutar: paraBicimle(toNumber(m.tutar), m.doviz || 'TRY') };
+  // r300b N3: aynı içerik → yalnız "kaydedildi"; iade/iptal çağrısı yalnız farklı içerikte (değişiklik yazılmadı).
+  return m.ayniIcerik
+    ? { tone: 'bilgi', key: 'kaydedildi', params }
+    : { tone: 'uyari', key: 'kaydedildiFarkli', params };
 }
 
 /**

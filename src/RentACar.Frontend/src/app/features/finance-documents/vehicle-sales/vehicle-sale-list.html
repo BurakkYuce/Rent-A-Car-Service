@@ -8,6 +8,7 @@
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
           [attr.aria-expanded]="createOpen()"
           aria-controls="rc-yeni-satis"
+          [disabled]="pending.inFlight()"
           (click)="toggleCreate()"
         >
           <rc-ikon ad="plus" [boyut]="14" />

@@ -24,6 +24,12 @@ import type { FormNotice } from './document-requests';
           @case ('kaydedildi') {
             {{ 'finansBelge.oncekiKaydedildi' | transloco: n.params }}
           }
+          @case ('kaydedildiFarkli') {
+            {{ 'finansBelge.oncekiKaydedildiFarkli' | transloco: n.params }}
+          }
+          @case ('satisVar') {
+            {{ 'finansBelge.satis.oncekiSatisYazilmis' | transloco }}
+          }
           @case ('olabilir') {
             {{ 'finansBelge.kaydedilmisOlabilir' | transloco }}
           }

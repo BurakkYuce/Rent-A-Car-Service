@@ -77,7 +77,7 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(ExpenseStore);
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
-  private readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingDocumentAttempts);
   private readonly confirm = inject(OnayServisi);
   private readonly labels = inject(CustomerLabels);
   private readonly t = ceviriFonksiyonu();
@@ -195,37 +195,46 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
     void this.query.sifirla();
   }
 
-  protected toggleCreate(): void {
+  protected async toggleCreate(): Promise<void> {
+    if (this.pending.inFlight()) return;
+    if (this.createOpen()) {
+      const risky = this.dirtyForms.has('yeni') || this.pending.get('yeni-gider') !== undefined;
+      if (risky && !(await this.confirmLeave())) return;
+      this.dirtyForms.delete('yeni');
+    }
     this.createToggle.set(!this.createOpen());
   }
 
   protected async pay(r: ExpenseRow): Promise<void> {
+    if (this.pending.inFlight()) return;
     if (this.payingId() === r.id || !(await this.releasePayment())) return;
     this.payingId.set(r.id);
   }
 
   protected async closePayment(): Promise<void> {
+    if (this.pending.inFlight()) return;
     if (await this.releasePayment()) this.payingId.set(null);
   }
 
   /**
-   * Açık ödeme formu kirli ya da sonucu belirsiz bir deneme taşıyorsa kapatma/başka satır onay ister (r300 L4). Donmuş
-   * deneme sayfada kalır: gider yeniden açılınca form aynı gövde + anahtarla KİLİTLİ gelir.
+   * Açık ödeme formu kirli ya da sonucu kesinleşmemiş (uçuşta ya da belirsiz) bir deneme taşıyorsa kapatma/başka satır
+   * onay ister (r300 L4, r300b N1). Deneme sayfada kalır: gider yeniden açılınca form aynı gövde + anahtarla KİLİTLİ.
    */
   private async releasePayment(): Promise<boolean> {
     const id = this.payingId();
     const risky =
       this.dirtyForms.has('odeme') ||
       (id !== null && this.pending.get(expensePaymentScope(id)) !== undefined);
-    if (risky) {
-      const yes = await this.confirm.sor({
-        baslik: this.t('finansBelge.ayrilBaslik'),
-        mesaj: this.t('finansBelge.ayrilMesaj'),
-      });
-      if (!yes) return false;
-    }
+    if (risky && !(await this.confirmLeave())) return false;
     this.dirtyForms.delete('odeme');
     return true;
+  }
+
+  private confirmLeave(): Promise<boolean> {
+    return this.confirm.sor({
+      baslik: this.t('finansBelge.ayrilBaslik'),
+      mesaj: this.t('finansBelge.ayrilMesaj'),
+    });
   }
 
   protected paymentDone(): void {

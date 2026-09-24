@@ -34,6 +34,8 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import { saleColumns } from '../document-columns';
 import { SALE_LIST, SALE_STATUSES, type VehicleSaleRow } from '../document-model';
 import { BranchNames, SaleStore } from '../document.store';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
+
 import { PendingDocumentAttempts } from '../document-submission';
 import { SaleCreateForm } from './sale-create-form';
 
@@ -69,7 +71,8 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
   private readonly labels = inject(CustomerLabels);
-  private readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingDocumentAttempts);
+  private readonly confirm = inject(OnayServisi);
   private readonly t = ceviriFonksiyonu();
 
   protected readonly query = listeSorgusuUrlSenkronu(SALE_LIST);
@@ -173,7 +176,17 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
     void this.query.sifirla();
   }
 
-  protected toggleCreate(): void {
+  /** Uçuştaki satış varken form kapanmaz; kirli ya da sonucu bilinmeyen form onaysız kapanmaz (r300b N1/N4). */
+  protected async toggleCreate(): Promise<void> {
+    if (this.pending.inFlight()) return;
+    if (this.createOpen() && (this.formDirty || this.pending.get('yeni-satis') !== undefined)) {
+      const yes = await this.confirm.sor({
+        baslik: this.t('finansBelge.ayrilBaslik'),
+        mesaj: this.t('finansBelge.ayrilMesaj'),
+      });
+      if (!yes) return;
+      this.formDirty = false;
+    }
     this.createToggle.set(!this.createOpen());
   }
 

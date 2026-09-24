@@ -8,6 +8,7 @@
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
           [attr.aria-expanded]="createOpen()"
           aria-controls="rc-yeni-gider"
+          [disabled]="pending.inFlight()"
           (click)="toggleCreate()"
         >
           <rc-ikon ad="plus" [boyut]="14" />
@@ -91,7 +92,12 @@
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       @if (canPay(satir)) {
-        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="pay(satir)">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="pending.inFlight()"
+          (click)="pay(satir)"
+        >
           {{ 'finansBelge.gider.ode' | transloco }}
         </button>
       }
