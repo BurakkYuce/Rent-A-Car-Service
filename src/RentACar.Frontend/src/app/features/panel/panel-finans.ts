@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { PanelFinans as PanelFinansVerisi } from '@core/api/ui-tipleri';
@@ -13,7 +14,7 @@ import { ayEtiketi, sayi } from './panel-modeli';
 @Component({
   selector: 'rc-panel-finans',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, ...BICIM_PIPELARI],
+  imports: [RouterLink, TranslocoPipe, ...BICIM_PIPELARI],
   templateUrl: './panel-finans.html',
   styleUrl: './panel-finans.scss',
 })

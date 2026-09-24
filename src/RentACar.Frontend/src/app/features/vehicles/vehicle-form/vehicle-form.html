@@ -146,7 +146,7 @@
             @if (canScorecard()) {
               <a
                 class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                [href]="'/raporlar/arac-karne/' + id"
+                [routerLink]="['/raporlar/arac-karne', id]"
               >
                 {{ 'arac.karne' | transloco }}
               </a>
