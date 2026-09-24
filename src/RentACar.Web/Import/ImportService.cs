@@ -34,8 +34,10 @@ public static class ImportLimits
     /// <summary>Okunan girdi üst sınırı (SPA ucu 5 MB'ı ayrıca denetler; Blazor yolu bununla sınırlı).</summary>
     public const long MaxInputBytes = 8L * 1024 * 1024;
     /// <summary>xlsx (ZIP) açılmış toplam boyut üst sınırı — sıkıştırma bombasına karşı, yükleme öncesi sayılır.</summary>
-    public const long MaxUncompressedBytes = 64L * 1024 * 1024;
+    public const long MaxUncompressedBytes = 16L * 1024 * 1024;
     public const int MaxZipEntries = 2_000;
+    /// <summary>xlsx: tüm sayfalardaki toplam hücre (<c>&lt;c&gt;</c>) üst sınırı — ClosedXML yüklemesinden ÖNCE akışla sayılır.</summary>
+    public const int MaxCells = 2_000_000;
 }
 
 /// <summary>
@@ -62,7 +64,15 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         var isExcel = fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
                    || fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
         using var buffer = CopyBounded(stream);
-        return isExcel ? ParseExcel(buffer) : ParseCsv(buffer);
+        try
+        {
+            return isExcel ? ParseExcel(buffer) : ParseCsv(buffer);
+        }
+        catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException and not OutOfMemoryException)
+        {
+            // Bozuk dosya (ClosedXML/OpenXML/ZIP/XML istisnası) 500 değil: Blazor sayfası mesaj, SPA 400 errors[dosya].
+            throw Refuse("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).");
+        }
     }
 
     private static ValidationException Refuse(string message) => new(message, "dosya");
@@ -103,12 +113,58 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     if ((total += n) > ImportLimits.MaxUncompressedBytes)
                         throw Refuse("Dosyanın açılmış boyutu çok büyük.");
             }
+            // #308 ikinci tur: ClosedXML tüm çalışma kitabını belleğe kurar (127 KB'lık 20.000×100 dosya 3,5 GB ayırdı).
+            // Satır/sütun/hücre sınırları bu yüzden yüklemeden ÖNCE, sayfa XML'i akışla okunarak denetlenir. ClosedXML
+            // TÜM sayfaları yüklediği için yalnız ilk sayfa değil her sayfa sayılır (toplam hücre tüm kitap için).
+            long cells = 0;
+            foreach (var entry in zip.Entries)
+            {
+                if (!entry.FullName.StartsWith("xl/worksheets/", StringComparison.OrdinalIgnoreCase)
+                    || !entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
+                    || entry.FullName.Contains("/_rels/", StringComparison.OrdinalIgnoreCase)) continue;
+                using var es = entry.Open();
+                cells = ScanSheet(es, cells);
+            }
         }
         catch (InvalidDataException)
         {
             throw Refuse("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).");
         }
+        catch (System.Xml.XmlException)
+        {
+            throw Refuse("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).");
+        }
         ms.Position = 0;
+    }
+
+    /// <summary>Sayfa XML'inde <c>&lt;row&gt;</c> ve <c>&lt;c&gt;</c> öğelerini akışla sayar (DOM yok, DTD yasak); satır
+    /// (başlık dahil) &gt; MaxRows+1, satırda hücre &gt; MaxColumns ya da toplam hücre &gt; MaxCells → anında red.</summary>
+    private static long ScanSheet(Stream sheet, long cellsSoFar)
+    {
+        var settings = new System.Xml.XmlReaderSettings
+        {
+            DtdProcessing = System.Xml.DtdProcessing.Prohibit, XmlResolver = null, IgnoreComments = true,
+            IgnoreWhitespace = true, IgnoreProcessingInstructions = true,
+        };
+        using var reader = System.Xml.XmlReader.Create(sheet, settings);
+        int rows = 0, rowCells = 0;
+        var cells = cellsSoFar;
+        while (reader.Read())
+        {
+            if (reader.NodeType != System.Xml.XmlNodeType.Element) continue;
+            if (reader.LocalName == "row")
+            {
+                if (++rows > ImportLimits.MaxRows + 1) throw TooManyRows();
+                rowCells = 0;
+            }
+            else if (reader.LocalName == "c")
+            {
+                if (++rowCells > ImportLimits.MaxColumns)
+                    throw Refuse($"Dosya en çok {ImportLimits.MaxColumns} sütun içerebilir.");
+                if (++cells > ImportLimits.MaxCells) throw Refuse("Dosya çok fazla hücre içeriyor.");
+            }
+        }
+        return cells;
     }
 
     private static IReadOnlyList<Dictionary<string, string>> ParseExcel(MemoryStream s)
@@ -144,7 +200,8 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     {
         var rows = new List<Dictionary<string, string>>();
         using var reader = new StreamReader(s);
-        var headerLine = ReadLineBounded(reader, ImportLimits.MaxHeaderChars, "Başlık satırı çok uzun.");
+        var lineBuffer = new System.Text.StringBuilder();
+        var headerLine = ReadLineBounded(reader, lineBuffer, ImportLimits.MaxHeaderChars, "Başlık satırı çok uzun.");
         if (headerLine is null) return rows;
         var sep = headerLine.Contains(';') && !headerLine.Contains(',') ? ';' : (headerLine.Contains(';') ? ';' : ',');
         var headerCells = SplitCsv(headerLine, sep);
@@ -152,11 +209,11 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             throw Refuse($"Dosya en çok {ImportLimits.MaxColumns} sütun içerebilir.");
         var headers = headerCells.Select(Norm).ToList();
         string? line;
-        while ((line = ReadLineBounded(reader, ImportLimits.MaxLineChars, "Bir satır çok uzun.")) is not null)
+        while ((line = ReadLineBounded(reader, lineBuffer, ImportLimits.MaxLineChars, "Bir satır çok uzun.")) is not null)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (rows.Count >= ImportLimits.MaxRows) throw TooManyRows();
-            var vals = SplitCsv(line, sep);
+            var vals = SplitCsv(line, sep, headers.Count);
             var dict = new Dictionary<string, string>();
             for (int i = 0; i < headers.Count && i < vals.Count; i++)
             {
@@ -169,18 +226,20 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return rows;
     }
 
-    /// <summary><see cref="TextReader.ReadLine"/> gibi ama en çok <paramref name="max"/> karakter; aşılınca red.</summary>
-    private static string? ReadLineBounded(TextReader r, int max, string tooLong)
+    /// <summary><see cref="TextReader.ReadLine"/> gibi ama en çok <paramref name="max"/> karakter; aşılınca red. Tampon
+    /// satırlar arasında paylaşılır; boş satır paylaşılan <see cref="string.Empty"/> döner (milyonlarca boş satır ayırma
+    /// üretmesin).</summary>
+    private static string? ReadLineBounded(TextReader r, System.Text.StringBuilder sb, int max, string tooLong)
     {
-        var sb = new System.Text.StringBuilder();
+        sb.Clear();
         int c;
         while ((c = r.Read()) >= 0)
         {
-            if (c == '\n') return sb.ToString();
+            if (c == '\n') return sb.Length == 0 ? string.Empty : sb.ToString();
             if (c == '\r')
             {
                 if (r.Peek() == '\n') r.Read();
-                return sb.ToString();
+                return sb.Length == 0 ? string.Empty : sb.ToString();
             }
             if (sb.Length >= max) throw Refuse(tooLong);
             sb.Append((char)c);
@@ -188,13 +247,15 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return sb.Length > 0 ? sb.ToString() : null;
     }
 
-    private static List<string> SplitCsv(string line, char sep)
+    /// <param name="maxFields">Bu kadar alan toplanınca durur (başlıkta olmayan fazladan sütunlar hiç ayrılmaz).</param>
+    private static List<string> SplitCsv(string line, char sep, int maxFields = int.MaxValue)
     {
         var result = new List<string>();
         var sb = new System.Text.StringBuilder();
         bool inQ = false;
         for (int i = 0; i < line.Length; i++)
         {
+            if (result.Count >= maxFields) return result;
             var ch = line[i];
             if (ch == '"')
             {

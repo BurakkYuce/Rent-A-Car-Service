@@ -85,6 +85,74 @@ public sealed class ImportLimitsTests
         Refused(() => ImportService.Parse(Text("düz metin"), "sahte.xlsx"));
     }
 
+    /// <summary>Elle yazılmış en küçük sayfa XML'iyle xlsx (ClosedXML'siz; dev dosyayı üretmek de GB ayırmasın).
+    /// <paramref name="writeRows"/> sayfanın <c>&lt;sheetData&gt;</c> içeriğini yazar.</summary>
+    private static MemoryStream RawXlsx(Action<StreamWriter> writeRows)
+    {
+        var zip = new MemoryStream();
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using var w = new StreamWriter(archive.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.SmallestSize).Open());
+            w.Write("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+            writeRows(w);
+            w.Write("</sheetData></worksheet>");
+        }
+        zip.Position = 0;
+        return zip;
+    }
+
+    private static void Rows(StreamWriter w, int rows, int cells)
+    {
+        var row = "<row>" + string.Concat(Enumerable.Repeat("<c/>", cells)) + "</row>";
+        for (var i = 0; i < rows; i++) w.Write(row);
+    }
+
+    [Fact]
+    public void Xlsx_limits_are_checked_by_streaming_before_the_workbook_is_loaded()
+    {
+        // İnceleme probe'u: 40.000 × 100 hücre (eskiden 1,3 GB / 4 sn). Hızlı red, ayrılan bellek düşük.
+        var big = RawXlsx(w => Rows(w, 40_000, 100));
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Refused(() => ImportService.Parse(big, "genis.xlsx"));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 100L * 1024 * 1024, $"red {allocated / (1024 * 1024)} MB ayırdı");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), $"red {clock.Elapsed.TotalSeconds:0.0} sn sürdü");
+
+        // Açılmış boyut sınırı içinde kalan ama sınırları aşan dosyalar da akış sayımıyla reddedilir.
+        Assert.Contains("20.000 satır", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 25_000, 1)), "satir.xlsx")).Message);
+        Assert.Contains("100 sütun", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 1, 101)), "sutun.xlsx")).Message);
+        var cellsBefore = GC.GetAllocatedBytesForCurrentThread();
+        var cells = Refused(() => ImportService.Parse(RawXlsx(w => { Rows(w, 20_000, 100); Rows(w, 1, 1); }), "hucre.xlsx"));
+        Assert.Contains("hücre", cells.Message);
+        Assert.True(GC.GetAllocatedBytesForCurrentThread() - cellsBefore < 100L * 1024 * 1024);
+
+        // Sayım geçen ama geçerli çalışma kitabı olmayan ZIP → 400 mesajı (ClosedXML istisnası 500 değil).
+        Assert.Contains("okunamadı", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 2, 2)), "bozuk.xlsx")).Message);
+    }
+
+    [Fact]
+    public void Valid_small_xlsx_still_parses()
+    {
+        var ms = new MemoryStream();
+        using (var wb = new ClosedXML.Excel.XLWorkbook())
+        {
+            var ws = wb.AddWorksheet("Araçlar");
+            ws.Cell(1, 1).Value = "Plaka";
+            ws.Cell(1, 2).Value = "Marka";
+            ws.Cell(2, 1).Value = "34ABC1";
+            ws.Cell(2, 2).Value = "Fiat";
+            ws.Cell(3, 1).Value = "34ABC2";
+            wb.SaveAs(ms);
+        }
+        ms.Position = 0;
+        var rows = ImportService.Parse(ms, "araclar.xlsx");
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("34ABC1", rows[0]["plaka"]);
+        Assert.Equal("Fiat", rows[0]["marka"]);
+        Assert.Equal(["plaka"], rows[1].Keys.ToList());
+    }
+
     [Fact]
     public void Error_summary_uses_messages_only_and_counts_add_up()
     {
