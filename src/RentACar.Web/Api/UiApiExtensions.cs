@@ -16,6 +16,7 @@ using RentACar.Web.Api.Rapor;
 using RentACar.Web.Api.Rezervasyon;
 using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.TabloDuzenleri;
+using RentACar.Web.Api.Tanim;
 
 namespace RentACar.Web.Api;
 
@@ -232,6 +233,7 @@ public static class UiApiExtensions
         v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
         v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
         Cari.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)
+        v1.MapTanimApi();        // F11.1a — F11 tanımları (ilk yarı), genel tanım CRUD deseni
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

@@ -6,7 +6,7 @@ namespace RentACar.Application.Common;
 /// Kod+Ad(+Aktif) master tanım repo sözleşmesi — birebir-kopya IXRepository ailesinin ortak tabanı.
 /// Somut arayüzler (IBrandRepository…) boş gövdeyle bundan türer; DI kayıtları ve tüketici yüzeyi değişmez.
 /// </summary>
-public interface IMasterTanimRepository<T> where T : class, IMasterTanim
+public interface IMasterTanimRepository<T> : IVersionedRepository<T> where T : class, IMasterTanim
 {
     Task<IReadOnlyList<T>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<T>> ListActiveAsync(CancellationToken ct = default);

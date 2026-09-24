@@ -282,4 +282,12 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         await tx.CommitAsync(ct);
         return toplam;
     }
+
+    // F11.1a — IVersionedRepository<Branch> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<Branch>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<Branch>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Branch> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, b => $"'{b.Kod}' kodlu şube zaten var.", ct);
 }

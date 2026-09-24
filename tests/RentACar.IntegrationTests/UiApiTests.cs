@@ -528,6 +528,14 @@ public sealed class UiApiYapisalTests(WebFixture fx)
                                           // F12.1: platform konsolu — firma izin matrisi yerine PlatformAdmin policy'si
                                           // (aşağıdaki Platform_uclari_platform_policy_tasir kilitler).
                                           || r.StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
+                                          // F11.1a: Blazor sayfaları yalnız [Authorize] — belge listesini/indirmeyi sahadaki
+                                          // her personel (muhasebe dahil) görür; firma belgelerinde yönetici bayrağı serviste.
+                                          // Yükleme/silme OperationsWrite taşır (bu listeye düşmez). UiTanimTests kilitler.
+                                          || r is "/api/ui/v1/dokumanlar" or "/api/ui/v1/dokumanlar/"
+                                          || r == "/api/ui/v1/firma-belgeleri"
+                                          // F11.1a: kullanıcının KENDİ takvim bağlantısı (oturum kullanıcısından; kimlik
+                                          // parametresi yok) — Blazor sayfası ve /takvim/yenile ucu yalnız oturum ister.
+                                          || r.StartsWith("/api/ui/v1/takvim-abonelik", StringComparison.Ordinal)
                                           || r.StartsWith("/api/ui/v1/tablo-duzenleri/", StringComparison.Ordinal), r));
     }
 

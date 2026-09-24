@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.ExpenseCategories;
 
-public interface IExpenseCategoryRepository
+public interface IExpenseCategoryRepository : Common.IVersionedRepository<ExpenseCategory>
 {
     Task<IReadOnlyList<ExpenseCategory>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<ExpenseCategory>> ListActiveAsync(CancellationToken ct = default);

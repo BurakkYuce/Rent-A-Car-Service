@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.DolulukFiyat;
 
-public interface IDolulukFiyatKuralRepository
+public interface IDolulukFiyatKuralRepository : IVersionedRepository<DolulukFiyatKural>
 {
     Task<IReadOnlyList<DolulukFiyatKural>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<DolulukFiyatKural>> ListActiveAsync(CancellationToken ct = default);
@@ -87,14 +87,37 @@ public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository reposi
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, DolulukFiyatKuralInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, DolulukFiyatKuralInput input, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1a — full replacement with optimistic concurrency (stale version → 409 <c>cakisma</c>).</summary>
+    public Task<bool> UpdateAsync(Guid id, DolulukFiyatKuralInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion, ct);
+
+    /// <summary>F11.1a — single rule (the API detail/PUT path; tenant-scoped by RLS).</summary>
+    public Task<DolulukFiyatKural?> GetAsync(Guid id, CancellationToken ct = default) => repository.FindAsync(id, ct);
+
+    /// <summary>F11.1a — opaque row version.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.1a — versions of every row.</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => repository.GetVersionsAsync(ct);
+
+    private async Task<bool> UpdateCoreAsync(Guid id, DolulukFiyatKuralInput input, string? expectedVersion, CancellationToken ct)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
         if (await repository.KodExistsAsync(n.Kod, id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu doluluk kuralı zaten var.");
-        return await repository.UpdateAsync(id, r => { Apply(r, n); r.UpdatedAtUtc = DateTimeOffset.UtcNow; }, ct);
+        void Update(DolulukFiyatKural r)
+        {
+            Apply(r, n);
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }
+        return expectedVersion is null
+            ? await repository.UpdateAsync(id, Update, ct)
+            : await repository.UpdateAsync(id, expectedVersion, Update, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
