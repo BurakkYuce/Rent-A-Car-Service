@@ -55,18 +55,25 @@ public sealed class VehicleSaleService(
 
         // Kur çözümü (1.1): açık kur (>0 guard çözücüde) aynen; boş → TRY=1 / döviz KurService (yoksa net red).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
-        var (kdv, gross) = KdvMath.FromNet(input.SatisNet, input.KdvOrani);
+        // #286 adversarial M2: net KURUŞA sabitlenir ve kontrol YUVARLAMADAN SONRA yapılır. Önce ham net (333,333)
+        // Gelir bacağına, kuruşa yuvarlanmış net + KDV Cari bacağına yazılıyor → küme dengesiz, iç hata mesajı dışarı
+        // sızıyordu; 0,004 net ise 0,00 tutarlı satış belgesi üretirdi.
+        var net = KdvMath.RoundGross(input.SatisNet);
+        if (net <= 0) throw new ValidationException("Satış tutarı kuruşa yuvarlandığında pozitif olmalıdır.");
+        var (kdv, gross) = KdvMath.FromNet(net, input.KdvOrani);
         var sale = new VehicleSale
         {
             VehicleId = input.VehicleId,
             AliciCariId = input.AliciCariId,
             Tarih = input.Tarih ?? DateTimeOffset.UtcNow,
             NoterNo = input.NoterNo,
-            SatisNet = input.SatisNet,
+            SatisNet = net,
             KdvOrani = input.KdvOrani,
             KdvTutar = kdv,
             GenelToplam = gross,
-            Currency = string.IsNullOrWhiteSpace(input.Doviz) ? "TRY" : input.Doviz.Trim().ToUpperInvariant(),
+            // #279 N1 sınıfı (gider düzeltmesiyle aynı): "TL" ham yazılınca kur TRY=1 çözülürken defter "TL"
+            // dövizinde kalıyordu (cari bakiyesi döviz bazında ayrışır). Saklanabilir ISO koda indirgenir.
+            Currency = RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz),
             Kur = cozulenKur,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,
