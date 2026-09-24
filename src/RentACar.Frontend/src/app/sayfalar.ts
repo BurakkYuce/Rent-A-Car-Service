@@ -5,6 +5,7 @@ import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
+import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
 import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
 
 /**
@@ -155,4 +156,6 @@ export const SAYFALAR: Routes = [
   ...REZERVASYON_ROTALARI,
   // F6.2a araçlar: liste, detaylı liste, kart (yeni/:id + foto), detay, durum panosu, tanımlar.
   ...VEHICLE_ROUTES,
+  // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
+  ...VEHICLE_FINANCE_ROUTES,
 ];

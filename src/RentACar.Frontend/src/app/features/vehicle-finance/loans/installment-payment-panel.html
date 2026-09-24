@@ -1,0 +1,54 @@
+<section class="bolum" id="odeme" aria-labelledby="rc-taksit-ode-baslik">
+  <h2 id="rc-taksit-ode-baslik">{{ 'aracFinans.kredi.taksitOde' | transloco }}</h2>
+  <p class="aciklama">{{ 'aracFinans.kredi.odemeAciklama' | transloco }}</p>
+  @if (next()) {
+    <p class="sonraki">{{ nextText() }}</p>
+  }
+  @if (frozen()) {
+    <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+      {{ 'aracFinans.kredi.sonucBilinmiyor' | transloco }}
+    </div>
+  }
+  <form class="form" [formGroup]="form" (ngSubmit)="pay()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'aracFinans.kredi.hesap' | transloco">
+        <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+      </rc-alan>
+      @if (accountOptions().length > 0) {
+        <rc-alan [etiket]="'aracFinans.kredi.hesapId' | transloco">
+          <rc-secim
+            formControlName="hesapId"
+            [secenekler]="accountOptions()"
+            [bosEtiket]="'aracFinans.kredi.hesapBelirtilmemis' | transloco"
+          />
+        </rc-alan>
+      }
+    </div>
+    <rc-form-hatalari [hatalar]="errors()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="sending() || refreshing()"
+      >
+        <rc-ikon ad="cash" [boyut]="14" />
+        {{
+          sending()
+            ? ('form.gonderiliyor' | transloco)
+            : frozen()
+              ? ('aracFinans.kredi.tekrarDene' | transloco)
+              : ('aracFinans.kredi.taksitOde' | transloco)
+        }}
+      </button>
+      @if (frozen() && !sending()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="abandon()"
+        >
+          {{ 'aracFinans.kredi.vazgec' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+</section>

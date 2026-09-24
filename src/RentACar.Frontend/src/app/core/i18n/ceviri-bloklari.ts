@@ -5,6 +5,8 @@ import type { Translation } from '@jsverse/transloco';
 export const CEVIRI_BLOKLARI = {
   arac: (): Promise<Translation> =>
     import('../../../i18n/bloklar/arac.json').then((m) => m.default),
+  'arac-finans': (): Promise<Translation> =>
+    import('../../../i18n/bloklar/arac-finans.json').then((m) => m.default),
   'kira-formu': (): Promise<Translation> =>
     import('../../../i18n/bloklar/kira-formu.json').then((m) => m.default),
   kiralar: (): Promise<Translation> =>
