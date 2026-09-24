@@ -5,11 +5,12 @@ import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-
 import { invariantOndalik } from '@core/form/ondalik';
 import { toNumber } from '@features/vehicles/vehicle-model';
 
-import type {
-  CustomerInstallment,
-  CustomerInstallmentRequest,
-  CustomerInstallmentStatus,
-  InstallmentPlanRequest,
+import {
+  type CustomerInstallment,
+  type CustomerInstallmentRequest,
+  type CustomerInstallmentStatus,
+  type InstallmentPlanRequest,
+  rateToSend,
 } from '../finance-model';
 
 /** Blazor "Tek Taksit Ekle / Taksiti Düzenle" formu. */
@@ -100,7 +101,7 @@ export function installmentRequest(
     vade: anDegeri(v.vade, base?.vade),
     taksitTutari: v.taksitTutari ?? '',
     doviz: currency(v.doviz),
-    kur: v.kur,
+    kur: rateToSend(currency(v.doviz), v.kur, base),
     durum: v.durum ?? 'Bekliyor',
     odemeTarihi: v.durum === 'Odendi' ? anDegeri(v.odemeTarihi, base?.odemeTarihi) : null,
     aciklama: metinDegeri(v.aciklama),

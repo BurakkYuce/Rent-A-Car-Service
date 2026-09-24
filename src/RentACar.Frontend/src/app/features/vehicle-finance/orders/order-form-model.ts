@@ -5,7 +5,7 @@ import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
 import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
 
-import type { OrderDetail, OrderRequest } from '../finance-model';
+import { type OrderDetail, type OrderRequest, rateToSend } from '../finance-model';
 
 /** Blazor sipariş formunun TÜM alanları (döviz/kur görünür — wire-in bütünlüğü). */
 export interface OrderFormValue {
@@ -109,8 +109,8 @@ export function orderToForm(d: OrderDetail): OrderFormValue {
 }
 
 /**
- * Form → `POST` / tam değiştirme `PUT` gövdesi (PUT'ta `surum`). Dokunulmayan tarih sunucunun anıyla gider. Birim
- * fiyat boşsa 0 (Blazor: resmi tutar Adet × Birim; bilgi fiyatları toplama girmez).
+ * Form → `POST` / tam değiştirme `PUT` gövdesi (PUT'ta `surum`). Dokunulmayan tarih sunucunun anıyla gider. Resmi
+ * tutar Adet × Birim; bilgi fiyatları toplama girmez. Döviz değiştiyse eski kur gönderilmez (`rateToSend`).
  */
 export function orderRequest(v: OrderFormValue, base: OrderDetail | null): OrderRequest {
   return {
@@ -134,12 +134,13 @@ export function orderRequest(v: OrderFormValue, base: OrderDetail | null): Order
     tsbKayitNo: metinDegeri(v.tsbKayitNo),
     krediId: v.krediId,
     adet: v.adet ?? 1,
-    birimFiyat: v.birimFiyat ?? '0',
+    // Boş birim fiyat 0'a sessizce düşmez (inceleme L3): form alanı zorunludur; buraya boş gelirse sunucu reddeder.
+    birimFiyat: v.birimFiyat ?? '',
     piyasaFiyat: v.piyasaFiyat,
     opsFiyat: v.opsFiyat,
     filoFiyat: v.filoFiyat,
     doviz: v.doviz,
-    kur: v.kur,
+    kur: rateToSend(v.doviz, v.kur, base),
     aciklama: metinDegeri(v.aciklama),
     ...(base === null ? {} : { surum: base.surum ?? null }),
   };

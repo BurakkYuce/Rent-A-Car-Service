@@ -245,3 +245,45 @@ describe('dışa aktarma', () => {
     ).toEqual({ cariF: CARI.id, durumF: 'Aktif', bas: '2026-01-01' });
   });
 });
+
+describe('döviz değişince eski kur taşınmaz (inceleme M2)', () => {
+  const TRY_ROW = { ...INSTALLMENT, doviz: 'TRY', kur: 1 } as unknown as CustomerInstallment;
+
+  it('taksit: TRY → EUR, kur dokunulmadı (1) → kur null (sunucu çözer)', () => {
+    const v = { ...installmentToForm(TRY_ROW), doviz: 'EUR' };
+    expect(installmentRequest(v, TRY_ROW).kur).toBeNull();
+  });
+
+  it('taksit: EUR (35,1234) → TRY, kur dokunulmadı → null (TRY = 1)', () => {
+    const v = { ...installmentToForm(INSTALLMENT), doviz: 'TRY' };
+    expect(installmentRequest(v, INSTALLMENT).kur).toBeNull();
+  });
+
+  it('taksit: döviz değişti ve kullanıcı kuru AÇIKÇA yazdı → yazılan kur gider', () => {
+    const v = { ...installmentToForm(TRY_ROW), doviz: 'EUR', kur: 36.5 };
+    expect(installmentRequest(v, TRY_ROW).kur).toBe(36.5);
+  });
+
+  it('taksit: döviz aynı (küçük harf yazımı dahil) → kaydın kuru aynen', () => {
+    const v = { ...installmentToForm(INSTALLMENT), doviz: 'eur' };
+    expect(installmentRequest(v, INSTALLMENT).kur).toBe(35.1234);
+  });
+
+  it('sipariş: TRY → USD, kur dokunulmadı → null; yeni kayıtta formdaki kur aynen', () => {
+    const order = {
+      doviz: 'TRY',
+      kur: 1,
+      siparisTarihi: '2026-09-01T21:00:00Z',
+      adet: 1,
+      birimFiyat: 10,
+      surum: 's',
+    } as unknown as OrderDetail;
+    expect(orderRequest({ ...orderToForm(order), doviz: 'USD' }, order).kur).toBeNull();
+    expect(orderRequest({ ...orderToForm(order), doviz: 'USD', kur: 41.2 }, null).kur).toBe(41.2);
+  });
+
+  it('sipariş: boş birim fiyat 0 olarak GİTMEZ (inceleme L3)', () => {
+    const order = { doviz: 'TRY', kur: 1, adet: 1, birimFiyat: 10 } as unknown as OrderDetail;
+    expect(orderRequest({ ...orderToForm(order), birimFiyat: null }, null).birimFiyat).toBe('');
+  });
+});

@@ -216,6 +216,12 @@ export interface FinanceEndpoints {
   readonly write?: (route: Route, path: string) => Promise<boolean> | boolean;
   readonly loan?: () => Record<string, unknown>;
   readonly installment?: () => Record<string, unknown>;
+  /** Listedeki (bayat olabilecek) taksit satırı; verilmezse tekil kayıtla aynı. */
+  readonly installmentRow?: () => Record<string, unknown>;
+  readonly plan?: () => Record<string, unknown>;
+  readonly planRow?: () => Record<string, unknown>;
+  /** Tekil kayıt GET'lerinin gecikmesi (ms) — "ilk okuma dönmeden yazan kullanıcı" senaryosu. */
+  readonly recordDelayMs?: number;
 }
 
 /** Araç finans uçlarının sahteleri; yazılan istekler (gövde + anahtar) sırayla döner. */
@@ -275,6 +281,11 @@ export async function financeEndpoints(
   async function defaultRead(r: Route, path: string) {
     const loan = e.loan?.() ?? loanDetail();
     const inst = e.installment?.() ?? installment();
+    const plan = e.plan?.() ?? fleetPlan();
+    const delayed = async (body: unknown) => {
+      if (e.recordDelayMs) await new Promise((ok) => setTimeout(ok, e.recordDelayMs));
+      return json(r, body);
+    };
     switch (path) {
       case '/api/ui/v1/arac-kredileri':
         return json(r, page1([loanRow()]));
@@ -289,7 +300,7 @@ export async function financeEndpoints(
       case `/api/ui/v1/arac-kredileri/${LOAN_1}`:
         return json(r, loan);
       case '/api/ui/v1/musteri-taksitleri':
-        return json(r, page1([{ ...inst, surum: null }]));
+        return json(r, page1([{ ...(e.installmentRow?.() ?? inst), surum: null }]));
       case '/api/ui/v1/musteri-taksitleri/ozet':
         return json(r, {
           adet: 1,
@@ -300,7 +311,7 @@ export async function financeEndpoints(
           kalanBaz: 1250.5,
         });
       case `/api/ui/v1/musteri-taksitleri/${INSTALLMENT_1}`:
-        return json(r, inst);
+        return delayed(inst);
       case '/api/ui/v1/arac-siparisleri':
         return json(r, page1([order()]));
       case `/api/ui/v1/arac-siparisleri/${ORDER_1}`:
@@ -310,9 +321,9 @@ export async function financeEndpoints(
       case '/api/ui/v1/hasar-dosyalari':
         return json(r, page1([damageFile()]));
       case '/api/ui/v1/filo-plan':
-        return json(r, page1([{ ...fleetPlan(), surum: null }], 200));
+        return json(r, page1([{ ...(e.planRow?.() ?? plan), surum: null }], 200));
       case `/api/ui/v1/filo-plan/${PLAN_1}`:
-        return json(r, fleetPlan());
+        return delayed(plan);
       default:
         return r.fulfill({ status: 404, json: { kod: 'bulunamadi' } });
     }

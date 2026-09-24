@@ -19,7 +19,7 @@ import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
 import { paraBicimle, tarihBicimle } from '@core/bicim/bicim';
-import { TahsilatDenemeKaydi, tahsilatMukerrerBildir } from '@core/form/tahsilat-denemesi';
+import { TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -34,7 +34,7 @@ import { Ikon } from '@shared/ikon/ikon';
 
 import type { AccountKind, InstallmentPayResponse, LoanDetail } from '../finance-model';
 import { LOANS, recordPath } from '../finance.store';
-import { type FrozenPayment, InstallmentPayment } from './installment-payment';
+import { type FrozenPayment, InstallmentPayment, duplicateNotice } from './installment-payment';
 
 /**
  * "Taksit Öde" (Blazor `/arac-kredi/taksit-ode`): sonraki taksit sunucunun planından (sıra, vade, tutar — kullanıcı
@@ -149,6 +149,11 @@ export class InstallmentPaymentPanel {
       });
   }
 
+  /** Sonucu bilinmeyen (donmuş) ödeme var mı — sayfa terk koruması bunu sorar (inceleme L1). */
+  hasPendingPayment(): boolean {
+    return this.frozen() !== null || this.sending();
+  }
+
   /** Donmuş denemeden bilinçli vazgeçiş (onaylı): yeni deneme yeni anahtarla, sıra kontrolü sunucuda. */
   protected async abandon(): Promise<void> {
     const yes = await this.confirm.sor({
@@ -170,12 +175,11 @@ export class InstallmentPaymentPanel {
         return; // interceptor hata toast'u + sayfada kalıcı "sonucu bilinmiyor" bandı
       case 'duplicate': {
         const g = this.payment.lastSubmission;
-        if (g)
-          tahsilatMukerrerBildir(this.toast, this.t, outcome.type, error, {
-            gonderim: g,
-            bayatBaslik: this.t('aracFinans.kredi.krediDegismis'),
-            ek: this.t('geriBildirim.mukerrerYenilendi'),
-          });
+        if (g) {
+          const n = duplicateNotice(outcome.type, error, g, this.t);
+          if (n.tone === 'bilgi') this.toast.bilgi(n.message, { baslik: n.title });
+          else this.toast.uyari(n.message, { baslik: n.title });
+        }
         this.settled.emit();
         return;
       }

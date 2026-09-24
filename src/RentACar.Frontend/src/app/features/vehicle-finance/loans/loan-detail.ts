@@ -7,6 +7,7 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -15,6 +16,10 @@ import { finalize } from 'rxjs';
 
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import {
+  type KaydedilmemisDegisiklikSahibi,
+  sayfaTerkKorumasi,
+} from '@core/form/kaydedilmemis-degisiklik';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -41,7 +46,7 @@ import { InstallmentPaymentPanel } from './installment-payment-panel';
   templateUrl: './loan-detail.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class LoanDetail {
+export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(LoanDetailStore);
   private readonly api = inject(ApiIstemcisi);
   private readonly session = inject(OturumServisi);
@@ -55,8 +60,12 @@ export class LoanDetail {
   protected readonly num = toNumber;
   protected readonly cancelling = signal(false);
   protected readonly accounts = computed(() => this.store.accounts.veri() ?? []);
+  private readonly paymentPanel = viewChild(InstallmentPaymentPanel);
 
   constructor() {
+    // Sonucu bilinmeyen ödeme varken sayfadan/sekmeden ayrılış sorulur (inceleme L1): donmuş kopya kaybolursa
+    // kullanıcı aynı anahtarla tekrar şansını kaybeder.
+    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
     const policy = inject(FetchPolicy);
     policy.baglan({
       parametre: signal(this.id).asReadonly(),
@@ -72,6 +81,10 @@ export class LoanDetail {
           this.store.accounts.yukle();
       });
     });
+  }
+
+  kaydedilmemisDegisiklikVar(): boolean {
+    return this.paymentPanel()?.hasPendingPayment() ?? false;
   }
 
   protected faizYuzde(v: number | string): number | null {

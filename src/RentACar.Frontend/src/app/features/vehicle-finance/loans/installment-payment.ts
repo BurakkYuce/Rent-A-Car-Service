@@ -8,7 +8,70 @@ import {
   sonucuBilinmeyenHata,
 } from '@core/form/tahsilat-denemesi';
 
+import { paraBicimle } from '@core/bicim/bicim';
+import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+
 import type { AccountKind, InstallmentPayRequest, LoanDetail } from '../finance-model';
+
+type Translate = (key: CeviriAnahtari, params?: Record<string, unknown>) => string;
+
+/** Ekrandaki `mukerrer` bildirimi (başlık + metin + ton). */
+export interface DuplicateNotice {
+  readonly tone: 'bilgi' | 'uyari';
+  readonly title: string;
+  readonly message: string;
+}
+
+function amount(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Taksit ödemesi ekranına özgü 409 `mukerrer` bildirimi (inceleme L2). Bu ekranda tutar alanı YOK (tutar planın
+ * sonraki taksidi): çekirdek tahsilat metinlerindeki "tutar alanı temizlendi / yeni tutarı girin" burada yanlıştır.
+ * Hiçbir sınıf kullanıcıyı ikinci ödemeye yönlendirmez; hepsi "kredi yeniden yüklendi, planı kontrol edin" der.
+ */
+export function duplicateNotice(
+  type: TahsilatMukerrerTuru,
+  error: ApiHatasi,
+  submission: TahsilatGonderimi,
+  t: Translate,
+): DuplicateNotice {
+  const reloaded = t('aracFinans.kredi.krediYenilendi');
+  switch (type) {
+    case 'zatenKaydedildi':
+      return {
+        tone: 'bilgi',
+        title: t('geriBildirim.zatenKaydedildi'),
+        message: `${error.detay} ${reloaded}`,
+      };
+    case 'oncekiDenemeKaydedilmis':
+      return {
+        tone: 'uyari',
+        title: t('aracFinans.kredi.oncekiOdemeBaslik'),
+        message: t('aracFinans.kredi.oncekiOdemeKaydedildi', {
+          no: error.mevcut?.belgeNo ?? '',
+          kayitli: paraBicimle(amount(error.mevcut?.tutar), error.mevcut?.doviz),
+          girilen: paraBicimle(amount(submission.icerik.tutar), submission.icerik.doviz),
+        }),
+      };
+    case 'baskaIslemDenemeYazilmadi':
+    case 'baskaIslemYazildi':
+      return {
+        tone: 'uyari',
+        title: t('aracFinans.kredi.baskaOdemeYazildi'),
+        message: `${error.detay} ${reloaded}`,
+      };
+    default:
+      return {
+        tone: 'uyari',
+        title: t('aracFinans.kredi.krediDegismis'),
+        message: `${error.detay} ${reloaded}`,
+      };
+  }
+}
 
 /** Formdaki seçimler (tutar ve sıra SUNUCUNUN planından gelir; kullanıcı yazmaz). */
 export interface PaymentChoice {

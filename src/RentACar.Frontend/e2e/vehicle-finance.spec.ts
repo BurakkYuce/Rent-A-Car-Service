@@ -6,6 +6,7 @@ import {
   LOAN_1,
   ORDER_1,
   financeEndpoints,
+  fleetPlan,
   installment,
   loanDetail,
 } from './vehicle-finance-fakes';
@@ -163,6 +164,14 @@ test('taksit ödeme: kaybolan yanıt → "tekrar" AYNI anahtar + AYNI gövde →
   await expect(panel.getByRole('alert')).toContainText('sonucu bilinmiyor');
   // Donmuş kopya: form kilitli, düğme aynı işlemi tekrar gönderir.
   await expect(panel.getByRole('combobox', { name: 'Hesap', exact: true })).toBeDisabled();
+  // İnceleme L1: donmuş ödeme varken sekmeyi kapatmak sorulur (kopya kaybolmasın).
+  await page
+    .getByRole('navigation', { name: 'Açık sekmeler' })
+    .getByRole('button', { name: 'Kredi KR-000001 sekmesini kapat' })
+    .click();
+  const leave = page.getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' });
+  await leave.getByRole('button', { name: 'Sayfada kal' }).click();
+  await expect(leave).toHaveCount(0);
   await panel.getByRole('button', { name: 'Aynı ödemeyi tekrar gönder' }).click();
 
   await expect(page.getByText('Bu taksit ödemesi zaten kaydedildi')).toBeVisible();
@@ -364,6 +373,105 @@ test('sipariş: satır düğmeleri sunucu yetkilerinden; iptal onaylı', async (
   await dialog.getByRole('button', { name: 'İptal' }).click();
   await expect.poll(() => written.length).toBe(1);
   expect(page.url()).toContain('/app/arac-siparis');
+});
+
+test('müşteri taksit: ilk okuma dönmeden yazan kullanıcı — dokunmadığı alanlar TAZE kayıttan gider (inceleme M1)', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, AG_HATASI);
+  const written = await financeEndpoints(page, {
+    // Liste bayat: başka oturum tutarı 1.250,50 → 2.000 yaptı; tekil kayıt 1,5 sn gecikmeli döner.
+    installmentRow: () => installment({ taksitTutari: 1250.5 }),
+    installment: () => installment({ taksitTutari: 2000, tutarBaz: 2000, surum: 'ts-2' }),
+    recordDelayMs: 1500,
+    write: async (r) => {
+      if (r.request().method() !== 'PUT') return false;
+      await r.fulfill({ json: installment({ taksitTutari: 2000, surum: 'ts-3' }) });
+      return true;
+    },
+  });
+  await page.goto(INSTALLMENTS.yol);
+  await hazirBekle(page, INSTALLMENTS);
+  await page.getByRole('button', { name: 'Düzenle' }).click();
+  const form = page.getByRole('region', { name: 'Taksiti Düzenle' });
+  await form.getByRole('textbox', { name: 'Açıklama' }).fill('Yeni not'); // ilk okuma henüz dönmedi
+  const save = form.getByRole('button', { name: 'Kaydet' });
+  await expect(save).toBeEnabled({ timeout: 5000 });
+  await expect(form.getByRole('textbox', { name: 'Tutar' })).toHaveValue('2.000,00');
+  await save.click();
+  await expect(page.getByText('Taksit kaydedildi.')).toBeVisible();
+  expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
+    taksitTutari: '2000.00',
+    aciklama: 'Yeni not',
+    surum: 'ts-2',
+  });
+  expect(hatalar).toEqual([]);
+});
+
+test('filo plan: ilk okuma dönmeden yazan kullanıcı — hedef TAZE kayıttan gider (inceleme M1)', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, AG_HATASI);
+  const written = await financeEndpoints(page, {
+    planRow: () => fleetPlan({ hedefAdet: 10 }),
+    plan: () => fleetPlan({ hedefAdet: 11, fark: 4, surum: 'fp-2' }),
+    recordDelayMs: 1500,
+    write: async (r) => {
+      if (r.request().method() !== 'PUT') return false;
+      await r.fulfill({ json: fleetPlan({ hedefAdet: 11, aciklama: 'Q4 hedefi', surum: 'fp-3' }) });
+      return true;
+    },
+  });
+  await page.goto(PLAN.yol);
+  await hazirBekle(page, PLAN);
+  await page.getByRole('button', { name: 'Düzenle' }).click();
+  const form = page.getByRole('region', { name: 'Hedefi Düzenle' });
+  await form.getByRole('textbox', { name: 'Açıklama' }).fill('Q4 hedefi');
+  const save = form.getByRole('button', { name: 'Kaydet' });
+  await expect(save).toBeEnabled({ timeout: 5000 });
+  await save.click();
+  await expect(page.getByText('Hedef kaydedildi.')).toBeVisible();
+  expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
+    hedefAdet: 11,
+    aciklama: 'Q4 hedefi',
+    surum: 'fp-2',
+  });
+  expect(hatalar).toEqual([]);
+});
+
+test('müşteri taksit: TRY kaydı EUR yapılınca eski kur (1) gönderilmez — kur null (inceleme M2)', async ({
+  page,
+}) => {
+  const written = await financeEndpoints(page, {
+    write: async (r) => {
+      if (r.request().method() !== 'PUT') return false;
+      await r.fulfill({ json: installment({ doviz: 'EUR', kur: 35.1, surum: 'ts-2' }) });
+      return true;
+    },
+  });
+  await page.goto(INSTALLMENTS.yol);
+  await hazirBekle(page, INSTALLMENTS);
+  await page.getByRole('button', { name: 'Düzenle' }).click();
+  const form = page.getByRole('region', { name: 'Taksiti Düzenle' });
+  const save = form.getByRole('button', { name: 'Kaydet' });
+  await expect(save).toBeEnabled();
+  await form.getByRole('textbox', { name: 'Döviz' }).fill('EUR');
+  await save.click();
+  await expect(page.getByText('Taksit kaydedildi.')).toBeVisible();
+  expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({ doviz: 'EUR', kur: null });
+});
+
+test('sipariş: boş birim fiyat alan hatası verir, istek gitmez (inceleme L3)', async ({ page }) => {
+  const written = await financeEndpoints(page);
+  await page.goto(ORDER_NEW.yol);
+  await hazirBekle(page, ORDER_NEW);
+  await page.getByRole('combobox', { name: 'Tedarikçi', exact: true }).fill('Bayi B');
+  await page.getByRole('button', { name: 'Kaydet' }).click();
+  await expect(page.getByRole('textbox', { name: 'Birim Fiyat (resmi)' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(written).toHaveLength(0);
 });
 
 for (const s of PAGES) {

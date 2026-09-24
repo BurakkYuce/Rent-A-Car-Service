@@ -144,6 +144,8 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
   // ---- tek taksit (ekle / düzenle)
   protected readonly editing = signal<Editing>({ kind: 'new' });
   protected readonly base = signal<CustomerInstallment | null>(null);
+  /** Formun doldurulduğu değer (ilk okuma dönene kadar birleştirme tabanı: liste satırı). */
+  private filledFrom: InstallmentFormValue | null = null;
   protected readonly form = new FormGroup({
     cari: new FormControl<SecimSecenegi | null>(null, Validators.required),
     arac: new FormControl<SecimSecenegi | null>(null),
@@ -254,9 +256,10 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
     if (!(await this.releaseForm())) return;
     this.editing.set({ kind: 'record', id: row.id });
     this.base.set(null);
-    this.form.reset({ ...installmentToForm(row) });
+    this.filledFrom = installmentToForm(row);
+    this.form.reset({ ...this.filledFrom });
     this.submission.kilit.yenile();
-    this.readRecord(row.id, true);
+    this.readRecord(row.id);
     afterNextRender(
       () => this.host.nativeElement.querySelector<HTMLElement>('#rc-taksit-formu')?.focus(),
       { injector: this.injector },
@@ -293,7 +296,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
           this.refresh();
         },
         hata: (h) => {
-          if (h.kod === 'cakisma' && e.kind === 'record') this.readRecord(e.id, false);
+          if (h.kod === 'cakisma' && e.kind === 'record') this.readRecord(e.id);
           if (h.kod === 'mukerrer') {
             if (h.mevcut?.ayniIcerik) this.resetForm();
             this.refresh();
@@ -397,7 +400,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
           this.toast.basari(this.t(message, { sira: row.sira }));
           // Açık düzenleme aynı kayıtsa yeni sürüm birleşir (bayat PUT olmasın).
           const e = this.editing();
-          if (e.kind === 'record' && e.id === row.id) this.recordArrived(fresh, false);
+          if (e.kind === 'record' && e.id === row.id) this.recordArrived(fresh);
           this.refresh();
         },
         error: (raw: unknown) => this.actionFailed(raw),
@@ -412,14 +415,14 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
 
   // ------------------------------------------------------------------ yardımcılar
 
-  private readRecord(id: string, first: boolean): void {
+  private readRecord(id: string): void {
     this.api
       .get<CustomerInstallment>(recordPath(CUSTOMER_INSTALLMENTS, id))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (r) => {
           const e = this.editing();
-          if (e.kind === 'record' && e.id === id) this.recordArrived(r, first);
+          if (e.kind === 'record' && e.id === id) this.recordArrived(r);
         },
         error: (raw: unknown) => {
           const error = apiHatasinaCevir(raw);
@@ -428,17 +431,23 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
       });
   }
 
-  /** Güncel kayıt: temiz form sıfırlanır; kirli formda dokunulan alan korunur, çakışan işaretlenir. */
-  private recordArrived(r: CustomerInstallment, first: boolean): void {
+  /**
+   * Güncel kayıt: temiz form sıfırlanır; kirli formda dokunulan alan korunur, çakışan işaretlenir. Birleştirmenin
+   * tabanı formun DOLDURULDUĞU değerdir: ilk okumada (sürüm henüz yok) liste satırı — bayat olabilir; kullanıcı ilk
+   * okuma dönmeden yazdıysa dokunmadığı alanlar yine TAZE değeri alır (inceleme M1: aksi halde sonraki PUT liste
+   * satırının eski değerlerini taze sürümle gönderip başka oturumun değişikliğini sessizce ezerdi).
+   */
+  private recordArrived(r: CustomerInstallment): void {
     const fresh = installmentToForm(r);
     const previous = this.base();
-    if (first || !this.form.dirty || previous === null) {
-      if (!this.form.dirty) this.form.reset({ ...fresh });
+    const baseline = (previous === null ? this.filledFrom : installmentToForm(previous)) ?? fresh;
+    if (!this.form.dirty) {
+      this.form.reset({ ...fresh });
     } else {
       const conflicts = sunucuDegerleriniBirlestir(
         this.form,
         { ...fresh },
-        { ...installmentToForm(previous) },
+        { ...baseline },
         this.t('aracFinans.cakismaAlan'),
       );
       if (conflicts.length > 0)
@@ -454,6 +463,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
   private resetForm(): void {
     this.editing.set({ kind: 'new' });
     this.base.set(null);
+    this.filledFrom = null;
     this.form.reset({ ...emptyInstallment() });
     this.submission.kilit.yenile();
   }

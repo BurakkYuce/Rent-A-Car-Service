@@ -123,7 +123,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
       Validators.min(1),
       Validators.max(10000),
     ]),
-    birimFiyat: new FormControl<string | null>(null),
+    birimFiyat: new FormControl<string | null>(null, Validators.required),
     piyasaFiyat: new FormControl<string | null>(null),
     opsFiyat: new FormControl<string | null>(null),
     filoFiyat: new FormControl<string | null>(null),

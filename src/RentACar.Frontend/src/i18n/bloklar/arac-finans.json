@@ -115,7 +115,11 @@
       "vazgecMesaj": "Önceki gönderimin sonucu bilinmiyor. Kredi yeniden yüklenecek: ödeme yazıldıysa taksit \"Ödendi\" görünür ve aynı taksit ikinci kez ödenemez. Önce taksit planını kontrol edin.",
       "sonucBilinmiyor": "Son ödeme gönderiminin sonucu bilinmiyor (bağlantı ya da sunucu hatası). \"Aynı ödemeyi tekrar gönder\" AYNI işlemi AYNI anahtarla gönderir: ödeme zaten yazıldıysa ikinci taksit ödenmez, yalnız kayıt bildirilir.",
       "odendi": "{{ sira }}. taksit ödendi (Gider No {{ no }}, {{ tutar }}).",
-      "krediDegismis": "Kredi kaydı değişmiş"
+      "krediDegismis": "Kredi kaydı değişmiş",
+      "krediYenilendi": "Kredi yeniden yüklendi; taksit planını kontrol edin.",
+      "oncekiOdemeBaslik": "Önceki ödeme denemeniz kaydedilmiş",
+      "oncekiOdemeKaydedildi": "Önceki ödeme denemeniz kaydedilmiş (Gider No {{ no }}, {{ kayitli }}); bu gönderim ({{ girilen }}) YAZILMADI. Kredi yeniden yüklendi; taksit planını kontrol edin.",
+      "baskaOdemeYazildi": "Başka bir ödeme yazıldı — bu gönderim kaydedilmedi"
     },
     "taksit": {
       "baslik": "Müşteri Taksit Takibi",

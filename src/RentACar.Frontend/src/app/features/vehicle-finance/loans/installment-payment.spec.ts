@@ -6,7 +6,7 @@ import { TAHSILAT_DENEME_KANALI, TahsilatDenemeKaydi } from '@core/form/tahsilat
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
 import type { LoanDetail } from '../finance-model';
-import { InstallmentPayment } from './installment-payment';
+import { InstallmentPayment, duplicateNotice } from './installment-payment';
 
 const LOAN_ID = 'b1b1b1b1-0000-4000-8000-000000000001';
 
@@ -140,4 +140,53 @@ describe('taksit ödemesi (para yaşam döngüsü)', () => {
     expect(p.frozen).toBeNull();
     expect(p.prepare(loan(), { hesap: 'Kasa', hesapId: null })!.key).toBe('anahtar-2');
   });
+});
+
+describe('taksit ödemesi mükerrer bildirimi (inceleme L2: bu ekranda tutar alanı yok)', () => {
+  /** Anahtarı ve parametreleri geri veren sahte çeviri: hangi metnin seçildiği görülür. */
+  const t = (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}${JSON.stringify(params)}` : key;
+  const submission = {
+    anahtar: 'k',
+    icerik: { tutar: 2500, doviz: 'TRY', hesap: 'Kasa' },
+    onceki: [],
+  };
+
+  it('kendi tekrarı: bilgi, sunucu metni + "kredi yeniden yüklendi"', () => {
+    const n = duplicateNotice(
+      'zatenKaydedildi',
+      error('mukerrer', { tutar: 2500, ayniIcerik: true }),
+      submission,
+      t,
+    );
+    expect(n).toEqual({
+      tone: 'bilgi',
+      title: 'geriBildirim.zatenKaydedildi',
+      message: 'x aracFinans.kredi.krediYenilendi',
+    });
+  });
+
+  it('önceki deneme kaydedilmiş: ekrana özgü metin (çekirdeğin "tutar alanı" metni DEĞİL)', () => {
+    const n = duplicateNotice(
+      'oncekiDenemeKaydedilmis',
+      error('mukerrer', { tutar: 2500, ayniIcerik: false }),
+      submission,
+      t,
+    );
+    expect(n.tone).toBe('uyari');
+    expect(n.title).toBe('aracFinans.kredi.oncekiOdemeBaslik');
+    expect(n.message.startsWith('aracFinans.kredi.oncekiOdemeKaydedildi')).toBe(true);
+    expect(n.message).toContain('GD-1');
+  });
+
+  it.each(['baskaIslemYazildi', 'baskaIslemDenemeYazilmadi', 'bayatAnahtar'] as const)(
+    '%s: uyarı, hiçbir sınıf çekirdek tahsilat metnini kullanmaz',
+    (type) => {
+      const n = duplicateNotice(type, error('mukerrer'), submission, t);
+      expect(n.tone).toBe('uyari');
+      expect(`${n.title} ${n.message}`).not.toContain('geriBildirim.denemeKaydedilmedi');
+      expect(`${n.title} ${n.message}`).not.toContain('geriBildirim.oncekiDenemeKaydedildi');
+      expect(n.message).toContain('aracFinans.kredi.krediYenilendi');
+    },
+  );
 });

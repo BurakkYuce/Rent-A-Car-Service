@@ -1,5 +1,24 @@
 import type { Sema } from '@core/api/ui-tipleri';
+import { trBuyukHarf } from '@core/metin/tr-normalize';
 import { listeTanimi } from '@core/veri/liste-sorgusu';
+
+const currencyKey = (c: string | null | undefined) => trBuyukHarf((c ?? '').trim());
+
+/**
+ * Gönderilecek kur (inceleme M2): kaydın dövizi değiştiyse ve kullanıcı kuru AÇIKÇA değiştirmediyse (formdaki kur hâlâ
+ * kaydın eski kuru) kur gönderilmez → sunucu yeni döviz için çözer (TRY = 1; dövizde firma kuru → TCMB). Aksi halde
+ * TRY kaydı EUR'ya çevrilince eski kur 1 "açık kur" sayılıp baz tutarı yanlış yazardı. Yeni kayıtta ve döviz aynıysa
+ * formdaki değer aynen gider.
+ */
+export function rateToSend(
+  currency: string | null,
+  rate: number | null,
+  base: { readonly doviz: string; readonly kur: number | string } | null,
+): number | null {
+  if (base === null || currencyKey(currency || 'TRY') === currencyKey(base.doviz)) return rate;
+  const baseRate = typeof base.kur === 'number' ? base.kur : Number(base.kur);
+  return rate === null || rate === baseRate ? null : rate;
+}
 
 // ---- Araç kredisi (`/api/ui/v1/arac-kredileri`)
 export type LoanRow = Sema<'AracKrediListeSatiri'>;

@@ -30,6 +30,8 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
     canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/vehicle-finance/loans/loan-detail').then((m) => m.LoanDetail),
+    // Sonucu bilinmeyen (donmuş) taksit ödemesi varken sekme kapatma / ayrılış sorulur.
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
   },
   {
     path: 'musteri-taksit',

@@ -101,6 +101,8 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
   protected readonly busy = signal<string | null>(null);
   protected readonly editing = signal<Editing>({ kind: 'new' });
   protected readonly base = signal<FleetPlan | null>(null);
+  /** Formun doldurulduğu değer (ilk okuma dönene kadar birleştirme tabanı: liste satırı). */
+  private filledFrom: FleetPlanFormValue | null = null;
 
   protected readonly totals = computed(() => {
     const rows = this.store.list.veri()?.kayitlar ?? [];
@@ -167,8 +169,10 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
     if (!(await this.releaseForm())) return;
     this.editing.set({ kind: 'record', id: row.id });
     this.base.set(null);
-    this.form.reset({ ...fleetPlanToForm(row) });
-    this.readRecord(row.id, true);
+    this.filledFrom = fleetPlanToForm(row);
+    this.form.reset({ ...this.filledFrom });
+    this.submission.kilit.yenile();
+    this.readRecord(row.id);
     afterNextRender(
       () => this.host.nativeElement.querySelector<HTMLElement>('#rc-plan-formu')?.focus(),
       { injector: this.injector },
@@ -201,7 +205,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
           this.store.list.yenile();
         },
         hata: (h) => {
-          if (h.kod === 'cakisma' && e.kind === 'record') this.readRecord(e.id, false);
+          if (h.kod === 'cakisma' && e.kind === 'record') this.readRecord(e.id);
         },
       },
     );
@@ -219,7 +223,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
       .subscribe({
         next: (fresh) => {
           const e = this.editing();
-          if (e.kind === 'record' && e.id === row.id) this.recordArrived(fresh, false);
+          if (e.kind === 'record' && e.id === row.id) this.recordArrived(fresh);
           this.store.list.yenile();
         },
         error: (raw: unknown) => this.actionFailed(raw),
@@ -259,14 +263,14 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
     this.store.list.yenile();
   }
 
-  private readRecord(id: string, first: boolean): void {
+  private readRecord(id: string): void {
     this.api
       .get<FleetPlan>(recordPath(FLEET_PLANS, id))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (p) => {
           const e = this.editing();
-          if (e.kind === 'record' && e.id === id) this.recordArrived(p, first);
+          if (e.kind === 'record' && e.id === id) this.recordArrived(p);
         },
         error: (raw: unknown) => {
           const error = apiHatasinaCevir(raw);
@@ -275,16 +279,21 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
       });
   }
 
-  private recordArrived(p: FleetPlan, first: boolean): void {
+  /**
+   * Güncel kayıt: temiz form sıfırlanır; kirli formda dokunulan alan korunur, çakışan işaretlenir. İlk okumada taban
+   * formun doldurulduğu (bayat olabilecek) liste satırıdır — dokunulmamış alanlar TAZE değeri alır (inceleme M1).
+   */
+  private recordArrived(p: FleetPlan): void {
     const fresh = fleetPlanToForm(p);
     const previous = this.base();
-    if (first || !this.form.dirty || previous === null) {
-      if (!this.form.dirty) this.form.reset({ ...fresh });
+    const baseline = (previous === null ? this.filledFrom : fleetPlanToForm(previous)) ?? fresh;
+    if (!this.form.dirty) {
+      this.form.reset({ ...fresh });
     } else {
       const conflicts = sunucuDegerleriniBirlestir(
         this.form,
         { ...fresh },
-        { ...fleetPlanToForm(previous) },
+        { ...baseline },
         this.t('aracFinans.cakismaAlan'),
       );
       if (conflicts.length > 0)
@@ -301,6 +310,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
   private resetForm(): void {
     this.editing.set({ kind: 'new' });
     this.base.set(null);
+    this.filledFrom = null;
     this.form.reset({ ...emptyFleetPlan() });
     this.submission.kilit.yenile();
   }
