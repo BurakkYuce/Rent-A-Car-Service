@@ -94,6 +94,7 @@ public sealed class CustomerService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4: servis-katmanı savunma
         var n = Normalize(input);
         Validate(n);
+        ValidateTaxNumber(n, previous: null);
         await EnsureUniqueAsync(n, excludeId: null, ct);
 
         var customer = new Customer();
@@ -111,6 +112,7 @@ public sealed class CustomerService(
 
         return await _repository.UpdateAsync(id, c =>
         {
+            ValidateTaxNumber(n, c.VergiNo); // M3-R: against the stored value (unchanged legacy value stays editable)
             RequireAnonymityKept(c, n);
             Apply(c, n);
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -131,6 +133,7 @@ public sealed class CustomerService(
 
         return await _repository.UpdateAsync(id, expectedVersion, c =>
         {
+            ValidateTaxNumber(n, c.VergiNo); // M3-R: checked under the row lock against the stored value
             RequireAnonymityKept(c, n);
             Apply(c, n);
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -143,6 +146,24 @@ public sealed class CustomerService(
     /// row as loaded for the write (under the row lock on the versioned path), so the stored record is the reference.
     /// Throws before any change is applied — nothing is written.
     /// </summary>
+    /// <summary>
+    /// #283 KVKK M3: the tax number format (10 digits; 11 digits = a TC typed in the wrong field) is checked for EVERY
+    /// customer type — it used to be checked only for companies, so an individual's TC could land in this plain-text
+    /// column, bypassing encryption and the blind index.
+    /// <para>M3-R: the rule applies only on create or when the value ACTUALLY CHANGES (<paramref name="previous"/> is the
+    /// stored value). A legacy record whose unchanged tax number predates the rule must stay editable — otherwise every
+    /// save of an unrelated field (Blazor form, SPA card round-trip) would be rejected and the record frozen.</para>
+    /// </summary>
+    private static void ValidateTaxNumber(CustomerInput n, string? previous)
+    {
+        if (string.IsNullOrEmpty(n.VergiNo)) return;
+        if (previous is not null && (n.VergiNo == previous || n.VergiNo == OnlyDigitsOrNull(previous))) return;
+        if (n.VergiNo.Length == 11)
+            throw new ValidationException("Vergi No 11 haneli olamaz; TC kimlik numarası için TC Kimlik alanını kullanın.");
+        if (!TurkishIdentity.IsValidVergiNoFormat(n.VergiNo))
+            throw new ValidationException("Vergi No 10 haneli olmalıdır.");
+    }
+
     private void RequireAnonymityKept(Customer current, CustomerInput n)
     {
         var lifted = (current.AnonimAd && !n.AnonimAd) || (current.AnonimTc && !n.AnonimTc)
@@ -176,16 +197,6 @@ public sealed class CustomerService(
         {
             if (string.IsNullOrWhiteSpace(n.Unvan))
                 throw new ValidationException("Kurumsal/Servis cari için Ünvan zorunludur.");
-        }
-
-        // #283 KVKK M3: tax number format is checked for EVERY type. It used to be checked only for companies, so an
-        // individual's TC could be typed into this plain-text column, bypassing encryption and the blind index.
-        if (!string.IsNullOrEmpty(n.VergiNo))
-        {
-            if (n.VergiNo.Length == 11)
-                throw new ValidationException("Vergi No 11 haneli olamaz; TC kimlik numarası için TC Kimlik alanını kullanın.");
-            if (!TurkishIdentity.IsValidVergiNoFormat(n.VergiNo))
-                throw new ValidationException("Vergi No 10 haneli olmalıdır.");
         }
 
         if (!string.IsNullOrEmpty(n.Email) && !IsValidEmail(n.Email))
