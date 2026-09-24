@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.RegularExpressions;
 using RentACar.Application.Common;
 using RentACar.Web.Api.Kira;
 
@@ -7,9 +5,6 @@ namespace RentACar.Web.Api.Sistem;
 
 public static partial class SystemAdminApi
 {
-    /// <summary>Platformun kendi alt alan adı uzayı (TenantDomainRepository.EnsureSubdomainAsync ile aynı).</summary>
-    private const string PlatformBaseDomain = "rentpro.com";
-
     /// <summary>Servis mesajı → alan (önek eşleşmesi).</summary>
     private static readonly (string, string)[] SettingsRules =
     [
@@ -87,24 +82,8 @@ public static partial class SystemAdminApi
             throw new ValidationException("Logo URL http:// ya da https:// ile başlayan geçerli bir adres olmalıdır.", "logoUrl");
     }
 
-    private static readonly Regex HostLabel = new("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$", RegexOptions.CultureInvariant);
-
-    /// <summary>
-    /// Özel alan adı biçimi — Blazor ucunda YOK; yeni yüzey sertleştirildi: yalnız DNS adı (IP, port, yol, joker
-    /// yok), en az iki etiket, harfli TLD. Platformun kendi alt alan adı uzayı (<c>*.rentpro.com</c>) reddedilir —
-    /// aksi halde bir firma, henüz sitesini açmamış başka bir firmanın alt alan adını önceden sahiplenebilirdi.
-    /// </summary>
+    /// <summary>Özel alan adı biçimi — kural serviste (<see cref="Application.TenantSettings.DomainVerification.NormalizeCustomHost"/>;
+    /// Blazor ve API tek yol). Uç yalnız erken ve alan-eşlemeli hata için çağırır.</summary>
     internal static string NormalizeCustomHost(string? host)
-    {
-        var h = (host ?? "").Trim().TrimEnd('.').ToLowerInvariant();
-        if (h.Length == 0) throw new ValidationException("Alan adı zorunludur.", "host");
-        if (h.Length > 253 || IPAddress.TryParse(h, out _))
-            throw new ValidationException("Alan adı geçerli bir DNS adı olmalıdır (ör. www.firmam.com).", "host");
-        var labels = h.Split('.');
-        if (labels.Length < 2 || !labels.All(HostLabel.IsMatch) || !labels[^1].All(char.IsAsciiLetter))
-            throw new ValidationException("Alan adı geçerli bir DNS adı olmalıdır (ör. www.firmam.com).", "host");
-        if (h == PlatformBaseDomain || h.EndsWith("." + PlatformBaseDomain, StringComparison.Ordinal))
-            throw new ValidationException("Platform alan adı özel alan adı olarak eklenemez.", "host");
-        return h;
-    }
+        => Application.TenantSettings.DomainVerification.NormalizeCustomHost(host);
 }

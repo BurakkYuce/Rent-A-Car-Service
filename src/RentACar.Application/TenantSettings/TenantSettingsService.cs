@@ -149,9 +149,8 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
-        if (string.IsNullOrWhiteSpace(host))
-            throw new ValidationException("Alan adı zorunludur.");
-        await domains.AddCustomAsync(TenantId, host, ct);
+        // F11.1b güvenlik (3. tur): biçim + platform alt alan adı reddi SERVİSTE — Blazor "domain ekle" de aynı kuraldan geçer.
+        await domains.AddCustomAsync(TenantId, DomainVerification.NormalizeCustomHost(host), ct);
     }
 
     private static string DurumMetni(RentACar.Domain.Entities.TenantDomainStatus status) => status switch

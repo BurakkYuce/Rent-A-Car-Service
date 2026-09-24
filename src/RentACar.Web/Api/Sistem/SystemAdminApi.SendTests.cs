@@ -78,10 +78,13 @@ public static partial class SystemAdminApi
     }
 
     /// <summary>
-    /// F11.1b güvenlik M4 — test gönderimleri gerçek dış çağrı (SMTP bağlantısı, ücretli SMS/WhatsApp) yapar: mevcut
-    /// IP başına sabit pencere politikası ("login", varsayılan dakikada 10) uygulanır. Yeni politika eklenmedi.
+    /// F11.1b güvenlik M4/M6 — dış çağrı yapan ayar eylemleri (SMTP bağlantısı, ücretli SMS/WhatsApp, alan adı
+    /// ekle/doğrula) için AYRI hız sınırı kovası (Program.cs; IP başına dakikada <c>RateLimit:ExternalActionPermit</c>,
+    /// varsayılan 20). Giriş kovasından ayrıdır: bu eylemler girişi kilitlemez. Blazor karşılıkları da aynı politikayı taşır.
     /// </summary>
-    internal const string SendTestRatePolicy = "login";
+    public const string ExternalActionRatePolicy = "external-actions";
+
+    internal const string SendTestRatePolicy = ExternalActionRatePolicy;
 
     private static async Task<SendTestResult> PollAsync(
         Func<CancellationToken, Task<(string? Durum, string? HataKodu)>> status, string[] delivered,

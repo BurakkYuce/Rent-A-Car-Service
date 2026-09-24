@@ -23,14 +23,31 @@ public sealed class TenantDomainRepository(IDbContextFactory<AppDbContext> facto
         if (string.IsNullOrWhiteSpace(code))
             throw new InvalidOperationException("Tenant bulunamadı — subdomain oluşturulamadı.");
 
+        var host = $"{code}.rentpro.com".ToLowerInvariant();
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtextextended({0}, 0))", ["tenant-domain:" + host], ct);
+        // F11.1b güvenlik (3. tur): platform alt alan adı başka kiracının DOĞRULANMAMIŞ özel alan adı kaydı olarak
+        // tutulmuş olabilir (eski yol / Blazor) — sahibin "Sitemi Aç"ı onu temizler, 500 üretmez.
+        await db.TenantDomains.Where(d => d.Host == host && d.Kind == TenantDomainKind.Custom && d.Status != TenantDomainStatus.Active)
+            .ExecuteDeleteAsync(ct);
+        if (await db.TenantDomains.AsNoTracking().AnyAsync(d => d.Host == host && d.Status == TenantDomainStatus.Active, ct))
+            throw new ValidationException(DomainVerification.CannotAddMessage);
         db.TenantDomains.Add(new TenantDomain
         {
             TenantId = tenantId,
-            Host = $"{code}.rentpro.com".ToLowerInvariant(),
+            Host = host,
             Kind = TenantDomainKind.Subdomain,
             Status = TenantDomainStatus.Active
         });
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException(DomainVerification.CannotAddMessage);
+        }
     }
 
     public async Task<string?> GetActiveHostAsync(Guid tenantId, CancellationToken ct = default)
@@ -53,31 +70,35 @@ public sealed class TenantDomainRepository(IDbContextFactory<AppDbContext> facto
             // Aynı host üzerindeki eşzamanlı eklemeler sıraya girer (platform geneli, host başına kilit).
             await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtextextended({0}, 0))", ["tenant-domain:" + host], ct);
 
-            var row = await db.TenantDomains.FirstOrDefaultAsync(d => d.Host == host, ct);
-            if (row is not null && row.TenantId == tenantId)
-            {
-                // Idempotent: kendi satırı. Süresi dolmuş/başarısız bekleyen kayıt yeni belirteçle yeniden başlar.
-                if (row.Kind == TenantDomainKind.Custom && (row.Status == TenantDomainStatus.Failed
-                        || (row.Status == TenantDomainStatus.PendingVerification && DomainVerification.IsExpired(row.CreatedAtUtc, DateTimeOffset.UtcNow))))
-                {
-                    await RequirePendingQuotaAsync(db, tenantId, row.Id, ct);
-                    row.Status = TenantDomainStatus.PendingVerification;
-                    row.VerificationToken = DomainVerification.NewToken();
-                    row.CreatedAtUtc = DateTimeOffset.UtcNow;
-                    await db.SaveChangesAsync(ct);
-                }
-                await tx.CommitAsync(ct);
-                return row;
-            }
+            // F11.1b güvenlik M6 (3. tur): başka kiracının DOĞRULANMIŞ (Active) kaydı varsa eklenemez — mesaj varlığı
+            // sızdırmaz. Başka kiracıların BEKLEYEN satırlarına DOKUNULMAZ: host tekilliği yalnız Active satırlarda
+            // (filtreli unique index), her kiracının kendi bekleyen satırı ve kendi belirteci vardır. Böylece "X ekle →
+            // Y ekle → X yeniden ekle" döngüsü Y'nin kaydını silemez ya da belirtecini geçersiz kılamaz.
+            if (await db.TenantDomains.AsNoTracking().AnyAsync(d => d.Host == host && d.Status == TenantDomainStatus.Active
+                                                                    && d.TenantId != tenantId, ct))
+                throw new ValidationException(DomainVerification.CannotAddMessage);
+
+            var row = await db.TenantDomains.FirstOrDefaultAsync(d => d.Host == host && d.TenantId == tenantId, ct);
             if (row is not null)
             {
-                // F11.1b güvenlik M6: başka kiracının DOĞRULANMIŞ alan adı alınamaz; doğrulanmamış (bekleyen/başarısız)
-                // kayıt ise sahiplik kanıtı değildir ve gerçek sahibin eklemesini ENGELLEMEZ. Mesaj, başka kiracının
-                // varlığını ya da durumunu sızdırmaz.
-                if (row.Status == TenantDomainStatus.Active || row.Kind != TenantDomainKind.Custom)
-                    throw new ValidationException(DomainVerification.CannotAddMessage);
-                db.TenantDomains.Remove(row);
-                await db.SaveChangesAsync(ct);
+                // Idempotent: kendi satırı. Belirteç KORUNUR (yayınlanmış TXT geçersizleşmez); belirteçsiz eski satıra
+                // belirteç üretilir; süresi dolmuş/başarısız kayıt aynı belirteçle yeniden beklemeye alınır.
+                var changed = false;
+                if (row.Kind == TenantDomainKind.Custom && row.Status != TenantDomainStatus.Active)
+                {
+                    if (string.IsNullOrEmpty(row.VerificationToken)) { row.VerificationToken = DomainVerification.NewToken(); changed = true; }
+                    if (row.Status == TenantDomainStatus.Failed
+                        || DomainVerification.IsExpired(row.CreatedAtUtc, DateTimeOffset.UtcNow))
+                    {
+                        await RequirePendingQuotaAsync(db, tenantId, row.Id, ct);
+                        row.Status = TenantDomainStatus.PendingVerification;
+                        row.CreatedAtUtc = DateTimeOffset.UtcNow;
+                        changed = true;
+                    }
+                }
+                if (changed) await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return row;
             }
 
             await RequirePendingQuotaAsync(db, tenantId, null, ct);
@@ -123,12 +144,34 @@ public sealed class TenantDomainRepository(IDbContextFactory<AppDbContext> facto
     public async Task<bool> ActivateVerifiedAsync(Guid tenantId, Guid id, string token, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.TenantDomains
-            .Where(d => d.Id == id && d.TenantId == tenantId && d.Status == TenantDomainStatus.PendingVerification
-                        && d.VerificationToken == token)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(d => d.Status, TenantDomainStatus.Active)
-                .SetProperty(d => d.VerifiedAtUtc, DateTimeOffset.UtcNow), ct) > 0;
+        try
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var host = await db.TenantDomains.AsNoTracking().Where(d => d.Id == id && d.TenantId == tenantId)
+                .Select(d => d.Host).FirstOrDefaultAsync(ct);
+            if (host is null) return false;
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtextextended({0}, 0))", ["tenant-domain:" + host], ct);
+            // Başka kiracı arada doğruladıysa bu kayıt etkinleşemez (filtreli unique index ikinci çit).
+            if (await db.TenantDomains.AsNoTracking().AnyAsync(d => d.Host == host && d.Status == TenantDomainStatus.Active
+                                                                    && d.TenantId != tenantId, ct))
+                return false;
+            var updated = await db.TenantDomains
+                .Where(d => d.Id == id && d.TenantId == tenantId && d.Status == TenantDomainStatus.PendingVerification
+                            && d.VerificationToken == token)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(d => d.Status, TenantDomainStatus.Active)
+                    .SetProperty(d => d.VerifiedAtUtc, DateTimeOffset.UtcNow), ct);
+            if (updated == 0) return false;
+            // Sahiplik kanıtlandı: diğer kiracıların aynı host için doğrulanmamış satırları temizlenir.
+            await db.TenantDomains.Where(d => d.Host == host && d.TenantId != tenantId && d.Status != TenantDomainStatus.Active)
+                .ExecuteDeleteAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> ExistsAsync(string host, CancellationToken ct = default)

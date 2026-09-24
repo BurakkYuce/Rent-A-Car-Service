@@ -93,7 +93,7 @@ public static partial class SystemAdminApi
         {
             await svc.AddCustomDomainAsync(NormalizeCustomHost(i.Host), ct);
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
-        }).AlanlariEsle(DomainRules);
+        }).AlanlariEsle(DomainRules).RequireRateLimiting(SendTestRatePolicy); // M6: ekleme de hız sınırlı
 
         // F11.1b güvenlik M6 — DNS TXT sahiplik doğrulaması (ancak bundan sonra alan adı etkinleşir).
         g.MapPost("/domainler/dogrula", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>

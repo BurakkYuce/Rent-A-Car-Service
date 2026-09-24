@@ -41,12 +41,20 @@ public sealed partial class UiSystemSecurityTests
     [Fact]
     public void Send_test_endpoints_are_rate_limited()
     {
+        // 3. tur: girişten AYRI kova; API + Blazor karşılıkları (test gönderimleri, alan adı ekle/doğrula).
+        string[] expected =
+        [
+            "/api/ui/v1/ayarlar/test/eposta", "/api/ui/v1/ayarlar/test/sms", "/api/ui/v1/ayarlar/test/whatsapp",
+            "/api/ui/v1/ayarlar/domainler", "/api/ui/v1/ayarlar/domainler/dogrula",
+            "/ayarlar/smtp-test", "/ayarlar/sms-test", "/ayarlar/whatsapp-test", "/ayarlar/domain-ekle",
+        ];
         var routes = fx.Web.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
             .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
-            .Where(x => x.RoutePattern.RawText?.Contains("/ayarlar/test/", StringComparison.Ordinal) == true)
+            .Where(x => x.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.IHttpMethodMetadata>()?.HttpMethods.Contains("POST") == true
+                        && expected.Contains("/" + x.RoutePattern.RawText?.TrimStart('/')))
             .ToList();
-        Assert.Equal(3, routes.Count);
-        Assert.All(routes, r => Assert.Equal("login",
+        Assert.Equal(expected.Length, routes.Count);
+        Assert.All(routes, r => Assert.Equal(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy,
             r.Metadata.GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName));
     }
 

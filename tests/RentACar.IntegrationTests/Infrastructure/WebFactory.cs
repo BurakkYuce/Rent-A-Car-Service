@@ -42,6 +42,7 @@ public sealed class WebFactory(PostgresFixture pg, string logYolu, TestKimlik pl
         builder.UseSetting("Logging:FilePath", logYolu);
         builder.UseSetting("RateLimit:LoginPermit", girisLimiti.ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.UseSetting("RateLimit:IstemciHataPermit", istemciHataLimiti.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.UseSetting("RateLimit:ExternalActionPermit", "10000"); // F11.1b: testler tek IP'den koşar
         // Platform operatörü: dev varsayılanı yerine çalışma anında üretilen kimlik (config'e yalnız hash).
         builder.UseSetting("Platform:AdminUser", platform.Kullanici);
         builder.UseSetting("Platform:AdminPasswordHash", RentACar.Web.Platform.PlatformCredentials.HashPassword(platform.Sifre));

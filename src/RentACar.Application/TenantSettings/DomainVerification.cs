@@ -18,6 +18,32 @@ public static class DomainVerification
     public const string CannotAddMessage =
         "Alan adı eklenemedi. Alan adı size aitse destek ekibiyle iletişime geçin.";
 
+    /// <summary>Platformun kendi alt alan adı uzayı (TenantDomainRepository.EnsureSubdomainAsync ile aynı).</summary>
+    public const string PlatformBaseDomain = "rentpro.com";
+
+    private static readonly System.Text.RegularExpressions.Regex HostLabel =
+        new("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Özel alan adı biçimi — TEK kural (Blazor "domain ekle" ve /api/ui aynı servis yolundan geçer): yalnız DNS adı
+    /// (IP, port, yol, joker yok), en az iki etiket, harfli TLD. Platformun kendi alt alan adı uzayı
+    /// (<c>*.rentpro.com</c>) reddedilir — aksi halde bir firma başka bir firmanın alt alan adını önceden tutup onun
+    /// "Sitemi Aç"ını bozabiliyordu.
+    /// </summary>
+    public static string NormalizeCustomHost(string? host)
+    {
+        var h = (host ?? "").Trim().TrimEnd('.').ToLowerInvariant();
+        if (h.Length == 0) throw new Common.ValidationException("Alan adı zorunludur.", "host");
+        if (h.Length > 253 || System.Net.IPAddress.TryParse(h, out _))
+            throw new Common.ValidationException("Alan adı geçerli bir DNS adı olmalıdır (ör. www.firmam.com).", "host");
+        var labels = h.Split('.');
+        if (labels.Length < 2 || !labels.All(HostLabel.IsMatch) || !labels[^1].All(char.IsAsciiLetter))
+            throw new Common.ValidationException("Alan adı geçerli bir DNS adı olmalıdır (ör. www.firmam.com).", "host");
+        if (h == PlatformBaseDomain || h.EndsWith("." + PlatformBaseDomain, StringComparison.Ordinal))
+            throw new Common.ValidationException("Platform alan adı özel alan adı olarak eklenemez.", "host");
+        return h;
+    }
+
     public static string RecordName(string host) => RecordPrefix + host.Trim().TrimEnd('.').ToLowerInvariant();
 
     public static string NewToken() => "racar-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(20));
