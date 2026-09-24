@@ -43,25 +43,49 @@ public static partial class SystemAdminApi
         }).WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
     }
 
-    internal static bool IsSecretKey(string key)
-        => SecretKeySuffixes.Any(s => key.EndsWith(s, StringComparison.Ordinal))
-           || SecretKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Sır ya da KVKK kapsamındaki kişisel veri anahtarı mı (büyük/küçük harf duyarsız). Güvenlik incelemesi L1: PII
+    /// anahtarları (TC, ehliyet, pasaport, maaş, IBAN) da maskelenir — interceptor düz-metin legacy alanları maskeliyor
+    /// ama eski kayıtlar ve yeni adlandırmalar kaçabilir.
+    /// </summary>
+    public static bool IsSecretKey(string key)
+        => SecretKeySuffixes.Any(s => key.EndsWith(s, StringComparison.OrdinalIgnoreCase))
+           || SecretKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase))
+           || PiiKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Denetim değer JSON'u → sır anahtarları maskeli JSON. Nesne değilse ya da ayrıştırılamıyorsa <c>null</c>.</summary>
-    internal static string? MaskSecrets(string? json)
+    private static readonly string[] PiiKeyParts = ["TcKimlik", "EhliyetNo", "PasaportNo", "Maas", "Iban"];
+
+    /// <summary>Denetim değer JSON'u → sır/PII anahtarları (iç içe nesne ve dizilerde de) maskeli JSON. Nesne değilse ya da
+    /// ayrıştırılamıyorsa <c>null</c>.</summary>
+    public static string? MaskSecrets(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try
         {
             if (JsonNode.Parse(json) is not JsonObject obj) return null;
-            foreach (var key in obj.Select(kv => kv.Key).ToList())
-                if (IsSecretKey(key) && obj[key] is not null)
-                    obj[key] = "***";
+            MaskNode(obj);
             return obj.ToJsonString();
         }
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    private static void MaskNode(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject o:
+                foreach (var key in o.Select(kv => kv.Key).ToList())
+                {
+                    if (IsSecretKey(key) && o[key] is not null) o[key] = "***";
+                    else MaskNode(o[key]);
+                }
+                break;
+            case JsonArray a:
+                foreach (var item in a) MaskNode(item);
+                break;
         }
     }
 }
