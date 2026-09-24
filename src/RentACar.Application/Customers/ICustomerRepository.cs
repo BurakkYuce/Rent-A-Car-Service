@@ -68,5 +68,12 @@ public interface ICustomerRepository
 
     Task<bool> UpdateAsync(Guid id, Action<Customer> apply, CancellationToken ct = default);
 
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm karşılaştırması (<paramref name="expectedVersion"/> null → yalnız
+    /// kilit). Sürüm farklı → <see cref="Common.EszamanliDegisiklikException"/>, hiçbir şey yazılmaz.</summary>
+    Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Customer> apply, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
+    Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
+
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }

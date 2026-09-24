@@ -26,6 +26,13 @@ public interface IPenaltyRepository
     Task<bool> UpdateAsync(Guid id, Action<Penalty> apply, CancellationToken ct = default);
 
     /// <summary>
+    /// #286 adversarial M1 — kilitli durum geçişi (iptal). Yansıtma ve ödemeyle AYNI sırada kilit alır:
+    /// <c>pg_advisory_xact_lock("ceza:{tenant}:{cezaId}")</c> → ceza satırı <c>FOR UPDATE</c>; <paramref name="apply"/>
+    /// kilit altında okunan GÜNCEL satırla çağrılır (durum/ödenen yeniden denetlenir). Kayıt yoksa false.
+    /// </summary>
+    Task<bool> UpdateLockedAsync(Guid id, Action<Penalty> apply, CancellationToken ct = default);
+
+    /// <summary>
     /// Yansıtma: cezayı Yansitildi'ye çevirir ve DENGELİ defter kümesini yazar — TEK
     /// transaction. Satır kilidiyle (FOR UPDATE) idempotenttir (zaten yansıtılmışsa false).
     /// </summary>

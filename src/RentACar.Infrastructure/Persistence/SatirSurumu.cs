@@ -40,12 +40,18 @@ internal static class SatirSurumu
     public const string SssKayitlari = "SssKayitlari";
     public const string WebIlanlar = "WebIlanlar";
 
+    /// <summary>F7.1 — cari kartı ve CRM kayıtları (anket, şikayet, assistans, hukuk) tam değiştirme PUT'ları.</summary>
+    public const string Customers = "Customers", Surveys = "Anketler", Complaints = "Sikayetler", AssistanceRequests = "AssistansTalepleri", LegalFiles = "HukukDosyalari";
+
     // F6.1b — araç finans/operasyon kayıtları: durum geçişleri kilit altında, tam değiştirme PUT'u sürümlü.
     public const string AracSiparisleri = "AracSiparisleri";
     public const string Baflar = "Baflar";
     public const string HasarDosyalari = "DamageFiles";
     public const string MusteriTaksitleri = "MusteriTaksitleri";
     public const string FiloPlanHedefleri = "FiloPlanHedefleri";
+
+    /// <summary>F8.1b (#286 M3) — gelen e-fatura bağlama PUT'u sürümlü; durum geçişleri ve giderleştirme kilit altında.</summary>
+    public const string GelenEFaturalar = "GelenEFaturalar";
 
     private static readonly HashSet<string> Tablolar =
     [
@@ -56,6 +62,8 @@ internal static class SatirSurumu
         FirmaAyarlari, MesajSablonlari,
         InsuranceCompanies, KdvRates, PenaltyTypes, Locations, Personnel, DocumentTemplates, VehicleGroups,
         BlogYazilari, SayfaIcerikler, SssKayitlari, WebIlanlar,
+        GelenEFaturalar,
+        Customers, Surveys, Complaints, AssistanceRequests, LegalFiles,
     ];
 
     private static string Dogrula(string tablo)

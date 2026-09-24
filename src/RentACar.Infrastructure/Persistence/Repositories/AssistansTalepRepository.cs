@@ -34,13 +34,19 @@ public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> fac
         if (!string.IsNullOrWhiteSpace(filtre.Ara))
         {
             var a = filtre.Ara.Trim();
+            // #283 KVKK M1: the name/phone snapshot may have been copied from the linked rental's customer; when that
+            // customer is anonymised the snapshot is hidden on screen, so it must not be matchable either.
             q = q.Where(x => EF.Functions.ILike(x.Mesaj, $"%{a}%")
                           || (x.Sebep != null && EF.Functions.ILike(x.Sebep, $"%{a}%"))
-                          || (x.AdSoyad != null && EF.Functions.ILike(x.AdSoyad, $"%{a}%"))
-                          || (x.CepTel != null && EF.Functions.ILike(x.CepTel, $"%{a}%")));
+                          || (x.AdSoyad != null && EF.Functions.ILike(x.AdSoyad, $"%{a}%")
+                              && !db.Rentals.Any(r => r.Id == x.RentalId
+                                  && db.Customers.Any(c => c.Id == r.MusteriId && c.AnonimAd)))
+                          || (x.CepTel != null && EF.Functions.ILike(x.CepTel, $"%{a}%")
+                              && !db.Rentals.Any(r => r.Id == x.RentalId
+                                  && db.Customers.Any(c => c.Id == r.MusteriId && c.AnonimTelefon))));
         }
 
-        return await q.OrderByDescending(x => x.Zaman).ToListAsync(ct);
+        return await q.OrderByDescending(x => x.Zaman).Take(10_000).ToListAsync(ct); // #283 L2: upper bound
     }
 
     public async Task<AssistansTalep?> FindAsync(Guid id, CancellationToken ct = default)
@@ -74,5 +80,16 @@ public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> fac
         db.AssistansTalepleri.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>).</summary>
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<AssistansTalep> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.AssistanceRequests, id, expectedVersion,
+            (db, key, c) => db.AssistansTalepleri.FirstOrDefaultAsync(x => x.Id == key, c), apply, ct);
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.AssistanceRequests, id, ct);
     }
 }
