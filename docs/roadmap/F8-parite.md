@@ -132,8 +132,8 @@ olmayan firmada 200, POST yönlenmez, döngü yok, giriş sonrası dönüş.
   tanımlı olduğu ve ekstre rotasının FinanceWrite ∨ ViewReports kapısı (hedefler kaynakla seçilir). Host: F8 302,
   pilot olmayan firmada 200, F8 POST'ları yönlenmez, oturumsuz zincir döngüsüz. "Taşınmamış modül" örneği artık
   `/bildirimler`.
-- `MenuKaydiTests` / `UiSecimMenuTests`: spa kümesi ve sayısı (56 → 73; Finans +17); Finans öğeleri FinanceWrite'a
+- `MenuKaydiTests` / `UiSecimMenuTests`: spa kümesi ve sayısı (F9.3 sonrası 71 → 88; Finans +17); Finans öğeleri FinanceWrite'a
   bağlı (operatöre ek izinle görünür, Muhasebe'ye yasakla gizlenir).
-- `UcIzinKapsamaTests`: F8 envanterindeki 36 silinecek uç sayılmaz; kalıcı dar uç tabanı 8 → 5; FinanceReverse türü
-  uçlar yaşadıkça F8 kümesinde aranır.
+- `UcIzinKapsamaTests`: F8 envanterindeki 36 silinecek uç sayılmaz; kalıcı dar uç tabanı (F9.3 sonrası) 5 → 2;
+  OperationsDelete ve FinanceReverse türü uçlar yaşadıkça silinecek kümede aranır.
 - `MenuKapsamaTests`: F8 SPA rotalarının parametresiz 17'si menüde spa öğesi.
