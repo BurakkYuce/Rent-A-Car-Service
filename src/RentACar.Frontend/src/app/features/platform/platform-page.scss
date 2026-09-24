@@ -1,0 +1,176 @@
+// Shared layout of the platform console pages (each page lists it in `styleUrls`; lazy chunks only).
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-4);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rc-bosluk-2);
+}
+
+h1 {
+  font-size: var(--rc-yazi-xl);
+  overflow-wrap: anywhere;
+}
+
+h2 {
+  font-size: var(--rc-yazi-lg);
+}
+
+.muted {
+  color: var(--rc-metin-ikincil);
+}
+
+.small {
+  font-size: var(--rc-yazi-sm);
+}
+
+.mono {
+  font-family: var(--rc-font-mono);
+}
+
+.link {
+  color: var(--rc-vurgu-metin);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background-color: var(--rc-yuzey);
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--rc-bosluk-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+.card__num {
+  font-size: var(--rc-yazi-xl);
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+.card__label {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-sm);
+}
+
+// Tables scroll inside their own box: the page body never scrolls sideways (320 px).
+.table-wrap {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--rc-tablo-hucre-bosluk);
+  border-bottom: 1px solid var(--rc-kenar);
+  text-align: left;
+  vertical-align: top;
+  // `rc-gorunmez` (position: absolute) inside a cell stays inside the scroller (AGENTS "Tablo motoru").
+  position: relative;
+}
+
+th {
+  color: var(--rc-metin-ikincil);
+  font-weight: var(--rc-agirlik-orta);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-1) var(--rc-bosluk-2);
+}
+
+.error-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+}
+
+.close-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  max-width: 28rem;
+  padding-top: var(--rc-bosluk-3);
+  border-top: 1px solid var(--rc-kenar);
+}
+
+// Print-size preview: PDFs fit the logo to 38 pt; showing 38 css px makes blur visible before printing.
+.logo-frame {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar);
+  background-color: var(--rc-yuzey);
+  overflow: hidden;
+}
+
+.logo-frame img {
+  height: 2.375rem;
+  width: auto;
+  max-width: 100%;
+}
+
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+}
+
+.file-field input[type='file'] {
+  max-width: 100%;
+}

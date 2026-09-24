@@ -34,6 +34,9 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
         await next(ctx);
     }
 
+    /// <summary>SPA platform screens root (<c>/app/platform</c>).</summary>
+    public const string SpaPlatformRoot = RentACar.Web.Spa.SpaBarindirma.Onek + "/platform";
+
     private static bool ShouldSkip(PathString path)
     {
         var p = path.Value ?? "";
@@ -48,6 +51,10 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             || RentACar.Web.Api.UiApiExtensions.OturumYolu(path)
             // F12.1: platform konsolunun UI API'si (/api/ui/v1/platform/*) — Blazor /platform muafiyetinin karşılığı.
             || RentACar.Web.Api.UiApiExtensions.PlatformYolu(path)
+            // F12.2: yeni arayüzün platform ekranları (/app/platform/*) — SPA kabuğu anonim, veri yukarıdaki
+            // platform API'sinde korunur. Muaf olmasa platform operatörünün derin bağlantısı/yenilemesi Blazor
+            // konsoluna düşerdi. Segment eşleşmesi: /app/platformx, /app/panel muaf DEĞİL.
+            || path.StartsWithSegments(SpaPlatformRoot, StringComparison.OrdinalIgnoreCase)
             || Path.HasExtension(p); // statik varlıklar (.css/.js/.woff2 …) — sayfa değil
     }
 }

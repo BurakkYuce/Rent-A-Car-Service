@@ -7280,9 +7280,14 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Host")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_TenantDomains_Host_Active")
+                        .HasFilter("\"Status\" = 0");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Host")
+                        .IsUnique();
 
                     b.ToTable("TenantDomains", (string)null);
                 });

@@ -1,0 +1,134 @@
+<div class="sayfa">
+  <h1>{{ 'tanimlar.branch.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'tanimlar.branch.aciklama' | transloco }}</p>
+  <rc-tanim-crud
+    layout="panel"
+    [baslik]="'tanimlar.branch.tablo' | transloco"
+    [alanlar]="fields"
+    [kaynak]="source"
+  />
+
+  <section class="bolum" aria-labelledby="sube-hizmet-baslik">
+    <h2 id="sube-hizmet-baslik">{{ 'tanimlar.branch.hizmet.baslik' | transloco }}</h2>
+    <p class="aciklama">{{ 'tanimlar.branch.hizmet.aciklama' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="serviceSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="serviceForm">
+      <rc-alan [etiket]="'tanimlar.branch.hizmet.sube' | transloco">
+        <rc-secim formControlName="subeId" [secenekler]="branchOptions()" />
+      </rc-alan>
+      <rc-alan [etiket]="'tanimlar.branch.hizmet.hizmet' | transloco">
+        <rc-metin-girdisi formControlName="hizmetAdi" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'tanimlar.branch.hizmet.aciklamaAlan' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="serviceSubmit.gonderiliyor()"
+          (click)="addService()"
+        >
+          {{ 'tanimlar.branch.hizmet.ekle' | transloco }}
+        </button>
+      </div>
+    </div>
+    @if (servicesError()) {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ servicesError() }}</p>
+    }
+    <div class="kaydirma">
+      <table class="tablo" [attr.aria-busy]="services() === null">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'tanimlar.branch.hizmet.sube' | transloco }}</th>
+            <th scope="col">{{ 'tanimlar.branch.hizmet.hizmet' | transloco }}</th>
+            <th scope="col">{{ 'tanimlar.branch.hizmet.aciklamaAlan' | transloco }}</th>
+            <th scope="col" class="islemler">
+              {{ 'form.tanim.islemler' | transloco }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (h of services() ?? []; track h.id) {
+            <tr>
+              <td>{{ h.subeAd }}</td>
+              <td>{{ h.hizmetAdi }}</td>
+              <td>{{ h.aciklama ?? '—' }}</td>
+              <td class="islemler">
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                  [disabled]="serviceBusy()"
+                  (click)="removeService(h)"
+                >
+                  {{ 'tanimlar.branch.hizmet.sil' | transloco }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            @if (services() !== null) {
+              <tr>
+                <td class="bos" colspan="4">{{ 'tanimlar.branch.hizmet.bos' | transloco }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="bolum" aria-labelledby="sube-birlestir-baslik">
+    <h2 id="sube-birlestir-baslik">{{ 'tanimlar.branch.birlestir.baslik' | transloco }}</h2>
+    <p class="aciklama">{{ 'tanimlar.branch.birlestir.aciklama' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="previewSubmit.genelHatalar()" />
+    <rc-form-hatalari [hatalar]="mergeSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="mergeForm">
+      <rc-alan [etiket]="'tanimlar.branch.birlestir.kaynak' | transloco">
+        <rc-secim formControlName="kaynakId" [secenekler]="branchOptions()" />
+      </rc-alan>
+      <rc-alan [etiket]="'tanimlar.branch.birlestir.hedef' | transloco">
+        <rc-secim formControlName="hedefId" [secenekler]="activeBranchOptions()" />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="previewSubmit.gonderiliyor()"
+          (click)="showPreview()"
+        >
+          {{ 'tanimlar.branch.birlestir.onizle' | transloco }}
+        </button>
+      </div>
+    </div>
+    @if (preview(); as p) {
+      <div class="onizleme" role="status">
+        <p>
+          <strong>{{
+            'tanimlar.branch.birlestir.ozet'
+              | transloco: { kaynak: p.kaynakAd, hedef: p.hedefAd, toplam: p.toplam }
+          }}</strong>
+        </p>
+        <ul class="aciklama">
+          @for (e of p.etkilenen; track e.tablo) {
+            <li>{{ e.tablo }}: {{ e.adet }}</li>
+          } @empty {
+            <li>{{ 'tanimlar.branch.birlestir.tasinacakYok' | transloco }}</li>
+          }
+        </ul>
+        <div class="eylemler">
+          <rc-onay-kutusu [formControl]="confirmMerge">{{
+            'tanimlar.branch.birlestir.onay' | transloco
+          }}</rc-onay-kutusu>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--tehlike"
+            [disabled]="!confirmed() || mergeSubmit.gonderiliyor()"
+            (click)="merge()"
+          >
+            {{ 'tanimlar.branch.birlestir.birlestir' | transloco }}
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+</div>

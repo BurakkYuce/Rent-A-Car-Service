@@ -45,15 +45,26 @@ public sealed class KullaniciIzinRepository(IDbContextFactory<AppDbContext> fact
             mevcut.TanimlayanKullanici = tanimlayan;
             mevcut.CreatedAtUtc = DateTimeOffset.UtcNow;
         }
+        // F11.1b güvenlik M2: istisna değişikliği denetim izine (tablo IAuditable değil).
+        UserAdminAudit.Add(db, UserAdminAudit.UsersEntity, userId, Domain.Enums.AuditAction.Update,
+            new UserAuditEntry(ver ? "IzinIstisnasiVer" : "IzinIstisnasiYasakla", izin));
         await db.SaveChangesAsync(ct);
     }
 
     public async Task<bool> RemoveAsync(Guid userId, string izin, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         var silinen = await db.KullaniciIzinIstisnalari
             .Where(i => i.TenantId == db.TenantId && i.UserId == userId && i.Izin == izin)
             .ExecuteDeleteAsync(ct);
+        if (silinen > 0)
+        {
+            UserAdminAudit.Add(db, UserAdminAudit.UsersEntity, userId, Domain.Enums.AuditAction.Update,
+                new UserAuditEntry("IzinIstisnasiKaldir", izin));
+            await db.SaveChangesAsync(ct);
+        }
+        await tx.CommitAsync(ct);
         return silinen > 0;
     }
 }

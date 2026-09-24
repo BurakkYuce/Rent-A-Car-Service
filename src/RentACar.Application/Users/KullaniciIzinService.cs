@@ -54,6 +54,9 @@ public sealed class KullaniciIzinService(
         // yok — matris zaten hepsini veriyor — ama zararsız; yalnız tehlikeli yön engellenir.)
         if (!ver && izin == Permission.ManageUsers && hedef.Rol == UserRole.Admin)
             throw new ValidationException("Admin rolündeki kullanıcıdan kullanıcı-yönetimi yetkisi alınamaz.");
+        // F11.1b güvenlik M2: ManageUsers vermek ve Admin hesabının istisnalarına dokunmak yalnız Admin ROLÜNE.
+        if ((ver && izin == Permission.ManageUsers) || hedef.Rol == UserRole.Admin)
+            RequireAdminRole();
 
         await repository.UpsertAsync(userId, izin.ToString(), ver, currentUser.UserName, ct);
     }
@@ -63,6 +66,17 @@ public sealed class KullaniciIzinService(
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         if (currentUser.UserId == userId)
             throw new ValidationException("Kendi izin istisnanızı değiştiremezsiniz (başka bir yönetici yapmalı).");
+        // F11.1b güvenlik M2: ManageUsers istisnasını kaldırmak (yasağı kaldırmak = yetki iadesi) ve Admin hesabına
+        // dokunmak yalnız Admin ROLÜNE.
+        if (string.Equals(izinAdi, nameof(Permission.ManageUsers), StringComparison.Ordinal)
+            || (await users.FindAsync(userId, ct))?.Rol == UserRole.Admin)
+            RequireAdminRole();
         return await repository.RemoveAsync(userId, izinAdi, ct);
+    }
+
+    private void RequireAdminRole()
+    {
+        if (currentUser.Role != UserRole.Admin)
+            throw new YetkiYokException("Bu işlemi (kullanıcı yönetimi yetkisi / Admin hesabı) yalnız Admin rolü yapabilir.");
     }
 }

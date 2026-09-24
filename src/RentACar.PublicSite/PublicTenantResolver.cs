@@ -28,11 +28,11 @@ public interface IPublicTenantResolver
 /// SystemTenantContext + TenantGuc.OpenAsync ile AYRI bir context üzerinden okunur (TenantGuc.cs'in kendi
 /// uyarısı: sıralama şart, aksi halde RLS sessizce 0 satır döner).
 ///
-/// PR-5: `PendingVerification`+`Custom` host'lar da GEÇERLİ sayılır (Active ile birlikte) — aksi halde
-/// Caddy `on_demand_tls`'in ACME challenge'ı için attığı İLK gerçek istek 404 alır, kendi kendini asla
-/// doğrulayamaz. Nihai sonuç `Found` ise (tenant aktif + site açık) bu, Let's Encrypt'in HTTP-01 challenge'ı
-/// zaten DNS sahipliğini kriptografik olarak kanıtladığı anlamına gelir — o an satır `Active`+`VerifiedAtUtc`
-/// olarak işaretlenir (kendi-kendini-doğrulama, ayrı bir DNS-TXT sistemi GEREKMEZ).
+/// F11.1b güvenlik M6: YALNIZ `Active` host çözülür. Eski PR-5 davranışı (bekleyen özel alan adının ilk istekte
+/// kendi kendini etkinleştirmesi) sahiplik KANITLAMIYORDU: DNS'i platforma yönelmiş BAŞKA bir firmanın alan adını
+/// önce ekleyen kiracı o alan adında kendi sitesini yayınlıyordu (HTTP-01 yalnız DNS'in bize yöneldiğini kanıtlar,
+/// hangi kiracıya ait olduğunu değil). Etkinleştirme artık kiracıya özel DNS TXT belirteciyle
+/// (<c>TenantSettingsService.VerifyCustomDomainAsync</c>).
 /// </summary>
 public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantResolver
 {
@@ -43,12 +43,10 @@ public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantR
         var h = host.ToLowerInvariant();
 
         Guid tenantId;
-        Guid? pendingDomainId = null;
         await using (var db0 = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
             var row = await db0.TenantDomains.AsNoTracking()
-                .Where(d => d.Host == h && (d.Status == TenantDomainStatus.Active
-                    || (d.Kind == TenantDomainKind.Custom && d.Status == TenantDomainStatus.PendingVerification)))
+                .Where(d => d.Host == h && d.Status == TenantDomainStatus.Active)
                 .Select(d => new { d.Id, d.TenantId, d.Status })
                 .FirstOrDefaultAsync(ct);
             if (row is null) return new(PublicTenantResolution.NotFound);
@@ -65,7 +63,6 @@ public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantR
             if (!t.WebSitesiModulu) return new(PublicTenantResolution.ModulKapali);
 
             tenantId = row.TenantId;
-            if (row.Status == TenantDomainStatus.PendingVerification) pendingDomainId = row.Id;
         }
 
         var sys = new SystemTenantContext { TenantId = tenantId };
@@ -74,14 +71,6 @@ public sealed class PublicTenantResolver(IConfiguration config) : IPublicTenantR
         var enabled = await db.TenantSettings.AsNoTracking()
             .Where(s => s.TenantId == tenantId).Select(s => s.PublicSiteEnabled).FirstOrDefaultAsync(ct);
         if (!enabled) return new(PublicTenantResolution.SiteDisabled);
-
-        if (pendingDomainId is { } id)
-        {
-            await db.TenantDomains.Where(d => d.Id == id && d.Status == TenantDomainStatus.PendingVerification)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(d => d.Status, TenantDomainStatus.Active)
-                    .SetProperty(d => d.VerifiedAtUtc, DateTimeOffset.UtcNow), ct);
-        }
 
         return new(PublicTenantResolution.Found, tenantId);
     }

@@ -21,6 +21,25 @@ internal static class SatirSurumu
     public const string AracSahipleri = "AracSahipleri";
     public const string Segmentler = "Segmentler";
     public const string AracTipleri = "AracTipleri";
+    /// <summary>F11.1b — firma ayarları (tenant başına tek satır) ve müşteri mesaj şablonları tam değiştirme PUT'ları.</summary>
+    public const string FirmaAyarlari = "Ayarlar";
+    public const string MesajSablonlari = "MesajSablonlari";
+
+    /// <summary>F11.1b — tanım ekranlarının (ikinci yarı) tam değiştirme PUT'ları.</summary>
+    public const string InsuranceCompanies = "SigortaSirketleri";
+    public const string KdvRates = "KdvOranlari";
+    public const string PenaltyTypes = "CezaTurleri";
+    public const string Locations = "Locations";
+    public const string Personnel = "Personeller";
+    public const string DocumentTemplates = "BelgeSablonlari";
+    public const string VehicleGroups = "AracGruplari";
+
+    /// <summary>F11.1b — web sitesi yönetimi tam değiştirme PUT'ları (blog, site sayfası, SSS, ilan fiyat/özellik).</summary>
+    public const string BlogYazilari = "BlogYazilari";
+    public const string SayfaIcerikler = "SayfaIcerikler";
+    public const string SssKayitlari = "SssKayitlari";
+    public const string WebIlanlar = "WebIlanlar";
+
     /// <summary>F7.1 — cari kartı ve CRM kayıtları (anket, şikayet, assistans, hukuk) tam değiştirme PUT'ları.</summary>
     public const string Customers = "Customers", Surveys = "Anketler", Complaints = "Sikayetler", AssistanceRequests = "AssistansTalepleri", LegalFiles = "HukukDosyalari";
 
@@ -39,6 +58,10 @@ internal static class SatirSurumu
         Rezervasyonlar, RezSartlari, FiloKiralamalar, Teklifler,
         Araclar, AracSahipleri, Segmentler, AracTipleri,
         AracSiparisleri, Baflar, HasarDosyalari, MusteriTaksitleri, FiloPlanHedefleri,
+        // F11.1b
+        FirmaAyarlari, MesajSablonlari,
+        InsuranceCompanies, KdvRates, PenaltyTypes, Locations, Personnel, DocumentTemplates, VehicleGroups,
+        BlogYazilari, SayfaIcerikler, SssKayitlari, WebIlanlar,
         GelenEFaturalar,
         Customers, Surveys, Complaints, AssistanceRequests, LegalFiles,
     ];

@@ -123,10 +123,15 @@ public sealed class MenuKaydiTests
         Assert.Equal(ogeler.Count, ogeler.Select(o => o.Sira).Distinct().Count());
         // F4.6: F4 sayfaları (Panel, Kiralar, Yeni Kira) yeni arayüzün; sahip rotadan türer (/app → spa).
         // F5.4: Rezervasyon grubu (4), Kira grubundan Teklifler + Filo Kiralama, iki kısa yol (Yeni Rezervasyon, Müsaitlik).
+        // F6.4: Araçlar grubunun tamamı (12) + Tanımlar'daki Araç Tipleri ve Segmentler (F6 sayfaları; iki grupta birer kez).
         Assert.Equal(new[]
             {
-                "/app/filo-kiralama", "/app/kiralar", "/app/kiralar/yeni", "/app/musaitlik", "/app/musaitlik", "/app/panel",
-                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/takvim", "/app/teklifler",
+                "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
+                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/baf",
+                "/app/filo-kiralama", "/app/filo-plan", "/app/hasar", "/app/kiralar", "/app/kiralar/yeni", "/app/musaitlik",
+                "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
+                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/segmentler", "/app/segmentler",
+                "/app/takvim", "/app/teklifler",
             },
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
@@ -241,6 +246,7 @@ public sealed class MenuKaydiTests
         var yasak = YeniGorunur(Kullanici(UserRole.Operator, yasak: ["OperationsWrite"]));
         Assert.DoesNotContain(yasak, x => x.StartsWith("Araçlar|", StringComparison.Ordinal) || x.StartsWith(KisaYollar + "|", StringComparison.Ordinal));
         Assert.DoesNotContain("Kira|/kiralar", yasak);
+        Assert.DoesNotContain("Tanımlar|/segmentler", yasak);  // F6.4: spa öğesi de izinle gizlenir
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
         Assert.Contains("|/vade", yasak);
     }
