@@ -35,6 +35,7 @@ import { trAramaAnahtari } from '@core/metin/tr-normalize';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { canSeeStatement } from '@features/customers/customer-model';
 import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 import { TemelStore } from '@core/veri/temel-store';
 import {
@@ -348,6 +349,11 @@ export class KiraFormuDurumu {
       ? this.oturum.izinVar('FinanceWrite')
       : (this.gorunenDetay()?.yetkiler.finans ?? false),
   );
+  /**
+   * F7.3: cari ekstresi bağlantısı (SPA `/cariler/:id/ekstre`) yalnız ekstre rotasının kapısıyla görünür —
+   * FinanceWrite ∨ ViewReports (#295 KVKK M1; bakiye + tüm şubelerin hareketleri). Kural `canSeeStatement`'te tek.
+   */
+  readonly canSeeCustomerStatement = computed(() => canSeeStatement((p) => this.oturum.izinVar(p)));
   /** Risk onayı yalnız Yönetici/Admin (servis rolü AYRICA doğrular) — Blazor `AuthorizeView Roles`. */
   readonly riskOnayGorunur = computed(() => {
     const rol = this.oturum.ben()?.rol;

@@ -1,0 +1,257 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.talep.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.talep.aciklama' | transloco }}</p>
+
+  <div class="rc-form-izgara" [formGroup]="filters">
+    <rc-alan [etiket]="'sistem.talep.durumBaslik' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'sistem.talep.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'sistem.talep.ara' | transloco">
+      <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+    </rc-alan>
+    <div class="eylemler">
+      <button type="button" class="rc-dugme rc-dugme--birincil" (click)="search()">
+        {{ 'sistem.talep.suz' | transloco }}
+      </button>
+    </div>
+  </div>
+
+  @if (actionError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
+  }
+
+  @switch (list.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+          {{ 'sistem.ortak.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('bos') {}
+    @default {
+      @if (list.veri(); as d) {
+        @if (+d.ozet.yeni > 0) {
+          <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+            {{ 'sistem.talep.ozet' | transloco: { yeni: d.ozet.yeni, gun: d.ozet.enEskiGun ?? 0 } }}
+          </p>
+        }
+        @if (d.kayitlar.length === 0) {
+          <p class="bos">{{ 'sistem.talep.bos' | transloco }}</p>
+        } @else {
+          <div class="kaydirma">
+            <table class="tablo" [attr.aria-busy]="list.yukleniyor()">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'sistem.talep.musteri' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.talep.talep' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.talep.tarihler' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.talep.durumBaslik' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.talep.atanan' | transloco }}</th>
+                  <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of d.kayitlar; track r.id) {
+                  <tr>
+                    <td>
+                      {{ r.adSoyad }}
+                      <span class="alt-metin">{{ r.telefon }}</span>
+                      @if (r.email) {
+                        <span class="alt-metin">{{ r.email }}</span>
+                      }
+                    </td>
+                    <td>
+                      {{ r.ilanBaslik ?? r.aracGrupKod ?? '—' }}
+                      @if (r.gosterilenGunlukUcret !== null) {
+                        <span class="alt-metin">
+                          {{ +r.gosterilenGunlukUcret | para }}
+                          {{
+                            (r.gosterilenKdvDahil ? 'sistem.web.kdvDahil' : 'sistem.web.kdvHaric')
+                              | transloco
+                          }}
+                        </span>
+                      }
+                      @if (r.sube) {
+                        <span class="alt-metin">{{ r.sube }}</span>
+                      }
+                    </td>
+                    <td>
+                      {{ r.basTar | tarih }} – {{ r.bitTar | tarih }}
+                      <span class="alt-metin"
+                        >{{ 'sistem.talep.gelis' | transloco }}
+                        {{ r.olusturmaTarihi | tarihSaat }}</span
+                      >
+                    </td>
+                    <td>
+                      {{ statusLabel(r.durum) }}
+                      @if (r.aktif && +r.bekleyenGun > 0) {
+                        <span class="alt-metin">{{
+                          'sistem.talep.bekleyen' | transloco: { gun: r.bekleyenGun }
+                        }}</span>
+                      }
+                      @if (r.donusenRezervasyonId) {
+                        <a
+                          class="alt-metin"
+                          [routerLink]="['/rezervasyonlar', r.donusenRezervasyonId]"
+                        >
+                          {{ 'sistem.talep.rezervasyon' | transloco }}
+                        </a>
+                      }
+                    </td>
+                    <td>{{ r.atananAd ?? '—' }}</td>
+                    <td class="islemler">
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [attr.aria-expanded]="open()?.id === r.id"
+                        (click)="toggle(r)"
+                      >
+                        {{ 'sistem.talep.ayrinti' | transloco: { not: r.notSayisi } }}
+                      </button>
+                    </td>
+                  </tr>
+                  @if (open()?.id === r.id) {
+                    <tr>
+                      <td colspan="6">
+                        <div class="kutu">
+                          @if (r.not) {
+                            <p>
+                              <strong>{{ 'sistem.talep.musteriNotu' | transloco }}</strong>
+                              {{ r.not }}
+                            </p>
+                          }
+                          @if (r.aktif) {
+                            <div class="eylemler">
+                              @for (next of r.ilerlemeler; track next) {
+                                <button
+                                  type="button"
+                                  class="rc-dugme rc-dugme--kucuk"
+                                  [disabled]="busy()"
+                                  (click)="setStatus(r, next)"
+                                >
+                                  {{ 'sistem.talep.gec' | transloco: { durum: statusLabel(next) } }}
+                                </button>
+                              }
+                              <button
+                                type="button"
+                                class="rc-dugme rc-dugme--kucuk"
+                                [disabled]="busy()"
+                                (click)="claim(r, !r.atananKullaniciId)"
+                              >
+                                {{
+                                  (r.atananKullaniciId
+                                    ? 'sistem.talep.birak'
+                                    : 'sistem.talep.ustlen'
+                                  ) | transloco
+                                }}
+                              </button>
+                              <button
+                                type="button"
+                                class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                                [disabled]="busy()"
+                                (click)="reject(r)"
+                              >
+                                {{ 'sistem.talep.reddet' | transloco }}
+                              </button>
+                            </div>
+                            <h3>{{ 'sistem.talep.donustur' | transloco }}</h3>
+                            @if (candidates() === null) {
+                              <p class="bos" role="status">
+                                {{ 'sistem.ortak.yukleniyor' | transloco }}
+                              </p>
+                            } @else if ((candidates() ?? []).length === 0) {
+                              <p class="bos">{{ 'sistem.talep.adayYok' | transloco }}</p>
+                            } @else {
+                              <rc-form-hatalari [hatalar]="convertSubmit.genelHatalar()" />
+                              <div class="rc-form-izgara" [formGroup]="convertForm">
+                                <rc-alan [etiket]="'sistem.talep.arac' | transloco">
+                                  <rc-secim
+                                    formControlName="aracId"
+                                    [secenekler]="candidateOptions()"
+                                  />
+                                </rc-alan>
+                                <div class="eylemler">
+                                  <button
+                                    type="button"
+                                    class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                                    [disabled]="convertSubmit.gonderiliyor()"
+                                    (click)="convert(r)"
+                                  >
+                                    {{ 'sistem.talep.donusturDugme' | transloco }}
+                                  </button>
+                                </div>
+                              </div>
+                            }
+                          }
+                          <h3>{{ 'sistem.talep.notlar' | transloco }}</h3>
+                          @for (n of notes() ?? []; track n.id) {
+                            <p>
+                              {{ n.metin }}
+                              <span class="alt-metin"
+                                >{{ n.kullanici ?? '—' }} · {{ n.zamanUtc | tarihSaat }}</span
+                              >
+                            </p>
+                          } @empty {
+                            <p class="bos">{{ 'sistem.talep.notYok' | transloco }}</p>
+                          }
+                          <rc-form-hatalari [hatalar]="noteSubmit.genelHatalar()" />
+                          <div class="rc-form-izgara" [formGroup]="noteForm">
+                            <rc-alan [etiket]="'sistem.talep.yeniNot' | transloco">
+                              <rc-metin-alani formControlName="metin" [azamiUzunluk]="2000" />
+                            </rc-alan>
+                            <div class="eylemler">
+                              <button
+                                type="button"
+                                class="rc-dugme rc-dugme--kucuk"
+                                [disabled]="noteSubmit.gonderiliyor()"
+                                (click)="addNote(r)"
+                              >
+                                {{ 'sistem.talep.notEkle' | transloco }}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          <nav class="sayfalama" [attr.aria-label]="'sistem.talep.sayfalama' | transloco">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="page() <= 1 || list.yukleniyor()"
+              (click)="go(-1)"
+            >
+              {{ 'sistem.ortak.onceki' | transloco }}
+            </button>
+            <span role="status">
+              {{
+                'sistem.ortak.sayfa'
+                  | transloco: { sayfa: page(), toplam: pages(), kayit: d.toplam }
+              }}
+            </span>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="page() >= pages() || list.yukleniyor()"
+              (click)="go(1)"
+            >
+              {{ 'sistem.ortak.sonraki' | transloco }}
+            </button>
+          </nav>
+        }
+      } @else {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

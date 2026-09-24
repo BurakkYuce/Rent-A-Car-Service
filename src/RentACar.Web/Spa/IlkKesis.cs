@@ -4,10 +4,10 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F10.3 rapor kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F10) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -59,6 +59,10 @@ public static class IlkKesis
     /// <c>/app/araclar/{id}</c>, <c>/araclar/{id}</c> (detay) → <c>/app/araclar/{id}/detay</c>; diğer on sayfa aynı adla
     /// <c>/app</c> altına. Fotoğraf GET'leri (<c>/vehicles/{id}/photos/{p}[/thumb]</c>), export ve Blazor POST'ları
     /// segment sayısı ya da yöntem farkıyla dışarıda; <c>/arac-gruplari</c> F11'in sayfasıdır.</item>
+    /// <item><b>F7</b> (F7.3): 8 cari/CRM sayfası, hepsi aynı adla <c>/app</c> altına (<c>/cariler</c>,
+    /// <c>/cariler/{id}</c> kart, <c>/cariler/{id}/detay</c>, <c>/anketler</c>, <c>/sikayetler</c>, <c>/assistans</c>,
+    /// <c>/hukuk</c>, <c>/crm</c>). <c>/cariler/{id}/ekstre</c> F8'in sayfasıdır (F8 kesişinde); SPA'nın
+    /// <c>/cariler/yeni</c> rotasının Blazor karşılığı yok (Guid kısıtı <c>yeni</c>'ye uymaz).</item>
     /// <item><b>F10</b> (F10.3): 26 rapor sayfası, hepsi AYNI adla <c>/app</c> altına (tek ortak rapor ekranı; araç
     /// karnesi <c>/raporlar/arac-karne/{id}</c>). Rapor export'ları (<c>/raporlar/export/{rapor}</c>) segment farkıyla
     /// dışarıda; personel çalışma Blazor POST'ları (<c>/raporlar/personel-calisma/create|update|delete</c>) yöntem
@@ -95,6 +99,15 @@ public static class IlkKesis
         new("/baf", SpaBarindirma.Onek + "/baf"),
         new("/hasar", SpaBarindirma.Onek + "/hasar"),
         new("/filo-plan", SpaBarindirma.Onek + "/filo-plan"),
+        // F7
+        new("/cariler", SpaBarindirma.Onek + "/cariler"),
+        new("/cariler/{id:guid}", SpaBarindirma.Onek + "/cariler/{id}"),
+        new("/cariler/{id:guid}/detay", SpaBarindirma.Onek + "/cariler/{id}/detay"),
+        new("/anketler", SpaBarindirma.Onek + "/anketler"),
+        new("/sikayetler", SpaBarindirma.Onek + "/sikayetler"),
+        new("/assistans", SpaBarindirma.Onek + "/assistans"),
+        new("/hukuk", SpaBarindirma.Onek + "/hukuk"),
+        new("/crm", SpaBarindirma.Onek + "/crm"),
         // F10
         new("/raporlar/arac-durum-takip", SpaBarindirma.Onek + "/raporlar/arac-durum-takip"),
         new("/raporlar/arac-gunluk-durum", SpaBarindirma.Onek + "/raporlar/arac-gunluk-durum"),

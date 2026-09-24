@@ -1,0 +1,68 @@
+<div class="sayfa">
+  <p class="aciklama">
+    <a routerLink="/blog-yonetim">{{ 'sistem.blog.geri' | transloco }}</a>
+  </p>
+  @switch (preview.tur()) {
+    @case ('hata') {
+      <h1>{{ 'sistem.blog.onizleme' | transloco }}</h1>
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ preview.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="preview.yenile()">
+          {{ 'sistem.ortak.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('hazir') {
+      @if (preview.veri(); as p) {
+        @if (p.durum !== 'Yayinda') {
+          <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+            {{ 'sistem.blog.taslakNotu' | transloco }}
+          </p>
+        }
+        <section class="kutu" aria-labelledby="blog-arama">
+          <h2 id="blog-arama" class="rc-gorunmez">{{ 'sistem.blog.aramaKunye' | transloco }}</h2>
+          <p class="kod-metin">{{ p.adres }}</p>
+          <p>
+            <strong>{{ p.aramaBasligi }}</strong>
+          </p>
+          @if (p.aramaAciklamasi) {
+            <p class="aciklama">{{ p.aramaAciklamasi }}</p>
+          }
+          @if (p.anahtarKelimeler.length > 0) {
+            <p class="aciklama">
+              {{ 'sistem.blog.kelimeler' | transloco }} {{ p.anahtarKelimeler.join(', ') }}
+            </p>
+          }
+          @if (p.aramaDisi) {
+            <p class="rc-form-mesaji rc-form-mesaji--uyari">
+              {{ 'sistem.blog.aramaDisiNotu' | transloco }}
+            </p>
+          }
+        </section>
+        <article class="bolum">
+          <h1>{{ p.baslik }}</h1>
+          @if (p.altBaslik) {
+            <p class="aciklama">{{ p.altBaslik }}</p>
+          }
+          @for (b of p.bloklar; track $index) {
+            @switch (b.tur) {
+              @case ('Baslik2') {
+                <h2>{{ b.metin }}</h2>
+              }
+              @case ('Baslik3') {
+                <h3>{{ b.metin }}</h3>
+              }
+              @default {
+                <p>{{ b.metin }}</p>
+              }
+            }
+          }
+        </article>
+      }
+    }
+    @default {
+      <h1>{{ 'sistem.blog.onizleme' | transloco }}</h1>
+      <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+    }
+  }
+</div>

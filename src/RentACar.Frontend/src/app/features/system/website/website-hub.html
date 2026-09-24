@@ -1,0 +1,149 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.web.baslik' | transloco }}</h1>
+  @if (!module()) {
+    <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
+  } @else {
+    <p class="aciklama">{{ 'sistem.web.aciklama' | transloco }}</p>
+    <div class="eylemler">
+      <a class="rc-dugme rc-dugme--birincil" routerLink="/web-sitesi/arac-ekle">
+        {{ 'sistem.web.aracEkle' | transloco }}
+      </a>
+    </div>
+    @if (summary.veri(); as s) {
+      @if (+s.ilansizAracSayisi > 0) {
+        <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+          {{ 'sistem.web.ilansiz' | transloco: { adet: s.ilansizAracSayisi } }}
+        </p>
+      }
+    }
+    @if (actionError()) {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
+    }
+    @switch (list.tur()) {
+      @case ('hata') {
+        <div class="rc-form-hatalari" role="alert">
+          {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+            {{ 'sistem.ortak.yenidenDene' | transloco }}
+          </button>
+        </div>
+      }
+      @case ('hazir') {
+        @if (rows().length === 0) {
+          <p class="bos">{{ 'sistem.web.ilanYok' | transloco }}</p>
+        } @else {
+          <div class="kaydirma">
+            <table class="tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'sistem.web.ilan' | transloco }}</th>
+                  <th scope="col" class="sayi">{{ 'sistem.web.arac' | transloco }}</th>
+                  <th scope="col" class="sayi">{{ 'sistem.web.vitrinde' | transloco }}</th>
+                  <th scope="col" class="sayi">{{ 'sistem.web.gunluk' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.web.durum' | transloco }}</th>
+                  <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of rows(); track r.id) {
+                  <tr>
+                    <td>
+                      {{ r.baslik }}
+                      @if (r.ozellikBayat) {
+                        <span class="rc-rozet rc-rozet--uyari">{{
+                          'sistem.web.ozellikBayat' | transloco
+                        }}</span>
+                      }
+                    </td>
+                    <td class="sayi">{{ r.aracSayisi }}</td>
+                    <td class="sayi">{{ r.adet }}</td>
+                    <td class="sayi">
+                      @if (+r.gunlukFiyat > 0) {
+                        {{ +r.gunlukFiyat | para }}
+                        <span class="alt-metin">
+                          {{
+                            (r.kdvDahil ? 'sistem.web.kdvDahil' : 'sistem.web.kdvHaric') | transloco
+                          }}
+                        </span>
+                      } @else {
+                        —
+                      }
+                    </td>
+                    <td>
+                      @if (r.yayinda) {
+                        <span class="rc-rozet rc-rozet--basari">{{
+                          'sistem.web.yayinda' | transloco
+                        }}</span>
+                      } @else {
+                        <span class="rozetler">
+                          @if (r.eksikler.includes(missingPhoto)) {
+                            <a
+                              class="rc-rozet rc-rozet--uyari"
+                              [routerLink]="['/web-sitesi/ilan', r.id, 'ozellikler']"
+                            >
+                              {{ 'sistem.web.fotoEkle' | transloco }}
+                            </a>
+                          }
+                          @for (e of otherMissing(r); track e) {
+                            <span class="rc-rozet rc-rozet--uyari">{{ e }}</span>
+                          }
+                          @if (r.eksikler.length === 0) {
+                            <span class="rc-rozet">{{ r.durum }}</span>
+                          }
+                        </span>
+                      }
+                    </td>
+                    <td class="islemler">
+                      <a
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [routerLink]="['/web-sitesi/ilan', r.id, 'fiyat']"
+                      >
+                        {{ 'sistem.web.fiyat' | transloco }}
+                      </a>
+                      <a
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [routerLink]="['/web-sitesi/ilan', r.id, 'ozellikler']"
+                      >
+                        {{ 'sistem.web.ozellikFoto' | transloco }}
+                      </a>
+                      @if (r.durum === 'Yayinda') {
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [disabled]="busy() !== null"
+                          (click)="setStatus(r, 'Pasif')"
+                        >
+                          {{ 'sistem.web.gizle' | transloco }}
+                        </button>
+                      } @else if (r.durum === 'Pasif') {
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [disabled]="busy() !== null"
+                          (click)="setStatus(r, 'Yayinda')"
+                        >
+                          {{ 'sistem.web.yayinla' | transloco }}
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="busy() !== null"
+                        (click)="remove(r)"
+                      >
+                        {{ 'sistem.ortak.sil' | transloco }}
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+      @default {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

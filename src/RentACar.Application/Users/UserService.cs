@@ -77,6 +77,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     public async Task<bool> ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default)
     {
         RequireAdmin();
+        // F11.2b güvenlik M1: yönetici sıfırlaması KENDİ hesabına uygulanmaz — kendi parolası eski parola doğrulaması
+        // ve giriş hız sınırıyla ChangeOwnPasswordAsync'ten değişir (aksi hâlde oturumu ele geçiren eski parolayı
+        // bilmeden parolayı değiştirip hesabı kalıcı alırdı).
+        if (_currentUser.UserId is { } self && self == id)
+            throw new ValidationException("Kendi parolanızı Profil > Parola Değiştir'den değiştirin.", "sifre");
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
             throw new ValidationException("Parola en az 6 karakter olmalıdır.");
         if (await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin })
