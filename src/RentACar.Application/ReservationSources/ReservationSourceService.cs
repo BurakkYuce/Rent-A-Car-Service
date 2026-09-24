@@ -40,6 +40,11 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
     public Task<bool> UpdateAsync(Guid id, ReservationSourceInput input, CancellationToken ct = default)
         => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, ct, e => Ek(e, input));
 
+    /// <summary>F11.1a — full replacement with optimistic concurrency (409 <c>cakisma</c> on a stale version).
+    /// The same extra-field hook as the create path (copy-constructor trap).</summary>
+    public Task<bool> UpdateAsync(Guid id, ReservationSourceInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, expectedVersion, ct, e => Ek(e, input));
+
     /// <summary>
     /// "Aşağıya Yansıt": seçili kaynağın 3 oranını diğer <b>AKTİF</b> kaynaklara kopyalar.
     ///

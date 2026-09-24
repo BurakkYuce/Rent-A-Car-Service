@@ -105,4 +105,12 @@ public sealed class FinancialAccountRepository(IDbContextFactory<AppDbContext> f
         if (await db.AccountLedgerEntries.AsNoTracking().AnyAsync(e => e.AccountRef == id, ct)) return true;
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.HesapId == id, ct);
     }
+
+    // F11.1a — IVersionedRepository<FinancialAccount> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<FinancialAccount>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<FinancialAccount>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<FinancialAccount> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, a => $"'{a.Kod}' kodlu hesap zaten var.", ct);
 }

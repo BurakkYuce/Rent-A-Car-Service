@@ -758,7 +758,10 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         var tipler = new[]
         {
             LedgerAccountType.Cari, LedgerAccountType.Kasa, LedgerAccountType.Banka, LedgerAccountType.Gelir,
-            LedgerAccountType.Kdv, LedgerAccountType.Gider, LedgerAccountType.Depozito, LedgerAccountType.DonemSonucu
+            LedgerAccountType.Kdv, LedgerAccountType.Gider, LedgerAccountType.Depozito, LedgerAccountType.DonemSonucu,
+            // F8.1a: bakiye düzeltmesinin karşı bacağı. Eksikken düzeltme yapılmış kiracıda mizan bakiye toplamı 0
+            // tutmuyordu (Cari bacağı görünür, karşı bacak görünmez) — "defter dengesi" göstergesi yanlış alarm verirdi.
+            LedgerAccountType.MuhasebeDuzeltmesi
         };
         var rows = await _repository.GetLedgerRowsAsync(tipler, null, asOf, ct);
         return tipler
@@ -783,6 +786,7 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri t
         LedgerAccountType.Gider => "Gider",
         LedgerAccountType.Depozito => "Depozito",
         LedgerAccountType.DonemSonucu => "Dönem Sonucu (kâr/zarar)",
+        LedgerAccountType.MuhasebeDuzeltmesi => "Muhasebe Düzeltmesi",
         _ => t.ToString()
     };
 

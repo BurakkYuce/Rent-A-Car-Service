@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddSingleton<BranchFkInterceptor>();
         services.AddSingleton<OfficeBranchInterceptor>(); // FAZ 5-C4
         services.AddSingleton<AuditSaveChangesInterceptor>();
+        services.AddSingleton<LedgerAmountGuardInterceptor>(); // F8.1a M1: defter baz tutarı son savunma
 
         // Şifreleme (roadmap D1): hassas tenant kimliklerini at-rest şifrele. Key-ring KALICI
         // (PersistKeysToFileSystem + SetApplicationName) → restart/redeploy sonrası aynı anahtarla çözülür.
@@ -86,6 +87,7 @@ public static class DependencyInjection
                 sp.GetRequiredService<TenantConnectionInterceptor>(),
                 sp.GetRequiredService<BranchFkInterceptor>(), // audit'ten ÖNCE: çözülen SubeFk denetime yansısın
                 sp.GetRequiredService<OfficeBranchInterceptor>(), // FAZ 5-C4: ofis→şube FK
+                sp.GetRequiredService<LedgerAmountGuardInterceptor>(), // F8.1a M1: |tutar × kur| < 10^15
                 sp.GetRequiredService<AuditSaveChangesInterceptor>());
             return builder.Options;
         });

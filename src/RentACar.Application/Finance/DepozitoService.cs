@@ -30,6 +30,14 @@ public sealed class DepozitoService(
     public Task<decimal> GetBakiyeAsync(Guid cariId, CancellationToken ct = default)
         => _repository.GetDepozitoBakiyeAsync(cariId, ct);
 
+    /// <summary>F8.1a — tutulan depozitolar (bakiyesi sıfır olmayan cariler; tek sorgu). Para bilgisi →
+    /// <see cref="Permission.FinanceWrite"/> (Blazor <c>/depozito</c> ekranı gibi).</summary>
+    public Task<Dictionary<Guid, decimal>> GetBakiyelerAsync(CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        return _repository.GetDepozitoBakiyeleriAsync(ct);
+    }
+
     /// <summary>Depozito al: Borç Kasa/Banka / Alacak Depozito(cari).
     /// FAZ-50: <paramref name="hesapId"/> verilirse nakit bacağı o spesifik hesaba yazılır.</summary>
     public async Task<Guid> AlAsync(Guid cariId, decimal tutar, LedgerAccountType hesap, string? doviz = "TRY",
@@ -61,10 +69,15 @@ public sealed class DepozitoService(
     }
 
     /// <summary>Depozito mahsup (cari borcuna): Borç Depozito(cari) / Alacak Cari(cari). Tutulanı aşamaz.</summary>
-    public Task<Guid> MahsupAsync(Guid cariId, decimal tutar, string? doviz = "TRY",
+    public async Task<Guid> MahsupAsync(Guid cariId, decimal tutar, string? doviz = "TRY",
         decimal? kur = null, DateTimeOffset? tarih = null, Guid? islemAnahtari = null, CancellationToken ct = default)
-        => PostAsync(cariId, tutar, LedgerAccountType.Cari, doviz, kur, tarih, islemAnahtari, "DepozitoMahsup", "Depozito mahsup",
+    {
+        // F8.1a: al/iade/irat ile simetri — guard giriş noktasında, cari kiracıda var olmalı (yetim AccountRef yok).
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        await CariVarAsync(cariId, ct);
+        return await PostAsync(cariId, tutar, LedgerAccountType.Cari, doviz, kur, tarih, islemAnahtari, "DepozitoMahsup", "Depozito mahsup",
             borc: LedgerAccountType.Depozito, borcRef: cariId, alacak: LedgerAccountType.Cari, alacakRef: cariId, kontrolEt: true, ct);
+    }
 
     /// <summary>Depozito İRAT (FAZ 1.2): iade edilmeyen depozito GELİR olur — Borç Depozito(cari) /
     /// Alacak Gelir. Tutulan depozitoyu aşamaz (mevcut bakiye guard'ı). rentalId verilirse gelir o
