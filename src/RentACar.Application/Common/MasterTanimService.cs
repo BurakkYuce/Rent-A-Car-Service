@@ -43,9 +43,14 @@ public abstract class MasterTanimService<T>(
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var ok = await _repository.DeleteAsync(id, ct);
-        _cache.Invalidate(_cacheKey);
-        return ok;
+        try
+        {
+            return await _repository.DeleteAsync(id, ct);
+        }
+        finally
+        {
+            _cache.Invalidate(_cacheKey);
+        }
     }
 
     /// <param name="ekAlanlar">
@@ -71,7 +76,16 @@ public abstract class MasterTanimService<T>(
     }
 
     /// <param name="ekAlanlar">Bkz. <see cref="CreateCoreAsync"/> — iki yolda da verilmelidir.</param>
-    protected async Task<bool> UpdateCoreAsync(Guid id, string? kod, string? ad, bool aktif,
+    protected Task<bool> UpdateCoreAsync(Guid id, string? kod, string? ad, bool aktif,
+        CancellationToken ct = default, Action<T>? ekAlanlar = null)
+        => UpdateCoreAsync(id, kod, ad, aktif, expectedVersion: null, ct, ekAlanlar);
+
+    /// <summary>
+    /// F11.1a — full replacement with optimistic concurrency: <paramref name="expectedVersion"/> is compared under the
+    /// row lock (<see cref="IMasterTanimRepository{T}.UpdateAsync(Guid, string, Action{T}, CancellationToken)"/>);
+    /// mismatch → <see cref="EszamanliDegisiklikException"/>. <c>null</c> keeps the lock-free legacy path (Blazor).
+    /// </summary>
+    protected async Task<bool> UpdateCoreAsync(Guid id, string? kod, string? ad, bool aktif, string? expectedVersion,
         CancellationToken ct = default, Action<T>? ekAlanlar = null)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
@@ -80,17 +94,33 @@ public abstract class MasterTanimService<T>(
         if (await _repository.KodExistsAsync(k, excludeId: id, ct))
             throw new ValidationException($"'{k}' kodlu {_adTekil} zaten var.");
 
-        var ok = await _repository.UpdateAsync(id, entity =>
+        void Apply(T entity)
         {
             entity.Kod = k;
             entity.Ad = a;
             entity.Aktif = aktif;
             ekAlanlar?.Invoke(entity);
             entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
-        _cache.Invalidate(_cacheKey);
-        return ok;
+        }
+        try
+        {
+            return expectedVersion is null
+                ? await _repository.UpdateAsync(id, Apply, ct)
+                : await _repository.UpdateAsync(id, expectedVersion, Apply, ct);
+        }
+        finally
+        {
+            _cache.Invalidate(_cacheKey);
+        }
     }
+
+    /// <summary>F11.1a — opaque row version for full-replacement PUTs.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => _repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.1a — versions of every row (list rows carry their version).</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default)
+        => _repository.GetVersionsAsync(ct);
 
     private static (string Kod, string Ad) Normalize(string? kod, string? ad)
         => ((kod ?? string.Empty).Trim().ToUpperInvariant(), (ad ?? string.Empty).Trim());

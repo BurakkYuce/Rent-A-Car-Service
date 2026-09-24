@@ -31,7 +31,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
             var o = filtre.CikisOfisi.Trim();
             q = q.Where(x => x.CikisOfisi != null && x.CikisOfisi.Trim() == o);
         }
-        return await q.OrderByDescending(r => r.Tarih).ToListAsync(ct);
+        return await q.OrderByDescending(r => r.Tarih).Take(10_000).ToListAsync(ct); // #283 L2: upper bound
     }
 
     public async Task<Anket?> FindAsync(Guid id, CancellationToken ct = default)
@@ -103,6 +103,37 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         db.Anketler.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    /// <summary>
+    /// F7.1 — <see cref="UpdateWithCevapAsync"/> satır kilidi + iyimser sürüm altında (<see cref="SatirSurumu"/>):
+    /// eski cevaplar kilitli işlem içinde okunur, silinir ve yenileri aynı SaveChanges'ta yazılır.
+    /// </summary>
+    public Task<bool> UpdateWithAnswersAsync(Guid id, string expectedVersion, Action<Anket> apply,
+        IReadOnlyList<AnketCevap> answers, CancellationToken ct = default)
+    {
+        AppDbContext? context = null;
+        List<AnketCevap> old = [];
+        return SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Surveys, id, expectedVersion,
+            async (db, key, c) =>
+            {
+                var row = await db.Anketler.FirstOrDefaultAsync(r => r.Id == key, c);
+                context = db;
+                old = row is null ? [] : await db.AnketCevaplari.Where(x => x.AnketId == key).ToListAsync(c);
+                return row;
+            },
+            row =>
+            {
+                apply(row);
+                context!.AnketCevaplari.RemoveRange(old);
+                foreach (var a in answers) { a.AnketId = id; context.AnketCevaplari.Add(a); }
+            }, ct);
+    }
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Surveys, id, ct);
     }
 }
 
@@ -217,5 +248,16 @@ public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) :
         db.Sikayetler.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>).</summary>
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Sikayet> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Complaints, id, expectedVersion,
+            (db, key, c) => db.Sikayetler.FirstOrDefaultAsync(r => r.Id == key, c), apply, ct);
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Complaints, id, ct);
     }
 }

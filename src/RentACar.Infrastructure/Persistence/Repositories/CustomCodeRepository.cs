@@ -83,4 +83,12 @@ public sealed class CustomCodeRepository(IDbContextFactory<AppDbContext> factory
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.1a — IVersionedRepository<CustomCode> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<CustomCode>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<CustomCode>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<CustomCode> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, c => $"'{c.Kod}' kodlu özel kod zaten var.", ct);
 }

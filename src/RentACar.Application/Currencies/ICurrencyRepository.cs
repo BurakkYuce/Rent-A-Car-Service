@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Currencies;
 
-public interface ICurrencyRepository
+public interface ICurrencyRepository : Common.IVersionedRepository<Currency>
 {
     Task<IReadOnlyList<Currency>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Currency>> ListActiveAsync(CancellationToken ct = default);

@@ -124,6 +124,28 @@ public sealed class HukukDosyaRepository(IDbContextFactory<AppDbContext> factory
         return true;
     }
 
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>); DosyaNo yarışı yine 400.</summary>
+    public async Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<HukukDosya> apply, CancellationToken ct = default)
+    {
+        string? fileNo = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.LegalFiles, id, expectedVersion,
+                (db, key, c) => db.HukukDosyalari.FirstOrDefaultAsync(r => r.Id == key, c),
+                r => { apply(r); fileNo = r.DosyaNo; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{fileNo}' dosya no zaten var.");
+        }
+    }
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.LegalFiles, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

@@ -166,6 +166,24 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
+    public async Task<bool> UpdateLockedAsync(Guid id, Action<Penalty> apply, CancellationToken ct = default)
+    {
+        return await PgRetry.RunAsync(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await KilitAsync(db, id, ct); // yansıtma/ödemeyle aynı sıra: danışma → satır
+            var penalty = await db.Penalties
+                .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", id)
+                .FirstOrDefaultAsync(ct);
+            if (penalty is null) return false;
+            apply(penalty); // kilit altındaki GÜNCEL satırla denetler (fırlatırsa tx geri alınır)
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return true;
+        }, ct);
+    }
+
     public async Task<bool> ReflectAsync(
         Guid id, Func<Penalty, IReadOnlyList<AccountLedgerEntry>> buildEntries, CancellationToken ct = default)
     {
@@ -174,6 +192,8 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+            // #286 adversarial M1: ödeme ve iptalle AYNI danışma kilidi, aynı sırada (danışma → satır).
+            await KilitAsync(db, id, ct);
             // Satır kilidi: eşzamanlı yansıtmalar serileşir → çift yansıtma olmaz (idempotent).
             var penalty = await db.Penalties
                 .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", id)
@@ -225,7 +245,12 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
                 await db.PenaltyOdemeleri.AsNoTracking().AnyAsync(o => o.IslemAnahtari == anahtar, ct))
                 throw new MukerrerIslemException(OdemeMukerrerMesaji);
 
-            var ceza = await db.Penalties.FirstOrDefaultAsync(p => p.Id == penaltyId, ct)
+            // #286 adversarial M1: başlık satırı da kilitlenir (FOR UPDATE) — iptal/yansıtma aynı sırayla
+            // (danışma → satır) kilitlendiği için Durum kilit altında GÜNCEL okunur; kilitsiz okunup ezilen
+            // Durum (iptal→ödeme sonrası "Kismi") artık oluşamaz.
+            var ceza = await db.Penalties
+                .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", penaltyId)
+                .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Ceza bulunamadı.");
             if (ceza.Durum == CezaDurum.Iptal) throw new ValidationException("İptal ceza ödenemez.");
 

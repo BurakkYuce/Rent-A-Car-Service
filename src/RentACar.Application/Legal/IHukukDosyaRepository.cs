@@ -14,4 +14,10 @@ public interface IHukukDosyaRepository
     Task CreateAsync(HukukDosya row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<HukukDosya> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm karşılaştırması (sürüm farklı → 409, hiçbir şey yazılmaz).</summary>
+    Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<HukukDosya> apply, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
+    Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
 }

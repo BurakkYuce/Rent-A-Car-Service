@@ -41,7 +41,20 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         return cur.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, CurrencyInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, CurrencyInput input, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1a — full replacement with optimistic concurrency (stale version → 409 <c>cakisma</c>).</summary>
+    public Task<bool> UpdateAsync(Guid id, CurrencyInput input, string expectedVersion, CancellationToken ct = default)
+        => UpdateCoreAsync(id, input, expectedVersion, ct);
+
+    /// <summary>F11.1a — opaque row version.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.1a — versions of every row.</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => _repository.GetVersionsAsync(ct);
+
+    private async Task<bool> UpdateCoreAsync(Guid id, CurrencyInput input, string? expectedVersion, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -49,13 +62,21 @@ public sealed class CurrencyService(ICurrencyRepository repository, ICurrentUser
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu döviz zaten var.");
 
-        var ok = await _repository.UpdateAsync(id, cur =>
+        void Update(Currency cur)
         {
             Apply(cur, n);
             cur.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
-        _cache.Invalidate(CK);
-        return ok;
+        }
+        try
+        {
+            return expectedVersion is null
+                ? await _repository.UpdateAsync(id, Update, ct)
+                : await _repository.UpdateAsync(id, expectedVersion, Update, ct);
+        }
+        finally
+        {
+            _cache.Invalidate(CK);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

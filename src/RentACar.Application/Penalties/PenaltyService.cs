@@ -229,7 +229,11 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // adversarial L1 + inceltme
-        return _repository.UpdateAsync(id, p =>
+        // #286 adversarial M1: iptal kilitsiz okuyup yazıyordu — eşzamanlı ödeme/yansıtmayla "İptal ama defteri duran"
+        // ceza ya da "iptal 200 döndü ama son durum Kısmi" oluşuyordu. Artık ödeme/yansıtmayla AYNI kilit altında
+        // (danışma → FOR UPDATE) ve kurallar GÜNCEL satırla denetlenir. Karar (Blazor ile aynı): yansıtılmış ya da
+        // ödemesi olan ceza iptal EDİLEMEZ (400); otomatik ters kayıt yok.
+        return _repository.UpdateLockedAsync(id, p =>
         {
             if (p.Durum == CezaDurum.Yansitildi) throw new ValidationException("Yansıtılmış ceza iptal edilemez (ters kayıt gerekir).");
             // FAZ-60 adversarial: ödemesi olan ceza da iptal EDİLEMEZ — defterde gider/kasa

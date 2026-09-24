@@ -83,4 +83,12 @@ public sealed class BankRepository(IDbContextFactory<AppDbContext> factory) : IB
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.1a — IVersionedRepository<Bank> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<Bank>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<Bank>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Bank> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, b => $"'{b.Kod}' kodlu banka zaten var.", ct);
 }

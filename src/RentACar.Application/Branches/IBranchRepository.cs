@@ -2,7 +2,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Branches;
 
-public interface IBranchRepository
+public interface IBranchRepository : Common.IVersionedRepository<Branch>
 {
     /// <summary>Tüm şubeler (yönetim ekranı). Koda göre sıralı.</summary>
     Task<IReadOnlyList<Branch>> ListAsync(CancellationToken ct = default);
