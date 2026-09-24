@@ -8,6 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { sayiya } from '../kira-formu-modeli';
 import { KF_ORTAK } from '../sekmeler/ortak';
 import { paraGoster } from './finans-modeli';
@@ -20,7 +21,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 @Component({
   selector: 'rc-kf-finans-faturalar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_ORTAK, RouterLink],
   template: `
     @let s = f.faturalar;
     <div
@@ -49,7 +50,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
           @for (x of s.veri() ?? []; track x.id) {
             <tr>
               <td>
-                <a href="/faturalar">{{ x.no }}</a>
+                <a routerLink="/faturalar">{{ x.no }}</a>
               </td>
               <td>{{ x.tarih | tarih }}</td>
               <td class="num">{{ para(x.genelToplam, x.currency) }}</td>

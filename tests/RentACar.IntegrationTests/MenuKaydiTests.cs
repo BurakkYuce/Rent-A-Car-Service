@@ -142,13 +142,17 @@ public sealed class MenuKaydiTests
         ];
         Assert.Equal(43, f11.Length);
         // F9.3: Servis & Sigorta (3) + Fiyat & Tarife (11) gruplarının tamamı + grupsuz Vade Panosu (15).
+        // F8.3: Finans grubunun tamamı (17; cari ekstresi ve fatura yazdır kimlikli olduğu için menüde yok).
         Assert.Equal(new[]
             {
                 "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
                 "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/broker-yasaklari",
-                "/app/cariler", "/app/crm", "/app/ek-hizmetler", "/app/filo-kiralama", "/app/filo-plan", "/app/fiyat-hesapla",
-                "/app/hasar", "/app/hukuk", "/app/kira-kurallari", "/app/kiralar", "/app/kiralar/yeni", "/app/maliyet-hesapla",
-                "/app/maliyet-teklifleri", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
+                "/app/cari-virman", "/app/cariler", "/app/cezalar", "/app/crm", "/app/depozito", "/app/donem-kapanis",
+                "/app/ek-hizmetler", "/app/faturalar", "/app/faturalar/detay-listesi", "/app/filo-kiralama", "/app/filo-plan",
+                "/app/finans/bakiye-duzeltme", "/app/finans/nakit-islem", "/app/fiyat-hesapla", "/app/gelen-efatura",
+                "/app/giderler", "/app/hasar", "/app/hukuk", "/app/kasa", "/app/kira-kurallari", "/app/kiralar",
+                "/app/kiralar/yeni", "/app/kurlar", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musaitlik",
+                "/app/musaitlik", "/app/musteri-taksit", "/app/otomatik-tahsilat", "/app/panel",
                 "/app/raporlar/arac-durum-takip", "/app/raporlar/arac-gunluk-durum", "/app/raporlar/cari-bakiye",
                 "/app/raporlar/doluluk", "/app/raporlar/ek-hizmet", "/app/raporlar/extre-ozeti", "/app/raporlar/fatura-donem",
                 "/app/raporlar/filo", "/app/raporlar/filo-analiz", "/app/raporlar/finans-analiz", "/app/raporlar/gelir-gider",
@@ -157,10 +161,10 @@ public sealed class MenuKaydiTests
                 "/app/raporlar/otomatik-servisler", "/app/raporlar/periyodik-servis", "/app/raporlar/personel-calisma",
                 "/app/raporlar/rezervasyon-kaynak", "/app/raporlar/servis-ozet", "/app/raporlar/sigorta-muayene",
                 "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi", "/app/regulasyon",
-                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/segmentler", "/app/segmentler",
-                "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler", "/app/takvim",
-                "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler", "/app/teklifler",
-                "/app/vade",
+                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/satislar", "/app/segmentler",
+                "/app/segmentler", "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler",
+                "/app/takvim", "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler",
+                "/app/tek-cari-toplu", "/app/teklifler", "/app/toplu-gider", "/app/toplu-tahsilat", "/app/vade",
             }.Concat(f11).OrderBy(r => r, StringComparer.Ordinal),
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
@@ -284,6 +288,11 @@ public sealed class MenuKaydiTests
         Assert.Contains("Raporlar|/raporlar/gunluk", YeniGorunur(Kullanici(UserRole.Operator, ek: ["ViewReports"])));
         Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["ViewReports"])),
             x => x.StartsWith("Raporlar|", StringComparison.Ordinal));
+        // F8.3: Finans spa öğeleri FinanceWrite'a bağlı — operatöre ek FinanceWrite ile görünür (yukarıda), Muhasebe'ye
+        // yasakla gizlenir.
+        Assert.Contains("Finans|/faturalar", ek);
+        Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["FinanceWrite"])),
+            x => x.StartsWith("Finans|", StringComparison.Ordinal));
         // F9.3: Servis & Sigorta ve Fiyat & Tarife spa öğeleri de izne bağlı; maliyet ekranları FinanceWrite ister.
         Assert.DoesNotContain(yasak, x => x.StartsWith("Servis & Sigorta|", StringComparison.Ordinal));
         Assert.DoesNotContain("Fiyat & Tarife|/tarifeler", yasak);

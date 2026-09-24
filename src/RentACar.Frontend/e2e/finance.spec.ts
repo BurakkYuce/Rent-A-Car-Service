@@ -385,6 +385,9 @@ test('kurlar: sabit kur PUT cakisma formu silmez — güncel kayıt birleşir, s
   await hazirBekle(page, KURLAR);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const kur = page.getByRole('textbox', { name: 'Sabit Kur (TL / 1 birim)' });
+  // Düzenle formu doldurur; değer DOM'a sonraki değişiklik algılamasında yazılır. Beklemeden `fill` yarışır: seçim
+  // boş kutuda yapılır, sonra gelen "36,500000" imleci sona taşır ve "37,25" sona eklenir (CI'da "36,50000037,25").
+  await expect(kur).toHaveValue('36,500000');
   await kur.fill('37,25');
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect(page.locator('rc-uyari-bandi')).toContainText('Kayıt siz düzenlerken değişti');

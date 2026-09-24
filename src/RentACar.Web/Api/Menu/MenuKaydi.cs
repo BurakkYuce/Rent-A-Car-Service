@@ -13,8 +13,8 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
 /// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
 /// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları; F10.3: Raporlar
-/// grubu; F9.3: Servis &amp; Sigorta ve Fiyat &amp; Tarife grupları + Vade Panosu; F11.3: Tanımlar, Web Sitesi ve Sistem
-/// grupları, Blog, Gelen Talepler ve kalan grupsuz öğeler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// grubu; F9.3: Servis &amp; Sigorta ve Fiyat &amp; Tarife grupları + Vade Panosu; F8.3: Finans grubu; F11.3: Tanımlar,
+/// Web Sitesi ve Sistem grupları, Blog, Gelen Talepler ve kalan grupsuz öğeler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -160,23 +160,23 @@ public static class MenuKaydi
 
         // ---- Finans (MainLayout: Roles="Admin,Yonetici,Muhasebe" → FinanceWrite)
         const string Finans = "Finans";
-        E(Finans, "/kasa", "Kasa / Banka", FW);
-        E(Finans, "/finans/nakit-islem", "Nakit İşlem", FW);
-        E(Finans, "/finans/bakiye-duzeltme", "Bakiye Düzeltme", FW);
-        E(Finans, "/kurlar", "Döviz Kurları", FW);
-        E(Finans, "/faturalar", "Faturalar", FW);
-        E(Finans, "/faturalar/detay-listesi", "Fatura Detay Listesi", FW);
-        E(Finans, "/gelen-efatura", "Gelen e-Fatura", FW);
-        E(Finans, "/giderler", "Giderler", FW);
-        E(Finans, "/satislar", "Satışlar", FW);
-        E(Finans, "/cari-virman", "Cari Virman", FW);
-        E(Finans, "/depozito", "Depozito", FW);
-        E(Finans, "/toplu-tahsilat", "Toplu Tahsilat", FW);
-        E(Finans, "/tek-cari-toplu", "Tek Cari Toplu Kapatma", FW);
-        E(Finans, "/otomatik-tahsilat", "Otomatik Tahsilat", FW);
-        E(Finans, "/toplu-gider", "Toplu Gider", FW);
-        E(Finans, "/cezalar", "Cezalar", FW);
-        E(Finans, "/donem-kapanis", "Dönem Kapanışı", FW);
+        E(Finans, "/app/kasa", "Kasa / Banka", FW); // F8.3: grubun tamamı spa
+        E(Finans, "/app/finans/nakit-islem", "Nakit İşlem", FW);
+        E(Finans, "/app/finans/bakiye-duzeltme", "Bakiye Düzeltme", FW);
+        E(Finans, "/app/kurlar", "Döviz Kurları", FW);
+        E(Finans, "/app/faturalar", "Faturalar", FW);
+        E(Finans, "/app/faturalar/detay-listesi", "Fatura Detay Listesi", FW);
+        E(Finans, "/app/gelen-efatura", "Gelen e-Fatura", FW);
+        E(Finans, "/app/giderler", "Giderler", FW);
+        E(Finans, "/app/satislar", "Satışlar", FW);
+        E(Finans, "/app/cari-virman", "Cari Virman", FW);
+        E(Finans, "/app/depozito", "Depozito", FW);
+        E(Finans, "/app/toplu-tahsilat", "Toplu Tahsilat", FW);
+        E(Finans, "/app/tek-cari-toplu", "Tek Cari Toplu Kapatma", FW);
+        E(Finans, "/app/otomatik-tahsilat", "Otomatik Tahsilat", FW);
+        E(Finans, "/app/toplu-gider", "Toplu Gider", FW);
+        E(Finans, "/app/cezalar", "Cezalar", FW);
+        E(Finans, "/app/donem-kapanis", "Dönem Kapanışı", FW);
 
         // ---- Raporlar (MainLayout: Roles="Admin,Yonetici,Muhasebe" → ViewReports). F10.3: grubun tamamı spa.
         const string Rapor = "Raporlar";
