@@ -338,7 +338,8 @@ export class PanelSayfasi {
       ekKutular.push({
         sayi: yeni,
         etiket: this.t('panel.vade.siteTalebi'),
-        href: '/gelen-talepler?durum=0',
+        rota: '/gelen-talepler', // F11.3: SPA rotası (Blazor `?durum=0` = Yeni)
+        sorgu: { durum: 'Yeni' },
         ton: yeni > 0 ? ((enEski ?? 0) >= 3 ? 'hata' : 'uyari') : 'notr',
         ipucu:
           enEski !== null

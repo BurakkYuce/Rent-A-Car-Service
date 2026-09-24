@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
@@ -48,6 +48,26 @@ export const REQUEST_STATUSES = [
   'Reddedildi',
   'Kayip',
 ] as const;
+
+/** Blazor `?durum=<sayı>` kodları (`PublicBookingRequestDurum` enum değerleri; eski yer imleri ve panel bağlantısı). */
+const LEGACY_STATUS_CODES: Readonly<Record<string, (typeof REQUEST_STATUSES)[number]>> = {
+  '0': 'Yeni',
+  '1': 'Donustu',
+  '2': 'Reddedildi',
+  '3': 'Iletisimde',
+  '4': 'TeklifVerildi',
+  '5': 'Kayip',
+};
+
+/**
+ * F11.3: sorgudaki `durum` süzgeci — durum adı (`Yeni`) ya da Blazor sayı kodu (`0`). Bilinmeyen değer `null`
+ * (varsayılan liste). Yalnız durum okunur; kişisel veri taşıyabilen `ara` URL'den alınmaz.
+ */
+export function statusFromQuery(value: string | null): string | null {
+  if (value === null) return null;
+  if ((REQUEST_STATUSES as readonly string[]).includes(value)) return value;
+  return Object.hasOwn(LEGACY_STATUS_CODES, value) ? (LEGACY_STATUS_CODES[value] ?? null) : null;
+}
 
 interface RequestQuery {
   readonly durum: string | null;
@@ -133,6 +153,13 @@ export class BookingRequestsPage {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    const initialStatus = statusFromQuery(
+      inject(ActivatedRoute).snapshot.queryParamMap.get('durum'),
+    );
+    if (initialStatus) {
+      this.filters.controls.durum.setValue(initialStatus);
+      this.query.set({ durum: initialStatus, ara: null, sayfa: 1 });
+    }
     this.list.yukle(this.query());
   }
 

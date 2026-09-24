@@ -90,13 +90,15 @@ export type Ton = 'notr' | 'uyari' | 'hata';
 
 /**
  * KPI kartı altındaki vade/uyarı kutusu (Blazor `VadeTier` + ek kutular). `href` Blazor ekranı (tam sayfa);
- * `rota` verilmişse ekran yeni arayüzdedir (F5.4: rezervasyonlar) ve bağlantı SPA içinde (`routerLink`) açılır.
+ * `rota` verilmişse ekran yeni arayüzdedir (F5.4: rezervasyonlar) ve bağlantı SPA içinde (`routerLink`) açılır;
+ * `sorgu` rotaya sorgu parametresi olarak eklenir (F11.3: gelen talepler `?durum=Yeni`).
  */
 export interface VadeKutusu {
   readonly sayi: number;
   readonly etiket: string;
   readonly href?: string;
   readonly rota?: string;
+  readonly sorgu?: Readonly<Record<string, string>>;
   readonly ton: Ton;
   readonly ipucu?: string;
 }

@@ -7,7 +7,7 @@ namespace RentACar.Web.Spa;
 /// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F11) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -67,6 +67,10 @@ public static class IlkKesis
     /// karnesi <c>/raporlar/arac-karne/{id}</c>). Rapor export'ları (<c>/raporlar/export/{rapor}</c>) segment farkıyla
     /// dışarıda; personel çalışma Blazor POST'ları (<c>/raporlar/personel-calisma/create|update|delete</c>) yöntem
     /// farkıyla dışarıda.</item>
+    /// <item><b>F11</b> (F11.3): 47 tanım/sistem/web sitesi sayfası, hepsi AYNI adla <c>/app</c> altına (üç kimlikli
+    /// şablon: ilan fiyatı, ilan özellikleri, blog önizlemesi). Dosya/görsel GET'leri (logo, ilan fotoğrafı, blog kapağı,
+    /// doküman indirme), takvim beslemesi ve Blazor POST'ları segment sayısı ya da yöntem farkıyla dışarıda.
+    /// <c>/tarife-aktar</c> F11'in sayfası değil, haritada yok.</item>
     /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Harita { get; } =
@@ -135,6 +139,54 @@ public static class IlkKesis
         new("/raporlar/sigorta-muayene", SpaBarindirma.Onek + "/raporlar/sigorta-muayene"),
         new("/raporlar/tahsilat-fatura", SpaBarindirma.Onek + "/raporlar/tahsilat-fatura"),
         new("/raporlar/virman-gecmisi", SpaBarindirma.Onek + "/raporlar/virman-gecmisi"),
+        // F11
+        new("/aksesuarlar", SpaBarindirma.Onek + "/aksesuarlar"),
+        new("/arac-gruplari", SpaBarindirma.Onek + "/arac-gruplari"),
+        new("/bankalar", SpaBarindirma.Onek + "/bankalar"),
+        new("/belge-sablonlari", SpaBarindirma.Onek + "/belge-sablonlari"),
+        new("/ceza-turleri", SpaBarindirma.Onek + "/ceza-turleri"),
+        new("/departmanlar", SpaBarindirma.Onek + "/departmanlar"),
+        new("/doluluk-kurallari", SpaBarindirma.Onek + "/doluluk-kurallari"),
+        new("/dovizler", SpaBarindirma.Onek + "/dovizler"),
+        new("/drop-tanimlari", SpaBarindirma.Onek + "/drop-tanimlari"),
+        new("/gider-turleri", SpaBarindirma.Onek + "/gider-turleri"),
+        new("/hesap-kodlari", SpaBarindirma.Onek + "/hesap-kodlari"),
+        new("/hesaplar", SpaBarindirma.Onek + "/hesaplar"),
+        new("/iptal-sebepleri", SpaBarindirma.Onek + "/iptal-sebepleri"),
+        new("/kdv-oranlari", SpaBarindirma.Onek + "/kdv-oranlari"),
+        new("/lokasyonlar", SpaBarindirma.Onek + "/lokasyonlar"),
+        new("/markalar", SpaBarindirma.Onek + "/markalar"),
+        new("/musteri-gruplari", SpaBarindirma.Onek + "/musteri-gruplari"),
+        new("/odeme-tipleri", SpaBarindirma.Onek + "/odeme-tipleri"),
+        new("/ozel-kodlar", SpaBarindirma.Onek + "/ozel-kodlar"),
+        new("/personel", SpaBarindirma.Onek + "/personel"),
+        new("/renkler", SpaBarindirma.Onek + "/renkler"),
+        new("/rezervasyon-kaynaklari", SpaBarindirma.Onek + "/rezervasyon-kaynaklari"),
+        new("/sigorta-sirketleri", SpaBarindirma.Onek + "/sigorta-sirketleri"),
+        new("/subeler", SpaBarindirma.Onek + "/subeler"),
+        new("/ulkeler", SpaBarindirma.Onek + "/ulkeler"),
+        new("/vites-turleri", SpaBarindirma.Onek + "/vites-turleri"),
+        new("/yakit-turleri", SpaBarindirma.Onek + "/yakit-turleri"),
+        new("/dokumanlar", SpaBarindirma.Onek + "/dokumanlar"),
+        new("/firma-belgeleri", SpaBarindirma.Onek + "/firma-belgeleri"),
+        new("/takvim-abonelik", SpaBarindirma.Onek + "/takvim-abonelik"),
+        new("/ice-aktar", SpaBarindirma.Onek + "/ice-aktar"),
+        new("/kullanicilar", SpaBarindirma.Onek + "/kullanicilar"),
+        new("/yetki", SpaBarindirma.Onek + "/yetki"),
+        new("/ayarlar", SpaBarindirma.Onek + "/ayarlar"),
+        new("/mesaj-sablonlari", SpaBarindirma.Onek + "/mesaj-sablonlari"),
+        new("/denetim", SpaBarindirma.Onek + "/denetim"),
+        new("/bildirimler", SpaBarindirma.Onek + "/bildirimler"),
+        new("/ara", SpaBarindirma.Onek + "/ara"),
+        new("/profil/sifre-degistir", SpaBarindirma.Onek + "/profil/sifre-degistir"),
+        new("/web-sitesi", SpaBarindirma.Onek + "/web-sitesi"),
+        new("/web-sitesi/arac-ekle", SpaBarindirma.Onek + "/web-sitesi/arac-ekle"),
+        new("/web-sitesi/ilan/{id:guid}/fiyat", SpaBarindirma.Onek + "/web-sitesi/ilan/{id}/fiyat"),
+        new("/web-sitesi/ilan/{id:guid}/ozellikler", SpaBarindirma.Onek + "/web-sitesi/ilan/{id}/ozellikler"),
+        new("/site-icerik", SpaBarindirma.Onek + "/site-icerik"),
+        new("/blog-yonetim", SpaBarindirma.Onek + "/blog-yonetim"),
+        new("/blog-yonetim/{id:guid}/onizleme", SpaBarindirma.Onek + "/blog-yonetim/{id}/onizleme"),
+        new("/gelen-talepler", SpaBarindirma.Onek + "/gelen-talepler"),
     ];
 
     private const string GuidParametre = "{id:guid}";
