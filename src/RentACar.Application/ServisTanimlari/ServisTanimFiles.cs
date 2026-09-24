@@ -60,7 +60,8 @@ public sealed class ServisTanimInput
 }
 
 /// <summary>Periyodik bakım tanım master iş mantığı (roadmap N1). Yazma OperationsWrite.</summary>
-public sealed class ServisTanimService(IServisTanimRepository repository, ICurrentUser currentUser)
+public sealed class ServisTanimService(IServisTanimRepository repository, ICurrentUser currentUser,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly IServisTanimRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -94,6 +95,23 @@ public sealed class ServisTanimService(IServisTanimRepository repository, ICurre
             r.Marka = n.Marka; r.Tip = n.Tip; r.Yakit = n.Yakit; r.Vites = n.Vites;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<ServisTanim>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check.</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, ServisTanimInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<ServisTanim>(id, expectedVersion, r =>
+        {
+            r.Kod = n.Kod; r.AracTipi = n.AracTipi; r.BakimKm = input.BakimKm; r.Aciklama = n.Aciklama; r.Aktif = input.Aktif;
+            r.Marka = n.Marka; r.Tip = n.Tip; r.Yakit = n.Yakit; r.Vites = n.Vites;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, $"'{n.Kod}' kodlu servis tanımı zaten var.", ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

@@ -114,6 +114,42 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
         }, ct);
     }
 
+    /// <summary>
+    /// F11.1b — tam değiştirme, iyimser eşzamanlılıkla: satır kilitlenir, <paramref name="expectedVersion"/> kilit
+    /// altında karşılaştırılır (uyuşmazlık <see cref="EszamanliDegisiklikException"/>). Slug dondurma kuralı
+    /// <see cref="UpdateAsync(Guid, BlogInput, CancellationToken)"/> ile aynı; "yayınlandı mı" KİLİTLİ satırdan okunur.
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, BlogInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        var (baslik, icerik, ozet) = Normalize(input);
+
+        var mevcut = await repository.FindAsync(id, ct);
+        if (mevcut is null) return false;
+        var yeniSlug = mevcut.YayinTarihi is not null
+            ? mevcut.Slug
+            : await ResolveSlugAsync(input.Slug, baslik, excludeId: id, ct);
+
+        return await repository.UpdateAsync(id, expectedVersion, p =>
+        {
+            p.Baslik = baslik;
+            if (p.YayinTarihi is null) p.Slug = yeniSlug; // yayınlanmış yazının adresi DONAR
+            p.Ozet = ozet;
+            p.Icerik = icerik;
+            p.Durum = input.Durum;
+            SeoUygula(p, input);
+            if (input.Durum == BlogPostDurum.Yayinda && p.YayinTarihi is null) p.YayinTarihi = DateTimeOffset.UtcNow;
+            p.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F11.1b — satır sürümü (opak; PUT'ta geri gönderilir).</summary>
+    public Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        return repository.VersionAsync(id, ct);
+    }
+
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);

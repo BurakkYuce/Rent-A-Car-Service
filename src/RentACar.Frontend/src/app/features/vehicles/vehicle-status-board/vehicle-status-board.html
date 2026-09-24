@@ -171,7 +171,11 @@
         @if (satir.bafta) {
           <span class="aciklama">{{ 'arac.durum.bafta' | transloco }}</span>
         } @else if (!satir.kirada) {
-          <a href="/baf" [attr.title]="'arac.durum.tahsisIpucu' | transloco">
+          <a
+            routerLink="/baf"
+            [state]="allocationState(satir)"
+            [attr.title]="'arac.durum.tahsisIpucu' | transloco"
+          >
             {{ 'arac.durum.tahsis' | transloco }}
           </a>
         }

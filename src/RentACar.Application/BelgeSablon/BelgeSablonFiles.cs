@@ -17,6 +17,10 @@ public interface IBelgeSablonRepository
     Task<bool> AdExistsAsync(BelgeTuru turu, string ad, Guid? excludeId = null, CancellationToken ct = default);
     Task CreateAsync(Entity row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<Entity> apply, CancellationToken ct = default);
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması; uyuşmazlık <c>EszamanliDegisiklikException</c>.</summary>
+    Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Entity> apply, CancellationToken ct = default);
+    /// <summary>F11.1b — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa <c>null</c>.</summary>
+    Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     /// <summary>Türdeki DİĞER şablonların VarsayilanMi bayrağını temizler (tür başına tek varsayılan kuralı).</summary>
     Task ClearDefaultAsync(BelgeTuru turu, Guid exceptId, CancellationToken ct = default);
@@ -65,14 +69,31 @@ public sealed class BelgeSablonService(IBelgeSablonRepository repository, ICurre
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, BelgeSablonInput input, CancellationToken ct = default)
+    /// <summary>F11.1b — tekil kayıt (yönetim; ManageUsers).</summary>
+    public Task<Entity?> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        return repository.FindAsync(id, ct);
+    }
+
+    /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default) => repository.RowVersionAsync(id, ct);
+
+    public Task<bool> UpdateAsync(Guid id, BelgeSablonInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, BelgeSablonInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         var n = Normalize(input);
         Validate(n);
         if (await repository.AdExistsAsync(n.BelgeTuru, n.Ad, id, ct))
             throw new ValidationException($"'{n.Ad}' adlı şablon bu belge türünde zaten var.");
-        var ok = await repository.UpdateAsync(id, r => { Apply(r, n); r.UpdatedAtUtc = DateTimeOffset.UtcNow; }, ct);
+        void ApplyAll(Entity r) { Apply(r, n); r.UpdatedAtUtc = DateTimeOffset.UtcNow; }
+        var ok = expectedVersion is null
+            ? await repository.UpdateAsync(id, ApplyAll, ct)
+            : await repository.UpdateAsync(id, expectedVersion, ApplyAll, ct);
         if (ok && n.VarsayilanMi) await repository.ClearDefaultAsync(n.BelgeTuru, id, ct);
         return ok;
     }

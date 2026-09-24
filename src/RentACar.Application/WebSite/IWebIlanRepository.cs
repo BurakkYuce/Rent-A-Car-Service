@@ -37,6 +37,12 @@ public interface IWebIlanRepository
     /// <summary>Adım-2/3: ilanı günceller (fiyat ya da durum). Yoksa false.</summary>
     Task<bool> UpdateAsync(Guid id, Action<WebIlan> apply, CancellationToken ct = default);
 
+    /// <summary>F11.1b — satır kilidi + sürüm karşılaştırması; uyuşmazlık <see cref="Common.EszamanliDegisiklikException"/>.</summary>
+    Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<WebIlan> apply, CancellationToken ct = default);
+
+    /// <summary>F11.1b — ilan satırı sürümü (opak); yoksa null.</summary>
+    Task<string?> VersionAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>Adım-2 "ayrı" modda: kardeş ilanlara (aynı anahtar, aynı oturumda yaratılmış taslaklar)
     /// aynı fiyatı uygular. Dönen: etkilenen ilan sayısı.</summary>
     Task<int> KardeslereFiyatKopyalaAsync(Guid kaynakIlanId, CancellationToken ct = default);

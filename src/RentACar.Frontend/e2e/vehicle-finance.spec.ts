@@ -10,6 +10,7 @@ import {
   installment,
   loanDetail,
 } from './vehicle-finance-fakes';
+import { statusRow, vehicleEndpoints } from './vehicle-fakes';
 import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
@@ -472,6 +473,61 @@ test('sipariş: boş birim fiyat alan hatası verir, istek gitmez (inceleme L3)'
     'true',
   );
   expect(written).toHaveLength(0);
+});
+
+test('durum panosu "Tahsis" → BAF formu araç + çıkış KM + şube dolu açılır (F6.3 parite)', async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, AG_HATASI);
+  await vehicleEndpoints(page);
+  await page.route('**/api/ui/v1/araclar/durum**', (r) =>
+    r.fulfill({
+      json: {
+        liste: {
+          kayitlar: [
+            {
+              ...statusRow(),
+              durum: 'Musait',
+              kirada: false,
+              aktifKiraId: null,
+              kiraSozlesmeNo: null,
+              musteriAd: null,
+              musteriTel: null,
+              kiraBitTar: null,
+              kiraKalanGun: null,
+              kiraBakiye: null,
+            },
+          ],
+          toplam: 1,
+          sayfaNo: 1,
+          boyut: 100,
+        },
+        kirada: 0,
+        serviste: 0,
+        bafta: 0,
+      },
+    }),
+  );
+  const written = await financeEndpoints(page);
+  await page.goto('/app/arac-durum');
+  await page
+    .getByRole('row')
+    .filter({ hasText: '34ABC123' })
+    .getByRole('link', { name: 'Tahsis' })
+    .click();
+  await expect(page).toHaveURL(/\/app\/baf$/);
+  const form = page.getByRole('region', { name: 'Yeni Tahsis' });
+  await expect(form.getByRole('combobox', { name: 'Araç', exact: true })).toHaveValue('34ABC123');
+  await expect(form.getByRole('textbox', { name: 'Çıkış KM' })).toHaveValue('12.500');
+  await expect(form.getByRole('combobox', { name: 'Şube (çıkış)' })).toHaveValue('Merkez');
+  // Personel seçilmeden kayıt gitmez (zorunlu alan); dolu gelen form "kaydedilmemiş değişiklik" sayılmaz.
+  await form.getByRole('button', { name: 'Tahsis Et', exact: true }).click();
+  await expect(form.getByRole('combobox', { name: 'Personel', exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(written).toHaveLength(0);
+  expect(hatalar).toEqual([]);
 });
 
 for (const s of PAGES) {
