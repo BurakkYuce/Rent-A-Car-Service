@@ -144,8 +144,14 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
   constructor() {
     inject(FetchPolicy).baglan({
       parametre: this.query.apiParametreleri,
-      yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      yukle: (p) => {
+        this.store.list.yukle(p);
+        this.store.counts.yukle(p);
+      },
+      sifirla: () => {
+        this.store.list.sifirla();
+        this.store.counts.sifirla();
+      },
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -176,6 +182,17 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
     return (SERVICE_TYPES as readonly string[]).includes(s)
       ? this.t(`servisSigorta.servis.tipler.${s}` as CeviriAnahtari)
       : s;
+  }
+
+  /** Sekme etiketi: sayaç geldiyse "Açık (3)" (sunucu sayar), gelmediyse yalın ad. */
+  protected tabLabel(s: ServiceStatus | null): string {
+    const name = s === null ? this.t('servisSigorta.tumu') : this.statusLabel(s);
+    const c = this.store.counts.veri();
+    if (!c) return name;
+    const n = s === null ? c.tumu : c.durumlar.find((x) => x.durum === s)?.adet;
+    return n === undefined
+      ? name
+      : this.t('servisSigorta.servis.sekmeSayili', { ad: name, adet: n });
   }
 
   protected selectStatus(s: ServiceStatus | null): void {
@@ -257,6 +274,7 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
                 rezervasyon: false,
               });
             this.store.list.yenile();
+            this.store.counts.yenile();
           }
         },
       },

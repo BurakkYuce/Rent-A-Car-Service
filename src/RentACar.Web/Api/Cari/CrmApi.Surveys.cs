@@ -158,6 +158,7 @@ public static partial class CrmApi
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         var input = SurveyInput(request);
+        CrmScope.RequireBranchKept(user, current.RentalId, current.CikisOfisi, input.RentalId, input.CikisOfisi);
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);
         await CrmScope.RequireTargetAsync(user, rentals, locations, input.RentalId, input.CikisOfisi, ct);
         if (!await surveys.UpdateAsync(id, input, request.Surum, ct)) return SurveyNotFound();

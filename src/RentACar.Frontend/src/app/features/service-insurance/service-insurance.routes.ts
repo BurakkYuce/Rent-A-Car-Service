@@ -47,6 +47,15 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
     canDeactivate: [kaydedilmemisDegisiklikGuard],
   },
   {
+    path: 'regulasyon/zeyiller',
+    title: 'Zeyiller — RentACar',
+    canMatch: [READ],
+    loadComponent: () =>
+      import('@features/service-insurance/regulation/endorsement-list').then(
+        (m) => m.EndorsementList,
+      ),
+  },
+  {
     path: 'regulasyon/mtv',
     title: 'MTV — RentACar',
     canMatch: [READ],

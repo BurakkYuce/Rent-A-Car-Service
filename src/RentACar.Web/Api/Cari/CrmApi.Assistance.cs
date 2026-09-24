@@ -154,6 +154,7 @@ public static partial class CrmApi
         await CrmScope.RequireAsync(user, dbf, locations, current.RentalId, null, ct);
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
+        CrmScope.RequireBranchKept(user, current.RentalId, null, request.RentalId, null);
         var input = await AssistanceInputAsync(request, user, rentals, locations, ct);
         KeepStoredContact(current, input);
         if (!await requests.UpdateAsync(id, input, request.Surum, ct)) return AssistanceNotFound();

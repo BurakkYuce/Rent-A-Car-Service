@@ -116,7 +116,7 @@ public sealed class MenuKapsamaTests
         var text = File.ReadAllText(Path.Combine(app, "service-insurance/service-insurance.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "pricing/pricing.routes.ts"));
         var tabs = File.ReadAllText(Path.Combine(app, "service-insurance/regulation/regulation-tabs.ts"));
-        string[] tabOnly = ["regulasyon/mtv", "regulasyon/muayene"];
+        string[] tabOnly = ["regulasyon/mtv", "regulasyon/muayene", "regulasyon/zeyiller"]; // #301: zeyiller de sekme
         foreach (var p in tabOnly) Assert.Contains($"path: '/{p}'", tabs);
 
         var paths = Regex.Matches(text, @"(?:path: |catalogRoute\(\s*)'(?<p>[a-z-/:]+)',")

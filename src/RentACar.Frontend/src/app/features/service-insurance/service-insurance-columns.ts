@@ -4,6 +4,7 @@ import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import {
   type DueItem,
+  type EndorsementRow,
   type InspectionRow,
   type MtvRow,
   type PolicyRow,
@@ -23,7 +24,7 @@ export function planText(start: string | null, end: string | null): string {
   return `${tarihBicimle(start)} → ${tarihBicimle(end)}`;
 }
 
-/** Blazor ServiceRecordList tablosu (KDV / genel toplam kayıt detayında — satır DTO'su taşımaz). */
+/** Blazor ServiceRecordList tablosu (KDV, genel toplam ve fatura no satırda — #301). */
 export function serviceColumns(
   t: Translate,
   status: (s: string) => string,
@@ -72,6 +73,22 @@ export function serviceColumns(
       sirala: true,
       genislik: 130,
     },
+    // #301: satır KDV ve genel toplamı SUNUCUDAN (kalem bazında yuvarlanmış; istemci toplamaz).
+    {
+      kod: 'kdvToplam',
+      baslik: h('kdv'),
+      deger: (r) => num(r.kdvToplam),
+      tur: 'para',
+      genislik: 110,
+    },
+    {
+      kod: 'genelToplam',
+      baslik: h('genelToplam'),
+      deger: (r) => num(r.genelToplam),
+      tur: 'para',
+      genislik: 130,
+    },
+    { kod: 'faturaNo', baslik: h('faturaNo'), deger: (r) => r.faturaNo ?? '—', genislik: 120 },
     {
       kod: 'durum',
       baslik: h('durum'),
@@ -85,6 +102,46 @@ export function serviceColumns(
       deger: (r) => yesNo(t, r.yansitildi),
       genislik: 90,
     },
+  ];
+}
+
+/** Blazor "Zeyil (Poliçe Ekleri)" tablosu: poliçe etiketi + zeyil alanları (tutarlar bilgi; deftere yazılmaz). */
+export function endorsementColumns(t: Translate): readonly TabloSutunu<EndorsementRow>[] {
+  const h = (k: string) => t(`servisSigorta.zeyil.${k}` as CeviriAnahtari);
+  const amount = (k: 'deger' | 'brut' | 'net' | 'fonVergi') =>
+    ({
+      kod: k,
+      baslik: h(k),
+      deger: (r: EndorsementRow) => num(r[k]),
+      tur: 'para',
+      sirala: k !== 'fonVergi',
+      genislik: 110,
+    }) as const;
+  return [
+    {
+      kod: 'police',
+      baslik: h('police'),
+      deger: (r) => (r.policeNo ? `${r.plaka} — ${r.policeNo}` : r.plaka),
+      sabit: true,
+      gizlenemez: true,
+      genislik: 190,
+    },
+    { kod: 'zeyilNo', baslik: h('no'), deger: (r) => r.zeyilNo, sirala: true, genislik: 110 },
+    {
+      kod: 'tarih',
+      baslik: h('tarih'),
+      deger: (r) => r.tarih,
+      tur: 'tarih',
+      sirala: true,
+      genislik: 100,
+    },
+    { kod: 'tanzim', baslik: h('tanzim'), deger: (r) => r.tanzim, tur: 'tarih', genislik: 100 },
+    amount('deger'),
+    amount('brut'),
+    amount('net'),
+    amount('fonVergi'),
+    { kod: 'tipi', baslik: h('tipi'), deger: (r) => r.tipi ?? '—', sirala: true, genislik: 100 },
+    { kod: 'neden', baslik: h('neden'), deger: (r) => r.neden ?? '—', genislik: 180 },
   ];
 }
 

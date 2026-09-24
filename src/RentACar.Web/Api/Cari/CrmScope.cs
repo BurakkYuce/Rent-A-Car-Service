@@ -65,6 +65,23 @@ internal static class CrmScope
     }
 
     /// <summary>
+    /// (#295 L3) Yazma HEDEFİ, güncellemede: şubeye bağlı kayıt (kira ya da ofis) şube kapsamlı kullanıcı tarafından
+    /// "şubesiz" yapılamaz — şubesiz kayıt herkese görünür (<see cref="BuildAsync"/>), yani boş hedef kaydı tüm şubelere
+    /// açardı. Kapsamsız kullanıcı (firma geneli) boşaltabilir; zaten şubesiz kayıt şubesiz kalabilir. Mevcut kaydın
+    /// kapsamı çağıran tarafından <see cref="RequireAsync"/> ile ÖNCE doğrulanır.
+    /// </summary>
+    public static void RequireBranchKept(
+        ICurrentUser user, Guid? currentRentalId, string? currentOffice, Guid? rentalId, string? office)
+    {
+        if (BranchScope.EffectiveFilter(user).Unrestricted) return;
+        var hadBranch = currentRentalId is { } c && c != Guid.Empty || !string.IsNullOrWhiteSpace(currentOffice);
+        var hasBranch = rentalId is { } r && r != Guid.Empty || !string.IsNullOrWhiteSpace(office);
+        if (hadBranch && !hasBranch)
+            throw new YetkiYokException(
+                "Şube kapsamlı kullanıcı kaydın kira ve çıkış ofisi bağını birlikte kaldıramaz; kayıt tüm şubelere açılırdı.");
+    }
+
+    /// <summary>
     /// Yazma HEDEFİ (giriş noktasında): bağlanan kira var olmalı ve kapsamda olmalı (<see cref="RentalService.GetAsync"/>
     /// kapsam dışında 403 atar; yok/başka kiracı → 400 <c>errors[rentalId]</c>); yazılan çıkış ofisi kapsamda olmalı.
     /// </summary>

@@ -12528,6 +12528,49 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/regulasyon/zeyiller': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          plaka?: string;
+          tipi?: string;
+          bas?: string;
+          bit?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfEndorsementListRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/regulasyon/mtv': {
     parameters: {
       query?: never;
@@ -12999,6 +13042,46 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/servisler/sayaclar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          tip?: string;
+          plaka?: string;
+          bas?: string;
+          bit?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ServiceCounts'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -25773,6 +25856,33 @@ export interface components {
       tipi: null | string;
       neden: null | string;
     };
+    EndorsementListRow: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      policyId: string;
+      /** Format: uuid */
+      vehicleId: string;
+      plaka: string;
+      policeNo: null | string;
+      firma: null | string;
+      policeTipi: string;
+      zeyilNo: string;
+      /** Format: date-time */
+      tarih: string;
+      /** Format: date-time */
+      tanzim: null | string;
+      /** Format: double */
+      deger: number | string;
+      /** Format: double */
+      brut: number | string;
+      /** Format: double */
+      net: number | string;
+      /** Format: double */
+      fonVergi: number | string;
+      tipi: null | string;
+      neden: null | string;
+    };
     EndorsementRequest: {
       zeyilNo: null | string;
       /** Format: date-time */
@@ -30904,6 +31014,17 @@ export interface components {
       /** Format: int32 */
       toplamSayfa?: number | string;
     };
+    SayfaOfEndorsementListRow: {
+      kayitlar: components['schemas']['EndorsementListRow'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
     SayfaOfExpenseCategoryDto: {
       kayitlar: components['schemas']['ExpenseCategoryDto'][];
       /** Format: int32 */
@@ -31659,6 +31780,11 @@ export interface components {
       /** Format: int32 */
       adet: number | string;
     };
+    ServiceCounts: {
+      /** Format: int32 */
+      tumu: number | string;
+      durumlar: components['schemas']['ServiceStatusCount'][];
+    };
     ServiceDefinitionDto: {
       /** Format: uuid */
       id: string;
@@ -31876,6 +32002,11 @@ export interface components {
       planBasTarihi: null | string;
       /** Format: date-time */
       planBitTarihi: null | string;
+      /** Format: double */
+      kdvToplam: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      faturaNo: null | string;
     };
     ServiceReflectionDto: {
       /** Format: double */
@@ -31889,6 +32020,11 @@ export interface components {
     ServiceReflectRequest: {
       /** Format: uuid */
       cariId: null | string;
+    };
+    ServiceStatusCount: {
+      durum: string;
+      /** Format: int32 */
+      adet: number | string;
     };
     SettingsDto: {
       firmaUnvan?: null | string;

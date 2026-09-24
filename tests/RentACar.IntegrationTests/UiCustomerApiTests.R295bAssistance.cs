@@ -66,7 +66,8 @@ public sealed partial class UiCustomerApiTests
         var opA = await LoginAsync(e, Who.OperatorA);
         var c = await AnonymisedTicketAsync(e, admin, opA);
 
-        var (unlinked, raw) = await Json(await Send(opA, HttpMethod.Put, $"{AssistanceUrl}/{c.TicketId}",
+        // Bağı kaldırmak (şubesiz kayıt) yalnız kapsamsız kullanıcıya açık (#295 L3); snapshot kuralı aynı.
+        var (unlinked, raw) = await Json(await Send(admin, HttpMethod.Put, $"{AssistanceUrl}/{c.TicketId}",
             NullContactPut(null, c.Version)));
         Assert.DoesNotContain(c.Secret, raw);
         Assert.DoesNotContain(c.Phone, raw);
@@ -83,7 +84,9 @@ public sealed partial class UiCustomerApiTests
         var c = await AnonymisedTicketAsync(e, admin, opA);
         var put = NullContactPut(null, c.Version);
         put["adSoyad"] = "Yeni Arayan";
-        await Json(await Send(opA, HttpMethod.Put, $"{AssistanceUrl}/{c.TicketId}", put));
+        // Şube kapsamlı operatör bağı kaldıramaz (#295 L3) → kapsamsız kullanıcı.
+        await Problem(await Send(opA, HttpMethod.Put, $"{AssistanceUrl}/{c.TicketId}", put), HttpStatusCode.Forbidden, "yetki_yok");
+        await Json(await Send(admin, HttpMethod.Put, $"{AssistanceUrl}/{c.TicketId}", put));
         Assert.Equal<(string?, string?)>(("Yeni Arayan", null), await StoredContactAsync(e.TenantId, c.TicketId));
     }
 

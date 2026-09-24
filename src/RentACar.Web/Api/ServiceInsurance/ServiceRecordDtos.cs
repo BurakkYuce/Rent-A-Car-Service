@@ -9,12 +9,25 @@ namespace RentACar.Web.Api.ServiceInsurance;
 public sealed record ServiceRecordRow(Guid Id, string No, Guid VehicleId, string Plaka, string Tip, string Durum,
     DateTimeOffset GirisTarihi, DateTimeOffset? CikisTarihi, int GirisKm, int? CikisKm, string? AtolyeAdi,
     string HasarSorumlu, decimal? KusurOrani, decimal ToplamIscilik, bool Yansitildi, DateTimeOffset? PlanBasTarihi,
-    DateTimeOffset? PlanBitTarihi)
+    DateTimeOffset? PlanBitTarihi, decimal KdvToplam, decimal GenelToplam, string? FaturaNo)
 {
-    public static ServiceRecordRow From(ServiceRecord s, string plaka) => new(s.Id, s.No, s.VehicleId, plaka, s.Tip.ToString(),
-        s.Durum.ToString(), s.GirisTarihi, s.CikisTarihi, s.GirisKm, s.CikisKm, s.AtolyeAdi, s.HasarSorumlu.ToString(),
-        s.KusurOrani, s.ToplamIscilik, s.Yansitildi, s.PlanBasTarihi, s.PlanBitTarihi);
+    /// <summary><c>kdvToplam</c>/<c>genelToplam</c>: kalemlerin SATIR BAZINDA yuvarlanmış KDV'si ve genel toplamı
+    /// (detaydaki <c>kalemler</c> toplamıyla aynı kaynak — <see cref="ServiceLineDto.From"/>); bilgi amaçlı, deftere
+    /// giden tek tutar <c>toplamIscilik</c> × kusur. <c>faturaNo</c>: FAZ-16 fatura bilgi bloğu (#301 parite).</summary>
+    public static ServiceRecordRow From(ServiceRecord s, string plaka)
+    {
+        var lines = s.Lines.Select(ServiceLineDto.From).ToList();
+        return new(s.Id, s.No, s.VehicleId, plaka, s.Tip.ToString(),
+            s.Durum.ToString(), s.GirisTarihi, s.CikisTarihi, s.GirisKm, s.CikisKm, s.AtolyeAdi, s.HasarSorumlu.ToString(),
+            s.KusurOrani, s.ToplamIscilik, s.Yansitildi, s.PlanBasTarihi, s.PlanBitTarihi,
+            lines.Sum(l => l.KdvTutar), lines.Sum(l => l.GenelToplam), s.FaturaNo);
+    }
 }
+
+/// <summary>Servis listesi durum sayaçları: liste süzgeçleri (durum HARİÇ) ve şube kapsamıyla; <c>tumu</c> = Σ.</summary>
+public sealed record ServiceStatusCount(string Durum, int Adet);
+
+public sealed record ServiceCounts(int Tumu, IReadOnlyList<ServiceStatusCount> Durumlar);
 
 /// <summary>Kalem: <c>tutar</c> = KDV hariç net (kalıcı); brüt/KDV/genel toplam satır bazında yuvarlanmış gösterim.</summary>
 public sealed record ServiceLineDto(Guid Id, string Aciklama, decimal Tutar, decimal? BirimFiyat, decimal? Miktar,

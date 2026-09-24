@@ -13645,6 +13645,88 @@
         }
       }
     },
+    "/api/ui/v1/regulasyon/zeyiller": {
+      "get": {
+        "tags": [
+          "Sigorta \u0026 Reg\u00FClasyon"
+        ],
+        "parameters": [
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tipi",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfEndorsementListRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/regulasyon/mtv": {
       "get": {
         "tags": [
@@ -14254,6 +14336,57 @@
               "application/problem\u002Bjson": {
                 "schema": {
                   "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/servisler/sayaclar": {
+      "get": {
+        "tags": [
+          "Servis"
+        ],
+        "parameters": [
+          {
+            "name": "tip",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCounts"
                 }
               }
             }
@@ -41375,6 +41508,117 @@
           }
         }
       },
+      "EndorsementListRow": {
+        "required": [
+          "id",
+          "policyId",
+          "vehicleId",
+          "plaka",
+          "policeNo",
+          "firma",
+          "policeTipi",
+          "zeyilNo",
+          "tarih",
+          "tanzim",
+          "deger",
+          "brut",
+          "net",
+          "fonVergi",
+          "tipi",
+          "neden"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "policeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firma": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "policeTipi": {
+            "type": "string"
+          },
+          "zeyilNo": {
+            "type": "string"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tanzim": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deger": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "brut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "net": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "fonVergi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "neden": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "EndorsementRequest": {
         "required": [
           "zeyilNo",
@@ -64572,6 +64816,55 @@
           }
         }
       },
+      "SayfaOfEndorsementListRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EndorsementListRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfExpenseCategoryDto": {
         "required": [
           "kayitlar",
@@ -67914,6 +68207,29 @@
           }
         }
       },
+      "ServiceCounts": {
+        "required": [
+          "tumu",
+          "durumlar"
+        ],
+        "type": "object",
+        "properties": {
+          "tumu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durumlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatusCount"
+            }
+          }
+        }
+      },
       "ServiceDefinitionDto": {
         "required": [
           "id",
@@ -68906,7 +69222,10 @@
           "toplamIscilik",
           "yansitildi",
           "planBasTarihi",
-          "planBitTarihi"
+          "planBitTarihi",
+          "kdvToplam",
+          "genelToplam",
+          "faturaNo"
         ],
         "type": "object",
         "properties": {
@@ -69000,6 +69319,28 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "kdvToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "genelToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "faturaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -69054,6 +69395,26 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "ServiceStatusCount": {
+        "required": [
+          "durum",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },

@@ -167,6 +167,7 @@ public static partial class CrmApi
         await CrmScope.RequireAsync(user, dbf, locations, current.RentalId, current.CikisOfisi, ct);
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
+        CrmScope.RequireBranchKept(user, current.RentalId, current.CikisOfisi, request.RentalId, request.CikisOfisi);
         var input = await ComplaintInputAsync(request, user, rentals, dbf, locations, ct);
         if (!await complaints.UpdateAsync(id, input, request.Surum, ct)) return ComplaintNotFound();
         return await ComplaintCardAsync(id, complaints, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : ComplaintNotFound();
