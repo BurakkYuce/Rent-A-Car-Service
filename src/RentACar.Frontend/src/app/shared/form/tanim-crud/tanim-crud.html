@@ -13,6 +13,24 @@
   </header>
 
   <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
+  @if (openError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ openError() }}</p>
+  }
+
+  @if (layout() === 'panel' && duzenleme() !== null) {
+    <div class="duzenleme duzenleme--panel">
+      <div class="rc-form-izgara">
+        @for (alan of formFields(); track alan.ad) {
+          <ng-container
+            *ngTemplateOutlet="kontrol; context: { $implicit: alan, etiketGizli: false }"
+          />
+        }
+      </div>
+      <div class="panel-islemler">
+        <ng-container *ngTemplateOutlet="islemDugmeleri" />
+      </div>
+    </div>
+  }
 
   @switch (liste.tur()) {
     @case ('hata') {
@@ -28,7 +46,7 @@
         <table class="tablo" [attr.aria-busy]="liste.yukleniyor()">
           <thead>
             <tr>
-              @for (alan of alanlar(); track alan.ad) {
+              @for (alan of columns(); track alan.ad) {
                 <th scope="col">{{ alan.etiket }}</th>
               }
               <th scope="col" class="islemler rc-yazdirma-gizle">
@@ -37,15 +55,15 @@
             </tr>
           </thead>
           <tbody>
-            @if (duzenleme()?.tur === 'yeni') {
+            @if (layout() === 'row' && duzenleme()?.tur === 'yeni') {
               <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
             }
-            @for (satir of satirlar(); track satir.id) {
-              @if (duzenleniyor(satir)) {
+            @for (satir of rows(); track satir.id) {
+              @if (layout() === 'row' && duzenleniyor(satir)) {
                 <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
               } @else {
-                <tr>
-                  @for (alan of alanlar(); track alan.ad) {
+                <tr [class.secili]="duzenleniyor(satir)">
+                  @for (alan of columns(); track alan.ad) {
                     <td [class.sayi]="alan.tur === 'sayi' || alan.tur === 'para'">
                       {{ goster(alan, satir[alan.ad]) }}
                     </td>
@@ -81,7 +99,7 @@
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                        [disabled]="duzenleme() !== null"
+                        [disabled]="duzenleme() !== null || opening() !== null"
                         (click)="duzenle(satir)"
                       >
                         <rc-ikon ad="edit" [boyut]="14" />
@@ -101,9 +119,9 @@
                 </tr>
               }
             } @empty {
-              @if (liste.tur() === 'hazir' && duzenleme() === null) {
+              @if (liste.tur() === 'hazir' && (layout() === 'panel' || duzenleme() === null)) {
                 <tr>
-                  <td class="bos" [attr.colspan]="alanlar().length + 1">
+                  <td class="bos" [attr.colspan]="columns().length + 1">
                     {{ 'form.tanim.bos' | transloco }}
                   </td>
                 </tr>
@@ -120,42 +138,77 @@
 </section>
 
 <ng-template #duzenlemeSatiri>
-  <tr class="duzenleme" [formGroup]="form">
-    @for (alan of alanlar(); track alan.ad) {
+  <tr class="duzenleme">
+    @for (alan of columns(); track alan.ad) {
       <td>
-        <rc-alan [etiket]="alan.etiket" etiketGizli>
-          @switch (alan.tur) {
-            @case ('sayi') {
-              <rc-sayi-girdisi [formControlName]="alan.ad" />
-            }
-            @case ('para') {
-              <rc-para-girdisi [formControlName]="alan.ad" />
-            }
-            @case ('onay') {
-              <rc-onay-kutusu [formControlName]="alan.ad" />
-            }
-            @case ('secim') {
-              <rc-secim [formControlName]="alan.ad" [secenekler]="alan.secenekler ?? []" />
-            }
-            @default {
-              <rc-metin-girdisi [formControlName]="alan.ad" [azamiUzunluk]="alan.azamiUzunluk" />
-            }
-          }
-        </rc-alan>
+        <ng-container
+          *ngTemplateOutlet="kontrol; context: { $implicit: alan, etiketGizli: true }"
+        />
       </td>
     }
     <td class="islemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [disabled]="gonderim.gonderiliyor()"
-        (click)="kaydet()"
-      >
-        {{ 'form.tanim.kaydet' | transloco }}
-      </button>
-      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="vazgec()">
-        {{ 'form.tanim.vazgec' | transloco }}
-      </button>
+      <ng-container *ngTemplateOutlet="islemDugmeleri" />
     </td>
   </tr>
+</ng-template>
+
+<ng-template #islemDugmeleri>
+  <button
+    type="button"
+    class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+    [disabled]="gonderim.gonderiliyor()"
+    (click)="kaydet()"
+  >
+    {{ 'form.tanim.kaydet' | transloco }}
+  </button>
+  <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="vazgec()">
+    {{ 'form.tanim.vazgec' | transloco }}
+  </button>
+</ng-template>
+
+<ng-template #kontrol let-alan let-etiketGizli="etiketGizli">
+  <rc-alan [etiket]="alan.etiket" [etiketGizli]="etiketGizli">
+    @switch (alan.tur) {
+      @case ('sayi') {
+        <rc-sayi-girdisi
+          [formControl]="controlOf(alan)"
+          [kesir]="alan.fraction ?? 0"
+          [negatif]="alan.negative ?? false"
+          [yerTutucu]="alan.placeholder ?? ''"
+        />
+      }
+      @case ('para') {
+        <rc-para-girdisi [formControl]="controlOf(alan)" />
+      }
+      @case ('onay') {
+        <rc-onay-kutusu [formControl]="controlOf(alan)" />
+      }
+      @case ('secim') {
+        <rc-secim [formControl]="controlOf(alan)" [secenekler]="optionsOf(alan)" />
+      }
+      @case ('date') {
+        <rc-tarih-secici [formControl]="controlOf(alan)" />
+      }
+      @case ('datalist') {
+        <rc-metin-girdisi
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+          [liste]="datalistId(alan)"
+        />
+        <datalist [id]="datalistId(alan)">
+          @for (oneri of suggestionsOf(alan); track oneri) {
+            <option [value]="oneri"></option>
+          }
+        </datalist>
+      }
+      @default {
+        <rc-metin-girdisi
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+        />
+      }
+    }
+  </rc-alan>
 </ng-template>

@@ -1,0 +1,289 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ def.baslik | transloco }}</h1>
+    @if (exportLinks() && !view().satirlar) {
+      <span
+        class="rc-dugme-grubu"
+        role="group"
+        [attr.aria-label]="'tablo.disaAktar.etiket' | transloco"
+      >
+        @for (f of exportFormats(); track f) {
+          <a class="rc-dugme rc-dugme--kucuk" [href]="exportHref(f)">
+            @if ($first) {
+              <rc-ikon ad="download" [boyut]="14" />
+            }
+            {{ 'tablo.disaAktar.' + f | transloco }}
+          </a>
+        }
+      </span>
+    }
+  </header>
+  @if (def.aciklama) {
+    <p class="aciklama">{{ def.aciklama | transloco }}</p>
+  }
+
+  @if (def.gorunumler.length > 1) {
+    <div
+      class="gorunumler rc-dugme-grubu"
+      role="group"
+      [attr.aria-label]="'rapor.gorunumSec' | transloco"
+    >
+      @for (v of def.gorunumler; track v.kod) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [class.rc-dugme--birincil]="v.kod === view().kod"
+          [attr.aria-pressed]="v.kod === view().kod"
+          (click)="switchView(v.kod)"
+        >
+          {{ v.baslik ?? def.baslik | transloco }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (viewFilters().length > 0) {
+    <form
+      class="filtre"
+      [formGroup]="filterForm"
+      [attr.aria-label]="'rapor.suzgec' | transloco"
+      (ngSubmit)="apply()"
+    >
+      <div class="rc-form-izgara">
+        @for (f of viewFilters(); track controlName(f)) {
+          @switch (f.tur) {
+            @case ('donem') {
+              <rc-alan
+                [etiket]="'rapor.alan.donem' | transloco"
+                [ipucu]="f.ipucu ?? 'rapor.ipucu.donem' | transloco"
+              >
+                <rc-tarih-secici [formControlName]="controlName(f)" aralik />
+              </rc-alan>
+            }
+            @case ('gun') {
+              <rc-alan
+                [etiket]="f.baslik | transloco"
+                [ipucu]="f.ipucu ? (f.ipucu | transloco) : ''"
+              >
+                <rc-tarih-secici [formControlName]="controlName(f)" />
+              </rc-alan>
+            }
+            @case ('secim') {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-secim
+                  [formControlName]="controlName(f)"
+                  [secenekler]="selectOptions(f)"
+                  [bosEtiket]="f.bosEtiket ?? 'rapor.tumu' | transloco"
+                />
+              </rc-alan>
+            }
+            @case ('liste') {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-secim
+                  [formControlName]="controlName(f)"
+                  [secenekler]="selectOptions(f)"
+                  [bosEtiket]="'rapor.tumu' | transloco"
+                />
+              </rc-alan>
+            }
+            @case ('bayrak') {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-onay-kutusu [formControlName]="controlName(f)" />
+              </rc-alan>
+            }
+            @case ('sayi') {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-sayi-girdisi [formControlName]="controlName(f)" [kesir]="f.tamsayi ? 0 : 2" />
+              </rc-alan>
+            }
+            @case ('arama') {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-arama-secim
+                  [formControlName]="controlName(f)"
+                  [kaynak]="searchSources[f.ad]!"
+                />
+              </rc-alan>
+            }
+            @case ('sube') {
+              <rc-alan
+                [etiket]="f.baslik | transloco"
+                [ipucu]="scopedBranch() ? ('rapor.ipucu.subeSabit' | transloco) : ''"
+              >
+                <rc-metin-girdisi
+                  [formControlName]="controlName(f)"
+                  [azamiUzunluk]="100"
+                  [liste]="'rc-rapor-dl-' + f.ad"
+                />
+              </rc-alan>
+              <datalist [id]="'rc-rapor-dl-' + f.ad">
+                @for (o of suggestions(f); track o) {
+                  <option [value]="o"></option>
+                }
+              </datalist>
+            }
+            @default {
+              <rc-alan [etiket]="f.baslik | transloco">
+                <rc-metin-girdisi
+                  [formControlName]="controlName(f)"
+                  [azamiUzunluk]="f.tur === 'metin' ? (f.enFazla ?? 100) : 100"
+                  [liste]="'rc-rapor-dl-' + f.ad"
+                />
+              </rc-alan>
+              <datalist [id]="'rc-rapor-dl-' + f.ad">
+                @for (o of suggestions(f); track o) {
+                  <option [value]="o"></option>
+                }
+              </datalist>
+            }
+          }
+        }
+      </div>
+      <div class="filtre__eylemler">
+        <button type="submit" class="rc-dugme rc-dugme--kucuk">
+          <rc-ikon ad="filter" [boyut]="14" />
+          {{ 'rapor.uygula' | transloco }}
+        </button>
+        @if (query.etkinFiltreSayisi() > (def.gorunumler.length > 1 ? 1 : 0)) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="clear()"
+          >
+            {{ 'rapor.temizle' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+  }
+
+  @if (forbidden()) {
+    <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert" data-rapor-durum="yetki">
+      <strong>{{ 'rapor.yetkiYok' | transloco }}</strong>
+      <span>{{
+        (def.firmaGeneli ? 'rapor.firmaGeneliMesaj' : 'rapor.kapsamMesaj') | transloco
+      }}</span>
+    </div>
+  } @else if (store.hata(); as h) {
+    <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert" data-rapor-durum="hata">
+      <span>{{ h.detay || ('rapor.yuklenemedi' | transloco) }}</span>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.yenile()">
+        {{ 'rapor.yenidenDene' | transloco }}
+      </button>
+    </div>
+  } @else {
+    @if (store.tur() === 'yukleniyor' && !summary()) {
+      <div class="iskelet" aria-busy="true" [attr.aria-label]="'rapor.yukleniyor' | transloco">
+        <span class="rc-iskelet"></span><span class="rc-iskelet"></span
+        ><span class="rc-iskelet"></span>
+      </div>
+    }
+    @if (summary(); as s) {
+      @for (u of view().uyarilar; track u.metin) {
+        @if (u.goster(s)) {
+          <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+            {{ u.metin | transloco: u.parametreler?.(s) ?? {} }}
+          </p>
+        }
+      }
+      @if (view().kartlar.length > 0) {
+        <dl
+          class="ozet-serit"
+          [class.soluk]="store.tur() === 'yukleniyor'"
+          [attr.aria-label]="'rapor.ozet' | transloco"
+        >
+          @for (k of view().kartlar; track $index) {
+            <div>
+              <dt>{{ k.baslik | transloco }}</dt>
+              <dd [class.eksi]="k.isaretli && negative(k.deger(s))">
+                {{ format(k.tur, k.deger(s)) }}
+              </dd>
+            </div>
+          }
+        </dl>
+      }
+      @for (b of view().bolumler; track b.kod) {
+        <section class="bolum" [attr.aria-labelledby]="'rc-rapor-b-' + b.kod">
+          <h2 [id]="'rc-rapor-b-' + b.kod">{{ b.baslik | transloco }}</h2>
+          @if (b.satirlar(s); as satirlar) {
+            @if (satirlar.length === 0) {
+              <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
+            } @else {
+              <div class="tablo-kap" tabindex="0" [attr.aria-label]="b.baslik | transloco">
+                <table class="duz-tablo">
+                  <thead>
+                    <tr>
+                      @for (c of b.sutunlar(s); track c.kod) {
+                        <th scope="col" [class.num]="numeric(c)">{{ header(c) }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of satirlar; track $index) {
+                      <tr>
+                        @for (c of b.sutunlar(s); track c.kod) {
+                          <td
+                            [class.num]="numeric(c)"
+                            [class.eksi]="numeric(c) && negative(c.deger(r))"
+                          >
+                            @if (c.bag?.(r); as link) {
+                              <a [routerLink]="link">{{ cell(c, r) }}</a>
+                            } @else {
+                              {{ cell(c, r) }}
+                            }
+                          </td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                  @if (b.toplam?.(s); as t) {
+                    <tfoot>
+                      <tr class="toplam-satiri">
+                        @for (c of b.sutunlar(s); track c.kod; let first = $first) {
+                          <td [class.num]="numeric(c)">
+                            @if (first) {
+                              {{ 'rapor.toplam' | transloco }}
+                            } @else if (t[c.kod] !== undefined) {
+                              {{ format(c.tur, t[c.kod]) }}
+                            }
+                          </td>
+                        }
+                      </tr>
+                    </tfoot>
+                  }
+                </table>
+              </div>
+            }
+          }
+        </section>
+      }
+    } @else if (store.tur() === 'hazir' && !view().satirlar) {
+      <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
+    }
+    @if (view().satirlar; as sr) {
+      <rc-tablo
+        class="tablo"
+        [tabloKodu]="sr.tabloKodu"
+        [etiket]="def.baslik | transloco"
+        [sutunlar]="tableColumns()"
+        [kaynak]="rows()"
+        [satirKimligi]="rowId"
+        [sirala]="query.sorgu().sirala"
+        [disaAktarma]="exportLinks()"
+        (siralaDegisti)="query.degistir({ sirala: $event })"
+        (sayfaDegisti)="query.degistir({ sayfa: $event })"
+        (boyutDegisti)="query.degistir({ boyut: $event })"
+        (yenidenDene)="store.yenile()"
+      >
+        @for (c of linkColumns(); track c.kod) {
+          <ng-template [rcTabloHucre]="c.kod" let-satir>
+            @if (c.bag?.(satir); as link) {
+              <a class="bag" [routerLink]="link">{{ cell(c, satir) }}</a>
+            } @else {
+              {{ cell(c, satir) }}
+            }
+          </ng-template>
+        }
+      </rc-tablo>
+    }
+  }
+</div>

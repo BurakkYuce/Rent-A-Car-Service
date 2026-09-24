@@ -1,0 +1,242 @@
+{
+  "tanimlar": {
+    "alan": {
+      "kod": "Kod",
+      "ad": "Ad",
+      "aciklama": "Açıklama",
+      "durum": "Durum",
+      "aktif": "Aktif",
+      "pasif": "Pasif",
+      "evet": "Evet",
+      "hayir": "Hayır",
+      "sembol": "Sembol",
+      "ulke": "Ülke",
+      "tur": "Tür",
+      "kasa": "Kasa",
+      "banka": "Banka",
+      "doviz": "Döviz",
+      "iban": "IBAN",
+      "hesapNo": "Hesap No",
+      "sube": "Şube",
+      "ozelKod": "Özel Kod",
+      "hediyeCek": "Hediye Çeki",
+      "uyariMailListesi": "Uyarı Mail Listesi",
+      "donusLokasyonu": "Dönüş Lokasyonu",
+      "cikisSubesi": "Çıkış Şubesi",
+      "cikisLokasyonu": "Çıkış Lokasyonu",
+      "karsilamaSekli": "Karşılama Şekli",
+      "calismaSekli": "Çalışma Şekli",
+      "ozelIletisim": "Özel İletişim",
+      "dropUcreti": "Drop Ücreti (net)",
+      "asgariGun": "Asgari Gün",
+      "karsilamaSuresi": "Karşılama Süresi (dk)",
+      "drop2": "Drop 2 (bilgi)",
+      "aracGrubu": "Araç Grubu",
+      "esikYuzde": "Doluluk Eşiği %",
+      "carpanYuzde": "Çarpan % (tavan 50)",
+      "sadeceKendiSubeleri": "Sadece Kendi Şubeleri",
+      "gecerlilikBas": "Geçerlilik Başlangıç",
+      "gecerlilikBit": "Geçerlilik Bitiş"
+    },
+    "yerTutucu": {
+      "giderTuru": "Ofis/Araç/Servis/Personel",
+      "tumOfisler": "(tüm ofisler)",
+      "tumu": "(tümü)",
+      "kosulsuz": "(koşulsuz)",
+      "mailListesi": "a@firma.com, b@firma.com"
+    },
+    "brand": {
+      "baslik": "Marka Tanımları",
+      "aciklama": "Araç markalarının sözlüğü (Fiat, Renault…). Araç kayıt/düzenleme formundaki Marka açılır listesi buradan beslenir.",
+      "tablo": "Markalar"
+    },
+    "cancelReason": {
+      "baslik": "İptal Sebebi Tanımları",
+      "aciklama": "Rezervasyon/kira iptallerinde seçilen sebeplerin sözlüğü (ör. \"Müşteri Vazgeçti\", \"Araç Arızası\"). İptal akışlarındaki açılır listeyi besler.",
+      "tablo": "İptal sebepleri"
+    },
+    "country": {
+      "baslik": "Ülke Tanımları",
+      "aciklama": "Ülkelerin sözlüğü (ör. \"Türkiye\", \"Almanya\", \"ABD\"). Cari/sürücü uyruğu ve adres formlarındaki Ülke açılır listesini besler.",
+      "tablo": "Ülkeler"
+    },
+    "customerGroup": {
+      "baslik": "Müşteri Grubu Tanımları",
+      "aciklama": "Carilerin sınıflandırma gruplarının sözlüğü (ör. \"Bireysel\", \"Kurumsal\", \"Acente\", \"Filo\"). Cari formundaki Grup açılır listesini besler.",
+      "tablo": "Müşteri grupları"
+    },
+    "department": {
+      "baslik": "Departman Tanımları",
+      "aciklama": "Organizasyon birimlerinin sözlüğü (ör. \"Operasyon\", \"Muhasebe\", \"Filo\", \"Satış\"). Gider/personel dağıtımı ve raporlama için.",
+      "tablo": "Departmanlar"
+    },
+    "accessory": {
+      "baslik": "Aksesuar Tanımları",
+      "aciklama": "Araç ek donanımlarının sözlüğü (ör. \"Bebek Koltuğu\", \"Kar Lastiği\", \"Navigasyon\"). Araç/kira formlarındaki Aksesuar açılır listesini besler.",
+      "tablo": "Aksesuarlar"
+    },
+    "bank": {
+      "baslik": "Banka Tanımları",
+      "aciklama": "Bankaların sözlüğü (ör. \"Ziraat\", \"İş Bankası\", \"Garanti\"). Banka hesabı / çek-senet formlarındaki Banka açılır listesini besler.",
+      "tablo": "Bankalar"
+    },
+    "currency": {
+      "baslik": "Döviz Tanımları",
+      "aciklama": "Kullanılan para birimleri (TRY, USD, EUR…). Kasa/banka tahsilat-ödeme ve fatura döviz açılır listelerini besler. Kod 3 harfli ISO. Anlık kur işlem anında girilir.",
+      "tablo": "Dövizler"
+    },
+    "customCode": {
+      "baslik": "Özel Kod Tanımları",
+      "aciklama": "Kullanıcı tanımlı serbest sınıflandırma kodları (ör. \"VIP\", \"Filo-A\", \"Kampanya-X\"). Araç/cari/rezervasyon formlarındaki Özel Kod açılır listesini besler.",
+      "tablo": "Özel kodlar"
+    },
+    "expenseCategory": {
+      "baslik": "Gider Türü Tanımları",
+      "aciklama": "Gider kategorilerinin sözlüğü (ör. \"Yakıt\", \"Bakım\", \"Sigorta\", \"Kira\"). Gider formundaki Kategori açılır listesini besler.",
+      "tablo": "Gider türleri"
+    },
+    "account": {
+      "baslik": "Kasa/Banka Hesap Tanımları",
+      "aciklama": "Nakit kasaları ve banka hesapları (ör. \"Merkez Kasa\", \"Ziraat TL\"). Tahsilat/ödeme/virman formlarındaki Hesap açılır listesini besler. Tür (Kasa/Banka) zorunlu; Döviz opsiyonel.",
+      "tablo": "Hesaplar"
+    },
+    "drop": {
+      "baslik": "Lokasyon-Şube Drop Matrisi",
+      "aciklama": "Aracı bir şubeden alıp başka bir ofise bırakma (drop) konfigürasyonu. Dönüş Lokasyonu = aracın bırakıldığı ofis; Çıkış Şubesi = alındığı şube. Çıkış Lokasyonu doldurulursa kural yalnız o çıkış ofisinde geçerlidir (şube kuralından daha özgüldür ve onu yener). Asgari Gün altındaki kiralarda satır uygulanmaz.",
+      "aciklama2": "Ücret KDV hariç ve tek seferliktir (gün ile ölçeklenmez). Drop 2 ve Karşılama Süresi bilgi alanıdır — hesaba girmez.",
+      "tablo": "Drop tanımları"
+    },
+    "occupancy": {
+      "baslik": "Doluluk Fiyat Kuralları",
+      "aciklama": "Grup doluluğu eşiği aşınca OTOMATİK tarife fiyatına +% çarpan (tavan %50; yalnız motor fiyatı — manuel fiyat etkilenmez; rezervasyon güncellemesinde uygulanmaz). İndirim/hediye matrahı çarpanlı bazdan.",
+      "tablo": "Kurallar",
+      "toplu": {
+        "baslik": "Toplu Kademe Girişi",
+        "aciklama": "Ortak kapsam bir kez girilir, kademeler aşağıdaki satırlara yazılır. Kod = ÖNEK-eşik, ad = \"Ad öneki %eşik\". Boş satırlar atlanır; bir satır bile geçersizse hiçbir kademe kaydedilmez.",
+        "kodOnEk": "Kod Ön Eki",
+        "adOnEk": "Ad Ön Eki",
+        "esik": "Kademe {{ n }} — Eşik %",
+        "carpan": "Kademe {{ n }} — Çarpan %",
+        "kaydet": "Kademeleri Kaydet",
+        "enAzBir": "En az bir kademe girin (eşik ve çarpan birlikte).",
+        "yarim": "Kademe {{ n }}: eşik ve çarpan birlikte girilmeli.",
+        "kaydedildi": "{{ sayi }} kademe kaydedildi."
+      }
+    },
+    "branch": {
+      "baslik": "Şube Tanımları",
+      "aciklama": "Şubeler (çıkış/dönüş noktası, evrak no öneki, web vitrini ve bayi bilgileri). Kullanımdaki şube silinemez — pasife alın ya da başka şubeyle birleştirin.",
+      "tablo": "Şubeler",
+      "alan": {
+        "adres": "Adres",
+        "telefon": "Telefon",
+        "eposta": "E-posta",
+        "il": "İl",
+        "ilce": "İlçe",
+        "yetkili": "Yetkili",
+        "calismaSaatleri": "Çalışma Saatleri",
+        "komisyonOran": "Komisyon Oranı (0–1)",
+        "evrakNoOnek": "Evrak No Öneki",
+        "webIsim": "Web Adı",
+        "firmaUnvani": "Firma Ünvanı",
+        "hizmetKomisyonOran": "Hizmetten Alınan Komisyon (0–1)",
+        "webRezOncesiSaat": "Web Rez. Öncesi Saat",
+        "enlem": "Enlem",
+        "boylam": "Boylam",
+        "rezervasyonRengi": "Rezervasyon Rengi",
+        "alisSubesiDegilMi": "Alış (çıkış) şubesi DEĞİL",
+        "webSira": "Web Sıra",
+        "webOtoparkId": "Web Otopark ID",
+        "bayiCariKod": "Bayi Cari Kod",
+        "bayiOfisId": "Bayi Ofis ID",
+        "komisyonHesabi": "Komisyon Hesabı",
+        "satistan": "Satıştan",
+        "maliyetten": "Maliyetten",
+        "onlineRezId": "Online Rez. ID",
+        "sozlesmeNoFormati": "Sözleşme No Formatı",
+        "entegrasyonKodu": "Entegrasyon Kodu",
+        "resimDosyasi": "Resim Dosyası (yol)",
+        "haftalikCalismaSaatleri": "Haftalık Çalışma Saatleri"
+      },
+      "hizmet": {
+        "baslik": "Şube Özel Ücretsiz Hizmetler",
+        "aciklama": "Şubede ek ücret alınmayan kalemler (bilgi/vitrin). Ücretli ek hizmet için Ek Hizmet Tanımları ekranını kullanın — burası fiyata girmez.",
+        "sube": "Şube",
+        "hizmet": "Hizmet",
+        "aciklamaAlan": "Açıklama",
+        "ekle": "Ekle",
+        "sil": "Sil",
+        "silBaslik": "Hizmet silinsin mi?",
+        "silMesaj": "\"{{ ad }}\" hizmeti şubeden kaldırılacak.",
+        "bos": "Tanımlı ücretsiz hizmet yok.",
+        "eklendi": "Hizmet eklendi.",
+        "silindi": "Hizmet silindi.",
+        "yuklenemedi": "Hizmetler yüklenemedi."
+      },
+      "birlestir": {
+        "baslik": "Şube Birleştirme",
+        "aciklama": "Geri alınamaz. Kaynak şubenin araç, kira, rezervasyon, teklif, personel, lokasyon, tarife ve kullanıcı atamaları hedef şubeye taşınır; kaynak şube silinmez, pasife alınır. Giderler taşınmaz — kesilmiş gider belgesi değişmez bir mali kayıttır. Önce Önizle ile kaç kaydın etkileneceğini görün.",
+        "kaynak": "Kaynak (pasife alınacak)",
+        "hedef": "Hedef",
+        "onizle": "Önizle",
+        "ozet": "{{ kaynak }} → {{ hedef }} · toplam {{ toplam }} kayıt",
+        "tasinacakYok": "Taşınacak kayıt yok.",
+        "onay": "Etkiyi gördüm, birleştir",
+        "birlestir": "Birleştir",
+        "onayBaslik": "Şubeler birleştirilsin mi?",
+        "onayMesaj": "Bu işlem geri alınamaz. {{ kaynak }} şubesinin kayıtları {{ hedef }} şubesine taşınacak ve {{ kaynak }} pasife alınacak.",
+        "tamam": "Birleştirme tamamlandı: {{ sayi }} kayıt taşındı."
+      }
+    },
+    "document": {
+      "baslik": "Dokümanlar",
+      "aciklama": "Firmanızın kendi PDF belgeleri: sahada çıktı alınması gereken boş sözleşme nüshası, teslim/hasar formu, ruhsat örneği, vekaletname… Yalnız PDF kabul edilir, dosya başına en fazla 3 MB ve toplam 10 belge saklanabilir.",
+      "firmaBelgeleriNotu": "Platformun sizinle paylaştığı belgeler için Firma Belgeleri sayfasına bakın — orası salt okunurdur, burası sizin yüklediklerinizdir.",
+      "firmaBelgeleri": "Firma Belgeleri",
+      "yukleBaslik": "Yeni doküman yükle",
+      "baslikAlan": "Başlık",
+      "aciklamaAlan": "Açıklama (isteğe bağlı)",
+      "dosya": "PDF dosyası",
+      "yukle": "Yükle",
+      "dosyaSecilmedi": "PDF dosyası seçin.",
+      "cokBuyuk": "Dosya en fazla 3 MB olabilir.",
+      "sinir": "Belge sınırına ulaşıldı (10/10). Yeni belge yüklemek için aşağıdakilerden birini silin.",
+      "bos": "Henüz doküman yüklenmemiş.",
+      "belge": "Belge",
+      "boyut": "Boyut",
+      "yukleyen": "Yükleyen",
+      "tarih": "Tarih",
+      "indir": "İndir",
+      "sil": "Sil",
+      "silBaslik": "Doküman silinsin mi?",
+      "silMesaj": "\"{{ baslik }}\" dokümanı KALICI olarak silinecek. Dosya içeriğiyle birlikte silinir ve geri alınamaz; gerekirse önce İndir ile bir kopyasını alın.",
+      "yuklendi": "Doküman yüklendi.",
+      "silindi": "Doküman silindi.",
+      "yuklenemedi": "Dokümanlar yüklenemedi.",
+      "yenidenDene": "Yeniden dene",
+      "kb": "{{ kb }} KB"
+    },
+    "platformDocument": {
+      "baslik": "Firma Belgeleri",
+      "aciklama": "Platformun sizinle paylaştığı belgeler (kullanım kılavuzu, KVKK metni, boş sözleşme nüshası, fiyat listesi). Bu liste salt okunurdur — belgeler platform tarafından güncellenir, güncellendiğinde sürüm numarası artar.",
+      "bos": "Şu anda sizinle paylaşılmış bir belge yok.",
+      "surum": "Sürüm",
+      "guncelleme": "Güncelleme",
+      "yeni": "Yeni",
+      "goruntule": "Görüntüle"
+    },
+    "calendar": {
+      "baslik": "Takvim Aboneliği",
+      "aciklama": "Aşağıdaki adresi Google Calendar → Diğer takvimler (+) → URL'den ekle'ye yapıştırın. Rezervasyon çıkış/dönüşleri, sigorta/kasko/muayene/MTV vadeleri ve ceza/fatura ödeme vadeleri takviminize otomatik düşer (uygulama → takvim, tek yön). Apple/Outlook takviminde de çalışır. Google birkaç saatte bir günceller.",
+      "baglanti": "Takvim bağlantısı",
+      "kopyala": "Kopyala",
+      "kopyalandi": "Bağlantı panoya kopyalandı.",
+      "uyari": "Bu bağlantı kişiye özeldir ve müşteri adı / plaka bilgisi içerir — kimseyle paylaşmayın. Yanlışlıkla sızarsa aşağıdan Yenile ile eski bağlantıyı iptal edin.",
+      "yenile": "Bağlantıyı Yenile (eskisini iptal et)",
+      "yenileBaslik": "Takvim bağlantısı yenilensin mi?",
+      "yenileMesaj": "Eski bağlantı iptal olacak; takvim uygulamalarınıza yeni bağlantıyı eklemeniz gerekir.",
+      "yenilendi": "Yeni bağlantı üretildi — eski bağlantı artık çalışmaz.",
+      "yuklenemedi": "Takvim bağlantısı alınamadı."
+    }
+  }
+}

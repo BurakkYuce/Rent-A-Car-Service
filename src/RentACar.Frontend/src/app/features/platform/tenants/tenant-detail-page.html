@@ -1,0 +1,319 @@
+@if (detail(); as d) {
+  <div class="head">
+    <h1>
+      {{ d.ad }} <span class="mono muted">({{ d.kod }})</span>
+    </h1>
+    <a class="link" routerLink="/platform/kiracilar">← {{ 'platform.detay.konsol' | transloco }}</a>
+  </div>
+
+  <p class="row small">
+    <span class="rc-rozet" [class]="badge(status())" data-testid="platform-firma-durum">{{
+      'platform.durum.' + status() | transloco
+    }}</span>
+    @if (d.kapanisTarihi) {
+      <span class="muted"
+        >{{ 'platform.detay.kapanis' | transloco }}: {{ d.kapanisTarihi | tarihSaat }}</span
+      >
+    }
+    <span class="muted"
+      >· {{ 'platform.detay.olusturma' | transloco }}: {{ d.olusturma | tarih }}</span
+    >
+    @if (d.guncelleme) {
+      <span class="muted"
+        >· {{ 'platform.detay.guncelleme' | transloco }}: {{ d.guncelleme | tarihSaat }}</span
+      >
+    }
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card__num">{{ num(d.kullaniciSayisi) | sayi }}</span>
+      <span class="card__label">{{ 'platform.detay.kullanici' | transloco }}</span>
+    </div>
+    <div class="card">
+      <span class="card__num">{{ num(d.aracSayisi) | sayi }}</span>
+      <span class="card__label">{{ 'platform.detay.arac' | transloco }}</span>
+    </div>
+    <div class="card">
+      <span class="card__num">{{ num(d.aktifKira) | sayi }} / {{ num(d.toplamKira) | sayi }}</span>
+      <span class="card__label">{{ 'platform.detay.kira' | transloco }}</span>
+    </div>
+    <div class="card">
+      <span class="card__num">{{ num(d.gelir30Gun) | para }}</span>
+      <span class="card__label">{{ 'platform.detay.gelir' | transloco }}</span>
+    </div>
+  </div>
+  <p class="muted small">
+    {{ 'platform.detay.sonGiris' | transloco }}:
+    <strong>{{ d.sonGiris ? (d.sonGiris | tarihSaat) : '—' }}</strong>
+  </p>
+
+  <!-- Firma bilgileri -->
+  <section class="panel" aria-labelledby="pf-bilgi">
+    <h2 id="pf-bilgi">{{ 'platform.detay.bilgiBaslik' | transloco }}</h2>
+    <form novalidate [formGroup]="info" (ngSubmit)="saveInfo()">
+      <rc-form-hatalari [hatalar]="infoSubmit.genelHatalar()" />
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'platform.detay.alan.ad' | transloco">
+          <rc-metin-girdisi formControlName="ad" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.detay.alan.yetkiliAd' | transloco">
+          <rc-metin-girdisi formControlName="yetkiliAd" [azamiUzunluk]="128" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.detay.alan.eposta' | transloco">
+          <rc-metin-girdisi formControlName="eposta" tur="email" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.detay.alan.telefon' | transloco">
+          <rc-metin-girdisi formControlName="telefon" tur="tel" [azamiUzunluk]="32" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.detay.alan.plan' | transloco">
+          <rc-metin-girdisi
+            formControlName="plan"
+            liste="dl-platform-plan"
+            [azamiUzunluk]="64"
+            yerTutucu="Deneme / Standart / Pro"
+          />
+        </rc-alan>
+        <rc-alan class="rc-form-izgara__genis" [etiket]="'platform.detay.alan.notlar' | transloco">
+          <rc-metin-alani formControlName="notlar" [satir]="3" [azamiUzunluk]="2000" />
+        </rc-alan>
+      </div>
+      <datalist id="dl-platform-plan">
+        @for (p of plans; track p) {
+          <option [value]="p"></option>
+        }
+      </datalist>
+      <div class="actions">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="infoSubmit.gonderiliyor()"
+        >
+          {{
+            (infoSubmit.gonderiliyor() ? 'platform.kaydediliyor' : 'platform.kaydet') | transloco
+          }}
+        </button>
+      </div>
+    </form>
+    <p class="muted small">{{ 'platform.detay.kodDegismez' | transloco: { kod: d.kod } }}</p>
+  </section>
+
+  <!-- Erişim yönetimi -->
+  <section class="panel" aria-labelledby="pf-erisim">
+    <h2 id="pf-erisim">{{ 'platform.detay.erisimBaslik' | transloco }}</h2>
+    @if (toggle(); as target) {
+      <div class="row">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [class.rc-dugme--tehlike]="target === 'Pasif'"
+          [disabled]="busy()"
+          (click)="toggleStatus()"
+        >
+          {{
+            (target === 'Pasif' ? 'platform.eylem.pasiflestir' : 'platform.eylem.aktiflestir')
+              | transloco
+          }}
+        </button>
+        <span class="muted small">{{ 'platform.detay.askiyaAlmaIpucu' | transloco }}</span>
+      </div>
+      <form novalidate class="close-form" [formGroup]="closeForm" (ngSubmit)="closeTenant()">
+        <rc-form-hatalari [hatalar]="closeSubmit.genelHatalar()" />
+        <rc-alan
+          [etiket]="'platform.detay.onayKod' | transloco"
+          [ipucu]="'platform.detay.kapatIpucu' | transloco: { kod: d.kod }"
+        >
+          <rc-metin-girdisi formControlName="onayKod" [azamiUzunluk]="64" />
+        </rc-alan>
+        <div class="actions">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+            [disabled]="closeSubmit.gonderiliyor()"
+          >
+            {{ 'platform.detay.kapat' | transloco }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <div class="row">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="reopen()"
+        >
+          {{ 'platform.detay.yenidenAc' | transloco }}
+        </button>
+        <span class="muted small">{{ 'platform.detay.yenidenAcIpucu' | transloco }}</span>
+      </div>
+    }
+  </section>
+
+  <!-- PDF logosu -->
+  <section class="panel" aria-labelledby="pf-logo">
+    <h2 id="pf-logo">{{ 'platform.detay.logoBaslik' | transloco }}</h2>
+    @if (d.logo.var) {
+      <p class="muted small">{{ 'platform.detay.logoBaskiBoyutu' | transloco }}</p>
+      <div class="logo-frame">
+        <img [src]="logoUrl()" [alt]="'platform.detay.logoOnizleme' | transloco" height="38" />
+      </div>
+      <p class="muted small">{{ logoText() }}</p>
+      @if (d.logo.uyari) {
+        <p>
+          <span class="rc-rozet rc-rozet--uyari">{{ d.logo.uyari }}</span>
+        </p>
+      }
+      <div class="row">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="deleteLogo()"
+        >
+          {{ 'platform.detay.logoKaldir' | transloco }}
+        </button>
+      </div>
+    } @else {
+      <p class="muted">{{ 'platform.detay.logoYok' | transloco }}</p>
+    }
+    <div class="row">
+      <div class="file-field">
+        <label for="pf-logo-dosya">{{ 'platform.detay.logoDosya' | transloco }}</label>
+        <input
+          #logoInput
+          id="pf-logo-dosya"
+          type="file"
+          accept="image/png"
+          [attr.aria-invalid]="logoError() ? true : null"
+          [attr.aria-describedby]="logoError() ? 'pf-logo-hata' : null"
+          (change)="pickLogo($event)"
+        />
+        @if (logoError(); as message) {
+          <p class="rc-alan__hata" id="pf-logo-hata" role="alert">{{ message }}</p>
+        }
+      </div>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [disabled]="busy()"
+        (click)="uploadLogo(logoInput)"
+      >
+        {{ 'platform.detay.logoYukle' | transloco }}
+      </button>
+    </div>
+    <p class="muted small">{{ 'platform.detay.logoKurallari' | transloco }}</p>
+  </section>
+
+  <!-- Modüller -->
+  <section class="panel" aria-labelledby="pf-modul">
+    <h2 id="pf-modul">{{ 'platform.detay.modulBaslik' | transloco }}</h2>
+    <div class="row">
+      <strong>{{ 'platform.detay.webSitesi' | transloco }}</strong>
+      <span class="rc-rozet" [class]="d.webSitesiModulu ? 'rc-rozet--basari' : 'rc-rozet--uyari'">{{
+        (d.webSitesiModulu ? 'platform.detay.satinAlindi' : 'platform.detay.yok') | transloco
+      }}</span>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [disabled]="busy()"
+        (click)="setWebSiteModule(!d.webSitesiModulu)"
+      >
+        {{
+          (d.webSitesiModulu ? 'platform.detay.kapatDugme' : 'platform.detay.acDugme') | transloco
+        }}
+        <span class="rc-gorunmez">{{ 'platform.detay.webSitesi' | transloco }}</span>
+      </button>
+    </div>
+    <p class="muted small">{{ 'platform.detay.modulIpucu' | transloco }}</p>
+  </section>
+
+  <!-- Yeni arayüz pilotu -->
+  <section class="panel" aria-labelledby="pf-pilot">
+    <h2 id="pf-pilot">{{ 'platform.detay.pilotBaslik' | transloco }}</h2>
+    <div class="row">
+      <strong>{{ 'platform.detay.pilot' | transloco }}</strong>
+      <span
+        class="rc-rozet"
+        data-testid="platform-pilot-durum"
+        [class]="d.yeniArayuzPilot ? 'rc-rozet--basari' : 'rc-rozet--uyari'"
+        >{{
+          (d.yeniArayuzPilot ? 'platform.detay.acik' : 'platform.detay.kapali') | transloco
+        }}</span
+      >
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [disabled]="busy()"
+        (click)="setPilot(!d.yeniArayuzPilot)"
+      >
+        {{
+          (d.yeniArayuzPilot ? 'platform.detay.kapatDugme' : 'platform.detay.acDugme') | transloco
+        }}
+        <span class="rc-gorunmez">{{ 'platform.detay.pilot' | transloco }}</span>
+      </button>
+    </div>
+    <p class="muted small">{{ 'platform.detay.pilotIpucu' | transloco }}</p>
+  </section>
+
+  <!-- Halka açık site (salt okunur) -->
+  <section class="panel" aria-labelledby="pf-site">
+    <h2 id="pf-site">{{ 'platform.detay.siteBaslik' | transloco }}</h2>
+    <p class="row">
+      {{ (d.halkaAcikSite ? 'platform.detay.siteAcik' : 'platform.detay.siteKapali') | transloco }}
+      @if (d.halkaAcikSite && !d.webSitesiModulu) {
+        <span class="rc-rozet rc-rozet--uyari">{{
+          'platform.detay.siteModulYok' | transloco
+        }}</span>
+      }
+    </p>
+    @if (d.domainler.length > 0) {
+      <div class="table-wrap">
+        <table>
+          <caption class="rc-gorunmez">
+            {{
+              'platform.detay.siteBaslik' | transloco
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'platform.detay.host' | transloco }}</th>
+              <th scope="col">{{ 'platform.detay.tur' | transloco }}</th>
+              <th scope="col">{{ 'platform.detay.hostDurum' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of d.domainler; track h.host) {
+              <tr>
+                <td class="mono">{{ h.host }}</td>
+                <td>{{ h.tur }}</td>
+                <td>{{ h.durum }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="muted small">{{ 'platform.detay.hostYok' | transloco }}</p>
+    }
+  </section>
+} @else if (notFound()) {
+  <h1>{{ 'platform.detay.baslik' | transloco }}</h1>
+  <div class="panel" role="alert">
+    <p>{{ 'platform.detay.bulunamadi' | transloco }}</p>
+    <a class="link" routerLink="/platform/kiracilar"
+      >← {{ 'platform.detay.konsolaDon' | transloco }}</a
+    >
+  </div>
+} @else if (store.durum().tur === 'hata') {
+  <h1>{{ 'platform.detay.baslik' | transloco }}</h1>
+  <div class="panel error-panel" role="alert">
+    <span>{{ 'platform.yuklenemedi' | transloco }}</span>
+    <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.yenile()">
+      {{ 'platform.yenidenDene' | transloco }}
+    </button>
+  </div>
+} @else {
+  <h1>{{ 'platform.detay.baslik' | transloco }}</h1>
+  <p class="muted" aria-busy="true">{{ 'platform.yukleniyor' | transloco }}</p>
+}

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
@@ -26,6 +27,7 @@ import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { readAllocationPrefill } from '@features/vehicles/allocation-prefill';
 import { suggestionList } from '@features/vehicles/suggestions';
 import { secimSuggestionFetch } from '@features/vehicles/vehicle.store';
 import { Alan } from '@shared/form/alan/alan';
@@ -189,6 +191,17 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
       );
     });
     this.form.reset({ ...emptyAllocation() });
+    // Durum panosu "Tahsis" (router state): form araç + çıkış KM + şube dolu açılır, personel burada seçilir.
+    const prefill = readAllocationPrefill(inject(Router).currentNavigation()?.extras.state);
+    if (prefill) {
+      this.form.reset({
+        ...emptyAllocation(),
+        arac: { id: prefill.vehicleId, etiket: prefill.plaka },
+        cikisKm: prefill.km ?? 0,
+        sube: prefill.sube,
+      });
+      this.createOpen.set(true);
+    }
     sayfaTerkKorumasi(() => this.form.dirty);
   }
 

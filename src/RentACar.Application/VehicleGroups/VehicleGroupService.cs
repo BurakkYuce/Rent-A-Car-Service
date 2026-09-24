@@ -97,7 +97,15 @@ public sealed class VehicleGroupService(
         return group.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, VehicleGroupInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, VehicleGroupInput input, CancellationToken ct = default)
+        => UpdateAsync(id, input, expectedVersion: null, ct);
+
+    /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>.</summary>
+    public Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default) => _repository.RowVersionAsync(id, ct);
+
+    /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme
+    /// (rename cascade aynı işlemde).</summary>
+    public async Task<bool> UpdateAsync(Guid id, VehicleGroupInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -109,11 +117,14 @@ public sealed class VehicleGroupService(
         if (await _repository.AdExistsAsync(n.Ad, excludeId: id, ct))
             throw new ValidationException($"'{n.Ad}' adlı araç grubu zaten var.");
 
-        var sonuc = await _repository.UpdateAsync(id, group =>
+        void ApplyAll(VehicleGroup group)
         {
             Apply(group, n);
             group.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
+        }
+        var sonuc = expectedVersion is null
+            ? await _repository.UpdateAsync(id, ApplyAll, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, ApplyAll, ct);
 
         // Cascade araçların Grup değerini değiştirdiyse araç listesi cache'i bayat kaldı.
         // (Grup listesi cache'lenmiyor — invalidate edilecek ayrı bir anahtarı yok.)

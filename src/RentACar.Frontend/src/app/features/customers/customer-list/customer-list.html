@@ -1,0 +1,141 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'cari.liste.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      @if (canCreate()) {
+        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/cariler/yeni">
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ 'cari.liste.yeni' | transloco }}
+        </a>
+      }
+    </div>
+  </header>
+  <p class="aciklama">{{ 'cari.liste.aciklama' | transloco }}</p>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'cari.filtre.etiket' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan
+        [etiket]="'cari.filtre.ara' | transloco"
+        [ipucu]="'cari.filtre.araIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.tur' | transloco">
+        <rc-secim
+          formControlName="tip"
+          [secenekler]="typeOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.iys' | transloco">
+        <rc-secim
+          formControlName="iysIzinli"
+          [secenekler]="iysOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.uyari' | transloco">
+        <rc-secim
+          formControlName="uyari"
+          [secenekler]="warningOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.karaListe' | transloco">
+        <rc-secim
+          formControlName="karaListe"
+          [secenekler]="blacklistOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.durum' | transloco">
+        <rc-secim
+          formControlName="pasif"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'cari.filtre.aracVerilmez' | transloco">
+        <rc-secim
+          formControlName="aracVerilmez"
+          [secenekler]="noVehicleOptions"
+          [bosEtiket]="'cari.tumu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'cari.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0 || hasMemorySearch()) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'cari.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="cari.liste"
+    [etiket]="'cari.liste.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export()"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+    (satirAc)="openRow($event)"
+  >
+    <ng-template rcTabloHucre="ad" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rozetler">
+        <a class="bag" [routerLink]="['/cariler', satir.id]">{{ satir.ad }}</a>
+        @if (satir.anonim) {
+          <span class="rc-rozet rc-rozet--bilgi">{{ 'cari.kvkkRozet' | transloco }}</span>
+        }
+      </span>
+    </ng-template>
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rozetler">
+        @for (b of badges(satir); track b.kind) {
+          <span
+            class="rc-rozet"
+            [class.rc-rozet--hata]="b.tone === 'hata'"
+            [class.rc-rozet--uyari]="b.tone === 'uyari'"
+            [attr.title]="b.title ?? null"
+            >{{ 'cari.rozet.' + b.kind | transloco }}</span
+          >
+        }
+      </span>
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <a [routerLink]="['/cariler', satir.id, 'detay']">{{ 'cari.detay' | transloco }}</a>
+        @if (canSeeStatement()) {
+          <a [routerLink]="['/cariler', satir.id, 'detay']" fragment="sekme=ekstre">{{
+            'cari.ekstre' | transloco
+          }}</a>
+        }
+        @if (canDelete()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="remove(satir)"
+          >
+            {{ 'cari.sil' | transloco }}
+          </button>
+        }
+      </span>
+    </ng-template>
+  </rc-tablo>
+</div>

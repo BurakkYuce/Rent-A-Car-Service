@@ -68,7 +68,22 @@
   color: var(--rc-metin-ikincil);
 }
 
-.duzenleme td {
+.duzenleme td,
+.secili td {
   background-color: var(--rc-vurgu-zemin);
   vertical-align: top;
+}
+
+.duzenleme--panel {
+  margin-bottom: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-vurgu-zemin);
+}
+
+.panel-islemler {
+  display: flex;
+  gap: var(--rc-bosluk-2);
+  margin-top: var(--rc-bosluk-3);
 }

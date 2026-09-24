@@ -7,7 +7,8 @@ import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /**
  * F8.2a finans ekranları (1. yarı, PARA) — Blazor yollarıyla AYNI (kesişte yönlendirme birebir). İzinler uçlarla aynı:
- * yazma ekranları FinanceWrite; cari ekstre ve kurlar okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports (ekstredeki
+ * yazma ekranları FinanceWrite; kurlar okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports, cari ekstre FinanceWrite ∨
+ * ViewReports (ekstredeki
  * formlar FinanceWrite, ters kayıt FinanceReverse; kur yazma FinanceWrite — düğmeler sayfada). Para yazan her sayfa
  * sonucu bilinmeyen işlem ya da kirli form varken ayrılışı sorar.
  */
@@ -97,7 +98,9 @@ export const FINANCE_ROUTES: Routes = ceviriBloguyla('finans', [
   {
     path: 'cariler/:id/ekstre',
     title: 'Cari Ekstre — RentACar',
-    canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
+    // #295 KVKK M1: cari detayı bakiyeyi yalnız FinanceWrite ∨ ViewReports'a gösteriyor; ekstre aynı kuralla açılır
+    // (şube kapsamlı operatöre firma geneli cari defteri gösterilmez). Uç şimdilik daha geniş — karar kuyruğunda.
+    canMatch: [anyPermissionGuard('FinanceWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/finance/statement/customer-statement').then((m) => m.CustomerStatementPage),
     canDeactivate: [kaydedilmemisDegisiklikGuard],

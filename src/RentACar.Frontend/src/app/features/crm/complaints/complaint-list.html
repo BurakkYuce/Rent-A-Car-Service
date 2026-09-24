@@ -1,0 +1,217 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'crm.sikayet.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'crm.sikayet.aciklama' | transloco }}</p>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'crm.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'crm.musteri' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.cikisOfisi' | transloco">
+        <rc-metin-girdisi formControlName="ofis" [azamiUzunluk]="128" liste="dl-sikayet-ofis-f" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.sikayet.yer' | transloco">
+        <rc-secim
+          formControlName="yer"
+          [secenekler]="placeOptions"
+          [bosEtiket]="'crm.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.sikayet.kanal' | transloco">
+        <rc-metin-girdisi formControlName="kanal" [azamiUzunluk]="64" liste="dl-sikayet-kanal" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'crm.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.ara' | transloco" [ipucu]="'crm.sikayet.araIpucu' | transloco">
+        <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+      </rc-alan>
+    </div>
+    <datalist id="dl-sikayet-ofis-f">
+      @for (o of filterOffices(); track o) {
+        <option [value]="o"></option>
+      }
+    </datalist>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'crm.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'crm.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (store.list.veri(); as page) {
+    <p class="ozet" aria-live="polite">
+      {{ 'crm.sikayet.ozet' | transloco: { toplam: page.toplam } }}
+      @if (store.counts.veri(); as c) {
+        · {{ 'crm.ozetAcik' | transloco: { sayi: c['acik'] } }}
+      }
+    </p>
+  }
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="sikayet.liste"
+    [etiket]="'crm.sikayet.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span
+        class="rc-rozet"
+        [class.rc-rozet--uyari]="satir.durum === 'Acik'"
+        [class.rc-rozet--basari]="satir.durum !== 'Acik'"
+        >{{ statusLabel(satir.durum) }}</span
+      >
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="edit(satir)"
+        >
+          {{ 'crm.duzenle' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          [disabled]="editor.busy() !== null"
+          (click)="remove(satir)"
+        >
+          {{ 'crm.sil' | transloco }}
+        </button>
+      </span>
+    </ng-template>
+  </rc-tablo>
+
+  <section class="bolum duzenleyici" aria-labelledby="rc-sikayet-formu">
+    <h2 id="rc-sikayet-formu" tabindex="-1">
+      {{
+        (editor.editing().kind === 'new' ? 'crm.sikayet.yeni' : 'crm.sikayet.duzenle') | transloco
+      }}
+    </h2>
+    <form class="form" [formGroup]="form" (ngSubmit)="save()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'crm.musteri' | transloco">
+          <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'crm.sozlesmeOps' | transloco"
+          [ipucu]="'crm.sikayet.sozlesmeIpucu' | transloco"
+        >
+          <rc-arama-secim formControlName="kira" [kaynak]="rentals" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.sikayet.yer' | transloco">
+          <rc-secim
+            formControlName="sikayetYeri"
+            [secenekler]="placeOptions"
+            [bosEtiket]="'crm.belirtilmedi' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.sikayet.kanal' | transloco">
+          <rc-metin-girdisi
+            formControlName="sikayetKanali"
+            [azamiUzunluk]="64"
+            liste="dl-sikayet-kanal"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.cikisOfisi' | transloco">
+          <rc-metin-girdisi
+            formControlName="cikisOfisi"
+            [azamiUzunluk]="128"
+            liste="dl-sikayet-ofis"
+          />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'crm.sikayet.teslimAlan' | transloco"
+          [ipucu]="'crm.sikayet.personelIpucu' | transloco"
+        >
+          <rc-arama-secim formControlName="teslimAlan" [kaynak]="staff" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.sikayet.teslimEden' | transloco">
+          <rc-arama-secim formControlName="teslimEden" [kaynak]="staff" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.sikayet.puan' | transloco">
+          <rc-sayi-girdisi formControlName="puan" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.tarih' | transloco">
+          <rc-tarih-secici formControlName="tarih" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.durum' | transloco">
+          <rc-secim formControlName="durum" [secenekler]="statusOptions" />
+        </rc-alan>
+        <div class="genis">
+          <rc-alan [etiket]="'crm.sikayet.konu' | transloco">
+            <rc-metin-girdisi formControlName="konu" [azamiUzunluk]="256" />
+          </rc-alan>
+        </div>
+        <div class="genis">
+          <rc-alan [etiket]="'crm.sikayet.detay' | transloco">
+            <rc-metin-girdisi formControlName="detay" [azamiUzunluk]="2048" />
+          </rc-alan>
+        </div>
+        <div class="genis">
+          <rc-alan [etiket]="'crm.cozum' | transloco">
+            <rc-metin-girdisi formControlName="cozum" [azamiUzunluk]="2048" />
+          </rc-alan>
+        </div>
+      </div>
+      <datalist id="dl-sikayet-ofis">
+        @for (o of offices(); track o) {
+          <option [value]="o"></option>
+        }
+      </datalist>
+      <datalist id="dl-sikayet-kanal">
+        @for (k of channels; track k) {
+          <option [value]="k"></option>
+        }
+      </datalist>
+      <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+      <div class="form__eylemler">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="submission.gonderiliyor() || editor.waiting"
+        >
+          {{
+            submission.gonderiliyor()
+              ? ('form.gonderiliyor' | transloco)
+              : ((editor.editing().kind === 'new' ? 'crm.ekle' : 'crm.kaydet') | transloco)
+          }}
+        </button>
+        @if (editor.editing().kind === 'record') {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="editor.cancel()"
+          >
+            {{ 'crm.vazgec' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+  </section>
+</div>
