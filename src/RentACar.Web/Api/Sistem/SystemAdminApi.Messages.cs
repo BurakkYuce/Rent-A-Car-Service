@@ -48,7 +48,7 @@ public static partial class SystemAdminApi
             var list = await s.ListPersistedAsync(okundu, ct);
             return TypedResults.Ok(new NotificationCenterDto(
                 d.VadeGecmis, d.VadeYakin, d.AcikSikayet, d.DonemKapanis?.ToUniversalTime(),
-                d.Vadeler.Select(v => new DueItemDto(v.VehicleId, v.Tur, v.Bitis.ToUniversalTime(), v.KalanGun,
+                d.Vadeler.Select(v => new MessageDueItemDto(v.VehicleId, v.Tur, v.Bitis.ToUniversalTime(), v.KalanGun,
                     v.Bucket == VadeBucket.Gecmis)).ToList(),
                 d.Sikayetler.Select(x => new OpenComplaintDto(x.Id, x.Konu, x.Tarih.ToUniversalTime())).ToList(),
                 list.Select(b => new NotificationDto(b.Id, b.Tur, b.Mesaj, b.VehicleId, b.VadeTarihi.ToUniversalTime(), b.Okundu,
@@ -92,9 +92,11 @@ public sealed record MessageTemplateDto(string Tur, string Kanal, bool Kayitli, 
 public sealed record MessageTemplateRequest(string? Konu, string? Govde, bool Aktif = true, string? Surum = null);
 
 public sealed record NotificationCenterDto(int VadeGecmis, int VadeYakin, int AcikSikayet, DateTimeOffset? DonemKapanis,
-    IReadOnlyList<DueItemDto> Vadeler, IReadOnlyList<OpenComplaintDto> Sikayetler, IReadOnlyList<NotificationDto> Bildirimler, int Okunmamis);
+    IReadOnlyList<MessageDueItemDto> Vadeler, IReadOnlyList<OpenComplaintDto> Sikayetler, IReadOnlyList<NotificationDto> Bildirimler, int Okunmamis);
 
-public sealed record DueItemDto(Guid AracId, string Tur, DateTimeOffset BitisUtc, int KalanGun, bool Gecmis);
+/// <summary>Bildirim merkezi vade satırı. Ad <c>Api/ServiceInsurance</c>'taki <c>DueItemDto</c>'dan AYRI olmalı: OpenAPI
+/// şema adları kısa addan üretilir, çakışınca <c>GET /vade</c> bu şekille belgeleniyordu (yapısal test kilitler).</summary>
+public sealed record MessageDueItemDto(Guid AracId, string Tur, DateTimeOffset BitisUtc, int KalanGun, bool Gecmis);
 
 public sealed record OpenComplaintDto(Guid Id, string Konu, DateTimeOffset TarihUtc);
 

@@ -7,13 +7,13 @@ import { istekBaglami } from '@core/oturum/istek-baglami';
 import { TemelStore } from '@core/veri/temel-store';
 
 import type {
-  ExpenseCategory,
   ExpenseRow,
   IncomingInvoiceDetail,
   IncomingInvoiceRow,
   InvoiceDetail,
   InvoiceLineRow,
   InvoiceRow,
+  InvoiceSummary,
   PenaltyDetail,
   PenaltyRow,
   PenaltyType,
@@ -30,6 +30,13 @@ export const SALES = '/api/ui/v1/satislar';
 /** Kimlikli alt yol (kimlik kaçışlanır). */
 export function recordPath(base: string, id: string, suffix = ''): `/api/ui/v1/${string}` {
   return `${base}/${encodeURIComponent(id)}${suffix}` as `/api/ui/v1/${string}`;
+}
+
+/** Liste parametrelerinden sayfalama/sıralama düşer: özet uçları tüm eşleşen kümeyi toplar. */
+export function summaryParameters(p: SorguParametreleri): SorguParametreleri {
+  return Object.fromEntries(
+    Object.entries(p).filter(([k]) => k !== 'sayfa' && k !== 'boyut' && k !== 'sirala'),
+  );
 }
 
 /** Öneri listeleri (şube adları, kasa/banka hesapları): hata SESSİZ — alan serbest metin/boş kalır. */
@@ -57,6 +64,15 @@ export class InvoiceStore {
   );
   readonly detail = new TemelStore((id: string) =>
     this.api.get<InvoiceDetail>(recordPath(INVOICES, id)),
+  );
+  /**
+   * Döviz bazında toplam (`/faturalar/ozet`, #300): listenin süzgeçleri, sayfalamasız. Toplam SUNUCUDA; hata sessiz
+   * (liste kendi hatasını zaten gösterir, toplam satırı yalnız görünmez).
+   */
+  readonly summary = new TemelStore(
+    (p: SorguParametreleri) =>
+      this.api.get<InvoiceSummary>(`${INVOICES}/ozet`, { parametreler: p, ...quiet() }),
+    { oncekiVeriyiKoru: true },
   );
   /** Toplu faturalama adayları: faturasız kiralar (Blazor ile aynı: iptal ve tutarsızlar ekranda elenir). */
   readonly unbilled = new TemelStore(() =>
@@ -118,13 +134,6 @@ export class IncomingInvoiceStore {
   );
   readonly detail = new TemelStore((id: string) =>
     this.api.get<IncomingInvoiceDetail>(recordPath(INCOMING, id)),
-  );
-  /** Gider kategorileri (`/gider-turleri` OperationsWrite ister; yetkisiz rolde seçim görünmez). */
-  readonly categories = new TemelStore(() =>
-    this.api.get<readonly ExpenseCategory[]>('/api/ui/v1/gider-turleri', {
-      parametreler: { aktif: true },
-      ...quiet(),
-    }),
   );
 }
 

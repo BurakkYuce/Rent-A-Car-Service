@@ -346,6 +346,10 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // TOCTOU çiti (adversarial 1.2 Medium): (tenant, cari) danışma kilidi — bu carinin depozito
             // işlemleri tx sonuna dek sıralanır; bakiye kontrolü kilidin ARKASINDA yapılır → eşzamanlı
             // iki iade/irat toplamı tutulanı aşamaz.
+            // #299 L2: anahtar kilidi cari kilidinden ÖNCE (sabit sıra → kilitlenme yok). Farklı carili al/iade
+            // gibi farklı TÜRDEKİ iki gönderim aynı anahtarla yarışırsa unique index (SourceType dahil) ikisini de
+            // kabul ederdi; anahtar kilidi ikinciyi birincinin kaydını görmeye zorlar.
+            await AdvisoryLockAsync(db, $"depozito-anahtar:{db.TenantId}:{entries[0].SourceId}", ct);
             await DepozitoKilitAsync(db, cariId, ct);
 
             // F1.4 — ANAHTAR ÖNCE (kilidin arkasında): bu (SourceType, SourceId) kümesi bu kiracıda zaten
@@ -416,7 +420,21 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     private static async Task<bool> DepozitoMevcutMuAsync(
         AppDbContext db, IReadOnlyList<AccountLedgerEntry> entries, DepozitoIrat? izKaydi, CancellationToken ct)
     {
-        var mevcut = await DefterKumesi.OkuAsync(db, [entries[0].SourceType], [entries[0].SourceId], ct);
+        // #299 L2: anahtar TÜM depozito türlerinde tekildir. Aynı anahtarla BAŞKA türde (al ↔ iade/mahsup/irat)
+        // yazılmış küme varsa bu farklı bir işlemdir → 409 mukerrer + mevcut (ayniIcerik=false). Önceden unique
+        // index SourceType'ı da içerdiği için iade, al'ın anahtarıyla 200 ve AYNI id dönüp ikinci kez yazılıyordu.
+        var sourceId = entries[0].SourceId;
+        var sourceType = entries[0].SourceType;
+        var otherType = await db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.SourceId == sourceId && e.SourceType != sourceType
+                        && EF.Functions.Like(e.SourceType, "Depozito%") && e.AccountType == LedgerAccountType.Depozito)
+            .Select(e => new { e.SourceType, e.Amount.Amount, e.Amount.Currency })
+            .FirstOrDefaultAsync(ct);
+        if (otherType is not null)
+            throw new MukerrerIslemException(MukerrerIslemException.FarkliIcerikMesaji,
+                new MevcutIslem(sourceId, DepositLabel(otherType.SourceType), otherType.Amount, otherType.Currency, AyniIcerik: false));
+
+        var mevcut = await DefterKumesi.OkuAsync(db, [sourceType], [sourceId], ct);
         if (mevcut.Count == 0) return false;
         if (!DefterKumesi.Ayni(mevcut, entries)) throw MukerrerIslemException.FarkliIcerik();
         if (izKaydi is not null)
@@ -428,8 +446,18 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return true;
     }
 
-    /// <summary>(tenant, cari) kapsamlı pg_advisory_xact_lock — tx bitince otomatik bırakılır.</summary>
-    private static async Task DepozitoKilitAsync(AppDbContext db, Guid cariId, CancellationToken ct)
+    /// <summary>409 <c>mevcut.belgeNo</c> yerine gösterilen işlem türü (depozito işlemlerinin belge numarası yok).</summary>
+    private static string DepositLabel(string sourceType) => sourceType switch
+    {
+        "DepozitoAl" => "Depozito al",
+        "DepozitoIade" => "Depozito iade",
+        "DepozitoMahsup" => "Depozito mahsup",
+        "DepozitoIrat" => "Depozito irat",
+        _ => sourceType,
+    };
+
+    /// <summary>Transaction-scoped pg_advisory_xact_lock on an arbitrary key (released at commit/rollback).</summary>
+    private static async Task AdvisoryLockAsync(AppDbContext db, string key, CancellationToken ct)
     {
         var conn = db.Database.GetDbConnection();
         await using var cmd = conn.CreateCommand();
@@ -437,10 +465,14 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
         var p = cmd.CreateParameter();
         p.ParameterName = "k";
-        p.Value = $"depozito:{db.TenantId}:{cariId}";
+        p.Value = key;
         cmd.Parameters.Add(p);
         await cmd.ExecuteScalarAsync(ct);
     }
+
+    /// <summary>(tenant, cari) kapsamlı pg_advisory_xact_lock — tx bitince otomatik bırakılır.</summary>
+    private static Task DepozitoKilitAsync(AppDbContext db, Guid cariId, CancellationToken ct)
+        => AdvisoryLockAsync(db, $"depozito:{db.TenantId}:{cariId}", ct);
 
     public async Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default)
     {

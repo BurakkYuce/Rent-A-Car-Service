@@ -74,7 +74,8 @@ export class SaleCreateForm {
   readonly saved = output<DocumentResult | null>();
   readonly dirtyChange = output<boolean>();
 
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  /** Satılabilir araçlar (`/secim/satilabilir-arac`: satılmamış, şube kapsamlı, FinanceWrite; #300). */
+  protected readonly vehicles = sunucuSecimKaynagi('satilabilir-arac');
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly channels = SALE_CHANNELS;
   protected readonly vatOptions: readonly SecenekOgesi<VatRate>[] = VAT_RATES.map((v) => ({

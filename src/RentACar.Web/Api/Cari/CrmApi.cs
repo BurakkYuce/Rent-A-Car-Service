@@ -28,7 +28,10 @@ public static partial class CrmApi
         MapComplaints(ops);
         MapAssistance(ops);
         MapLegalFiles(ops);
-        ops.MapGet("/crm/secim/kira", PickRental).WithTags("CRM");
+        // #300: gider formunun "Sözleşme" alanı Muhasebe'ye de açık (OperationsWrite VEYA FinanceWrite). Şube kapsamı ve
+        // dönen alanlar DEĞİŞMEDİ (sözleşme no, plaka, KVKK'lı müşteri adı; TC/telefon yok).
+        v1.MapGet("/crm/secim/kira", PickRental).WithTags("CRM")
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
 
         var reports = v1.MapGroup("/crm/analiz").WithTags("CRM").RequirePermission(Permission.ViewReports);
         reports.MapGet("", Analysis).AlanlariEsle(F5Ortak.SiralamaKurallari);

@@ -9,6 +9,14 @@ public sealed record InvoiceListRow(
     decimal NetTutar, decimal KdvTutar, decimal GenelToplam, string Doviz, decimal Kur,
     bool EFaturaGonderildi, string? EFaturaEttn, Guid? KaynakFaturaId);
 
+/// <summary>Fatura listesinin bir dövizdeki toplamı (faturanın KENDİ dövizinde; kurla çevrilmez). <c>genelToplam</c> iade
+/// faturalarını da (pozitif saklanır) içerir; iadelerin payı <c>iadeToplam</c>.</summary>
+public sealed record InvoiceCurrencyTotal(
+    string Doviz, int Adet, decimal NetTutar, decimal KdvTutar, decimal GenelToplam, int IadeAdet, decimal IadeToplam);
+
+/// <summary>Fatura listesi özeti: liste süzgeçleriyle aynı kümenin döviz kırılımı (<c>adet</c> = tüm dövizler).</summary>
+public sealed record InvoiceSummary(int Adet, IReadOnlyList<InvoiceCurrencyTotal> Dovizler);
+
 /// <summary>Fatura satırı (kesildiği andaki değerler; yeniden hesaplanmaz).</summary>
 public sealed record InvoiceLineDto(
     Guid Id, string Aciklama, decimal Miktar, decimal BirimNetFiyat, decimal KdvOrani,

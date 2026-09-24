@@ -116,16 +116,18 @@ internal static class PenaltyWrites
 
         await using (var db = await dbf.CreateDbContextAsync(ct))
         {
-            if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is null)
+            if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is not { } penalty)
                 return F5Ortak.Bulunamadi("Ceza bulunamadı.");
             if (await db.PenaltyOdemeleri.AsNoTracking().FirstOrDefaultAsync(o => o.IslemAnahtari == key, ct) is { } o)
             {
                 var same = o.PenaltyId == id && o.SatirId == req.SatirId && o.Hesap == account
                            && (req.Tutar is not { } t || Math.Round(t, 4, MidpointRounding.AwayFromZero) == o.Tutar);
                 var amount = o.Tutar.ToString("N2", Tr);
+                // belgeNo: ceza no + ödeme sırası (gider ödemesiyle aynı biçim "No/Sıra"); yalnız sıra ("1") hangi cezanın
+                // ödemesi olduğunu söylemiyordu (#300 L2 eski). Yanıt alanı; yazma yolu değişmedi.
                 throw new MukerrerIslemException(
                     same ? string.Format(Tr, PaymentAlreadySaved, amount, o.Sira) : string.Format(Tr, PaymentOtherSaved, amount),
-                    o.PenaltyId == id ? new MevcutIslem(o.Id, $"{o.Sira}", o.Tutar, "TRY", same) : null);
+                    o.PenaltyId == id ? new MevcutIslem(o.Id, $"{penalty.No}/{o.Sira}", o.Tutar, "TRY", same) : null);
             }
         }
         WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Ceza ödeme"));

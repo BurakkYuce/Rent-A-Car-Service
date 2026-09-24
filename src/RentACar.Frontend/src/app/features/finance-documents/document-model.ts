@@ -5,6 +5,7 @@ import { listeTanimi } from '@core/veri/liste-sorgusu';
 export type InvoiceRow = Sema<'InvoiceListRow'>;
 export type InvoiceDetail = Sema<'InvoiceDetail'>;
 export type InvoiceLineRow = Sema<'InvoiceLineListRow'>;
+export type InvoiceSummary = Sema<'InvoiceSummary'>;
 export type ManualInvoiceRequest = Sema<'ManualInvoiceRequest'>;
 export type BatchInvoiceRequest = Sema<'BatchInvoiceRequest'>;
 export type BatchInvoiceResult = Sema<'BatchInvoiceResult'>;
@@ -25,7 +26,6 @@ export type ExpenseRow = Sema<'ExpenseListRow'>;
 export type ExpenseCreateRequest = Sema<'ExpenseCreateRequest'>;
 export type ExpensePaymentRequest = Sema<'ExpensePaymentRequest'>;
 export type ExpensePayment = Sema<'ExpensePaymentDto'>;
-export type ExpenseCategory = Sema<'ExpenseCategoryDto'>;
 
 // ---- Gelen e-fatura (`/api/ui/v1/gelen-efatura`)
 export type IncomingInvoiceRow = Sema<'IncomingInvoiceRow'>;

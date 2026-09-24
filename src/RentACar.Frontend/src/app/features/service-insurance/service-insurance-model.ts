@@ -33,20 +33,12 @@ export type InstallmentPaymentResult = Sema<'InstallmentPaymentResult'>;
 export type RegulationOptions = Sema<'RegulationOptions'>;
 
 /**
- * `GET /vade` satırı — ELLE: OpenAPI şeması YANLIŞ şekli gösteriyor. İki C# kaydı aynı adı taşıyor
- * (`Api/ServiceInsurance/RegulationDtos.cs` `DueItemDto` ve `Api/Sistem/SystemAdminApi.Messages.cs` `DueItemDto`);
- * şema üreticisi kısa adla tek şemaya düşürdü (`SayfaOfDueItemDto` → Sistem'in `aracId/bitisUtc/gecmis` şekli).
- * Uç çalışma anında doğru JSON'u döner; şema düzeltilince bu tip `Sema<…>`'ya döner (PR notu: eksik/hatalı uç).
+ * `GET /vade` satırı — üretilen şemadan. Eskiden bildirim merkezinin aynı adlı DTO'su şemayı eziyordu (tip elle
+ * yazılmıştı); o kayıt `MessageDueItemDto` oldu ve yapısal test (`UiApiOpenApiSchemaNameTests`) çakışmayı kilitler.
  */
-export interface DueItem {
-  readonly vehicleId: string;
-  readonly plaka: string;
-  readonly tur: string;
-  readonly bitis: string;
-  readonly kalanGun: number | string;
-  readonly kova: string;
-}
+export type DueItem = Sema<'DueItemDto'>;
 
+/** Sayfa zarfı çekirdeğin `Sayfa<T>`'si (üretilen `SayfaOf…` sayıları `number | string` yazar). */
 export interface DueBoard {
   readonly ozet: Sema<'DueSummary'>;
   readonly kalemler: Sayfa<DueItem>;

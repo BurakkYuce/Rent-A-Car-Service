@@ -313,6 +313,49 @@
         }
       }
     },
+    "/api/ui/v1/crm/secim/kira": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RentalPickItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/firma-belgeleri": {
       "get": {
         "tags": [
@@ -413,6 +456,92 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/KurSecimOgesi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/secim/gider-kategorisi": {
+      "get": {
+        "tags": [
+          "Se\u00E7im"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecimOgesi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/secim/satilabilir-arac": {
+      "get": {
+        "tags": [
+          "Se\u00E7im"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AracSecimOgesi"
                   }
                 }
               }
@@ -6653,6 +6782,79 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SayfaOfInvoiceListRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/faturalar/ozet": {
+      "get": {
+        "tags": [
+          "Fatura"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "iptal",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "doviz",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceSummary"
                 }
               }
             }
@@ -21147,49 +21349,6 @@
         "responses": {
           "204": {
             "description": "No Content"
-          }
-        }
-      }
-    },
-    "/api/ui/v1/crm/secim/kira": {
-      "get": {
-        "tags": [
-          "CRM"
-        ],
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RentalPickItem"
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -40836,22 +40995,26 @@
       },
       "DueItemDto": {
         "required": [
-          "aracId",
+          "vehicleId",
+          "plaka",
           "tur",
-          "bitisUtc",
+          "bitis",
           "kalanGun",
-          "gecmis"
+          "kova"
         ],
         "type": "object",
         "properties": {
-          "aracId": {
+          "vehicleId": {
             "type": "string",
             "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
           },
           "tur": {
             "type": "string"
           },
-          "bitisUtc": {
+          "bitis": {
             "type": "string",
             "format": "date-time"
           },
@@ -40863,8 +41026,8 @@
             ],
             "format": "int32"
           },
-          "gecmis": {
-            "type": "boolean"
+          "kova": {
+            "type": "string"
           }
         }
       },
@@ -41965,7 +42128,8 @@
           "odemeTarihi",
           "odenen",
           "kalan",
-          "takipEdilir"
+          "takipEdilir",
+          "sozlesmeNo"
         ],
         "type": "object",
         "properties": {
@@ -42115,6 +42279,12 @@
           },
           "takipEdilir": {
             "type": "boolean"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -45327,7 +45497,8 @@
           "cariAd",
           "giderTipi",
           "giderlestirildi",
-          "giderlestirilmeTarihi"
+          "giderlestirilmeTarihi",
+          "giderKategoriAd"
         ],
         "type": "object",
         "properties": {
@@ -45501,6 +45672,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "giderKategoriAd": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -46351,6 +46528,71 @@
           }
         }
       },
+      "InvoiceCurrencyTotal": {
+        "required": [
+          "doviz",
+          "adet",
+          "netTutar",
+          "kdvTutar",
+          "genelToplam",
+          "iadeAdet",
+          "iadeToplam"
+        ],
+        "type": "object",
+        "properties": {
+          "doviz": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "netTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kdvTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "genelToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "iadeAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "iadeToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "InvoiceDetail": {
         "required": [
           "id",
@@ -46950,6 +47192,29 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "InvoiceSummary": {
+        "required": [
+          "adet",
+          "dovizler"
+        ],
+        "type": "object",
+        "properties": {
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dovizler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceCurrencyTotal"
+            }
           }
         }
       },
@@ -52931,6 +53196,40 @@
           }
         }
       },
+      "MessageDueItemDto": {
+        "required": [
+          "aracId",
+          "tur",
+          "bitisUtc",
+          "kalanGun",
+          "gecmis"
+        ],
+        "type": "object",
+        "properties": {
+          "aracId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tur": {
+            "type": "string"
+          },
+          "bitisUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kalanGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "gecmis": {
+            "type": "boolean"
+          }
+        }
+      },
       "MessageTemplateDto": {
         "required": [
           "tur",
@@ -54008,7 +54307,7 @@
           "vadeler": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DueItemDto"
+              "$ref": "#/components/schemas/MessageDueItemDto"
             }
           },
           "sikayetler": {
@@ -73892,6 +74191,9 @@
       "name": "Tan\u0131mlar"
     },
     {
+      "name": "CRM"
+    },
+    {
       "name": "Dok\u00FCmanlar"
     },
     {
@@ -73986,9 +74288,6 @@
     },
     {
       "name": "Cari"
-    },
-    {
-      "name": "CRM"
     },
     {
       "name": "\u015Eubeler"

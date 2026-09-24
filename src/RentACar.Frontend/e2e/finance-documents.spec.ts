@@ -248,7 +248,8 @@ test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gö
         'mukerrer',
         'Bu ceza ödemesi zaten kaydedildi (900,00 TL, kalem 1); yeni ödeme yazılmadı.',
         {
-          mevcut: { id: 'o1', belgeNo: '1', tutar: 900, doviz: 'TRY', ayniIcerik: true },
+          // Sunucu belgeNo'yu "ceza no/sıra" döner (#300 L2 eski; yalnız "1" hangi cezanın ödemesi olduğunu söylemiyordu).
+          mevcut: { id: 'o1', belgeNo: 'CZ-000001/1', tutar: 900, doviz: 'TRY', ayniIcerik: true },
         },
       );
       return true;
@@ -270,7 +271,9 @@ test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gö
   await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
 
   // r300b N3: aynı içerik → yalnız "kaydedildi" (iade/iptal çağrısı yok).
-  await expect(form.getByText('Önceki denemeniz kaydedildi (1, 900,00 ₺).')).toBeVisible();
+  await expect(
+    form.getByText('Önceki denemeniz kaydedildi (CZ-000001/1, 900,00 ₺).'),
+  ).toBeVisible();
   await expect(form.getByText('iade/iptal')).toHaveCount(0);
   expect(written).toHaveLength(2);
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar);

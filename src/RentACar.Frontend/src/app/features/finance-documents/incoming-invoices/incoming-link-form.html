@@ -41,15 +41,9 @@
       <rc-alan [etiket]="'finansBelge.arac' | transloco">
         <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
       </rc-alan>
-      @if (categoryOptions().length > 0) {
-        <rc-alan [etiket]="'finansBelge.gelen.kategori' | transloco">
-          <rc-secim
-            formControlName="giderKategoriId"
-            [secenekler]="categoryOptions()"
-            [bosEtiket]="'finansBelge.yok' | transloco"
-          />
-        </rc-alan>
-      }
+      <rc-alan [etiket]="'finansBelge.gelen.kategori' | transloco">
+        <rc-arama-secim formControlName="kategori" [kaynak]="categories" />
+      </rc-alan>
       <rc-alan [etiket]="'finansBelge.gider.tedarikci' | transloco">
         <rc-arama-secim formControlName="cari" [kaynak]="customers" />
       </rc-alan>

@@ -15,17 +15,19 @@ public sealed partial class UiFinanceDocumentTests
         return null;
     }
 
-    private async Task<Session> LoginAsync(Env e, Who who)
+    private Task<Session> LoginAsync(Env e, Who who) => LoginAsync(e, e.Users[who], who.ToString());
+
+    private async Task<Session> LoginAsync(Env e, string userName, string label)
     {
         var c = fx.Web.Istemci();
         var before = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         {
-            Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }),
+            Content = JsonContent.Create(new { firma = e.Code, kullanici = userName, sifre = e.Password }),
         };
         req.Headers.Add("X-XSRF-TOKEN", before);
         var r = await c.SendAsync(req);
-        Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız ({who}): {await r.Content.ReadAsStringAsync()}");
+        Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız ({label}): {await r.Content.ReadAsStringAsync()}");
         return new Session(c, CookieValue(r, "XSRF-TOKEN")!);
     }
 

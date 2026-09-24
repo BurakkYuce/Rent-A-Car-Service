@@ -87,12 +87,14 @@ public sealed class ImportLimitsTests
 
     /// <summary>Elle yazılmış en küçük sayfa XML'iyle xlsx (ClosedXML'siz; dev dosyayı üretmek de GB ayırmasın).
     /// <paramref name="writeRows"/> sayfanın <c>&lt;sheetData&gt;</c> içeriğini yazar.</summary>
-    private static MemoryStream RawXlsx(Action<StreamWriter> writeRows)
+    private static MemoryStream RawXlsx(Action<StreamWriter> writeRows, Encoding? encoding = null, string? declaration = null)
     {
         var zip = new MemoryStream();
         using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, leaveOpen: true))
         {
-            using var w = new StreamWriter(archive.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.SmallestSize).Open());
+            var entry = archive.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.SmallestSize).Open();
+            using var w = encoding is null ? new StreamWriter(entry) : new StreamWriter(entry, encoding);
+            if (declaration is not null) w.Write(declaration);
             w.Write("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
             writeRows(w);
             w.Write("</sheetData></worksheet>");
@@ -133,6 +135,110 @@ public sealed class ImportLimitsTests
 
         // Sayım geçen ama geçerli çalışma kitabı olmayan ZIP → 400 mesajı (ClosedXML istisnası 500 değil).
         Assert.Contains("okunamadı", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 2, 2)), "bozuk.xlsx")).Message);
+    }
+
+    /// <summary>
+    /// Geçerli bir ClosedXML kitabının ilk sayfasını <c>xl/worksheets/</c> dışına (<paramref name="movedPath"/>) taşır:
+    /// workbook.xml.rels hedefi ve [Content_Types] geçersiz kılması güncellenir. <paramref name="writeSheetData"/> null
+    /// ise sayfa içeriği aynen korunur, değilse elle yazılmış <c>&lt;sheetData&gt;</c> ile değiştirilir.
+    /// </summary>
+    private static MemoryStream MovedSheetXlsx(string movedPath, Action<StreamWriter>? writeSheetData)
+    {
+        var source = new MemoryStream();
+        using (var wb = new ClosedXML.Excel.XLWorkbook())
+        {
+            var ws = wb.AddWorksheet("Araçlar");
+            ws.Cell(1, 1).Value = "Plaka";
+            ws.Cell(2, 1).Value = "34TAS1";
+            wb.SaveAs(source);
+        }
+        source.Position = 0;
+        var result = new MemoryStream();
+        using (var input = new ZipArchive(source, ZipArchiveMode.Read))
+        using (var output = new ZipArchive(result, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in input.Entries)
+            {
+                string text;
+                using (var r = new StreamReader(entry.Open())) text = r.ReadToEnd();
+                var name = entry.FullName;
+                if (name == "xl/worksheets/sheet1.xml")
+                {
+                    name = movedPath;
+                    if (writeSheetData is not null)
+                    {
+                        using var w = new StreamWriter(output.CreateEntry(name, CompressionLevel.SmallestSize).Open());
+                        w.Write("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+                        writeSheetData(w);
+                        w.Write("</sheetData></worksheet>");
+                        continue;
+                    }
+                }
+                else if (name == "xl/_rels/workbook.xml.rels")
+                    text = text.Replace("/xl/worksheets/sheet1.xml", "/" + movedPath, StringComparison.Ordinal)
+                        .Replace("\"worksheets/sheet1.xml", "\"/" + movedPath, StringComparison.Ordinal);
+                else if (name == "[Content_Types].xml")
+                    text = text.Replace("/xl/worksheets/sheet1.xml", "/" + movedPath, StringComparison.Ordinal);
+                using var ow = new StreamWriter(output.CreateEntry(name).Open());
+                ow.Write(text);
+            }
+        }
+        result.Position = 0;
+        return result;
+    }
+
+    [Fact]
+    public void Moved_worksheet_outside_the_worksheets_folder_is_still_counted()
+    {
+        // Senaryo gerçek: taşınmış sayfa ClosedXML tarafından okunuyor (sınır atlatılabilirdi).
+        var ok = ImportService.Parse(MovedSheetXlsx("xl/tasinmis/veri.dat", null), "tasinmis.xlsx");
+        Assert.Equal("34TAS1", Assert.Single(ok)["plaka"]);
+
+        // 5.000 × 100 + 1 = 500.001 hücre taşınmış yolda → akış sayımıyla red (eskiden yol süzgecine takılmıyordu).
+        var cells = Refused(() => ImportService.Parse(
+            MovedSheetXlsx("xl/tasinmis/veri.dat", w => { Rows(w, 5_000, 100); Rows(w, 1, 1); }), "hucre.xlsx"));
+        Assert.Equal("Dosya en çok 500.000 dolu hücre içerebilir.", cells.Message);
+        Assert.Contains("20.000 satır", Refused(() => ImportService.Parse(
+            MovedSheetXlsx("veri/sayfa.xml", w => Rows(w, 25_000, 1)), "satir.xlsx")).Message);
+        Assert.Contains("100 sütun", Refused(() => ImportService.Parse(
+            MovedSheetXlsx("xl/tasinmis/veri.dat", w => Rows(w, 1, 101)), "sutun.xlsx")).Message);
+    }
+
+    // r314 M1 — XmlReader kodlamayı BOM'suz da tanır: BOM'suz UTF-16 BE/LE ve UCS-4 sayfa taramayı ATLAYAMAZ
+    // (eskiden 501.000 hücre kabul edilip ~868 MB ayrılıyordu). 5.010 × 100 = 501.000 hücre > 500.000.
+    [Theory]
+    [InlineData("utf-16be")]
+    [InlineData("utf-16le")]
+    [InlineData("utf-32be")]
+    [InlineData("utf-32le")]
+    public void Sheet_in_bomless_multibyte_encoding_is_still_counted(string name)
+    {
+        Encoding encoding = name switch
+        {
+            "utf-16be" => new UnicodeEncoding(bigEndian: true, byteOrderMark: false),
+            "utf-16le" => new UnicodeEncoding(bigEndian: false, byteOrderMark: false),
+            "utf-32be" => new UTF32Encoding(bigEndian: true, byteOrderMark: false),
+            _ => new UTF32Encoding(bigEndian: false, byteOrderMark: false),
+        };
+        var declaration = $"<?xml version=\"1.0\" encoding=\"{(name.StartsWith("utf-16", StringComparison.Ordinal) ? "utf-16" : "ucs-4")}\"?>";
+        var file = RawXlsx(w => Rows(w, 5_010, 100), encoding, declaration);
+        Assert.True(file.Length < ImportLimits.MaxInputBytes);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var ex = Refused(() => ImportService.Parse(file, "kodlama.xlsx"));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        // Sayım ya bu kodlamayı okuyup hücre sınırında durur ya da (XmlReader tanımıyorsa) bozuk dosya reddi — ama
+        // ASLA ClosedXML'e ulaşıp yüzlerce MB ayırmaz.
+        Assert.True(ex.Message.Contains("500.000 dolu hücre", StringComparison.Ordinal) || ex.Message.Contains("okunamadı", StringComparison.Ordinal), ex.Message);
+        Assert.True(allocated < 150L * 1024 * 1024, $"red {allocated / (1024 * 1024)} MB ayırdı");
+    }
+
+    [Fact]
+    public void Bomless_utf16be_sheet_over_the_cell_limit_is_refused_by_the_count()
+    {
+        // X1'in birebir vakası: bildirim "encoding=utf-16", BOM yok, büyük sonlu (00 3C 00 3F …) → hücre mesajı.
+        var file = RawXlsx(w => Rows(w, 5_010, 100), new UnicodeEncoding(bigEndian: true, byteOrderMark: false),
+            "<?xml version=\"1.0\" encoding=\"utf-16\"?>");
+        Assert.Equal("Dosya en çok 500.000 dolu hücre içerebilir.", Refused(() => ImportService.Parse(file, "be.xlsx")).Message);
     }
 
     [Fact]

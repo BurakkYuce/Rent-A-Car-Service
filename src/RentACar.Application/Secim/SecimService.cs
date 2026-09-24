@@ -6,6 +6,7 @@ using RentACar.Application.CoverageProducts;
 using RentACar.Application.CustomCodes;
 using RentACar.Application.Customers;
 using RentACar.Application.EkHizmetler;
+using RentACar.Application.ExpenseCategories;
 using RentACar.Application.Kur;
 using RentACar.Application.Locations;
 using RentACar.Application.Personnel;
@@ -63,7 +64,8 @@ public sealed class SecimService(
     PersonelService personeller,
     KurService kurlar,
     BranchService subeler,
-    VehicleGroupService aracGruplari)
+    VehicleGroupService aracGruplari,
+    ExpenseCategoryService expenseCategories)
 {
     public const int AzamiLimit = 20;
     private const int AzamiSorgu = 100;
@@ -192,6 +194,33 @@ public sealed class SecimService(
         var liste = (await subeler.ListActiveAsync(ct)).Where(b => BranchScope.InScope(kapsam, b.Id, b.Ad));
         return Suz(liste, q, limit, b => b.Ad, b => b.Kod)
             .Select(b => new SecimOgesi(b.Id, b.Ad, b.Kod)).ToList();
+    }
+
+    /// <summary>
+    /// Gider kategorisi (gider türü tanımı) — yalnız AKTİF. Gelen e-faturayı gidere çeviren Muhasebe de seçebilsin diye
+    /// OperationsWrite VEYA FinanceWrite (#300; tanım ekranı <c>/gider-turleri</c> OperationsWrite kalır, yazma
+    /// değişmedi). Kiracı geneli ana veri; şube alanı yok. Dönen: kimlik + ad + kod.
+    /// </summary>
+    public async Task<IReadOnlyList<SecimOgesi>> ExpenseCategoryAsync(string? q, int? limit, CancellationToken ct = default)
+    {
+        FinansDahilKapi();
+        return Suz(await expenseCategories.ListActiveAsync(ct), q, limit, x => x.Ad, x => x.Kod)
+            .Select(x => new SecimOgesi(x.Id, x.Ad, x.Kod)).ToList();
+    }
+
+    /// <summary>
+    /// Satılabilir araç (araç satış formu, #300): <see cref="VehicleStatus.Satildi"/> OLMAYAN araçlar — Blazor satış
+    /// formuyla aynı küme (pasif araç satılabilir; satış iptalinde araç durumu geri döner, tek kaynak durum alanıdır).
+    /// Şube kapsamı <see cref="VehicleService.ListAsync"/>'te (şubeli kullanıcı yalnız kendi şubesinin aracını görür).
+    /// Satış FinanceWrite ister; seçim de aynı izinle açılır.
+    /// </summary>
+    public async Task<IReadOnlyList<AracSecimOgesi>> SellableVehicleAsync(string? q, int? limit, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.FinanceWrite);
+        var list = (await araclar.ListAsync(ct)).Where(v => v.Durum != VehicleStatus.Satildi);
+        return Suz(list, q, limit, v => AracEtiketi(v.Plaka, v.Marka, v.Tip), v => v.Plaka, v => v.Grup)
+            .Select(v => new AracSecimOgesi(v.Id, AracEtiketi(v.Plaka, v.Marka, v.Tip), v.Plaka, v.Grup, v.Durum.ToString()))
+            .ToList();
     }
 
     /// <summary>Araç grubu (F5 müsaitlik/rezervasyon grup seçimi).</summary>
