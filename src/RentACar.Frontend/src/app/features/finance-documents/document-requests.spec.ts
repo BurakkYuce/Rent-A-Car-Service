@@ -1,0 +1,279 @@
+import { ApiHatasi } from '@core/api/api-hatasi';
+
+import { type IncomingInvoiceRow, invoiceLineExportParameters } from './document-model';
+import { currencyMismatch } from './expenses/currency-rules';
+import {
+  type ExpenseForm,
+  type ManualInvoiceForm,
+  type PenaltyForm,
+  expensePaymentRequest,
+  expenseRequest,
+  formNotice,
+  incomingLinkRequest,
+  incomingToLinkForm,
+  manualInvoiceRequest,
+  penaltyPaymentRequest,
+  penaltyRequest,
+  vatBreakdownText,
+} from './document-requests';
+
+/** Beklenen değerler elle yazıldı (bağımsız oracle); gövde kurucularının kendisinden türetilmez. */
+const CARI = { id: 'c0c0c0c0-0000-4000-8000-000000000001', etiket: 'Ayşe Yılmaz' };
+const ARAC = { id: 'a1a1a1a1-0000-4000-8000-000000000001', etiket: '34ABC123' };
+
+describe('finans belge gövdeleri', () => {
+  it('manuel fatura: tutar invariant metin AYNEN, KDV istemcide hesaplanmaz, gün İstanbul gece yarısı', () => {
+    const v: ManualInvoiceForm = {
+      cari: CARI,
+      netTutar: '1500.50',
+      kdvOrani: '0.20',
+      tarih: '2026-09-01',
+      vadeTarihi: null,
+      aciklama: '  Hasar bedeli  ',
+      islemSube: '',
+      evrakNo: null,
+      faturaOzelKod: null,
+      odemeTuru: 'Havale',
+      gonderimSekli: null,
+      kdvSifirSebep: null,
+      otv: '',
+      tevkifatOran: null,
+      tevkifatTutar: null,
+      damgaVergisi: '12.30',
+    };
+    const body = manualInvoiceRequest(v);
+    expect(body).toEqual({
+      cariId: CARI.id,
+      netTutar: '1500.50',
+      kdvOrani: '0.20',
+      aciklama: 'Hasar bedeli',
+      tarih: '2026-08-31T21:00:00.000Z',
+      vadeTarihi: null,
+      islemSube: null,
+      evrakNo: null,
+      faturaOzelKod: null,
+      odemeTuru: 'Havale',
+      gonderimSekli: null,
+      kdvSifirSebep: null,
+      otv: null,
+      tevkifatOran: null,
+      tevkifatTutar: null,
+      damgaVergisi: '12.30',
+    });
+    expect(Object.keys(body)).not.toContain('kdvTutar');
+    expect(Object.keys(body)).not.toContain('genelToplam');
+  });
+
+  it('ceza: boş tutarlı yuva atlanır, sıra korunur', () => {
+    const v: PenaltyForm = {
+      cezaTuru: ' Hız ',
+      tebligTarihi: null,
+      saat: '14:30',
+      vadeGun: 15,
+      yer: null,
+      cepTel: null,
+      makbuzNo: null,
+      islemSube: null,
+      arac: ARAC,
+      cari: null,
+      sebep: null,
+      kalemler: [
+        { tutar: '900', sebep: 'Hız' },
+        { tutar: '', sebep: 'boş yuva' },
+        { tutar: '250.75', sebep: null },
+        { tutar: null, sebep: null },
+      ],
+    };
+    const body = penaltyRequest(v);
+    expect(body.kalemler).toEqual([
+      { tutar: '900', sebep: 'Hız' },
+      { tutar: '250.75', sebep: null },
+    ]);
+    expect(body).toMatchObject({ cezaTuru: 'Hız', aracId: ARAC.id, cariId: null, kiraId: null });
+  });
+
+  it('ceza ödemesi: boş tutar null gider (kalemin kalanı SUNUCUDA)', () => {
+    expect(
+      penaltyPaymentRequest({
+        satirId: 's1',
+        tutar: '',
+        hesap: 'Banka',
+        tarih: null,
+        makbuzNo: ' M-7 ',
+        islemYapan: null,
+        aciklama: null,
+      }),
+    ).toEqual({
+      satirId: 's1',
+      hesap: 'Banka',
+      tutar: null,
+      tarih: null,
+      makbuzNo: 'M-7',
+      islemYapan: null,
+      aciklama: null,
+    });
+  });
+
+  it('gider: boş kur null (sunucu çözer), açık kur aynen', () => {
+    const base: ExpenseForm = {
+      tip: 'Arac',
+      arac: ARAC,
+      cari: CARI,
+      netTutar: '1000',
+      kdvOrani: '0.20',
+      odemeYontemi: 'AcikHesap',
+      doviz: 'EUR',
+      kur: null,
+      hesapId: null,
+      tarih: null,
+      odemeTarihi: null,
+      vade: '2026-10-15',
+      hazirAciklama: 'Lastik',
+      sube: ' Merkez ',
+      evrakNo: null,
+      aciklama: null,
+    };
+    expect(expenseRequest(base)).toMatchObject({
+      tip: 'Arac',
+      netTutar: '1000',
+      kdvOrani: '0.20',
+      odemeYontemi: 'AcikHesap',
+      doviz: 'EUR',
+      kur: null,
+      aracId: ARAC.id,
+      cariId: CARI.id,
+      sube: 'Merkez',
+      vade: '2026-10-14T21:00:00.000Z',
+    });
+    expect(expenseRequest({ ...base, kur: '35.1234' }).kur).toBe('35.1234');
+    expect(
+      expensePaymentRequest({ tutar: null, tarih: null, makbuzNo: null, aciklama: null }),
+    ).toEqual({ tutar: null, tarih: null, makbuzNo: null, aciklama: null });
+  });
+
+  it('gelen e-fatura bağlama: tam değiştirme + surum; boş kademe null (temizler)', () => {
+    const form = incomingToLinkForm({
+      id: 'g1',
+      ettn: 'E-1',
+      gonderenVkn: '1234567890',
+      gonderenUnvan: 'Tedarikçi A.Ş.',
+      tarih: '2026-09-01T00:00:00Z',
+      netTutar: 1000,
+      kdvTutar: 200,
+      genelToplam: 1200,
+      doviz: 'TRY',
+      durum: 'Onaylandi',
+      redNedeni: null,
+      aciklama: null,
+      kdv20Matrah: 1000,
+      kdv20: 200,
+      kdv10Matrah: null,
+      kdv10: null,
+      kdv1Matrah: null,
+      kdv1: null,
+      kdv0Matrah: null,
+      aracId: null,
+      plaka: null,
+      giderKategoriId: null,
+      cariId: CARI.id,
+      cariAd: CARI.etiket,
+      giderTipi: null,
+      giderlestirildi: false,
+      giderlestirilmeTarihi: null,
+    });
+    expect(incomingLinkRequest({ ...form, kdv20: '' }, 'v-7')).toEqual({
+      surum: 'v-7',
+      kdv20Matrah: '1000',
+      kdv20: null,
+      kdv10Matrah: null,
+      kdv10: null,
+      kdv1Matrah: null,
+      kdv1: null,
+      kdv0Matrah: null,
+      aracId: null,
+      giderKategoriId: null,
+      cariId: CARI.id,
+      giderTipi: null,
+    });
+  });
+
+  it('409 mukerrer + mevcut: no ve tutar gösterilir; ağ hatası "sonuç bilinmiyor"; doğrulama notsuz', () => {
+    const same = new ApiHatasi({
+      status: 409,
+      kod: 'mukerrer',
+      detay: 'zaten',
+      mevcut: {
+        id: 'x',
+        belgeNo: 'RNT2026000000007',
+        tutar: 1800.6,
+        doviz: 'TRY',
+        ayniIcerik: true,
+      },
+    });
+    // r300 HIGH-1: ayniIcerik true ya da false AYNI not — önceki deneme kayıtlı, değiştirilen içerik yazılmadı.
+    // r300b N3: aynı içerik → yalnız "kaydedildi" (bilgi); farklı içerik → iade/iptal çağrılı uyarı.
+    expect(formNotice(same)).toEqual({
+      tone: 'bilgi',
+      key: 'kaydedildi',
+      params: { no: 'RNT2026000000007', tutar: '1.800,60 ₺' },
+    });
+    const other = new ApiHatasi({
+      status: 409,
+      kod: 'mukerrer',
+      detay: 'başka',
+      mevcut: { id: 'x', belgeNo: 'GD-1', tutar: '50', doviz: 'EUR', ayniIcerik: false },
+    });
+    expect(formNotice(other)).toEqual({
+      tone: 'uyari',
+      key: 'kaydedildiFarkli',
+      params: { no: 'GD-1', tutar: '50,00 €' },
+    });
+    // r300 M3: mevcut'suz 409 → "kaydedilmiş olabilir" (yazılmadı DEĞİL).
+    expect(formNotice(new ApiHatasi({ status: 409, kod: 'mukerrer', detay: 'yarış' }))).toEqual({
+      tone: 'uyari',
+      key: 'olabilir',
+      params: {},
+    });
+    expect(formNotice(new ApiHatasi({ status: 0, kod: 'ag', detay: 'ağ' }))).toEqual({
+      tone: 'uyari',
+      key: 'belirsiz',
+      params: {},
+    });
+    expect(formNotice(new ApiHatasi({ status: 400, kod: 'dogrulama', detay: 'x' }))).toBeNull();
+  });
+
+  it('giderleştirme onayı: kayıtlı kırılım okunur özet, boş kademe atlanır', () => {
+    const row = {
+      doviz: 'TRY',
+      kdv20Matrah: 1000,
+      kdv20: 200,
+      kdv10Matrah: null,
+      kdv10: null,
+      kdv1Matrah: null,
+      kdv1: null,
+      kdv0Matrah: '150.25',
+    } as unknown as IncomingInvoiceRow;
+    expect(vatBreakdownText(row, 'yok')).toBe('%20: 1.000,00 ₺ + KDV 200,00 ₺; %0: 150,25 ₺');
+    expect(
+      vatBreakdownText({ ...row, kdv20Matrah: null, kdv20: null, kdv0Matrah: null }, 'yok'),
+    ).toBe('yok');
+  });
+
+  it('döviz uyuşmazlığı: TL = TRY, hesap dövizi bilinmiyorsa uyuşmazlık yok', () => {
+    expect(currencyMismatch('TL', 'TRY')).toBe(false);
+    expect(currencyMismatch('USD', 'EUR')).toBe(true);
+    expect(currencyMismatch(null, 'EUR')).toBe(false);
+    expect(currencyMismatch('eur', 'EUR')).toBe(false);
+  });
+
+  it('fatura detay listesi dışa aktarma: Blazor adları (ara, iptal=gizle)', () => {
+    expect(
+      invoiceLineExportParameters({
+        q: 'RNT',
+        plaka: '34ABC123',
+        iptalleriGizle: true,
+        bas: '2026-09-01',
+      }),
+    ).toEqual({ ara: 'RNT', plaka: '34ABC123', bas: '2026-09-01', iptal: 'gizle' });
+  });
+});
