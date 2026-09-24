@@ -43,6 +43,7 @@
       "pasiflestirMesaj": "Kullanıcı bir sonraki istekte oturumunu kaybeder ve giriş yapamaz.",
       "aktiflestirMesaj": "Kullanıcı yeniden giriş yapabilir.",
       "parolaSifirla": "Parola sıfırla",
+      "kendiParolam": "Parolamı değiştir",
       "yeniParola": "{{ad}} için yeni parola",
       "parolaKaydet": "Parolayı kaydet",
       "parolaSifirlandi": "{{ad}} kullanıcısının parolası değiştirildi.",

@@ -102,6 +102,19 @@ test('parola sıfırlama: satır formu new-password, gövde yalnız parola', asy
   expect(USER_ADMIN).not.toBe(USER_OP);
 });
 
+test('kendi satırı (M1): parola sıfırla / pasifleştir yok, profil parola sayfasına bağlantı', async ({
+  page,
+}) => {
+  await oturumAc(page, ADMIN_BEN);
+  await usersEndpoints(page);
+  await page.goto('/app/kullanicilar');
+  const selfRow = page.getByRole('row').filter({ hasText: 'Ayşe Yılmaz' }).first();
+  await expect(selfRow).toBeVisible();
+  await expect(selfRow.getByRole('button')).toHaveCount(0);
+  const link = selfRow.getByRole('link', { name: 'Parolamı değiştir' });
+  await expect(link).toHaveAttribute('href', '/app/profil/sifre-degistir');
+});
+
 test('ekran yetkileri: override kaydı rol listesiyle, rol kopyalama onaylı', async ({ page }) => {
   await oturumAc(page, ADMIN_BEN);
   const writes: Write[] = [];

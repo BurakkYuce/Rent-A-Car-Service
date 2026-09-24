@@ -103,7 +103,15 @@
                         }}
                       </button>
                     }
-                    @if (canManage(u)) {
+                    @if (u.id === actorId()) {
+                      <!-- Kendi parolası yalnız eski parolayla (M1): yönetici sıfırlaması kendine kapalı. -->
+                      <a
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        routerLink="/profil/sifre-degistir"
+                      >
+                        {{ 'sistem.kullanici.kendiParolam' | transloco }}
+                      </a>
+                    } @else if (canManage(u)) {
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

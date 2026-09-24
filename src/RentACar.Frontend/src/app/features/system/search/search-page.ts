@@ -10,9 +10,43 @@ import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 
 type SearchHit = Sema<'SearchHitDto'>;
 
-/** Sunucunun verdiği hedef yalnız site-içi kök-göreli yol olabilir (`//evil` ya da şema taşıyan adres düşer). */
-export function safeHitUrl(url: string): string | null {
-  return url.startsWith('/') && !url.startsWith('//') && !url.includes('\\') ? url : null;
+/** Genel aramanın ürettiği hedef yolların kökleri (`SearchRepository`); başka yol bağlantı olmaz. */
+export const SEARCH_HIT_PREFIXES = [
+  '/araclar',
+  '/cariler',
+  '/kiralar',
+  '/rezervasyonlar',
+  '/faturalar',
+] as const;
+
+/** Kontrol karakteri (TAB/LF/CR dahil — URL ayrıştırıcısı bunları siler: `/\t/evil` → `//evil`), boşluk, ters bölü. */
+function hasUnsafeChar(url: string): boolean {
+  for (let i = 0; i < url.length; i++) {
+    const c = url.charCodeAt(i);
+    if (c <= 0x20 || (c >= 0x7f && c <= 0x9f) || c === 0x5c) return true;
+  }
+  return false;
+}
+
+/**
+ * Sunucunun verdiği hedef yalnız site-içi, bilinen köklerden biriyle başlayan yol olabilir (F11.2b güvenlik L1):
+ * `//evil`, şema taşıyan adres, kontrol karakteri/boşluk/ters bölü içeren girdi ya da çözüldüğünde başka kökene giden
+ * yol `null` döner (bağlantı yerine düz metin basılır).
+ */
+export function safeHitUrl(
+  url: string,
+  origin: string = globalThis.location.origin,
+): string | null {
+  if (!url.startsWith('/') || url.startsWith('//') || hasUnsafeChar(url)) return null;
+  let resolved: URL;
+  try {
+    resolved = new URL(url, origin);
+  } catch {
+    return null;
+  }
+  if (resolved.origin !== new URL(origin).origin) return null;
+  const path = resolved.pathname;
+  return SEARCH_HIT_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`)) ? url : null;
 }
 
 /**

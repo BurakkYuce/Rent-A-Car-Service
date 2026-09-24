@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
@@ -48,7 +49,16 @@ const PASSWORD_MAX = 128;
 @Component({
   selector: 'rc-users-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TarihPipe, Alan, FormHatalari, MetinGirdisi, Secim],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslocoPipe,
+    TarihPipe,
+    Alan,
+    FormHatalari,
+    MetinGirdisi,
+    Secim,
+  ],
   styleUrl: '../system.scss',
   templateUrl: './users-page.html',
 })

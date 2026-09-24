@@ -3608,6 +3608,7 @@ export type CeviriAnahtari =
   | 'sistem.kullanici.istisna.ver'
   | 'sistem.kullanici.istisna.yasak'
   | 'sistem.kullanici.istisna.yasakEtiket'
+  | 'sistem.kullanici.kendiParolam'
   | 'sistem.kullanici.kullaniciAdi'
   | 'sistem.kullanici.liste'
   | 'sistem.kullanici.olustur'

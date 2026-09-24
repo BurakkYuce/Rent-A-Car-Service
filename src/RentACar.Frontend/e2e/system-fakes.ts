@@ -117,6 +117,17 @@ export const USER_OP = '6f1c2c8e-0000-4000-8000-0000000000b2';
 
 export const users = () => [
   {
+    // Oturumdaki kullanıcının kendisi (BEN.kullanici): kendi satırında parola sıfırlama yok (M1).
+    id: BEN.kullanici.id,
+    kullaniciAdi: 'ayse',
+    gorunenAd: 'Ayşe Yılmaz',
+    rol: 'Yonetici',
+    aktif: true,
+    atanmisSube: null,
+    istisnalar: [],
+    etkinIzinler: ['ManageUsers'],
+  },
+  {
     id: USER_ADMIN,
     kullaniciAdi: 'patron',
     gorunenAd: 'Patron',
