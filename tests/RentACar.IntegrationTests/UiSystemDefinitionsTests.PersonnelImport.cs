@@ -52,6 +52,32 @@ public sealed partial class UiSystemDefinitionsTests
         Assert.Equal(32500.5m, again.GetProperty("maas").GetDecimal());
     }
 
+    /// <summary>#308 M1: yalnız tam "" siler; boşluktan oluşan TC 400 errors[tcKimlik] alır ve kayıtlı TC KORUNUR.</summary>
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("  ")]
+    [InlineData("\t")]
+    [InlineData(" ")]
+    [InlineData(" \n ")]
+    public async Task Personnel_whitespace_tc_is_refused_and_stored_tc_is_kept(string value)
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        const string path = V1 + "/personel";
+        var created = await Json(await Send(admin, HttpMethod.Post, path,
+            new { kod = "W1", ad = "Can", soyad = "Er", tcKimlik = "10000000146" }), HttpStatusCode.Created);
+        var id = created.GetProperty("id").GetGuid();
+
+        await Problem(await Send(admin, HttpMethod.Put, $"{path}/{id}",
+            new { kod = "W1", ad = "Can", soyad = "Er", tcKimlik = value, surum = Surum(created) }),
+            HttpStatusCode.BadRequest, "dogrulama", "tcKimlik");
+        await Problem(await Send(admin, HttpMethod.Post, path, new { kod = "W2", ad = "A", soyad = "B", tcKimlik = value }),
+            HttpStatusCode.BadRequest, "dogrulama", "tcKimlik");
+        var after = await Json(await admin.C.GetAsync($"{path}/{id}"));
+        Assert.True(after.GetProperty("tcKimlikTanimli").GetBoolean());
+        Assert.NotNull(await _kit.ReadAsync(e.TenantId, db => db.Personeller.Where(p => p.Id == id).Select(p => p.TcKimlikEnc).SingleAsync()));
+    }
+
     private static MultipartFormDataContent CsvFile(string csv, string name = "liste.csv")
     {
         var form = new MultipartFormDataContent();

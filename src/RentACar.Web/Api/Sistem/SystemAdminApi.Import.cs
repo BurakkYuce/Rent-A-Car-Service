@@ -24,20 +24,19 @@ public static partial class SystemAdminApi
     /// <summary>Dosya üst sınırı 5 MB (tarife aktarımıyla aynı) + multipart payı.</summary>
     private const long ImportFileLimit = 5 * 1024 * 1024;
     private const long ImportRequestLimit = ImportFileLimit + 1024 * 1024;
-    private const int ImportMaxRows = 20_000;
 
-    private static readonly (string, string)[] ImportRules = [("Dosya", "dosya"), ("Yalnız", "dosya"), ("Tek seferde", "dosya")];
+    private static readonly (string, string)[] ImportRules = [("Dosya", "dosya"), ("Yalnız", "dosya"), ("Tek seferde", "dosya"), ("Başlık", "dosya"), ("Bir satır", "dosya")];
 
     private static void MapImport(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/ice-aktar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
         g.MapPost("/arac", async Task<Ok<ImportCountsDto>> (IFormFile? dosya, ImportService imp, CancellationToken ct)
-                => TypedResults.Ok(Summary(await imp.ImportAraclarAsync(await ReadRowsAsync(dosya), ct))))
+                => TypedResults.Ok(ImportSummary(await imp.ImportAraclarAsync(await ReadRowsAsync(dosya), ct))))
             .DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit))
             .AlanlariEsle(ImportRules);
         g.MapPost("/cari", async Task<Ok<ImportCountsDto>> (IFormFile? dosya, ImportService imp, CancellationToken ct)
-                => TypedResults.Ok(Summary(await imp.ImportCarilerAsync(await ReadRowsAsync(dosya), ct))))
+                => TypedResults.Ok(ImportSummary(await imp.ImportCarilerAsync(await ReadRowsAsync(dosya), ct))))
             .DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit))
             .AlanlariEsle(ImportRules);
@@ -61,19 +60,26 @@ public static partial class SystemAdminApi
         {
             throw new ValidationException("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).", "dosya");
         }
-        if (rows.Count > ImportMaxRows) throw new ValidationException("Tek seferde en çok 20.000 satır aktarılabilir.", "dosya");
-        return rows;
+        return rows; // satır/sütun/boyut sınırları ayrıştırma SIRASINDA (ImportLimits)
     }
 
-    /// <summary>Servis hataları "etiket: mesaj" biçiminde (etiket = plaka ya da müşteri adı). Etiket atılır, aynı mesajlar
-    /// sayılır — yanıt kişisel veri taşımaz. Sayaç (<c>Hatali</c>) servisin gerçek hata sayısıdır (özet kısaltılmış olabilir).</summary>
-    private static ImportCountsDto Summary(ImportResult r) => new(
-        r.Eklenen, r.Atlanan, r.Hatali,
-        r.Hatalar
-            .Select(h => h.IndexOf(": ", StringComparison.Ordinal) is var i and >= 0 ? h[(i + 2)..] : h)
-            .GroupBy(m => m)
+    /// <summary>
+    /// Yalnız MESAJ kullanılır (<see cref="ImportError.Message"/>); satır etiketi (plaka / müşteri adı) yapısal olarak ayrı
+    /// taşındığı için metin ayrıştırmaya gerek yok ve etiket hiçbir biçimde yanıta girmez (#308 L1). Aynı mesajlar sayılır;
+    /// en sık 20 mesajdan sonrası tek "Diğer hatalar" satırında toplanır → Σ adet = <c>Hatali</c> her zaman.
+    /// </summary>
+    /// <remarks>SAF ve <c>public</c>: doğrudan test edilebilsin diye (repoda <c>InternalsVisibleTo</c> yok).</remarks>
+    public static ImportCountsDto ImportSummary(ImportResult r)
+    {
+        var groups = r.Errors.GroupBy(e => e.Message)
             .Select(x => new ImportErrorSummaryDto(x.Key, x.Count()))
-            .OrderByDescending(x => x.Adet)
-            .Take(20)
-            .ToList());
+            .OrderByDescending(x => x.Adet).ThenBy(x => x.Mesaj, StringComparer.Ordinal)
+            .ToList();
+        var summary = groups.Take(ImportSummaryMax).ToList();
+        var rest = groups.Skip(ImportSummaryMax).Sum(x => x.Adet);
+        if (rest > 0) summary.Add(new ImportErrorSummaryDto("Diğer hatalar", rest));
+        return new ImportCountsDto(r.Eklenen, r.Atlanan, r.Hatali, summary);
+    }
+
+    private const int ImportSummaryMax = 20;
 }
