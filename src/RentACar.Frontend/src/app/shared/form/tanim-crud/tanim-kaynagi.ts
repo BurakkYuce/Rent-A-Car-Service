@@ -17,8 +17,10 @@ export interface TanimSatiri {
 /**
  * - `datalist`: seç veya yaz (`<datalist>`; serbest metin de kabul) — öneriler `suggestions(q)` ile, yazdıkça.
  * - `date`: takvim günü (`"2026-09-22"`, `rc-tarih-secici`).
+ * - `textarea`: çok satırlı düz metin (`rc-metin-alani`; F11.2b sayfa gövdesi, SSS cevabı). Listede kısaltılır.
  */
-export type TanimAlanTuru = 'metin' | 'sayi' | 'para' | 'onay' | 'secim' | 'datalist' | 'date';
+export type TanimAlanTuru =
+  'metin' | 'sayi' | 'para' | 'onay' | 'secim' | 'datalist' | 'date' | 'textarea';
 
 export type DefinitionOptions = readonly SecenekOgesi<unknown>[];
 

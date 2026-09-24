@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.HesapKodlari;
 
 /// <summary>Muhasebe hesap-kodu kalıcılığı (roadmap N1).</summary>
-public interface IHesapKoduRepository
+public interface IHesapKoduRepository : IVersionedRepository<HesapKodu>
 {
     Task<IReadOnlyList<HesapKodu>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<HesapKodu>> ListActiveAsync(CancellationToken ct = default);
@@ -54,6 +54,25 @@ public sealed class HesapKoduService(IHesapKoduRepository repository, ICurrentUs
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
+
+    /// <summary>F11.2c — full replacement with optimistic concurrency: <paramref name="expectedVersion"/> is compared
+    /// under the row lock; mismatch → <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, HesapKoduInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var (kod, ad, aciklama) = Normalize(input);
+        return await _repository.UpdateAsync(id, expectedVersion, r =>
+        {
+            r.Kod = kod; r.Ad = ad; r.Aciklama = aciklama; r.Aktif = input.Aktif;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F11.2c — opaque row version for full-replacement PUTs.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
+    /// <summary>F11.2c — versions of every row (list rows carry their version).</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => _repository.GetVersionsAsync(ct);
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {

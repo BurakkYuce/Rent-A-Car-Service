@@ -15,6 +15,11 @@ export interface DefinitionConfig {
   /** Çok alanlı tanım: form tablo üstünde ızgara (`panel`). */
   readonly layout: 'row' | 'panel';
   readonly fields: readonly TanimAlani[];
+  /**
+   * F11.1b uçları sayfalı liste döner (satırda `surum` yok): değer = sunucu sıralama alanı; `pagedDefinitionSource`
+   * tüm sayfaları okur. Yoksa F11.1a düz dizi sözleşmesi (`restTanimKaynagi`).
+   */
+  readonly pagedSort?: string;
 }
 
 type Translate = (key: CeviriAnahtari, params?: Record<string, unknown>) => string;
@@ -183,7 +188,59 @@ export function definitionConfig(
     case 'customerGroup':
     case 'department':
     case 'bank':
+    case 'paymentType':
+    case 'fuelKind':
+    case 'transmissionType':
+    case 'vehicleColor':
       return master;
+    case 'accountCode':
+      return {
+        ...master,
+        fields: [
+          f.code(),
+          text('ad', l('ad'), 200, { zorunlu: true }),
+          text('aciklama', l('aciklama'), 512),
+          f.active(),
+        ],
+      };
+    case 'insuranceCompany':
+      return {
+        ...master,
+        pagedSort: 'kod',
+        fields: [f.code(), f.name(), text('telefon', l('telefon'), 32), f.active()],
+      };
+    case 'vatRate':
+      return {
+        ...master,
+        pagedSort: 'kod',
+        fields: [
+          f.code(),
+          f.name(),
+          {
+            ad: 'oran',
+            etiket: l('kdvOrani'),
+            tur: 'sayi',
+            fraction: 2,
+            zorunlu: true,
+            defaultValue: 0.2,
+            placeholder: t('tanimlar.yerTutucu.kdvOrani'),
+          },
+          f.active(),
+        ],
+      };
+    case 'penaltyType':
+      return {
+        ...master,
+        pagedSort: 'kod',
+        fields: [
+          f.code(),
+          f.name(),
+          { ad: 'varsayilanTutar', etiket: l('varsayilanTutar'), tur: 'para' },
+          f.active(),
+        ],
+      };
+    case 'documentTemplate':
+      return documentTemplateConfig(root, t);
     case 'accessory':
       return {
         ...master,
@@ -290,4 +347,52 @@ export function definitionConfig(
         ],
       };
   }
+}
+
+/**
+ * Belge şablonu (Blazor `BelgeSablonList`, ManageUsers). Metinler DÜZ METİN (PDF'e metin olarak basılır; SPA'da
+ * da yalnız metin bağlaması — innerHTML yok). Sınırlar servis `Validate` ile aynı: ad 128, başlık 256, metinler
+ * 4000, alt bilgi 512. Belge türü zorunlu (Blazor'daki sessiz "kira sözleşmesi" varsayılanı yok).
+ */
+function documentTemplateConfig(root: ApiYolu, t: Translate): DefinitionConfig {
+  const f = commonFields(t);
+  const d = (k: string) => t(`tanimlar.documentTemplate.alan.${k}` as CeviriAnahtari);
+  const area = (ad: string): TanimAlani => ({
+    ad,
+    etiket: d(ad),
+    tur: 'textarea',
+    azamiUzunluk: 4000,
+    inList: false,
+  });
+  return {
+    root,
+    layout: 'panel',
+    pagedSort: 'ad',
+    fields: [
+      {
+        ad: 'belgeTuru',
+        etiket: d('belgeTuru'),
+        tur: 'secim',
+        zorunlu: true,
+        defaultValue: 'KiraSozlesmesi',
+        secenekler: [
+          { deger: 'KiraSozlesmesi', etiket: d('kiraSozlesmesi') },
+          { deger: 'Fatura', etiket: d('fatura') },
+          { deger: 'Makbuz', etiket: d('makbuz') },
+        ],
+      },
+      f.text('ad', d('ad'), 128, { zorunlu: true }),
+      f.yesNo('varsayilanMi', d('varsayilanMi')),
+      f.active(),
+      f.text('belgeBasligi', d('belgeBasligi'), 256, { inList: false }),
+      area('hukukiMetinSol'),
+      area('hukukiMetinSag'),
+      area('ekKosullarVarsayilan'),
+      f.text('altBilgi', d('altBilgi'), 512, {
+        inList: false,
+        placeholder: '{FirmaMarka} — {BelgeNo}',
+      }),
+      { ...f.yesNo('imzaAlaniGoster', d('imzaAlaniGoster')), defaultValue: true, inList: false },
+    ],
+  };
 }

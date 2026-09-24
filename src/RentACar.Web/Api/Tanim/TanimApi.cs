@@ -25,6 +25,7 @@ public static partial class TanimApi
         v1.MapDocumentApi();        // /dokumanlar, /firma-belgeleri
         v1.MapCalendarApi();        // /takvim-abonelik
         v1.MapBranchApi();          // /subeler (+ hizmetler, birleştir)
+        MapRemainingDefinitions(v1); // F11.2c: ödeme tipi, yakıt, vites, renk, rezervasyon kaynağı, hesap kodu
 
         // ---- Kod + Ad + Aktif masters (MasterTanimService family)
         v1.MapDefinition(MasterDefinitions.For<Brand, BrandService>("/markalar", Tag, "marka",
