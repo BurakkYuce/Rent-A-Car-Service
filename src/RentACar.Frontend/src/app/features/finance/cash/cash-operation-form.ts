@@ -12,6 +12,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
+import { moneySubmission } from '@core/form/money-submission';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { dovizKodu, onDoldurmaTutari } from '@features/kira-formu/finans-paneli/finans-modeli';
@@ -33,7 +34,6 @@ import {
   clearRateOnCurrencyChange,
   kindOptions,
 } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 export type CashOperationKind = 'tahsilat' | 'odeme';
 
@@ -65,7 +65,7 @@ export class CashOperationForm {
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
   protected readonly accounts = inject(AccountList);
-  protected readonly action = moneyAction<CollectionRequest>();
+  protected readonly action = moneySubmission<CollectionRequest>();
   private prefillAllowed = true;
 
   protected readonly form = new FormGroup({
@@ -138,7 +138,7 @@ export class CashOperationForm {
         return {
           path: financePath(tahsilat ? '/tahsilat' : '/odeme'),
           body,
-          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY', hesap: body.hesap },
+          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY' },
         };
       },
       success: () => {
@@ -148,19 +148,17 @@ export class CashOperationForm {
         );
         this.resetForm();
       },
-      afterDuplicate: () => {
-        this.prefillAllowed = false;
-        this.resetForm();
+      afterDuplicate: () => this.resetForm(),
+      settled: (reason) => {
+        // 409 sonrası öneri bir sonraki başarılı işleme kadar KAPALI (F4.4 HIGH-1; `mevcut`suz 409 dahil).
+        if (reason === 'duplicate') this.prefillAllowed = false;
+        this.settled.emit();
       },
-      settled: () => this.settled.emit(),
     });
   }
 
-  protected abandon(): void {
-    void this.action.abandon(() => this.settled.emit());
-  }
-
-  private resetForm(): void {
+  /** Cari değişimi (onaylı) ya da işlem sonrası: form boş hâline döner. */
+  resetForm(): void {
     const keep = this.form.getRawValue();
     this.form.reset({
       tutar: null,

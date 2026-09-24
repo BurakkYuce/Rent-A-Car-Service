@@ -12,6 +12,7 @@ import {
   dayToInstant,
   depositRequest,
   queryParams,
+  rowErrorMap,
 } from './finance-model';
 import { fixedRateToForm, fixedRateUpdateBody } from './rates/rates-model';
 
@@ -228,6 +229,16 @@ describe('finans gövdeleri', () => {
     expect(queryParams({ a: 'x', b: '', c: null, d: false, e: 'true' })).toEqual({
       a: 'x',
       e: 'true',
+    });
+  });
+});
+
+describe('toplu satır hata eşlemesi (r299 MEDIUM-1)', () => {
+  it('satır hataları GÖNDERİLEN satırın kimliğine göre güncel sıraya eşlenir; silinen satır eşlenmez', () => {
+    // Gönderilen: [A, B]; ekranda [B, C] olsaydı: B hatası 0. satıra gider, A'nınki hiçbir satıra gitmez.
+    expect(rowErrorMap(['A', 'B'], ['B', 'C'], { tutar: 'tutar', cariId: 'cari' })).toEqual({
+      'satirlar[1].tutar': 'satirlar.0.tutar',
+      'satirlar[1].cariId': 'satirlar.0.cari',
     });
   });
 });

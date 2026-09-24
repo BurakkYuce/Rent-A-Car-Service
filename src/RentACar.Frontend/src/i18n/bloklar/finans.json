@@ -75,7 +75,7 @@
       "aciklamaYerTutucu": "Düzeltmenin sebebi",
       "kaydet": "Düzeltmeyi Kaydet",
       "onayBaslik": "Bakiye düzeltilsin mi?",
-      "onayMesaj": "Cari bakiyesi düzeltilecek. Bu kayıt silinemez (düzeltme ters kayıtla yapılır). Devam edilsin mi?",
+      "onayMesaj": "{{ad}} carisinin bakiyesi düzeltilecek. Bu kayıt silinemez (düzeltme ters kayıtla yapılır). Devam edilsin mi?",
       "kaydedildi": "Düzeltme kaydedildi."
     },
     "kasa": {
@@ -365,6 +365,11 @@
       "silMesaj": "{{kod}} sabit kuru kalıcı olarak silinsin mi? Bu kurla daha önce yazılmış kayıtlar değişmez.",
       "silindi": "Sabit kur silindi.",
       "cakisti": "Bu alan siz düzenlerken başka bir oturumda değişti; değeri kontrol edin."
+    },
+    "cariDegisimi": {
+      "baslik": "Başka cariye geçilsin mi?",
+      "mesaj": "Formda {{ad}} için kaydedilmemiş değişiklik var. Bağlantıdaki cariye geçilirse bu değişiklikler silinir (yazılan tutar yeni cariye TAŞINMAZ).",
+      "gec": "Değişiklikleri sil ve geç"
     }
   }
 }

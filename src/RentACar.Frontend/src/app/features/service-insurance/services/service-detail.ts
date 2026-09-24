@@ -14,21 +14,20 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
+import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { paraBicimle } from '@core/bicim/bicim';
 import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
 } from '@core/form/kaydedilmemis-degisiklik';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
+import { sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
+import { moneySubmission } from '@core/form/money-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -44,20 +43,12 @@ import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
 import { planText } from '../service-insurance-columns';
-import {
-  type FrozenRequest,
-  MoneySubmission,
-  duplicateNotice,
-  lineNetAmount,
-  setLocked,
-} from '../money-submission';
-
-const asText = (v: number | string | null | undefined): string | null =>
-  v === null || v === undefined ? null : String(v);
+import { lineNetAmount } from '../money-math';
 import {
   DECLARATION_TYPES,
   PAYMENT_METHODS,
@@ -106,6 +97,7 @@ type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
     ParaPipe,
     SayiGirdisi,
     SayiPipe,
+    MoneySubmitBar,
     Secim,
     TarihPipe,
     TarihSecici,
@@ -148,8 +140,6 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
   });
 
   // ---- kalem (PARA)
-  protected readonly line = new MoneySubmission<ServiceLineRequest>(inject(TahsilatDenemeKaydi));
-  protected readonly lineErrors = signal<readonly string[]>([]);
   protected readonly lineForm = new FormGroup({
     aciklama: new FormControl<string | null>(null, [
       Validators.required,
@@ -163,12 +153,17 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
   });
 
   // ---- rücu yansıtma (PARA)
-  protected readonly reflect = new MoneySubmission<ServiceReflectRequest>(
-    inject(TahsilatDenemeKaydi),
-  );
-  protected readonly reflectErrors = signal<readonly string[]>([]);
   protected readonly reflectForm = new FormGroup({
     cari: new FormControl<SecimSecenegi | null>(null, Validators.required),
+  });
+  /** Kalem ve yansıtma: kayıt yenilenince form gizlenebilir → `mukerrer` bildirimi toast'ta. */
+  protected readonly line = moneySubmission<ServiceLineRequest>({
+    scope: () => `kalem:${this.id}`,
+    duplicateDisplay: 'toast',
+  });
+  protected readonly reflect = moneySubmission<ServiceReflectRequest>({
+    scope: () => `yansit:${this.id}`,
+    duplicateDisplay: 'toast',
   });
 
   // ---- bilgi blokları (tam değiştirme)
@@ -195,31 +190,9 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
         this.recordArrived(d);
       });
     });
-    // İstek uçarken ve donmuş kopya varken form kilitli (inceleme M1); donmuş gövde forma geri yazılır —
-    // "tekrar gönder" ekranda görüneni gönderir.
-    effect(() => {
-      const frozen = this.line.frozen();
-      const locked = frozen !== null || this.line.sending();
-      untracked(() => {
-        if (frozen)
-          this.lineForm.patchValue(
-            {
-              aciklama: frozen.body.aciklama ?? null,
-              birimFiyat: asText(frozen.body.birimFiyat),
-              miktar: num(frozen.body.miktar),
-              indirim: asText(frozen.body.indirim),
-              kdvOran: num(frozen.body.kdvOran),
-              tutar: asText(frozen.body.tutar),
-            },
-            { emitEvent: false },
-          );
-        setLocked(this.lineForm, locked);
-      });
-    });
-    effect(() => {
-      const locked = this.reflect.frozen() !== null || this.reflect.sending();
-      untracked(() => setLocked(this.reflectForm, locked));
-    });
+    // Sonucu bilinmeyen kalem/yansıtma denemesi (sekme kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ gelir.
+    this.line.restore(this.lineForm);
+    this.reflect.restore(this.reflectForm);
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
   }
 
@@ -235,12 +208,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
   }
 
   private hasPendingMoney(): boolean {
-    return (
-      this.line.frozen() !== null ||
-      this.line.sending() ||
-      this.reflect.frozen() !== null ||
-      this.reflect.sending()
-    );
+    return this.line.pending() || this.reflect.pending();
   }
 
   protected statusLabel(s: string): string {
@@ -321,89 +289,57 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
 
   protected addLine(): void {
     const d = this.detail();
-    if (!d || this.line.sending() || this.refreshing()) return;
-    this.lineErrors.set([]);
-    sunucuHatalariniTemizle(this.lineForm);
-    this.lineForm.markAllAsTouched();
-    if (this.line.frozen() === null && this.lineForm.invalid) return;
-    const v = this.lineForm.getRawValue() as ServiceLineForm;
-    // Sınıflandırma içeriği NET satır tutarı: sunucunun `mevcut.tutar`'ı ile aynı büyüklük (inceleme M3).
-    const copy = this.line.prepare(`kalem:${d.kayit.id}`, lineRequest(v), {
-      tutar: lineNetAmount(v),
-      doviz: 'TRY',
-      hesap: v.aciklama,
+    if (!d || this.refreshing()) return;
+    void this.line.run<ServiceRecordDetail>({
+      form: this.lineForm,
+      build: () => {
+        const v = this.lineForm.getRawValue() as ServiceLineForm;
+        return {
+          path: recordPath(SERVICES, d.kayit.id, '/kalemler'),
+          target: `kalem:${d.kayit.id}`,
+          body: lineRequest(v),
+          // Bildirimdeki "girdiğiniz" NET satır tutarı: sunucunun `mevcut.tutar`'ı ile aynı büyüklük (inceleme M3).
+          content: { tutar: lineNetAmount(v), doviz: 'TRY' },
+        };
+      },
+      success: () => {
+        this.toast.basari(this.t('servisSigorta.servis.kalemEklendi'));
+        this.lineForm.reset();
+      },
+      // Önceki deneme kayıtlı: TÜM kalem formu sıfırlanır (birim fiyat/miktar/indirim de — M3).
+      afterDuplicate: () => this.lineForm.reset(),
+      settled: () => this.reload(),
     });
-    this.line.started(copy);
-    this.api
-      .post<ServiceRecordDetail>(recordPath(SERVICES, d.kayit.id, '/kalemler'), copy.body, {
-        islemAnahtari: copy.key,
-        context: istekBaglami({ mukerrerCagiranGosterir: true }),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.line.succeeded();
-          this.toast.basari(this.t('servisSigorta.servis.kalemEklendi'));
-          this.lineForm.reset();
-          this.reload();
-        },
-        error: (raw: unknown) =>
-          this.moneyFailed(this.line, copy, raw, this.lineForm, this.lineErrors, true),
-      });
-  }
-
-  protected async abandonLine(): Promise<void> {
-    if (await this.confirmAbandon()) {
-      this.line.abandon();
-      this.reload();
-    }
   }
 
   // ------------------------------------------------------------------ rücu yansıtma (PARA)
 
   protected reflectCost(): void {
     const d = this.detail();
-    if (!d || this.reflect.sending() || this.refreshing()) return;
-    this.reflectErrors.set([]);
-    sunucuHatalariniTemizle(this.reflectForm);
-    this.reflectForm.markAllAsTouched();
-    if (this.reflect.frozen() === null && this.reflectForm.invalid) return;
-    const cari = this.reflectForm.getRawValue().cari;
-    const copy = this.reflect.prepare(
-      `yansit:${d.kayit.id}`,
-      { cariId: cari?.id ?? null },
-      { tutar: num(d.yetkiler.yansitilacakTutar), doviz: 'TRY', hesap: cari?.id ?? null },
-    );
-    this.reflect.started(copy);
-    this.api
-      .post<ServiceRecordDetail>(recordPath(SERVICES, d.kayit.id, '/yansit'), copy.body, {
-        islemAnahtari: copy.key,
-        context: istekBaglami({ mukerrerCagiranGosterir: true }),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (fresh) => {
-          this.reflect.succeeded();
-          this.toast.basari(
-            this.t('servisSigorta.servis.yansitildiBildirim', {
-              tutar: paraBicimle(num(fresh.yansitma?.tutar ?? null), 'TRY'),
-            }),
-          );
-          this.reflectForm.reset();
-          this.reload();
-        },
-        error: (raw: unknown) =>
-          this.moneyFailed(this.reflect, copy, raw, this.reflectForm, this.reflectErrors, false, {
-            cariId: 'cari',
+    if (!d || this.refreshing()) return;
+    void this.reflect.run<ServiceRecordDetail>({
+      form: this.reflectForm,
+      fieldMap: () => ({ cariId: 'cari' }),
+      build: () => {
+        const cari = this.reflectForm.getRawValue().cari;
+        return {
+          path: recordPath(SERVICES, d.kayit.id, '/yansit'),
+          target: `yansit:${d.kayit.id}`,
+          body: { cariId: cari?.id ?? null },
+          content: { tutar: num(d.yetkiler.yansitilacakTutar), doviz: 'TRY' },
+        };
+      },
+      success: (fresh) => {
+        this.toast.basari(
+          this.t('servisSigorta.servis.yansitildiBildirim', {
+            tutar: paraBicimle(num(fresh.yansitma?.tutar ?? null), 'TRY'),
           }),
-      });
-  }
-
-  protected async abandonReflect(): Promise<void> {
-    if (await this.confirmAbandon()) {
-      this.reflect.abandon();
-      this.reload();
-    }
+        );
+        this.reflectForm.reset();
+      },
+      afterDuplicate: () => this.reflectForm.reset(),
+      settled: () => this.reload(),
+    });
   }
 
   // ------------------------------------------------------------------ bilgi blokları
@@ -460,47 +396,5 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
         });
     }
     this.base = d;
-  }
-
-  private moneyFailed<B>(
-    submission: MoneySubmission<B>,
-    copy: FrozenRequest<B>,
-    raw: unknown,
-    form: FormGroup,
-    errors: { set(v: readonly string[]): void },
-    /** Tutarı taşıyan formdur: tutar temizlenmeliyse TÜM form sıfırlanır (birim fiyat/miktar/indirim de — M3). */
-    clearsAmount: boolean,
-    mapping?: Readonly<Record<string, string>>,
-  ): void {
-    const error: ApiHatasi = apiHatasinaCevir(raw);
-    const outcome = submission.failed(copy, error);
-    switch (outcome.kind) {
-      case 'uncertain':
-        return;
-      case 'duplicate': {
-        const n = duplicateNotice(outcome.type, error, submission.lastSubmission, this.t);
-        if (n.tone === 'bilgi') this.toast.bilgi(n.message, { baslik: n.title });
-        else this.toast.uyari(n.message, { baslik: n.title });
-        if (error.mevcut?.ayniIcerik || (n.clearAmount && clearsAmount)) form.reset();
-        this.reload();
-        return;
-      }
-      case 'stale':
-        this.reload();
-        return;
-      default: {
-        setLocked(form, false); // önce aç: sonra açmak alan hatalarını silerdi
-        const unmatched = sunucuHatalariniUygula(form, error.alanlar, mapping);
-        if (unmatched.length > 0) errors.set(unmatched);
-        else if (error.alanlar === undefined && !genelGosterilir(error)) errors.set([error.detay]);
-      }
-    }
-  }
-
-  private confirmAbandon(): Promise<boolean> {
-    return this.confirm.sor({
-      baslik: this.t('servisSigorta.para.vazgecBaslik'),
-      mesaj: this.t('servisSigorta.para.vazgecMesaj'),
-    });
   }
 }

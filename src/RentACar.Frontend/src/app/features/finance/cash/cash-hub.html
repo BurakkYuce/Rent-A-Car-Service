@@ -82,12 +82,12 @@
       </rc-alan>
     </div>
     <p class="not">{{ 'finans.kasa.virmanNot' | transloco }}</p>
-    <rc-fin-submit
-      [action]="action"
+    <rc-money-submit
+      [submission]="action"
       [label]="'finans.kasa.aktar' | transloco"
       ikon="refresh"
       (send)="transfer()"
-      (giveUp)="abandon()"
+      (abandoned)="reloadAll()"
     />
   </section>
 

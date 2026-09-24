@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
+import { moneySubmission } from '@core/form/money-submission';
 import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
 import {
   type KaydedilmemisDegisiklikSahibi,
@@ -23,7 +24,6 @@ import {
   queryParams,
 } from '../finance-model';
 import { CURRENCY_OPTIONS, FIN_COMMON, clearRateOnCurrencyChange } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 /**
  * Cari ↔ Cari Virman (`/app/cari-virman`, Blazor `CariVirman.razor`): kaynak cari alacaklanır (bakiye ↓), hedef cari
@@ -45,7 +45,7 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly branches = sunucuSecimKaynagi('sube');
   protected readonly currencyOptions = CURRENCY_OPTIONS;
-  protected readonly action = moneyAction<CustomerTransferRequest>();
+  protected readonly action = moneySubmission<CustomerTransferRequest>();
 
   protected readonly history = new TemelStore(
     (p: SorguParametreleri) =>
@@ -119,7 +119,7 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath('/cari-virman'),
           body,
-          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY', hesap: null },
+          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY' },
         };
       },
       success: () => {
@@ -129,10 +129,6 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
       afterDuplicate: () => this.resetForm(),
       settled: () => this.history.yenile(),
     });
-  }
-
-  protected abandon(): void {
-    void this.action.abandon(() => this.history.yenile());
   }
 
   private resetForm(): void {

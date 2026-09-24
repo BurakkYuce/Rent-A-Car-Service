@@ -86,11 +86,11 @@
       </div>
     </div>
     <p class="not">{{ 'finans.topluGider.belgeNot' | transloco }}</p>
-    <rc-fin-submit
-      [action]="action"
+    <rc-money-submit
+      [submission]="action"
+      ikon="cash"
       [label]="'finans.topluGider.kaydet' | transloco"
       (send)="submit()"
-      (giveUp)="abandon()"
     />
   </section>
 </div>

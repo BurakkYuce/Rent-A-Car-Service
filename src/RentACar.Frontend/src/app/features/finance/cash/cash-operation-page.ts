@@ -65,7 +65,10 @@ export class CashOperationPage implements KaydedilmemisDegisiklikSahibi {
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
     // `?cariId=` izlenir (kalıcı sekmede başka cariyle açılış); seçici etiketi bakiye yanıtının (KVKK kurallı) adından.
-    followCustomerQuery(this.cariId, this.customer, () => this.forms().some((f) => f.pending()));
+    followCustomerQuery(this.cariId, this.customer, () => this.forms().some((f) => f.pending()), {
+      dirty: () => this.forms().some((f) => f.dirty()),
+      discard: () => this.forms().forEach((f) => f.resetForm()),
+    });
     effect(() => {
       const b = this.balance.veri();
       const id = this.cariId();

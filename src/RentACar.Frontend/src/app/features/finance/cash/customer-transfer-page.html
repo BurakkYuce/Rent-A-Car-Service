@@ -47,12 +47,12 @@
       </rc-alan>
     </div>
     <p class="not">{{ 'finans.cariVirman.islemYapanNot' | transloco }}</p>
-    <rc-fin-submit
-      [action]="action"
+    <rc-money-submit
+      [submission]="action"
       [label]="'finans.cariVirman.yap' | transloco"
       ikon="refresh"
       (send)="submit()"
-      (giveUp)="abandon()"
+      (abandoned)="history.yenile()"
     />
   </section>
 

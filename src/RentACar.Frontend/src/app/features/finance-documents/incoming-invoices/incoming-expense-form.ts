@@ -4,6 +4,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { SecimOgesi } from '@core/api/ui-tipleri';
+import { type MoneyNotice, errorNotice } from '@core/form/money-notice';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -16,8 +17,8 @@ import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
 
-import { DocumentNotice } from '../document-notice';
 import {
   type IncomingInvoiceExpenseResult,
   type IncomingInvoiceRow,
@@ -25,9 +26,7 @@ import {
   type PaymentMethod,
 } from '../document-model';
 import {
-  type FormNotice,
   type IncomingExpenseForm as ExpenseValue,
-  formNotice,
   incomingExpenseRequest,
   vatBreakdownText,
 } from '../document-requests';
@@ -46,7 +45,7 @@ import { INCOMING, recordPath } from '../document.store';
     TranslocoPipe,
     Alan,
     AramaSecim,
-    DocumentNotice,
+    MoneyNoticeView,
     FormHatalari,
     MetinGirdisi,
     Secim,
@@ -78,7 +77,7 @@ import { INCOMING, recordPath } from '../document.store';
           }
         </datalist>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <rc-document-notice [notice]="notice()" />
+        <rc-money-notice [notice]="notice()" />
         <div class="form__eylemler">
           <button
             type="submit"
@@ -119,7 +118,7 @@ export class IncomingExpenseForm {
   protected readonly methodOptions: readonly SecenekOgesi<PaymentMethod>[] = PAYMENT_METHODS.map(
     (x) => ({ deger: x, etiket: this.t(`finansBelge.odemeYontemleri.${x}`) }),
   );
-  protected readonly notice = signal<FormNotice | null>(null);
+  protected readonly notice = signal<MoneyNotice | null>(null);
   protected readonly form = new FormGroup({
     odemeYontemi: new FormControl<PaymentMethod | null>('AcikHesap', Validators.required),
     cari: new FormControl<SecimSecenegi | null>(null),
@@ -158,7 +157,7 @@ export class IncomingExpenseForm {
           this.done.emit(r);
         },
         hata: (h) => {
-          this.notice.set(formNotice(h));
+          this.notice.set(errorNotice(h));
           if (h.kod === 'mukerrer' || h.kod === 'cakisma') this.done.emit(null);
         },
       },

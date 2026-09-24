@@ -12,6 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormRecord, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
+import { ConfirmGate } from '@core/form/money-submission';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
@@ -30,7 +31,7 @@ import {
   financePath,
   queryParams,
 } from '../finance-model';
-import { ConfirmGate, FIN_COMMON, kindOptions, toAmount } from '../finance-shared';
+import { FIN_COMMON, kindOptions, toAmount } from '../finance-shared';
 
 /**
  * Otomatik Tahsilat — elle çalıştır (`/app/otomatik-tahsilat`, Blazor `OtomatikTahsilat.razor`): vadesi gelmiş dönem

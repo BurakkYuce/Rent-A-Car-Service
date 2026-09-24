@@ -319,10 +319,11 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     const dep = cagrilar.find((c) => c.yol.endsWith('/depozito/al'));
     expect(dep?.secenek?.islemAnahtari).toBeDefined();
     expect(dep?.secenek?.islemAnahtari).not.toBe(ucuncu?.secenek?.islemAnahtari);
-    expect(dep?.secenek?.context?.get(MUKERRERDE_YENILE)).toBeTypeOf('function');
+    // mukerrer bildirimi çekirdeğin form notunda (interceptor toast'u değil); kayıt settled'da yenilenir.
+    expect(dep?.secenek?.context?.get(MUKERRER_CAGIRAN_GOSTERIR)).toBe(true);
   });
 
-  it('409 mukerrer (ödeme): otomatik tekrar yok, sonraki gönderim YENİ anahtar', async () => {
+  it('409 mukerrer mevcutsuz (ödeme): otomatik tekrar yok; anahtar KORUNUR, gövde donar (DEVIR §5 gece dersi)', async () => {
     let n = 0;
     const { f, cagrilar, detayVer } = await kur(() =>
       ++n === 1
@@ -333,8 +334,11 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
     f.odemeFormu.patchValue({ tutar: '75.00' });
     f.odemeYap();
     expect(cagrilar).toHaveLength(1);
+    expect(f.odemeGonderimi.frozen()).not.toBeNull();
+    f.odemeFormu.patchValue({ tutar: '99.00' }); // kilitli formu yazılımla değiştirmek gövdeyi değiştirmez
     f.odemeYap();
-    expect(cagrilar[1]?.secenek?.islemAnahtari).not.toBe(cagrilar[0]?.secenek?.islemAnahtari);
+    expect(cagrilar[1]?.secenek?.islemAnahtari).toBe(cagrilar[0]?.secenek?.islemAnahtari);
+    expect(cagrilar[1]?.govde).toEqual(cagrilar[0]?.govde);
   });
 
   it('3. tur M-A + L-2: 409 + mevcut İÇERİK FARKLI (başka sekme yazdı) → form SİLİNMEZ; dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir', async () => {

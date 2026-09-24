@@ -184,11 +184,6 @@
           }
           @if (d.yetkiler.kalemEkleyebilir) {
             <h3 class="alt-baslik">{{ 'servisSigorta.servis.kalemEkle' | transloco }}</h3>
-            @if (line.frozen()) {
-              <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
-                {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
-              </div>
-            }
             <form class="form" [formGroup]="lineForm" (ngSubmit)="addLine()">
               <div class="rc-form-izgara">
                 <rc-alan [etiket]="'servisSigorta.servis.kalemAciklama' | transloco">
@@ -216,32 +211,14 @@
                   <rc-para-girdisi formControlName="tutar" negatif />
                 </rc-alan>
               </div>
-              <rc-form-hatalari [hatalar]="lineErrors()" />
-              <div class="form__eylemler">
-                <button
-                  type="submit"
-                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-                  [disabled]="line.sending() || refreshing()"
-                >
-                  <rc-ikon ad="plus" [boyut]="14" />
-                  {{
-                    line.sending()
-                      ? ('form.gonderiliyor' | transloco)
-                      : line.frozen()
-                        ? ('servisSigorta.para.tekrarDene' | transloco)
-                        : ('servisSigorta.servis.kalemEkle' | transloco)
-                  }}
-                </button>
-                @if (line.frozen() && !line.sending()) {
-                  <button
-                    type="button"
-                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                    (click)="abandonLine()"
-                  >
-                    {{ 'servisSigorta.para.vazgec' | transloco }}
-                  </button>
-                }
-              </div>
+              <rc-money-submit
+                [submission]="line"
+                type="submit"
+                ikon="plus"
+                [label]="'servisSigorta.servis.kalemEkle' | transloco"
+                [disabled]="refreshing()"
+                (abandoned)="reload()"
+              />
             </form>
           }
         </section>
@@ -271,42 +248,19 @@
                   | transloco: { tutar: (num(d.yetkiler.yansitilacakTutar) | para) }
               }}
             </p>
-            @if (reflect.frozen()) {
-              <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
-                {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
-              </div>
-            }
             <form class="form" [formGroup]="reflectForm" (ngSubmit)="reflectCost()">
               <div class="rc-form-izgara">
                 <rc-alan [etiket]="'servisSigorta.servis.yansitilacakCari' | transloco">
                   <rc-arama-secim formControlName="cari" [kaynak]="customers" />
                 </rc-alan>
               </div>
-              <rc-form-hatalari [hatalar]="reflectErrors()" />
-              <div class="form__eylemler">
-                <button
-                  type="submit"
-                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-                  [disabled]="reflect.sending() || refreshing()"
-                >
-                  {{
-                    reflect.sending()
-                      ? ('form.gonderiliyor' | transloco)
-                      : reflect.frozen()
-                        ? ('servisSigorta.para.tekrarDene' | transloco)
-                        : ('servisSigorta.servis.yansit' | transloco)
-                  }}
-                </button>
-                @if (reflect.frozen() && !reflect.sending()) {
-                  <button
-                    type="button"
-                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                    (click)="abandonReflect()"
-                  >
-                    {{ 'servisSigorta.para.vazgec' | transloco }}
-                  </button>
-                }
-              </div>
+              <rc-money-submit
+                [submission]="reflect"
+                type="submit"
+                [label]="'servisSigorta.servis.yansit' | transloco"
+                [disabled]="refreshing()"
+                (abandoned)="reload()"
+              />
             </form>
           </section>
         }

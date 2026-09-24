@@ -1,5 +1,3 @@
-import { ApiHatasi } from '@core/api/api-hatasi';
-
 import { type IncomingInvoiceRow, invoiceLineExportParameters } from './document-model';
 import { currencyMismatch } from './expenses/currency-rules';
 import {
@@ -8,7 +6,6 @@ import {
   type PenaltyForm,
   expensePaymentRequest,
   expenseRequest,
-  formNotice,
   incomingLinkRequest,
   incomingToLinkForm,
   manualInvoiceRequest,
@@ -195,51 +192,6 @@ describe('finans belge gövdeleri', () => {
       cariId: CARI.id,
       giderTipi: null,
     });
-  });
-
-  it('409 mukerrer + mevcut: no ve tutar gösterilir; ağ hatası "sonuç bilinmiyor"; doğrulama notsuz', () => {
-    const same = new ApiHatasi({
-      status: 409,
-      kod: 'mukerrer',
-      detay: 'zaten',
-      mevcut: {
-        id: 'x',
-        belgeNo: 'RNT2026000000007',
-        tutar: 1800.6,
-        doviz: 'TRY',
-        ayniIcerik: true,
-      },
-    });
-    // r300 HIGH-1: ayniIcerik true ya da false AYNI not — önceki deneme kayıtlı, değiştirilen içerik yazılmadı.
-    // r300b N3: aynı içerik → yalnız "kaydedildi" (bilgi); farklı içerik → iade/iptal çağrılı uyarı.
-    expect(formNotice(same)).toEqual({
-      tone: 'bilgi',
-      key: 'kaydedildi',
-      params: { no: 'RNT2026000000007', tutar: '1.800,60 ₺' },
-    });
-    const other = new ApiHatasi({
-      status: 409,
-      kod: 'mukerrer',
-      detay: 'başka',
-      mevcut: { id: 'x', belgeNo: 'GD-1', tutar: '50', doviz: 'EUR', ayniIcerik: false },
-    });
-    expect(formNotice(other)).toEqual({
-      tone: 'uyari',
-      key: 'kaydedildiFarkli',
-      params: { no: 'GD-1', tutar: '50,00 €' },
-    });
-    // r300 M3: mevcut'suz 409 → "kaydedilmiş olabilir" (yazılmadı DEĞİL).
-    expect(formNotice(new ApiHatasi({ status: 409, kod: 'mukerrer', detay: 'yarış' }))).toEqual({
-      tone: 'uyari',
-      key: 'olabilir',
-      params: {},
-    });
-    expect(formNotice(new ApiHatasi({ status: 0, kod: 'ag', detay: 'ağ' }))).toEqual({
-      tone: 'uyari',
-      key: 'belirsiz',
-      params: {},
-    });
-    expect(formNotice(new ApiHatasi({ status: 400, kod: 'dogrulama', detay: 'x' }))).toBeNull();
   });
 
   it('giderleştirme onayı: kayıtlı kırılım okunur özet, boş kademe atlanır', () => {

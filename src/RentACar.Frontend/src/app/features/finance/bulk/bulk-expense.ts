@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 
+import { moneySubmission } from '@core/form/money-submission';
 import { paraBicimle } from '@core/bicim/bicim';
 import {
   type KaydedilmemisDegisiklikSahibi,
@@ -23,7 +24,6 @@ import {
   rowErrorMap,
 } from '../finance-model';
 import { AccountList, FIN_COMMON, toAmount } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 type ExpenseRow = FormGroup<{
   id: FormControl<string>;
@@ -52,7 +52,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   protected readonly accounts = inject(AccountList);
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly action = moneyAction<BulkExpenseRequest>();
+  protected readonly action = moneySubmission<BulkExpenseRequest>();
   /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
   private sentRowIds: readonly string[] = [];
   protected readonly typeOptions: readonly SecenekOgesi<string>[] = EXPENSE_TYPES.map((x) => ({
@@ -134,7 +134,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath('/toplu-gider'),
           body,
-          content: { tutar: null, doviz: 'TRY', hesap: body.odemeYontemi },
+          content: { tutar: null, doviz: 'TRY' },
         };
       },
       success: (r) => {
@@ -147,12 +147,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
         this.resetForm();
       },
       afterDuplicate: () => this.resetForm(),
-      settled: () => undefined,
     });
-  }
-
-  protected abandon(): void {
-    void this.action.abandon(() => undefined);
   }
 
   private newRow(): ExpenseRow {

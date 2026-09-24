@@ -14,6 +14,7 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
 
+import { ConfirmGate } from '@core/form/money-submission';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
 import {
@@ -39,7 +40,7 @@ import {
   financePath,
   queryParams,
 } from '../finance-model';
-import { AccountList, ConfirmGate, FIN_COMMON, balanceSide, toAmount } from '../finance-shared';
+import { AccountList, FIN_COMMON, balanceSide, toAmount } from '../finance-shared';
 
 interface StatementQuery {
   readonly id: string;

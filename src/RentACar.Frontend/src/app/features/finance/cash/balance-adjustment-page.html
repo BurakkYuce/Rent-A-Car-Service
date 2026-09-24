@@ -67,12 +67,13 @@
           />
         </rc-alan>
       </div>
-      <rc-fin-submit
-        [action]="action"
+      <rc-money-submit
+        [submission]="action"
+        ikon="cash"
         [label]="'finans.duzeltme.kaydet' | transloco"
         [disabled]="balance.yukleniyor()"
         (send)="submit()"
-        (giveUp)="abandon()"
+        (abandoned)="balance.yenile()"
       />
     </section>
   }

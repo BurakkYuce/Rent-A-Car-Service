@@ -7,6 +7,7 @@ import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
 } from '@core/form/kaydedilmemis-degisiklik';
+import { moneySubmission } from '@core/form/money-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -22,7 +23,6 @@ import {
   financePath,
 } from '../finance-model';
 import { AccountList, FIN_COMMON, clearAccountOnKindChange, kindOptions } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 /**
  * Depozito (emanet) işlemleri (`/app/depozito`, Blazor `Depozito.razor`): Al (F4.4 `depozito/al`, E09), İade (E10),
@@ -46,7 +46,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly accounts = inject(AccountList);
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly kindOptions = kindOptions(this.t);
-  protected readonly action = moneyAction<object>();
+  protected readonly action = moneySubmission<object>();
   protected readonly operations: readonly DepositOperation[] = ['al', 'iade', 'mahsup', 'irat'];
 
   protected readonly balances = new TemelStore(() =>
@@ -98,7 +98,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath(`/depozito/${op}`),
           body,
-          content: { tutar: body.tutar, doviz: 'TRY', hesap: op },
+          content: { tutar: body.tutar, doviz: 'TRY' },
         };
       },
       confirm:
@@ -126,7 +126,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
     if (op) this.run(op);
   }
 
-  protected abandon(): void {
-    void this.action.abandon(() => this.balances.yenile());
+  protected async abandon(): Promise<void> {
+    if (await this.action.abandon()) this.balances.yenile();
   }
 }

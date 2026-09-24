@@ -31,15 +31,15 @@
           <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
         </rc-alan>
       </div>
-      <rc-document-submit-bar
+      <rc-money-submit
         [submission]="submission"
+        type="submit"
         [label]="'finansBelge.ceza.ode' | transloco"
-        (abandon)="abandon()"
       />
     </form>
   } @else {
     <p class="not">{{ 'finansBelge.ceza.odenecekYok' | transloco }}</p>
     <!-- Kalem kapanıp form gizlense de önceki denemenin kayıt notu kalır. -->
-    <rc-document-notice [notice]="submission.notice()" />
+    <rc-money-notice [notice]="submission.notice()" />
   }
 </section>
