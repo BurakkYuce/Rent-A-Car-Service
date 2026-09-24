@@ -1,0 +1,122 @@
+<div class="sayfa">
+  <h1>{{ 'tanimlar.document.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'tanimlar.document.aciklama' | transloco }}</p>
+  <p class="aciklama">
+    {{ 'tanimlar.document.firmaBelgeleriNotu' | transloco }}
+    <a routerLink="/firma-belgeleri">{{ 'tanimlar.document.firmaBelgeleri' | transloco }}</a>
+  </p>
+
+  @if (canWrite()) {
+    @if (full()) {
+      <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+        {{ 'tanimlar.document.sinir' | transloco }}
+      </p>
+    } @else {
+      <section class="bolum" aria-labelledby="dokuman-yukle-baslik">
+        <h2 id="dokuman-yukle-baslik">{{ 'tanimlar.document.yukleBaslik' | transloco }}</h2>
+        <rc-form-hatalari [hatalar]="upload.genelHatalar()" />
+        <div class="rc-form-izgara" [formGroup]="form">
+          <rc-alan [etiket]="'tanimlar.document.baslikAlan' | transloco">
+            <rc-metin-girdisi formControlName="baslik" [azamiUzunluk]="200" />
+          </rc-alan>
+          <rc-alan [etiket]="'tanimlar.document.aciklamaAlan' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1000" />
+          </rc-alan>
+          <div class="dosya">
+            <label for="dokuman-dosya">{{ 'tanimlar.document.dosya' | transloco }}</label>
+            <input
+              #fileInput
+              id="dokuman-dosya"
+              type="file"
+              accept="application/pdf,.pdf"
+              [attr.aria-invalid]="fileError() ? 'true' : null"
+              [attr.aria-describedby]="fileError() ? 'dokuman-dosya-hata' : null"
+              (change)="picked()"
+            />
+            @if (fileError()) {
+              <span id="dokuman-dosya-hata" class="hata" role="alert">{{ fileError() }}</span>
+            }
+          </div>
+          <div class="eylemler">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--birincil"
+              [disabled]="upload.gonderiliyor()"
+              (click)="save()"
+            >
+              {{ 'tanimlar.document.yukle' | transloco }}
+            </button>
+          </div>
+        </div>
+      </section>
+    }
+  }
+
+  @if (deleteError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ deleteError() }}</p>
+  }
+  @switch (list.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'tanimlar.document.yuklenemedi' | transloco }} {{ list.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+          {{ 'tanimlar.document.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('hazir') {
+      @if (rows().length === 0) {
+        <p class="bos">{{ 'tanimlar.document.bos' | transloco }}</p>
+      } @else {
+        <div class="kaydirma">
+          <table class="tablo">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'tanimlar.document.belge' | transloco }}</th>
+                <th scope="col" class="sayi">{{ 'tanimlar.document.boyut' | transloco }}</th>
+                <th scope="col">{{ 'tanimlar.document.yukleyen' | transloco }}</th>
+                <th scope="col">{{ 'tanimlar.document.tarih' | transloco }}</th>
+                <th scope="col" class="islemler">{{ 'form.tanim.islemler' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of rows(); track d.id) {
+                <tr>
+                  <td>
+                    {{ d.baslik }}
+                    @if (d.aciklama) {
+                      <span class="alt-metin">{{ d.aciklama }}</span>
+                    }
+                  </td>
+                  <td class="sayi">
+                    {{ 'tanimlar.document.kb' | transloco: { kb: kilobytes(d.boyut) } }}
+                  </td>
+                  <td>{{ d.yukleyenKullanici ?? '—' }}</td>
+                  <td>{{ d.olusturma | tarih }}</td>
+                  <td class="islemler">
+                    <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [href]="d.indirmeYolu">
+                      {{ 'tanimlar.document.indir' | transloco }}
+                    </a>
+                    @if (canWrite()) {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="deleting() !== null"
+                        (click)="remove(d)"
+                      >
+                        {{ 'tanimlar.document.sil' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+    @default {
+      <p class="bos" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+    }
+  }
+</div>

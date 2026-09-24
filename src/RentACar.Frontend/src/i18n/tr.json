@@ -167,7 +167,8 @@
       "yenidenDene": "Yeniden dene",
       "bos": "Henüz kayıt yok.",
       "evet": "Evet",
-      "hayir": "Hayır"
+      "hayir": "Hayır",
+      "cakismaAlan": "Bu alan siz düzenlerken değişti; güncel değeri kontrol edip yeniden kaydedin."
     }
   },
   "tablo": {

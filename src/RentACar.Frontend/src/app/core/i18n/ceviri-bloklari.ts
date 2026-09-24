@@ -17,6 +17,8 @@ export const CEVIRI_BLOKLARI = {
     import('../../../i18n/bloklar/planlama.json').then((m) => m.default),
   rezervasyon: (): Promise<Translation> =>
     import('../../../i18n/bloklar/rezervasyon.json').then((m) => m.default),
+  tanimlar: (): Promise<Translation> =>
+    import('../../../i18n/bloklar/tanimlar.json').then((m) => m.default),
   vitrin: (): Promise<Translation> =>
     import('../../../i18n/bloklar/vitrin.json').then((m) => m.default),
 } as const;

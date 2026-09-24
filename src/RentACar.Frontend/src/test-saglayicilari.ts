@@ -8,6 +8,7 @@ import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
 import planlama from './i18n/bloklar/planlama.json';
 import rezervasyon from './i18n/bloklar/rezervasyon.json';
+import tanimlar from './i18n/bloklar/tanimlar.json';
 import vitrin from './i18n/bloklar/vitrin.json';
 
 /**
@@ -18,7 +19,17 @@ import vitrin from './i18n/bloklar/vitrin.json';
 const saglayicilar: Provider[] = [
   {
     provide: ONYUKLU_CEVIRI_BLOKLARI,
-    useValue: [arac, aracFinans, kiraFormu, kiralar, panel, planlama, rezervasyon, vitrin],
+    useValue: [
+      arac,
+      aracFinans,
+      kiraFormu,
+      kiralar,
+      panel,
+      planlama,
+      rezervasyon,
+      tanimlar,
+      vitrin,
+    ],
   },
 ];
 export default saglayicilar;
