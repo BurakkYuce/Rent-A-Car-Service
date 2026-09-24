@@ -125,4 +125,26 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // ---- F11.1b: iyimser eşzamanlılık (SatirSurumu) ----
+
+    public Task<bool> GuncelleAsync(Guid id, string? expectedVersion, Action<SayfaIcerik> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.SayfaIcerikler, id, expectedVersion,
+            (db, k, c) => db.SayfaIcerikler.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public Task<bool> SssGuncelleAsync(Guid id, string? expectedVersion, Action<SssKaydi> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.SssKayitlari, id, expectedVersion,
+            (db, k, c) => db.SssKayitlari.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
+
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.SayfaIcerikler, id, ct);
+    }
+
+    public async Task<string?> FaqVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.SssKayitlari, id, ct);
+    }
 }

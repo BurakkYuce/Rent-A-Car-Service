@@ -68,6 +68,28 @@ public sealed class BlogRepository(IDbContextFactory<AppDbContext> factory) : IB
         return true;
     }
 
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<BlogPost> apply, CancellationToken ct = default)
+    {
+        string? slug = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.BlogYazilari, id, expectedVersion,
+                (db, k, c) => db.BlogYazilari.FirstOrDefaultAsync(p => p.Id == k, c),
+                p => { apply(p); slug = p.Slug; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{slug}' adresli bir yazı zaten var.");
+        }
+    }
+
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.BlogYazilari, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

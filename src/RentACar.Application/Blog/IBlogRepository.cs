@@ -45,6 +45,10 @@ public interface IBlogRepository
     Task<bool> SlugExistsAsync(string slug, Guid? excludeId = null, CancellationToken ct = default);
     Task AddAsync(BlogPost post, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<BlogPost> apply, CancellationToken ct = default);
+    /// <summary>F11.1b — satır kilidi + sürüm karşılaştırması; uyuşmazlık <see cref="Common.EszamanliDegisiklikException"/>.</summary>
+    Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<BlogPost> apply, CancellationToken ct = default);
+    /// <summary>F11.1b — satır sürümü (opak); yoksa null.</summary>
+    Task<string?> VersionAsync(Guid id, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     /// <summary>Staff önizlemesi — durum FARK ETMEZ (taslak kapağı da admin'e görünür).</summary>
     Task<BlogCover?> GetCoverAsync(Guid id, CancellationToken ct = default);

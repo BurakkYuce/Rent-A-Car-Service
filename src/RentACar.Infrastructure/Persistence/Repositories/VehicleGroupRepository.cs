@@ -95,6 +95,50 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         return new GrupGuncellemeSonuc(true, tasinan);
     }
 
+    /// <summary>
+    /// F11.1b — sürümlü tam değiştirme: satır kilidi + xmin karşılaştırması + (ad değiştiyse) rename cascade
+    /// TEK işlemde. Sürüm uyuşmazlığında hiçbir şey yazılmaz (<see cref="EszamanliDegisiklikException"/>).
+    /// </summary>
+    public async Task<GrupGuncellemeSonuc> UpdateAsync(Guid id, string? expectedVersion, Action<VehicleGroup> apply, CancellationToken ct = default)
+    {
+        string? code = null;
+        try
+        {
+            return await PgRetry.RunAsync(async () =>
+            {
+                await using var db = await _factory.CreateDbContextAsync(ct);
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                await SatirSurumu.KilitleAsync(db, SatirSurumu.VehicleGroups, id, ct);
+                if (expectedVersion is not null
+                    && await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct) is { } current
+                    && !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
+                    throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+
+                var group = await db.VehicleGroups.FirstOrDefaultAsync(g => g.Id == id, ct);
+                if (group is null) return new GrupGuncellemeSonuc(false, 0);
+                var oldName = group.Ad;
+                apply(group);
+                code = group.Kod;
+                var moved = TurkishText.EqualsIgnoreTurkishCase(oldName, group.Ad)
+                    ? 0
+                    : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, oldName), group.Ad, ct);
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return new GrupGuncellemeSonuc(true, moved);
+            }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{code}' kodlu araç grubu zaten var.");
+        }
+    }
+
+    public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct);
+    }
+
     public async Task<int> GrupDegeriTasiAsync(string? kaynakDeger, bool bosOlanlar, string hedefAd, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

@@ -11,4 +11,14 @@ namespace RentACar.Infrastructure.Persistence;
 public static class OfisAdiAnahtari
 {
     public static string Uret(string ad) => ad.Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// F11.1b güvenlik H1 — aynı anahtarlı ofislerin şubesi: hepsi aynı şubeyse o şube, aksi halde <c>null</c>
+    /// (belirsiz anahtar hiçbir şubeye ÇÖZÜLMEZ; "en düşük Kod kazanır" kuralı ele geçirmeye açıktı).
+    /// </summary>
+    public static Guid? UnambiguousBranch(IEnumerable<Guid?> branchIds)
+    {
+        var distinct = branchIds.Distinct().Take(2).ToList();
+        return distinct.Count == 1 ? distinct[0] : null;
+    }
 }
