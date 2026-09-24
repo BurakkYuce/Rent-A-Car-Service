@@ -18,6 +18,15 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
 
     private void RequireAdmin() => PermissionGuard.Require(_currentUser, Permission.ManageUsers);
 
+    /// <summary>
+    /// F11.1b güvenlik M2 — Admin hesaplarına dokunan işlemler (Admin oluşturma, Admin parolası/durumu) yalnız Admin
+    /// ROLÜNE. ManageUsers istisnası verilmiş bir Yönetici aksi halde Admin hesabını ele geçirebiliyordu.
+    /// </summary>
+    private void RequireAdminRole(string message)
+    {
+        if (_currentUser.Role != Domain.Enums.UserRole.Admin) throw new YetkiYokException(message);
+    }
+
     public async Task<IReadOnlyList<UserListItem>> ListAsync(CancellationToken ct = default)
     {
         RequireAdmin();
@@ -45,8 +54,10 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
             IsActive = true,
             AtanmisSube = string.IsNullOrWhiteSpace(input.AtanmisSube) ? null : input.AtanmisSube.Trim()
         };
+        // F11.1b güvenlik M2: Admin rolü atamak yalnız Admin'e (ManageUsers istisnalı Yönetici kendine Admin açamaz).
+        if (input.Rol == Domain.Enums.UserRole.Admin) RequireAdminRole("Admin rolünde kullanıcıyı yalnız Admin oluşturabilir.");
         user.PasswordHash = _hasher.Hash(input.Password);
-        await _repository.CreateAsync(user, ct);
+        await _repository.CreateAsync(user, new UserAuditEntry("KullaniciOlusturma", $"Rol={user.Rol}"), ct);
         return user.Id;
     }
 
@@ -56,12 +67,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         // Kendini pasifleştirme/kilitlenme önlemi.
         if (!active && id == _currentUser.UserId)
             throw new ValidationException("Kendi hesabınızı pasifleştiremezsiniz.");
-        // F11.1b — son aktif Admin kemeri: ManageUsers istisnası verilmiş Admin-olmayan bir kullanıcı tek Admin'i
-        // pasifleştirip firmayı rol-matrisi yöneticisiz bırakabiliyordu (kalan tek çıkış platform konsolu).
-        if (!active && await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin, IsActive: true }
-            && !(await _repository.ListAsync(ct)).Any(u => u.Id != id && u.IsActive && u.Rol == Domain.Enums.UserRole.Admin))
-            throw new ValidationException("Son aktif Admin kullanıcısı pasifleştirilemez.");
-        return await _repository.UpdateAsync(id, u => u.IsActive = active, ct);
+        if (await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin })
+            RequireAdminRole("Admin hesabının durumunu yalnız Admin değiştirebilir.");
+        // F11.1b — son aktif Admin kemeri (M1: sayım repo'da kiracı kilidi ALTINDA, eşzamanlı iki pasifleştirme geçemez).
+        return await _repository.UpdateAuditedAsync(id, u => u.IsActive = active,
+            new UserAuditEntry(active ? "KullaniciAktif" : "KullaniciPasif"), ct);
     }
 
     public async Task<bool> ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default)
@@ -69,8 +79,10 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         RequireAdmin();
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
             throw new ValidationException("Parola en az 6 karakter olmalıdır.");
+        if (await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin })
+            RequireAdminRole("Admin hesabının parolasını yalnız Admin sıfırlayabilir.");
         var hash = _hasher.Hash(newPassword);
-        return await _repository.UpdateAsync(id, u => u.PasswordHash = hash, ct);
+        return await _repository.UpdateAuditedAsync(id, u => u.PasswordHash = hash, new UserAuditEntry("ParolaSifirlama"), ct);
     }
 
     /// <summary>
@@ -102,6 +114,6 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
             throw new ValidationException("Mevcut parola hatalı.");
 
         var hash = _hasher.Hash(yeniSifre);
-        return await _repository.UpdateAsync(uid, u => u.PasswordHash = hash, ct);
+        return await _repository.UpdateAuditedAsync(uid, u => u.PasswordHash = hash, new UserAuditEntry("KendiParolasiniDegistirme"), ct);
     }
 }

@@ -86,8 +86,9 @@ public sealed partial class UiSystemAdminTests
         Assert.False(off.GetProperty("aktif").GetBoolean());
 
         var manager = await _kit.LoginAsync(e, Who.Manager); // istisna girişte claim'e yazılır
+        // Güvenlik M2: Admin hesabının durumunu yalnız Admin rolü değiştirir (son-Admin kemerinden önce 403).
         await Problem(await Send(manager, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Admin]}/aktif", new { aktif = false }),
-            HttpStatusCode.BadRequest, "dogrulama", "aktif");
+            HttpStatusCode.Forbidden, "yetki_yok");
         Assert.True(await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().Where(u => u.Id == e.UserIds[Who.Admin]).Select(u => u.IsActive).FirstAsync()));
 
         Assert.Equal(HttpStatusCode.NoContent,
