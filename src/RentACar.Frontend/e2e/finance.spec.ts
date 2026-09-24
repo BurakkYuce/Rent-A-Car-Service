@@ -92,19 +92,20 @@ test.beforeEach(async ({ page }) => {
   await oturumAc(page, BEN_TERS);
 });
 
-test('tüm sayfalar: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  await financeHubEndpoints(page);
-  for (const s of PAGES) {
+// Sayfa başına ayrı test: tek testte 12 sayfa × 2 tema axe taraması CI'da 30 sn sınırını aşıyordu (~38 sn).
+for (const s of PAGES) {
+  test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
+    const hatalar = hatalariTopla(page, AG_HATASI);
+    await financeHubEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
     await hazirBekle(page, s);
     expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-  }
-  expect(hatalar).toEqual([]);
-});
+    expect(hatalar).toEqual([]);
+  });
+}
 
 test('kasa: özet kartlar sunucudan (negatif banka), virman kayıp yanıt → AYNI anahtar + gövde → sunucu aynı kimlik', async ({
   page,

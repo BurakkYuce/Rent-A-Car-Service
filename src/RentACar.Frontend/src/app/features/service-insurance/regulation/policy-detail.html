@@ -1,0 +1,236 @@
+<div class="sayfa">
+  <nav class="geri" [attr.aria-label]="'servisSigorta.gezinme' | transloco">
+    <a routerLink="/regulasyon">{{ 'servisSigorta.sigorta.liste' | transloco }}</a>
+  </nav>
+  @switch (store.detail.tur()) {
+    @case ('hata') {
+      <h1>{{ 'servisSigorta.sigorta.kayit' | transloco }}</h1>
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        {{ 'servisSigorta.yuklenemedi' | transloco }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
+          {{ 'servisSigorta.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      @if (store.detail.veri(); as d) {
+        <header class="ust">
+          <h1>
+            {{ 'servisSigorta.sigorta.kayit' | transloco }} {{ d.police.plaka }} {{ d.police.tip }}
+            <span
+              class="rc-rozet"
+              [class.rc-rozet--basari]="d.police.odendi"
+              [class.rc-rozet--uyari]="!d.police.odendi"
+            >
+              {{
+                (d.police.odendi ? 'servisSigorta.odendi' : 'servisSigorta.odenmedi') | transloco
+              }}
+            </span>
+          </h1>
+        </header>
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.policeNo' | transloco }}</dt>
+            <dd>{{ d.police.policeNo ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.firma' | transloco }}</dt>
+            <dd>{{ d.police.firma ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.acenta' | transloco }}</dt>
+            <dd>{{ d.police.acenta ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.donem' | transloco }}</dt>
+            <dd>{{ d.police.baslangic | tarih }} – {{ d.police.bitis | tarih }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.prim' | transloco }}</dt>
+            <dd>{{ num(d.police.prim) | para: d.police.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.zeyilPrim' | transloco }}</dt>
+            <dd>{{ num(d.police.zeyilPrim) | para: d.police.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.kalan' | transloco }}</dt>
+            <dd>{{ num(d.police.kalan) | para: d.police.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.sutun.aracDegeri' | transloco }}</dt>
+            <dd>{{ num(d.police.aracDegeri) | para: d.police.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.sutun.immDegeri' | transloco }}</dt>
+            <dd>{{ num(d.police.immDegeri) | para: d.police.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.sigorta.sutun.aksesuarDegeri' | transloco }}</dt>
+            <dd>{{ num(d.police.aksesuarDegeri) | para: d.police.doviz }}</dd>
+          </div>
+        </dl>
+        <p class="aciklama">{{ 'servisSigorta.sigorta.aciklama' | transloco }}</p>
+
+        @if (d.odeme; as o) {
+          <section class="bolum" aria-labelledby="rc-police-odeme-izi">
+            <h2 id="rc-police-odeme-izi">{{ 'servisSigorta.sigorta.odemeIzi' | transloco }}</h2>
+            <dl class="kunye">
+              <div>
+                <dt>{{ 'servisSigorta.odeme.tarih' | transloco }}</dt>
+                <dd>{{ o.tarih | tarih }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'servisSigorta.odeme.tutar' | transloco }}</dt>
+                <dd>{{ num(o.tutar) | para: o.doviz }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'servisSigorta.para.kur' | transloco }}</dt>
+                <dd>{{ o.kur }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'servisSigorta.sigorta.tutarBaz' | transloco }}</dt>
+                <dd>{{ num(o.tutarBaz) | para }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'servisSigorta.para.hesap' | transloco }}</dt>
+                <dd>{{ o.hesap }}</dd>
+              </div>
+            </dl>
+          </section>
+        }
+
+        @if (d.yetkiler.odeyebilir) {
+          <rc-policy-pay-panel
+            [policy]="d.police"
+            [accounts]="store.accounts.veri() ?? []"
+            [refreshing]="store.detail.yukleniyor()"
+            (settled)="reload()"
+          />
+        }
+
+        <section class="bolum" aria-labelledby="rc-zeyil-baslik">
+          <h2 id="rc-zeyil-baslik">{{ 'servisSigorta.zeyil.baslik' | transloco }}</h2>
+          <p class="aciklama">{{ 'servisSigorta.zeyil.aciklama' | transloco }}</p>
+          @if (d.zeyiller.length === 0) {
+            <p class="aciklama">{{ 'servisSigorta.zeyil.yok' | transloco }}</p>
+          } @else {
+            <div class="tablo-kap">
+              <table class="duz-tablo">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'servisSigorta.zeyil.no' | transloco }}</th>
+                    <th scope="col">{{ 'servisSigorta.zeyil.tarih' | transloco }}</th>
+                    <th scope="col">{{ 'servisSigorta.zeyil.tanzim' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.deger' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.brut' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.net' | transloco }}</th>
+                    <th scope="col" class="num">
+                      {{ 'servisSigorta.zeyil.fonVergi' | transloco }}
+                    </th>
+                    <th scope="col">{{ 'servisSigorta.zeyil.tipi' | transloco }}</th>
+                    <th scope="col">{{ 'servisSigorta.zeyil.neden' | transloco }}</th>
+                    @if (d.yetkiler.duzenleyebilir) {
+                      <th scope="col">{{ 'servisSigorta.islemler' | transloco }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (z of d.zeyiller; track z.id) {
+                    <tr>
+                      <td>{{ z.zeyilNo }}</td>
+                      <td>{{ z.tarih | tarih }}</td>
+                      <td>{{ z.tanzim | tarih }}</td>
+                      <td class="num">{{ num(z.deger) | para: d.police.doviz }}</td>
+                      <td class="num">{{ num(z.brut) | para: d.police.doviz }}</td>
+                      <td class="num">{{ num(z.net) | para: d.police.doviz }}</td>
+                      <td class="num">{{ num(z.fonVergi) | para: d.police.doviz }}</td>
+                      <td>{{ z.tipi ?? '—' }}</td>
+                      <td>{{ z.neden ?? '—' }}</td>
+                      @if (d.yetkiler.duzenleyebilir) {
+                        <td>
+                          <button
+                            type="button"
+                            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                            [disabled]="deleting() !== null"
+                            (click)="deleteEndorsement(z)"
+                          >
+                            {{ 'servisSigorta.sil' | transloco }}
+                          </button>
+                        </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+          @if (d.yetkiler.duzenleyebilir) {
+            <h3 class="alt-baslik">{{ 'servisSigorta.zeyil.yeni' | transloco }}</h3>
+            <form class="form" [formGroup]="form" (ngSubmit)="addEndorsement()">
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.zeyil.no' | transloco">
+                  <rc-metin-girdisi formControlName="zeyilNo" [azamiUzunluk]="32" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.tarih' | transloco">
+                  <rc-tarih-secici formControlName="tarih" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.tanzim' | transloco">
+                  <rc-tarih-secici formControlName="tanzim" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.deger' | transloco">
+                  <rc-para-girdisi formControlName="deger" [paraBirimi]="d.police.doviz" />
+                </rc-alan>
+                <rc-alan
+                  [etiket]="'servisSigorta.zeyil.brut' | transloco"
+                  [ipucu]="'servisSigorta.zeyil.negatifIpucu' | transloco"
+                >
+                  <rc-para-girdisi formControlName="brut" negatif [paraBirimi]="d.police.doviz" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.net' | transloco">
+                  <rc-para-girdisi formControlName="net" negatif [paraBirimi]="d.police.doviz" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.fonVergi' | transloco">
+                  <rc-para-girdisi
+                    formControlName="fonVergi"
+                    negatif
+                    [paraBirimi]="d.police.doviz"
+                  />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.tipi' | transloco">
+                  <rc-metin-girdisi
+                    formControlName="tipi"
+                    [azamiUzunluk]="64"
+                    liste="dl-zeyil-tipi"
+                  />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.zeyil.neden' | transloco">
+                  <rc-metin-girdisi formControlName="neden" [azamiUzunluk]="512" />
+                </rc-alan>
+              </div>
+              <datalist id="dl-zeyil-tipi">
+                @for (x of endorsementTypes(); track x) {
+                  <option [value]="x"></option>
+                }
+              </datalist>
+              <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+              <div class="form__eylemler">
+                <button
+                  type="submit"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="submission.gonderiliyor()"
+                >
+                  <rc-ikon ad="plus" [boyut]="14" />
+                  {{ 'servisSigorta.zeyil.ekle' | transloco }}
+                </button>
+              </div>
+            </form>
+          }
+        </section>
+      } @else {
+        <h1>{{ 'servisSigorta.sigorta.kayit' | transloco }}</h1>
+        <p class="aciklama" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

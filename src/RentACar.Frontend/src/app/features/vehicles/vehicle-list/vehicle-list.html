@@ -232,7 +232,7 @@
                               'arac.detay' | transloco
                             }}</a>
                             @if (canScorecard()) {
-                              <a [href]="'/raporlar/arac-karne/' + a.id">{{
+                              <a [routerLink]="['/raporlar/arac-karne', a.id]">{{
                                 'arac.karne' | transloco
                               }}</a>
                             }
@@ -278,7 +278,7 @@
         <span class="satir-eylem">
           <a [routerLink]="['/araclar', satir.id, 'detay']">{{ 'arac.detay' | transloco }}</a>
           @if (canScorecard()) {
-            <a [href]="'/raporlar/arac-karne/' + satir.id">{{ 'arac.karne' | transloco }}</a>
+            <a [routerLink]="['/raporlar/arac-karne', satir.id]">{{ 'arac.karne' | transloco }}</a>
           }
           @if (canDelete()) {
             <button

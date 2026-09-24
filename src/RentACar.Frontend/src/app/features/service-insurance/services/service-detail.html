@@ -1,0 +1,456 @@
+<div class="sayfa">
+  <nav class="geri" [attr.aria-label]="'servisSigorta.gezinme' | transloco">
+    <a routerLink="/servisler">{{ 'servisSigorta.servis.liste' | transloco }}</a>
+  </nav>
+  @switch (store.detail.tur()) {
+    @case ('hata') {
+      <h1>{{ 'servisSigorta.servis.kayit' | transloco }}</h1>
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        {{ 'servisSigorta.yuklenemedi' | transloco }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
+          {{ 'servisSigorta.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      @if (detail(); as d) {
+        <header class="ust">
+          <h1>
+            {{ 'servisSigorta.servis.kayit' | transloco }} {{ d.kayit.no }}
+            <span class="rc-rozet">{{ statusLabel(d.kayit.durum) }}</span>
+          </h1>
+        </header>
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'servisSigorta.arac' | transloco }}</dt>
+            <dd>{{ d.kayit.plaka }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.tur' | transloco }}</dt>
+            <dd>{{ typeLabel(d.kayit.tip) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.sutun.giris' | transloco }}</dt>
+            <dd>{{ d.kayit.girisTarihi | tarih }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.cikis' | transloco }}</dt>
+            <dd>{{ d.kayit.cikisTarihi | tarih }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.sutun.km' | transloco }}</dt>
+            <dd>
+              {{ d.kayit.girisKm }}{{ d.kayit.cikisKm !== null ? ' → ' + d.kayit.cikisKm : '' }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.sutun.plan' | transloco }}</dt>
+            <dd>{{ planText(d.kayit.planBasTarihi, d.kayit.planBitTarihi) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.hasarSorumlu' | transloco }}</dt>
+            <dd>{{ partyLabel(d.kayit.hasarSorumlu) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.kusurOrani' | transloco }}</dt>
+            <dd>{{ num(d.kayit.kusurOrani) | sayi: '1.0-4' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.sutun.iscilik' | transloco }}</dt>
+            <dd>{{ num(d.kayit.toplamIscilik) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.kdvToplam' | transloco }}</dt>
+            <dd>{{ num(d.kdvToplam) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'servisSigorta.servis.genelToplam' | transloco }}</dt>
+            <dd>{{ num(d.genelToplam) | para }}</dd>
+          </div>
+        </dl>
+        <p class="aciklama">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
+
+        @if (
+          d.yetkiler.serviseAlabilir ||
+          d.yetkiler.baslatabilir ||
+          d.yetkiler.tamamlayabilir ||
+          d.yetkiler.iptalEdebilir
+        ) {
+          <section class="bolum" aria-labelledby="rc-servis-akis">
+            <h2 id="rc-servis-akis">{{ 'servisSigorta.servis.akis' | transloco }}</h2>
+            <div class="satir-form" [formGroup]="flowForm">
+              @if (d.yetkiler.serviseAlabilir) {
+                <rc-alan [etiket]="'servisSigorta.servis.girisKm' | transloco">
+                  <rc-sayi-girdisi formControlName="girisKm" />
+                </rc-alan>
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="busy() !== null || refreshing()"
+                  (click)="transition('servise-al')"
+                >
+                  {{ 'servisSigorta.servis.serviseAl' | transloco }}
+                </button>
+              }
+              @if (d.yetkiler.baslatabilir) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="busy() !== null || refreshing()"
+                  (click)="transition('baslat')"
+                >
+                  {{ 'servisSigorta.servis.baslat' | transloco }}
+                </button>
+              }
+              @if (d.yetkiler.tamamlayabilir) {
+                <rc-alan [etiket]="'servisSigorta.servis.cikisKm' | transloco">
+                  <rc-sayi-girdisi formControlName="cikisKm" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.sonrakiBakimKm' | transloco">
+                  <rc-sayi-girdisi formControlName="sonrakiBakimKm" />
+                </rc-alan>
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="busy() !== null || refreshing()"
+                  (click)="transition('tamamla')"
+                >
+                  {{ 'servisSigorta.servis.tamamla' | transloco }}
+                </button>
+              }
+              @if (d.yetkiler.iptalEdebilir) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+                  [disabled]="busy() !== null || refreshing()"
+                  (click)="transition('iptal')"
+                >
+                  {{ 'servisSigorta.servis.iptal' | transloco }}
+                </button>
+              }
+            </div>
+          </section>
+        }
+
+        <section class="bolum" aria-labelledby="rc-servis-kalemler">
+          <h2 id="rc-servis-kalemler">{{ 'servisSigorta.servis.kalemler' | transloco }}</h2>
+          @if (d.kalemler.length === 0) {
+            <p class="aciklama">{{ 'servisSigorta.servis.kalemYok' | transloco }}</p>
+          } @else {
+            <div class="tablo-kap">
+              <table class="duz-tablo">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'servisSigorta.aciklama' | transloco }}</th>
+                    <th scope="col" class="num">
+                      {{ 'servisSigorta.servis.birimFiyat' | transloco }}
+                    </th>
+                    <th scope="col" class="num">{{ 'servisSigorta.servis.miktar' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'servisSigorta.servis.brut' | transloco }}</th>
+                    <th scope="col" class="num">
+                      {{ 'servisSigorta.servis.indirim' | transloco }}
+                    </th>
+                    <th scope="col" class="num">{{ 'servisSigorta.servis.net' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'servisSigorta.servis.kdv' | transloco }}</th>
+                    <th scope="col" class="num">
+                      {{ 'servisSigorta.servis.genelToplam' | transloco }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (l of d.kalemler; track l.id) {
+                    <tr>
+                      <td>{{ l.aciklama }}</td>
+                      <td class="num">{{ num(l.birimFiyat) | para }}</td>
+                      <td class="num">{{ num(l.miktar) | sayi }}</td>
+                      <td class="num">{{ num(l.brut) | para }}</td>
+                      <td class="num">{{ num(l.indirim) | para }}</td>
+                      <td class="num">{{ num(l.tutar) | para }}</td>
+                      <td class="num">{{ num(l.kdvTutar) | para }}</td>
+                      <td class="num">{{ num(l.genelToplam) | para }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="toplam-satiri">
+                    <td colspan="5">{{ 'servisSigorta.servis.toplamYuvarlanmis' | transloco }}</td>
+                    <td class="num">{{ num(d.kayit.toplamIscilik) | para }}</td>
+                    <td class="num">{{ num(d.kdvToplam) | para }}</td>
+                    <td class="num">{{ num(d.genelToplam) | para }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          }
+          @if (d.yetkiler.kalemEkleyebilir) {
+            <h3 class="alt-baslik">{{ 'servisSigorta.servis.kalemEkle' | transloco }}</h3>
+            @if (line.frozen()) {
+              <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+                {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
+              </div>
+            }
+            <form class="form" [formGroup]="lineForm" (ngSubmit)="addLine()">
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.kalemAciklama' | transloco">
+                  <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.birimFiyat' | transloco">
+                  <rc-para-girdisi formControlName="birimFiyat" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.miktar' | transloco">
+                  <rc-sayi-girdisi formControlName="miktar" [kesir]="4" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.indirimTutar' | transloco">
+                  <rc-para-girdisi formControlName="indirim" />
+                </rc-alan>
+                <rc-alan
+                  [etiket]="'servisSigorta.servis.kdvOran' | transloco"
+                  [ipucu]="'servisSigorta.servis.kdvOranIpucu' | transloco"
+                >
+                  <rc-sayi-girdisi formControlName="kdvOran" [kesir]="4" />
+                </rc-alan>
+                <rc-alan
+                  [etiket]="'servisSigorta.servis.tutarNet' | transloco"
+                  [ipucu]="'servisSigorta.servis.tutarIpucu' | transloco"
+                >
+                  <rc-para-girdisi formControlName="tutar" negatif />
+                </rc-alan>
+              </div>
+              <rc-form-hatalari [hatalar]="lineErrors()" />
+              <div class="form__eylemler">
+                <button
+                  type="submit"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="line.sending() || refreshing()"
+                >
+                  <rc-ikon ad="plus" [boyut]="14" />
+                  {{
+                    line.sending()
+                      ? ('form.gonderiliyor' | transloco)
+                      : line.frozen()
+                        ? ('servisSigorta.para.tekrarDene' | transloco)
+                        : ('servisSigorta.servis.kalemEkle' | transloco)
+                  }}
+                </button>
+                @if (line.frozen() && !line.sending()) {
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    (click)="abandonLine()"
+                  >
+                    {{ 'servisSigorta.para.vazgec' | transloco }}
+                  </button>
+                }
+              </div>
+            </form>
+          }
+        </section>
+
+        @if (d.yansitma; as y) {
+          <section class="bolum" aria-labelledby="rc-servis-yansitma-izi">
+            <h2 id="rc-servis-yansitma-izi">{{ 'servisSigorta.servis.yansitma' | transloco }}</h2>
+            <p class="sonraki">
+              {{
+                'servisSigorta.servis.yansitildiIzi'
+                  | transloco
+                    : {
+                        tutar: (num(y.tutar) | para),
+                        cari: y.cariAd ?? '—',
+                        tarih: (y.tarih | tarih),
+                      }
+              }}
+            </p>
+          </section>
+        } @else if (d.yetkiler.yansitabilir) {
+          <section class="bolum" aria-labelledby="rc-servis-yansit">
+            <h2 id="rc-servis-yansit">{{ 'servisSigorta.servis.yansit' | transloco }}</h2>
+            <p class="aciklama">{{ 'servisSigorta.servis.yansitAciklama' | transloco }}</p>
+            <p class="sonraki">
+              {{
+                'servisSigorta.servis.yansitilacak'
+                  | transloco: { tutar: (num(d.yetkiler.yansitilacakTutar) | para) }
+              }}
+            </p>
+            @if (reflect.frozen()) {
+              <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+                {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
+              </div>
+            }
+            <form class="form" [formGroup]="reflectForm" (ngSubmit)="reflectCost()">
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.yansitilacakCari' | transloco">
+                  <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+                </rc-alan>
+              </div>
+              <rc-form-hatalari [hatalar]="reflectErrors()" />
+              <div class="form__eylemler">
+                <button
+                  type="submit"
+                  class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                  [disabled]="reflect.sending() || refreshing()"
+                >
+                  {{
+                    reflect.sending()
+                      ? ('form.gonderiliyor' | transloco)
+                      : reflect.frozen()
+                        ? ('servisSigorta.para.tekrarDene' | transloco)
+                        : ('servisSigorta.servis.yansit' | transloco)
+                  }}
+                </button>
+                @if (reflect.frozen() && !reflect.sending()) {
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    (click)="abandonReflect()"
+                  >
+                    {{ 'servisSigorta.para.vazgec' | transloco }}
+                  </button>
+                }
+              </div>
+            </form>
+          </section>
+        }
+
+        <section class="bolum duzenleyici" aria-labelledby="rc-servis-bilgi">
+          <h2 id="rc-servis-bilgi">{{ 'servisSigorta.servis.bilgiBaslik' | transloco }}</h2>
+          <form class="form" [formGroup]="infoForm" (ngSubmit)="saveInfo()">
+            <div class="rc-form-izgara">
+              <rc-alan [etiket]="'servisSigorta.servis.atolye' | transloco">
+                <rc-metin-girdisi formControlName="atolyeAdi" [azamiUzunluk]="128" />
+              </rc-alan>
+              <rc-alan [etiket]="'servisSigorta.aciklama' | transloco">
+                <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1024" />
+              </rc-alan>
+            </div>
+            <fieldset class="grup">
+              <legend>{{ 'servisSigorta.servis.kaza' | transloco }}</legend>
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.beyanTuru' | transloco">
+                  <rc-metin-girdisi
+                    formControlName="beyanTuru"
+                    [azamiUzunluk]="64"
+                    liste="dl-beyan"
+                  />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.kazaTarihi' | transloco">
+                  <rc-tarih-secici formControlName="kazaTarihi" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.karsiPlaka' | transloco">
+                  <rc-metin-girdisi formControlName="karsiPlaka" [azamiUzunluk]="32" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.karsiTrafikSigortasi' | transloco">
+                  <rc-metin-girdisi formControlName="karsiTrafikSigortasi" [azamiUzunluk]="128" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.kazaSorumlusu' | transloco">
+                  <rc-metin-girdisi formControlName="kazaSorumlusu" [azamiUzunluk]="128" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.hasarDosyaNo' | transloco">
+                  <rc-metin-girdisi formControlName="hasarDosyaNo" [azamiUzunluk]="64" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.degerKaybi' | transloco">
+                  <rc-para-girdisi formControlName="degerKaybi" />
+                </rc-alan>
+              </div>
+              <datalist id="dl-beyan">
+                @for (x of declarationTypes; track x) {
+                  <option [value]="x"></option>
+                }
+              </datalist>
+            </fieldset>
+            <fieldset class="grup">
+              <legend>{{ 'servisSigorta.servis.fatura' | transloco }}</legend>
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.faturaTarihi' | transloco">
+                  <rc-tarih-secici formControlName="faturaTarihi" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.faturaNo' | transloco">
+                  <rc-metin-girdisi formControlName="faturaNo" [azamiUzunluk]="64" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.faturaTutar' | transloco">
+                  <rc-para-girdisi formControlName="faturaTutar" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.faturaKdv' | transloco">
+                  <rc-para-girdisi formControlName="faturaKdv" />
+                </rc-alan>
+              </div>
+              <p class="aciklama">
+                {{
+                  'servisSigorta.servis.faturaGenelToplam'
+                    | transloco: { tutar: (num(d.bilgi.faturaGenelToplam) | para) }
+                }}
+              </p>
+            </fieldset>
+            <fieldset class="grup">
+              <legend>{{ 'servisSigorta.servis.odemeBilgi' | transloco }}</legend>
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.odemeTarihi' | transloco">
+                  <rc-tarih-secici formControlName="odemeTarihi" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.odemeTutari' | transloco">
+                  <rc-para-girdisi formControlName="odeme" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.doviz' | transloco">
+                  <rc-metin-girdisi
+                    formControlName="odemeDoviz"
+                    [azamiUzunluk]="3"
+                    yerTutucu="TRY"
+                  />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.para.kur' | transloco">
+                  <rc-para-girdisi formControlName="odemeKur" [kesir]="6" yerTutucu="" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.odemeTuru' | transloco">
+                  <rc-secim
+                    formControlName="odemeTuru"
+                    [secenekler]="paymentOptions"
+                    bosEtiket="—"
+                  />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.odeme.kasaKodu' | transloco">
+                  <rc-metin-girdisi formControlName="kasaKodu" [azamiUzunluk]="32" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.odeme.hesapNo' | transloco">
+                  <rc-metin-girdisi formControlName="hesapNo" [azamiUzunluk]="64" />
+                </rc-alan>
+              </div>
+            </fieldset>
+            <fieldset class="grup">
+              <legend>{{ 'servisSigorta.servis.yakitRandevu' | transloco }}</legend>
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'servisSigorta.servis.cikisYakit' | transloco">
+                  <rc-sayi-girdisi formControlName="cikisYakit" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.donusYakit' | transloco">
+                  <rc-sayi-girdisi formControlName="donusYakit" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.planBas' | transloco">
+                  <rc-tarih-secici formControlName="planBasTarihi" />
+                </rc-alan>
+                <rc-alan [etiket]="'servisSigorta.servis.planBit' | transloco">
+                  <rc-tarih-secici formControlName="planBitTarihi" />
+                </rc-alan>
+              </div>
+            </fieldset>
+            <rc-form-hatalari [hatalar]="infoSubmission.genelHatalar()" />
+            <div class="form__eylemler">
+              <button
+                type="submit"
+                class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                [disabled]="infoSubmission.gonderiliyor() || refreshing()"
+              >
+                {{
+                  infoSubmission.gonderiliyor()
+                    ? ('form.gonderiliyor' | transloco)
+                    : ('servisSigorta.servis.bilgiKaydet' | transloco)
+                }}
+              </button>
+            </div>
+          </form>
+        </section>
+      } @else {
+        <h1>{{ 'servisSigorta.servis.kayit' | transloco }}</h1>
+        <p class="aciklama" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>
