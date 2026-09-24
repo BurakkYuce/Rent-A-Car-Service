@@ -21,12 +21,12 @@
       "vazgecBaslik": "Sonucu bilinmeyen işlemden vazgeçilsin mi?",
       "vazgecMesaj": "İşlem sunucuya ulaşmış ve yazılmış olabilir. Vazgeçerseniz bir sonraki gönderim YENİ bir işlem sayılır. Önce hareketleri kontrol edin.",
       "terkMesaji": "Sonucu bilinmeyen bir para işlemi var. Sayfadan ayrılırsanız aynı işlemi aynı anahtarla tekrar gönderme imkânı kaybolur; önce hareketleri kontrol edin. Ayrılınsın mı?",
-      "yenilendi": "Ekran yenilendi — hareketleri kontrol edin.",
+      "hareketleriKontrol": "Hareketleri kontrol edin.",
       "zatenKaydedildi": "İşlem zaten kaydedildi",
-      "oncekiDenemeBaslik": "Önceki denemeniz kaydedilmiş — yeni işlem yazılmadı",
-      "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş (No {{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Ekran yenilendi — hareketleri kontrol edin.",
-      "baskaIslem": "Bu işlem anahtarıyla başka bir kayıt yazılmış — işleminiz yazılmadı",
-      "degismis": "Kayıt değişmiş — işleminiz yazılmadı"
+      "oncekiDenemeBaslik": "Önceki denemeniz kaydedilmiş",
+      "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş (No {{no}}, {{kayitli}}); {{girilen}} ikinci kez yazılmadı. Hareketleri kontrol edin.",
+      "dahaOnceKaydedildiBaslik": "İşlem daha önce kaydedildi",
+      "dahaOnceKaydedildi": "Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin."
     },
     "alan": {
       "cari": "Cari",

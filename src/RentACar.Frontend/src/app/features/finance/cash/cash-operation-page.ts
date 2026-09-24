@@ -20,7 +20,14 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
 
-import { AccountList, CustomerBalanceSource, FIN_COMMON, balanceSide } from '../finance-shared';
+import {
+  AccountList,
+  CustomerBalanceSource,
+  FIN_COMMON,
+  balanceSide,
+  followCustomerQuery,
+  labelFromData,
+} from '../finance-shared';
 import { CashOperationForm } from './cash-operation-form';
 
 /**
@@ -57,13 +64,12 @@ export class CashOperationPage implements KaydedilmemisDegisiklikSahibi {
       const locked = this.forms().some((f) => f.pending());
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
-    // `?cariId=` ile gelindiyse seçici etiketi bakiye yanıtının (KVKK kurallı) adından.
+    // `?cariId=` izlenir (kalıcı sekmede başka cariyle açılış); seçici etiketi bakiye yanıtının (KVKK kurallı) adından.
+    followCustomerQuery(this.cariId, this.customer, () => this.forms().some((f) => f.pending()));
     effect(() => {
       const b = this.balance.veri();
-      untracked(() => {
-        if (b && this.customer.value === null)
-          this.customer.setValue({ id: b.cariId, etiket: b.cariAd }, { emitEvent: false });
-      });
+      const id = this.cariId();
+      untracked(() => labelFromData(this.customer, id, b));
     });
     inject(FetchPolicy).baglan({
       parametre: this.cariId.asReadonly(),

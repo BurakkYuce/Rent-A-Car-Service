@@ -29,7 +29,31 @@ export type OperationOutcome =
   /** 409 `cakisma`: kayıt bu arada değişti — ekran yenilenir, yeni anahtar. */
   | { readonly kind: 'stale' }
   /** 409 `mukerrer`: otomatik yeniden gönderim YOK; ekran yenilenir, yeni anahtar. */
-  | { readonly kind: 'duplicate'; readonly type: TahsilatMukerrerTuru };
+  | { readonly kind: 'duplicate'; readonly type: FinanceDuplicateType };
+
+/**
+ * Finans ekranlarındaki 409 `mukerrer` sınıfları (r299 HIGH-1). Buradaki anahtar İŞLEM BAŞINA rastgele UUID'dir
+ * (deterministik kira tahsilat anahtarı DEĞİL): sunucu bu anahtarla kayıt bulduysa o kaydı bu işlemin önceki
+ * denemesi yazmıştır. Bu yüzden `mevcut`suz 409 (tahsilat/ödeme/toplu gider tekrarı) ve farklı içerikli 409
+ * (`FarkliIcerik`: bakiye düzeltme, virman, depozito) "bayat anahtar / yazılmadı" DEĞİL, "daha önce kaydedildi"dir.
+ * Çekirdekteki `bayatAnahtar` yorumu (kira anahtarı: kayıt yok) burada GEÇERSİZDİR.
+ *
+ * - `zatenKaydedildi` — `mevcut.ayniIcerik`: birebir aynı işlem kayıtlı.
+ * - `oncekiDenemeKaydedilmis` — `mevcut` sonucu bilinmeyen denemelerden biriyle eşleşiyor (No + tutar bilinir).
+ * - `dahaOnceKaydedildi` — diğer her durum: bu anahtarla bir kayıt var; ikinci kez yazılmadı.
+ */
+export type FinanceDuplicateType =
+  'zatenKaydedildi' | 'oncekiDenemeKaydedilmis' | 'dahaOnceKaydedildi';
+
+/** Çekirdek sınıfını finans anlamına indirger (saf). */
+export function financeDuplicateType(
+  type: TahsilatMukerrerTuru | null,
+  error: ApiHatasi,
+): FinanceDuplicateType {
+  if (!error.mevcut) return 'dahaOnceKaydedildi';
+  if (type === 'zatenKaydedildi' || type === 'oncekiDenemeKaydedilmis') return type;
+  return 'dahaOnceKaydedildi';
+}
 
 /**
  * Finans ekranlarının para yazan TEK gönderim kuralı (DEVIR §5 Frontend "Para formu yaşam döngüsü"):
@@ -94,7 +118,7 @@ export class MoneyOperation<TBody> {
     }
     if (error.kod === 'mukerrer') {
       this.reset();
-      return { kind: 'duplicate', type: type ?? 'bayatAnahtar' };
+      return { kind: 'duplicate', type: financeDuplicateType(type, error) };
     }
     if (error.kod === 'cakisma') {
       this.reset();

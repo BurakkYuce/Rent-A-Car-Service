@@ -18,6 +18,7 @@ import {
   type BulkPostingResult,
   bulkCollectionBody,
   financePath,
+  rowErrorMap,
 } from '../finance-model';
 import {
   AccountList,
@@ -59,6 +60,8 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
   protected readonly kindOptions = kindOptions(this.t);
   protected readonly channelOptions = CHANNEL_OPTIONS;
   protected readonly action = moneyAction<BulkCollectionRequest>();
+  /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
+  private sentRowIds: readonly string[] = [];
 
   protected readonly form = new FormGroup({
     hesap: new FormControl<AccountKind | null>('Kasa', Validators.required),
@@ -90,12 +93,13 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected addRow(): void {
+    if (this.action.pending()) return;
     this.form.controls.satirlar.push(this.newRow());
     this.form.markAsDirty();
   }
 
   protected removeRow(index: number): void {
-    if (this.rows.length <= 1) return;
+    if (this.rows.length <= 1 || this.action.pending()) return;
     this.form.controls.satirlar.removeAt(index);
     this.form.markAsDirty();
   }
@@ -103,9 +107,15 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
   protected submit(): void {
     void this.action.run<BulkPostingResult>({
       form: this.form,
-      fieldMap: this.rowFieldMap(),
+      fieldMap: () =>
+        rowErrorMap(this.sentRowIds, this.rowIds(), {
+          cariId: 'cari',
+          tutar: 'tutar',
+          aciklama: 'aciklama',
+        }),
       build: () => {
         const v = this.form.getRawValue();
+        this.sentRowIds = v.satirlar.map((r) => r.id);
         const body = bulkCollectionBody(
           v.satirlar.map((r) => ({
             cariId: r.cari?.id ?? null,
@@ -138,15 +148,8 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
     void this.action.abandon(() => undefined);
   }
 
-  /** Sunucu satır hataları (`satirlar[i].tutar`) satır kontrolüne yazılır. */
-  private rowFieldMap(): Record<string, string> {
-    const map: Record<string, string> = {};
-    this.rows.forEach((_, i) => {
-      map[`satirlar[${i}].cariId`] = `satirlar.${i}.cari`;
-      map[`satirlar[${i}].tutar`] = `satirlar.${i}.tutar`;
-      map[`satirlar[${i}].aciklama`] = `satirlar.${i}.aciklama`;
-    });
-    return map;
+  private rowIds(): string[] {
+    return this.rows.map((r) => r.controls.id.value);
   }
 
   private newRow(): CollectionRow {

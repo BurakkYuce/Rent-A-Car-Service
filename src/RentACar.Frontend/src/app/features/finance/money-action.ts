@@ -7,7 +7,7 @@ import { apiHatasinaCevir, type ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
 import { paraBicimle } from '@core/bicim/bicim';
 import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { TahsilatDenemeKaydi, type TahsilatMukerrerTuru } from '@core/form/tahsilat-denemesi';
+import { TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -15,7 +15,7 @@ import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 
 import type { AttemptContent } from './finance-model';
-import { type FrozenOperation, MoneyOperation } from './money-operation';
+import { type FinanceDuplicateType, type FrozenOperation, MoneyOperation } from './money-operation';
 
 type Translate = ReturnType<typeof ceviriFonksiyonu>;
 
@@ -25,20 +25,22 @@ function amount(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** `mukerrer` bildirimi (başlık + metin + ton). HİÇBİR sınıf kullanıcıyı ikinci işleme yönlendirmez. */
+/**
+ * `mukerrer` bildirimi (başlık + metin + ton). r299 HIGH-1: HİÇBİR sınıf "yazılmadı / değişti / yeniden girin" demez
+ * ve kullanıcıyı ikinci işleme yönlendirmez — bu anahtarla bir kayıt VAR (önceki denemesi yazılmıştır).
+ */
 export function duplicateNotice(
-  type: TahsilatMukerrerTuru,
+  type: FinanceDuplicateType,
   error: ApiHatasi,
   submitted: AttemptContent,
   t: Translate,
 ): { readonly tone: 'bilgi' | 'uyari'; readonly title: string; readonly message: string } {
-  const reloaded = t('finans.islem.yenilendi');
   switch (type) {
     case 'zatenKaydedildi':
       return {
         tone: 'bilgi',
         title: t('finans.islem.zatenKaydedildi'),
-        message: `${error.detay} ${reloaded}`,
+        message: `${error.detay} ${t('finans.islem.hareketleriKontrol')}`,
       };
     case 'oncekiDenemeKaydedilmis':
       return {
@@ -50,18 +52,11 @@ export function duplicateNotice(
           girilen: paraBicimle(amount(submitted.tutar), submitted.doviz),
         }),
       };
-    case 'baskaIslemDenemeYazilmadi':
-    case 'baskaIslemYazildi':
-      return {
-        tone: 'uyari',
-        title: t('finans.islem.baskaIslem'),
-        message: `${error.detay} ${reloaded}`,
-      };
     default:
       return {
-        tone: 'uyari',
-        title: t('finans.islem.degismis'),
-        message: `${error.detay} ${reloaded}`,
+        tone: 'bilgi',
+        title: t('finans.islem.dahaOnceKaydedildiBaslik'),
+        message: t('finans.islem.dahaOnceKaydedildi'),
       };
   }
 }
@@ -84,7 +79,11 @@ export interface MoneyRunOptions<TBody, TResult> {
   } | null;
   /** Gönderimden önce onay (yalnız yeni işlemde; donmuş kopyanın tekrarı aynı işlemdir, yeniden sorulmaz). */
   readonly confirm?: () => Promise<boolean>;
-  readonly fieldMap?: Readonly<Record<string, string>>;
+  /**
+   * Sunucu alan adı → form yolu. Hata ANINDA çağrılır: toplu işlemler satırları gönderilen (donmuş) kopyadaki satır
+   * kimliklerinden eşler (r299 MEDIUM-1), ekrandaki sıradan değil.
+   */
+  readonly fieldMap?: () => Readonly<Record<string, string>>;
   readonly success: (result: TResult, copy: FrozenOperation<TBody>) => void;
   /** 2xx ya da kesin 409 sonrası: ekran verisi yenilenir. */
   readonly settled: () => void;
@@ -158,6 +157,8 @@ export class MoneyAction<TBody = unknown> implements MoneyActionState {
 
   private send<TResult>(copy: FrozenOperation<TBody>, o: MoneyRunOptions<TBody, TResult>): void {
     this._sending.set(true);
+    // r299 MEDIUM-1: istek uçarken de form kilitli — ekranda görünen ile gönderilen ayrışmasın.
+    this.lock(o.form);
     this.operation.started(copy);
     this.api
       .post<TResult>(copy.path, copy.body, {
@@ -165,13 +166,16 @@ export class MoneyAction<TBody = unknown> implements MoneyActionState {
         context: istekBaglami({ mukerrerCagiranGosterir: true }),
       })
       .pipe(
-        finalize(() => this._sending.set(false)),
+        finalize(() => {
+          this._sending.set(false);
+          if (this._frozen() === null) this.unlock();
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (result) => {
           this.operation.succeeded();
-          this.setFrozen(null, o.form);
+          this.setFrozen(null);
           o.form.markAsPristine();
           o.success(result, copy);
           o.settled();
@@ -186,7 +190,7 @@ export class MoneyAction<TBody = unknown> implements MoneyActionState {
     o: MoneyRunOptions<TBody, TResult>,
   ): void {
     const outcome = this.operation.failed(copy, error);
-    this.setFrozen(this.operation.frozen, o.form);
+    this.setFrozen(this.operation.frozen);
     switch (outcome.kind) {
       case 'uncertain':
         return; // interceptor hata toast'u + sayfada kalıcı "sonucu bilinmiyor" bandı
@@ -202,23 +206,30 @@ export class MoneyAction<TBody = unknown> implements MoneyActionState {
         o.settled(); // alansız cakisma bandı interceptor'da
         return;
       default: {
-        const unmatched = sunucuHatalariniUygula(o.form, error.alanlar, o.fieldMap);
+        const unmatched = sunucuHatalariniUygula(o.form, error.alanlar, o.fieldMap?.());
         if (error.alanlar === undefined && !genelGosterilir(error)) this._errors.set([error.detay]);
         else if (unmatched.length > 0) this._errors.set(unmatched);
       }
     }
   }
 
-  /** Donmuş kopya varken form kilitli: yeniden deneme formdan değil kopyadan gider. */
-  private setFrozen(copy: FrozenOperation<TBody> | null, form?: AbstractControl): void {
+  /**
+   * Donmuş kopya varken form kilitli (yeniden deneme formdan değil kopyadan gider); kopya çözülünce kilit, istek
+   * uçmuyorsa açılır. Hatalar kilit açıldıktan SONRA yazılır (devre dışı kontrol hata göstermez).
+   */
+  private setFrozen(copy: FrozenOperation<TBody> | null): void {
     this._frozen.set(copy);
-    if (copy && form) {
-      this.lockedForm = form;
-      form.disable({ emitEvent: false });
-    } else if (!copy && this.lockedForm) {
-      this.lockedForm.enable({ emitEvent: false });
-      this.lockedForm = null;
-    }
+    if (copy === null) this.unlock();
+  }
+
+  private lock(form: AbstractControl): void {
+    this.lockedForm = form;
+    form.disable({ emitEvent: false });
+  }
+
+  private unlock(): void {
+    this.lockedForm?.enable({ emitEvent: false });
+    this.lockedForm = null;
   }
 }
 

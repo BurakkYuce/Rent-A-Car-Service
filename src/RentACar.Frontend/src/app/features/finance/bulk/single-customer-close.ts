@@ -33,7 +33,15 @@ import {
   closeItemsBody,
   customerPath,
 } from '../finance-model';
-import { CHANNEL_OPTIONS, FIN_COMMON, balanceSide, kindOptions, toAmount } from '../finance-shared';
+import {
+  CHANNEL_OPTIONS,
+  FIN_COMMON,
+  balanceSide,
+  followCustomerQuery,
+  kindOptions,
+  labelFromData,
+  toAmount,
+} from '../finance-shared';
 import { moneyAction } from '../money-action';
 
 type ItemRow = FormGroup<{
@@ -101,12 +109,13 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
     // Kalemler gelince satır formları kalem kimliğiyle kurulur; açık kalemin kullanıcı seçimi korunur, kapanan düşer.
     effect(() => {
       const data = this.items.veri();
+      const id = this.cariId();
       untracked(() => {
-        if (data && this.customer.value === null)
-          this.customer.setValue({ id: data.cariId, etiket: data.cariAd }, { emitEvent: false });
-        if (!this.action.pending()) this.buildRows(data?.kalemler ?? []);
+        labelFromData(this.customer, id, data);
+        if (!this.action.pending()) this.buildRows(data?.cariId === id ? data.kalemler : []);
       });
     });
+    followCustomerQuery(this.cariId, this.customer, () => this.action.pending());
     inject(FetchPolicy).baglan({
       parametre: this.cariId.asReadonly(),
       yukle: (id) => (id ? this.items.yukle(id) : this.items.sifirla()),
@@ -129,7 +138,8 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
   protected submit(): void {
     const id = this.cariId();
     const name = this.items.veri()?.cariAd ?? '';
-    if (!id) return;
+    // Kalemler hâlâ önceki cariye aitse (yeni cari yükleniyor) gönderim yok: kalem kimlikleri başka cariye gitmesin.
+    if (!id || (this.action.frozen() === null && this.items.veri()?.cariId !== id)) return;
     this.noSelection.set(false);
     void this.action.run<CloseItemsResult>({
       form: this.form,

@@ -5,7 +5,13 @@ import type { ApiHatasi } from '@core/api/api-hatasi';
 import { TAHSILAT_DENEME_KANALI, TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
+import { rowErrorMap } from './finance-model';
+import { ConfirmGate } from './finance-shared';
+import { duplicateNotice } from './money-action';
 import { MoneyOperation } from './money-operation';
+
+/** Çeviri: anahtarın kendisi (metin kontrolü `finans.json`'daki gerçek metinle e2e'de). */
+const T = ((k: string) => k) as Parameters<typeof duplicateNotice>[3];
 
 const PATH = '/api/ui/v1/finans/kasa/virman' as const;
 const CONTENT = { tutar: '500.00', doviz: 'TRY', hesap: 'Kasa' };
@@ -108,5 +114,59 @@ describe('MoneyOperation (finans para yaşam döngüsü)', () => {
     op.started(retry);
     const out = op.failed(retry, error('mukerrer', { tutar: 500, ayniIcerik: false }));
     expect(out).toEqual({ kind: 'duplicate', type: 'oncekiDenemeKaydedilmis' });
+  });
+
+  // r299 HIGH-1: tahsilat/ödeme/toplu gider tekrarı ve FarkliIcerik 409'u `mevcut`SUZ döner — kayıt VARDIR.
+  it('kayıp yanıt → tekrar → mevcut YOK 409: dahaOnceKaydedildi; metin "yazılmadı/değişti" DEMEZ', () => {
+    const op = setup();
+    const first = op.prepare(PATH, { tutar: '500.00' }, CONTENT);
+    op.started(first);
+    op.failed(first, error('ag'));
+    const retry = op.prepare(PATH, { tutar: '500.00' }, CONTENT);
+    op.started(retry);
+    const err = error('mukerrer');
+    const out = op.failed(retry, err);
+    expect(out).toEqual({ kind: 'duplicate', type: 'dahaOnceKaydedildi' });
+    const n = duplicateNotice('dahaOnceKaydedildi', err, CONTENT, T);
+    expect(n).toEqual({
+      tone: 'bilgi',
+      title: 'finans.islem.dahaOnceKaydedildiBaslik',
+      message: 'finans.islem.dahaOnceKaydedildi',
+    });
+  });
+
+  it('belirsiz deneme yokken mevcut farklı içerikli 409 (FarkliIcerik mevcut ile) de dahaOnceKaydedildi', () => {
+    const op = setup();
+    const a = op.prepare(PATH, { tutar: '500.00' }, CONTENT);
+    op.started(a);
+    expect(op.failed(a, error('mukerrer', { tutar: 700, ayniIcerik: false }))).toEqual({
+      kind: 'duplicate',
+      type: 'dahaOnceKaydedildi',
+    });
+  });
+});
+
+describe('r299 düzeltme yardımcıları', () => {
+  it('satır hataları GÖNDERİLEN satırın kimliğine göre güncel sıraya eşlenir; silinen satır eşlenmez', () => {
+    // Gönderilen: [A, B]; ekranda (kilitten önceki eski davranışla) [B, C] olsaydı: B hatası 0. satıra gider.
+    expect(rowErrorMap(['A', 'B'], ['B', 'C'], { tutar: 'tutar', cariId: 'cari' })).toEqual({
+      'satirlar[1].tutar': 'satirlar.0.tutar',
+      'satirlar[1].cariId': 'satirlar.0.cari',
+    });
+  });
+
+  it('onay kapısı: pencere açıkken ikinci soru SORULMAZ (false)', async () => {
+    const gate = new ConfirmGate();
+    let resolve: (v: boolean) => void = () => undefined;
+    let asked = 0;
+    const first = gate.ask(() => {
+      asked++;
+      return new Promise<boolean>((r) => (resolve = r));
+    });
+    expect(await gate.ask(() => Promise.resolve(true))).toBe(false);
+    resolve(true);
+    expect(await first).toBe(true);
+    expect(asked).toBe(1);
+    expect(await gate.ask(() => Promise.resolve(true))).toBe(true); // kapı yeniden açılır
   });
 });

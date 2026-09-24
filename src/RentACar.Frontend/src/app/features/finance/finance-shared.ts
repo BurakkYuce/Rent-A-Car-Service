@@ -9,10 +9,11 @@ import {
   inject,
   input,
   output,
+  type WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { type FormControl, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
@@ -24,6 +25,7 @@ import { DOVIZLER, KANALLAR } from '@features/kira-formu/finans-paneli/finans-mo
 import { BICIM_PIPELARI } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
+import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
@@ -185,6 +187,54 @@ export class FinanceSubmit {
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly send = output<void>();
   readonly giveUp = output<void>();
+}
+
+/**
+ * `?cariId=` sorgusunu İZLER (r299 LOW-3): kalıcı sekmede aynı rota başka cariyle açılınca (ekstreden, kasadan) sayfa
+ * yeni cariye geçer; yalnız ilk açılışta okumak eski cariyi gösteriyordu. Sonucu bilinmeyen/uçan işlem varken
+ * (`busy`) geçiş YAPILMAZ — donmuş kopya o cariye aittir. Seçici etiketi yeni carinin verisiyle yeniden çözülür.
+ */
+export function followCustomerQuery(
+  cariId: WritableSignal<string | null>,
+  customer: FormControl<SecimSecenegi | null>,
+  busy: () => boolean,
+): void {
+  inject(ActivatedRoute)
+    .queryParamMap.pipe(takeUntilDestroyed())
+    .subscribe((p) => {
+      const id = p.get('cariId');
+      if (!id || id === cariId() || busy()) return;
+      customer.setValue(null, { emitEvent: false });
+      cariId.set(id);
+    });
+}
+
+/** Seçici etiketi, yalnız GÜNCEL carinin verisi geldiğinde (önceki veri korunurken eski ad yazılmasın). */
+export function labelFromData(
+  customer: FormControl<SecimSecenegi | null>,
+  currentId: string | null,
+  data: { readonly cariId: string; readonly cariAd: string } | undefined,
+): void {
+  if (!data || data.cariId !== currentId || customer.value?.id === data.cariId) return;
+  customer.setValue({ id: data.cariId, etiket: data.cariAd }, { emitEvent: false });
+}
+
+/**
+ * Onay kapısı (r299 LOW-1): onay penceresi açıkken ikinci tık yok sayılır — anahtarsız (yapısal) işlemlerde çift tık
+ * iki pencere ve iki POST üretiyordu. `ask` pencere açıkken `false` döner.
+ */
+export class ConfirmGate {
+  private open = false;
+
+  async ask(question: () => Promise<boolean>): Promise<boolean> {
+    if (this.open) return false;
+    this.open = true;
+    try {
+      return await question();
+    } finally {
+      this.open = false;
+    }
+  }
 }
 
 /** Sunucu sayısı (`number | string`) → sayı; boş/biçimsiz `null`. HESAP YAPILMAZ, yalnız gösterim. */

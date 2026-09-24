@@ -22,7 +22,7 @@ import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
 
 import { type PeriodCloseState, financePath } from '../finance-model';
-import { FIN_COMMON, toAmount } from '../finance-shared';
+import { ConfirmGate, FIN_COMMON, toAmount } from '../finance-shared';
 
 /**
  * Dönem Kapanışı (`/app/donem-kapanis`, Blazor `DonemKapanis.razor`): mevcut kilit, güncel mizan (sunucu; bakiye
@@ -44,6 +44,7 @@ export class PeriodClose {
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
+  private readonly gate = new ConfirmGate();
 
   protected readonly state = new TemelStore(() =>
     this.api.get<PeriodCloseState>(financePath('/donem-kapanis')),
@@ -70,24 +71,28 @@ export class PeriodClose {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const day = this.form.controls.kapanisTarihi.value;
-    const yes = await this.confirm.sor({
-      baslik: this.t('finans.donem.kapatBaslik'),
-      mesaj: this.t('finans.donem.kapatOnay'),
-      onayEtiketi: this.t('finans.donem.kapat'),
-      tehlikeli: true,
-    });
+    const yes = await this.gate.ask(() =>
+      this.confirm.sor({
+        baslik: this.t('finans.donem.kapatBaslik'),
+        mesaj: this.t('finans.donem.kapatOnay'),
+        onayEtiketi: this.t('finans.donem.kapat'),
+        tehlikeli: true,
+      }),
+    );
     if (!yes) return;
     this.post('/donem-kapanis/kilitle', { kapanisTarihi: day }, 'finans.donem.kapatildi');
   }
 
   protected async unlock(): Promise<void> {
     if (this.busy()) return;
-    const yes = await this.confirm.sor({
-      baslik: this.t('finans.donem.acBaslik'),
-      mesaj: this.t('finans.donem.acOnay'),
-      onayEtiketi: this.t('finans.donem.ac'),
-      tehlikeli: true,
-    });
+    const yes = await this.gate.ask(() =>
+      this.confirm.sor({
+        baslik: this.t('finans.donem.acBaslik'),
+        mesaj: this.t('finans.donem.acOnay'),
+        onayEtiketi: this.t('finans.donem.ac'),
+        tehlikeli: true,
+      }),
+    );
     if (!yes) return;
     this.post('/donem-kapanis/ac', null, 'finans.donem.acildi');
   }

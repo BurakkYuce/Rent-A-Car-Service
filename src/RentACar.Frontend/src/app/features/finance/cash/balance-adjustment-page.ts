@@ -36,6 +36,8 @@ import {
   FIN_COMMON,
   balanceSide,
   clearRateOnCurrencyChange,
+  followCustomerQuery,
+  labelFromData,
 } from '../finance-shared';
 import { moneyAction } from '../money-action';
 
@@ -95,12 +97,11 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
       const locked = this.action.pending();
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
+    followCustomerQuery(this.cariId, this.customer, () => this.action.pending());
     effect(() => {
       const b = this.balance.veri();
-      untracked(() => {
-        if (b && this.customer.value === null)
-          this.customer.setValue({ id: b.cariId, etiket: b.cariAd }, { emitEvent: false });
-      });
+      const id = this.cariId();
+      untracked(() => labelFromData(this.customer, id, b));
     });
     inject(FetchPolicy).baglan({
       parametre: this.cariId.asReadonly(),

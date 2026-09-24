@@ -321,6 +321,26 @@ export function depositRequest(
   return op === 'al' || op === 'iade' ? { ...base, hesap: v.hesap, hesapId: v.hesapId } : base;
 }
 
+/**
+ * Toplu işlem satır hatası eşlemesi (r299 MEDIUM-1): sunucunun `satirlar[i].alan` hatası GÖNDERİLEN kopyanın i. satırına
+ * aittir. O satırın kimliği ekranda hangi sıradaysa (`satirlar.<j>.<formAlanı>`) oraya yazılır; ekranda artık yoksa
+ * eşlenmez (form üstü genel hataya düşer) — kayan satıra ASLA yazılmaz.
+ */
+export function rowErrorMap(
+  sentIds: readonly string[],
+  currentIds: readonly string[],
+  fields: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  sentIds.forEach((id, i) => {
+    const j = currentIds.indexOf(id);
+    if (j < 0) return;
+    for (const [server, form] of Object.entries(fields))
+      map[`satirlar[${i}].${server}`] = `satirlar.${j}.${form}`;
+  });
+  return map;
+}
+
 /** Otomatik tahsilat satır kimliği (kira + dönem sırası) — `@for` izleme anahtarı ve seçim. */
 export function candidateKey(c: {
   readonly kiraId: string;

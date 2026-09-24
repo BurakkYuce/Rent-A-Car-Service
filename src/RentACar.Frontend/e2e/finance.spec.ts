@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { CARI_1, fixedRate, financeHubEndpoints } from './finance-fakes';
+import { CARI_1, CARI_2, fixedRate, financeHubEndpoints } from './finance-fakes';
 import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
 import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
 
@@ -433,6 +433,135 @@ test('dönem kapanışı: kilitle ve kilit kaldır ONAYLI; vazgeçilirse istek g
   await expect(page.getByText('Dönem kapatıldı.')).toBeVisible();
   expect(JSON.parse(written[0]?.govde ?? '{}')).toEqual({ kapanisTarihi: '2026-08-31' });
   expect(written[0]?.anahtar).toBeUndefined(); // E36 yapısal: işlem anahtarı yok
+});
+
+// ---------------------------------------------------------------- r299 bağımsız inceleme düzeltmeleri
+
+test('r299 HIGH-1: kayıp yanıt → tekrar → mevcut SUZ 409: "daha önce kaydedildi", "yazılmadı/değişti" denmez', async ({
+  page,
+}) => {
+  let n = 0;
+  const written = await financeHubEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/finans/tahsilat') return false;
+      if (++n === 1)
+        await r.abort('failed'); // sunucu YAZDI, yanıt kayboldu
+      else
+        await problem(r, 409, 'mukerrer', 'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).');
+      return true;
+    },
+  });
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  const form = page.getByRole('region', { name: 'Tahsilat', exact: true });
+  await form.getByRole('button', { name: 'Tahsilat Yap' }).click();
+  await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
+  await expect(page.getByText('İşlem daha önce kaydedildi')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin.',
+    ),
+  ).toBeVisible();
+  await expect(page.getByText('Kayıt değişmiş')).toHaveCount(0);
+  await expect(page.getByText('işleminiz yazılmadı')).toHaveCount(0);
+  expect(written).toHaveLength(2);
+  expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
+});
+
+test('r299 MEDIUM-2: TRY bakiye önerisi dövize geçince temizlenir; USD tutarı olarak GİTMEZ', async ({
+  page,
+}) => {
+  const written = await financeHubEndpoints(page);
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  const form = page.getByRole('region', { name: 'Tahsilat', exact: true });
+  const amount = form.getByRole('textbox', { name: 'Tutar' });
+  await expect(amount).toHaveValue('1.250,50');
+  await form.getByRole('combobox', { name: 'Döviz' }).selectOption('USD');
+  await expect(amount).toHaveValue('');
+  await form.getByRole('button', { name: 'Tahsilat Yap' }).click();
+  expect(written).toHaveLength(0); // tutar boş: istemci doğrulaması
+  await form.getByRole('combobox', { name: 'Döviz' }).selectOption('TRY');
+  await expect(amount).toHaveValue('1.250,50');
+});
+
+test('r299 MEDIUM-1: istek uçarken form ve satır ekle/sil kilitli; satır hatası doğru satırda', async ({
+  page,
+}) => {
+  await financeHubEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/finans/toplu-tahsilat') return false;
+      await new Promise((ok) => setTimeout(ok, 1000));
+      await problem(r, 400, 'dogrulama', 'Tutar çok büyük.', {
+        errors: { 'satirlar[1].tutar': ['Satır 2 tutarı çok büyük.'] },
+      });
+      return true;
+    },
+  });
+  await page.goto(TOPLU_TAHSILAT.yol);
+  await hazirBekle(page, TOPLU_TAHSILAT);
+  const row = (i: number) => page.getByRole('group', { name: `Satır ${i}` });
+  await row(1).getByRole('combobox', { name: 'Cari' }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await row(1).getByRole('textbox', { name: 'Tutar' }).fill('100');
+  await page.getByRole('button', { name: 'Satır Ekle' }).click();
+  await row(2).getByRole('combobox', { name: 'Cari' }).fill('Bo');
+  await page.getByRole('option', { name: 'Bora Kaya' }).click();
+  await row(2).getByRole('textbox', { name: 'Tutar' }).fill('999999');
+  await page.getByRole('button', { name: 'Toplu Tahsilat Yap' }).click();
+  await expect(page.getByRole('button', { name: 'Satır Ekle' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Satır 1 sil' })).toBeDisabled();
+  await expect(row(1).getByRole('textbox', { name: 'Tutar' })).toBeDisabled();
+  await expect(row(2).getByText('Satır 2 tutarı çok büyük.')).toBeVisible();
+  await expect(row(1).getByText('Satır 2 tutarı çok büyük.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Satır Ekle' })).toBeEnabled();
+});
+
+test('r299 LOW-1: dönem kapanışı ve ekstre ters kayıt çift tık → tek onay, tek POST', async ({
+  page,
+}) => {
+  const written = await financeHubEndpoints(page, {
+    write: async (r) => {
+      await r.fulfill({ status: r.request().method() === 'POST' ? 204 : 200 });
+      return true;
+    },
+  });
+  await page.goto(DONEM.yol);
+  await hazirBekle(page, DONEM);
+  await page.getByRole('textbox', { name: 'Kapanış Tarihi' }).fill('31.08.2026');
+  await page.getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' }).dblclick();
+  await expect(page.getByRole('alertdialog')).toHaveCount(1);
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' })
+    .click();
+  await expect(page.getByText('Dönem kapatıldı.')).toBeVisible();
+  expect(written).toHaveLength(1);
+
+  await page.goto(EKSTRE.yol);
+  await hazirBekle(page, EKSTRE);
+  await page.getByRole('button', { name: 'Ters Kayıt' }).first().dblclick();
+  await expect(page.getByRole('alertdialog')).toHaveCount(1);
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Ters Kayıt' }).click();
+  await expect(page.getByText('Ters kayıt alındı.')).toBeVisible();
+  expect(written).toHaveLength(2);
+});
+
+test('r299 LOW-3: aynı sekmede ?cariId= değişince sayfa yeni cariye geçer', async ({ page }) => {
+  await financeHubEndpoints(page);
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  await page.evaluate((url) => {
+    history.pushState({}, '', url);
+    dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+  }, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await expect(page.getByRole('heading', { name: 'Bora Kaya' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Cari', exact: true })).toHaveValue('Bora Kaya');
+  await expect(
+    page
+      .getByRole('region', { name: 'Tahsilat', exact: true })
+      .getByRole('textbox', { name: 'Tutar' }),
+  ).toHaveValue(''); // alacaklı: öneri yok
 });
 
 for (const s of PAGES) {

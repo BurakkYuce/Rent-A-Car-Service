@@ -20,6 +20,7 @@ import {
   type PaymentMethod,
   bulkExpenseBody,
   financePath,
+  rowErrorMap,
 } from '../finance-model';
 import { AccountList, FIN_COMMON, toAmount } from '../finance-shared';
 import { moneyAction } from '../money-action';
@@ -52,6 +53,8 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly vehicles = sunucuSecimKaynagi('arac');
   protected readonly action = moneyAction<BulkExpenseRequest>();
+  /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
+  private sentRowIds: readonly string[] = [];
   protected readonly typeOptions: readonly SecenekOgesi<string>[] = EXPENSE_TYPES.map((x) => ({
     deger: x,
     etiket: this.t(`finans.topluGider.tipler.${x}`),
@@ -95,28 +98,31 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected addRow(): void {
+    if (this.action.pending()) return;
     this.form.controls.satirlar.push(this.newRow());
     this.form.markAsDirty();
   }
 
   protected removeRow(index: number): void {
-    if (this.rows.length <= 1) return;
+    if (this.rows.length <= 1 || this.action.pending()) return;
     this.form.controls.satirlar.removeAt(index);
     this.form.markAsDirty();
   }
 
   protected submit(): void {
-    const map: Record<string, string> = { cariId: 'cari' };
-    this.rows.forEach((_, i) => {
-      map[`satirlar[${i}].netTutar`] = `satirlar.${i}.netTutar`;
-      map[`satirlar[${i}].aracId`] = `satirlar.${i}.arac`;
-      map[`satirlar[${i}].aciklama`] = `satirlar.${i}.aciklama`;
-    });
     void this.action.run<BulkPostingResult>({
       form: this.form,
-      fieldMap: map,
+      fieldMap: () => ({
+        cariId: 'cari',
+        ...rowErrorMap(
+          this.sentRowIds,
+          this.rows.map((r) => r.controls.id.value),
+          { netTutar: 'netTutar', aracId: 'arac', aciklama: 'aciklama' },
+        ),
+      }),
       build: () => {
         const v = this.form.getRawValue();
+        this.sentRowIds = v.satirlar.map((r) => r.id);
         const body = bulkExpenseBody(
           v.satirlar.map((r) => ({
             netTutar: r.netTutar,

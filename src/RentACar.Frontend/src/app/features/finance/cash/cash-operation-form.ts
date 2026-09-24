@@ -104,12 +104,17 @@ export class CashOperationForm {
         if (this.form.controls.kanal.pristine) this.form.controls.kanal.setValue(channel);
       });
     });
-    // Öneri: yalnız tahsilatta, dokunulmamış tutara, donmuş kopya yokken ve 409 sonrası değilken.
+    // Öneri: yalnız tahsilatta ve YALNIZ TRY'de (bakiye baz paradır, ₺ — r299 MEDIUM-2: TRY bakiyesi USD tutarı
+    // olarak gidiyordu), dokunulmamış tutara, donmuş/uçan işlem yokken ve 409 sonrası değilken. Döviz değişince
+    // dokunulmamış tutar yeniden hesaplanır: TRY dışında boşalır.
     effect(() => {
-      const suggested = this.kind() === 'tahsilat' ? onDoldurmaTutari(this.balance()) : null;
+      const tryCurrency = dovizKodu(this.currency()) === 'TRY';
+      const suggested =
+        this.kind() === 'tahsilat' && tryCurrency ? onDoldurmaTutari(this.balance()) : null;
       untracked(() => {
         const c = this.form.controls.tutar;
-        if (c.pristine && this.prefillAllowed && !this.action.pending()) c.setValue(suggested);
+        if (!c.pristine || this.action.pending()) return;
+        c.setValue(this.prefillAllowed ? suggested : null);
       });
     });
   }

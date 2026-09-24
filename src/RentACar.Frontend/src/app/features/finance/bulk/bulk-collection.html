@@ -50,7 +50,7 @@
             <button
               type="button"
               class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-              [disabled]="rows.length <= 1 || action.frozen() !== null"
+              [disabled]="rows.length <= 1 || action.pending()"
               (click)="removeRow(i)"
               [attr.aria-label]="'finans.topluTahsilat.satirSil' | transloco: { no: i + 1 }"
             >
@@ -63,7 +63,7 @@
         <button
           type="button"
           class="rc-dugme rc-dugme--kucuk"
-          [disabled]="action.frozen() !== null"
+          [disabled]="action.pending()"
           (click)="addRow()"
         >
           <rc-ikon ad="plus" [boyut]="14" /> {{ 'finans.topluTahsilat.satirEkle' | transloco }}

@@ -107,7 +107,7 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
   protected submit(): void {
     void this.action.run<{ id: string }>({
       form: this.form,
-      fieldMap: { kaynakCariId: 'kaynakCari', hedefCariId: 'hedefCari' },
+      fieldMap: () => ({ kaynakCariId: 'kaynakCari', hedefCariId: 'hedefCari' }),
       build: () => {
         const v = this.form.getRawValue();
         const body = customerTransferBody({

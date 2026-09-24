@@ -35,7 +35,7 @@ import {
   type RatesScreen,
   financePath,
 } from '../finance-model';
-import { FIN_COMMON, toAmount } from '../finance-shared';
+import { ConfirmGate, FIN_COMMON, toAmount } from '../finance-shared';
 import {
   type FixedRateFormValue,
   asRecord,
@@ -81,6 +81,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
     this.screen.veri()?.sabitler.find((s) => s.kod === kod && s.aktif) ?? null;
 
   protected readonly busy = signal(false);
+  private readonly gate = new ConfirmGate();
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly conversion = signal<string | null>(null);
   protected readonly converter = new FormGroup({
@@ -185,12 +186,15 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected async remove(row: FixedRate): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('finans.kur.silBaslik'),
-      mesaj: this.t('finans.kur.silMesaj', { kod: row.kod }),
-      onayEtiketi: this.t('finans.kur.sil'),
-      tehlikeli: true,
-    });
+    if (this.busy()) return;
+    const yes = await this.gate.ask(() =>
+      this.confirm.sor({
+        baslik: this.t('finans.kur.silBaslik'),
+        mesaj: this.t('finans.kur.silMesaj', { kod: row.kod }),
+        onayEtiketi: this.t('finans.kur.sil'),
+        tehlikeli: true,
+      }),
+    );
     if (!yes) return;
     this.call(
       this.api.delete<null>(financePath(`/kurlar/sabit/${encodeURIComponent(row.id)}`)),

@@ -30,7 +30,7 @@ import {
   financePath,
   queryParams,
 } from '../finance-model';
-import { FIN_COMMON, kindOptions, toAmount } from '../finance-shared';
+import { ConfirmGate, FIN_COMMON, kindOptions, toAmount } from '../finance-shared';
 
 /**
  * Otomatik Tahsilat — elle çalıştır (`/app/otomatik-tahsilat`, Blazor `OtomatikTahsilat.razor`): vadesi gelmiş dönem
@@ -52,6 +52,7 @@ export class AutoCollection {
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
+  private readonly gate = new ConfirmGate();
   protected readonly key = candidateKey;
   protected readonly kindOptions = kindOptions(this.t);
 
@@ -127,10 +128,12 @@ export class AutoCollection {
       tahsilat: v.tahsilat === true,
       hesap: v.hesap,
     };
-    const yes = await this.confirm.sor({
-      baslik: this.t('finans.otomatik.onayBaslik'),
-      mesaj: this.t('finans.otomatik.onayMesaj', { adet: sel.length }),
-    });
+    const yes = await this.gate.ask(() =>
+      this.confirm.sor({
+        baslik: this.t('finans.otomatik.onayBaslik'),
+        mesaj: this.t('finans.otomatik.onayMesaj', { adet: sel.length }),
+      }),
+    );
     if (!yes || this.busy()) return;
     this.busy.set(true);
     this.api

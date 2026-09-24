@@ -146,6 +146,8 @@ export async function financeHubEndpoints(
         ]);
       case `/api/ui/v1/finans/cariler/${CARI_1}/bakiye`:
         return json(r, { cariId: CARI_1, cariAd: 'Ayşe Yılmaz', bakiye, depozitoBakiye: 0 });
+      case `/api/ui/v1/finans/cariler/${CARI_2}/bakiye`:
+        return json(r, { cariId: CARI_2, cariAd: 'Bora Kaya', bakiye: -40, depozitoBakiye: 0 });
       case `/api/ui/v1/finans/cariler/${CARI_1}/ekstre`:
         return json(r, {
           cariId: CARI_1,

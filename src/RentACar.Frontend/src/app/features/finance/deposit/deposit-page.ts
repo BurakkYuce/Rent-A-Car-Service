@@ -91,7 +91,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
   protected run(op: DepositOperation): void {
     void this.action.run<{ id: string }>({
       form: this.form,
-      fieldMap: { cariId: 'cari' },
+      fieldMap: () => ({ cariId: 'cari' }),
       build: () => {
         const v = this.form.getRawValue();
         const body = depositRequest(op, v.cari?.id ?? '', v);

@@ -39,7 +39,7 @@ import {
   financePath,
   queryParams,
 } from '../finance-model';
-import { AccountList, FIN_COMMON, balanceSide, toAmount } from '../finance-shared';
+import { AccountList, ConfirmGate, FIN_COMMON, balanceSide, toAmount } from '../finance-shared';
 
 interface StatementQuery {
   readonly id: string;
@@ -73,6 +73,7 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
   protected readonly canReverse = computed(() => this.session.izinVar('FinanceReverse'));
   protected readonly reversing = signal<string | null>(null);
+  private readonly gate = new ConfirmGate();
   private readonly forms = viewChildren(CashOperationForm);
 
   protected readonly statement = new TemelStore(
@@ -157,12 +158,14 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
   protected async reverse(line: CustomerStatementLine): Promise<void> {
     const txId = line.kasaIslemId;
     if (!txId || this.reversing()) return;
-    const yes = await this.confirm.sor({
-      baslik: this.t('finans.ekstre.tersBaslik'),
-      mesaj: this.t('finans.ekstre.tersMesaj'),
-      onayEtiketi: this.t('finans.ekstre.ters'),
-      tehlikeli: true,
-    });
+    const yes = await this.gate.ask(() =>
+      this.confirm.sor({
+        baslik: this.t('finans.ekstre.tersBaslik'),
+        mesaj: this.t('finans.ekstre.tersMesaj'),
+        onayEtiketi: this.t('finans.ekstre.ters'),
+        tehlikeli: true,
+      }),
+    );
     if (!yes || this.reversing()) return;
     this.reversing.set(txId);
     this.api
