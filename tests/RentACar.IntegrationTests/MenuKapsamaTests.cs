@@ -78,6 +78,63 @@ public sealed class MenuKapsamaTests
     }
 
     /// <summary>
+    /// F8.3: finans SPA rota dosyalarındaki (<c>finance.routes.ts</c>, <c>finance-documents.routes.ts</c>) her
+    /// parametresiz ekran menüde spa öğesi olarak var (<c>:id</c>'li ekstre ve fatura yazdır drill-down). Blazor
+    /// sayfaları silindiğinde (pilot sonrası) kapsama SPA tarafında korunur.
+    /// </summary>
+    [Fact]
+    public void F8_SPA_routes_are_all_in_menu()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var text = File.ReadAllText(Path.Combine(app, "finance/finance.routes.ts"))
+            + File.ReadAllText(Path.Combine(app, "finance-documents/finance-documents.routes.ts"));
+        var paths = Regex.Matches(text, @"path: '(?<p>[a-z-/:]+)',")
+            .Select(m => m.Groups["p"].Value)
+            .Where(p => !p.Contains(':'))
+            .ToList();
+        Assert.Equal(new[]
+            {
+                "cari-virman", "cezalar", "depozito", "donem-kapanis", "faturalar", "faturalar/detay-listesi",
+                "finans/bakiye-duzeltme", "finans/nakit-islem", "gelen-efatura", "giderler", "kasa", "kurlar",
+                "otomatik-tahsilat", "satislar", "tek-cari-toplu", "toplu-gider", "toplu-tahsilat",
+            },
+            paths.OrderBy(p => p, StringComparer.Ordinal));
+        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
+    }
+
+    /// <summary>
+    /// F9.3: servis/sigorta/vade ve fiyat/tarife SPA rota dosyalarındaki her parametresiz ekran menüde spa öğesi olarak
+    /// var. Tanım ekranları tek yardımcıdan (<c>catalogRoute('…')</c>) üretildiği için o çağrılar da okunur. MTV ve
+    /// muayene listeleri bilinçli olarak menüde YOK: Blazor'da "Sigorta / MTV / Muayene" tek menü öğesi (tek sayfa) idi,
+    /// SPA'da o öğenin açtığı sayfanın sekme gezinmesinden açılırlar (<c>regulation-tabs.ts</c>).
+    /// </summary>
+    [Fact]
+    public void F9_SPA_screen_routes_are_all_in_menu()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var text = File.ReadAllText(Path.Combine(app, "service-insurance/service-insurance.routes.ts"))
+            + File.ReadAllText(Path.Combine(app, "pricing/pricing.routes.ts"));
+        var tabs = File.ReadAllText(Path.Combine(app, "service-insurance/regulation/regulation-tabs.ts"));
+        string[] tabOnly = ["regulasyon/mtv", "regulasyon/muayene"];
+        foreach (var p in tabOnly) Assert.Contains($"path: '/{p}'", tabs);
+
+        var paths = Regex.Matches(text, @"(?:path: |catalogRoute\(\s*)'(?<p>[a-z-/:]+)',")
+            .Select(m => m.Groups["p"].Value)
+            .Where(p => !p.Contains(':') && !tabOnly.Contains(p))
+            .ToList();
+        Assert.Equal(new[]
+            {
+                "broker-yasaklari", "ek-hizmetler", "fiyat-hesapla", "kira-kurallari", "maliyet-hesapla", "maliyet-teklifleri",
+                "regulasyon", "servis-tanimlari", "servisler", "sigorta-urunleri", "tarife-aktar", "tarife-gruplari",
+                "tarife-matris", "tarifeler", "vade",
+            },
+            paths.OrderBy(p => p, StringComparer.Ordinal));
+        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
+    }
+
+    /// <summary>
     /// F10.3: SPA'nın rapor rota tablosundaki (<c>reports.routes.ts</c>) her kimliksiz rapor menüde spa öğesi olarak
     /// var — Blazor sayfaları silindiğinde (pilot sonrası) yukarıdaki çit boşa düşse de kapsama korunur.
     /// </summary>

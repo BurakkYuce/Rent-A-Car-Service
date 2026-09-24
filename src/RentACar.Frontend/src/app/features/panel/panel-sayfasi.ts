@@ -278,19 +278,19 @@ export class PanelSayfasi {
         {
           sayi: sayi(kademe.yediGun) ?? 0,
           etiket: this.t('panel.vade.yediGun'),
-          href: '/vade',
+          rota: '/vade', // F9.3: SPA rotası
           ton: 'notr',
         },
         {
           sayi: otuz,
           etiket: this.t('panel.vade.otuzGun'),
-          href: '/vade',
+          rota: '/vade', // F9.3: SPA rotası
           ton: otuz > 0 ? 'uyari' : 'notr',
         },
         {
           sayi: gecmis,
           etiket: this.t('panel.vade.gecmis'),
-          href: '/vade',
+          rota: '/vade', // F9.3: SPA rotası
           ton: gecmis > 0 ? 'hata' : 'notr',
         },
       ];

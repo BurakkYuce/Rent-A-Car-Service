@@ -16,8 +16,8 @@
 | [F5](F5.md) | Rezervasyon, teklif, müsaitlik, takvim, rez şartları, filo kiralama | 5 | — | sürüyor (#271 #272 #273 main'de, #274 açık, F5.4 kesiş) |
 | [F6](F6.md) | Araçlar | 6 | ✔ | kod ✔ (#278 #279 #285 #291 #294 + F6.4 kesiş) · Blazor sayfa silme pilot sonrası |
 | [F7](F7.md) | Cariler & CRM | 3 | — | kod ✔ (#283 #295 + F7.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F8](F8.md) | Finans + cari ekstre + fatura yazdır | 6 | ✔ | bekliyor |
-| [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | bekliyor |
+| [F8](F8.md) | Finans + cari ekstre + fatura yazdır | 6 | ✔ | kod ✔ (#284 #286 #299 #300 + F8.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
+| [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | kod ✔ (#292 #301 + F9.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
 | [F10](F10.md) | Raporlar | 4 | — | kod ✔ (#287 #296 #302 + F10.3b parite + kesiş) · Blazor sayfa silme pilot sonrası |
 | [F11](F11.md) | Tanımlar + Sistem + Web Sitesi + kabuk sayfaları | 6 | — | bekliyor |
 | [F12](F12.md) | Platform konsolu | 2 | — | bekliyor |
