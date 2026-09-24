@@ -568,6 +568,61 @@ test('r299 LOW-3: aynı sekmede ?cariId= değişince sayfa yeni cariye geçer', 
   ).toHaveValue(''); // alacaklı: öneri yok
 });
 
+// ---------------------------------------------------------------- tek para çekirdeği: #299 L-new-1
+
+const goToCustomer = (page: Page, url: string) =>
+  page.evaluate((u) => {
+    history.pushState({}, '', u);
+    dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+  }, url);
+
+test('#299 L-new-1: kirli formda ?cariId= değişimi SORULUR; vazgeçilirse cari ve yazılan tutar kalır', async ({
+  page,
+}) => {
+  await financeHubEndpoints(page);
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
+  await pay.getByRole('textbox', { name: 'Tutar' }).fill('75');
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Ayşe Yılmaz');
+  await dialog.getByRole('button', { name: 'Vazgeç' }).click();
+  await expect(page.getByRole('heading', { name: 'Ayşe Yılmaz' })).toBeVisible();
+  await expect(pay.getByRole('textbox', { name: 'Tutar' })).toHaveValue('75,00');
+});
+
+test('#299 L-new-1: onaylanırsa form temizlenir ve yeni cariye geçilir (tutar TAŞINMAZ)', async ({
+  page,
+}) => {
+  await financeHubEndpoints(page);
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
+  await pay.getByRole('textbox', { name: 'Tutar' }).fill('75');
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Değişiklikleri sil ve geç' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Bora Kaya' })).toBeVisible();
+  await expect(pay.getByRole('textbox', { name: 'Tutar' })).toHaveValue('');
+});
+
+test('#299 L-new-1: bakiye düzeltme onayı HANGİ carinin düzeltileceğini söyler', async ({
+  page,
+}) => {
+  const written = await financeHubEndpoints(page);
+  await page.goto(DUZELTME.yol);
+  await hazirBekle(page, DUZELTME);
+  await page.getByRole('textbox', { name: 'Tutar' }).fill('12,40');
+  await page.getByRole('button', { name: 'Düzeltmeyi Kaydet' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Ayşe Yılmaz carisinin bakiyesi düzeltilecek');
+  await dialog.getByRole('button', { name: 'Vazgeç' }).click();
+  expect(written).toHaveLength(0);
+});
+
 for (const s of PAGES) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

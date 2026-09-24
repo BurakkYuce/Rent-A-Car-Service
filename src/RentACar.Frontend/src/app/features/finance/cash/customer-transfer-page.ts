@@ -45,7 +45,9 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly branches = sunucuSecimKaynagi('sube');
   protected readonly currencyOptions = CURRENCY_OPTIONS;
-  protected readonly action = moneySubmission<CustomerTransferRequest>();
+  protected readonly action = moneySubmission<CustomerTransferRequest>({
+    scope: () => 'cari-virman',
+  });
 
   protected readonly history = new TemelStore(
     (p: SorguParametreleri) =>
@@ -82,6 +84,8 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     inject(FetchPolicy).baglan({ parametre: this.params, yukle: (p) => this.history.yukle(p) });
   }

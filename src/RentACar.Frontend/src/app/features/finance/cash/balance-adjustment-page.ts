@@ -65,7 +65,9 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
     inject(ActivatedRoute).snapshot.queryParamMap.get('cariId'),
   );
   protected readonly side = computed(() => balanceSide(this.balance.veri()?.bakiye));
-  protected readonly action = moneySubmission<BalanceAdjustmentRequest>();
+  protected readonly action = moneySubmission<BalanceAdjustmentRequest>({
+    scope: () => `bakiye-duzeltme:${this.cariId() ?? ''}`,
+  });
 
   protected readonly form = new FormGroup({
     yon: new FormControl<AdjustmentDirection | null>('Alacaklandir', Validators.required),
@@ -89,6 +91,8 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
       if (c && c.id !== this.cariId()) this.cariId.set(c.id);

@@ -52,7 +52,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   protected readonly accounts = inject(AccountList);
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly action = moneySubmission<BulkExpenseRequest>();
+  protected readonly action = moneySubmission<BulkExpenseRequest>({ scope: () => 'toplu-gider' });
   /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
   private sentRowIds: readonly string[] = [];
   protected readonly typeOptions: readonly SecenekOgesi<string>[] = EXPENSE_TYPES.map((x) => ({
@@ -83,6 +83,16 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
     this.accounts.load();
+    // Sonucu bilinmeyen toplu işlem (sayfa kapanıp açıldıysa) AYNI satırlarla + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form, (value) => {
+      const v = value as ReturnType<typeof this.form.getRawValue>;
+      this.form.controls.satirlar.clear({ emitEvent: false });
+      v.satirlar.forEach(() =>
+        this.form.controls.satirlar.push(this.newRow(), { emitEvent: false }),
+      );
+      this.form.reset(v, { emitEvent: false });
+      this.sentRowIds = v.satirlar.map((r) => r.id);
+    });
   }
 
   kaydedilmemisDegisiklikVar(): boolean {

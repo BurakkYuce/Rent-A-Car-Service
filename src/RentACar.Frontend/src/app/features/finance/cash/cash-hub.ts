@@ -96,7 +96,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
   protected readonly channelOptions = CHANNEL_OPTIONS;
   protected readonly currencyOptions = CURRENCY_OPTIONS;
 
-  protected readonly action = moneySubmission<CashTransferRequest>();
+  protected readonly action = moneySubmission<CashTransferRequest>({ scope: () => 'kasa-virman' });
   protected readonly form = new FormGroup({
     kaynak: new FormControl<AccountKind | null>('Kasa', Validators.required),
     kaynakHesapId: new FormControl<string | null>(null),
@@ -124,6 +124,8 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     this.accounts.load();
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     clearAccountOnKindChange(

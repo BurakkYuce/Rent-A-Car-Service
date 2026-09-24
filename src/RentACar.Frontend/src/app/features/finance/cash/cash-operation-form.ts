@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  type OnInit,
   booleanAttribute,
   computed,
   effect,
@@ -50,7 +51,7 @@ export type CashOperationKind = 'tahsilat' | 'odeme';
   templateUrl: './cash-operation-form.html',
   styleUrl: '../finance.scss',
 })
-export class CashOperationForm {
+export class CashOperationForm implements OnInit {
   readonly cariId = input.required<string>();
   readonly kind = input.required<CashOperationKind>();
   /** Güncel cari bakiyesi (sunucu; pozitif = müşteri borçlu) — tahsilat önerisi için. */
@@ -65,7 +66,9 @@ export class CashOperationForm {
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
   protected readonly accounts = inject(AccountList);
-  protected readonly action = moneySubmission<CollectionRequest>();
+  protected readonly action = moneySubmission<CollectionRequest>({
+    scope: () => `nakit-${this.kind()}:${this.cariId()}`,
+  });
   private prefillAllowed = true;
 
   protected readonly form = new FormGroup({
@@ -117,6 +120,11 @@ export class CashOperationForm {
         c.setValue(this.prefillAllowed ? suggested : null);
       });
     });
+  }
+
+  ngOnInit(): void {
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
   }
 
   /** Sonucu bilinmeyen işlem var mı (sayfa terk koruması). */

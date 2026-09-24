@@ -76,7 +76,9 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
   );
   protected readonly kindOptions = kindOptions(this.t);
   protected readonly channelOptions = CHANNEL_OPTIONS;
-  protected readonly action = moneySubmission<CloseItemsRequest>();
+  protected readonly action = moneySubmission<CloseItemsRequest>({
+    scope: () => `tek-cari:${this.cariId() ?? ''}`,
+  });
 
   protected readonly items = new TemelStore(
     (id: string) => this.api.get<CustomerOpenItems>(customerPath(id, '/acik-kalemler')),
@@ -99,6 +101,22 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen kapatma (sayfa kapanıp açıldıysa) AYNI seçimle + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form, (value) => {
+      const v = value as ReturnType<typeof this.form.getRawValue>;
+      const rows = this.form.controls.rows;
+      for (const id of Object.keys(v.rows))
+        if (!rows.controls[id])
+          rows.addControl(
+            id,
+            new FormGroup({
+              secili: new FormControl<boolean | null>(false),
+              tutar: new FormControl<string | null>(null),
+            }),
+            { emitEvent: false },
+          );
+      this.form.reset(v, { emitEvent: false });
+    });
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
       if (c && c.id !== this.cariId()) this.cariId.set(c.id);
     });

@@ -46,7 +46,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly accounts = inject(AccountList);
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly kindOptions = kindOptions(this.t);
-  protected readonly action = moneySubmission<object>();
+  protected readonly action = moneySubmission<object>({ scope: () => 'depozito' });
   protected readonly operations: readonly DepositOperation[] = ['al', 'iade', 'mahsup', 'irat'];
 
   protected readonly balances = new TemelStore(() =>
@@ -66,6 +66,8 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     this.accounts.load();
     clearAccountOnKindChange(this.accounts, this.form.controls.hesap, this.form.controls.hesapId);
     inject(FetchPolicy).baglan({

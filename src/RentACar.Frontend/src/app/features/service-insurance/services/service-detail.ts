@@ -45,7 +45,6 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 
 import { planText } from '../service-insurance-columns';
 import { lineNetAmount } from '../money-math';
@@ -91,7 +90,6 @@ type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
     Alan,
     AramaSecim,
     FormHatalari,
-    Ikon,
     MetinGirdisi,
     ParaGirdisi,
     ParaPipe,
