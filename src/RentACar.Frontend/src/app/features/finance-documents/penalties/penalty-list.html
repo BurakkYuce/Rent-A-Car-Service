@@ -1,0 +1,261 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finansBelge.ceza.baslik' | transloco }}</h1>
+    @if (canCreate()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [attr.aria-expanded]="createOpen()"
+          aria-controls="rc-yeni-ceza"
+          (click)="toggleCreate()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ 'finansBelge.ceza.yeni' | transloco }}
+        </button>
+      </div>
+    }
+  </header>
+
+  @if (canCreate() && createOpen()) {
+    <rc-penalty-create-form
+      [types]="store.types.veri()?.kayitlar"
+      (saved)="created()"
+      (dirtyChange)="dirtyChanged('yeni', $event)"
+    />
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'finansBelge.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan
+        [etiket]="'finansBelge.ceza.musteri' | transloco"
+        [ipucu]="'finansBelge.ceza.musteriIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="musteri" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.makbuzNo' | transloco">
+        <rc-metin-girdisi formControlName="makbuzNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.tebligMin' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.tebligMax' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.cezaDurumu' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.odemeDurumu' | transloco">
+        <rc-secim
+          formControlName="odemeDurumu"
+          [secenekler]="paymentOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.islemSube' | transloco">
+        <rc-metin-girdisi formControlName="islemSube" [azamiUzunluk]="128" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'finansBelge.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'finansBelge.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="cezalar.liste"
+    [etiket]="'finansBelge.ceza.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export()"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (satirAc)="open($event)"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rc-rozet">{{ statusLabel(satir.durum) }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="pending.inFlight()"
+          (click)="open(satir)"
+        >
+          {{ 'finansBelge.detay' | transloco }}
+        </button>
+        @if (canReflect(satir)) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="reflect(satir)"
+          >
+            {{ 'finansBelge.ceza.yansit' | transloco }}
+          </button>
+        }
+        @if (canCancelRow(satir)) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="cancel(satir)"
+          >
+            {{ 'finansBelge.ceza.iptal' | transloco }}
+          </button>
+        }
+      </span>
+    </ng-template>
+  </rc-tablo>
+
+  @if (selectedId()) {
+    <section class="bolum" aria-labelledby="rc-ceza-detay">
+      @if (store.detail.veri(); as d) {
+        <h2 id="rc-ceza-detay">
+          {{
+            'finansBelge.ceza.detayBaslik'
+              | transloco: { no: d.ceza.no, durum: statusLabel(d.ceza.durum) }
+          }}
+        </h2>
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'finansBelge.ceza.tur' | transloco }}</dt>
+            <dd>{{ d.ceza.cezaTuru }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.ceza.musteri' | transloco }}</dt>
+            <dd>{{ d.ceza.cariAd ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.arac' | transloco }}</dt>
+            <dd>{{ d.ceza.plaka ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.ceza.teblig' | transloco }}</dt>
+            <dd>{{ d.ceza.tebligTarihi | tarih }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.ceza.cepTel' | transloco }}</dt>
+            <dd>{{ d.cepTel ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.tutar' | transloco }}</dt>
+            <dd>{{ num(d.ceza.tutar) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.kalan' | transloco }}</dt>
+            <dd>{{ num(d.ceza.kalan) | para }}</dd>
+          </div>
+        </dl>
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <caption class="rc-gorunmez">
+              {{
+                'finansBelge.ceza.kalemler' | transloco
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">{{ 'finansBelge.ceza.sebep' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.odenen' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.kalan' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (k of d.kalemler; track k.id) {
+                <tr>
+                  <td>{{ k.sira }}</td>
+                  <td>{{ k.sebep ?? '—' }}</td>
+                  <td class="num">{{ num(k.tutar) | para }}</td>
+                  <td class="num">{{ num(k.odenen) | para }}</td>
+                  <td class="num">{{ num(k.kalan) | para }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (d.odemeler.length > 0) {
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <caption class="rc-gorunmez">
+                {{
+                  'finansBelge.ceza.odemeler' | transloco
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'finansBelge.ceza.odemeTarihi' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.ceza.kalem' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.hesap' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.ceza.makbuzNo' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of d.odemeler; track o.id) {
+                  <tr>
+                    <td>{{ o.tarih | tarih }}</td>
+                    <td>{{ o.sira }}</td>
+                    <td class="num">{{ num(o.tutar) | para }}</td>
+                    <td>{{ o.hesap }}</td>
+                    <td>{{ o.makbuzNo ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        @if (canFinance() && d.ceza.durum !== 'Iptal') {
+          @for (p of [d]; track p.ceza.id) {
+            <rc-penalty-payment-form
+              [detail]="p"
+              (paid)="paymentDone()"
+              (dirtyChange)="dirtyChanged('odeme', $event)"
+            />
+          }
+        }
+        <div class="form__eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="pending.inFlight()"
+            (click)="closeDetail()"
+          >
+            {{ 'finansBelge.kapat' | transloco }}
+          </button>
+        </div>
+      } @else if (store.detail.yukleniyor()) {
+        <p class="not" id="rc-ceza-detay" aria-busy="true">
+          {{ 'finansBelge.yukleniyor' | transloco }}
+        </p>
+      }
+    </section>
+  }
+</div>
