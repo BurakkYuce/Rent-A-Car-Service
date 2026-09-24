@@ -31,6 +31,20 @@ export const REPORT_ROUTE_TABLE: readonly (readonly [
   ['karlilik', 'Araç Kârlılığı', 'vr'],
   ['ek-hizmet', 'Ek Hizmet Raporu', 'vr'],
   ['gunluk', 'Günlük Faaliyet', 'vr'],
+  ['arac-karne', 'Araç Karnesi', 'vr'],
+  ['filo-analiz', 'Filo Analiz', 'vr'],
+  ['filo', 'Filo Durumu', 'vr'],
+  ['doluluk', 'Doluluk Raporu', 'vr'],
+  ['arac-gunluk-durum', 'Araç Günlük Durum', 'vr'],
+  ['servis-ozet', 'Servis Maliyet Özeti', 'vr'],
+  ['rezervasyon-kaynak', 'Rezervasyon Kaynakları', 'vr'],
+  ['otomatik-servisler', 'Otomatik Servisler', 'vr'],
+  ['arac-durum-takip', 'Araç Durum Takip', 'ops'],
+  ['km-detay', 'Km Detay', 'ops'],
+  ['periyodik-servis', 'Periyodik Servis', 'ops'],
+  ['sigorta-muayene', 'Sigorta / Muayene', 'ops'],
+  ['karsilastirmali-analiz', 'Karşılaştırmalı Analiz', 'ops'],
+  ['personel-calisma', 'Personel Çalışma Tablosu', 'ops'],
 ];
 
 function route([code, title, access]: (typeof REPORT_ROUTE_TABLE)[number]): Route {

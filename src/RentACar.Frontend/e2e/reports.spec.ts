@@ -46,7 +46,39 @@ const PROFIT: VitrinSayfasi = {
     await expect(page.getByRole('link', { name: '34 ABC 123' })).toBeVisible();
   },
 };
-const PAGES = [INCOME, CASH, BALANCE, PROFIT];
+const SCORECARD: VitrinSayfasi = {
+  ad: 'rapor-arac-karne',
+  yol: `/app/raporlar/arac-karne/${VEHICLE_1}`,
+  baslik: 'Araç Karnesi',
+  hazir: async (page) => {
+    await expect(page.getByRole('heading', { name: 'Olay çizelgesi' })).toBeVisible();
+  },
+};
+const TRACKING: VitrinSayfasi = {
+  ad: 'rapor-arac-durum-takip',
+  yol: '/app/raporlar/arac-durum-takip',
+  baslik: 'Araç Durum Takip',
+  hazir: async (page) => {
+    await expect(page.getByRole('heading', { name: 'Gün kırılımı' })).toBeVisible();
+  },
+};
+const COMPARE: VitrinSayfasi = {
+  ad: 'rapor-karsilastirmali',
+  yol: '/app/raporlar/karsilastirmali-analiz',
+  baslik: 'Karşılaştırmalı Analiz',
+  hazir: async (page) => {
+    await expect(page.getByRole('columnheader', { name: '2026-09' })).toBeVisible();
+  },
+};
+const SHIFTS: VitrinSayfasi = {
+  ad: 'rapor-personel-calisma',
+  yol: '/app/raporlar/personel-calisma',
+  baslik: 'Personel Çalışma Tablosu',
+  hazir: async (page) => {
+    await expect(page.getByRole('cell', { name: '09:00–17:00' })).toBeVisible();
+  },
+};
+const PAGES = [INCOME, CASH, BALANCE, PROFIT, SCORECARD, TRACKING, COMPARE, SHIFTS];
 
 test.beforeEach(async ({ page }) => {
   await oturumAc(page);
@@ -158,6 +190,63 @@ test('izinsiz kullanıcı rapor rotasına giremez', async ({ page }) => {
   await reportEndpoints(page);
   await page.goto(INCOME.yol);
   await expect(page).toHaveURL(/\/app\/?$/);
+});
+
+test('araç karnesi: kimlikli uç, özet + bölümler, export aracın bağlantısıyla', async ({
+  page,
+}) => {
+  const requests = await reportEndpoints(page);
+  await page.goto(SCORECARD.yol);
+  await hazirBekle(page, SCORECARD);
+  expect(requests.at(-1)?.pathname).toBe(`/api/ui/v1/raporlar/arac-karne/${VEHICLE_1}`);
+  await expect(page.getByRole('definition').filter({ hasText: '-1.000,00 ₺' })).toHaveClass(/eksi/);
+  await expect(page.getByRole('cell', { name: 'Sözleşme 1' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Excel' })).toHaveAttribute(
+    'href',
+    `/raporlar/export/arac-karne?format=excel&vehicleId=${VEHICLE_1}`,
+  );
+});
+
+test('şube kapsamlı operatör: şube süzgeci sabit ve gönderilmez; araç görünümü gorunum=arac', async ({
+  page,
+}) => {
+  await oturumAc(page, {
+    ...BEN,
+    rol: 'Operator',
+    izinler: ['OperationsWrite'],
+    subeKapsami: {
+      tumSubeler: false,
+      subeId: 'e1e1e1e1-0000-4000-8000-000000000001',
+      subeAd: 'Merkez',
+    },
+  });
+  const requests = await reportEndpoints(page);
+  await page.goto(TRACKING.yol);
+  await hazirBekle(page, TRACKING);
+  const branch = page.getByRole('combobox', { name: 'Şube' });
+  await expect(branch).toBeDisabled();
+  await expect(branch).toHaveValue('Merkez');
+  expect(requests.at(-1)?.searchParams.get('gorunum')).toBe('gun');
+  expect(requests.at(-1)?.searchParams.has('sube')).toBe(false);
+  await page.getByRole('button', { name: 'Araç bazlı' }).click();
+  await expect.poll(() => requests.at(-1)?.searchParams.get('gorunum')).toBe('arac');
+  await expect(page.getByRole('gridcell', { name: '34 ABC 123' })).toBeVisible();
+  expect(requests.at(-1)?.searchParams.has('sube')).toBe(false);
+});
+
+test('dinamik sütunlar: karşılaştırmalı ay başlıkları + toplam satırı; vardiya matrisi + kırpma uyarısı', async ({
+  page,
+}) => {
+  await reportEndpoints(page);
+  await page.goto(COMPARE.yol);
+  await hazirBekle(page, COMPARE);
+  await expect(page.locator('tfoot')).toContainText('Toplam');
+  await expect(page.locator('tfoot')).toContainText('8');
+  await page.goto(SHIFTS.yol);
+  await hazirBekle(page, SHIFTS);
+  await expect(page.getByText('Tarih aralığı 92 günü aştığı için kırpıldı.')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: '21.09.2026' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Excel' })).toHaveCount(0);
 });
 
 for (const s of PAGES) {

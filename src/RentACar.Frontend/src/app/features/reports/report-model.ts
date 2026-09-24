@@ -113,7 +113,13 @@ export type ReportFilter<S, Q extends string = string> =
       readonly bosEtiket?: CeviriAnahtari;
     })
   | (FilterBase<Q> & { readonly tur: 'bayrak' })
-  | (FilterBase<Q> & { readonly tur: 'sayi'; readonly enAz?: number; readonly enFazla?: number })
+  | (FilterBase<Q> & {
+      readonly tur: 'sayi';
+      readonly enAz?: number;
+      readonly enFazla?: number;
+      /** Uç `int` bekliyor (ondalık gönderilmez). */
+      readonly tamsayi?: boolean;
+    })
   | (FilterBase<Q> & { readonly tur: 'arama'; readonly kaynak: SecimUcu })
   | (FilterBase<Q> & { readonly tur: 'liste'; readonly kaynak: ListSource })
   /** Şube adı: kapsamsız kullanıcıda seç-veya-yaz, şube kapsamlıda KENDİ şubesi (sabit, gönderilmez). */

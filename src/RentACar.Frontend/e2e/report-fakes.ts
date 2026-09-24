@@ -235,11 +235,182 @@ export async function reportEndpoints(page: Page, o: ReportFakeOptions = {}): Pr
         'Bu rapor firma genelidir; şube kapsamlı kullanıcıya kapalıdır.',
       );
     }
-    const body = bodies[key] ?? extraBodies[key];
+    const tracking =
+      key === 'arac-durum-takip'
+        ? url.searchParams.get('gorunum') === 'arac'
+          ? TRACKING_VEHICLES
+          : TRACKING_DAYS
+        : undefined;
+    const body = bodies[key] ?? extraBodies[key] ?? tracking;
     return body ? json(route, body) : problem(route, 404, 'bulunamadi', 'Rapor yok.');
   });
   return requests;
 }
 
-/** İkinci grup (filo/operasyon) sahteleri buraya eklenir. */
-export const extraBodies: Record<string, unknown> = {};
+const page1 = <T>(kayitlar: T[]) => ({
+  kayitlar,
+  toplam: kayitlar.length,
+  sayfaNo: 1,
+  boyut: 50,
+  toplamSayfa: 1,
+});
+
+export const SCORECARD = {
+  donem: period(),
+  ozet: {
+    baslik: {
+      vehicleId: VEHICLE_1,
+      plaka: '34 ABC 123',
+      marka: 'Fiat',
+      tip: 'Egea',
+      grup: 'Ekonomi',
+      segment: null,
+      sube: 'Merkez',
+      aracSahibi: null,
+      durum: 'Musait',
+      km: 45210,
+      alimBedeli: 800000,
+      alimTarihi: null,
+      ikinciElDeger: null,
+      filoGirisTarih: null,
+      filoCikisTarih: null,
+      sonBakimTarih: null,
+      sonBakimKm: null,
+    },
+    toplamGelir: 9000,
+    toplamGider: 3000,
+    toplamNetKar: 6000,
+    yillikPnl: [{ yil: 2026, gelir: 9000, gider: 3000, netKar: 6000 }],
+    gelirKaynak: [{ kategori: 'Kira', tutar: 9000, yuzdeGelir: 100 }],
+    giderKategori: [],
+    olaylar: [
+      {
+        tarih: '2026-09-01T09:00:00Z',
+        tur: 'Kira',
+        aciklama: 'Sözleşme 1',
+        tutar: 9000,
+        deftereYansir: true,
+      },
+    ],
+    kpi: {
+      sahiplikGun: 60,
+      kiralananGun: 37,
+      servisGun: 0,
+      bosGun: 23,
+      dolulukYuzde: 61.7,
+      revPacd: 150,
+      adr: 243.24,
+      kmBasinaMaliyet: null,
+      netMarjYuzde: 66.7,
+      roiYuzde: null,
+      geriOdemeAy: null,
+      tco: 803000,
+      gerceklesenAmortisman: null,
+      aylikAmortisman: null,
+      ekonomikKar: -1000,
+      toplamKatedilenKm: 3000,
+      kiraSayisi: 4,
+    },
+    maliyetModel: null,
+    tutSat: { sinyal: 0, gerekceler: [] },
+    basaBasGunluk: null,
+    kalinti: null,
+    donemKm: null,
+    donemKmMaliyet: null,
+    vadeler: [],
+    bakimKm: null,
+  },
+  export: links('arac-karne', `&vehicleId=${VEHICLE_1}`),
+};
+
+export const TRACKING_DAYS = {
+  donem: period(),
+  ozet: {
+    gorunum: 'gun',
+    gunler: [
+      { gun: '2026-09-23T00:00:00Z', toplamArac: 10, dolu: 6, bakim: 1, bos: 3, toplamBaf: 0 },
+    ],
+  },
+  satirlar: page1([]),
+  export: null,
+};
+
+export const TRACKING_VEHICLES = {
+  donem: period(),
+  ozet: { gorunum: 'arac', gunler: [] },
+  satirlar: page1([
+    {
+      vehicleId: VEHICLE_1,
+      plaka: '34 ABC 123',
+      sipp: null,
+      grup: 'Ekonomi',
+      sube: 'Merkez',
+      aracSahibi: null,
+      toplamGun: 30,
+      doluGun: 20,
+      bakimGun: 2,
+      bafGun: 0,
+      bosGun: 8,
+    },
+  ]),
+  export: null,
+};
+
+export const COMPARATIVE = {
+  donem: period(),
+  ozet: {
+    tablo: 'Kira',
+    veriTuru: 'Adet',
+    kirilim: 'AracGrubu',
+    ayAnahtarlari: ['2026-08', '2026-09'],
+    satirlar: [{ kirilim: 'Ekonomi', aylar: { '2026-08': 3, '2026-09': 5 }, toplam: 8 }],
+    ayToplamlari: [3, 5],
+    genelToplam: 8,
+  },
+  export: null,
+};
+
+export const SHIFTS = {
+  bas: '2026-09-21',
+  bit: '2026-09-22',
+  kirpildi: true,
+  gunler: ['2026-09-21', '2026-09-22'],
+  matris: [
+    {
+      personelId: 'f1f1f1f1-0000-4000-8000-000000000001',
+      personelAd: 'Ali Veli',
+      gunler: [
+        {
+          gun: '2026-09-21',
+          vardiyalar: [
+            {
+              id: 'f2f2f2f2-0000-4000-8000-000000000001',
+              personelId: 'f1f1f1f1-0000-4000-8000-000000000001',
+              personelAd: 'Ali Veli',
+              personelKadroSube: 'Merkez',
+              tarih: '2026-09-21',
+              baslangicSaat: '09:00:00',
+              bitisSaat: '17:00:00',
+              sureDk: 480,
+              aralik: '09:00–17:00',
+              sube: 'Merkez',
+              aciklama: null,
+            },
+          ],
+        },
+      ],
+      toplamDk: 480,
+      toplamSaatMetni: '8 sa',
+    },
+  ],
+  toplamVardiya: 1,
+  toplamDk: 480,
+  liste: [],
+};
+
+/** İkinci grup (filo/operasyon) sahteleri; `arac-durum-takip` sabit `gorunum` parametresine göre. */
+export const extraBodies: Record<string, unknown> = {
+  [`arac-karne/${VEHICLE_1}`]: SCORECARD,
+  'karsilastirmali-analiz': COMPARATIVE,
+  'personel-calisma': SHIFTS,
+};

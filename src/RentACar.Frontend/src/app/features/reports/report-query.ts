@@ -41,7 +41,7 @@ function catalogEntry(f: ReportFilter<unknown>): FiltreTanimi {
     case 'bayrak':
       return { tur: 'bayrak' };
     case 'sayi':
-      return { tur: 'ondalik' };
+      return f.tamsayi ? { tur: 'tamsayi', enAz: f.enAz, enFazla: f.enFazla } : { tur: 'ondalik' };
     case 'arama':
     case 'liste':
       return { tur: 'kimlik' };

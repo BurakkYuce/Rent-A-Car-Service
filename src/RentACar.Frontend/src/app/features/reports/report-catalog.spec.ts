@@ -29,7 +29,40 @@ const ENDPOINTS: Readonly<Record<string, readonly string[]>> = {
   karlilik: ['karlilik', 'karlilik/ozet'],
   'ek-hizmet': ['ek-hizmet', 'ek-hizmet/arac-pivot', 'ek-hizmet/detay'],
   gunluk: ['gunluk'],
+  'arac-karne': ['arac-karne/{id}'],
+  'filo-analiz': ['filo-analiz'],
+  filo: ['filo'],
+  doluluk: ['doluluk'],
+  'arac-gunluk-durum': ['arac-gunluk-durum'],
+  'servis-ozet': ['servis-ozet'],
+  'rezervasyon-kaynak': ['rezervasyon-kaynak'],
+  'otomatik-servisler': ['otomatik-servisler'],
+  'arac-durum-takip': ['arac-durum-takip', 'arac-durum-takip'],
+  'km-detay': ['km-detay'],
+  'periyodik-servis': ['periyodik-servis'],
+  'sigorta-muayene': ['sigorta-muayene'],
+  'karsilastirmali-analiz': ['karsilastirmali-analiz'],
+  'personel-calisma': ['personel-calisma'],
 };
+
+/** `ReportApi` `ops` grubu (OperationsWrite ∨ ViewReports); geri kalanı `vr`. */
+const OPS_GROUP = [
+  'arac-durum-takip',
+  'km-detay',
+  'periyodik-servis',
+  'sigorta-muayene',
+  'karsilastirmali-analiz',
+  'personel-calisma',
+];
+
+/** Uç `RequireFirmWide` ÇAĞIRMIYOR (şube kapsamı zorlanır/süzülür/serviste). */
+const NOT_FIRM_WIDE = [
+  'arac-durum-takip',
+  'km-detay',
+  'periyodik-servis',
+  'sigorta-muayene',
+  'personel-calisma',
+];
 
 /** C# `SiralamaHaritasi` alanları (uç → beyaz liste); sıralanabilir sütun yalnız bunlardan. */
 const SORT_WHITELIST: Readonly<Record<string, readonly string[]>> = {
@@ -51,11 +84,19 @@ const SORT_WHITELIST: Readonly<Record<string, readonly string[]>> = {
   'fatura-donem/kira-durum': ['basTar', 'sozlesmeNo', 'cari', 'plaka', 'faturalananTutar'],
   karlilik: ['plaka', 'gelir', 'gider', 'netKar', 'sube', 'grup', 'dolulukYuzde'],
   'ek-hizmet/detay': ['eklenmeTarihi', 'sozlesmeNo', 'ad', 'plaka', 'brut'],
+  'filo-analiz': ['plaka', 'gelir', 'gider', 'netKar', 'dolulukYuzde', 'roiYuzde', 'yasAy'],
+  'arac-gunluk-durum': ['plaka', 'sozlesmeNo', 'gunlukToplam', 'basTar'],
+  'servis-ozet': ['plaka', 'tip', 'toplam', 'adet'],
+  'otomatik-servisler': ['baslangic', 'jobAdi', 'sureMs'],
+  'arac-durum-takip': ['plaka', 'doluGun', 'bosGun', 'bakimGun', 'sube'],
+  'km-detay': ['sozlesmeNo', 'plaka', 'katedilenKm', 'fazlaKm', 'basTar'],
+  'periyodik-servis': ['plaka', 'kalanKm', 'guncelKm', 'sube'],
+  'sigorta-muayene': ['plaka', 'trafikBitis', 'kaskoBitis', 'muayeneBitis', 'mtvVade'],
 };
 
 /** Uç izin grubu (`vr` = ViewReports, `ops` = OperationsWrite ∨ ViewReports). */
 const ACCESS: Readonly<Record<string, 'vr' | 'ops'>> = Object.fromEntries(
-  Object.keys(ENDPOINTS).map((k) => [k, 'vr']),
+  Object.keys(ENDPOINTS).map((k) => [k, OPS_GROUP.includes(k) ? 'ops' : 'vr']),
 );
 
 const endpointOf = (uc: string) => uc.replace('/api/ui/v1/raporlar/', '');
@@ -72,7 +113,9 @@ describe('rapor kataloğu', () => {
     for (const r of REPORTS) {
       const expected = ACCESS[r.kod] === 'ops' ? OPS_OR_VIEW : VIEW_REPORTS;
       expect(r.izinler, r.kod).toEqual(expected);
+      expect(r.firmaGeneli, r.kod).toBe(!NOT_FIRM_WIDE.includes(r.kod));
     }
+    expect(REPORTS).toHaveLength(26);
     expect(
       Object.fromEntries(REPORT_ROUTE_TABLE.map(([code, , access]) => [code, access])),
     ).toEqual(ACCESS);

@@ -93,7 +93,7 @@
             }
             @case ('sayi') {
               <rc-alan [etiket]="f.baslik | transloco">
-                <rc-sayi-girdisi [formControlName]="controlName(f)" [kesir]="2" />
+                <rc-sayi-girdisi [formControlName]="controlName(f)" [kesir]="f.tamsayi ? 0 : 2" />
               </rc-alan>
             }
             @case ('arama') {
