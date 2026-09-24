@@ -38,7 +38,7 @@ public sealed class ReportExportService
         var sb = new StringBuilder();
         sb.Append(string.Join(",", headers.Select(Quote))).Append("\r\n");
         foreach (var row in rows)
-            sb.Append(string.Join(",", row.Select(c => Alan(Fmt(c))))).Append("\r\n");
+            sb.Append(string.Join(",", row.Select(Field))).Append("\r\n");
         // UTF-8 BOM elle eklenir (GetBytes preamble emit etmez) → Excel-TR Türkçe karakterleri doğru okur.
         var enc = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
         return [.. enc.GetPreamble(), .. enc.GetBytes(sb.ToString())];
@@ -72,6 +72,23 @@ public sealed class ReportExportService
         DateTime dt => dt.ToString("yyyy-MM-dd"),
         _ => v.ToString() ?? string.Empty
     };
+
+    /// <summary>
+    /// #308 L2 — CSV formül enjeksiyonu (CWE-1236): METİN değer <c>=</c>, <c>+</c>, <c>-</c>, <c>@</c>, sekme ya da CR ile
+    /// başlıyorsa Excel onu formül olarak çalıştırır (ör. müşteri adı <c>=HYPERLINK(…)</c>). Başına <c>'</c> eklenir.
+    /// Yalnız metin: sayı/tarih değerleri (negatif tutar <c>-50.00</c> dahil) tipten biçimlenir ve dokunulmaz; 11+ haneli
+    /// rakam dizesi kuralı (<see cref="Alan"/>) rakamla başladığı için etkilenmez.
+    /// </summary>
+    private static string Field(object? value)
+    {
+        var s = Fmt(value);
+        return value is null or decimal or double or float or int or long or short or DateTimeOffset or DateTime
+            ? Alan(s)
+            : Alan(NeutralizeFormula(s));
+    }
+
+    private static string NeutralizeFormula(string s)
+        => s.Length > 0 && s[0] is '=' or '+' or '-' or '@' or '\t' or '\r' ? "'" + s : s;
 
     private static string Quote(string s)
         => s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r')

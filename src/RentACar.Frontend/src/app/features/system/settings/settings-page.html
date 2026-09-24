@@ -53,6 +53,11 @@
               [yerTutucu]="secretPlaceholder('eFaturaSifre')"
             />
           </rc-alan>
+          @if (secretSet().eFaturaSifre) {
+            <rc-onay-kutusu [formControlName]="clearFlags.eFaturaSifre">
+              {{ 'sistem.ayarlar.sirSil' | transloco }}
+            </rc-onay-kutusu>
+          }
           <rc-alan [etiket]="'sistem.ayarlar.alan.smsBaslik' | transloco">
             <rc-metin-girdisi formControlName="smsBaslik" [azamiUzunluk]="64" />
           </rc-alan>
@@ -65,6 +70,11 @@
               [yerTutucu]="secretPlaceholder('smsApiKey')"
             />
           </rc-alan>
+          @if (secretSet().smsApiKey) {
+            <rc-onay-kutusu [formControlName]="clearFlags.smsApiKey">
+              {{ 'sistem.ayarlar.sirSil' | transloco }}
+            </rc-onay-kutusu>
+          }
           <rc-alan [etiket]="'sistem.ayarlar.alan.posMerchantId' | transloco">
             <rc-metin-girdisi formControlName="posMerchantId" [azamiUzunluk]="128" />
           </rc-alan>
@@ -77,6 +87,11 @@
               [yerTutucu]="secretPlaceholder('posApiKey')"
             />
           </rc-alan>
+          @if (secretSet().posApiKey) {
+            <rc-onay-kutusu [formControlName]="clearFlags.posApiKey">
+              {{ 'sistem.ayarlar.sirSil' | transloco }}
+            </rc-onay-kutusu>
+          }
         </div>
       </section>
 
@@ -200,6 +215,11 @@
               [yerTutucu]="secretPlaceholder('smtpSifre')"
             />
           </rc-alan>
+          @if (secretSet().smtpSifre) {
+            <rc-onay-kutusu [formControlName]="clearFlags.smtpSifre">
+              {{ 'sistem.ayarlar.sirSil' | transloco }}
+            </rc-onay-kutusu>
+          }
           <rc-alan [etiket]="'sistem.ayarlar.alan.smtpGonderenAdres' | transloco">
             <rc-metin-girdisi
               formControlName="smtpGonderenAdres"

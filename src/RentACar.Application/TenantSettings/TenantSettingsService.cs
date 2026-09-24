@@ -211,13 +211,15 @@ public sealed class TenantSettingsService(
         static bool Changed(string? current, string? next) =>
             !string.Equals(current?.Trim() ?? "", next?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
 
-        if (!string.IsNullOrEmpty(s.SmtpSifreEnc) && string.IsNullOrWhiteSpace(m.SmtpSifre) && !string.IsNullOrWhiteSpace(m.SmtpHost)
+        // Sır aynı istekte açıkça siliniyorsa (*Temizle) yeni hedefe gidecek kayıtlı sır kalmaz → kural uygulanmaz.
+        if (!string.IsNullOrEmpty(s.SmtpSifreEnc) && string.IsNullOrWhiteSpace(m.SmtpSifre) && !m.SmtpSifreTemizle
+            && !string.IsNullOrWhiteSpace(m.SmtpHost)
             && (Changed(s.SmtpHost, m.SmtpHost) || s.SmtpPort != m.SmtpPort || Changed(s.SmtpKullanici, m.SmtpKullanici)))
             throw new ValidationException("SMTP şifresi: sunucu, port ya da kullanıcı değişince şifre yeniden girilmelidir.");
-        if (!string.IsNullOrEmpty(s.EFaturaSifreEnc) && string.IsNullOrWhiteSpace(m.EFaturaSifre)
+        if (!string.IsNullOrEmpty(s.EFaturaSifreEnc) && string.IsNullOrWhiteSpace(m.EFaturaSifre) && !m.EFaturaSifreTemizle
             && !string.IsNullOrWhiteSpace(m.EFaturaKullanici) && Changed(s.EFaturaKullanici, m.EFaturaKullanici))
             throw new ValidationException("e-Fatura şifresi: kullanıcı değişince şifre yeniden girilmelidir.");
-        if (!string.IsNullOrEmpty(s.PosApiKeyEnc) && string.IsNullOrWhiteSpace(m.PosApiKey)
+        if (!string.IsNullOrEmpty(s.PosApiKeyEnc) && string.IsNullOrWhiteSpace(m.PosApiKey) && !m.PosApiKeyTemizle
             && !string.IsNullOrWhiteSpace(m.PosMerchantId) && Changed(s.PosMerchantId, m.PosMerchantId))
             throw new ValidationException("POS API anahtarı: üye işyeri no değişince anahtar yeniden girilmelidir.");
     }
@@ -239,9 +241,10 @@ public sealed class TenantSettingsService(
             s.SmsBaslik = Trim(m.SmsBaslik);
             s.PosMerchantId = Trim(m.PosMerchantId);
             // Sır: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR.
-            s.EFaturaSifreEnc = Secret(m.EFaturaSifre, s.EFaturaSifreEnc);
-            s.SmsApiKeyEnc = Secret(m.SmsApiKey, s.SmsApiKeyEnc);
-            s.PosApiKeyEnc = Secret(m.PosApiKey, s.PosApiKeyEnc);
+            // Silme yalnız açık *Temizle bayrağıyla (cipher null → varlık Update denetim kaydına düşer).
+            s.EFaturaSifreEnc = Secret(m.EFaturaSifre, s.EFaturaSifreEnc, m.EFaturaSifreTemizle);
+            s.SmsApiKeyEnc = Secret(m.SmsApiKey, s.SmsApiKeyEnc, m.SmsApiKeyTemizle);
+            s.PosApiKeyEnc = Secret(m.PosApiKey, s.PosApiKeyEnc, m.PosApiKeyTemizle);
             // roadmap M1 — görünüm/operasyon (düz) + SMTP (host/port/user düz, şifre Enc)
             s.LogoUrl = Trim(m.LogoUrl);
             s.VarsayilanDoviz = string.IsNullOrWhiteSpace(m.VarsayilanDoviz) ? null : m.VarsayilanDoviz.Trim().ToUpperInvariant();
@@ -290,7 +293,7 @@ public sealed class TenantSettingsService(
             s.SmtpHost = Trim(m.SmtpHost);
             s.SmtpPort = m.SmtpPort;
             s.SmtpKullanici = Trim(m.SmtpKullanici);
-            s.SmtpSifreEnc = Secret(m.SmtpSifre, s.SmtpSifreEnc);
+            s.SmtpSifreEnc = Secret(m.SmtpSifre, s.SmtpSifreEnc, m.SmtpSifreTemizle);
             s.SmtpSsl = m.SmtpSsl;
             s.SmtpGonderenAdres = Trim(m.SmtpGonderenAdres);
             s.SmtpGonderenAd = Trim(m.SmtpGonderenAd);
@@ -329,8 +332,15 @@ public sealed class TenantSettingsService(
     public Task<IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim>> ListWhatsAppGonderimAsync(int n = 7, CancellationToken ct = default)
         => repository.ListWhatsAppGonderimAsync(n, ct);
 
-    private string? Secret(string? yeni, string? mevcutCipher)
-        => string.IsNullOrWhiteSpace(yeni) ? mevcutCipher : secrets.Protect(yeni.Trim());
+    /// <summary>
+    /// Sır kuralı: dolu değer → şifrelenip yazılır (bayraktan üstün); boş + <paramref name="clear"/> → silinir (null);
+    /// boş + bayraksız → mevcut cipher korunur. "" ile null aynı anlamdadır ("koru"); silme yalnız açık bayrakla.
+    /// </summary>
+    private string? Secret(string? value, string? currentCipher, bool clear)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) return secrets.Protect(value.Trim());
+        return clear ? null : currentCipher;
+    }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

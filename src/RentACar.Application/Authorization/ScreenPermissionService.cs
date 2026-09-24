@@ -30,7 +30,9 @@ public sealed class ScreenPermissionService(
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         var kod = Normalize(ekranKodu);
         if (kod.Length == 0) throw new ValidationException("Ekran kodu zorunludur.");
-        var csv = string.Join(",", roller.Distinct().Select(r => r.ToString()));
+        var roles = roller.Distinct().ToArray();
+        await RequireAdminIfAdminAccessChangesAsync(kod, aktif ? roles : null, ct);
+        var csv = string.Join(",", roles.Select(r => r.ToString()));
         await _repository.UpsertAsync(kod, s =>
         {
             s.EkranKodu = kod;
@@ -43,6 +45,7 @@ public sealed class ScreenPermissionService(
     public async Task<bool> RemoveAsync(string ekranKodu, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        await RequireAdminIfAdminAccessChangesAsync(Normalize(ekranKodu), null, ct);
         return await _repository.DeleteAsync(Normalize(ekranKodu), ct);
     }
 
@@ -55,6 +58,8 @@ public sealed class ScreenPermissionService(
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         if (kaynak == hedef) throw new ValidationException("Kaynak ve hedef rol farklı olmalıdır.");
+        // Admin'e ekran eklemek Admin'in erişimine dokunmaktır → yalnız Admin rolü (#304 L3).
+        if (hedef == UserRole.Admin) RequireAdminRole();
 
         var sayac = 0;
         foreach (var s in await _repository.ListAsync(ct))
@@ -107,14 +112,18 @@ public sealed class ScreenPermissionService(
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         var g = await _grup.FindByAdAsync(ad.Trim(), ct)
             ?? throw new ValidationException($"Şablon bulunamadı: {ad}.");
-        var kalemler = JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [];
+        var kalemler = (JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [])
+            .Select(k => (k.Ekran, Roller: k.Roller
+                .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var ur) && Enum.IsDefined(ur) ? (UserRole?)ur : null)
+                .Where(r => r is not null).Select(r => r!.Value).Distinct().ToArray()))
+            .ToList();
+        // #304 L3: Admin erişimini değiştiren kalem varsa HİÇBİR kalem yazılmadan reddedilir (yarım uygulama yok).
+        foreach (var k in kalemler)
+            await RequireAdminIfAdminAccessChangesAsync(Normalize(k.Ekran), k.Roller, ct);
         var sayac = 0;
         foreach (var k in kalemler)
         {
-            var roller = k.Roller
-                .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var ur) && Enum.IsDefined(ur) ? (UserRole?)ur : null)
-                .Where(r => r is not null).Select(r => r!.Value).ToArray();
-            await SetAsync(k.Ekran, roller, ct: ct); // ManageUsers guard + Normalize; override yazar (floor'u değiştirmez)
+            await SetAsync(k.Ekran, k.Roller, ct: ct); // ManageUsers guard + Normalize; override yazar (floor'u değiştirmez)
             sayac++;
         }
         return sayac;
@@ -139,6 +148,26 @@ public sealed class ScreenPermissionService(
     {
         if (!await IsScreenAllowedAsync(ekranKodu, permission, ct))
             throw new YetkiYokException($"Bu ekran için yetkiniz yok ({Normalize(ekranKodu)}).");
+    }
+
+    /// <summary>
+    /// #304 L3 — Admin'in bir ekrana erişimini değiştiren (override'dan Admin'i çıkaran ya da ekleyen, Admin'i dışlayan
+    /// override'ı silen/pasifleştiren) yazım yalnız Admin rolüne açıktır. ManageUsers istisnası almış Yönetici kendi
+    /// üstündeki rolü kilitleyemez. <paramref name="newRoles"/> null = override etkisiz (silinmiş/pasif; Admin erişimli).
+    /// </summary>
+    private async Task RequireAdminIfAdminAccessChangesAsync(string code, IReadOnlyCollection<UserRole>? newRoles, CancellationToken ct)
+    {
+        if (_currentUser.Role == UserRole.Admin) return;
+        var current = await _repository.FindByKodAsync(code, ct);
+        var adminBefore = current is not { Aktif: true } || ParseRoles(current.AllowedRolesCsv).Contains(UserRole.Admin);
+        var adminAfter = newRoles is null || newRoles.Contains(UserRole.Admin);
+        if (adminBefore != adminAfter) RequireAdminRole();
+    }
+
+    private void RequireAdminRole()
+    {
+        if (_currentUser.Role != UserRole.Admin)
+            throw new YetkiYokException("Admin rolünün ekran erişimini yalnız Admin değiştirebilir.");
     }
 
     private static string Normalize(string? s) => (s ?? string.Empty).Trim().ToLowerInvariant();

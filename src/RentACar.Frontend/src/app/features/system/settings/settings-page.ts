@@ -18,6 +18,7 @@ import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { Sema } from '@core/api/ui-tipleri';
 import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
@@ -33,11 +34,13 @@ import { mergeServerValues } from '../shared/version-merge';
 import {
   COLOR_FIELDS,
   PRICE_TYPES,
+  SECRET_CLEAR_FLAGS,
   SECRET_FLAGS,
   SETTINGS_FIELDS,
   SMTP_PORTS,
   type SecretField,
   type SettingsDto,
+  secretsToClear,
   settingsBody,
   settingsFormValue,
   settingsServerValues,
@@ -100,19 +103,25 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
 export class SettingsPage {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(OnayServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly t = ceviriFonksiyonu();
 
-  protected readonly form = new FormGroup(
-    Object.fromEntries(
+  protected readonly form = new FormGroup({
+    ...(Object.fromEntries(
       SETTINGS_FIELDS.map((name) => {
         const max = MAX_LENGTH[name];
         return [name, new FormControl<unknown>(null, max ? [Validators.maxLength(max)] : [])];
       }),
-    ) as Record<string, FormControl<unknown>>,
-  );
+    ) as Record<string, FormControl<unknown>>),
+    // "Kayıtlı değeri sil" kutuları (yalnız sır kayıtlıyken görünür; kayıtta onay diyaloğu).
+    ...(Object.fromEntries(
+      Object.values(SECRET_CLEAR_FLAGS).map((flag) => [flag, new FormControl<unknown>(false)]),
+    ) as Record<string, FormControl<unknown>>),
+  });
+  protected readonly clearFlags = SECRET_CLEAR_FLAGS;
   protected readonly colorFields = COLOR_FIELDS;
   protected readonly maxLength = MAX_LENGTH;
 
@@ -169,8 +178,20 @@ export class SettingsPage {
     return this.t(this.secretSet()[field] ? 'sistem.ayarlar.sirKayitli' : 'sistem.ayarlar.sirBos');
   }
 
-  protected save(): void {
-    const body = settingsBody(this.form.getRawValue(), this.dto()?.surum);
+  protected async save(): Promise<void> {
+    const value = this.form.getRawValue();
+    const clearing = secretsToClear(value);
+    if (clearing.length > 0) {
+      const names = clearing.map((f) => this.t(`sistem.ayarlar.alan.${f}`)).join(', ');
+      const yes = await this.confirm.sor({
+        baslik: this.t('sistem.ayarlar.sirSilOnayBaslik'),
+        mesaj: this.t('sistem.ayarlar.sirSilOnayMesaj', { alanlar: names }),
+        onayEtiketi: this.t('sistem.ayarlar.sirSilOnayla'),
+        tehlikeli: true,
+      });
+      if (!yes) return;
+    }
+    const body = settingsBody(value, this.dto()?.surum);
     this.submit.gonder(
       this.form,
       (key) => this.api.put<SettingsDto>(ROOT, body, { islemAnahtari: key }),

@@ -90,6 +90,14 @@ public sealed class SettingsRequest
     public string? SmsApiKey { get; init; }
     public string? PosMerchantId { get; init; }
     public string? PosApiKey { get; init; }
+    /// <summary>true: kayıtlı e-Fatura şifresi silinir (aynı istekte <c>eFaturaSifre</c> doluysa o yazılır).</summary>
+    public bool EFaturaSifreTemizle { get; init; }
+    /// <summary>true: kayıtlı SMS API anahtarı silinir (aynı istekte <c>smsApiKey</c> doluysa o yazılır).</summary>
+    public bool SmsApiKeyTemizle { get; init; }
+    /// <summary>true: kayıtlı POS API anahtarı silinir (aynı istekte <c>posApiKey</c> doluysa o yazılır).</summary>
+    public bool PosApiKeyTemizle { get; init; }
+    /// <summary>true: kayıtlı SMTP şifresi silinir (aynı istekte <c>smtpSifre</c> doluysa o yazılır).</summary>
+    public bool SmtpSifreTemizle { get; init; }
     public string? LogoUrl { get; init; }
     public string? VarsayilanDoviz { get; init; }
     public decimal? VarsayilanKdvOrani { get; init; }

@@ -31970,6 +31970,10 @@ export interface components {
       smsApiKey?: null | string;
       posMerchantId?: null | string;
       posApiKey?: null | string;
+      eFaturaSifreTemizle?: boolean;
+      smsApiKeyTemizle?: boolean;
+      posApiKeyTemizle?: boolean;
+      smtpSifreTemizle?: boolean;
       logoUrl?: null | string;
       varsayilanDoviz?: null | string;
       /** Format: double */

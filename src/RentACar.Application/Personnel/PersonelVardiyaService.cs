@@ -146,6 +146,27 @@ public sealed class PersonelVardiyaService(
         return new VardiyaSatir(row, name, staff?.Sube);
     }
 
+    /// <summary>
+    /// #302 L2 — the shift and its version as ONE consistent pair (TOCTOU fix). The version is read BEFORE the row and
+    /// compared again AFTER it; a write in between retries the read. If it keeps changing, the OLDER version is returned
+    /// with the row: a later PUT then gets 409 <c>cakisma</c> (safe direction) instead of a fresh version paired with
+    /// stale fields, which would let the stale form silently overwrite the concurrent change.
+    /// </summary>
+    public async Task<(VardiyaSatir Row, string Version)?> GetWithStaffAndVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        PermissionGuard.RequireAny(_currentUser, Permission.ViewReports, Permission.OperationsWrite);
+        var store = RowVersionStoreGuard.Require(rowVersions);
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            var before = await store.GetVersionAsync<PersonelVardiya>(id, ct);
+            if (before is null) return null;
+            if (await GetWithStaffAsync(id, ct) is not { } row) return null;
+            var after = await store.GetVersionAsync<PersonelVardiya>(id, ct);
+            if (after == before || attempt == maxAttempts) return (row, before);
+        }
+    }
+
     /// <summary>F10.3 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
     public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
         => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<PersonelVardiya>(id, ct);
@@ -225,11 +246,16 @@ public sealed class PersonelVardiyaService(
     {
         var (yBas, yBit) = VardiyaZaman.Aralik(input.Tarih, input.BaslangicSaat, input.BitisSaat);
         var komsular = await _repository.ListForOverlapAsync(input.PersonelId, input.Tarih, excludeId, ct);
+        var scope = BranchScope.EffectiveFilter(_currentUser);
         foreach (var v in komsular)
         {
             var (bas, bit) = VardiyaZaman.Aralik(v.Tarih, v.BaslangicSaat, v.BitisSaat);
-            if (yBas < bit && bas < yBit)      // yarı-açık aralık: 08-12 ile 12-18 ÇAKIŞMAZ
+            if (!(yBas < bit && bas < yBit)) continue;      // yarı-açık aralık: 08-12 ile 12-18 ÇAKIŞMAZ
+            // #302 L1: çakışan satır kapsam dışı bir şubedeyse tarih/saati sızdırılmaz — yalnız çakışma bilgisi.
+            if (!BranchScope.InScope(scope, v.SubeId, v.Sube))
                 throw new ValidationException(
+                    "Bu personelin bu saatlerde başka bir şubede vardiyası var.", "baslangicSaat");
+            throw new ValidationException(
                     $"{personel.Ad} {personel.Soyad} için çakışan vardiya var: " +
                     $"{v.Tarih:dd.MM.yyyy} {VardiyaBicim.Aralik(v)}.",
                     // F10.3: the message starts with the staff name (no fixed prefix to map in the endpoint),
