@@ -13,7 +13,7 @@
 47 sayfanın 47'si SPA'da (tembel rota, aynı yol): 21 genel tanım (`DEFINITION_PATHS`), 9 özel tanım/KVKK ekranı
 (`definitions.routes.ts`: araç grupları, rezervasyon kaynakları, personel, içe aktar, şubeler, doluluk kuralları,
 dokümanlar, firma belgeleri, takvim aboneliği) ve 17 sistem/web ekranı (`system.routes.ts`). **Taşınmamış F11 ekranı
-yok.** `/tarife-aktar` (Import klasöründe) F11 envanterinde değil; Blazor'da kalır ve haritaya girmez.
+yok.** `/tarife-aktar` (Import klasöründe) F11 envanterinde değil; F9'un sayfasıdır (F9.3 kesişi #310).
 
 ## Özet
 

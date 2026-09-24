@@ -141,12 +141,14 @@ public sealed class MenuKaydiTests
             "/app/vites-turleri", "/app/web-sitesi", "/app/yakit-turleri", "/app/yetki",
         ];
         Assert.Equal(43, f11.Length);
+        // F9.3: Servis & Sigorta (3) + Fiyat & Tarife (11) gruplarının tamamı + grupsuz Vade Panosu (15).
         Assert.Equal(new[]
             {
                 "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
-                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/cariler",
-                "/app/crm", "/app/filo-kiralama", "/app/filo-plan", "/app/hasar", "/app/hukuk", "/app/kiralar",
-                "/app/kiralar/yeni", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
+                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/broker-yasaklari",
+                "/app/cariler", "/app/crm", "/app/ek-hizmetler", "/app/filo-kiralama", "/app/filo-plan", "/app/fiyat-hesapla",
+                "/app/hasar", "/app/hukuk", "/app/kira-kurallari", "/app/kiralar", "/app/kiralar/yeni", "/app/maliyet-hesapla",
+                "/app/maliyet-teklifleri", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
                 "/app/raporlar/arac-durum-takip", "/app/raporlar/arac-gunluk-durum", "/app/raporlar/cari-bakiye",
                 "/app/raporlar/doluluk", "/app/raporlar/ek-hizmet", "/app/raporlar/extre-ozeti", "/app/raporlar/fatura-donem",
                 "/app/raporlar/filo", "/app/raporlar/filo-analiz", "/app/raporlar/finans-analiz", "/app/raporlar/gelir-gider",
@@ -154,9 +156,11 @@ public sealed class MenuKaydiTests
                 "/app/raporlar/kasa-banka", "/app/raporlar/kdv-listesi", "/app/raporlar/km-detay",
                 "/app/raporlar/otomatik-servisler", "/app/raporlar/periyodik-servis", "/app/raporlar/personel-calisma",
                 "/app/raporlar/rezervasyon-kaynak", "/app/raporlar/servis-ozet", "/app/raporlar/sigorta-muayene",
-                "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi",
+                "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi", "/app/regulasyon",
                 "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/segmentler", "/app/segmentler",
-                "/app/sikayetler", "/app/takvim", "/app/teklifler",
+                "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler", "/app/takvim",
+                "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler", "/app/teklifler",
+                "/app/vade",
             }.Concat(f11).OrderBy(r => r, StringComparer.Ordinal),
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
@@ -280,6 +284,11 @@ public sealed class MenuKaydiTests
         Assert.Contains("Raporlar|/raporlar/gunluk", YeniGorunur(Kullanici(UserRole.Operator, ek: ["ViewReports"])));
         Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["ViewReports"])),
             x => x.StartsWith("Raporlar|", StringComparison.Ordinal));
+        // F9.3: Servis & Sigorta ve Fiyat & Tarife spa öğeleri de izne bağlı; maliyet ekranları FinanceWrite ister.
+        Assert.DoesNotContain(yasak, x => x.StartsWith("Servis & Sigorta|", StringComparison.Ordinal));
+        Assert.DoesNotContain("Fiyat & Tarife|/tarifeler", yasak);
+        Assert.Contains("Fiyat & Tarife|/maliyet-hesapla", ek);
+        Assert.DoesNotContain("Fiyat & Tarife|/tarife-aktar", ek);   // ManageUsers
         // F11.3: Tanımlar spa öğeleri OperationsWrite'a, Sistem spa öğeleri ManageUsers'a bağlı.
         Assert.DoesNotContain("Tanımlar|/markalar", yasak);
         Assert.Contains("Tanımlar|/markalar", YeniGorunur(Kullanici(UserRole.Muhasebe, ek: ["OperationsWrite"])));
@@ -287,7 +296,7 @@ public sealed class MenuKaydiTests
         Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Admin, yasak: ["ManageUsers"])),
             x => x.StartsWith("Sistem|", StringComparison.Ordinal));
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
-        Assert.Contains("|/vade", yasak);
+        Assert.Contains("|/vade", yasak);            // F9.3: Vade Panosu spa öğesi grupsuz, izinsiz kalır
         Assert.Contains("|/bildirimler", yasak);     // F11.3: grupsuz spa öğesi izinsiz
     }
 }

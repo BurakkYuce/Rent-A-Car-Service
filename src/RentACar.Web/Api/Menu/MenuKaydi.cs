@@ -13,7 +13,8 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
 /// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
 /// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları; F10.3: Raporlar
-/// grubu; F11.3: Tanımlar, Web Sitesi ve Sistem grupları, Blog, Gelen Talepler ve Vade dışındaki grupsuz öğeler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// grubu; F9.3: Servis &amp; Sigorta ve Fiyat &amp; Tarife grupları + Vade Panosu; F11.3: Tanımlar, Web Sitesi ve Sistem
+/// grupları, Blog, Gelen Talepler ve kalan grupsuz öğeler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -112,22 +113,22 @@ public static class MenuKaydi
         E(Web, "/app/blog-yonetim", "Blog", OW, WS);
 
         const string Servis = "Servis & Sigorta";
-        E(Servis, "/servisler", "Servis", OW);
-        E(Servis, "/servis-tanimlari", "Servis Tanımları", OW);
-        E(Servis, "/regulasyon", "Sigorta / MTV / Muayene", OW);
+        E(Servis, "/app/servisler", "Servis", OW); // F9.3: Servis & Sigorta ve Fiyat & Tarife gruplarının tamamı spa
+        E(Servis, "/app/servis-tanimlari", "Servis Tanımları", OW);
+        E(Servis, "/app/regulasyon", "Sigorta / MTV / Muayene", OW);
 
         const string Fiyat = "Fiyat & Tarife";
-        E(Fiyat, "/tarifeler", "Tarifeler", OW);
-        E(Fiyat, "/tarife-matris", "Tarife Matrisi", OW);
-        E(Fiyat, "/tarife-gruplari", "Tarife Grupları", OW);
-        E(Fiyat, "/tarife-aktar", "Tarife İçe Aktar", MU); // MainLayout: Roles="Admin"
-        E(Fiyat, "/sigorta-urunleri", "Sigorta Ürünleri", OW);
-        E(Fiyat, "/kira-kurallari", "Kiralama Kuralları", OW);
-        E(Fiyat, "/broker-yasaklari", "Broker Yasakları", OW);
-        E(Fiyat, "/fiyat-hesapla", "Fiyat Hesapla", OW);
-        E(Fiyat, "/maliyet-hesapla", "Maliyet Hesapla", FW);
-        E(Fiyat, "/maliyet-teklifleri", "Maliyet Teklifleri", FW);
-        E(Fiyat, "/ek-hizmetler", "Ek Hizmetler", OW);
+        E(Fiyat, "/app/tarifeler", "Tarifeler", OW);
+        E(Fiyat, "/app/tarife-matris", "Tarife Matrisi", OW);
+        E(Fiyat, "/app/tarife-gruplari", "Tarife Grupları", OW);
+        E(Fiyat, "/app/tarife-aktar", "Tarife İçe Aktar", MU); // MainLayout: Roles="Admin"
+        E(Fiyat, "/app/sigorta-urunleri", "Sigorta Ürünleri", OW);
+        E(Fiyat, "/app/kira-kurallari", "Kiralama Kuralları", OW);
+        E(Fiyat, "/app/broker-yasaklari", "Broker Yasakları", OW);
+        E(Fiyat, "/app/fiyat-hesapla", "Fiyat Hesapla", OW);
+        E(Fiyat, "/app/maliyet-hesapla", "Maliyet Hesapla", FW);
+        E(Fiyat, "/app/maliyet-teklifleri", "Maliyet Teklifleri", FW);
+        E(Fiyat, "/app/ek-hizmetler", "Ek Hizmetler", OW);
 
         const string Tanim = "Tanımlar"; // F11.3: grubun tamamı spa (Araç Tipleri ve Segmentler F6.4'ten beri)
         E(Tanim, "/app/markalar", "Markalar", OW);
@@ -205,8 +206,8 @@ public static class MenuKaydi
         E(Rapor, "/app/raporlar/servis-ozet", "Servis Özet", VR);
         E(Rapor, "/app/raporlar/otomatik-servisler", "Otomatik Servisler", VR);
 
-        // ---- Tüm roller (grupsuz). F11.3: Vade Panosu (F9) dışındakiler spa.
-        E(Kok, "/vade", "Vade Panosu", null);
+        // ---- Tüm roller (grupsuz). F9.3: Vade Panosu spa; F11.3: diğerleri spa.
+        E(Kok, "/app/vade", "Vade Panosu", null);
         E(Kok, "/app/bildirimler", "Bildirimler", null, rozet: RozetOkunmamisBildirim);
         E(Kok, "/app/takvim-abonelik", "Takvim Aboneliği", null);
         E(Kok, "/app/firma-belgeleri", "Firma Belgeleri", null);
