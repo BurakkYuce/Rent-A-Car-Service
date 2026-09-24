@@ -175,9 +175,32 @@ public sealed class TenantSettingsService(
         await repository.UpsertAsync(s => Apply(s, m), ct);
     }
 
+    /// <summary>
+    /// F11.1b güvenlik M3 — "boş sır = mevcut korunur" kuralı, sırrın GİTTİĞİ hedef değişmediği sürece geçerlidir.
+    /// SMTP sunucusu/portu/kullanıcısı (ya da e-Fatura kullanıcısı, POS üye işyeri no) değişip sır alanı boş bırakılırsa
+    /// kayıtlı sır saldırganın sunucusuna gönderilebilirdi (SMTP AUTH parolayı sunucuya iletir) → sır yeniden girilmeli.
+    /// Hedef tamamen temizleniyorsa (host boş) sızdıracak yer yoktur, kural uygulanmaz.
+    /// </summary>
+    private static void RequireSecretOnTargetChange(RentACar.Domain.Entities.TenantSettings s, TenantSettingsModel m)
+    {
+        static bool Changed(string? current, string? next) =>
+            !string.Equals(current?.Trim() ?? "", next?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrEmpty(s.SmtpSifreEnc) && string.IsNullOrWhiteSpace(m.SmtpSifre) && !string.IsNullOrWhiteSpace(m.SmtpHost)
+            && (Changed(s.SmtpHost, m.SmtpHost) || s.SmtpPort != m.SmtpPort || Changed(s.SmtpKullanici, m.SmtpKullanici)))
+            throw new ValidationException("SMTP şifresi: sunucu, port ya da kullanıcı değişince şifre yeniden girilmelidir.");
+        if (!string.IsNullOrEmpty(s.EFaturaSifreEnc) && string.IsNullOrWhiteSpace(m.EFaturaSifre)
+            && !string.IsNullOrWhiteSpace(m.EFaturaKullanici) && Changed(s.EFaturaKullanici, m.EFaturaKullanici))
+            throw new ValidationException("e-Fatura şifresi: kullanıcı değişince şifre yeniden girilmelidir.");
+        if (!string.IsNullOrEmpty(s.PosApiKeyEnc) && string.IsNullOrWhiteSpace(m.PosApiKey)
+            && !string.IsNullOrWhiteSpace(m.PosMerchantId) && Changed(s.PosMerchantId, m.PosMerchantId))
+            throw new ValidationException("POS API anahtarı: üye işyeri no değişince anahtar yeniden girilmelidir.");
+    }
+
     /// <summary>Model → varlık: doğrulama + sır kuralı (boş sır = mevcut cipher korunur). İki kayıt yolunun TEK kaynağı.</summary>
     private void Apply(RentACar.Domain.Entities.TenantSettings s, TenantSettingsModel m)
     {
+        RequireSecretOnTargetChange(s, m);
         {
             s.FirmaUnvan = Trim(m.FirmaUnvan);
             s.FirmaVergiDairesi = Trim(m.FirmaVergiDairesi);

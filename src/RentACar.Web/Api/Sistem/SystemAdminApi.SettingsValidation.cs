@@ -20,6 +20,7 @@ public static partial class SystemAdminApi
         ("RenkBugunCikacaklar", "renkBugunCikacaklar"), ("RenkOpsiyonlu", "renkOpsiyonlu"),
         ("RenkLimitBakiye", "renkLimitBakiye"), ("RenkAlacakli", "renkAlacakli"),
         ("RenkRezAtananPlaka", "renkRezAtananPlaka"), ("RenkKiralanmayan", "renkKiralanmayan"),
+        ("SMTP şifresi", "smtpSifre"), ("e-Fatura şifresi", "eFaturaSifre"), ("POS API anahtarı", "posApiKey"),
     ];
 
     private static readonly (string, string)[] LogoRules = [("Logo", "dosya")];
@@ -65,8 +66,9 @@ public static partial class SystemAdminApi
                  })
             Sinirlar.Metin(value, 7, field, "Renk kodu");
 
-        if (i.SmtpPort is { } port && (port < 1 || port > 65535))
-            throw new ValidationException("SMTP portu 1 ile 65535 arasında olmalıdır.", "smtpPort");
+        // F11.1b güvenlik M4: yalnız SMTP portları (gönderici de aynı listeyi uygular).
+        if (i.SmtpPort is { } port && !Infrastructure.Integrations.SmtpEndpointGuard.AllowedPorts.Contains(port))
+            throw new ValidationException("SMTP portu yalnız 25, 465, 587 ya da 2525 olabilir.", "smtpPort");
         if (i.MinKiraGun is < 0 or > 3650)
             throw new ValidationException("En az kira günü 0 ile 3650 arasında olmalıdır.", "minKiraGun");
         if (i.MaxKiraGun is < 0 or > 3650)

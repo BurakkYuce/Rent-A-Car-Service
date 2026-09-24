@@ -33,7 +33,7 @@ public static partial class SystemAdminApi
             return TypedResults.Ok(r.Ok
                 ? new SendTestResult(true, "gonderildi", "Test e-postası SMTP sunucusuna teslim edildi.")
                 : new SendTestResult(false, "basarisiz", r.Hata ?? "E-posta gönderilemedi."));
-        }).AlanlariEsle([("E-posta adresi", "alici")]);
+        }).AlanlariEsle([("E-posta adresi", "alici")]).RequireRateLimiting(SendTestRatePolicy);
 
         g.MapPost("/test/sms", async Task<Ok<SendTestResult>> (PhoneTestRequest i, BildirimKanaliService channel,
             ISmsService sms, IConfiguration cfg, CancellationToken ct) =>
@@ -53,7 +53,7 @@ public static partial class SystemAdminApi
                 return TypedResults.Ok(new SendTestResult(false, "belirsiz", "SMS iletildi, teslim durumu doğrulanamadı."));
             return TypedResults.Ok(await PollAsync(c => twilio.SonDurumAsync(messageSid, c), ["delivered", "sent"],
                 TwilioSmsService.HataAciklama, "SMS", ct));
-        }).AlanlariEsle([("Telefon", "telefon")]);
+        }).AlanlariEsle([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
 
         g.MapPost("/test/whatsapp", async Task<Ok<SendTestResult>> (PhoneTestRequest i, IWhatsAppService wa, IConfiguration cfg, CancellationToken ct) =>
         {
@@ -74,8 +74,14 @@ public static partial class SystemAdminApi
                 return TypedResults.Ok(new SendTestResult(false, "belirsiz", "WhatsApp mesajı iletildi, teslim durumu doğrulanamadı."));
             return TypedResults.Ok(await PollAsync(c => twilio.SonDurumAsync(messageSid, c), ["delivered", "read"],
                 TwilioWhatsAppService.HataAciklama, "Mesaj", ct));
-        }).AlanlariEsle([("Telefon", "telefon")]);
+        }).AlanlariEsle([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
     }
+
+    /// <summary>
+    /// F11.1b güvenlik M4 — test gönderimleri gerçek dış çağrı (SMTP bağlantısı, ücretli SMS/WhatsApp) yapar: mevcut
+    /// IP başına sabit pencere politikası ("login", varsayılan dakikada 10) uygulanır. Yeni politika eklenmedi.
+    /// </summary>
+    internal const string SendTestRatePolicy = "login";
 
     private static async Task<SendTestResult> PollAsync(
         Func<CancellationToken, Task<(string? Durum, string? HataKodu)>> status, string[] delivered,
