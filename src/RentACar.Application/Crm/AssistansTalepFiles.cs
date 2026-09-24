@@ -16,6 +16,12 @@ public interface IAssistansTalepRepository
     Task CreateAsync(AssistansTalep row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<AssistansTalep> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm karşılaştırması (sürüm farklı → 409, hiçbir şey yazılmaz).</summary>
+    Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<AssistansTalep> apply, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
+    Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>Assistans liste filtresi. Boş alan = kısıt yok.</summary>
@@ -102,6 +108,25 @@ public sealed class AssistansTalepService(
             r.Kapandi = kopya.Kapandi; r.Cozum = kopya.Cozum;
         }, ct);
     }
+
+    /// <summary>F7.1 — tam değiştirme, iyimser eşzamanlılıkla (satır kilidi altında sürüm; farklı → 409).</summary>
+    public async Task<bool> UpdateAsync(Guid id, AssistansInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var copy = new AssistansTalep { Id = id };
+        await UygulaAsync(copy, input, ct);
+        return await _repository.UpdateAsync(id, expectedVersion, r =>
+        {
+            r.RentalId = copy.RentalId;
+            r.Plaka = copy.Plaka; r.AdSoyad = copy.AdSoyad; r.CepTel = copy.CepTel;
+            r.Zaman = copy.Zaman; r.Mesaj = copy.Mesaj; r.Sebep = copy.Sebep;
+            r.YedekLastikMi = copy.YedekLastikMi; r.AracHareketMi = copy.AracHareketMi;
+            r.Kapandi = copy.Kapandi; r.Cozum = copy.Cozum;
+        }, ct);
+    }
+
+    /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {

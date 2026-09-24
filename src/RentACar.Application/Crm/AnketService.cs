@@ -75,6 +75,26 @@ public sealed class AnketService(
         }, Cevaplar(input), ct);
     }
 
+    /// <summary>F7.1 — tam değiştirme, iyimser eşzamanlılıkla (satır kilidi altında sürüm; farklı → 409).</summary>
+    public async Task<bool> UpdateAsync(Guid id, AnketInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        Validate(input);
+        var copy = new Anket();
+        await ApplyAsync(copy, input, ct);
+        return await _repository.UpdateWithAnswersAsync(id, expectedVersion, row =>
+        {
+            row.CariId = copy.CariId; row.Puan = copy.Puan; row.Yorum = copy.Yorum;
+            row.Tarih = copy.Tarih; row.Kaynak = copy.Kaynak;
+            row.RentalId = copy.RentalId; row.AnketTuru = copy.AnketTuru;
+            row.Durum = copy.Durum; row.CikisOfisi = copy.CikisOfisi;
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, Cevaplar(input), ct);
+    }
+
+    /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);

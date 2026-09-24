@@ -10,8 +10,8 @@ namespace RentACar.Infrastructure.Persistence.Interceptors;
 /// için |Amount × Rate| &lt; 10^15 olmalı (<c>numeric(19,4)</c> baz ölçeği). Kolonlar tutar ve kuru AYRI saklar;
 /// çarpım hiçbir kolona yazılmadığı için veritabanı taşmayı yakalamaz. Otomatik çözülen (ör. 10^13'lük sabit) kurla
 /// yazılan dev bir satır, sonradan her toplamada (bakiye, ekstre, mizan, kasa özeti) decimal taşmasıyla 500 üretir —
-/// ve defter değiştirilemez olduğu için hasar kalıcıdır. Tüm yazma yolları (Blazor, /api/ui, job, harici API) buradan
-/// geçer; ihlal yazımdan ÖNCE <see cref="ValidationException"/> (400) olur, hiçbir satır yazılmaz.
+/// ve defter değiştirilemez olduğu için hasar kalıcıdır. DI ile kurulan her context (Blazor, /api/ui, harici API) ve
+/// deftere yazan işlerin elle kurulan context'leri (DonemFaturaJob, VadeBildirimJob) bunu alır; ihlal yazımdan ÖNCE <see cref="ValidationException"/> (400) olur, hiçbir satır yazılmaz.
 /// </summary>
 public sealed class LedgerAmountGuardInterceptor : SaveChangesInterceptor
 {
@@ -50,6 +50,9 @@ public sealed class LedgerAmountGuardInterceptor : SaveChangesInterceptor
         var a = Math.Abs(amount);
         var r = Math.Abs(rate);
         if (a == 0m || r == 0m) return true;
-        return a < BaseLimit / r && a * r < BaseLimit;
+        // R2-L1: r < 1'de a × r ≤ a taşmaz; BaseLimit / r ise çok küçük r'de (< 1e-13) taşardı. r ≥ 1'de bölüm güvenli.
+        try { return r < 1m ? a * r < BaseLimit : a < BaseLimit / r && a * r < BaseLimit; }
+        catch (OverflowException) { return false; } // taşma = sınır aşımı
+
     }
 }

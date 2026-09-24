@@ -34,9 +34,11 @@ public static class DonemFaturaUretici
         // Muhasebe dönem kilidi: fatura Tarih=now — kapalıysa TÜM tenant atlanır (oracle).
         var kilit = await db.DonemKilitleri.AsNoTracking()
             .OrderByDescending(k => k.KapanisTarihi).FirstOrDefaultAsync(ct);
-        if (kilit?.KapanisTarihi is { } kapanis && now.UtcDateTime.Date <= kapanis.UtcDateTime.Date)
+        // F8.1a R2-M1: manuel yollarla AYNI kural (PeriodLock, İstanbul takvim günü). UTC günüyle karşılaştırma,
+        // İstanbul gece yarısı (önceki gün 21:00Z) olarak yazılan kilidi bir gün erken okuyup kapalı güne fatura yazdırıyordu.
+        if (kilit?.KapanisTarihi is { } kapanis && Application.Periods.PeriodLock.IsClosed(now, kapanis))
         {
-            atlananlar.Add($"tenant {tenantId}: muhasebe dönemi {kapanis:yyyy-MM-dd} tarihine dek kilitli");
+            atlananlar.Add($"tenant {tenantId}: muhasebe dönemi {Application.Periods.PeriodLock.LocalDay(kapanis):yyyy-MM-dd} tarihine dek kilitli");
             return new Sonuc(0, 0, atlananlar);
         }
 

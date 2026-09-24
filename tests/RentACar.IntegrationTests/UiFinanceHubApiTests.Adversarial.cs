@@ -92,6 +92,58 @@ public sealed partial class UiFinanceHubApiTests
         Assert.Equal(5m, await BalanceAsync(e, e.CustomerA));
     }
 
+    [Fact]
+    public async Task R2M1_period_invoice_job_respects_istanbul_day_lock()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.Pg.AppConnectionString);
+        using var scope = host.ScopeFor(tenant, role: UserRole.Admin);
+        var sp = scope.ServiceProvider;
+        await sp.GetRequiredService<RentACar.Application.TenantSettings.ITenantSettingsRepository>()
+            .UpsertAsync(x => x.DonemselFaturalamaJob = true);
+        var start = TestZaman.GunSonra(-65);
+        var vehicle = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
+            .CreateAsync(new RentACar.Application.Vehicles.VehicleInput { Plaka = "34 JR " + Random.Shared.Next(1000, 9999) });
+        var customer = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
+            .CreateAsync(new RentACar.Application.Customers.CustomerInput { Tip = CariType.Bireysel, Ad = "Job", Soyad = "Kilit" });
+        await sp.GetRequiredService<RentACar.Application.Bookings.RentalService>().CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
+        {
+            MusteriId = customer, VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(90), GunlukUcret = 100m, DonemselFaturalama = true,
+        });
+
+        // Kilit günü D (İstanbul), uçla AYNI temsil: D'nin İstanbul gece yarısı (UTC'de önceki gün 21:00).
+        var locked = PeriodLock.LocalDay(DateTimeOffset.UtcNow).AddDays(-2);
+        var istanbul = TimeSpan.FromHours(3);
+        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(locked.ToDateTime(TimeOnly.MinValue), istanbul).ToUniversalTime());
+
+        async Task<RentACar.Infrastructure.Persistence.DonemFaturaUretici.Sonuc> RunAt(DateOnly day)
+        {
+            await using var db = await sp.GetRequiredService<IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>().CreateDbContextAsync();
+            return await RentACar.Infrastructure.Persistence.DonemFaturaUretici.RunAsync(db, tenant,
+                new DateTimeOffset(day.ToDateTime(new TimeOnly(15, 0)), istanbul).ToUniversalTime());
+        }
+
+        // Kilitli gün 15:00 İstanbul → tenant atlanır, fatura yok (önce UTC okuması bir gün erkendi ve keserdi).
+        var sameDay = await RunAt(locked);
+        Assert.Equal(0, sameDay.Kesilen);
+        Assert.Contains(sameDay.Atlananlar, a => a.Contains("kilitli"));
+        await using (var db = await sp.GetRequiredService<IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>().CreateDbContextAsync())
+            Assert.Equal(0, await db.Invoices.CountAsync());
+        // Ertesi gün → keser (vadesi geçmiş iki dönem).
+        Assert.Equal(2, (await RunAt(locked.AddDays(1))).Kesilen);
+    }
+
+    [Fact]
+    public void R2L1_ledger_limit_check_never_overflows()
+    {
+        // Oracle: 1 × 10^-28 ≪ 10^15 (geçer); 10^20 × 10^10 ≥ 10^15 (reddedilir); decimal.MaxValue × 2 taşma = aşım.
+        Assert.True(RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(1m, 0.0000000000000000000000000001m));
+        Assert.True(RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(999_999_999_999_999m, 0.5m));
+        Assert.False(RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(100_000_000_000_000_000_000m, 10_000_000_000m));
+        Assert.False(RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(decimal.MaxValue, 2m));
+        Assert.False(RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(1_000_000_000_000_000m, 1m));
+    }
+
     // ------------------------------------------------------------ L1 / L3 / L4b
 
     [Fact]

@@ -155,7 +155,6 @@ public static class FinansApi
         // kontrolünden ÖNCE: TRY'de kur≠1 tekrarı "farklı içerik" 409'u değil, yazılabilir olmayan istek olarak 400.
         if (istek.Kur is not null)
             await kurCozucu.CozAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
-        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, girdi.Tutar, girdi.Doviz, girdi.Kur, girdi.Tarih, ct); // F8.1a M1
         if (istek.TahsilatAnahtar is { } gelen)
         {
             // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
@@ -166,6 +165,9 @@ public static class FinansApi
             await ZatenKaydedildiyseAsync(gelen, kira!, girdi, kasa, kurCozucu, ct);
             await TahsilatAnahtariGuncelAsync(gelen, kira!, kasa, ct);
         }
+        // F8.1a M1 (R2-L3 sırası, DEVIR §5): otomatik kur çözümü + baz sınırı "bu anahtarla kayıt var mı"dan SONRA —
+        // kaybolan yanıttan sonraki tekrar, kur değişmiş olsa bile önce 409 + mevcut alır.
+        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, girdi.Tutar, girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.CollectAsync(girdi, ct)));
     }
