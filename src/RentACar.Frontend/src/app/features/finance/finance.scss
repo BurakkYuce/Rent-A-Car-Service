@@ -1,0 +1,68 @@
+// F8.2a finans ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo) aynen
+// kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
+@use '../vehicles/vehicles';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.uyari-kutusu {
+  margin: 0;
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  border: 1px solid var(--rc-uyari-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background: var(--rc-uyari-zemin);
+  color: var(--rc-uyari-metin);
+  font-size: var(--rc-yazi-sm);
+}
+
+.negatif {
+  color: var(--rc-hata-metin);
+}
+
+.pozitif {
+  color: var(--rc-basari-metin);
+}
+
+.cift-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.satir-editoru {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.satir-editoru__satir {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)) auto;
+  gap: var(--rc-bosluk-2);
+  align-items: end;
+  padding-block-end: var(--rc-bosluk-2);
+  border-bottom: 1px solid var(--rc-kenar);
+  min-width: 0;
+}
+
+.toplam-satiri td {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.soluk td {
+  color: var(--rc-metin-ikincil);
+}
+
+.hucre-girdi {
+  min-width: 8rem;
+}

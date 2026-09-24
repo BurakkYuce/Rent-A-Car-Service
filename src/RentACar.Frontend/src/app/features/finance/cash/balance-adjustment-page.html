@@ -1,0 +1,79 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.duzeltme.baslik' | transloco }}</h1>
+  </header>
+  <p class="uyari-kutusu">{{ 'finans.duzeltme.uyari' | transloco }}</p>
+
+  <div class="rc-form-izgara">
+    <rc-alan [etiket]="'finans.alan.cari' | transloco">
+      <rc-arama-secim [formControl]="customer" [kaynak]="customers" />
+    </rc-alan>
+  </div>
+
+  @if (cariId(); as id) {
+    <section class="bolum" aria-labelledby="rc-duzeltme-form">
+      <h2 id="rc-duzeltme-form">{{ balance.veri()?.cariAd ?? '' }}</h2>
+      @if (balance.veri(); as b) {
+        <p class="ozet">
+          {{ 'finans.cari.guncelBakiye' | transloco }}
+          <strong [class.negatif]="side() === 'borclu'">{{ b.bakiye | fpara }}</strong>
+          @if (side(); as s) {
+            ({{ 'finans.cari.' + s | transloco }})
+          }
+          ·
+          <a [routerLink]="['/cariler', id, 'ekstre']">{{ 'finans.cari.ekstre' | transloco }}</a>
+        </p>
+      } @else if (balance.tur() === 'hata') {
+        <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ balance.hata()?.detay }}</p>
+      }
+      <div class="rc-form-izgara" [formGroup]="form">
+        <rc-alan [etiket]="'finans.duzeltme.yon' | transloco">
+          <rc-secim formControlName="yon" [secenekler]="directionOptions" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+          <rc-para-girdisi formControlName="tutar" [paraBirimi]="currency() || 'TRY'" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.doviz' | transloco">
+          <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+        </rc-alan>
+        @if (isForeign()) {
+          <rc-alan
+            [etiket]="'finans.alan.kur' | transloco"
+            [ipucu]="'finans.alan.kurIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="kur" [kesir]="6" />
+          </rc-alan>
+        }
+        <rc-alan
+          [etiket]="'finans.alan.tarih' | transloco"
+          [ipucu]="'finans.alan.tarihIpucu' | transloco"
+        >
+          <rc-tarih-secici formControlName="tarih" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'finans.alan.vade' | transloco"
+          [ipucu]="'finans.alan.vadeIpucu' | transloco"
+        >
+          <rc-tarih-secici formControlName="vade" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.makbuzNo' | transloco">
+          <rc-metin-girdisi formControlName="makbuzNo" [azamiUzunluk]="32" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.aciklama' | transloco" class="rc-form-izgara__genis">
+          <rc-metin-girdisi
+            formControlName="aciklama"
+            [azamiUzunluk]="470"
+            [yerTutucu]="'finans.duzeltme.aciklamaYerTutucu' | transloco"
+          />
+        </rc-alan>
+      </div>
+      <rc-fin-submit
+        [action]="action"
+        [label]="'finans.duzeltme.kaydet' | transloco"
+        [disabled]="balance.yukleniyor()"
+        (send)="submit()"
+        (giveUp)="abandon()"
+      />
+    </section>
+  }
+</div>

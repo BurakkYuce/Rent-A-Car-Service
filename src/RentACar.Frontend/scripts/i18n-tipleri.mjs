@@ -40,6 +40,12 @@ const BLOK_HARITASI = {
   arac: 'arac',
   // F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan).
   aracFinans: 'arac-finans',
+  // F8.2a finans ekranları (kasa hub, nakit işlem, bakiye düzeltme, cari virman, toplu işlemler, depozito, ekstre,
+  // otomatik tahsilat, dönem kapanışı, kurlar).
+  finans: 'finans',
+  // F7.2 cari ekranları (liste, kart, 360° detay + ekstre) ve CRM (anket, şikayet, assistans, hukuk, analiz).
+  cari: 'cari',
+  crm: 'crm',
   // F10.2 rapor ekranları (26 rapor; tek ortak rapor ekranı).
   rapor: 'rapor',
   // F11.2a tanım ekranları (genel tanımlar, şubeler, doluluk kuralları, dokümanlar, takvim aboneliği).

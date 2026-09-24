@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
@@ -18,6 +19,13 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, ISecretProtector secrets)
     : ICustomerRepository
 {
+    /// <summary>
+    /// #295b L-A: "yalnız rakamlar sayılınca tam 11" — <c>regexp_replace(VergiNo,'[^0-9]','','g')</c> uzunluğu 11 ile
+    /// eşdeğer desen. <c>Regex.IsMatch</c> Npgsql'de Postgres <c>~</c> operatörüne çevrilir (parametreli, FromSql yok);
+    /// uzunluk karşılaştırmalı <c>Regex.Replace</c> yerine tek eşleşme deseni seçildi (R295b L-A testleri çeviriyi kilitler).
+    /// </summary>
+    internal const string ElevenDigitsPattern = "^[^0-9]*([0-9][^0-9]*){11}$";
+
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
     private readonly ISecretProtector _secrets = secrets;
 
@@ -117,7 +125,10 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 || (!c.AnonimAd && c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
                 || (c.AnonimAd && EF.Functions.ILike(label, term))
                 || (tcHash != null && c.TcKimlikHash == tcHash)
-                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
+                // #295 H1 / L-A: a tax number carrying exactly 11 digits (legacy TC in VergiNo, also formatted as
+                // "123 456 789 01" / "123-45678901" / trailing space) is shown masked → not ILIKE-probeable.
+                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)
+                    && !Regex.IsMatch(c.VergiNo, ElevenDigitsPattern)));
         }
         if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
         if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);
