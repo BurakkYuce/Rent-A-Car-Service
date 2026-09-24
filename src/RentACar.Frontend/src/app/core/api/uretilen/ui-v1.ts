@@ -9589,6 +9589,21 @@ export interface components {
       doviz: string;
       /** Format: uuid */
       krediId: null | string;
+      versiyon: null | string;
+      renk: null | string;
+      icRenk: null | string;
+      kaynakTip: null | string;
+      satisTipi: null | string;
+      /** Format: double */
+      piyasaFiyat: null | number | string;
+      /** Format: double */
+      opsFiyat: null | number | string;
+      /** Format: double */
+      filoFiyat: null | number | string;
+      /** Format: date-time */
+      imzaTarih: null | string;
+      tsbKayitNo: null | string;
+      yetkiler: components['schemas']['AracSiparisYetkileri'];
     };
     AracSiparisYetkileri: {
       duzenle: boolean;

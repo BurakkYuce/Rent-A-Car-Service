@@ -1,0 +1,33 @@
+// F6.2b araç finans ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo)
+// aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
+@use '../vehicles/vehicles';
+
+.sonraki {
+  margin: 0;
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.satir-form {
+  > * {
+    min-width: 0;
+  }
+}
+
+.toplam-satiri td {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.duzenleyici {
+  scroll-margin-top: var(--rc-bosluk-4);
+
+  > h2:focus {
+    outline: none;
+  }
+}
