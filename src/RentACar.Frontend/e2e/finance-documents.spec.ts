@@ -72,19 +72,20 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('tüm sayfalar: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  await documentEndpoints(page);
-  for (const s of PAGES) {
+// Sayfa başına ayrı test: tek testte tüm sayfalar × 2 tema axe taraması CI'da 30 sn sınırına dayanıyordu.
+for (const s of PAGES) {
+  test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
+    const hatalar = hatalariTopla(page, AG_HATASI);
+    await documentEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
     await hazirBekle(page, s);
     expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-  }
-  expect(hatalar).toEqual([]);
-});
+    expect(hatalar).toEqual([]);
+  });
+}
 
 test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50; 3 ondalık reddedilir; tekrar AYNI anahtar', async ({
   page,
