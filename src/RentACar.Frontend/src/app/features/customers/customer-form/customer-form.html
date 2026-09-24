@@ -1,0 +1,312 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>
+      @if (isNew) {
+        {{ 'cari.kart.yeniBaslik' | transloco }}
+      } @else {
+        {{ 'cari.kart.baslik' | transloco: { ad: displayName(base()) } }}
+      }
+    </h1>
+    <div class="ust__eylemler">
+      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/cariler">
+        <rc-ikon ad="chevron-left" [boyut]="14" />
+        {{ 'cari.listeyeDon' | transloco }}
+      </a>
+    </div>
+  </header>
+
+  @if (!isNew && store.card.tur() === 'hata') {
+    <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      {{ store.card.hata()?.detay }}
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.card.yenile()">
+        {{ 'cari.yenidenDene' | transloco }}
+      </button>
+    </div>
+  } @else {
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <div class="kart" [formGroup]="form">
+      <rc-sekmeli-form [sekmeler]="tabDefs" [etiket]="'cari.kart.bolumler' | transloco">
+        @for (section of sections; track section.id) {
+          <section [rcSekmePaneli]="section.id" [baslik]="'cari.bolum.' + section.id | transloco">
+            @if (section.id === 'kimlik') {
+              <p class="aciklama">{{ 'cari.gizli.aciklama' | transloco }}</p>
+              <div class="rc-form-izgara gizli-alanlar">
+                <div class="yigin">
+                  <rc-alan
+                    [etiket]="label('tcKimlik')"
+                    [ipucu]="
+                      base()?.anonimTc
+                        ? ('cari.kvkk.anonimAlan' | transloco)
+                        : base()?.tcKimlikVar
+                          ? ('cari.gizli.tcKayitli' | transloco)
+                          : ('cari.gizli.tcYok' | transloco)
+                    "
+                  >
+                    <rc-metin-girdisi
+                      formControlName="tcKimlik"
+                      [azamiUzunluk]="11"
+                      otomatikTamamlama="off"
+                    />
+                  </rc-alan>
+                  @if (base()?.tcKimlikVar && !base()?.anonimTc) {
+                    <rc-onay-kutusu [formControlName]="clearFlag('tcKimlik')">{{
+                      'cari.gizli.tcTemizle' | transloco
+                    }}</rc-onay-kutusu>
+                  }
+                </div>
+                @for (secret of documentSecrets; track secret) {
+                  <div class="yigin">
+                    <rc-alan
+                      [etiket]="label(secret)"
+                      [ipucu]="
+                        base()?.anonimBelge
+                          ? ('cari.kvkk.anonimAlan' | transloco)
+                          : maskOf(secret)
+                            ? ('cari.gizli.maskeli' | transloco: { maske: maskOf(secret) })
+                            : ('cari.gizli.bos' | transloco)
+                      "
+                    >
+                      <rc-metin-girdisi
+                        [formControlName]="secret"
+                        [azamiUzunluk]="32"
+                        otomatikTamamlama="off"
+                      />
+                    </rc-alan>
+                    @if (maskOf(secret) && !base()?.anonimBelge) {
+                      <rc-onay-kutusu [formControlName]="clearFlag(secret)">{{
+                        'cari.gizli.temizle' | transloco
+                      }}</rc-onay-kutusu>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            <div class="rc-form-izgara" [class.bayraklar]="section.id === 'tercihler'">
+              @if (section.id === 'genel') {
+                <rc-alan [etiket]="label('tip')">
+                  <rc-secim formControlName="tip" [secenekler]="typeOptions" />
+                </rc-alan>
+                <div class="yigin">
+                  <rc-alan
+                    [etiket]="label('vergiNo')"
+                    [ipucu]="
+                      taxSecret()
+                        ? base()?.vergiNoMaske
+                          ? ('cari.gizli.maskeli' | transloco: { maske: base()?.vergiNoMaske })
+                          : ('cari.gizli.vergiBireysel' | transloco)
+                        : ''
+                    "
+                  >
+                    <rc-metin-girdisi formControlName="vergiNo" [azamiUzunluk]="10" />
+                  </rc-alan>
+                  @if (taxSecret() && base()?.vergiNoMaske) {
+                    <rc-onay-kutusu [formControlName]="clearFlag('vergiNo')">{{
+                      'cari.gizli.temizle' | transloco
+                    }}</rc-onay-kutusu>
+                  }
+                </div>
+              }
+              @for (spec of section.fields; track spec.name) {
+                <div class="alan" [class.alan--genis]="spec.wide">
+                  @switch (spec.kind) {
+                    @case ('flag') {
+                      <rc-alan [etiket]="label(spec.name)" etiketGizli>
+                        <rc-onay-kutusu [formControlName]="spec.name">{{
+                          label(spec.name)
+                        }}</rc-onay-kutusu>
+                      </rc-alan>
+                    }
+                    @case ('select') {
+                      <rc-alan [etiket]="label(spec.name)">
+                        <rc-secim
+                          [formControlName]="spec.name"
+                          [secenekler]="options(spec)"
+                          [bosEtiket]="'cari.belirtilmedi' | transloco"
+                        />
+                      </rc-alan>
+                    }
+                    @case ('tri') {
+                      <rc-alan [etiket]="label(spec.name)">
+                        <rc-secim
+                          [formControlName]="spec.name"
+                          [secenekler]="triOptions"
+                          [bosEtiket]="'cari.belirtilmedi' | transloco"
+                        />
+                      </rc-alan>
+                    }
+                    @case ('int') {
+                      <rc-alan [etiket]="label(spec.name)">
+                        <rc-sayi-girdisi [formControlName]="spec.name" />
+                      </rc-alan>
+                    }
+                    @case ('money') {
+                      <rc-alan [etiket]="label(spec.name)">
+                        <rc-para-girdisi [formControlName]="spec.name" />
+                      </rc-alan>
+                    }
+                    @case ('rate') {
+                      <rc-alan [etiket]="label(spec.name)">
+                        <rc-para-girdisi
+                          [formControlName]="spec.name"
+                          [kesir]="spec.fraction ?? 2"
+                        />
+                      </rc-alan>
+                    }
+                    @case ('date') {
+                      <rc-alan
+                        [etiket]="label(spec.name)"
+                        [ipucu]="hidden(spec) ? ('cari.kvkk.anonimAlan' | transloco) : ''"
+                      >
+                        <rc-tarih-secici [formControlName]="spec.name" />
+                      </rc-alan>
+                    }
+                    @default {
+                      <rc-alan
+                        [etiket]="label(spec.name)"
+                        [ipucu]="hidden(spec) ? ('cari.kvkk.anonimAlan' | transloco) : ''"
+                      >
+                        <rc-metin-girdisi
+                          [formControlName]="spec.name"
+                          [azamiUzunluk]="spec.maxLength"
+                          [liste]="listId(spec)"
+                          [tur]="spec.inputType ?? 'text'"
+                        />
+                      </rc-alan>
+                      @if (spec.suggest) {
+                        <datalist [id]="listId(spec)">
+                          @for (s of suggestions(spec.suggest); track s) {
+                            <option [value]="s"></option>
+                          }
+                        </datalist>
+                      }
+                    }
+                  }
+                </div>
+              }
+              @if (section.id === 'tercihler') {
+                <div class="yigin rc-alan">
+                  <label class="rc-alan__etiket" for="rc-cari-sifre">{{ label('sifre') }}</label>
+                  <input
+                    id="rc-cari-sifre"
+                    class="rc-girdi"
+                    type="password"
+                    formControlName="sifre"
+                    maxlength="128"
+                    autocomplete="new-password"
+                    aria-describedby="rc-cari-sifre-ipucu"
+                  />
+                  <p class="rc-alan__ipucu" id="rc-cari-sifre-ipucu">
+                    {{
+                      (base()?.sifreVar ? 'cari.gizli.sifreVar' : 'cari.gizli.sifreYok') | transloco
+                    }}
+                  </p>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <section rcSekmePaneli="kisiler" [baslik]="'cari.bolum.kisiler' | transloco">
+          <p class="aciklama">
+            {{ 'cari.kisiler.aciklama' | transloco: { sayi: maxContacts } }}
+          </p>
+          @for (row of contacts.controls; track row; let i = $index) {
+            <fieldset class="kisi" [formGroup]="row">
+              <legend>{{ 'cari.kisiler.satir' | transloco: { no: i + 1 } }}</legend>
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'cari.kisiler.adSoyad' | transloco">
+                  <rc-metin-girdisi formControlName="adSoyad" [azamiUzunluk]="128" />
+                </rc-alan>
+                <rc-alan [etiket]="'cari.kisiler.gorev' | transloco">
+                  <rc-metin-girdisi formControlName="gorev" [azamiUzunluk]="64" />
+                </rc-alan>
+                <rc-alan [etiket]="'cari.kisiler.telefon' | transloco">
+                  <rc-metin-girdisi formControlName="telefon" tur="tel" [azamiUzunluk]="32" />
+                </rc-alan>
+                <rc-alan [etiket]="'cari.kisiler.mail' | transloco">
+                  <rc-metin-girdisi formControlName="mail" tur="email" [azamiUzunluk]="256" />
+                </rc-alan>
+              </div>
+              @if (canWrite()) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                  (click)="removeContact(i)"
+                >
+                  {{ 'cari.kisiler.kaldir' | transloco: { no: i + 1 } }}
+                </button>
+              }
+            </fieldset>
+          } @empty {
+            <p class="aciklama">{{ 'cari.kisiler.yok' | transloco }}</p>
+          }
+          @if (canWrite()) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [disabled]="contacts.length >= maxContacts"
+              (click)="addContact()"
+            >
+              <rc-ikon ad="plus" [boyut]="14" />
+              {{ 'cari.kisiler.ekle' | transloco }}
+            </button>
+          }
+        </section>
+
+        <section rcSekmePaneli="kvkk" [baslik]="'cari.bolum.kvkk' | transloco">
+          <p class="aciklama">{{ 'cari.kvkk.aciklama' | transloco }}</p>
+          @if (!canLiftPrivacy()) {
+            <p class="aciklama">{{ 'cari.kvkk.kaldirmaNotu' | transloco }}</p>
+          }
+          @if (privacyDenied(); as denied) {
+            <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ denied }}</div>
+          }
+          <div class="rc-form-izgara bayraklar">
+            @for (flag of privacyFlags; track flag) {
+              <rc-alan [etiket]="label(flag)" etiketGizli>
+                <rc-onay-kutusu [formControlName]="flag">{{ label(flag) }}</rc-onay-kutusu>
+              </rc-alan>
+            }
+          </div>
+        </section>
+
+        <div rcYanPanel class="yan">
+          @if (canWrite()) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--birincil"
+              [disabled]="submission.gonderiliyor() || (!isNew && !base())"
+              (click)="save()"
+            >
+              {{ (isNew ? 'cari.kart.olustur' : 'cari.kart.kaydet') | transloco }}
+            </button>
+          } @else {
+            <p class="aciklama">{{ 'cari.kart.saltOkunur' | transloco }}</p>
+          }
+          @if (!isNew && id) {
+            <a
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              [routerLink]="['/cariler', id, 'detay']"
+            >
+              {{ 'cari.detay' | transloco }}
+            </a>
+            @if (base(); as b) {
+              <dl class="kunye">
+                <div>
+                  <dt>{{ 'cari.kart.olusturma' | transloco }}</dt>
+                  <dd>{{ b.createdAtUtc | tarihSaat }}</dd>
+                </div>
+                @if (b.updatedAtUtc) {
+                  <div>
+                    <dt>{{ 'cari.kart.guncelleme' | transloco }}</dt>
+                    <dd>{{ b.updatedAtUtc | tarihSaat }}</dd>
+                  </div>
+                }
+              </dl>
+            }
+          }
+        </div>
+      </rc-sekmeli-form>
+    </div>
+  }
+</div>

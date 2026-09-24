@@ -3,6 +3,8 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
+import { CRM_ROUTES } from '@features/crm/crm.routes';
+import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
@@ -158,4 +160,8 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F7.2 cariler: liste, kart (yeni/:id), 360° detay (+ ekstre sekmesi).
+  ...CUSTOMER_ROUTES,
+  // F7.2 CRM: anket, şikayet, assistans, hukuk, CRM analiz.
+  ...CRM_ROUTES,
 ];

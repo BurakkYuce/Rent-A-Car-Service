@@ -1,0 +1,56 @@
+.kart {
+  min-width: 0;
+}
+
+.alan {
+  display: contents;
+}
+
+.alan--genis {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+// Gizli alan + "Temizle" kutusu ve portal şifresi: tek ızgara hücresinde alt alta.
+.yigin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+}
+
+.gizli-alanlar {
+  margin-block-end: var(--rc-bosluk-3);
+}
+
+.kisi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  margin: 0 0 var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  min-width: 0;
+
+  > legend {
+    padding: 0 var(--rc-bosluk-1);
+    font-size: var(--rc-yazi-sm);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  > button {
+    align-self: flex-start;
+  }
+}
+
+.yan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+section > .aciklama {
+  margin-block-end: var(--rc-bosluk-2);
+}
