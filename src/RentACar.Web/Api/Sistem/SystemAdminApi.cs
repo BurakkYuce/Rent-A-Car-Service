@@ -10,5 +10,6 @@ public static partial class SystemAdminApi
         MapPermissions(v1);
         MapAudit(v1);
         MapMessages(v1);
+        MapImport(v1); // F11.2d: /ice-aktar/arac|cari
     }
 }

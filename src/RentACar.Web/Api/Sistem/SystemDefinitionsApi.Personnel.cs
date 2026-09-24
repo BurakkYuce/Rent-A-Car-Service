@@ -64,7 +64,10 @@ public static partial class SystemDefinitionsApi
     {
         Text(i.Ad, 128, "ad", "Ad");
         Text(i.Soyad, 128, "soyad", "Soyad");
-        // TC: 11 hane rakam (düz metin yalnız gövdede; şifreli saklanır, yanıtta dönmez).
+        // TC: 11 hane rakam (düz metin yalnız gövdede; şifreli saklanır, yanıtta dönmez). Yalnız boşluktan oluşan değer
+        // belirsizdir (koru mu, sil mi?) → reddedilir; silmek için tam "" gönderilir (#308 M1).
+        if (i.TcKimlik is { Length: > 0 } && string.IsNullOrWhiteSpace(i.TcKimlik))
+            throw new ValidationException("TC kimlik no yalnız boşluktan oluşamaz; silmek için alanı tamamen boş gönderin.", "tcKimlik");
         if (SystemApiCommon.Clean(i.TcKimlik) is { } tc && (tc.Length != 11 || !tc.All(char.IsAsciiDigit)))
             throw new ValidationException("TC kimlik no 11 haneli rakam olmalıdır.", "tcKimlik");
         Text(i.SurucuBelgeNo, 64, "surucuBelgeNo", "Sürücü belge no");
@@ -95,6 +98,9 @@ public static partial class SystemDefinitionsApi
 
     private static PersonelInput PersonnelInput(PersonnelRequest i) => new()
     {
+        // F11.2d yazma-yalnız kuralı: null = koru, "" (boş metin) = sil, dolu = yeni değer.
+        // YALNIZ tam boş metin siler; boşluktan oluşan değer (" ", "\t", NBSP) PersonnelLimits'te 400 alır (#308 M1).
+        ClearTcKimlik = i.TcKimlik is { Length: 0 }, ClearMaas = i.MaasTemizle,
         Kod = i.Kod, Ad = i.Ad, Soyad = i.Soyad, TcKimlik = i.TcKimlik, IseGiris = Utc(i.IseGiris), IseCikis = Utc(i.IseCikis),
         SurucuBelgeNo = i.SurucuBelgeNo, Maas = i.Maas, Sube = i.Sube, GorevTanimi = i.GorevTanimi, Adres = i.Adres,
         EvTelefonu = i.EvTelefonu, IsTelefonu = i.IsTelefonu, CepTel = i.CepTel, MailAdresi = i.MailAdresi,

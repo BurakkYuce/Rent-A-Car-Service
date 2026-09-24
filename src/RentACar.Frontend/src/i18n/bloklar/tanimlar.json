@@ -49,6 +49,67 @@
       "mailListesi": "a@firma.com, b@firma.com",
       "kdvOrani": "0,20 = %20"
     },
+    "personnel": {
+      "baslik": "Personel",
+      "aciklama": "Personel (İK) kayıtları. TC kimlik ve maaş şifreli saklanır; TC hiçbir ekranda gösterilmez (yazma-yalnız): alan boş bırakılırsa kayıtlı değer korunur, silmek için \"Kayıtlı TC'yi sil\" işaretlenir. Maaş yalnız bu ekranda (yönetici yetkisi) görünür; silinirse kayıttan kaldırılır.",
+      "tablo": "Personel",
+      "alan": {
+        "kod": "Sicil",
+        "ad": "Ad",
+        "soyad": "Soyad",
+        "sube": "Şube",
+        "gorevTanimi": "Görev Tanımı",
+        "cepTel": "Cep Telefonu",
+        "iseGiris": "İşe Giriş",
+        "iseCikis": "İşten Çıkış",
+        "tcKimlik": "TC Kimlik No (yeni değer)",
+        "tcYerTutucu": "Boş = kayıtlı değer korunur",
+        "tcTemizle": "Kayıtlı TC'yi sil",
+        "maas": "Maaş",
+        "mailAdresi": "E-posta",
+        "evTelefonu": "Ev Telefonu",
+        "isTelefonu": "İş Telefonu",
+        "adres": "Adres",
+        "il": "İl",
+        "ilce": "İlçe",
+        "mahalle": "Mahalle",
+        "surucuBelgeNo": "Sürücü Belge No",
+        "sSinifi": "Ehliyet Sınıfı",
+        "sVerilisTarihi": "Ehliyet Veriliş Tarihi",
+        "sVerilisYeri": "Ehliyet Veriliş Yeri",
+        "dogumTarihi": "Doğum Tarihi",
+        "dogumYeri": "Doğum Yeri",
+        "babaAdi": "Baba Adı",
+        "anaAdi": "Ana Adı",
+        "ciltNo": "Cilt No",
+        "aileSiraNo": "Aile Sıra No",
+        "siraNo": "Sıra No",
+        "kanGrubu": "Kan Grubu",
+        "racTabletNo": "Tablet No",
+        "referans": "Referans",
+        "aciklama": "Açıklama"
+      }
+    },
+    "import": {
+      "baslik": "Veri İçe Aktar (Göç)",
+      "aciklama": "Mevcut sistemin kendi Excel/CSV dışa aktarımından araç ve müşteri listesini aktarır (.xlsx, .xls, .csv; en fazla 5 MB, 20.000 satır). Müşteri TC / ehliyet / pasaport şifreli saklanır; aynı plaka veya TC tekrarı atlanır. Aktarım satır satırdır: hatalı satırlar dışındakiler girer.",
+      "dosya": "Dosya",
+      "dosyaSecilmedi": "Dosya seçilmedi.",
+      "cokBuyuk": "Dosya en fazla 5 MB olabilir.",
+      "sonuc": "Eklenen: {{eklenen}} · Atlanan (tekrar): {{atlanan}} · Hatalı: {{hatali}}",
+      "arac": {
+        "baslik": "Araç Listesi",
+        "sutunlar": "Tanınan sütunlar: Plaka, Marka, Tip/Model, Grup, Segment, Renk, Model Yılı, Yakıt, Vites, KM, Şasi No, Motor No, Şube, SIPP, HGS, Araç Sahibi.",
+        "dugme": "Araçları Aktar",
+        "tamam": "Araç listesi işlendi."
+      },
+      "cari": {
+        "baslik": "Müşteri Listesi",
+        "sutunlar": "Tanınan sütunlar: Ünvan / Ad Soyad, TC Kimlik, Vergi No / Dairesi, Telefon, E-posta, İl, İlçe, Adres, Ehliyet No, Pasaport. Bireysel/Kurumsal ayrımı Tip sütunundan ya da Ünvan/TC'den çıkarılır. Hatalı satırların müşteri bilgisi sonuçta gösterilmez (yalnız hata türü ve adedi).",
+        "dugme": "Müşterileri Aktar",
+        "tamam": "Müşteri listesi işlendi."
+      }
+    },
     "paymentType": {
       "baslik": "Ödeme Tipi Tanımları",
       "aciklama": "Tahsilat/ödeme yöntemlerinin sözlüğü (ör. \"Nakit\", \"Kredi Kartı\", \"Havale/EFT\", \"Çek\"). Kasa/banka formlarındaki Ödeme Tipi açılır listesini besler.",

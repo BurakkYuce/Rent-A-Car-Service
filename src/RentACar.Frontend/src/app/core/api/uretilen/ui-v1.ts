@@ -9713,6 +9713,88 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/ice-aktar/arac': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ImportCountsDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ice-aktar/cari': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ImportCountsDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/web-sitesi/ozet': {
     parameters: {
       query?: never;
@@ -26460,6 +26542,20 @@ export interface components {
     };
     /** Format: binary */
     IFormFile: string;
+    ImportCountsDto: {
+      /** Format: int32 */
+      eklenen: number | string;
+      /** Format: int32 */
+      atlanan: number | string;
+      /** Format: int32 */
+      hatali: number | string;
+      hataOzeti: components['schemas']['ImportErrorSummaryDto'][];
+    };
+    ImportErrorSummaryDto: {
+      mesaj: string;
+      /** Format: int32 */
+      adet: number | string;
+    };
     IncomingInvoiceCreateRequest: {
       ettn: null | string;
       gonderenVkn: null | string;
@@ -29042,6 +29138,8 @@ export interface components {
       /** @default true */
       aktif: boolean;
       surum?: null | string;
+      /** @default false */
+      maasTemizle: boolean;
     };
     PhoneTestRequest: {
       telefon: null | string;

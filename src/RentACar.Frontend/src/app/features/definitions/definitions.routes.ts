@@ -62,6 +62,21 @@ export const DEFINITION_ROUTES: Routes = ceviriBloguyla('tanimlar', [
       import('./reservation-sources/reservation-source-page').then((m) => m.ReservationSourcePage),
     canDeactivate: [kaydedilmemisDegisiklikGuard],
   },
+  // F11.2d: KVKK ekranları — uçlar gibi yalnız ManageUsers.
+  {
+    path: 'personel',
+    title: 'Personel — RentACar',
+    canMatch: [izinGuard('ManageUsers')],
+    loadComponent: () => import('./personnel/personnel-page').then((m) => m.PersonnelPage),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
+  {
+    path: 'ice-aktar',
+    title: 'Veri İçe Aktar — RentACar',
+    canMatch: [izinGuard('ManageUsers')],
+    loadComponent: () => import('./import/import-page').then((m) => m.ImportPage),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
   {
     path: 'subeler',
     title: 'Şube Tanımları — RentACar',

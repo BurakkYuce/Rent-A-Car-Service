@@ -3,6 +3,7 @@ import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
 import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
 import {
+  type RestDefinitionOptions,
   type TanimKaynagi,
   type TanimSatiri,
   restTanimKaynagi,
@@ -23,14 +24,21 @@ export const PAGE_SIZE = 200;
  * `toplam`a kadar sırayla okunur (tanım tabloları küçük; çoğunda tek istek). Sürümsüz satırın düzenlemesi açılırken
  * kayıt tekil okunur (`read` → güncel `surum`), 409 birleştirmesi de aynı yoldan.
  */
-export function pagedDefinitionSource(root: ApiYolu, sort = 'kod'): TanimKaynagi {
+export function pagedDefinitionSource(
+  root: ApiYolu,
+  sort = 'kod',
+  options: RestDefinitionOptions = {},
+): TanimKaynagi {
   const api = inject(ApiIstemcisi);
+  const toRow = options.toRow ?? ((raw: Readonly<Record<string, unknown>>) => raw as TanimSatiri);
   const page = (no: number): Observable<DefinitionPage> =>
-    api.get<DefinitionPage>(root, {
-      parametreler: { sayfa: no, boyut: PAGE_SIZE, sirala: sort },
-    });
+    api
+      .get<DefinitionPage>(root, {
+        parametreler: { sayfa: no, boyut: PAGE_SIZE, sirala: sort },
+      })
+      .pipe(map((p) => ({ ...p, kayitlar: p.kayitlar.map(toRow) })));
   return {
-    ...restTanimKaynagi(root),
+    ...restTanimKaynagi(root, options),
     listele: () =>
       page(1).pipe(
         map((p) => ({ p, no: 1 })),
