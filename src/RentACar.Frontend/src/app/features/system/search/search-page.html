@@ -1,0 +1,53 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.ara.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.ara.aciklama' | transloco }}</p>
+  <div class="rc-form-izgara" [formGroup]="form" role="search">
+    <rc-alan [etiket]="'sistem.ara.metin' | transloco">
+      <rc-metin-girdisi
+        formControlName="q"
+        tur="search"
+        [azamiUzunluk]="100"
+        (keydown.enter)="search()"
+      />
+    </rc-alan>
+    <div class="eylemler">
+      <button type="button" class="rc-dugme rc-dugme--birincil" (click)="search()">
+        {{ 'sistem.ara.ara' | transloco }}
+      </button>
+    </div>
+  </div>
+
+  @if (searched()) {
+    @switch (results.tur()) {
+      @case ('hata') {
+        <div class="rc-form-hatalari" role="alert">
+          {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ results.hata()?.detay }}
+        </div>
+      }
+      @case ('hazir') {
+        @if ((results.veri() ?? []).length === 0) {
+          <p class="bos" role="status">{{ 'sistem.ara.bos' | transloco }}</p>
+        } @else {
+          <ul class="bolum" role="list">
+            @for (h of results.veri() ?? []; track $index) {
+              <li>
+                <span class="rc-rozet">{{ h.tur }}</span>
+                @if (safeHitUrl(h.url); as url) {
+                  <a [href]="url">{{ h.baslik }}</a>
+                } @else {
+                  {{ h.baslik }}
+                }
+                @if (h.alt) {
+                  <span class="alt-metin">{{ h.alt }}</span>
+                }
+              </li>
+            }
+          </ul>
+        }
+      }
+      @default {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

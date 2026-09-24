@@ -1,0 +1,128 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.web.ekle.baslik' | transloco }}</h1>
+  @if (!module()) {
+    <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
+  } @else {
+    <p class="aciklama">
+      <a routerLink="/web-sitesi">{{ 'sistem.web.geri' | transloco }}</a>
+    </p>
+    @switch (pool.tur()) {
+      @case ('hata') {
+        <div class="rc-form-hatalari" role="alert">
+          {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ pool.hata()?.detay }}
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="pool.yenile()">
+            {{ 'sistem.ortak.yenidenDene' | transloco }}
+          </button>
+        </div>
+      }
+      @case ('hazir') {
+        @if ((pool.veri() ?? []).length === 0) {
+          <p class="bos">{{ 'sistem.web.ekle.havuzBos' | transloco }}</p>
+        } @else {
+          <div
+            class="rc-dugme-grubu"
+            role="group"
+            [attr.aria-label]="'sistem.web.ekle.mod' | transloco"
+          >
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [class.rc-dugme--birincil]="mode() === 'beraber'"
+              [attr.aria-pressed]="mode() === 'beraber'"
+              (click)="setMode('beraber')"
+            >
+              {{ 'sistem.web.ekle.beraber' | transloco }}
+            </button>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [class.rc-dugme--birincil]="mode() === 'ayri'"
+              [attr.aria-pressed]="mode() === 'ayri'"
+              (click)="setMode('ayri')"
+            >
+              {{ 'sistem.web.ekle.ayri' | transloco }}
+            </button>
+          </div>
+          <p class="aciklama">
+            {{
+              (mode() === 'ayri'
+                ? 'sistem.web.ekle.ayriAciklama'
+                : 'sistem.web.ekle.beraberAciklama'
+              ) | transloco
+            }}
+          </p>
+          <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
+          <div class="kaydirma">
+            <table class="tablo">
+              <thead>
+                <tr>
+                  <th scope="col">
+                    <span class="rc-gorunmez">{{ 'sistem.web.ekle.sec' | transloco }}</span>
+                  </th>
+                  <th scope="col">{{ 'sistem.web.arac' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.web.ekle.yil' | transloco }}</th>
+                  @if (mode() === 'ayri') {
+                    <th scope="col">{{ 'sistem.web.ekle.plaka' | transloco }}</th>
+                  } @else {
+                    <th scope="col" class="sayi">{{ 'sistem.web.ekle.adet' | transloco }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (k of pool.veri() ?? []; track k.imza) {
+                  @if (mode() === 'ayri') {
+                    @for (v of k.araclar; track v.id) {
+                      <tr>
+                        <td>
+                          <input
+                            type="checkbox"
+                            [attr.aria-label]="v.plaka"
+                            [checked]="selected().has(v.id)"
+                            (change)="toggle(v.id, checked($event))"
+                          />
+                        </td>
+                        <td>{{ k.baslik }}</td>
+                        <td>{{ k.yilAralik ?? '—' }}</td>
+                        <td class="kod">{{ v.plaka }}</td>
+                      </tr>
+                    }
+                  } @else {
+                    <tr>
+                      <td>
+                        <input
+                          type="checkbox"
+                          [attr.aria-label]="k.baslik"
+                          [checked]="selected().has(k.imza)"
+                          (change)="toggle(k.imza, checked($event))"
+                        />
+                      </td>
+                      <td>{{ k.baslik }}</td>
+                      <td>{{ k.yilAralik ?? '—' }}</td>
+                      <td class="sayi">{{ k.araclar.length }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (selectionError()) {
+            <p class="hata" role="alert">{{ selectionError() }}</p>
+          }
+          <div class="eylemler">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--birincil"
+              [disabled]="submit.gonderiliyor()"
+              (click)="next()"
+            >
+              {{ 'sistem.web.ekle.ileri' | transloco }}
+            </button>
+          </div>
+        }
+      }
+      @default {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</div>

@@ -44,6 +44,7 @@ import { Alan } from '../alan/alan';
 import { tekilKimlik } from '../alan/alan-baglami';
 import { formGonderimi } from '../form-gonderimi';
 import { FormHatalari } from '../form-hatalari';
+import { MetinAlani } from '../kontroller/metin-alani';
 import { MetinGirdisi } from '../kontroller/metin-girdisi';
 import { OnayKutusu } from '../kontroller/onay-kutusu';
 import { ParaGirdisi } from '../kontroller/para-girdisi';
@@ -62,6 +63,9 @@ type Duzenleme = { readonly tur: 'yeni' } | { readonly tur: 'satir'; readonly id
 
 /** Öneri araması gecikmesi (kira formu `oneriAramasi` ile aynı). */
 export const SUGGESTION_DELAY_MS = 250;
+
+/** `textarea` alanının listedeki kısaltma uzunluğu (karakter). */
+export const TEXTAREA_PREVIEW = 80;
 
 /** Sunucu birleştirmesinde değer eşitliği (JSON; `null`/`undefined` aynı). */
 const sameValue = (a: unknown, b: unknown) =>
@@ -91,6 +95,7 @@ const sameValue = (a: unknown, b: unknown) =>
     Ikon,
     Alan,
     FormHatalari,
+    MetinAlani,
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,
@@ -275,6 +280,10 @@ export class TanimCrud implements OnInit {
         return this.optionsOf(alan).find((s) => sameValue(s.deger, deger))?.etiket ?? String(deger);
       case 'date':
         return tarihBicimle(deger as string);
+      case 'textarea': {
+        const text = String(deger);
+        return text.length > TEXTAREA_PREVIEW ? `${text.slice(0, TEXTAREA_PREVIEW)}…` : text;
+      }
       case 'sayi': {
         const fraction = alan.fraction ?? 0;
         return fraction > 0

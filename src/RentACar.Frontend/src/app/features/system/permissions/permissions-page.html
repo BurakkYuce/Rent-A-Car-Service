@@ -1,0 +1,220 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.yetki.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.yetki.aciklama' | transloco }}</p>
+  @if (actionError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
+  }
+
+  <section class="bolum" aria-labelledby="yetki-override">
+    <h2 id="yetki-override">{{ 'sistem.yetki.overrideler' | transloco }}</h2>
+    @switch (screens.tur()) {
+      @case ('hata') {
+        <div class="rc-form-hatalari" role="alert">
+          {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ screens.hata()?.detay }}
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="screens.yenile()">
+            {{ 'sistem.ortak.yenidenDene' | transloco }}
+          </button>
+        </div>
+      }
+      @case ('hazir') {
+        @if (screenRows().length === 0) {
+          <p class="bos">{{ 'sistem.yetki.overrideYok' | transloco }}</p>
+        } @else {
+          <div class="kaydirma">
+            <table class="tablo">
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'sistem.yetki.ekranKodu' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.yetki.izinliRoller' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.ortak.aktif' | transloco }}</th>
+                  <th scope="col">{{ 'sistem.yetki.guncelleme' | transloco }}</th>
+                  <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of screenRows(); track s.ekranKodu) {
+                  <tr>
+                    <td class="kod">{{ s.ekranKodu }}</td>
+                    <td>{{ s.roller.join(', ') }}</td>
+                    <td>
+                      {{ (s.aktif ? 'sistem.ortak.evet' : 'sistem.ortak.hayir') | transloco }}
+                    </td>
+                    <td>{{ s.guncellemeUtc | tarihSaat }}</td>
+                    <td class="islemler">
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        (click)="edit(s)"
+                      >
+                        {{ 'sistem.yetki.duzenle' | transloco }}
+                      </button>
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="busy()"
+                        (click)="removeOverride(s)"
+                      >
+                        {{ 'sistem.ortak.sil' | transloco }}
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+      @default {
+        <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+      }
+    }
+
+    <h3>{{ 'sistem.yetki.overrideEkle' | transloco }}</h3>
+    <rc-form-hatalari [hatalar]="overrideSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="overrideForm">
+      <rc-alan [etiket]="'sistem.yetki.ekranKodu' | transloco">
+        <rc-metin-girdisi
+          formControlName="ekranKodu"
+          [azamiUzunluk]="64"
+          [yerTutucu]="'sistem.yetki.ekranKoduOrnek' | transloco"
+        />
+      </rc-alan>
+      <fieldset class="onay-grubu">
+        <legend>{{ 'sistem.yetki.izinliRoller' | transloco }}</legend>
+        @for (r of roles; track r) {
+          <rc-onay-kutusu [formControlName]="r">{{ r }}</rc-onay-kutusu>
+        }
+      </fieldset>
+      <rc-onay-kutusu formControlName="aktif">{{
+        'sistem.ortak.aktif' | transloco
+      }}</rc-onay-kutusu>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="overrideSubmit.gonderiliyor()"
+          (click)="saveOverride()"
+        >
+          {{ 'sistem.ortak.kaydet' | transloco }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" aria-labelledby="yetki-kopyala">
+    <h2 id="yetki-kopyala">{{ 'sistem.yetki.kopyalaBolum' | transloco }}</h2>
+    <p class="aciklama">{{ 'sistem.yetki.kopyalaAciklama' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="copySubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="copyForm">
+      <rc-alan [etiket]="'sistem.yetki.kaynakRol' | transloco">
+        <rc-secim formControlName="kaynak" [secenekler]="roleOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'sistem.yetki.hedefRol' | transloco">
+        <rc-secim formControlName="hedef" [secenekler]="roleOptions" />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="copySubmit.gonderiliyor()"
+          (click)="copyRole()"
+        >
+          {{ 'sistem.yetki.kopyala' | transloco }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" aria-labelledby="yetki-gruplar">
+    <h2 id="yetki-gruplar">{{ 'sistem.yetki.gruplar' | transloco }}</h2>
+    <p class="aciklama">{{ 'sistem.yetki.gruplarAciklama' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="groupSubmit.genelHatalar()" />
+    <div class="rc-form-izgara" [formGroup]="groupForm">
+      <rc-alan [etiket]="'sistem.yetki.sablonAdi' | transloco">
+        <rc-metin-girdisi formControlName="ad" [azamiUzunluk]="128" />
+      </rc-alan>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="groupSubmit.gonderiliyor()"
+          (click)="saveGroup()"
+        >
+          {{ 'sistem.yetki.grupKaydet' | transloco }}
+        </button>
+      </div>
+    </div>
+    @if ((groups.veri() ?? []).length === 0) {
+      <p class="bos">{{ 'sistem.yetki.grupYok' | transloco }}</p>
+    } @else {
+      <div class="kaydirma">
+        <table class="tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'sistem.yetki.sablonAdi' | transloco }}</th>
+              <th scope="col" class="sayi">{{ 'sistem.yetki.ekranSayisi' | transloco }}</th>
+              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (g of groups.veri() ?? []; track g.ad) {
+              <tr>
+                <td>{{ g.ad }}</td>
+                <td class="sayi">{{ g.ekranSayisi }}</td>
+                <td class="islemler">
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [disabled]="busy()"
+                    (click)="applyGroup(g)"
+                  >
+                    {{ 'sistem.yetki.uygula' | transloco }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [disabled]="busy()"
+                    (click)="removeGroup(g)"
+                  >
+                    {{ 'sistem.ortak.sil' | transloco }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="bolum" aria-labelledby="yetki-matris">
+    <h2 id="yetki-matris">{{ 'sistem.yetki.matris' | transloco }}</h2>
+    <p class="aciklama">{{ 'sistem.yetki.matrisAciklama' | transloco }}</p>
+    @if (matrix.veri(); as rows) {
+      <div class="kaydirma">
+        <table class="tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'sistem.kullanici.rolBaslik' | transloco }}</th>
+              @for (p of permissions; track p) {
+                <th scope="col">{{ p }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows; track row.rol) {
+              <tr>
+                <th scope="row">{{ row.rol }}</th>
+                @for (p of permissions; track p) {
+                  <td>
+                    {{ (allows(row, p) ? 'sistem.ortak.evet' : 'sistem.ortak.hayir') | transloco }}
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

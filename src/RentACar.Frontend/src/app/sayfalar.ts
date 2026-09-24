@@ -12,6 +12,7 @@ import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { PRICING_ROUTES } from '@features/pricing/pricing.routes';
 import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
+import { SYSTEM_ROUTES } from '@features/system/system.routes';
 import { SERVICE_INSURANCE_ROUTES } from '@features/service-insurance/service-insurance.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
 import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
@@ -183,4 +184,7 @@ export const SAYFALAR: Routes = [
   ...REPORT_ROUTES,
   // F11.2a tanımlar (1. yarı): genel tanım CRUD'u + şubeler, doluluk kuralları, dokümanlar, takvim aboneliği.
   ...DEFINITION_ROUTES,
+  // F11.2b sistem + web sitesi: kullanıcılar, yetki, ayarlar, mesaj şablonları, denetim, ofisler, ilanlar, site
+  // içeriği, blog, gelen talepler, bildirimler, arama, parola.
+  ...SYSTEM_ROUTES,
 ];

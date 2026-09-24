@@ -1,0 +1,265 @@
+<div class="sayfa">
+  <h1>{{ 'sistem.ayarlar.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'sistem.ayarlar.aciklama' | transloco }}</p>
+
+  @if (loadError()) {
+    <div class="rc-form-hatalari" role="alert">
+      {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ loadError() }}
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="load()">
+        {{ 'sistem.ortak.yenidenDene' | transloco }}
+      </button>
+    </div>
+  } @else if (dto() === null) {
+    <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
+  } @else {
+    <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
+    <div [formGroup]="form">
+      <section class="bolum" aria-labelledby="ayar-firma">
+        <h2 id="ayar-firma">{{ 'sistem.ayarlar.firma' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          @for (
+            f of [
+              'firmaUnvan',
+              'firmaMarka',
+              'firmaVergiDairesi',
+              'firmaVergiNo',
+              'firmaAdres',
+              'firmaTel',
+              'firmaMobilTel',
+              'firmaEmail',
+            ];
+            track f
+          ) {
+            <rc-alan [etiket]="'sistem.ayarlar.alan.' + f | transloco">
+              <rc-metin-girdisi [formControlName]="f" [azamiUzunluk]="maxLength[f]" />
+            </rc-alan>
+          }
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-entegrasyon">
+        <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
+        <p class="aciklama">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaKullanici' | transloco">
+            <rc-metin-girdisi formControlName="eFaturaKullanici" [azamiUzunluk]="128" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaSifre' | transloco">
+            <rc-metin-girdisi
+              formControlName="eFaturaSifre"
+              tur="password"
+              otomatikTamamlama="new-password"
+              [azamiUzunluk]="256"
+              [yerTutucu]="secretPlaceholder('eFaturaSifre')"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smsBaslik' | transloco">
+            <rc-metin-girdisi formControlName="smsBaslik" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smsApiKey' | transloco">
+            <rc-metin-girdisi
+              formControlName="smsApiKey"
+              tur="password"
+              otomatikTamamlama="new-password"
+              [azamiUzunluk]="256"
+              [yerTutucu]="secretPlaceholder('smsApiKey')"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.posMerchantId' | transloco">
+            <rc-metin-girdisi formControlName="posMerchantId" [azamiUzunluk]="128" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.posApiKey' | transloco">
+            <rc-metin-girdisi
+              formControlName="posApiKey"
+              tur="password"
+              otomatikTamamlama="new-password"
+              [azamiUzunluk]="256"
+              [yerTutucu]="secretPlaceholder('posApiKey')"
+            />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-operasyon">
+        <h2 id="ayar-operasyon">{{ 'sistem.ayarlar.operasyon' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.logoUrl' | transloco">
+            <rc-metin-girdisi formControlName="logoUrl" tur="url" [azamiUzunluk]="512" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.varsayilanDoviz' | transloco">
+            <rc-metin-girdisi
+              formControlName="varsayilanDoviz"
+              [azamiUzunluk]="3"
+              yerTutucu="TRY"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.varsayilanKdvOrani' | transloco"
+            [ipucu]="'sistem.ayarlar.kdvIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="varsayilanKdvOrani" [kesir]="4" yerTutucu="0,20" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.varsayilanGrupId' | transloco">
+            <rc-secim
+              formControlName="varsayilanGrupId"
+              [secenekler]="groups()"
+              [bosEtiket]="'sistem.ayarlar.grupBos' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.minKiraGun' | transloco">
+            <rc-sayi-girdisi formControlName="minKiraGun" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.maxKiraGun' | transloco">
+            <rc-sayi-girdisi formControlName="maxKiraGun" />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="rezOnayZorunlu">
+            {{ 'sistem.ayarlar.alan.rezOnayZorunlu' | transloco }}
+          </rc-onay-kutusu>
+          <rc-onay-kutusu formControlName="donemselFaturalamaJob">
+            {{ 'sistem.ayarlar.alan.donemselFaturalamaJob' | transloco }}
+          </rc-onay-kutusu>
+          <rc-onay-kutusu formControlName="donemselOtomatikTahsilat">
+            {{ 'sistem.ayarlar.alan.donemselOtomatikTahsilat' | transloco }}
+          </rc-onay-kutusu>
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-fiyat">
+        <h2 id="ayar-fiyat">{{ 'sistem.ayarlar.fiyat' | transloco }}</h2>
+        <p class="aciklama">{{ 'sistem.ayarlar.fiyatAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.varsayilanFiyatTuru' | transloco">
+            <rc-secim
+              formControlName="varsayilanFiyatTuru"
+              [secenekler]="priceTypes"
+              [bosEtiket]="'sistem.ayarlar.secilmemis' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.varsayilanYakitSeviyesi' | transloco">
+            <rc-sayi-girdisi formControlName="varsayilanYakitSeviyesi" />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="kurElleGirisKilitli">
+            {{ 'sistem.ayarlar.alan.kurElleGirisKilitli' | transloco }}
+          </rc-onay-kutusu>
+        </div>
+        <p class="aciklama">{{ 'sistem.ayarlar.beklemede' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.dropMesafeYokIseSifir' | transloco">
+            <rc-secim
+              formControlName="dropMesafeYokIseSifir"
+              [secenekler]="triState"
+              [bosEtiket]="'sistem.ayarlar.yapilandirilmadi' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.saatFarkiToleransDk' | transloco">
+            <rc-sayi-girdisi formControlName="saatFarkiToleransDk" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.iadeIslemSaatSiniri' | transloco">
+            <rc-sayi-girdisi formControlName="iadeIslemSaatSiniri" />
+          </rc-alan>
+        </div>
+      </section>
+      <section class="bolum" aria-labelledby="ayar-renk">
+        <h2 id="ayar-renk">{{ 'sistem.ayarlar.renkler' | transloco }}</h2>
+        <p class="aciklama">{{ 'sistem.ayarlar.renkAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          @for (f of colorFields; track f) {
+            <rc-alan [etiket]="'sistem.ayarlar.alan.' + f | transloco">
+              <rc-metin-girdisi [formControlName]="f" [azamiUzunluk]="7" yerTutucu="#rrggbb" />
+            </rc-alan>
+          }
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-smtp">
+        <h2 id="ayar-smtp">{{ 'sistem.ayarlar.smtp' | transloco }}</h2>
+        <p class="aciklama">{{ 'sistem.ayarlar.smtpAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smtpHost' | transloco">
+            <rc-metin-girdisi
+              formControlName="smtpHost"
+              [azamiUzunluk]="256"
+              yerTutucu="mail.firmaniz.com"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smtpPort' | transloco">
+            <rc-secim formControlName="smtpPort" [secenekler]="smtpPorts" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smtpKullanici' | transloco">
+            <rc-metin-girdisi formControlName="smtpKullanici" [azamiUzunluk]="256" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.smtpSifre' | transloco"
+            [ipucu]="'sistem.ayarlar.smtpSifreIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="smtpSifre"
+              tur="password"
+              otomatikTamamlama="new-password"
+              [azamiUzunluk]="256"
+              [yerTutucu]="secretPlaceholder('smtpSifre')"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smtpGonderenAdres' | transloco">
+            <rc-metin-girdisi
+              formControlName="smtpGonderenAdres"
+              tur="email"
+              [azamiUzunluk]="256"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.smtpGonderenAd' | transloco">
+            <rc-metin-girdisi formControlName="smtpGonderenAd" [azamiUzunluk]="128" />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="smtpSsl">
+            {{ 'sistem.ayarlar.alan.smtpSsl' | transloco }}
+          </rc-onay-kutusu>
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-fatura">
+        <h2 id="ayar-fatura">{{ 'sistem.ayarlar.fatura' | transloco }}</h2>
+        <div class="rc-form-izgara">
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.faturaSeriKodu' | transloco"
+            [ipucu]="'sistem.ayarlar.faturaIpucu' | transloco"
+          >
+            <rc-metin-girdisi formControlName="faturaSeriKodu" [azamiUzunluk]="3" yerTutucu="RNT" />
+          </rc-alan>
+        </div>
+      </section>
+
+      <section class="bolum" aria-labelledby="ayar-whatsapp">
+        <h2 id="ayar-whatsapp">{{ 'sistem.ayarlar.whatsapp' | transloco }}</h2>
+        <p class="aciklama">{{ 'sistem.ayarlar.whatsappAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.whatsAppNumarasi' | transloco">
+            <rc-metin-girdisi
+              formControlName="whatsAppNumarasi"
+              tur="tel"
+              [azamiUzunluk]="32"
+              yerTutucu="+905321112233"
+            />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="whatsAppGunlukOzet">
+            {{ 'sistem.ayarlar.alan.whatsAppGunlukOzet' | transloco }}
+          </rc-onay-kutusu>
+        </div>
+      </section>
+
+      <div class="eylemler bolum">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="submit.gonderiliyor()"
+          (click)="save()"
+        >
+          {{ 'sistem.ayarlar.kaydet' | transloco }}
+        </button>
+      </div>
+    </div>
+
+    @if (dto(); as current) {
+      <rc-settings-actions [dto]="current" (updated)="refreshed($event)" />
+    }
+  }
+</div>

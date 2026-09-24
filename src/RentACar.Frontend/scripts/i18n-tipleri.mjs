@@ -56,6 +56,9 @@ const BLOK_HARITASI = {
   rapor: 'rapor',
   // F11.2a tanım ekranları (genel tanımlar, şubeler, doluluk kuralları, dokümanlar, takvim aboneliği).
   tanimlar: 'tanimlar',
+  // F11.2b sistem ve web sitesi ekranları (kullanıcılar, yetki, ayarlar, mesaj şablonları, denetim, ofisler,
+  // ilanlar, site içeriği, blog, gelen talepler, bildirimler, arama, parola).
+  sistem: 'sistem',
   // F12.2 platform konsolu (giriş, özet, firmalar, firma detayı, belge merkezi) — firma kabuğundan ayrı.
   platform: 'platform',
 };
