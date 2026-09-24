@@ -1,0 +1,87 @@
+<div class="sayfa">
+  <h1>{{ 'tanimlar.occupancy.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'tanimlar.occupancy.aciklama' | transloco }}</p>
+
+  <details class="bolum">
+    <summary>{{ 'tanimlar.occupancy.toplu.baslik' | transloco }}</summary>
+    <p class="aciklama">{{ 'tanimlar.occupancy.toplu.aciklama' | transloco }}</p>
+    <rc-form-hatalari [hatalar]="bulkSubmit.genelHatalar()" />
+    @if (bulkError()) {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ bulkError() }}</p>
+    }
+    <div [formGroup]="bulkForm" class="bolum">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'tanimlar.occupancy.toplu.kodOnEk' | transloco">
+          <rc-metin-girdisi formControlName="kodOnEk" [azamiUzunluk]="24" yerTutucu="YAZ-EKO" />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.occupancy.toplu.adOnEk' | transloco">
+          <rc-metin-girdisi formControlName="adOnEk" [azamiUzunluk]="100" />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.alan.aracGrubu' | transloco">
+          <rc-metin-girdisi
+            formControlName="aracGrupKod"
+            [azamiUzunluk]="32"
+            liste="dl-doluluk-toplu-grup"
+            [yerTutucu]="'tanimlar.yerTutucu.tumu' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.alan.sube' | transloco">
+          <rc-metin-girdisi
+            formControlName="sube"
+            [azamiUzunluk]="64"
+            liste="dl-doluluk-toplu-sube"
+            [yerTutucu]="'tanimlar.yerTutucu.tumu' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.alan.sadeceKendiSubeleri' | transloco">
+          <rc-secim formControlName="sadeceKendiSubeleri" [secenekler]="yesNo" />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.alan.gecerlilikBas' | transloco">
+          <rc-tarih-secici formControlName="gecerlilikBas" />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.alan.gecerlilikBit' | transloco">
+          <rc-tarih-secici formControlName="gecerlilikBit" />
+        </rc-alan>
+      </div>
+      <datalist id="dl-doluluk-toplu-grup">
+        @for (o of groupOptions(); track o) {
+          <option [value]="o"></option>
+        }
+      </datalist>
+      <datalist id="dl-doluluk-toplu-sube">
+        @for (o of branchOptions(); track o) {
+          <option [value]="o"></option>
+        }
+      </datalist>
+      <div class="kademeler" formArrayName="kademeler">
+        @for (i of stepNumbers; track i) {
+          <ng-container [formGroupName]="i">
+            <rc-alan [etiket]="'tanimlar.occupancy.toplu.esik' | transloco: { n: i + 1 }">
+              <rc-sayi-girdisi formControlName="esik" />
+            </rc-alan>
+            <rc-alan [etiket]="'tanimlar.occupancy.toplu.carpan' | transloco: { n: i + 1 }">
+              <rc-sayi-girdisi formControlName="carpan" [kesir]="2" />
+            </rc-alan>
+          </ng-container>
+        }
+      </div>
+      <div class="eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="bulkSubmit.gonderiliyor()"
+          (click)="saveLadder()"
+        >
+          {{ 'tanimlar.occupancy.toplu.kaydet' | transloco }}
+        </button>
+      </div>
+    </div>
+  </details>
+
+  <rc-tanim-crud
+    layout="panel"
+    [baslik]="'tanimlar.occupancy.tablo' | transloco"
+    [alanlar]="fields"
+    [kaynak]="source"
+  />
+</div>

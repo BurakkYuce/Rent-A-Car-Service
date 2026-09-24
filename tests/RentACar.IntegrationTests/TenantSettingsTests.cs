@@ -83,11 +83,21 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
         Assert.NotEqual("smtp-gizli-1", raw.SmtpSifreEnc);
         Assert.DoesNotContain("smtp-gizli-1", raw.SmtpSifreEnc!);
 
-        // SMTP şifre boş → mevcut korunur (diğer alan değişir)
-        await svc.SaveAsync(new TenantSettingsModel { SmtpHost = "smtp2.firma.com", SmtpSifre = null });
+        // SMTP şifre boş + hedef AYNI → mevcut korunur (diğer alan değişir)
+        await svc.SaveAsync(new TenantSettingsModel
+        {
+            SmtpHost = "smtp.firma.com", SmtpPort = 587, SmtpKullanici = "no-reply@firma.com", SmtpSifre = null,
+            FirmaUnvan = "Yeni Ünvan",
+        });
         var m2 = await svc.GetAsync();
-        Assert.Equal("smtp2.firma.com", m2.SmtpHost);
+        Assert.Equal("Yeni Ünvan", m2.FirmaUnvan);
         Assert.Equal("smtp-gizli-1", m2.SmtpSifre);   // korundu
+
+        // F11.1b güvenlik M3: sunucu değişip şifre boş → red (kayıtlı şifre yeni sunucuya gitmesin), hiçbir şey yazılmaz.
+        var ex = await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
+            svc.SaveAsync(new TenantSettingsModel { SmtpHost = "smtp.saldirgan.example", SmtpPort = 587, SmtpKullanici = "no-reply@firma.com" }));
+        Assert.StartsWith("SMTP şifresi", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("smtp.firma.com", (await svc.GetAsync()).SmtpHost);
     }
 
     [Fact]

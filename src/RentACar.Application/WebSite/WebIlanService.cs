@@ -252,6 +252,70 @@ public sealed class WebIlanService(
         return kardeslereKopyala ? await repository.KardeslereFiyatKopyalaAsync(ilanId, ct) : 0;
     }
 
+    /// <summary>
+    /// F11.1b — adım-2'nin iyimser eşzamanlı hâli: ilan satırı kilitlenir, <paramref name="expectedVersion"/> kilit
+    /// altında karşılaştırılır (uyuşmazlık <see cref="EszamanliDegisiklikException"/>). Doğrulama ve kardeş
+    /// kopyalama <see cref="AdimIkiAsync(Guid, decimal, decimal?, decimal?, bool, bool, CancellationToken)"/> ile aynı.
+    /// </summary>
+    public async Task<int> AdimIkiAsync(Guid ilanId, decimal gunlukFiyat, decimal? haftalikToplam,
+        decimal? aylikToplam, bool kdvDahil, string expectedVersion, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        if (gunlukFiyat <= 0m) throw new ValidationException("Günlük fiyat sıfırdan büyük olmalıdır.");
+        if (haftalikToplam is <= 0m) throw new ValidationException("Haftalık toplam sıfırdan büyük olmalıdır (boş bırakılabilir).");
+        if (aylikToplam is <= 0m) throw new ValidationException("Aylık toplam sıfırdan büyük olmalıdır (boş bırakılabilir).");
+
+        var ok = await repository.UpdateAsync(ilanId, expectedVersion, i =>
+        {
+            i.GunlukFiyat = gunlukFiyat;
+            i.HaftalikToplam = haftalikToplam;
+            i.AylikToplam = aylikToplam;
+            i.KdvDahil = kdvDahil;
+        }, ct);
+        if (!ok) throw new ValidationException("İlan bulunamadı.");
+        return await repository.KardeslereFiyatKopyalaAsync(ilanId, ct);
+    }
+
+    /// <summary>
+    /// F11.1b — adım-3'ün iyimser eşzamanlı hâli. Özellik satırları ayrı tabloda olduğu için ilan satırının sürümü
+    /// kendiliğinden değişmez: önce satırlar DOĞRULANIR, sonra ilan satırı kilit altında sürümle karşılaştırılıp
+    /// "dokunularak" (UpdatedAtUtc) sürümü ilerletilir — aynı sürümle gelen ikinci yazım 409 alır. Ardından
+    /// <see cref="AdimUcAsync(Guid, IReadOnlyList{OzellikSatiri}, CancellationToken)"/> ile aynı yol koşar.
+    /// </summary>
+    public async Task<bool> AdimUcAsync(Guid ilanId, IReadOnlyList<OzellikSatiri> satirlar, string expectedVersion,
+        CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        _ = CleanFeatures(satirlar);
+        if (!await repository.UpdateAsync(ilanId, expectedVersion, _ => { }, ct))
+            throw new ValidationException("İlan bulunamadı.");
+        return await AdimUcAsync(ilanId, satirlar, ct);
+    }
+
+    /// <summary>F11.1b — ilan satırı sürümü (opak; PUT'ta geri gönderilir).</summary>
+    public async Task<string?> VersionAsync(Guid ilanId, CancellationToken ct = default)
+    {
+        await GuardAsync(ct);
+        return await repository.VersionAsync(ilanId, ct);
+    }
+
+    /// <summary>Özellik satırlarını kırpar ve sınırları zorlar (boş satırlar atılır).</summary>
+    private static List<OzellikSatiri> CleanFeatures(IReadOnlyList<OzellikSatiri> satirlar)
+    {
+        var temiz = satirlar
+            .Where(s => !string.IsNullOrWhiteSpace(s.Etiket) && !string.IsNullOrWhiteSpace(s.Deger))
+            .Select(s => new OzellikSatiri(s.Etiket.Trim(), s.Deger.Trim(), s.Gorunur))
+            .ToList();
+
+        if (temiz.Count > OzellikSnapshot.MaxSatir)
+            throw new ValidationException($"En fazla {OzellikSnapshot.MaxSatir} özellik satırı eklenebilir.");
+        if (temiz.Any(s => s.Etiket.Length > OzellikSnapshot.MaxEtiket))
+            throw new ValidationException($"Özellik adı en çok {OzellikSnapshot.MaxEtiket} karakter olabilir.");
+        if (temiz.Any(s => s.Deger.Length > OzellikSnapshot.MaxDeger))
+            throw new ValidationException($"Özellik değeri en çok {OzellikSnapshot.MaxDeger} karakter olabilir.");
+        return temiz;
+    }
+
     // ---- Adım 3 ----
 
     /// <summary>Teknik özellikleri yazar ve ilanı YAYINA alır. Satır sınırları burada zorlanır
@@ -264,17 +328,7 @@ public sealed class WebIlanService(
     public async Task<bool> AdimUcAsync(Guid ilanId, IReadOnlyList<OzellikSatiri> satirlar, CancellationToken ct = default)
     {
         await GuardAsync(ct);
-        var temiz = satirlar
-            .Where(s => !string.IsNullOrWhiteSpace(s.Etiket) && !string.IsNullOrWhiteSpace(s.Deger))
-            .Select(s => new OzellikSatiri(s.Etiket.Trim(), s.Deger.Trim(), s.Gorunur))
-            .ToList();
-
-        if (temiz.Count > OzellikSnapshot.MaxSatir)
-            throw new ValidationException($"En fazla {OzellikSnapshot.MaxSatir} özellik satırı eklenebilir.");
-        if (temiz.Any(s => s.Etiket.Length > OzellikSnapshot.MaxEtiket))
-            throw new ValidationException($"Özellik adı en çok {OzellikSnapshot.MaxEtiket} karakter olabilir.");
-        if (temiz.Any(s => s.Deger.Length > OzellikSnapshot.MaxDeger))
-            throw new ValidationException($"Özellik değeri en çok {OzellikSnapshot.MaxDeger} karakter olabilir.");
+        var temiz = CleanFeatures(satirlar);
 
         var d = await repository.FindAsync(ilanId, ct) ?? throw new ValidationException("İlan bulunamadı.");
         await repository.ReplaceOzelliklerAsync(ilanId,

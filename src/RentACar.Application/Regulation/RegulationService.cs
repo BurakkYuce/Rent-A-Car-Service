@@ -21,6 +21,10 @@ public sealed class RegulasyonOdemeInput
     public string? HesapNo { get; set; }
     /// <summary>Çift-submit koruması — form her render'da yeni GUID basar.</summary>
     public Guid? IslemAnahtari { get; set; }
+    /// <summary>F9.1 — ekranın gördüğü kalan (isteğe bağlı). Doluysa SATIR KİLİDİ altında okunan kalanla (muayenede
+    /// ceza eklenmeden önceki) karşılaştırılır; farklıysa <see cref="EszamanliDegisiklikException"/> (409 cakisma) —
+    /// bayat ekran / iki sekme "kalanın tamamı" ile beklemediği tutarı ödemez. <c>null</c> → karşılaştırma yok (Blazor).</summary>
+    public decimal? BeklenenKalan { get; set; }
     /// <summary>FAZ-50 — ödemenin geçtiği SPESİFİK kasa/banka hesabı (<c>FinancialAccount</c>).
     /// <see cref="KasaKodu"/>/<see cref="HesapNo"/> serbest METİN künyesidir; bu alan defterin
     /// nakit bacağına <c>AccountRef</c> olarak yazılan gerçek bağdır. Boş → legacy kova.</summary>
@@ -75,7 +79,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         Guid vehicleId, InsuranceType tip, DateTimeOffset baslangic, DateTimeOffset bitis,
         decimal prim, string? policeNo, string? firma, string? acenta,
         string? doviz = "TRY", decimal? aracDegeri = null, decimal? immDegeri = null,
-        decimal? aksesuarDegeri = null, CancellationToken ct = default)
+        decimal? aksesuarDegeri = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
         if (bitis <= baslangic) throw new ValidationException("Bitiş başlangıçtan sonra olmalıdır.");
@@ -97,13 +101,14 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
             AracDegeri = aracDegeri, ImmDegeri = immDegeri, AksesuarDegeri = aksesuarDegeri,
             Kalan = prim   // FAZ-15: bilgi amaçlı bakiye; ödeme 0'a düşürür (zeyil DEĞİŞTİRMEZ)
         };
+        if (id is { } pid && pid != Guid.Empty) p.Id = pid; // F9.1: Idempotency-Key → PK
         await _repository.AddInsuranceAsync(p, ct);
         return p.Id;
     }
 
     public async Task<Guid> AddMtvAsync(
         Guid vehicleId, string donem, decimal tutar, DateTimeOffset vade,
-        string? aciklama = null, CancellationToken ct = default)
+        string? aciklama = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
         if (string.IsNullOrWhiteSpace(donem)) throw new ValidationException("Dönem zorunludur.");
@@ -111,13 +116,14 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         // Kalan = Tutar (FAZ-14): kısmi ödemeler bunu düşürür. Kaydın kendisi 0 tutarlıysa
         // Kalan da 0 olur ve ödeme "bakiye yok" ile reddedilir (doğru).
         var m = new MtvRecord { VehicleId = vehicleId, Donem = donem.Trim(), Tutar = tutar, Kalan = tutar, Vade = vade, Aciklama = Trim(aciklama) };
+        if (id is { } mid && mid != Guid.Empty) m.Id = mid; // F9.1: Idempotency-Key → PK
         await _repository.AddMtvAsync(m, ct);
         return m.Id;
     }
 
     public async Task<Guid> AddInspectionAsync(
         Guid vehicleId, DateTimeOffset muayeneTarihi, DateTimeOffset bitis, decimal ucret,
-        int? islemKm = null, string? aciklama = null, CancellationToken ct = default)
+        int? islemKm = null, string? aciklama = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
         if (bitis <= muayeneTarihi) throw new ValidationException("Bitiş muayene tarihinden sonra olmalıdır.");
@@ -130,6 +136,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
             VehicleId = vehicleId, MuayeneTarihi = muayeneTarihi, Bitis = bitis, Ucret = ucret,
             Kalan = ucret, IslemKm = islemKm, Aciklama = Trim(aciklama)
         };
+        if (id is { } iid && iid != Guid.Empty) i.Id = iid; // F9.1: Idempotency-Key → PK
         await _repository.AddInspectionAsync(i, ct);
         return i.Id;
     }
@@ -173,6 +180,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
 
         return await _repository.PostMtvOdemeAsync(mtvId, (kalan, sira) =>
         {
+            BayatlikKontrol(g, kalan);
             var tutar = TutarKontrol(g.Tutar, kalan, "MTV");
             var money = new Money(tutar, paraBirimi, cozulenKur);
             var desc = $"MTV ödeme {rec.Donem} (#{sira})";
@@ -235,6 +243,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
 
         return await _repository.PostMuayeneOdemeAsync(inspectionId, (kalan, sira) =>
         {
+            BayatlikKontrol(g, kalan);
             // Ceza önce borcu büyütür; ödenebilir tavan bu yüzden kalan + ceza.
             var tavan = kalan + ceza;
             var tutar = TutarKontrol(g.Tutar, tavan, "Muayene");
@@ -317,6 +326,14 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     }
 
     private static Guid? Anahtar(Guid? a) => a is { } g && g != Guid.Empty ? g : null;
+
+    /// <summary>F9.1 — kilit altında okunan kalan, ekranın gördüğüyle aynı mı (bkz. <see cref="RegulasyonOdemeInput.BeklenenKalan"/>).</summary>
+    private static void BayatlikKontrol(RegulasyonOdemeInput g, decimal kalan)
+    {
+        if (g.BeklenenKalan is { } beklenen && beklenen != kalan)
+            throw new EszamanliDegisiklikException(
+                $"Kayıt bu sırada değişti (kalan artık {kalan:N2}); ödeme yazılmadı. Kaydı yeniden açıp tekrar deneyin.");
+    }
 
     /// <summary>
     /// Sigorta ödeme (roadmap J3): DENGELİ defter — Borç Gider / Alacak Kasa-Banka (Prim + zeyil ek prim).

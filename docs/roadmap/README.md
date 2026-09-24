@@ -14,7 +14,7 @@
 | [F3](F3.md) | Çekirdek: tasarım sistemi, kabuk, oturum, veri katmanı, tablo, form seti, vitrin | 7 | — | ✔ 2026-09-22 |
 | [F4](F4.md) | Pilot: Panel + Kira (liste, form, yazdır), tek SPA girişi, ilk kesiş | 6 | ✔ | kod ✔ 2026-09-23 · pilot + söküm (F4.6b) bekliyor |
 | [F5](F5.md) | Rezervasyon, teklif, müsaitlik, takvim, rez şartları, filo kiralama | 5 | — | sürüyor (#271 #272 #273 main'de, #274 açık, F5.4 kesiş) |
-| [F6](F6.md) | Araçlar | 6 | ✔ | sürüyor (F6.1a/F6.1b backend) |
+| [F6](F6.md) | Araçlar | 6 | ✔ | kod ✔ (#278 #279 #285 #291 #294 + F6.4 kesiş) · Blazor sayfa silme pilot sonrası |
 | [F7](F7.md) | Cariler & CRM | 3 | — | bekliyor |
 | [F8](F8.md) | Finans + cari ekstre + fatura yazdır | 6 | ✔ | bekliyor |
 | [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | bekliyor |

@@ -90,7 +90,7 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// Kesişi yapılmış fazlarda (F4, F5) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
+    /// Kesişi yapılmış fazlarda (F4, F5, F6) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
     /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
     /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
@@ -117,9 +117,19 @@ public sealed class UcIzinKapsamaTests
         Assert.Equal(18, f5.Count);
         Assert.Contains("/rezervasyonlar/cancel", f5);
         silinecek.UnionWith(f5);
+        // F6.4 devri: F6 envanterinin 43 ucu (/servisler/create F9'a kalır) da sayılmaz; dar olanların
+        // (/arac-kredi/create|taksit-ode|taksit-iptal|iptal, /musteri-taksit/*) SPA karşılıkları sunucunun `yetkiler`
+        // bayrakları + UiAracFinansTests / UiAracTests izin testleri.
+        var f6 = KesisteSilinecekUclar(kok, "F6");
+        Assert.Equal(43, f6.Count);
+        Assert.Contains("/arac-kredi/create", f6);
+        Assert.DoesNotContain("/servisler/create", f6);
+        silinecek.UnionWith(f6);
 
         var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
-        Assert.True(kalici.Count >= 10, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
+        // Taban F6.4'te 10 → 8: F6'nın dar uçları (kredi/müşteri taksit) artık silinecek kümede; bugün 9 kalıcı dar uç
+        // var. Üç dar-izin türünün her biri aşağıda ayrıca aranır, bu yüzden taban yalnız kaba bir çittir.
+        Assert.True(kalici.Count >= 8, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
         Assert.Contains(kalici, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite);
         Assert.Contains(kalici, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
         Assert.Contains(kalici, u => u.Etkin == Permission.FinanceReverse);

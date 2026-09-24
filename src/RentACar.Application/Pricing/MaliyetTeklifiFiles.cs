@@ -45,6 +45,10 @@ public sealed class MaliyetTeklifiInput
     public Guid? HazirlayanId { get; set; }
     public string? Aciklama { get; set; }
     public MaliyetHesapInput Girdi { get; set; } = new();
+
+    /// <summary>F9.1 — optional record id derived from the <c>Idempotency-Key</c> header (a second create with the
+    /// same key hits the primary key). <c>null</c> → new id (Blazor path unchanged).</summary>
+    public Guid? Id { get; set; }
 }
 
 /// <summary>Liste başlığı özeti — <b>araç-başı DEĞİL, filo</b> toplamları (adet dahil).</summary>
@@ -58,7 +62,8 @@ public sealed record MaliyetTeklifiOzet(int Adet, int AracAdet, decimal FiloAyli
 /// marjı ticari sır sayılır ve operasyon rolüne açılmaz; okuma <see cref="Permission.ViewReports"/>
 /// ile de mümkündür (yazan rol okuyabilmeli).</para>
 /// </summary>
-public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, ICurrentUser currentUser)
+public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, ICurrentUser currentUser,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly IMaliyetTeklifiRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -90,6 +95,7 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var row = new MaliyetTeklifi();
+        if (input.Id is { } id && id != Guid.Empty) row.Id = id;
         Uygula(row, input);
         await _repository.CreateAsync(row, ct);
         return row.Id;
@@ -106,6 +112,24 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
             Kopyala(kopya, r);
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<MaliyetTeklifi>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> (recompute + snapshot rewrite) under a row lock with a
+    /// version check.</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, MaliyetTeklifiInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        var kopya = new MaliyetTeklifi();
+        Uygula(kopya, input);
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<MaliyetTeklifi>(id, expectedVersion, r =>
+        {
+            Kopyala(kopya, r);
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, "Kayıt zaten var.", ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

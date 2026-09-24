@@ -40,4 +40,11 @@ public interface ISiteIcerikRepository
     Task SssEkleAsync(SssKaydi kayit, CancellationToken ct = default);
     Task<bool> SssGuncelleAsync(Guid id, Action<SssKaydi> apply, CancellationToken ct = default);
     Task<bool> SssSilAsync(Guid id, CancellationToken ct = default);
+
+    // ---- F11.1b: iyimser eşzamanlılık (satır kilidi + sürüm; uyuşmazlık EszamanliDegisiklikException) ----
+
+    Task<bool> GuncelleAsync(Guid id, string? expectedVersion, Action<SayfaIcerik> apply, CancellationToken ct = default);
+    Task<bool> SssGuncelleAsync(Guid id, string? expectedVersion, Action<SssKaydi> apply, CancellationToken ct = default);
+    Task<string?> VersionAsync(Guid id, CancellationToken ct = default);
+    Task<string?> FaqVersionAsync(Guid id, CancellationToken ct = default);
 }

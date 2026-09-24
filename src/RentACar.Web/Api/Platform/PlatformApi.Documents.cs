@@ -41,7 +41,7 @@ public static partial class PlatformApi
 
     private static ProblemHttpResult DocumentNotFound() => F5Ortak.Bulunamadi("Belge bulunamadı.");
 
-    private static PlatformDocumentDto ToDto(PlatformAdminService.PlatformBelgeSatiri b) => new(
+    private static PlatformConsoleDocumentDto ToDto(PlatformAdminService.PlatformBelgeSatiri b) => new(
         b.Id, b.Baslik, b.Aciklama, b.DosyaAdi, b.Boyut, b.Surum, DocumentStatusName(b.Durum),
         b.YalnizYoneticiler, b.GuncellemeUtc, b.YukleyenOperator, b.HedefKodlar);
 
@@ -52,11 +52,11 @@ public static partial class PlatformApi
         _ => "Taslak",
     };
 
-    private static async Task<PlatformDocumentDto?> FindDocumentAsync(PlatformAdminService svc, Guid id, CancellationToken ct)
+    private static async Task<PlatformConsoleDocumentDto?> FindDocumentAsync(PlatformAdminService svc, Guid id, CancellationToken ct)
         => (await svc.ListBelgelerAsync(ct)).FirstOrDefault(b => b.Id == id) is { } b ? ToDto(b) : null;
 
-    private static async Task<Ok<IReadOnlyList<PlatformDocumentDto>>> ListDocuments(PlatformAdminService svc, CancellationToken ct)
-        => TypedResults.Ok<IReadOnlyList<PlatformDocumentDto>>((await svc.ListBelgelerAsync(ct)).Select(ToDto).ToList());
+    private static async Task<Ok<IReadOnlyList<PlatformConsoleDocumentDto>>> ListDocuments(PlatformAdminService svc, CancellationToken ct)
+        => TypedResults.Ok<IReadOnlyList<PlatformConsoleDocumentDto>>((await svc.ListBelgelerAsync(ct)).Select(ToDto).ToList());
 
     /// <summary>Reads an uploaded PDF with the size checked BEFORE buffering (the request cap is the outer fence).</summary>
     private static async Task<byte[]> ReadPdfAsync(IFormFile? file, CancellationToken ct)
@@ -74,7 +74,7 @@ public static partial class PlatformApi
     /// <c>hedef</c> (repeatable tenant id; none = ALL tenants). Unknown / malformed target ids are refused (400) instead
     /// of silently widening or failing on the foreign key.
     /// </summary>
-    private static async Task<Results<Created<PlatformDocumentDto>, ProblemHttpResult>> UploadDocument(
+    private static async Task<Results<Created<PlatformConsoleDocumentDto>, ProblemHttpResult>> UploadDocument(
         [FromForm] PlatformDocumentUploadForm form, HttpContext http, PlatformAdminService svc, CancellationToken ct)
     {
         var (baslik, aciklama, dosya, yalnizYoneticiler, hedef) =
@@ -109,7 +109,7 @@ public static partial class PlatformApi
             : DocumentNotFound();
     }
 
-    private static async Task<Results<Ok<PlatformDocumentDto>, ProblemHttpResult>> UploadDocumentVersion(
+    private static async Task<Results<Ok<PlatformConsoleDocumentDto>, ProblemHttpResult>> UploadDocumentVersion(
         Guid id, IFormFile? dosya, HttpContext http, PlatformAdminService svc, CancellationToken ct)
     {
         if (await FindDocumentAsync(svc, id, ct) is null) return DocumentNotFound();
@@ -120,7 +120,7 @@ public static partial class PlatformApi
 
     /// <summary>Status: <c>Taslak</c> | <c>Yayinda</c> | <c>Arsiv</c>. Unknown value is 400 (the Blazor form silently
     /// fell back to draft — an API must not guess).</summary>
-    private static async Task<Results<Ok<PlatformDocumentDto>, ProblemHttpResult>> ChangeDocumentStatus(
+    private static async Task<Results<Ok<PlatformConsoleDocumentDto>, ProblemHttpResult>> ChangeDocumentStatus(
         Guid id, PlatformDocumentStatusRequest body, HttpContext http, PlatformAdminService svc, CancellationToken ct)
     {
         if (await FindDocumentAsync(svc, id, ct) is null) return DocumentNotFound();

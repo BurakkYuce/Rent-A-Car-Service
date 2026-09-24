@@ -525,6 +525,15 @@ public sealed class UiApiYapisalTests(WebFixture fx)
                                           // F4.1: ana ekran her oturumun; kapılar İÇERİKTE (finans ViewReports, tahsilat
                                           // anahtarı FinanceWrite) — UiKiraPanelTests içerik kapılarını kilitler.
                                           || r == "/api/ui/v1/panel/ozet"
+                                          // F11.1b: Blazor'da yalnız [Authorize] olan kişisel/kiracı-geneli yüzeyler.
+                                          // /profil/sifre — herkes KENDİ parolasını değiştirir; kimlik ICurrentUser'dan,
+                                          // eski parola doğrulanır, giriş hız sınırı (UiSystemAdminTests.Password_*).
+                                          || r == "/api/ui/v1/profil/sifre"
+                                          // /ara — genel arama; şube kapsamı SearchService'te (BranchScope), kiracı RLS.
+                                          || r == "/api/ui/v1/ara"
+                                          // /bildirimler* — kiracının vade/şikayet bildirimleri; RLS izole, başka firmanın
+                                          // bildirimi 404 (UiSystemAdminTests.Notifications_and_search_*).
+                                          || r.StartsWith("/api/ui/v1/bildirimler", StringComparison.Ordinal)
                                           // F12.1: platform konsolu — firma izin matrisi yerine PlatformAdmin policy'si
                                           // (aşağıdaki Platform_uclari_platform_policy_tasir kilitler).
                                           || r.StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)

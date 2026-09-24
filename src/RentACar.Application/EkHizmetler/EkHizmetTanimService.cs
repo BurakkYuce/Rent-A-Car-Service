@@ -10,7 +10,8 @@ namespace RentACar.Application.EkHizmetler;
 /// yapılandırmadır → <see cref="Permission.OperationsWrite"/>. ListActiveAsync (kira ek hizmet
 /// formu kaynağı) yetkisizdir. Tenant izolasyonu/audit alt katmanda otomatik.
 /// </summary>
-public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, ICurrentUser currentUser, ITenantCache cache)
+public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, ICurrentUser currentUser, ITenantCache cache,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly IEkHizmetTanimRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -67,6 +68,35 @@ public sealed class EkHizmetTanimService(IEkHizmetTanimRepository repository, IC
         }, ct);
         _cache.Invalidate(CK);
         return ok;
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<EkHizmetTanim>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> (incl. the SYS-* code fence, re-checked under the
+    /// row lock) with a version check; cache invalidated after the write.</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, EkHizmetTanimInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+            throw new ValidationException($"'{n.Kod}' kodlu ek hizmet zaten var.");
+        try
+        {
+            return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<EkHizmetTanim>(id, expectedVersion, t =>
+            {
+                if ((SistemKodu(t.Kod) || SistemKodu(n.Kod)) && !string.Equals(t.Kod, n.Kod, StringComparison.OrdinalIgnoreCase))
+                    throw new ValidationException("Sistem ücret tanımının (SYS-*) kodu değiştirilemez; normal tanım SYS- önekini alamaz.");
+                Apply(t, n);
+                t.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            }, $"'{n.Kod}' kodlu ek hizmet zaten var.", ct);
+        }
+        finally
+        {
+            _cache.Invalidate(CK);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

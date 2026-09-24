@@ -53,9 +53,12 @@ public sealed class OfficeBranchInterceptor : SaveChangesInterceptor
 
     private static void Apply(List<EntityEntry<IOfficeScoped>> scoped, List<LocRef> locations)
     {
+        // F11.1b güvenlik H1: aynı ad anahtarını taşıyan ofisler FARKLI şubelere bağlıysa anahtar BELİRSİZDİR → null
+        // (salt-metin davranış). Eskiden en düşük Kod kazanıyordu: bir operatör başka şubenin ofis adını ("otogar b ")
+        // kendi şubesine düşük kodla açıp o şubenin kayıtlarının türetilmiş şubesini ele geçiriyordu.
         var map = locations
             .GroupBy(l => OfisAdiAnahtari.Uret(l.Ad))
-            .ToDictionary(g => g.Key, g => g.OrderBy(l => l.Kod).First().SubeId);
+            .ToDictionary(g => g.Key, g => OfisAdiAnahtari.UnambiguousBranch(g.Select(l => l.SubeId)));
 
         foreach (var e in scoped)
         {
