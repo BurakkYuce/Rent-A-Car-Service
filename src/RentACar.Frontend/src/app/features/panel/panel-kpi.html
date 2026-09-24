@@ -18,6 +18,7 @@
                 [class.vade__kutu--uyari]="kutu.ton === 'uyari'"
                 [class.vade__kutu--hata]="kutu.ton === 'hata'"
                 [routerLink]="kutu.rota"
+                [queryParams]="kutu.sorgu ?? null"
                 [attr.title]="kutu.ipucu ?? null"
               >
                 <span class="vade__sayi rc-sayi">{{ kutu.sayi | sayi }}</span>

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
@@ -9,6 +10,8 @@ import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 
 type SearchHit = Sema<'SearchHitDto'>;
+
+const SEARCH_MAX_LENGTH = 100;
 
 /** Genel aramanın ürettiği hedef yolların kökleri (`SearchRepository`); başka yol bağlantı olmaz. */
 export const SEARCH_HIT_PREFIXES = [
@@ -49,15 +52,37 @@ export function safeHitUrl(
   return SEARCH_HIT_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`)) ? url : null;
 }
 
+const GUID = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+
+/** Arama hedefi (Blazor adresi) → SPA rotası (`/app` öneksiz). Araç hedefi Blazor'da detay sayfasıdır. */
+const HIT_ROUTES: readonly (readonly [RegExp, (m: RegExpExecArray) => string])[] = [
+  [new RegExp(`^/araclar/(${GUID})$`), (m) => `/araclar/${m[1] ?? ''}/detay`],
+  [new RegExp(`^/(cariler|kiralar)/(${GUID})$`), (m) => `/${m[1] ?? ''}/${m[2] ?? ''}`],
+  [/^\/(rezervasyonlar|faturalar)$/, (m) => `/${m[1] ?? ''}`],
+];
+
+/**
+ * F11.3: güvenli arama hedefinin (`safeHitUrl`'den geçmiş) SPA karşılığı — sonuç bağlantısı router'la gider (tam sayfa
+ * yüklemesi ve sunucu yönlendirmesi yok). Karşılığı olmayan yol `null` (bağlantı düz adresle kalır). Sorgu/parça yok
+ * sayılmaz: hedefte varsa eşleşme olmaz.
+ */
+export function hitRoute(url: string): string | null {
+  for (const [pattern, target] of HIT_ROUTES) {
+    const m = pattern.exec(url);
+    if (m) return target(m);
+  }
+  return null;
+}
+
 /**
  * F11.2b genel arama (Blazor `Ara`; oturum yeter, şube kapsamı ve KVKK — anonim cari yalnız etiketiyle — sunucuda).
- * Aranan metin URL'ye ve tarayıcı deposuna yazılmaz (kişi adı olabilir). Sonuç bağlantıları ekranın kendi adresidir
- * (tam sayfa geçiş; taşınan ekranlar sunucuda yeni arayüze yönlenir).
+ * Aranan metin URL'ye ve tarayıcı deposuna yazılmaz (kişi adı olabilir). Sonuç bağlantıları SPA rotasına router'la
+ * gider (`hitRoute`, F11.3); karşılığı olmayan hedef ekranın kendi adresiyle (tam sayfa) kalır.
  */
 @Component({
   selector: 'rc-search-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MetinGirdisi],
+  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, MetinGirdisi],
   styleUrl: '../system.scss',
   templateUrl: './search-page.html',
 })
@@ -65,13 +90,37 @@ export class SearchPage {
   private readonly api = inject(ApiIstemcisi);
 
   protected readonly form = new FormGroup({
-    q: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(100)]),
+    q: new FormControl<string | null>(null, [
+      Validators.required,
+      Validators.maxLength(SEARCH_MAX_LENGTH),
+    ]),
   });
   protected readonly searched = signal(false);
   protected readonly results = new TemelStore<readonly SearchHit[], string>((q) =>
     this.api.get<readonly SearchHit[]>('/api/ui/v1/ara', { parametreler: { q } }),
   );
   protected readonly safeHitUrl = safeHitUrl;
+  protected readonly hitRoute = hitRoute;
+
+  constructor() {
+    // F11.3: eski arayüzün arama kutusu (`GET /ara?q=…`) pilot firmada buraya yönlenir. Metin bir kez okunur, arama
+    // yapılır ve sorgu adresten silinir (yerinde değiştirme: aranan metin URL'de ve geçmişte kalmaz).
+    const route = inject(ActivatedRoute);
+    const incoming = route.snapshot.queryParamMap.get('q');
+    if (incoming !== null) {
+      const q = incoming.trim();
+      if (q.length > 0 && q.length <= SEARCH_MAX_LENGTH) {
+        this.form.controls.q.setValue(q);
+        this.search();
+      }
+      void inject(Router).navigate([], {
+        relativeTo: route,
+        queryParams: { q: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
 
   protected search(): void {
     this.form.markAllAsTouched();
