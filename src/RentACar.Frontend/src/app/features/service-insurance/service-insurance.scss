@@ -1,0 +1,57 @@
+// F9.2 servis / sigorta / vade ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz
+// tablo) aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
+@use '../vehicles/vehicles';
+
+.sonraki {
+  margin: 0;
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+.geri {
+  font-size: var(--rc-yazi-sm);
+}
+
+.sekmeler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  a[aria-current='page'] {
+    font-weight: var(--rc-agirlik-kalin);
+    text-decoration: none;
+  }
+}
+
+.alt-baslik {
+  margin: 0;
+  font-size: var(--rc-yazi-md);
+}
+
+fieldset.grup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  margin: 0;
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  min-width: 0;
+
+  > legend {
+    padding: 0 var(--rc-bosluk-1);
+    font-weight: var(--rc-agirlik-kalin);
+    font-size: var(--rc-yazi-sm);
+  }
+}
+
+.toplam-satiri td {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.duzenleyici {
+  scroll-margin-top: var(--rc-bosluk-4);
+}

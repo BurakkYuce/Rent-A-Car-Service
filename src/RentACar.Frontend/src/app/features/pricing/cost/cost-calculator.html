@@ -1,0 +1,269 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>
+      @if (offer(); as o) {
+        {{ 'fiyatTarife.maliyet.teklifBaslik' | transloco: { no: o.teklif.kayitNo } }}
+      } @else if (offerId) {
+        {{ 'fiyatTarife.maliyet.teklif' | transloco }}
+      } @else {
+        {{ 'fiyatTarife.maliyet.baslik' | transloco }}
+      }
+    </h1>
+    <div class="ust__eylemler">
+      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/maliyet-teklifleri">
+        {{ 'fiyatTarife.maliyet.kayitliTeklifler' | transloco }}
+      </a>
+    </div>
+  </header>
+  <p class="aciklama">{{ 'fiyatTarife.maliyet.aciklama' | transloco }}</p>
+
+  @if (loadError()) {
+    <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      {{ 'fiyatTarife.yuklenemedi' | transloco }}
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
+        {{ 'fiyatTarife.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+
+  <section class="bolum" aria-labelledby="rc-maliyet-girdi">
+    <h2 id="rc-maliyet-girdi">{{ 'fiyatTarife.maliyet.girdi' | transloco }}</h2>
+    <form class="form" [formGroup]="form" (ngSubmit)="calculate()">
+      <div class="rc-form-izgara">
+        @for (f of fields; track f.name) {
+          @if (f.group === 'finans') {
+            <rc-alan
+              [etiket]="f.label | transloco"
+              [ipucu]="f.kind === 'ratio' ? ('fiyatTarife.maliyet.kesirIpucu' | transloco) : ''"
+            >
+              @switch (f.kind) {
+                @case ('money') {
+                  <rc-para-girdisi [formControlName]="f.name" />
+                }
+                @case ('ratio') {
+                  <rc-sayi-girdisi [formControlName]="f.name" [kesir]="4" />
+                }
+                @default {
+                  <rc-sayi-girdisi [formControlName]="f.name" />
+                }
+              }
+            </rc-alan>
+          }
+        }
+        <rc-alan [etiket]="'fiyatTarife.maliyet.alan.krediHesaplamaSekli' | transloco">
+          <rc-secim formControlName="krediHesaplamaSekli" [secenekler]="creditOptions" />
+        </rc-alan>
+      </div>
+      <fieldset class="grup">
+        <legend>{{ 'fiyatTarife.maliyet.giderKalemleri' | transloco }}</legend>
+        <p class="aciklama">{{ 'fiyatTarife.maliyet.giderAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          @for (f of fields; track f.name) {
+            @if (f.group === 'gider') {
+              <rc-alan [etiket]="f.label | transloco">
+                <rc-para-girdisi [formControlName]="f.name" />
+              </rc-alan>
+            }
+          }
+        </div>
+      </fieldset>
+      <rc-form-hatalari [hatalar]="calc.genelHatalar()" />
+      @if (canWrite()) {
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="calc.gonderiliyor()"
+          >
+            {{
+              calc.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('fiyatTarife.maliyet.hesapla' | transloco)
+            }}
+          </button>
+        </div>
+      }
+    </form>
+  </section>
+
+  @if (result(); as s) {
+    <section class="bolum" aria-labelledby="rc-maliyet-sonuc" aria-live="polite">
+      <h2 id="rc-maliyet-sonuc">{{ 'fiyatTarife.maliyet.sonuc' | transloco }}</h2>
+      @if (resultStale()) {
+        <div class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+          {{ 'fiyatTarife.maliyet.sonucBayat' | transloco }}
+        </div>
+      }
+      <dl class="ozet-serit">
+        <div>
+          <dt>{{ 'fiyatTarife.maliyet.toplamMaliyet' | transloco }}</dt>
+          <dd>{{ num(s.toplamMaliyet) | para }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'fiyatTarife.maliyet.basaBasAylik' | transloco }}</dt>
+          <dd>{{ num(s.basaBasAylik) | para }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'fiyatTarife.maliyet.teklifAylikNet' | transloco }}</dt>
+          <dd>{{ num(s.teklifAylikNet) | para }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'fiyatTarife.maliyet.teklifKdvli' | transloco }}</dt>
+          <dd>{{ num(s.teklifKdvli) | para }}</dd>
+        </div>
+      </dl>
+      @if ((num(s.aracSayisi) ?? 1) > 1) {
+        <dl class="ozet-serit">
+          <div>
+            <dt>{{ 'fiyatTarife.maliyet.alan.aracSayisi' | transloco }}</dt>
+            <dd>{{ s.aracSayisi }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'fiyatTarife.maliyet.filoToplamMaliyet' | transloco }}</dt>
+            <dd>{{ num(s.filoToplamMaliyet) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'fiyatTarife.maliyet.filoTeklifAylikNet' | transloco }}</dt>
+            <dd>{{ num(s.filoTeklifAylikNet) | para }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'fiyatTarife.maliyet.filoTeklifKdvli' | transloco }}</dt>
+            <dd>{{ num(s.filoTeklifKdvli) | para }}</dd>
+          </div>
+        </dl>
+      }
+
+      <h3 class="alt-baslik">{{ 'fiyatTarife.maliyet.kalemDokumu' | transloco }}</h3>
+      <p class="aciklama">{{ 'fiyatTarife.maliyet.kalemAciklama' | transloco }}</p>
+      <div class="tablo-kap">
+        <table class="duz-tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'fiyatTarife.maliyet.kalem' | transloco }}</th>
+              <th scope="col">{{ 'fiyatTarife.maliyet.periyot' | transloco }}</th>
+              <th scope="col" class="num">{{ 'fiyatTarife.maliyet.birim' | transloco }}</th>
+              <th scope="col" class="num">{{ 'fiyatTarife.maliyet.donemTutar' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (k of s.kalemler; track $index) {
+              <tr>
+                <td>{{ k.ad }}</td>
+                <td>{{ 'fiyatTarife.maliyet.periyotlar.' + k.periyot | transloco }}</td>
+                <td class="num">{{ num(k.birim) | para }}</td>
+                <td class="num">{{ num(k.donemTutar) | para }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4">{{ 'fiyatTarife.maliyet.kalemYok' | transloco }}</td>
+              </tr>
+            }
+            <tr class="toplam-satiri">
+              <td colspan="3">{{ 'fiyatTarife.maliyet.toplamGider' | transloco }}</td>
+              <td class="num">{{ num(s.toplamGider) | para }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="alt-baslik">{{ 'fiyatTarife.maliyet.maliyetDokumu' | transloco }}</h3>
+      <div class="tablo-kap">
+        <table class="duz-tablo">
+          <tbody>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.residualDeger' | transloco }}</th>
+              <td class="num">{{ num(s.residualDeger) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.netAmortisman' | transloco }}</th>
+              <td class="num">{{ num(s.netAmortisman) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.finansmanFaiz' | transloco }}</th>
+              <td class="num">{{ num(s.finansmanFaiz) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.finansmanVergi' | transloco }}</th>
+              <td class="num">{{ num(s.finansmanVergi) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.damga' | transloco }}</th>
+              <td class="num">{{ num(s.damga) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.toplamGider' | transloco }}</th>
+              <td class="num">{{ num(s.toplamGider) | para }}</td>
+            </tr>
+            <tr class="toplam-satiri">
+              <th scope="row">{{ 'fiyatTarife.maliyet.toplamMaliyet' | transloco }}</th>
+              <td class="num">{{ num(s.toplamMaliyet) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.kar' | transloco }}</th>
+              <td class="num">{{ num(s.kar) | para }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.maliyet.teklifNet' | transloco }}</th>
+              <td class="num">{{ num(s.teklifNet) | para }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    @if (canWrite()) {
+      <section class="bolum" aria-labelledby="rc-maliyet-kaydet">
+        <h2 id="rc-maliyet-kaydet">
+          {{
+            (offer() ? 'fiyatTarife.maliyet.teklifGuncelle' : 'fiyatTarife.maliyet.teklifKaydet')
+              | transloco
+          }}
+        </h2>
+        <p class="aciklama">{{ 'fiyatTarife.maliyet.kaydetAciklama' | transloco }}</p>
+        <form class="form" [formGroup]="header" (ngSubmit)="saveOffer()">
+          <div class="rc-form-izgara">
+            <rc-alan [etiket]="'fiyatTarife.maliyet.teklifAdi' | transloco">
+              <rc-metin-girdisi formControlName="baslik" [azamiUzunluk]="256" />
+            </rc-alan>
+            <rc-alan [etiket]="'fiyatTarife.maliyet.plaka' | transloco">
+              <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
+            </rc-alan>
+            <rc-alan [etiket]="'fiyatTarife.maliyet.tarih' | transloco">
+              <rc-tarih-secici formControlName="tarih" />
+            </rc-alan>
+            <rc-alan [etiket]="'fiyatTarife.maliyet.cari' | transloco">
+              <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+            </rc-alan>
+            @if (canPickStaff()) {
+              <rc-alan [etiket]="'fiyatTarife.maliyet.hazirlayan' | transloco">
+                <rc-arama-secim formControlName="hazirlayan" [kaynak]="staff" />
+              </rc-alan>
+            }
+            <rc-alan [etiket]="'fiyatTarife.alan.aciklama' | transloco">
+              <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1024" />
+            </rc-alan>
+          </div>
+          <rc-form-hatalari [hatalar]="save.genelHatalar()" />
+          <div class="form__eylemler">
+            <button
+              type="submit"
+              class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+              [disabled]="
+                save.gonderiliyor() || resultStale() || (offerId !== null && offer() === null)
+              "
+            >
+              {{
+                save.gonderiliyor()
+                  ? ('form.gonderiliyor' | transloco)
+                  : ((offer()
+                      ? 'fiyatTarife.maliyet.teklifGuncelle'
+                      : 'fiyatTarife.maliyet.teklifKaydet'
+                    ) | transloco)
+              }}
+            </button>
+          </div>
+        </form>
+      </section>
+    }
+  }
+</div>

@@ -321,7 +321,7 @@ export class PanelSayfasi {
       {
         sayi: kmGecen,
         etiket: this.t('panel.vade.kmGecenBakim'),
-        href: '/raporlar/periyodik-servis',
+        rota: '/raporlar/periyodik-servis', // F10.3: SPA rotası
         ton: kmGecen > 0 ? 'hata' : 'notr',
       },
       {

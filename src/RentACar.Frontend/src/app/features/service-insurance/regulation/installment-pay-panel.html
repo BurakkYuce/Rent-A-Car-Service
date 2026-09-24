@@ -1,0 +1,97 @@
+<section class="bolum" aria-labelledby="rc-odeme-baslik">
+  <h2 id="rc-odeme-baslik">{{ 'servisSigorta.odeme.baslik' | transloco }}</h2>
+  <p class="aciklama">
+    {{
+      (kind() === 'mtv' ? 'servisSigorta.odeme.aciklamaMtv' : 'servisSigorta.odeme.aciklamaMuayene')
+        | transloco
+    }}
+  </p>
+  <p class="sonraki">{{ 'servisSigorta.odeme.kalan' | transloco: { kalan: remainingText() } }}</p>
+  @if (payment.frozen()) {
+    <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+      {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
+    </div>
+  }
+  @if (needsAmount()) {
+    <div class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+      {{ 'servisSigorta.odeme.tutarYenidenGir' | transloco }}
+    </div>
+  }
+  <form class="form" [formGroup]="form" (ngSubmit)="pay()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'servisSigorta.para.hesap' | transloco">
+        <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+      </rc-alan>
+      @if (accountOptions().length > 0) {
+        <rc-alan [etiket]="'servisSigorta.para.hesapId' | transloco">
+          <rc-secim
+            formControlName="hesapId"
+            [secenekler]="accountOptions()"
+            [bosEtiket]="'servisSigorta.para.hesapBelirtilmemis' | transloco"
+          />
+        </rc-alan>
+      }
+      <rc-alan
+        [etiket]="'servisSigorta.odeme.tutar' | transloco"
+        [ipucu]="'servisSigorta.odeme.tutarIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="tutar" [yerTutucu]="remainingText()" />
+      </rc-alan>
+      @if (kind() === 'muayene') {
+        <rc-alan
+          [etiket]="'servisSigorta.odeme.ceza' | transloco"
+          [ipucu]="'servisSigorta.odeme.cezaIpucu' | transloco"
+        >
+          <rc-para-girdisi formControlName="ceza" />
+        </rc-alan>
+      }
+      <rc-alan
+        [etiket]="'servisSigorta.odeme.tarih' | transloco"
+        [ipucu]="'servisSigorta.odeme.tarihIpucu' | transloco"
+      >
+        <rc-tarih-secici formControlName="odemeTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.odeme.evrakNo' | transloco">
+        <rc-metin-girdisi formControlName="evrakNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.odeme.islemYapan' | transloco">
+        <rc-metin-girdisi formControlName="islemYapan" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.odeme.kasaKodu' | transloco">
+        <rc-metin-girdisi formControlName="kasaKodu" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.odeme.hesapNo' | transloco">
+        <rc-metin-girdisi formControlName="hesapNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <rc-form-hatalari [hatalar]="errors()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="payment.sending() || refreshing()"
+      >
+        <rc-ikon ad="cash" [boyut]="14" />
+        {{
+          payment.sending()
+            ? ('form.gonderiliyor' | transloco)
+            : payment.frozen()
+              ? ('servisSigorta.para.tekrarDene' | transloco)
+              : ('servisSigorta.odeme.ode' | transloco)
+        }}
+      </button>
+      @if (payment.frozen() && !payment.sending()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="abandon()"
+        >
+          {{ 'servisSigorta.para.vazgec' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+</section>

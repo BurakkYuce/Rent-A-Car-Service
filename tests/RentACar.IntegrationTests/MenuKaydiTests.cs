@@ -125,12 +125,21 @@ public sealed class MenuKaydiTests
         // F5.4: Rezervasyon grubu (4), Kira grubundan Teklifler + Filo Kiralama, iki kısa yol (Yeni Rezervasyon, Müsaitlik).
         // F6.4: Araçlar grubunun tamamı (12) + Tanımlar'daki Araç Tipleri ve Segmentler (F6 sayfaları; iki grupta birer kez).
         // F7.3: Cariler & CRM grubunun F7 sayfaları (6; Blog ve Gelen Talepler Blazor'da kalır).
+        // F10.3: Raporlar grubunun tamamı (25; araç karnesi kimlikli olduğu için menüde yok).
         Assert.Equal(new[]
             {
                 "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
                 "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/cariler",
                 "/app/crm", "/app/filo-kiralama", "/app/filo-plan", "/app/hasar", "/app/hukuk", "/app/kiralar",
                 "/app/kiralar/yeni", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit", "/app/panel",
+                "/app/raporlar/arac-durum-takip", "/app/raporlar/arac-gunluk-durum", "/app/raporlar/cari-bakiye",
+                "/app/raporlar/doluluk", "/app/raporlar/ek-hizmet", "/app/raporlar/extre-ozeti", "/app/raporlar/fatura-donem",
+                "/app/raporlar/filo", "/app/raporlar/filo-analiz", "/app/raporlar/finans-analiz", "/app/raporlar/gelir-gider",
+                "/app/raporlar/gunluk", "/app/raporlar/karlilik", "/app/raporlar/karsilastirmali-analiz",
+                "/app/raporlar/kasa-banka", "/app/raporlar/kdv-listesi", "/app/raporlar/km-detay",
+                "/app/raporlar/otomatik-servisler", "/app/raporlar/periyodik-servis", "/app/raporlar/personel-calisma",
+                "/app/raporlar/rezervasyon-kaynak", "/app/raporlar/servis-ozet", "/app/raporlar/sigorta-muayene",
+                "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi",
                 "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/segmentler", "/app/segmentler",
                 "/app/sikayetler", "/app/takvim", "/app/teklifler",
             },
@@ -252,6 +261,10 @@ public sealed class MenuKaydiTests
         // F7.3: CRM Analiz spa öğesi ViewReports'a bağlı — operatöre ek ViewReports ile görünür, Muhasebe'ye yasakla gizlenir.
         Assert.Contains("Cariler & CRM|/crm", YeniGorunur(Kullanici(UserRole.Operator, ek: ["ViewReports"])));
         Assert.DoesNotContain("Cariler & CRM|/crm", YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["ViewReports"])));
+        // F10.3: Raporlar spa öğeleri de izne bağlı — ek ViewReports ile görünür, yasakla gizlenir.
+        Assert.Contains("Raporlar|/raporlar/gunluk", YeniGorunur(Kullanici(UserRole.Operator, ek: ["ViewReports"])));
+        Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["ViewReports"])),
+            x => x.StartsWith("Raporlar|", StringComparison.Ordinal));
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
         Assert.Contains("|/vade", yasak);
     }

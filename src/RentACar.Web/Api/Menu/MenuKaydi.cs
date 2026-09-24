@@ -12,7 +12,8 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Sira</c>: menünün TAMAMINDA görüntülenme sırası (gruplar ilk öğelerinin sırasıyla dizilir).</item>
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
 /// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
-/// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları; F10.3: Raporlar
+/// grubu). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -176,33 +177,33 @@ public static class MenuKaydi
         E(Finans, "/cezalar", "Cezalar", FW);
         E(Finans, "/donem-kapanis", "Dönem Kapanışı", FW);
 
-        // ---- Raporlar (MainLayout: Roles="Admin,Yonetici,Muhasebe" → ViewReports)
+        // ---- Raporlar (MainLayout: Roles="Admin,Yonetici,Muhasebe" → ViewReports). F10.3: grubun tamamı spa.
         const string Rapor = "Raporlar";
-        E(Rapor, "/raporlar/finans-analiz", "Finans Analiz", VR);
-        E(Rapor, "/raporlar/gelir-gider", "Gelir-Gider", VR);
-        E(Rapor, "/raporlar/karlilik", "Kârlılık", VR);
-        E(Rapor, "/raporlar/filo-analiz", "Filo Analiz", VR);
-        E(Rapor, "/raporlar/gunluk", "Günlük", VR);
-        E(Rapor, "/raporlar/cari-bakiye", "Cari Bakiye", VR);
-        E(Rapor, "/raporlar/extre-ozeti", "Extre Özeti", VR);
-        E(Rapor, "/raporlar/filo", "Filo", VR);
-        E(Rapor, "/raporlar/doluluk", "Doluluk", VR);
-        E(Rapor, "/raporlar/tahsilat-fatura", "Tahsilat-Fatura", VR);
-        E(Rapor, "/raporlar/kdv-listesi", "KDV Listesi", VR);
-        E(Rapor, "/raporlar/ek-hizmet", "Ek Hizmet", VR);
-        E(Rapor, "/raporlar/periyodik-servis", "Periyodik Servis", VR);
-        E(Rapor, "/raporlar/km-detay", "KM Detay", VR);
-        E(Rapor, "/raporlar/rezervasyon-kaynak", "Rezervasyon Kaynak", VR);
-        E(Rapor, "/raporlar/karsilastirmali-analiz", "Karşılaştırmalı Analiz", VR);
-        E(Rapor, "/raporlar/fatura-donem", "Fatura Dönem", VR);
-        E(Rapor, "/raporlar/arac-durum-takip", "Araç Durum Takip", VR);
-        E(Rapor, "/raporlar/arac-gunluk-durum", "Araç Günlük Durum", VR);
-        E(Rapor, "/raporlar/personel-calisma", "Personel Çalışma (Vardiya)", VR);
-        E(Rapor, "/raporlar/sigorta-muayene", "Sigorta / Muayene Envanteri", VR);
-        E(Rapor, "/raporlar/kasa-banka", "Kasa-Banka Defteri", VR);
-        E(Rapor, "/raporlar/virman-gecmisi", "Virman Geçmişi", VR);
-        E(Rapor, "/raporlar/servis-ozet", "Servis Özet", VR);
-        E(Rapor, "/raporlar/otomatik-servisler", "Otomatik Servisler", VR);
+        E(Rapor, "/app/raporlar/finans-analiz", "Finans Analiz", VR);
+        E(Rapor, "/app/raporlar/gelir-gider", "Gelir-Gider", VR);
+        E(Rapor, "/app/raporlar/karlilik", "Kârlılık", VR);
+        E(Rapor, "/app/raporlar/filo-analiz", "Filo Analiz", VR);
+        E(Rapor, "/app/raporlar/gunluk", "Günlük", VR);
+        E(Rapor, "/app/raporlar/cari-bakiye", "Cari Bakiye", VR);
+        E(Rapor, "/app/raporlar/extre-ozeti", "Extre Özeti", VR);
+        E(Rapor, "/app/raporlar/filo", "Filo", VR);
+        E(Rapor, "/app/raporlar/doluluk", "Doluluk", VR);
+        E(Rapor, "/app/raporlar/tahsilat-fatura", "Tahsilat-Fatura", VR);
+        E(Rapor, "/app/raporlar/kdv-listesi", "KDV Listesi", VR);
+        E(Rapor, "/app/raporlar/ek-hizmet", "Ek Hizmet", VR);
+        E(Rapor, "/app/raporlar/periyodik-servis", "Periyodik Servis", VR);
+        E(Rapor, "/app/raporlar/km-detay", "KM Detay", VR);
+        E(Rapor, "/app/raporlar/rezervasyon-kaynak", "Rezervasyon Kaynak", VR);
+        E(Rapor, "/app/raporlar/karsilastirmali-analiz", "Karşılaştırmalı Analiz", VR);
+        E(Rapor, "/app/raporlar/fatura-donem", "Fatura Dönem", VR);
+        E(Rapor, "/app/raporlar/arac-durum-takip", "Araç Durum Takip", VR);
+        E(Rapor, "/app/raporlar/arac-gunluk-durum", "Araç Günlük Durum", VR);
+        E(Rapor, "/app/raporlar/personel-calisma", "Personel Çalışma (Vardiya)", VR);
+        E(Rapor, "/app/raporlar/sigorta-muayene", "Sigorta / Muayene Envanteri", VR);
+        E(Rapor, "/app/raporlar/kasa-banka", "Kasa-Banka Defteri", VR);
+        E(Rapor, "/app/raporlar/virman-gecmisi", "Virman Geçmişi", VR);
+        E(Rapor, "/app/raporlar/servis-ozet", "Servis Özet", VR);
+        E(Rapor, "/app/raporlar/otomatik-servisler", "Otomatik Servisler", VR);
 
         // ---- Tüm roller (grupsuz)
         E(Kok, "/vade", "Vade Panosu", null);
