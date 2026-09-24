@@ -83,4 +83,12 @@ public sealed class AccessoryRepository(IDbContextFactory<AppDbContext> factory)
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.1a — IVersionedRepository<Accessory> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<Accessory>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<Accessory>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Accessory> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, a => $"'{a.Kod}' kodlu aksesuar zaten var.", ct);
 }

@@ -1,0 +1,115 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using RentACar.Application.Common;
+using RentACar.Application.Currencies;
+using RentACar.Application.Kur;
+using RentACar.Web.Api.Finans;
+using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Kur;
+
+namespace RentACar.Web.Api.FinansHub;
+
+/// <summary>Kurlar (Blazor <c>/kurlar</c>): TCMB günlük kurları, firma sabit kurları, çevirim, TCMB yenileme. Sabit kur
+/// para çözümünü etkiler (KurService önce sabit kura bakar) → yazma FinanceWrite; PUT iyimser eşzamanlılıkla.</summary>
+public static partial class FinanceHubApi
+{
+    private static void MapRates(RouteGroupBuilder write, RouteGroupBuilder anyRead)
+    {
+        anyRead.MapGet("/kurlar", GetRates);
+        anyRead.MapGet("/kurlar/cevir", ConvertAmount);
+        write.MapPost("/kurlar/yenile", RefreshRates);
+        write.MapPost("/kurlar/sabit", CreateFixedRate);
+        write.MapPut("/kurlar/sabit/{id:guid}", UpdateFixedRate);
+        write.MapDelete("/kurlar/sabit/{id:guid}", DeleteFixedRate);
+    }
+
+    private static async Task<Ok<RatesScreen>> GetRates(
+        KurService rates, SabitKurService fixedRates, CurrencyService currencies, CancellationToken ct)
+    {
+        var today = await rates.BugunKurlarAsync(ct);
+        var fixedList = await fixedRates.ListAsync(ct);
+        var activeCodes = fixedList.Where(s => s.Aktif).Select(s => s.Kod).ToHashSet(StringComparer.Ordinal);
+        var items = new List<FixedRate>(fixedList.Count);
+        foreach (var s in fixedList)
+            items.Add(new FixedRate(s.Id, s.Kod, s.Kur, Day(s.BasTar), Day(s.BitTar), s.Aktif, await fixedRates.GetVersionAsync(s.Id, ct)));
+        var codes = (await currencies.ListActiveAsync(ct)).Select(c => c.Kod)
+            .Concat(today.Select(k => k.Kod)).Append("TRY")
+            .Select(KurService.NormalizeKod).Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
+        return TypedResults.Ok(new RatesScreen(
+            [.. today.Select(k => new CbrtRate(k.Kod, k.Ad, k.Birim, k.ForexAlis, k.ForexSatis, k.EfektifAlis, k.EfektifSatis,
+                DateOnly.FromDateTime(k.Tarih.UtcDateTime), activeCodes.Contains(k.Kod)))],
+            items, codes));
+    }
+
+    /// <summary>Bilgi amaçlı çevirim (TL bazı üzerinden; yuvarlamaz). Kur bulunamazsa 400.</summary>
+    private static async Task<Ok<ConversionResult>> ConvertAmount(
+        decimal tutar, string? kaynak, string? hedef, KurService rates, CancellationToken ct)
+    {
+        if (Math.Abs(tutar) >= FinansApi.TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", "tutar");
+        var from = FinansApi.Doviz(kaynak);
+        string to = "";
+        FinansApi.Alanli("hedef", () => to = KurService.NormalizeKodStrict(string.IsNullOrWhiteSpace(hedef) ? "TRY" : hedef));
+        decimal result = 0m;
+        try { result = await rates.CevirAsync(tutar, from, to, ct: ct); }
+        catch (ValidationException ex) when (ex.Alan is null) { throw new ValidationException(ex.Message, "kaynak"); }
+        // L2: tutar × kaynak kuru / hedef kuru decimal'ı taşabilir (ör. çok küçük hedef kur) — 500 değil 400.
+        catch (OverflowException) { throw new ValidationException("Çevrilen tutar çok büyük.", "tutar"); }
+        return TypedResults.Ok(new ConversionResult(tutar, from, to, result));
+    }
+
+    /// <summary>TCMB'den çek (paylaşımlı tablo; 30 dk içinde tekrar çekilmez → "guncel").</summary>
+    private static async Task<Ok<RatesRefreshResult>> RefreshRates(TcmbKurService tcmb, CancellationToken ct)
+    {
+        var n = await tcmb.RefreshAsync(ct: ct);
+        return TypedResults.Ok(n switch
+        {
+            > 0 => new RatesRefreshResult("guncellendi", n),
+            -1 => new RatesRefreshResult("guncel", 0),
+            _ => new RatesRefreshResult("basarisiz", 0),
+        });
+    }
+
+    private static async Task<Ok<CashOperationResult>> CreateFixedRate(
+        FixedRateCreateRequest req, SabitKurService fixedRates, CancellationToken ct)
+    {
+        FixedRateInput(req.Kur, req.BasTar, req.BitTar);
+        var id = await fixedRates.CreateAsync(new SabitKurInput
+        {
+            Kod = req.Kod ?? "", Kur = req.Kur, BasTar = Midnight(req.BasTar), BitTar = Midnight(req.BitTar), Aktif = req.Aktif,
+        }, ct);
+        return TypedResults.Ok(new CashOperationResult(id));
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateFixedRate(
+        Guid id, FixedRateUpdateRequest req, SabitKurService fixedRates, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Surum))
+            throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden yükleyin.", "surum");
+        FixedRateInput(req.Kur, req.BasTar, req.BitTar);
+        var ok = await fixedRates.UpdateAsync(id, new SabitKurInput
+        {
+            Kur = req.Kur, BasTar = Midnight(req.BasTar), BitTar = Midnight(req.BitTar), Aktif = req.Aktif,
+        }, req.Surum, ct);
+        return ok ? TypedResults.NoContent() : F5Ortak.Bulunamadi("Sabit kur bulunamadı.");
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteFixedRate(
+        Guid id, SabitKurService fixedRates, CancellationToken ct)
+        => await fixedRates.DeleteAsync(id, ct) ? TypedResults.NoContent() : F5Ortak.Bulunamadi("Sabit kur bulunamadı.");
+
+    /// <summary>Sabit kur <c>numeric(19,6)</c>: pozitif, 6 ondalık, kolona sığan; pencere makul yıllarda.</summary>
+    private static void FixedRateInput(decimal rate, DateOnly? start, DateOnly? end)
+    {
+        if (rate <= 0m) throw new ValidationException("Sabit kur 0'dan büyük olmalı.", "kur");
+        if (rate > SabitKurService.MaxRate) throw new ValidationException(SabitKurService.MaxRateMessage, "kur");
+        RateScale(rate);
+        foreach (var (d, field) in new[] { (start, "basTar"), (end, "bitTar") })
+            if (d is { Year: < 2000 or > 2100 })
+                throw new ValidationException("Tarih 2000 ile 2100 arasında olmalıdır.", field);
+    }
+
+    /// <summary>Takvim günü → o günün UTC başı (servis pencereyi gün-DAHİL genişletir; Blazor ucuyla aynı).</summary>
+    private static DateTimeOffset? Midnight(DateOnly? day)
+        => day is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null;
+
+    private static DateOnly? Day(DateTimeOffset? value) => value is { } v ? DateOnly.FromDateTime(v.UtcDateTime) : null;
+}

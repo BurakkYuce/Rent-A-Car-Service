@@ -18,6 +18,14 @@ public interface IAnketRepository
     Task CreateAsync(Anket row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<Anket> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F7.1 — <see cref="UpdateWithCevapAsync"/> + satır kilidi ve iyimser sürüm karşılaştırması (aynı işlem).
+    /// Sürüm farklı → <see cref="Common.EszamanliDegisiklikException"/>, hiçbir şey yazılmaz.</summary>
+    Task<bool> UpdateWithAnswersAsync(Guid id, string expectedVersion, Action<Anket> apply,
+        IReadOnlyList<AnketCevap> answers, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
+    Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
 }
 
 public interface ISikayetRepository
@@ -33,4 +41,10 @@ public interface ISikayetRepository
     Task CreateAsync(Sikayet row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<Sikayet> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm karşılaştırması (sürüm farklı → 409, hiçbir şey yazılmaz).</summary>
+    Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Sikayet> apply, CancellationToken ct = default);
+
+    /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
+    Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
 }

@@ -15,7 +15,7 @@
     <p class="error">@Hata</p>
 }
 
-<p>Mevcut kilit: <strong>@(_closing?.ToString("yyyy-MM-dd") ?? "yok (tüm dönemler açık)")</strong></p>
+<p>Mevcut kilit: <strong>@(_closing is { } kapanis ? RentACar.Application.Periods.PeriodLock.LocalDay(kapanis).ToString("yyyy-MM-dd") : "yok (tüm dönemler açık)")</strong></p>
 <p class="muted small">Kapanış tarihi ve <strong>öncesine</strong> tahsilat/ödeme/virman/cari-virman/ters kayıt/
     fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest. "Dönemi Kapat" ayrıca
     <strong>kapanış fişi</strong> keser: Gelir/Gider hesaplarını sıfırlayıp net dönem sonucunu

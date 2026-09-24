@@ -313,8 +313,10 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
         var (st, kod, g) = await Oku(await PostAsync(s, "/finans/tahsilat",
             new { cariId = o.Musteri, kiraId = o.Kira, tutar = 900000000000000m, hesap = "Kasa", doviz = "USD" }, YeniAnahtar()));
         Assert.True(st == 400 && kod == "dogrulama", $"{st}: {g}");
+        // F8.1a adversarial M1: baz sınırı artık ÇÖZÜLEN kura da uçta uygulanır — 22003 ağına ulaşmadan alanlı 400
+        // (errors.tutar). Sözleşme aynı: 400 dogrulama, iç ayrıntı sızmaz, hiçbir şey yazılmaz.
         var detay = JsonDocument.Parse(g).RootElement.GetProperty("detail").GetString()!;
-        Assert.Equal("Girilen değerlerden biri izin verilen büyüklüğü ya da uzunluğu aşıyor.", detay);
+        Assert.Equal("Tutar × kur çok büyük.", detay);
         Assert.DoesNotContain("Rentals", g, StringComparison.Ordinal); // iç ayrıntı sızmaz
         Assert.Equal(0, await DbAsync(o, db => db.CashTransactions.AsNoTracking().CountAsync())); // işlem geri alındı
         Assert.Equal(0m, (await KiraOkuAsync(o, o.Kira)).Tahsilat);

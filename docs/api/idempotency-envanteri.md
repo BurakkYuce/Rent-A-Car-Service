@@ -196,6 +196,30 @@ Servis düzeyinde (Blazor da kapsanır):
   `mevcut.ayniIcerik` ise form temizlenir, otomatik yeniden gönderim yok.
   Fatura, dönem faturası, dış hizmet iptali yapısal: başlık gönderilmez.
 
+### `/api/ui/v1/finans/*` uç eşlemesi (F8.1a — finans ekranları, 1. yarı)
+
+Kilit: `tests/RentACar.IntegrationTests/UiFinanceHubApiTests*.cs`. Uç kodu: `Web/Api/FinansHub/`. Envanter satırları
+DEĞİŞMEDİ; uçlar mevcut servisleri çağırır. Uç katmanı ekleri: tutar ≤ 4 ondalık (kuruşa yazan kalemlerde ≤ 2), kur ≤ 6
+ondalık, `numeric(19,4)` sınırı, metin kolon uzunlukları, gövdedeki var olmayan/başka kiracının cari kimliği 400
+(`errors[alan]`), yoldaki cari 404.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST finans/kasa/virman` | E06 | başlık zorunlu; yanıt `id` = türetilen anahtar | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/kasa/islemler/{id}/ters` | E08 | yok (yapısal; FinanceReverse) | 409 `mukerrer`. Kira bağlıysa kira şube kapsamı durumdan önce (403) |
+| `POST finans/bakiye-duzeltme` | E13 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/cari-virman` | E07 | başlık zorunlu; yanıt `id` = anahtar | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/cariler/{cariId}/toplu-kapat` | E05 | başlık zorunlu | 409 `mukerrer`. ÖNCE bu anahtarla yazılmış kayıt aranır: bu carinin kapatmasıysa `mevcut{id, belgeNo, tutar, doviz, ayniIcerik}` (hesap, kanal, açık tutarların toplamı, açıklama); başka işlemse `mevcut`suz 409 |
+| `POST finans/toplu-tahsilat` | E03 | başlık zorunlu → parti anahtarı; satır `RowKey(parti, i)` | 409 `mukerrer` + `mevcut` (ilk satırın belgesi, parti toplamı; `ayniIcerik` tüm satırlar birebir aynıysa) |
+| `POST finans/toplu-gider` | E22 | başlık zorunlu → parti anahtarı | 409 `mukerrer` (servis metni) |
+| `POST finans/depozito/iade` | E10 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/depozito/mahsup` | E11 | başlık zorunlu | aynı içerik 200 aynı `id`; farklı 409 |
+| `POST finans/otomatik-tahsilat/calistir` | E20 | yok (aday çiti + E19) | 200 `kesilen=0`, her dönem `atlananlar`da |
+| `POST finans/donem-kapanis/kilitle` | E36 | yok (yapısal) | 400 "Dönem zaten … kapalı". Tarih bugünden (İstanbul) ileri olamaz |
+
+Kasa/banka negatif bakiye guard'ı YOK (kasıtlı). Sabit kur (`PUT finans/kurlar/sabit/{id}`) para yazmaz ama çözülen
+kuru belirler: tam değiştirme zorunlu `surum` (xmin) ile, uyuşmazlık 409 `cakisma`.
+
 ### `/api/ui/v1` araç finans uç eşlemesi (F6.1b)
 
 Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/Api/AracFinans/`.
@@ -228,6 +252,29 @@ Kilit: `tests/RentACar.IntegrationTests/UiServiceInsuranceTests*.cs`. Uç kodu: 
 
 Ödemelerde tutar en çok 2 ondalık, 0 ve negatif red; MTV/muayene yalnız TRY (hesap-döviz çiti TRY); sigortada TRY'de
 kur ≠ 1 red, döviz poliçede boş kur `KurCozucu`, `(prim + zeyil) × çözülen kur` < 10^15 ve hesap-döviz çiti poliçe dövizi.
+
+### `/api/ui/v1` finans belge uç eşlemesi (F8.1b)
+
+Kilit: `tests/RentACar.IntegrationTests/UiFinanceDocumentTests*.cs`. Uç kodu: `Web/Api/FinansBelge/`.
+Sıra (DEVIR §5): kapsam (başka şube 403, başka kiracı 404) → anahtarla yazılmış kayıt (409 `mukerrer` +
+`mevcut{…, ayniIcerik}`) → tarih/dönem kilidi → servis. Ceza ödemesinde envanter LOW-1 bu uçta kapalıdır.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST faturalar/manuel` | E14 | başlık zorunlu → fatura **Id** | 409 `mukerrer` + `mevcut` (aynı içerik: cari, net, KDV, manuel/iade değil → `ayniIcerik=true`). Yarışı kaybeden istek serviste PK'ye çarpar; aynı içerikte mevcut id 200 döner (ikinci belge yazılmaz) |
+| `POST faturalar/{id}/iade` | E17 | yok (yapısal; FinanceReverse) | 400 "Bu fatura zaten iade edilmiş." (yarışta 400/409; tek iade) |
+| `POST faturalar/toplu` | E16 | yok | her kira önce kapsamdan geçer (biri dışarıdaysa hiçbiri kesilmez, 403); tekrar yeni belge üretmez, atlananlarda görünür |
+| `POST cezalar` | yok (defter yazmaz) | yok | her çağrı yeni ceza (boşluksuz no tüketir) — bilinen açık |
+| `POST cezalar/{id}/yansit` | E25 | yok (yapısal) | 400 "Yalnız 'Yeni' durumundaki ceza yansıtılabilir." |
+| `POST cezalar/{id}/odeme` | E26 | başlık zorunlu | 409 `mukerrer`; bu cezanın ödemesiyse `mevcut` (aynı kalem + hesap + tutar → `ayniIcerik=true`), başka cezanınsa `mevcut` yok |
+| `POST cezalar/{id}/iptal` | yapısal | yok | yansıtılmış/ödemeli ceza 400 |
+| `POST giderler` | E21 | başlık zorunlu | 409 `mukerrer` + `mevcut` (brüt, KDV, döviz, ödeme yöntemi, tip, cari, araç) |
+| `POST giderler/{id}/odeme` | E23 | başlık zorunlu | 409 `mukerrer` + `mevcut` (servisin sessiz `null`'ı bu uçta 409'dur) |
+| `POST gelen-efatura/{id}/giderlestir` | E24 | deterministik `RowKey(faturaId, i)`; başlık yok sayılır | 409 `mukerrer` |
+| `POST satislar` | E35 | yok (yapısal) | 400 "Araç zaten satılmış." |
+
+Gider ve araç satışında döviz saklanabilir ISO koda indirgenir ("TL" → TRY; #279 N1). `gelen-efatura/sync` GİB
+entegrasyonu yapılandırılmamışken 400 döner (dürüst stub).
 
 ## Açık işler
 
