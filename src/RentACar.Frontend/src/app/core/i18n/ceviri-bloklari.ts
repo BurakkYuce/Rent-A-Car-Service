@@ -10,6 +10,8 @@ export const CEVIRI_BLOKLARI = {
   cari: (): Promise<Translation> =>
     import('../../../i18n/bloklar/cari.json').then((m) => m.default),
   crm: (): Promise<Translation> => import('../../../i18n/bloklar/crm.json').then((m) => m.default),
+  finans: (): Promise<Translation> =>
+    import('../../../i18n/bloklar/finans.json').then((m) => m.default),
   'finans-belge': (): Promise<Translation> =>
     import('../../../i18n/bloklar/finans-belge.json').then((m) => m.default),
   'kira-formu': (): Promise<Translation> =>

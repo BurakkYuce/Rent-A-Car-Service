@@ -1,0 +1,145 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.otomatik.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'finans.otomatik.aciklama' | transloco }}</p>
+  @if (list.veri(); as d) {
+    <p class="aciklama">
+      {{ 'finans.otomatik.bagimsiz' | transloco }}
+      @if (!d.jobAcik) {
+        <strong>{{ 'finans.otomatik.jobKapali' | transloco }}</strong>
+      }
+    </p>
+  }
+  @if (skipped().length > 0) {
+    <div class="uyari-kutusu" role="status">
+      <strong>{{ 'finans.otomatik.atlananlar' | transloco }}</strong>
+      <ul>
+        @for (a of skipped(); track $index) {
+          <li>{{ a }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  <form class="filtre" [formGroup]="filter" (ngSubmit)="applyFilter()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finans.otomatik.sozlesmeNo' | transloco">
+        <rc-metin-girdisi formControlName="sozlesmeNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.otomatik.vadeMin' | transloco">
+        <rc-tarih-secici formControlName="vadeMin" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.otomatik.vadeMax' | transloco">
+        <rc-tarih-secici formControlName="vadeMax" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.otomatik.yalnizBakiyeli' | transloco">
+        <rc-onay-kutusu formControlName="bakiyeli" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        {{ 'finans.otomatik.listele' | transloco }}
+      </button>
+      @if (filtered()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="clearFilter()"
+        >
+          {{ 'finans.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (list.tur() === 'hata') {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ list.hata()?.detay }}</p>
+  }
+  @if (list.veri(); as d) {
+    <p class="ozet">
+      {{ 'finans.otomatik.adayAdet' | transloco: { adet: d.adaylar.length } }}
+      @for (x of d.dovizToplamlari; track x.doviz) {
+        · {{ x.toplam | fsayi }} {{ x.doviz }}
+      }
+      · {{ 'finans.otomatik.borcluCari' | transloco: { adet: debtorCount() } }}
+    </p>
+    @if (d.adaylar.length === 0) {
+      <p class="ozet">{{ 'finans.otomatik.adayYok' | transloco }}</p>
+    } @else {
+      <section class="bolum" aria-labelledby="rc-otomatik-adaylar">
+        <h2 id="rc-otomatik-adaylar">{{ 'finans.otomatik.adaylar' | transloco }}</h2>
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th>
+                  <span class="rc-gorunmez">{{ 'finans.otomatik.sec' | transloco }}</span>
+                </th>
+                <th>{{ 'finans.otomatik.sozlesme' | transloco }}</th>
+                <th class="num">{{ 'finans.otomatik.donem' | transloco }}</th>
+                <th>{{ 'finans.otomatik.baslangic' | transloco }}</th>
+                <th>{{ 'finans.otomatik.bitis' | transloco }}</th>
+                <th>{{ 'finans.otomatik.musteri' | transloco }}</th>
+                <th>{{ 'finans.otomatik.sube' | transloco }}</th>
+                <th class="num">{{ 'finans.otomatik.kiraTutar' | transloco }}</th>
+                <th>{{ 'finans.alan.doviz' | transloco }}</th>
+                <th class="num">{{ 'finans.otomatik.cariBakiye' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (a of d.adaylar; track key(a)) {
+                <tr>
+                  <td>
+                    @if (check(key(a)); as c) {
+                      <rc-alan
+                        [etiket]="
+                          'finans.otomatik.secEtiket'
+                            | transloco: { no: a.sozlesmeNo, sira: a.donemSira }
+                        "
+                        etiketGizli
+                      >
+                        <rc-onay-kutusu [formControl]="c" />
+                      </rc-alan>
+                    }
+                  </td>
+                  <td>{{ a.sozlesmeNo }}</td>
+                  <td class="num">{{ a.donemSira }}</td>
+                  <td>{{ a.donemBas | tarih }}</td>
+                  <td>{{ a.donemBit | tarih }}</td>
+                  <td>{{ a.cariAd }}</td>
+                  <td>{{ a.sube ?? '—' }}</td>
+                  <td class="num">{{ a.kiraTutar | fsayi }}</td>
+                  <td>{{ a.doviz }}</td>
+                  <td class="num" [class.negatif]="isPositive(a.cariBakiye)">
+                    {{ a.cariBakiye | fsayi }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="rc-form-izgara" [formGroup]="form">
+          <rc-alan [etiket]="'finans.otomatik.tahsilatDa' | transloco">
+            <rc-onay-kutusu formControlName="tahsilat" />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.alan.hesap' | transloco">
+            <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="errors()" />
+        <div class="form__eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="busy()"
+            (click)="run()"
+          >
+            {{ (busy() ? 'form.gonderiliyor' : 'finans.otomatik.calistir') | transloco }}
+          </button>
+        </div>
+        <p class="not">{{ 'finans.otomatik.tekTekNot' | transloco }}</p>
+      </section>
+    }
+  }
+</div>

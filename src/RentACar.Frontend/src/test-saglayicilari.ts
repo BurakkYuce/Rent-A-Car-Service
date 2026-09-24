@@ -5,6 +5,7 @@ import arac from './i18n/bloklar/arac.json';
 import aracFinans from './i18n/bloklar/arac-finans.json';
 import cari from './i18n/bloklar/cari.json';
 import crm from './i18n/bloklar/crm.json';
+import finans from './i18n/bloklar/finans.json';
 import finansBelge from './i18n/bloklar/finans-belge.json';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
@@ -29,6 +30,7 @@ const saglayicilar: Provider[] = [
       aracFinans,
       cari,
       crm,
+      finans,
       finansBelge,
       kiraFormu,
       kiralar,
