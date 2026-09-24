@@ -7,6 +7,7 @@ import type { SecimOgesi } from '@core/api/ui-tipleri';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { istekBaglami } from '@core/oturum/istek-baglami';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
 import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
@@ -28,6 +29,7 @@ import {
   type IncomingExpenseForm as ExpenseValue,
   formNotice,
   incomingExpenseRequest,
+  vatBreakdownText,
 } from '../document-requests';
 import { INCOMING, recordPath } from '../document.store';
 
@@ -130,7 +132,11 @@ export class IncomingExpenseForm {
     this.notice.set(null);
     const yes = await this.confirm.sor({
       baslik: this.t('finansBelge.gelen.giderlestir'),
-      mesaj: this.t('finansBelge.gelen.giderlestirOnay', { ettn: this.invoice().ettn }),
+      // r300 M4: deftere gidecek kırılım (KAYITLI değerler) onayda görünür; kaydedilmemiş bağlama burada yoktur.
+      mesaj: this.t('finansBelge.gelen.giderlestirOnay', {
+        ettn: this.invoice().ettn,
+        kirilim: vatBreakdownText(this.invoice(), this.t('finansBelge.gelen.kirilimYok')),
+      }),
     });
     if (!yes) return;
     const id = this.invoice().id;
@@ -138,7 +144,13 @@ export class IncomingExpenseForm {
     this.submission.gonder(
       this.form,
       () =>
-        this.api.post<IncomingInvoiceExpenseResult>(recordPath(INCOMING, id, '/giderlestir'), body),
+        this.api.post<IncomingInvoiceExpenseResult>(
+          recordPath(INCOMING, id, '/giderlestir'),
+          body,
+          {
+            context: istekBaglami({ mukerrerCagiranGosterir: true }),
+          },
+        ),
       {
         esleme: { cariId: 'cari' },
         basarili: (r) => {

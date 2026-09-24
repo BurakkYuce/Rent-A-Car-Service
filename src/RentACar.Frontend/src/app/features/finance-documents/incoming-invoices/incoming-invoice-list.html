@@ -1,32 +1,37 @@
 <div class="sayfa">
   <header class="ust">
     <h1>{{ 'finansBelge.gelen.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [attr.aria-expanded]="createOpen()"
-        (click)="createOpen.set(!createOpen())"
-      >
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'finansBelge.gelen.elleGir' | transloco }}
-      </button>
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--kucuk"
-        [attr.aria-expanded]="syncOpen()"
-        (click)="syncOpen.set(!syncOpen())"
-      >
-        {{ 'finansBelge.gelen.gibdenCek' | transloco }}
-      </button>
-    </div>
+    @if (unrestricted()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [attr.aria-expanded]="createOpen()"
+          (click)="createOpen.set(!createOpen())"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ 'finansBelge.gelen.elleGir' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [attr.aria-expanded]="syncOpen()"
+          (click)="syncOpen.set(!syncOpen())"
+        >
+          {{ 'finansBelge.gelen.gibdenCek' | transloco }}
+        </button>
+      </div>
+    }
   </header>
   <p class="aciklama">
     {{ 'finansBelge.gelen.aciklama' | transloco }}
     <a routerLink="/giderler">{{ 'finansBelge.gider.baslik' | transloco }}</a>
   </p>
+  @if (!unrestricted()) {
+    <p class="not" role="status">{{ 'finansBelge.subeKapsamiDisi' | transloco }}</p>
+  }
 
-  @if (createOpen()) {
+  @if (unrestricted() && createOpen()) {
     <section class="bolum" aria-labelledby="rc-gelen-yeni">
       <h2 id="rc-gelen-yeni">{{ 'finansBelge.gelen.elleGir' | transloco }}</h2>
       <form class="form" [formGroup]="createForm" (ngSubmit)="create()">
@@ -80,7 +85,7 @@
     </section>
   }
 
-  @if (syncOpen()) {
+  @if (unrestricted() && syncOpen()) {
     <section class="bolum" aria-labelledby="rc-gelen-cek">
       <h2 id="rc-gelen-cek">{{ 'finansBelge.gelen.gibdenCek' | transloco }}</h2>
       <p class="not">{{ 'finansBelge.gelen.cekAciklama' | transloco }}</p>
@@ -183,7 +188,7 @@
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="satir-eylem">
-        @if (satir.durum === 'Beklemede') {
+        @if (unrestricted() && satir.durum === 'Beklemede') {
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk"
@@ -200,12 +205,12 @@
             {{ 'finansBelge.gelen.reddet' | transloco }}
           </button>
         }
-        @if (!satir.giderlestirildi && satir.durum !== 'Reddedildi') {
+        @if (unrestricted() && !satir.giderlestirildi && satir.durum !== 'Reddedildi') {
           <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="openPanel('link', satir)">
             {{ 'finansBelge.gelen.bagla' | transloco }}
           </button>
         }
-        @if (satir.durum === 'Onaylandi' && !satir.giderlestirildi) {
+        @if (unrestricted() && satir.durum === 'Onaylandi' && !satir.giderlestirildi) {
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk"
@@ -245,7 +250,7 @@
             <rc-incoming-expense-form
               [invoice]="x"
               [branches]="branches.list.veri()"
-              (done)="expenseDone()"
+              (done)="$event ? expenseDone() : panelDone()"
               (closed)="closePanel()"
             />
           }

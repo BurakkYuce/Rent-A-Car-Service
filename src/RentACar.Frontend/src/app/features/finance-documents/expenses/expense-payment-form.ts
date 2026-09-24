@@ -2,42 +2,43 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   inject,
   input,
   output,
-  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { paraBicimle } from '@core/bicim/bicim';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { ParaPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
-import { DocumentNotice } from '../document-notice';
 import type { ExpensePayment, ExpenseRow } from '../document-model';
 import {
   type ExpensePaymentForm as PaymentValue,
-  type FormNotice,
   expensePaymentRequest,
-  formNotice,
 } from '../document-requests';
+import { DocumentSubmission } from '../document-submission';
+import { DocumentSubmitBar } from '../document-submit-bar';
 import { EXPENSES, recordPath } from '../document.store';
+
+/** Gider ödeme formunun donmuş deneme kapsamı (sayfa `PendingDocumentAttempts` anahtarı). */
+export const expensePaymentScope = (id: string) => `gider-odeme:${id}`;
 
 /**
  * Açık hesap giderine ödeme TAKİBİ (`POST /giderler/{id}/odeme`; deftere YAZMAZ, gider başına danışma kilidi altında
- * kalan). `Idempotency-Key` ZORUNLU; tekrar AYNI anahtarla, 2xx/`mukerrer` sonrası yeni. Tutar boş → kalanın tamamı
- * (SUNUCU). Bileşen gider başına yeniden kurulur (`@for … track id`): başka giderin tutarı taşınmaz.
+ * kalan). Gönderim {@link DocumentSubmission}: uçuşta kilit, belirsiz sonuçta gövde donar ve gider başına sayfada
+ * saklanır (başka satıra geçip dönünce kilitli geri gelir). Tutar boş → kalanın tamamı (SUNUCU). Bileşen gider başına
+ * yeniden kurulur (`@for … track id`): başka giderin tutarı taşınmaz. Başarı mesajı sunucunun yazdığı tutarla.
  */
 @Component({
   selector: 'rc-expense-payment-form',
@@ -46,8 +47,7 @@ import { EXPENSES, recordPath } from '../document.store';
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    DocumentNotice,
-    FormHatalari,
+    DocumentSubmitBar,
     MetinGirdisi,
     ParaGirdisi,
     ParaPipe,
@@ -83,20 +83,11 @@ import { EXPENSES, recordPath } from '../document.store';
             <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
           </rc-alan>
         </div>
-        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <rc-document-notice [notice]="notice()" />
-        <div class="form__eylemler">
-          <button
-            type="submit"
-            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-            [disabled]="submission.gonderiliyor()"
-          >
-            {{
-              submission.gonderiliyor()
-                ? ('form.gonderiliyor' | transloco)
-                : ('finansBelge.gider.ode' | transloco)
-            }}
-          </button>
+        <rc-document-submit-bar
+          [submission]="submission"
+          [label]="'finansBelge.gider.ode' | transloco"
+          (abandon)="abandon()"
+        >
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -104,14 +95,14 @@ import { EXPENSES, recordPath } from '../document.store';
           >
             {{ 'finansBelge.kapat' | transloco }}
           </button>
-        </div>
+        </rc-document-submit-bar>
       </form>
     </section>
   `,
   styleUrl: '../finance-documents.scss',
 })
-export class ExpensePaymentForm {
-  private readonly api = inject(ApiIstemcisi);
+export class ExpensePaymentForm implements OnInit {
+  private readonly confirm = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
 
@@ -121,14 +112,15 @@ export class ExpensePaymentForm {
   readonly dirtyChange = output<boolean>();
 
   protected readonly num = toNumber;
-  protected readonly notice = signal<FormNotice | null>(null);
   protected readonly form = new FormGroup({
     tutar: new FormControl<string | null>(null),
     tarih: new FormControl<string | null>(null),
     makbuzNo: new FormControl<string | null>(null, Validators.maxLength(32)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = new DocumentSubmission(this.form, () =>
+    expensePaymentScope(this.expense().id),
+  );
 
   constructor() {
     this.form.valueChanges
@@ -136,18 +128,17 @@ export class ExpensePaymentForm {
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
   }
 
+  ngOnInit(): void {
+    this.submission.restore();
+  }
+
   protected submit(): void {
-    this.notice.set(null);
     const e = this.expense();
-    const body = expensePaymentRequest(this.form.getRawValue() as PaymentValue);
-    this.submission.gonder(
-      this.form,
-      (key) =>
-        this.api.post<ExpensePayment>(recordPath(EXPENSES, e.id, '/odeme'), body, {
-          islemAnahtari: key,
-        }),
+    this.submission.submit<ExpensePayment>(
+      recordPath(EXPENSES, e.id, '/odeme'),
+      () => expensePaymentRequest(this.form.getRawValue() as PaymentValue),
       {
-        basarili: (p) => {
+        succeeded: (p) => {
           this.toast.basari(
             this.t('finansBelge.gider.odemeYazildi', {
               tutar: paraBicimle(toNumber(p.tutar), e.doviz),
@@ -157,20 +148,24 @@ export class ExpensePaymentForm {
           this.reset();
           this.paid.emit(p);
         },
-        hata: (h) => {
-          this.notice.set(formNotice(h));
-          if (h.kod === 'mukerrer') {
-            if (h.mevcut?.ayniIcerik) this.reset();
-            this.paid.emit(null);
-          }
-        },
+        recorded: () => this.reset(),
+        reload: () => this.paid.emit(null),
       },
     );
   }
 
+  protected async abandon(): Promise<void> {
+    const yes = await this.confirm.sor({
+      baslik: this.t('finansBelge.vazgecBaslik'),
+      mesaj: this.t('finansBelge.vazgecMesaj'),
+      tehlikeli: true,
+    });
+    if (yes) this.submission.abandon();
+  }
+
   private reset(): void {
     this.form.reset();
-    this.submission.kilit.yenile();
+    this.submission.renew();
     this.dirtyChange.emit(false);
   }
 }

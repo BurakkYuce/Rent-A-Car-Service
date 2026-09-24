@@ -211,6 +211,8 @@ const page1 = (kayitlar: unknown[], boyut = 50) => ({
 export interface DocumentEndpoints {
   /** Yazma istekleri için özel yanıt; true = yanıtlandı. */
   readonly write?: (route: Route, path: string) => Promise<boolean> | boolean;
+  /** Okuma istekleri için özel yanıt (ör. yeni kaydın detayı); true = yanıtlandı. */
+  readonly read?: (route: Route, path: string) => Promise<boolean> | boolean;
   readonly penalty?: () => Record<string, unknown>;
   readonly incoming?: () => Record<string, unknown>;
 }
@@ -261,6 +263,7 @@ export async function documentEndpoints(
         if (await e.write?.(r, path)) return;
         return json(r, { id: 'x1', no: 'YENI-1' });
       }
+      if (await e.read?.(r, path)) return;
       switch (path) {
         case '/api/ui/v1/faturalar':
           return json(r, page1([invoiceRow()]));

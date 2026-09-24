@@ -34,6 +34,7 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import { saleColumns } from '../document-columns';
 import { SALE_LIST, SALE_STATUSES, type VehicleSaleRow } from '../document-model';
 import { BranchNames, SaleStore } from '../document.store';
+import { PendingDocumentAttempts } from '../document-submission';
 import { SaleCreateForm } from './sale-create-form';
 
 type SaleStatus = (typeof SALE_STATUSES)[number];
@@ -59,7 +60,7 @@ type SaleStatus = (typeof SALE_STATUSES)[number];
     TabloHucre,
     TarihSecici,
   ],
-  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels],
+  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PendingDocumentAttempts],
   templateUrl: './vehicle-sale-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -68,6 +69,7 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
   private readonly labels = inject(CustomerLabels);
+  private readonly pending = inject(PendingDocumentAttempts);
   private readonly t = ceviriFonksiyonu();
 
   protected readonly query = listeSorgusuUrlSenkronu(SALE_LIST);
@@ -133,11 +135,11 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (this.canWrite() && this.createOpen()) untracked(() => this.branches.list.yukle());
     });
-    sayfaTerkKorumasi(() => this.formDirty);
+    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.formDirty;
+    return this.formDirty || this.pending.any() > 0;
   }
 
   protected dirtyChanged(dirty: boolean): void {

@@ -47,7 +47,8 @@ import {
 } from '../document-model';
 import { PENALTIES, PenaltyStore, recordPath } from '../document.store';
 import { PenaltyCreateForm } from './penalty-create-form';
-import { PenaltyPaymentForm } from './penalty-payment-form';
+import { PendingDocumentAttempts } from '../document-submission';
+import { PenaltyPaymentForm, penaltyPaymentScope } from './penalty-payment-form';
 
 type PenaltyStatus = (typeof PENALTY_STATUSES)[number];
 type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
@@ -76,7 +77,7 @@ type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
     TarihPipe,
     TarihSecici,
   ],
-  providers: [FetchPolicy, PenaltyStore],
+  providers: [FetchPolicy, PenaltyStore, PendingDocumentAttempts],
   templateUrl: './penalty-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -85,6 +86,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   private readonly api = inject(ApiIstemcisi);
   private readonly session = inject(OturumServisi);
   private readonly confirm = inject(OnayServisi);
+  private readonly pending = inject(PendingDocumentAttempts);
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
@@ -160,7 +162,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.dirtyForms.size > 0;
+    return this.dirtyForms.size > 0 || this.pending.any() > 0;
   }
 
   protected dirtyChanged(form: string, dirty: boolean): void {
@@ -204,16 +206,40 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
     this.store.list.yenile();
   }
 
-  protected open(row: PenaltyRow): void {
+  protected async open(row: PenaltyRow): Promise<void> {
+    if (this.selectedId() === row.id) {
+      this.store.detail.yukle(row.id);
+      return;
+    }
+    if (!(await this.releasePayment())) return;
     this.selectedId.set(row.id);
-    this.dirtyForms.delete('odeme');
     this.store.detail.yukle(row.id);
   }
 
-  protected closeDetail(): void {
+  protected async closeDetail(): Promise<void> {
+    if (!(await this.releasePayment())) return;
     this.selectedId.set(null);
-    this.dirtyForms.delete('odeme');
     this.store.detail.sifirla();
+  }
+
+  /**
+   * Açık ödeme formu kirli ya da sonucu belirsiz deneme taşıyorsa başka cezaya geçiş/kapatma onay ister (r300 L4).
+   * Donmuş deneme sayfada kalır: ceza yeniden açılınca form aynı gövde + anahtarla KİLİTLİ gelir.
+   */
+  private async releasePayment(): Promise<boolean> {
+    const id = this.selectedId();
+    const risky =
+      this.dirtyForms.has('odeme') ||
+      (id !== null && this.pending.get(penaltyPaymentScope(id)) !== undefined);
+    if (risky) {
+      const yes = await this.confirm.sor({
+        baslik: this.t('finansBelge.ayrilBaslik'),
+        mesaj: this.t('finansBelge.ayrilMesaj'),
+      });
+      if (!yes) return false;
+    }
+    this.dirtyForms.delete('odeme');
+    return true;
   }
 
   protected paymentDone(): void {

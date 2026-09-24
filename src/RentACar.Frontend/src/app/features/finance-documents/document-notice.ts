@@ -4,8 +4,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { FormNotice } from './document-requests';
 
 /**
- * Para formunun altındaki kalıcı not (toast kaybolur, bu kalır): 409 `mukerrer`'de YAZILMIŞ kayıt (no + tutar; aynı
- * içerik mi değil mi), ağ/5xx'te "sonuç bilinmiyor — aynı işlem aynı anahtarla gider". Kullanıcıyı ikinci işleme
+ * Para formunun altındaki kalıcı not (interceptor bu formlarda `mukerrer` toast'u göstermez — aynı metin iki yerde
+ * çıkmasın): 409 `mukerrer`'de önceki denemenin kaydı (no + tutar; değiştirilen içerik yazılmadı), `mevcut`suz 409'da
+ * "kaydedilmiş olabilir", ağ/5xx'te "sonuç bilinmiyor — aynı içerik aynı anahtarla gider". Kullanıcıyı ikinci işleme
  * yönlendiren metin YOK.
  */
 @Component({
@@ -19,13 +20,16 @@ import type { FormNotice } from './document-requests';
         [class.rc-form-mesaji--uyari]="n.tone === 'uyari'"
         [attr.role]="n.tone === 'uyari' ? 'alert' : 'status'"
       >
-        @if (n.key === 'mevcut') {
-          {{
-            (n.params['durum'] === 'ayni' ? 'finansBelge.mevcutAyni' : 'finansBelge.mevcutFarkli')
-              | transloco: n.params
-          }}
-        } @else {
-          {{ 'finansBelge.sonucBilinmiyor' | transloco }}
+        @switch (n.key) {
+          @case ('kaydedildi') {
+            {{ 'finansBelge.oncekiKaydedildi' | transloco: n.params }}
+          }
+          @case ('olabilir') {
+            {{ 'finansBelge.kaydedilmisOlabilir' | transloco }}
+          }
+          @default {
+            {{ 'finansBelge.sonucBilinmiyor' | transloco }}
+          }
         }
       </p>
     }

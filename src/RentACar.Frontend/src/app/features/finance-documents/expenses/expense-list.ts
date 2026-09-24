@@ -43,7 +43,9 @@ import {
 } from '../document-model';
 import { BranchNames, ExpenseStore } from '../document.store';
 import { ExpenseCreateForm } from './expense-create-form';
-import { ExpensePaymentForm } from './expense-payment-form';
+import { ExpensePaymentForm, expensePaymentScope } from './expense-payment-form';
+import { PendingDocumentAttempts } from '../document-submission';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 
 /**
  * Giderler (`/app/giderler`) — Blazor `ExpenseList.razor` paritesi: yeni gider (FinanceWrite, `Idempotency-Key`),
@@ -67,7 +69,7 @@ import { ExpensePaymentForm } from './expense-payment-form';
     TabloHucre,
     TarihSecici,
   ],
-  providers: [FetchPolicy, ExpenseStore, BranchNames, CustomerLabels],
+  providers: [FetchPolicy, ExpenseStore, BranchNames, CustomerLabels, PendingDocumentAttempts],
   templateUrl: './expense-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -75,6 +77,8 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(ExpenseStore);
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
+  private readonly pending = inject(PendingDocumentAttempts);
+  private readonly confirm = inject(OnayServisi);
   private readonly labels = inject(CustomerLabels);
   private readonly t = ceviriFonksiyonu();
 
@@ -151,7 +155,7 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.dirtyForms.size > 0;
+    return this.dirtyForms.size > 0 || this.pending.any() > 0;
   }
 
   protected dirtyChanged(form: string, dirty: boolean): void {
@@ -195,14 +199,33 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
     this.createToggle.set(!this.createOpen());
   }
 
-  protected pay(r: ExpenseRow): void {
-    this.dirtyForms.delete('odeme');
+  protected async pay(r: ExpenseRow): Promise<void> {
+    if (this.payingId() === r.id || !(await this.releasePayment())) return;
     this.payingId.set(r.id);
   }
 
-  protected closePayment(): void {
+  protected async closePayment(): Promise<void> {
+    if (await this.releasePayment()) this.payingId.set(null);
+  }
+
+  /**
+   * Açık ödeme formu kirli ya da sonucu belirsiz bir deneme taşıyorsa kapatma/başka satır onay ister (r300 L4). Donmuş
+   * deneme sayfada kalır: gider yeniden açılınca form aynı gövde + anahtarla KİLİTLİ gelir.
+   */
+  private async releasePayment(): Promise<boolean> {
+    const id = this.payingId();
+    const risky =
+      this.dirtyForms.has('odeme') ||
+      (id !== null && this.pending.get(expensePaymentScope(id)) !== undefined);
+    if (risky) {
+      const yes = await this.confirm.sor({
+        baslik: this.t('finansBelge.ayrilBaslik'),
+        mesaj: this.t('finansBelge.ayrilMesaj'),
+      });
+      if (!yes) return false;
+    }
     this.dirtyForms.delete('odeme');
-    this.payingId.set(null);
+    return true;
   }
 
   protected paymentDone(): void {

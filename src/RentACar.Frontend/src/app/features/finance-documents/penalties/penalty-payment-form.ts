@@ -2,31 +2,28 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   computed,
   inject,
   input,
   output,
-  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { paraBicimle } from '@core/bicim/bicim';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
-import { DocumentNotice } from '../document-notice';
 import {
   ACCOUNT_KINDS,
   type AccountKind,
@@ -34,19 +31,22 @@ import {
   type PenaltyPaymentResult,
 } from '../document-model';
 import {
-  type FormNotice,
   type PenaltyPaymentForm as PaymentValue,
-  formNotice,
   penaltyPaymentRequest,
 } from '../document-requests';
+import { DocumentNotice } from '../document-notice';
+import { DocumentSubmission } from '../document-submission';
+import { DocumentSubmitBar } from '../document-submit-bar';
 import { PENALTIES, recordPath } from '../document.store';
 
+/** Ceza ödeme formunun donmuş deneme kapsamı (sayfa `PendingDocumentAttempts` anahtarı). */
+export const penaltyPaymentScope = (id: string) => `ceza-odeme:${id}`;
+
 /**
- * Ceza kalem ödemesi — PARA (`POST /cezalar/{id}/odeme`; Borç Gider / Alacak Kasa·Banka). `Idempotency-Key` ZORUNLU:
- * mantıksal gönderim başına bir anahtar; doğrulama/ağ hatası ve oturum düşmesinden sonraki tekrar AYNI anahtarla,
- * 2xx ve `mukerrer` sonrası yeni anahtar. Tutar boş → kalemin kalanının tamamı (SUNUCU; istemci kalanı kopyalamaz).
- * Kalem değişince tutar TEMİZLENİR (eski kalemin tutarı yeni kaleme gitmesin — DEVIR §5). Bileşen ceza başına yeniden
- * kurulur (`@for … track id`).
+ * Ceza kalem ödemesi — PARA (`POST /cezalar/{id}/odeme`; Borç Gider / Alacak Kasa·Banka). Gönderim
+ * {@link DocumentSubmission}: uçuşta kilit; belirsiz sonuçta gövde donar (ceza başına sayfada saklanır), tekrar yalnız
+ * o gövdeyle; `mevcut`suz 409'da anahtar KORUNUR (r300 M3). Tutar boş → kalemin kalanının tamamı (SUNUCU). Kalem
+ * değişince tutar TEMİZLENİR (eski kalemin tutarı yeni kaleme gitmesin). Bileşen ceza başına yeniden kurulur.
  */
 @Component({
   selector: 'rc-penalty-payment-form',
@@ -56,7 +56,7 @@ import { PENALTIES, recordPath } from '../document.store';
     TranslocoPipe,
     Alan,
     DocumentNotice,
-    FormHatalari,
+    DocumentSubmitBar,
     MetinGirdisi,
     ParaGirdisi,
     Secim,
@@ -65,8 +65,8 @@ import { PENALTIES, recordPath } from '../document.store';
   templateUrl: './penalty-payment-form.html',
   styleUrl: '../finance-documents.scss',
 })
-export class PenaltyPaymentForm {
-  private readonly api = inject(ApiIstemcisi);
+export class PenaltyPaymentForm implements OnInit {
+  private readonly confirm = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
 
@@ -89,7 +89,6 @@ export class PenaltyPaymentForm {
   protected readonly accountOptions: readonly SecenekOgesi<AccountKind>[] = ACCOUNT_KINDS.map(
     (a) => ({ deger: a, etiket: a }),
   );
-  protected readonly notice = signal<FormNotice | null>(null);
 
   protected readonly form = new FormGroup({
     satirId: new FormControl<string | null>(null, Validators.required),
@@ -100,7 +99,11 @@ export class PenaltyPaymentForm {
     islemYapan: new FormControl<string | null>(null, Validators.maxLength(128)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = new DocumentSubmission(
+    this.form,
+    () => penaltyPaymentScope(this.detail().ceza.id),
+    {},
+  );
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -112,18 +115,17 @@ export class PenaltyPaymentForm {
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
   }
 
+  ngOnInit(): void {
+    this.submission.restore();
+  }
+
   protected submit(): void {
-    this.notice.set(null);
     const id = this.detail().ceza.id;
-    const body = penaltyPaymentRequest(this.form.getRawValue() as PaymentValue);
-    this.submission.gonder(
-      this.form,
-      (key) =>
-        this.api.post<PenaltyPaymentResult>(recordPath(PENALTIES, id, '/odeme'), body, {
-          islemAnahtari: key,
-        }),
+    this.submission.submit<PenaltyPaymentResult>(
+      recordPath(PENALTIES, id, '/odeme'),
+      () => penaltyPaymentRequest(this.form.getRawValue() as PaymentValue),
       {
-        basarili: (r) => {
+        succeeded: (r) => {
           this.toast.basari(
             this.t('finansBelge.ceza.odemeYazildi', {
               tutar: paraBicimle(toNumber(r.tutar)),
@@ -133,21 +135,24 @@ export class PenaltyPaymentForm {
           this.reset();
           this.paid.emit(r);
         },
-        hata: (h) => {
-          this.notice.set(formNotice(h));
-          if (h.kod === 'mukerrer') {
-            if (h.mevcut?.ayniIcerik) this.reset();
-            this.paid.emit(null);
-          }
-          if (h.kod === 'cakisma') this.paid.emit(null);
-        },
+        recorded: () => this.reset(),
+        reload: () => this.paid.emit(null),
       },
     );
   }
 
+  protected async abandon(): Promise<void> {
+    const yes = await this.confirm.sor({
+      baslik: this.t('finansBelge.vazgecBaslik'),
+      mesaj: this.t('finansBelge.vazgecMesaj'),
+      tehlikeli: true,
+    });
+    if (yes) this.submission.abandon();
+  }
+
   private reset(): void {
     this.form.reset({ hesap: 'Kasa' });
-    this.submission.kilit.yenile();
+    this.submission.renew();
     this.dirtyChange.emit(false);
   }
 }

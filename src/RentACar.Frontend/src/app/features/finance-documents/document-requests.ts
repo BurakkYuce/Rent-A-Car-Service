@@ -1,4 +1,4 @@
-import type { ApiHatasi } from '@core/api/api-hatasi';
+import type { ApiHatasi, MevcutIslem } from '@core/api/api-hatasi';
 import { paraBicimle } from '@core/bicim/bicim';
 import type { GunMetni } from '@core/form/tarih-girdisi';
 import { sonucuBilinmeyenHata } from '@core/form/tahsilat-denemesi';
@@ -350,31 +350,56 @@ export function incomingExpenseRequest(v: IncomingExpenseForm): IncomingInvoiceE
   };
 }
 
-/** Form altındaki kalıcı not: 409 `mukerrer`'de mevcut kayıt, sonucu bilinmeyen hatada "aynı işlem" uyarısı. */
+/**
+ * Form altındaki kalıcı not:
+ * - `kaydedildi` — 409 `mukerrer` + `mevcut`: önceki deneme KAYITLI (No + tutar); değiştirilen içerik yazılmadı.
+ * - `belirsiz` — ağ/5xx: sonuç bilinmiyor; gövde dondu, tekrar aynı içerik + anahtarla.
+ * - `olabilir` — `mevcut`suz `mukerrer` (yarış): önceki deneme kaydedilmiş olabilir; anahtar korunur.
+ */
 export interface FormNotice {
   readonly tone: 'bilgi' | 'uyari';
-  readonly key: 'mevcut' | 'belirsiz';
+  readonly key: 'kaydedildi' | 'belirsiz' | 'olabilir';
   readonly params: Readonly<Record<string, string>>;
 }
 
 /**
- * Hata → not. `mukerrer` + `mevcut`: yazılmış kaydın no'su ve tutarı gösterilir (`ayniIcerik` → bu işlem zaten kayıtlı;
- * değilse girilen YAZILMADI — kullanıcı kayıtları kontrol eder, ikinci işleme yönlendirilmez). Ağ/5xx: sonuç bilinmiyor;
- * form ve işlem anahtarı KORUNUR, tekrar AYNI anahtarla gider (sunucu ikinci kaydı yazmaz).
+ * `mevcut` → not. `ayniIcerik` true ya da false AYNI metin (r300 HIGH-1): bu anahtar işlem başına rastgeledir; kayıt
+ * varsa onu bu işlemin önceki denemesi yazmıştır. "Başka kayıt / girdiğiniz yazılmadı, tekrar girin" metni ikinci
+ * belgeye yönlendiriyordu. Düzeltme iade/iptalle yapılır.
  */
-export function formNotice(error: ApiHatasi): FormNotice | null {
-  if (error.kod === 'mukerrer' && error.mevcut) {
-    const m = error.mevcut;
-    return {
-      tone: m.ayniIcerik ? 'bilgi' : 'uyari',
-      key: 'mevcut',
-      params: {
-        no: m.belgeNo ?? '',
-        tutar: paraBicimle(toNumber(m.tutar), m.doviz || 'TRY'),
-        durum: m.ayniIcerik ? 'ayni' : 'farkli',
-      },
-    };
+export function recordedNotice(m: MevcutIslem): FormNotice {
+  return {
+    tone: 'uyari',
+    key: 'kaydedildi',
+    params: { no: m.belgeNo ?? '', tutar: paraBicimle(toNumber(m.tutar), m.doviz || 'TRY') },
+  };
+}
+
+/**
+ * Kayıtlı KDV kırılımının okunur özeti (giderleştirme onayı; r300 M4): yalnız dolu kademeler, tutarlar sunucunun
+ * değeri (istemci toplamaz). Hiç kademe yoksa `empty`.
+ */
+export function vatBreakdownText(r: IncomingInvoiceRow, empty: string): string {
+  const c = r.doviz || 'TRY';
+  const m = (v: number | string | null | undefined) => paraBicimle(toNumber(v), c);
+  const parts: string[] = [];
+  const tiers: readonly [string, number | string | null, number | string | null][] = [
+    ['%20', r.kdv20Matrah, r.kdv20],
+    ['%10', r.kdv10Matrah, r.kdv10],
+    ['%1', r.kdv1Matrah, r.kdv1],
+    ['%0', r.kdv0Matrah, null],
+  ];
+  for (const [label, base, vat] of tiers) {
+    if (toNumber(base) === null && toNumber(vat) === null) continue;
+    parts.push(vat === null ? `${label}: ${m(base)}` : `${label}: ${m(base)} + KDV ${m(vat)}`);
   }
+  return parts.length === 0 ? empty : parts.join('; ');
+}
+
+/** Başlıksız (deterministik sunucu anahtarlı) işlemler için hata → not (giderleştirme). */
+export function formNotice(error: ApiHatasi): FormNotice | null {
+  if (error.kod === 'mukerrer' && error.mevcut) return recordedNotice(error.mevcut);
+  if (error.kod === 'mukerrer') return { tone: 'uyari', key: 'olabilir', params: {} };
   if (sonucuBilinmeyenHata(error)) return { tone: 'uyari', key: 'belirsiz', params: {} };
   return null;
 }

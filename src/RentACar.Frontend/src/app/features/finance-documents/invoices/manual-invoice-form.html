@@ -88,20 +88,10 @@
         <option [value]="p"></option>
       }
     </datalist>
-    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <rc-document-notice [notice]="notice()" />
-    <div class="form__eylemler">
-      <button
-        type="submit"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [disabled]="submission.gonderiliyor()"
-      >
-        {{
-          submission.gonderiliyor()
-            ? ('form.gonderiliyor' | transloco)
-            : ('finansBelge.fatura.manuelKes' | transloco)
-        }}
-      </button>
-    </div>
+    <rc-document-submit-bar
+      [submission]="submission"
+      [label]="'finansBelge.fatura.manuelKes' | transloco"
+      (abandon)="abandon()"
+    />
   </form>
 </section>

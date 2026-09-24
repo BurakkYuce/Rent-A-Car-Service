@@ -5,13 +5,11 @@ import {
   inject,
   input,
   output,
-  signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { SecimOgesi } from '@core/api/ui-tipleri';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
@@ -19,8 +17,6 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
 import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
@@ -29,7 +25,8 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
-import { DocumentNotice } from '../document-notice';
+import { DocumentSubmission } from '../document-submission';
+import { DocumentSubmitBar } from '../document-submit-bar';
 import {
   CURRENCIES,
   type DocumentResult,
@@ -38,7 +35,7 @@ import {
   VAT_RATES,
   type VatRate,
 } from '../document-model';
-import { type FormNotice, type SaleForm, formNotice, saleRequest } from '../document-requests';
+import { type SaleForm, saleRequest } from '../document-requests';
 import { SALES } from '../document.store';
 
 const EMPTY = { kdvOrani: '0.20', doviz: 'TRY', kirayaVerme: false, satisiVerildi: false } as const;
@@ -56,8 +53,7 @@ const EMPTY = { kdvOrani: '0.20', doviz: 'TRY', kirayaVerme: false, satisiVerild
     TranslocoPipe,
     Alan,
     AramaSecim,
-    DocumentNotice,
-    FormHatalari,
+    DocumentSubmitBar,
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,
@@ -69,13 +65,12 @@ const EMPTY = { kdvOrani: '0.20', doviz: 'TRY', kirayaVerme: false, satisiVerild
   styleUrl: '../finance-documents.scss',
 })
 export class SaleCreateForm {
-  private readonly api = inject(ApiIstemcisi);
   private readonly confirm = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
 
   readonly branches = input<readonly SecimOgesi[] | undefined>(undefined);
-  readonly saved = output<DocumentResult>();
+  readonly saved = output<DocumentResult | null>();
   readonly dirtyChange = output<boolean>();
 
   protected readonly vehicles = sunucuSecimKaynagi('arac');
@@ -89,7 +84,6 @@ export class SaleCreateForm {
     deger: c,
     etiket: c,
   }));
-  protected readonly notice = signal<FormNotice | null>(null);
 
   protected readonly form = new FormGroup({
     arac: new FormControl<SecimSecenegi | null>(null, Validators.required),
@@ -121,19 +115,30 @@ export class SaleCreateForm {
   protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
   });
-  protected readonly submission = formGonderimi();
+  /** Yapısal idempotency (araç başına tek satış) + aynı yaşam döngüsü: uçuşta kilit, belirsizde donmuş gövde. */
+  protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-satis', {
+    aracId: 'arac',
+    aliciCariId: 'alici',
+  });
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
     this.form.valueChanges
-      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
+    // Açık kur yalnız seçildiği dövize aittir (r300 M2: USD kuru EUR satışına gidiyordu).
+    this.form.controls.doviz.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+      if (this.form.controls.kur.value !== null) this.form.controls.kur.reset(null);
+    });
   }
 
   protected async submit(): Promise<void> {
-    if (this.submission.gonderiliyor()) return;
-    // İstemci doğrulaması onaydan ÖNCE (eksik formla onay sorulmaz); gönderimde `formGonderimi` yeniden denetler.
-    this.form.markAllAsTouched();
-    if (this.form.invalid) return;
+    if (this.submission.sending()) return;
+    // İstemci doğrulaması onaydan ÖNCE (eksik formla onay sorulmaz). Donmuş denemede form kilitli, onay yine sorulur.
+    if (!this.submission.frozen()) {
+      this.form.markAllAsTouched();
+      if (this.form.invalid) return;
+    }
     const yes = await this.confirm.sor({
       baslik: this.t('finansBelge.satis.satBaslik'),
       mesaj: this.t('finansBelge.satis.satOnay', {
@@ -141,22 +146,33 @@ export class SaleCreateForm {
       }),
     });
     if (!yes) return;
-    this.notice.set(null);
-    const body = saleRequest(this.form.getRawValue() as SaleForm);
-    this.submission.gonder(
-      this.form,
-      (key) => this.api.post<DocumentResult>(SALES, body, { islemAnahtari: key }),
+    this.submission.submit<DocumentResult>(
+      SALES,
+      () => saleRequest(this.form.getRawValue() as SaleForm),
       {
-        esleme: { aracId: 'arac', aliciCariId: 'alici' },
-        basarili: (r) => {
+        succeeded: (r) => {
           this.toast.basari(this.t('finansBelge.satis.kaydedildi', { no: r.no }));
-          this.form.reset({ ...EMPTY });
-          this.submission.kilit.yenile();
-          this.dirtyChange.emit(false);
+          this.reset();
           this.saved.emit(r);
         },
-        hata: (h) => this.notice.set(formNotice(h)),
+        recorded: () => this.reset(),
+        reload: () => this.saved.emit(null),
       },
     );
+  }
+
+  protected async abandon(): Promise<void> {
+    const yes = await this.confirm.sor({
+      baslik: this.t('finansBelge.vazgecBaslik'),
+      mesaj: this.t('finansBelge.vazgecMesaj'),
+      tehlikeli: true,
+    });
+    if (yes) this.submission.abandon();
+  }
+
+  private reset(): void {
+    this.form.reset({ ...EMPTY });
+    this.submission.renew();
+    this.dirtyChange.emit(false);
   }
 }

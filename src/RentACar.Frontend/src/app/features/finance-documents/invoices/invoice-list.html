@@ -204,9 +204,10 @@
     </section>
   }
 
-  @if (canWrite()) {
+  @if (canManual()) {
     <rc-manual-invoice-form (saved)="manualSaved()" (dirtyChange)="manualDirtyChanged($event)" />
-
+  }
+  @if (canWrite()) {
     <section class="bolum" aria-labelledby="rc-toplu-fatura">
       <h2 id="rc-toplu-fatura">{{ 'finansBelge.fatura.topluBaslik' | transloco }}</h2>
       <p class="not">{{ 'finansBelge.fatura.topluAciklama' | transloco }}</p>

@@ -24,6 +24,7 @@ import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import { Alan } from '@shared/form/alan/alan';
@@ -94,6 +95,7 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
   protected readonly branches = inject(BranchNames);
   private readonly api = inject(ApiIstemcisi);
   private readonly confirm = inject(OnayServisi);
+  private readonly session = inject(OturumServisi);
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
@@ -111,6 +113,10 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
   });
   protected readonly createOpen = signal(false);
   protected readonly syncOpen = signal(false);
+  /** Gelen e-fatura kiracı geneli tedarikçi belgesidir: şubeye bağlı kullanıcıda uç 403 (r300 L3 — düğme yok). */
+  protected readonly unrestricted = computed(
+    () => this.session.ben()?.subeKapsami.tumSubeler === true,
+  );
 
   protected readonly statusOptions: readonly SecenekOgesi<IncomingStatus>[] = INCOMING_STATUSES.map(
     (s) => ({ deger: s, etiket: this.t(`finansBelge.gelen.durumlar.${s}`) }),
@@ -265,16 +271,33 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
 
   // ------------------------------------------------------------------ satır işlemleri
 
-  protected openPanel(kind: Panel['kind'], row: IncomingInvoiceRow): void {
-    this.dirtyForms.delete('panel');
+  protected async openPanel(kind: Panel['kind'], row: IncomingInvoiceRow): Promise<void> {
+    const p = this.panel();
+    if (p?.kind === kind && p.id === row.id) return;
+    if (!(await this.releasePanel())) return;
     this.rejectForm.reset();
     if (kind !== 'reject') this.branches.list.yukle();
     this.panel.set({ kind, id: row.id });
   }
 
-  protected closePanel(): void {
+  protected async closePanel(): Promise<void> {
+    if (await this.releasePanel()) this.panel.set(null);
+  }
+
+  /**
+   * Kirli KDV kırılımı / red nedeni başka panele geçerken ya da kapatılırken onaysız ATILMAZ (r300 M4: kullanıcı
+   * kırılımı girip "Giderleştir"e basınca kırılım sessizce kayboluyor, giderleştirme kayıtlı değerlerle gidiyordu).
+   */
+  private async releasePanel(): Promise<boolean> {
+    if (this.dirtyForms.has('panel') || this.rejectForm.dirty) {
+      const yes = await this.confirm.sor({
+        baslik: this.t('finansBelge.ayrilBaslik'),
+        mesaj: this.t('finansBelge.gelen.panelAyrilMesaj'),
+      });
+      if (!yes) return false;
+    }
     this.dirtyForms.delete('panel');
-    this.panel.set(null);
+    return true;
   }
 
   protected panelDone(): void {

@@ -1,6 +1,7 @@
 import { ApiHatasi } from '@core/api/api-hatasi';
 
-import { invoiceLineExportParameters } from './document-model';
+import { type IncomingInvoiceRow, invoiceLineExportParameters } from './document-model';
+import { currencyMismatch } from './expenses/currency-rules';
 import {
   type ExpenseForm,
   type ManualInvoiceForm,
@@ -13,6 +14,7 @@ import {
   manualInvoiceRequest,
   penaltyPaymentRequest,
   penaltyRequest,
+  vatBreakdownText,
 } from './document-requests';
 
 /** Beklenen değerler elle yazıldı (bağımsız oracle); gövde kurucularının kendisinden türetilmez. */
@@ -208,10 +210,11 @@ describe('finans belge gövdeleri', () => {
         ayniIcerik: true,
       },
     });
+    // r300 HIGH-1: ayniIcerik true ya da false AYNI not — önceki deneme kayıtlı, değiştirilen içerik yazılmadı.
     expect(formNotice(same)).toEqual({
-      tone: 'bilgi',
-      key: 'mevcut',
-      params: { no: 'RNT2026000000007', tutar: '1.800,60 ₺', durum: 'ayni' },
+      tone: 'uyari',
+      key: 'kaydedildi',
+      params: { no: 'RNT2026000000007', tutar: '1.800,60 ₺' },
     });
     const other = new ApiHatasi({
       status: 409,
@@ -219,13 +222,47 @@ describe('finans belge gövdeleri', () => {
       detay: 'başka',
       mevcut: { id: 'x', belgeNo: 'GD-1', tutar: '50', doviz: 'EUR', ayniIcerik: false },
     });
-    expect(formNotice(other)).toMatchObject({ tone: 'uyari', params: { durum: 'farkli' } });
+    expect(formNotice(other)).toEqual({
+      tone: 'uyari',
+      key: 'kaydedildi',
+      params: { no: 'GD-1', tutar: '50,00 €' },
+    });
+    // r300 M3: mevcut'suz 409 → "kaydedilmiş olabilir" (yazılmadı DEĞİL).
+    expect(formNotice(new ApiHatasi({ status: 409, kod: 'mukerrer', detay: 'yarış' }))).toEqual({
+      tone: 'uyari',
+      key: 'olabilir',
+      params: {},
+    });
     expect(formNotice(new ApiHatasi({ status: 0, kod: 'ag', detay: 'ağ' }))).toEqual({
       tone: 'uyari',
       key: 'belirsiz',
       params: {},
     });
     expect(formNotice(new ApiHatasi({ status: 400, kod: 'dogrulama', detay: 'x' }))).toBeNull();
+  });
+
+  it('giderleştirme onayı: kayıtlı kırılım okunur özet, boş kademe atlanır', () => {
+    const row = {
+      doviz: 'TRY',
+      kdv20Matrah: 1000,
+      kdv20: 200,
+      kdv10Matrah: null,
+      kdv10: null,
+      kdv1Matrah: null,
+      kdv1: null,
+      kdv0Matrah: '150.25',
+    } as unknown as IncomingInvoiceRow;
+    expect(vatBreakdownText(row, 'yok')).toBe('%20: 1.000,00 ₺ + KDV 200,00 ₺; %0: 150,25 ₺');
+    expect(
+      vatBreakdownText({ ...row, kdv20Matrah: null, kdv20: null, kdv0Matrah: null }, 'yok'),
+    ).toBe('yok');
+  });
+
+  it('döviz uyuşmazlığı: TL = TRY, hesap dövizi bilinmiyorsa uyuşmazlık yok', () => {
+    expect(currencyMismatch('TL', 'TRY')).toBe(false);
+    expect(currencyMismatch('USD', 'EUR')).toBe(true);
+    expect(currencyMismatch(null, 'EUR')).toBe(false);
+    expect(currencyMismatch('eur', 'EUR')).toBe(false);
   });
 
   it('fatura detay listesi dışa aktarma: Blazor adları (ara, iptal=gizle)', () => {

@@ -53,6 +53,7 @@ import {
   VAT_RATES,
   type VatRate,
 } from '../document-model';
+import { PendingDocumentAttempts } from '../document-submission';
 import { INVOICES, InvoiceStore, recordPath } from '../document.store';
 import { ManualInvoiceForm } from './manual-invoice-form';
 
@@ -81,7 +82,7 @@ import { ManualInvoiceForm } from './manual-invoice-form';
     TarihPipe,
     TarihSecici,
   ],
-  providers: [FetchPolicy, InvoiceStore, CustomerLabels],
+  providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingDocumentAttempts],
   templateUrl: './invoice-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -101,6 +102,11 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   protected readonly num = toNumber;
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
+  /** Manuel fatura kiracı genelidir: şubeye bağlı kullanıcı kesemez (sunucu 403; r300 L3). */
+  protected readonly canManual = computed(
+    () => this.canWrite() && this.session.ben()?.subeKapsami.tumSubeler === true,
+  );
+  private readonly pending = inject(PendingDocumentAttempts);
   protected readonly canRefund = computed(() => this.session.izinVar('FinanceReverse'));
   protected readonly busy = signal(false);
   protected readonly selectedId = signal<string | null>(null);
@@ -173,7 +179,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.manualDirty || this.batchSelection().size > 0;
+    return this.manualDirty || this.batchSelection().size > 0 || this.pending.any() > 0;
   }
 
   protected manualDirtyChanged(dirty: boolean): void {
