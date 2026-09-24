@@ -16378,6 +16378,126 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/vardiyalar/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ShiftDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ShiftRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ShiftDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/vardiyalar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ShiftRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ShiftDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/platform/oturum/giris': {
     parameters: {
       query?: never;
@@ -30517,6 +30637,23 @@ export interface components {
       gun: string;
       vardiyalar: components['schemas']['ShiftRow'][];
     };
+    ShiftDto: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      personelId: string;
+      personelAd: string;
+      /** Format: date */
+      tarih: string;
+      baslangicSaat: string;
+      bitisSaat: string;
+      /** Format: int32 */
+      sureDk: number | string;
+      aralik: string;
+      sube: null | string;
+      aciklama: null | string;
+      surum: string;
+    };
     ShiftMatrixRow: {
       /** Format: uuid */
       personelId: string;
@@ -30539,6 +30676,17 @@ export interface components {
       /** Format: int32 */
       toplamDk: number | string;
       liste: components['schemas']['ShiftRow'][];
+    };
+    ShiftRequest: {
+      /** Format: uuid */
+      personelId: null | string;
+      /** Format: date */
+      tarih: null | string;
+      baslangicSaat: null | string;
+      bitisSaat: null | string;
+      sube: null | string;
+      aciklama: null | string;
+      surum?: null | string;
     };
     ShiftRow: {
       /** Format: uuid */

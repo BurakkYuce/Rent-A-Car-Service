@@ -25,7 +25,7 @@ namespace RentACar.Application.Personnel;
 /// </summary>
 public sealed class PersonelVardiyaService(
     IPersonelVardiyaRepository repository, IPersonelRepository personeller,
-    IBranchRepository subeler, ICurrentUser currentUser)
+    IBranchRepository subeler, ICurrentUser currentUser, IRowVersionStore? rowVersions = null)
 {
     private readonly IPersonelVardiyaRepository _repository = repository;
     private readonly IPersonelRepository _personeller = personeller;
@@ -133,6 +133,54 @@ public sealed class PersonelVardiyaService(
         }, ct);
     }
 
+    /// <summary>
+    /// F10.3 — one shift with the staff name (form of <c>/api/ui</c>). Same permission and branch scope as
+    /// <see cref="GetAsync"/>; the name comes from the staff master (no PII: name only, like the matrix).
+    /// </summary>
+    public async Task<VardiyaSatir?> GetWithStaffAsync(Guid id, CancellationToken ct = default)
+    {
+        var row = await GetAsync(id, ct);
+        if (row is null) return null;
+        var staff = await _personeller.FindAsync(row.PersonelId, ct);
+        var name = staff is null ? "—" : $"{staff.Ad} {staff.Soyad}".Trim();
+        return new VardiyaSatir(row, name, staff?.Sube);
+    }
+
+    /// <summary>F10.3 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<PersonelVardiya>(id, ct);
+
+    /// <summary>
+    /// F10.3 — <see cref="UpdateAsync"/> with optimistic concurrency: same validation (staff, day, zero length,
+    /// branch, overlap) and same field whitelist, but the write happens under a row lock with a version check
+    /// (409 <c>cakisma</c>). The branch scope is checked on the stored row BEFORE validation (another branch's row
+    /// must not leak its state) and again under the lock (the row may have moved to another branch meanwhile).
+    /// </summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, VardiyaInput input, string expectedVersion,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var current = await _repository.FindAsync(id, ct);
+        if (current is null) return false;
+        BranchScope.RequireInScope(_currentUser, current.SubeId, current.Sube);
+
+        var copy = new PersonelVardiya { Id = current.Id };
+        await UygulaAsync(copy, input, id, ct);
+
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<PersonelVardiya>(id, expectedVersion, r =>
+        {
+            BranchScope.RequireInScope(_currentUser, r.SubeId, r.Sube);
+            r.PersonelId = copy.PersonelId;
+            r.Tarih = copy.Tarih;
+            r.BaslangicSaat = copy.BaslangicSaat;
+            r.BitisSaat = copy.BitisSaat;
+            r.Sube = copy.Sube;
+            r.SubeId = copy.SubeId;
+            r.Aciklama = copy.Aciklama;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, "Vardiya zaten var.", ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
@@ -183,7 +231,10 @@ public sealed class PersonelVardiyaService(
             if (yBas < bit && bas < yBit)      // yarı-açık aralık: 08-12 ile 12-18 ÇAKIŞMAZ
                 throw new ValidationException(
                     $"{personel.Ad} {personel.Soyad} için çakışan vardiya var: " +
-                    $"{v.Tarih:dd.MM.yyyy} {VardiyaBicim.Aralik(v)}.");
+                    $"{v.Tarih:dd.MM.yyyy} {VardiyaBicim.Aralik(v)}.",
+                    // F10.3: the message starts with the staff name (no fixed prefix to map in the endpoint),
+                    // so the field is named here; the Blazor path reads only the message.
+                    "baslangicSaat");
         }
     }
 }

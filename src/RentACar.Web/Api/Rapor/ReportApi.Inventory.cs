@@ -105,7 +105,7 @@ public static partial class ReportApi
     /// <summary>
     /// Personel × gün vardiya matrisi + düz liste (Blazor <c>PersonelCalismaTablosu</c>). Kapsam ve izin serviste
     /// (ViewReports VEYA OperationsWrite; vardiyanın şubesine göre). Pencere en fazla 92 gün — servis kırpar,
-    /// <c>kirpildi</c> bildirir. Vardiya yazma uçları bu PR'da YOK (rapor PR'ı yalnız okur).
+    /// <c>kirpildi</c> bildirir. Vardiya yazma uçları ayrı: <see cref="ShiftApi"/> (F10.3, <c>/vardiyalar</c>).
     /// </summary>
     private static async Task<Ok<ShiftReport>> StaffShifts(
         DateOnly? bas, DateOnly? bit, Guid? personelId, string? sube, PersonelVardiyaService shifts, CancellationToken ct)
